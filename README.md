@@ -1,7 +1,7 @@
 > [!IMPORTANT]
 > 🚀 New Version in Development 🚀
 >
-> A new version of camera.ui is currently under active development - in progress are advanced works on the alpha version (for a closed group of testers), and the public beta will be available soon.
+> A new version of camera.ui is currently under active development - in progress are advanced works on the alpha version (for a closed group of testers) and the public beta will be available soon.
 >
 > Stay tuned for exciting updates: 
 > https://github.com/seydx/camera.ui/issues/448
