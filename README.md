@@ -1,12 +1,13 @@
 > [!IMPORTANT]
 > 🚀 New Version in Development 🚀
 >
-> This version may contain bugs and they will not be fixed. This version will not be developed either. 
->
-> A new version of camera.ui is currently under active development. Currently in progress are advanced works on the alpha version (for a closed group of testers), and the public beta will be available soon.
+> A new version of camera.ui is currently under active development - in progress are advanced works on the alpha version (for a closed group of testers), and the public beta will be available soon.
 >
 > Stay tuned for exciting updates: 
 > https://github.com/seydx/camera.ui/issues/448
+
+> [!CAUTION]
+> This version will not be developed, current bugs will not be fixed and new features will not be introduced.
 
 <p align="center">
     <img src="https://github.com/SeydX/camera.ui/blob/master/images/logo.png">
