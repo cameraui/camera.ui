@@ -71,7 +71,7 @@
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-unicorn": "^42.0.0",
     "jest": "^27.5.1",
-    "jest-jasmine2": "^27.5.1",
+    "jest-jasmine2": "^30.4.2",
     "nodemon": "^2.0.15",
     "prettier": "^2.6.2",
     "supertest": "6.2.2"
