@@ -12,6 +12,7 @@
     "format": "tsx ./scripts/format.ts",
     "install-updates": "npm i --save && tsx ./scripts/install.ts",
     "lint": "tsx ./scripts/lint.ts",
+    "link:python": "node ./scripts/link-python-tools.mjs",
     "presetup": "npm install",
     "release": "tsx ./scripts/release.ts",
     "setup": "tsx ./scripts/setup.ts",

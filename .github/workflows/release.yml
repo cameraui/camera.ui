@@ -65,6 +65,12 @@ jobs:
           # prepublishOnly for server builds the UI into server/dist/interface
           if [ "${{ steps.r.outputs.dir }}" = "server" ]; then npm --prefix ui install; fi
 
+      - name: Assemble Python tools from externals
+        if: steps.r.outputs.dir == 'server'
+        run: |
+          git submodule update --init externals/sdk externals/common externals/rpc
+          npm run link:python
+
       - name: Publish to npm (provenance via OIDC)
         working-directory: ${{ steps.r.outputs.dir }}
         run: |
