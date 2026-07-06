@@ -54,6 +54,7 @@ export interface CorsConfig {
 export interface IConfig {
   port: number;
   host?: string;
+  ffmpegPath?: string;
   ssl: IConfigSSL;
   logger: Logger;
   plugins: PluginsSettings;

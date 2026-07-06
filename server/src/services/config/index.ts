@@ -1,4 +1,3 @@
-import { isFfmpegInstalled } from '@camera.ui/common/camera';
 import { getUserHomeDir } from '@camera.ui/common/node';
 import { IS_DEV, IS_DOCKER, IS_ELECTRON, IS_HA, isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { go2rtcPath } from '@camera.ui/go2rtc';
@@ -8,7 +7,7 @@ import { emptyDirSync, ensureDirSync, ensureFileSync, pathExistsSync, readJsonSy
 import { dump, load } from 'js-yaml';
 import { ffmpegPath, isFfmpegAvailable } from 'node-av';
 import { createHash, randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { arch, platform, release, tmpdir, type } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -590,8 +589,15 @@ export class ConfigService {
     config.api.tls_key = this.config.ssl.keyFile;
     config.api.tls_ca = this.config.ssl.caFile;
 
-    if (!isFfmpegInstalled(config.ffmpeg.bin)) {
-      config.ffmpeg.bin = !isFfmpegAvailable() ? (platform() === 'win32' ? 'ffmpeg.exe' : 'ffmpeg') : ffmpegPath().replace('app.asar', ELECTRON_ASAR_UNPACKED);
+    const customFfmpeg = this.config.ffmpegPath?.trim();
+    const bundledFfmpeg = isFfmpegAvailable() ? ffmpegPath().replace('app.asar', ELECTRON_ASAR_UNPACKED) : undefined;
+
+    if (customFfmpeg && existsSync(customFfmpeg)) {
+      config.ffmpeg.bin = customFfmpeg;
+    } else if (bundledFfmpeg) {
+      config.ffmpeg.bin = bundledFfmpeg;
+    } else {
+      config.ffmpeg.bin = platform() === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
     }
 
     config.webrtc.filters ??= {};
