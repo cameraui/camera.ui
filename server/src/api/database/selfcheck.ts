@@ -4,7 +4,7 @@ import { dump as yamlDump } from 'js-yaml';
 import { constants, existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { container } from 'tsyringe';
 
 import { ConfigService } from '../../services/config/index.js';
@@ -129,6 +129,12 @@ export class SelfCheck {
       { path: this.configService.PLUGINS_INSTALL_PATH, mode: constants.R_OK | constants.W_OK | constants.X_OK },
       { path: this.configService.PIDS_FILE, mode: constants.R_OK | constants.W_OK },
     ];
+
+    const ffmpegBin = this.configService.go2rtcConfig.ffmpeg.bin;
+    if (ffmpegBin && isAbsolute(ffmpegBin)) {
+      pathsToCheck.push(ffmpegBin);
+      pathsWithPermissionsToCheck.push({ path: ffmpegBin, mode: constants.X_OK });
+    }
 
     const portsToCheck = [
       this.configService.config.port,
