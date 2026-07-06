@@ -1,0 +1,47 @@
+{
+  "displayName": "Onvif",
+  "name": "@camera.ui/camera-ui-onvif",
+  "version": "0.0.1",
+  "description": "ONVIF integration for camera.ui. Provides PTZ control and motion detection via ONVIF Events.",
+  "author": "seydx (https://github.com/cameraui/plugins)",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "rimraf dist && npm run build:onvif && tsc",
+    "build:onvif": "npm --prefix ../externals/onvif ci --ignore-scripts && npm --prefix ../externals/onvif run build",
+    "bundle": "npm run format && npm run lint:fix && npm run build && cui bundle",
+    "bundle:dev": "npm run format && npm run lint:fix && npm run build && cross-env MODE=development cui bundle",
+    "format": "prettier --write \"src/\" --ignore-unknown --no-error-on-unmatched-pattern",
+    "install-updates": "npm i --save",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prepublishOnly": "node -e \"if(!process.env.SAFE_PUBLISH){console.error('Error: Please use @camera.ui/cli to publish the plugin:\\n  npm run publish:alpha\\n  npm run publish:beta\\n  npm run publish:latest\\n');process.exit(1)}\"",
+    "publish:alpha": "npm i --save && npm run bundle && cui publish --alpha",
+    "publish:beta": "npm i --save && npm run bundle && cui publish --beta",
+    "publish:latest": "npm i --save && npm run bundle && cui publish --latest",
+    "update": "updates --update ./"
+  },
+  "bugs": {
+    "url": "https://github.com/cameraui/plugins/issues"
+  },
+  "engines": {
+    "camera.ui": ">=0.0.50",
+    "node": ">=20.19.0"
+  },
+  "homepage": "https://github.com/cameraui/plugins/tree/main/camera-ui-onvif#readme",
+  "keywords": [
+    "camera-ui-plugin",
+    "ptz",
+    "onvif"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cameraui/plugins.git",
+    "directory": "camera-ui-onvif"
+  },
+  "files": [
+    "bundle.zip",
+    "CHANGELOG.md"
+  ]
+}

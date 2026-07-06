@@ -1,0 +1,96 @@
+name: 🐞 Bug Report
+description: Report a Bug to help us improve
+title: 'Bug: '
+labels: [bug]
+assignees:
+  - seydx
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hi. Thanks for taking the time to fill out this bug report!
+
+        Before we start, be sure you are aware of the following points:
+        - Review our Troubleshooting and FAQ pages in the Wiki to ensure your issue isn't already solved by those steps.
+        - Avoid duplicating any existing issues which already track or resolve your problem.
+        - If your issue is specific to a certain plugin, create the issue on the plugin's GitHub page instead. Only create an issue here if you are sure it's our fault.
+        - Aim to find a descriptive and precise title for your bug report.
+        - Please add the `beta` or `alpha` label, if your issue is related to a current Beta or Alpha release.
+
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: To Reproduce
+      placeholder: Steps to reproduce the behavior.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: Logs
+    attributes:
+      label: Relevant Log Output
+      placeholder: Bug reports that do not contain logs may be closed without warning. Show the camera.ui logs here. Remove any sensitive information. Please Turn on Debug Mode before submitting your Issue so more logs can be shared to fix the issue being submitted.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: Config
+    attributes:
+      label: Config for camera.ui
+      placeholder: Paste your camera.ui config.yml here. Remove any sensitive information.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: go2rtc
+    attributes:
+      label: Config for go2rtc
+      placeholder: Paste your go2rtc config.yml here. Remove any sensitive information.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Screenshots
+      description: If applicable add screenshots to help explain your problem.
+      placeholder: You can attach images or log files by clicking this area to highlight it and then dragging files in.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Environment
+  - type: input
+    attributes:
+      label: Node.js Version
+      placeholder: v14.17.6
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: NPM Version
+      placeholder: v7.22.0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: camera.ui Version
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Operating System
+      placeholder: Raspbian / Ubuntu / Debian / Windows / macOS / Docker / Electron
+    validations:
+      required: true

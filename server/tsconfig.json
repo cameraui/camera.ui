@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/server",
+    "target": "es2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2024",
+      "DOM"
+    ],
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "preserveConstEnums": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitAny": true,
+  },
+  "include": [
+    "*.d.ts",
+    "src",
+    "bin",
+    "types",
+    "install",
+  ],
+  "exclude": [
+    "node_modules",
+    "**/test/**",
+    "**/.tmp/**"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "displayName": "WASM Motion",
+  "name": "@camera.ui/camera-ui-wasm-motion",
+  "version": "0.0.19",
+  "description": "Browser-based motion detection using WebAssembly. Fast, client-side movement analysis with cross-platform support.",
+  "author": "seydx (https://github.com/cameraui/plugins)",
+  "main": "./dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "rimraf dist && npm run build:wasm && tsc",
+    "build:wasm": "cd ./src/wasm && asc assembly/* --config asconfig.json && cd ../../",
+    "bundle": "npm run format && npm run lint:fix && npm run build && cui bundle",
+    "bundle:dev": "npm run format && npm run lint:fix && npm run build && cross-env MODE=development cui bundle",
+    "format": "prettier --write \"src/\" --ignore-unknown --no-error-on-unmatched-pattern",
+    "install-updates": "npm i --save",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prepublishOnly": "node -e \"if(!process.env.SAFE_PUBLISH){console.error('Error: Please use @camera.ui/cli to publish the plugin:\\n  npm run publish:alpha\\n  npm run publish:beta\\n  npm run publish:latest\\n');process.exit(1)}\"",
+    "publish:alpha": "npm i --save && npm run bundle && cui publish --alpha",
+    "publish:beta": "npm i --save && npm run bundle && cui publish --beta",
+    "publish:latest": "npm i --save && npm run bundle && cui publish --latest",
+    "update": "updates --update ./"
+  },
+  "bugs": {
+    "url": "https://github.com/cameraui/plugins/issues"
+  },
+  "engines": {
+    "camera.ui": ">=0.0.50",
+    "node": ">=22.0.0"
+  },
+  "homepage": "https://github.com/cameraui/plugins/tree/main/camera-ui-wasm-motion#readme",
+  "keywords": [
+    "camera-ui-plugin",
+    "smtp",
+    "motion",
+    "detection"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cameraui/plugins.git",
+    "directory": "camera-ui-wasm-motion"
+  },
+  "files": [
+    "bundle.zip",
+    "CHANGELOG.md"
+  ]
+}

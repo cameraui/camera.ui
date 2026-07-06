@@ -1,0 +1,20 @@
+[submodule "externals/cli"]
+	path = externals/cli
+	url = https://github.com/cameraui/cli.git
+	ignore = untracked
+[submodule "externals/common"]
+	path = externals/common
+	url = https://github.com/cameraui/common.git
+	ignore = untracked
+[submodule "externals/plugins"]
+	path = externals/plugins
+	url = https://github.com/cameraui/plugins.git
+	ignore = untracked
+[submodule "externals/rpc"]
+	path = externals/rpc
+	url = https://github.com/cameraui/rpc.git
+	ignore = untracked
+[submodule "externals/sdk"]
+	path = externals/sdk
+	url = https://github.com/cameraui/sdk.git
+	ignore = untracked

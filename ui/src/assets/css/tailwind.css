@@ -1,3 +1,51 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tailwindcss-safe-area';
+@plugin 'tailwindcss-primeui';
+@source "../../../node_modules/@camera.ui/nvr/dist";
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+@custom-variant light (&:where(.light-mode, .light-mode *));
+@theme {
+  --breakpoint-xs: 450px;
+  --font-sans: InterVariable, sans-serif;
+  --default-font-feature-settings: 'liga' 1, 'calt' 1, 'cv06' 1, 'cv11' 1;
+  --default-font-variation-settings: 'wght' 500;
+}
+@layer utilities {
+  .font-thin {
+    font-variation-settings: 'wght' 100;
+  }
+  .font-extralight {
+    font-variation-settings: 'wght' 200;
+  }
+  .font-light {
+    font-variation-settings: 'wght' 300;
+  }
+  .font-normal {
+    font-variation-settings: 'wght' 400;
+  }
+  .font-medium {
+    font-variation-settings: 'wght' 500;
+  }
+  .font-semibold {
+    font-variation-settings: 'wght' 600;
+  }
+  .font-bold {
+    font-variation-settings: 'wght' 700;
+  }
+  .font-extrabold {
+    font-variation-settings: 'wght' 800;
+  }
+  .font-black {
+    font-variation-settings: 'wght' 900;
+  }
+  .w-fill {
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: fill-available;
+  }
+  .h-fill {
+    height: -webkit-fill-available;
+    height: -moz-available;
+    height: fill-available;
+  }
+}

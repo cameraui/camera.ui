@@ -1,0 +1,55 @@
+{
+  "displayName": "CoreML",
+  "name": "@camera.ui/camera-ui-coreml",
+  "version": "0.0.29",
+  "description": "Consolidated Apple CoreML plugin providing object detection, face detection and recognition, license plate detection with OCR, and CLIP semantic embeddings.",
+  "author": "seydx (https://github.com/cameraui/plugins)",
+  "main": "./dist/main.py",
+  "type": "commonjs",
+  "scripts": {
+    "build": "mypy src",
+    "bundle": "npm run format && npm run lint:fix && npm run build && cui bundle",
+    "bundle:dev": "npm run format && npm run lint:fix && npm run build && cross-env MODE=development cui bundle",
+    "format": "ruff format",
+    "install-updates": "npm i --save",
+    "lint": "ruff check",
+    "lint:fix": "ruff check --fix",
+    "prepublishOnly": "node -e \"if(!process.env.SAFE_PUBLISH){console.error('Error: Please use @camera.ui/cli to publish the plugin:\\n  npm run publish:alpha\\n  npm run publish:beta\\n  npm run publish:latest\\n');process.exit(1)}\"",
+    "publish:alpha": "npm i --save && npm run bundle && cui publish --alpha",
+    "publish:beta": "npm i --save && npm run bundle && cui publish --beta",
+    "publish:latest": "npm i --save && npm run bundle && cui publish --latest",
+    "update": "updates --update ./ && cupdate"
+  },
+  "bugs": {
+    "url": "https://github.com/cameraui/plugins/issues"
+  },
+  "engines": {
+    "camera.ui": ">=0.0.50",
+    "node": ">=22.0.0"
+  },
+  "homepage": "https://github.com/cameraui/plugins/tree/main/camera-ui-coreml#readme",
+  "keywords": [
+    "camera-ui-plugin",
+    "object",
+    "clip-detection",
+    "clip",
+    "face-detection",
+    "face",
+    "license-plate",
+    "lpd",
+    "ocr",
+    "alpr",
+    "coreml",
+    "detection"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cameraui/plugins.git",
+    "directory": "camera-ui-coreml"
+  },
+  "files": [
+    "bundle.zip",
+    "CHANGELOG.md"
+  ]
+}

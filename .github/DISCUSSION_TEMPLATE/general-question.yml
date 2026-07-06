@@ -1,0 +1,10 @@
+title: 'General Question: '
+labels: [question, help wanted]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Body
+      placeholder: Ask your question here.
+    validations:
+      required: false

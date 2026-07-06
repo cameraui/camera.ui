@@ -1,0 +1,21 @@
+{
+  "recommendations": [
+    "fill-labs.dependi",
+    "dbaeumer.vscode-eslint",
+    "tamasfe.even-better-toml",
+    "golang.go",
+    "ms-python.isort",
+    "christian-kohler.path-intellisense",
+    "esbenp.prettier-vscode",
+    "ms-python.vscode-pylance",
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-python.vscode-python-envs",
+    "KevinRose.vsc-python-indent",
+    "charliermarsh.ruff",
+    "rust-lang.rust-analyzer",
+    "bradlc.vscode-tailwindcss",
+    "Vue.volar",
+    "redhat.vscode-yaml",
+  ]
+}

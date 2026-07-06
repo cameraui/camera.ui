@@ -1,0 +1,10 @@
+{
+  "reportImplicitRelativeImport": "none",
+  "reportUnannotatedClassAttribute": "none",
+  "reportExplicitAny": "none",
+  "reportAny": "none",
+  "reportUnusedCallResult": "none",
+  "reportMissingTypeStubs": "none",
+  "reportImportCycles": "none",
+  "reportImplicitOverride": "none"
+}

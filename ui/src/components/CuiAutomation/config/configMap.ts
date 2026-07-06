@@ -1,0 +1,25 @@
+import { asyncComponent } from '@/common/asyncComponent.js';
+
+export const CONFIG_MAP: Record<string, Component> = {
+  'trigger-detection': asyncComponent(() => import('./ConfigTriggerDetection.vue')),
+  'trigger-sensor': asyncComponent(() => import('./ConfigTriggerSensor.vue')),
+  'trigger-schedule': asyncComponent(() => import('./ConfigTriggerSchedule.vue')),
+  'trigger-webhook': asyncComponent(() => import('./ConfigTriggerWebhook.vue')),
+  'trigger-system': asyncComponent(() => import('./ConfigTriggerSystem.vue')),
+  'trigger-manual': asyncComponent(() => import('./ConfigTriggerManual.vue')),
+  'trigger-geofence': asyncComponent(() => import('./ConfigTriggerGeofence.vue')),
+  'action-snapshot': asyncComponent(() => import('./ConfigActionSnapshot.vue')),
+  'action-sensor': asyncComponent(() => import('./ConfigActionSensor.vue')),
+  'action-notification': asyncComponent(() => import('./ConfigActionNotification.vue')),
+  'action-http': asyncComponent(() => import('./ConfigActionHttp.vue')),
+  'action-delay': asyncComponent(() => import('./ConfigActionDelay.vue')),
+  'action-variable': asyncComponent(() => import('./ConfigActionVariable.vue')),
+  'action-plugin': asyncComponent(() => import('./ConfigActionPlugin.vue')),
+  'action-image-input': asyncComponent(() => import('./ConfigActionImageInput.vue')),
+  'action-output': asyncComponent(() => import('./ConfigActionOutput.vue')),
+  'action-camera-control': asyncComponent(() => import('./ConfigActionCameraControl.vue')),
+  'condition-ifelse': asyncComponent(() => import('./ConfigConditionIfElse.vue')),
+  'condition-switch': asyncComponent(() => import('./ConfigConditionSwitch.vue')),
+  'condition-sensorstate': asyncComponent(() => import('./ConfigConditionSensorState.vue')),
+  'condition-time': asyncComponent(() => import('./ConfigConditionTime.vue')),
+};

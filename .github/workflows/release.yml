@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "service-v*"
+      - "server-v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve package + version from tag
+        id: r
+        run: |
+          ref="${GITHUB_REF_NAME}"      # service-v1.2.3 | server-v1.2.3-beta.1
+          dir="${ref%%-v*}"             # service | server
+          version="${ref#*-v}"          # 1.2.3   | 1.2.3-beta.1
+          case "$dir" in service|server) ;; *) echo "::error::bad release tag '$ref'"; exit 1 ;; esac
+          if [[ "$version" == *-* ]]; then preid="${version#*-}"; tag="${preid%%.*}"; else tag="latest"; fi
+          printf 'dir=%s\nversion=%s\ntag=%s\n' "$dir" "$version" "$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify tag matches package.json version
+        run: |
+          have="$(node -p "require('./${{ steps.r.outputs.dir }}/package.json').version")"
+          want="${{ steps.r.outputs.version }}"
+          if [ "$have" != "$want" ]; then
+            echo "::error::tag version $want does not match ${{ steps.r.outputs.dir }}/package.json $have"
+            exit 1
+          fi
+
+      - name: Setup Python (server)
+        if: steps.r.outputs.dir == 'server'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Python tooling + server deps (server)
+        if: steps.r.outputs.dir == 'server'
+        run: pip install -r requirements.txt -r server/requirements.txt
+
+      - name: Install node dependencies
+        run: |
+          npm --prefix "${{ steps.r.outputs.dir }}" install
+          # prepublishOnly for server builds the UI into server/dist/interface
+          if [ "${{ steps.r.outputs.dir }}" = "server" ]; then npm --prefix ui install; fi
+
+      - name: Publish to npm (provenance via OIDC)
+        working-directory: ${{ steps.r.outputs.dir }}
+        run: |
+          npm install -g npm@latest
+          npm publish --provenance --tag ${{ steps.r.outputs.tag }}
+
+      - name: Create GitHub Release
+        if: steps.r.outputs.dir == 'server'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.r.outputs.version }}
+          NPM_TAG: ${{ steps.r.outputs.tag }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="$(mktemp)"
+
+          # Version section from the product changelog (header may carry a date suffix).
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="## [$VERSION]" 'index($0,v)==1{g=1;next} g&&/^## \[/{exit} g{print}' CHANGELOG.md >> "$notes"
+          fi
+
+          # Auto commit trail since the previous stable server release (same tag series).
+          prev="$(git tag -l 'server-v*' | grep -vE -- '-(alpha|beta|rc)' | grep -v "^${TAG}$" | sort -V | tail -1)"
+          if [ -n "$prev" ]; then
+            { echo ""; echo "## Changes since ${prev#server-v}"; echo ""; } >> "$notes"
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/compare/${prev}...${TAG}" \
+              --jq '.commits[] | "- \(.commit.message | split("\n")[0]) (\(.sha[:7])) - \(if .author then "@\(.author.login)" else .commit.author.name end)"' \
+              | tac >> "$notes" || true
+            { echo ""; echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/${prev}...${TAG}"; } >> "$notes"
+          fi
+
+          [ -s "$notes" ] || echo "See the [changelog](https://github.com/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md)." > "$notes"
+
+          prerelease=""
+          [ "$NPM_TAG" != "latest" ] && prerelease="--prerelease"
+
+          gh release create "$TAG" \
+            --title "camera.ui v${VERSION}" \
+            --notes-file "$notes" \
+            --verify-tag \
+            $prerelease

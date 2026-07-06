@@ -1,0 +1,389 @@
+import { Decoder, Demuxer, FilterAPI, FilterPreset, HardwareContext } from 'node-av/api';
+import { AV_HWDEVICE_TYPE_OPENCL } from 'node-av/constants';
+
+import type { Logger } from '@camera.ui/common/logger';
+import type { Frame } from 'node-av/lib';
+
+export interface FrameSourceConfig {
+  streamUrl: string;
+  snapshotUrl: string;
+  fps: number;
+  snapshotTimeoutMs?: number;
+}
+
+export interface FrameSnap {
+  frame: Frame;
+  id: number;
+}
+
+type Waiter = (snap: FrameSnap | undefined) => void;
+
+export class FrameHandle implements AsyncDisposable {
+  private disposed = false;
+
+  private constructor(
+    public readonly frame: Frame,
+    private readonly demuxer?: Demuxer,
+    private readonly decoder?: Decoder,
+  ) {}
+
+  public static fromClonedFrame(frame: Frame): FrameHandle {
+    return new FrameHandle(frame);
+  }
+
+  public static async fromUrl(url: string, timeoutMs: number): Promise<FrameHandle> {
+    // libavformat expects `timeout` in microseconds for both HTTP and RTSP demuxers.
+    const timeoutUs = Math.max(1, Math.floor(timeoutMs * 1000));
+    const isRTSP = url.startsWith('rtsp://') || url.startsWith('rtsps://');
+
+    const demuxer = await Demuxer.open(url, {
+      options: {
+        timeout: timeoutUs,
+        rtsp_transport: isRTSP ? 'tcp' : undefined,
+        user_agent: 'camera.ui FrameWorker',
+      },
+    });
+
+    let decoder: Decoder | undefined;
+    try {
+      const videoStream = demuxer.video();
+      if (!videoStream) {
+        throw new Error('No video stream in snapshot source');
+      }
+
+      decoder = await Decoder.create(videoStream, { exitOnError: false });
+
+      // The frames() generator yields nulls for packets that produce no frame;
+      // keep iterating until a frame appears or the stream ends.
+      const packets = demuxer.packets(videoStream.index);
+      const frames = decoder.frames(packets);
+      let firstFrame: Frame | undefined;
+      for await (const frame of frames) {
+        if (!frame) continue;
+        firstFrame = frame;
+        break;
+      }
+
+      if (!firstFrame) {
+        throw new Error('Snapshot source produced no frame');
+      }
+
+      return new FrameHandle(firstFrame, demuxer, decoder);
+    } catch (error) {
+      try {
+        decoder?.[Symbol.dispose]();
+      } catch {
+        // best-effort
+      }
+      try {
+        await demuxer[Symbol.asyncDispose]();
+      } catch {
+        // best-effort
+      }
+      throw error;
+    }
+  }
+
+  public async [Symbol.asyncDispose](): Promise<void> {
+    if (this.disposed) return;
+    this.disposed = true;
+
+    try {
+      this.frame[Symbol.dispose]?.();
+    } catch {
+      // best-effort
+    }
+
+    if (this.decoder) {
+      try {
+        this.decoder[Symbol.dispose]();
+      } catch {
+        // best-effort
+      }
+    }
+
+    if (this.demuxer) {
+      try {
+        await this.demuxer[Symbol.asyncDispose]();
+      } catch {
+        // best-effort
+      }
+    }
+  }
+}
+
+export class FrameSource {
+  private input?: Demuxer;
+  private decoder?: Decoder;
+  private filter?: FilterAPI;
+  private _hardwareContext?: HardwareContext | null;
+
+  private _isStreaming = false;
+  private _resolvedFps?: number;
+  private shouldRun = false;
+
+  // Mailbox state — single-slot frame buffer with monotonic id
+  private latest?: FrameSnap;
+  private nextId = 0;
+  private waiter?: Waiter;
+  private ended = false;
+  private producerPromise?: Promise<void>;
+
+  private startCount = 0;
+
+  private inflightFetch?: Promise<FrameHandle | null>;
+  private static readonly FETCH_DEFAULT_TIMEOUT_MS = 8000;
+  private static readonly COALESCING_WINDOW_MS = 200;
+
+  constructor(
+    private readonly config: FrameSourceConfig,
+    private readonly logger: Logger,
+  ) {}
+
+  public get hardwareContext(): HardwareContext | null {
+    return this._hardwareContext ?? null;
+  }
+
+  public get isStreaming(): boolean {
+    return this._isStreaming;
+  }
+
+  public get fps(): number {
+    return this._resolvedFps ?? this.config.fps;
+  }
+
+  public async start(): Promise<void> {
+    if (this._isStreaming) {
+      this.logger.warn('start() called while already streaming — skipped');
+      return;
+    }
+
+    this.startCount++;
+    this.logger.debug(`Connecting to stream (start #${this.startCount}):`, this.config.streamUrl);
+    this.shouldRun = true;
+    this.ended = false;
+    this.latest = undefined;
+    this.nextId = 0;
+
+    this.input = await Demuxer.open(this.config.streamUrl, {
+      options: {
+        rtsp_transport: 'tcp',
+        user_agent: 'camera.ui FrameWorker',
+        avioflags: 'direct',
+        // fflags: 'nobuffer',
+      },
+    });
+
+    const videoStream = this.input.video();
+    if (!videoStream) {
+      throw new Error('No video stream found');
+    }
+
+    this._hardwareContext = HardwareContext.auto();
+    if (this._hardwareContext) {
+      this.logger.debug('Using hardware acceleration:', this._hardwareContext.deviceTypeName);
+    } else {
+      this.logger.warn('No hardware acceleration available, using software decoding');
+    }
+
+    this.decoder = await Decoder.create(videoStream, {
+      hardware: this._hardwareContext,
+      exitOnError: false,
+    });
+
+    // Resolve FPS: user-configured value, or native stream rate as fallback.
+    // Stored as _resolvedFps so consumers (DetectionCoordinator, etc.) can
+    // read the actual effective rate via the `fps` getter.
+    let nativeFps = videoStream.avgFrameRate.num / videoStream.avgFrameRate.den;
+    if (!isFinite(nativeFps) || nativeFps <= 0 || isNaN(nativeFps)) {
+      nativeFps = 20;
+    }
+    this._resolvedFps = this.config.fps > 0 ? this.config.fps : nativeFps;
+
+    this.logger.debug(`Detection stream: ${videoStream.codecpar.width}x${videoStream.codecpar.height} @ ${this._resolvedFps}fps`);
+
+    let filterChain = FilterPreset.chain(this._hardwareContext)
+      .filter('fps', { fps: this._resolvedFps })
+      .filter('setpts', { expr: `N/(${this._resolvedFps}*TB)` });
+
+    if (this._hardwareContext?.deviceType === AV_HWDEVICE_TYPE_OPENCL) {
+      filterChain = filterChain.hwupload();
+    }
+
+    this.filter = FilterAPI.create(filterChain.build(), {
+      hardware: this._hardwareContext,
+    });
+
+    this._isStreaming = true;
+
+    this.producerPromise = this.runProducer();
+  }
+
+  public async stop(): Promise<void> {
+    this.shouldRun = false;
+
+    if (!this._isStreaming) return;
+    this._isStreaming = false;
+    this._resolvedFps = undefined;
+
+    // Mark ended and wake any waiting consumer BEFORE awaiting the producer
+    // so the consumer can break out of its loop and stop holding it up.
+    this.ended = true;
+    this.wakeWaiter();
+
+    if (this.producerPromise) {
+      try {
+        await this.producerPromise;
+      } catch (error) {
+        this.logger.debug('Frame producer exited with error:', error);
+      }
+      this.producerPromise = undefined;
+    }
+
+    if (this.latest) {
+      try {
+        this.latest.frame[Symbol.dispose]?.();
+      } catch {
+        // best-effort
+      }
+      this.latest = undefined;
+    }
+
+    if (this.filter) {
+      this.filter[Symbol.dispose]();
+      this.filter = undefined;
+    }
+
+    if (this.decoder) {
+      this.decoder[Symbol.dispose]();
+      this.decoder = undefined;
+    }
+
+    if (this._hardwareContext) {
+      this._hardwareContext[Symbol.dispose]();
+      this._hardwareContext = undefined;
+    }
+
+    if (this.input) {
+      await this.input[Symbol.asyncDispose]();
+      this.input = undefined;
+    }
+
+    this.logger.debug('Stream stopped');
+  }
+
+  public nextFrame(lastId: number): Promise<FrameSnap | undefined> {
+    if (this.ended) return Promise.resolve(undefined);
+    if (this.latest && this.latest.id !== lastId) {
+      const snap = this.latest;
+      this.latest = undefined; // take ownership — producer must not dispose this frame
+      return Promise.resolve(snap);
+    }
+    return new Promise<FrameSnap | undefined>((resolve) => {
+      this.waiter = resolve;
+    });
+  }
+
+  public peekLatestFrame(): FrameHandle | null {
+    if (!this._isStreaming || !this.latest) return null;
+    const cloned = this.latest.frame.clone();
+    if (!cloned) return null;
+    return FrameHandle.fromClonedFrame(cloned);
+  }
+
+  public async fetchSnapshotFrame(): Promise<FrameHandle | null> {
+    if (!this.inflightFetch) {
+      const timeoutMs = this.config.snapshotTimeoutMs ?? FrameSource.FETCH_DEFAULT_TIMEOUT_MS;
+      const thisFetch = FrameHandle.fromUrl(this.config.snapshotUrl, timeoutMs).catch((e) => {
+        this.logger.debug('fetchSnapshotFrame failed:', e);
+        return null;
+      });
+      this.inflightFetch = thisFetch;
+
+      // Per-fetch dispose timer via closure so overlapping fetches don't share state.
+      thisFetch.finally(() => {
+        setTimeout(async () => {
+          if (this.inflightFetch === thisFetch) {
+            this.inflightFetch = undefined;
+          }
+          try {
+            const root = await thisFetch;
+            if (root) await root[Symbol.asyncDispose]();
+          } catch {
+            // best-effort
+          }
+        }, FrameSource.COALESCING_WINDOW_MS);
+      });
+    }
+
+    const rootHandle = await this.inflightFetch;
+    if (!rootHandle) return null;
+    const cloned = rootHandle.frame.clone();
+    return cloned ? FrameHandle.fromClonedFrame(cloned) : null;
+  }
+
+  private wakeWaiter(): void {
+    if (!this.waiter) return;
+    const w = this.waiter;
+    this.waiter = undefined;
+    if (this.ended) {
+      w(undefined);
+      return;
+    }
+    if (this.latest) {
+      const snap = this.latest;
+      this.latest = undefined; // take ownership before handing it to the consumer
+      w(snap);
+    } else {
+      w(undefined);
+    }
+  }
+
+  private async runProducer(): Promise<void> {
+    if (!this.input || !this.decoder || !this.filter) {
+      this.ended = true;
+      this.wakeWaiter();
+      return;
+    }
+
+    const videoStream = this.input.video();
+    if (!videoStream) {
+      this.ended = true;
+      this.wakeWaiter();
+      return;
+    }
+
+    const packets = this.input.packets(videoStream.index);
+    const decodedFrames = this.decoder.frames(packets);
+    const filteredFrames = this.filter.frames(decodedFrames);
+
+    let firstFrame = true;
+
+    try {
+      for await (const frame of filteredFrames) {
+        if (!this.shouldRun) break;
+        if (!frame) continue;
+
+        if (firstFrame) {
+          this.logger.trace('First frame received');
+          firstFrame = false;
+        }
+
+        // Overwrite mailbox slot — dispose any un-picked-up frame so we don't leak.
+        if (this.latest) {
+          try {
+            this.latest.frame[Symbol.dispose]?.();
+          } catch {
+            // best-effort
+          }
+        }
+        this.latest = { frame, id: this.nextId++ };
+
+        this.wakeWaiter();
+      }
+    } finally {
+      this.ended = true;
+      this.wakeWaiter();
+    }
+  }
+}

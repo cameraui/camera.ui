@@ -1,0 +1,34 @@
+title: '[Camera Request]: '
+labels: [camera request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is text that will show up in the template!
+  - type: input
+    attributes:
+      label: Camera Name
+      description: The name of the camera you want to be added.
+      placeholder: Hikvision
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Camera Model
+      description: The model of the camera you want to be added.
+      placeholder: DS-2CD2142FWD-I
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Camera Image
+      description: If applicable add screenshots to the camera you want to be added.
+      placeholder: The image of the camera you want to be added.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Camera Description
+      placeholder: A clear and concise description of the camera you want to be added.
+    validations:
+      required: true

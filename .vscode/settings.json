@@ -3,12 +3,92 @@
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
   "files.eol": "\n",
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
-  },
+  "editor.codeLens": true,
   "editor.formatOnSave": true,
+  "js/ts.preferences.importModuleSpecifierEnding": "js",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "remote.autoForwardPorts": false,
+  "eslint.debug": false,
   "eslint.workingDirectories": [
-    ".", 
-    "./ui"
+    {
+      "mode": "auto"
+    }
+  ],
+  "python.languageServer": "Pylance",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.typeCheckingMode": "strict",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingTypeStubs": false,
+    "reportUnknownMemberType": "warning"
+  },
+  "python-envs.terminal.autoActivationType": "shellStartup",
+  "ruff.nativeServer": true,
+  "ruff.fixAll": true,
+  "ruff.configuration": "./server/ruff.toml",
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.tabSize": 4,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never",
+      "source.fixAll": "explicit"
+    }
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit",
+      "quickfix.gopls": "explicit",
+      "refactor.rewrite.gopls": "explicit"
+    }
+  },
+  "[xml]": {
+    "editor.formatOnSave": false
+  },
+  "files.associations": {
+    "*.yaml": "yaml"
+  },
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
   ]
 }

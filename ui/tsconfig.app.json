@@ -1,0 +1,35 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": [
+    "env.d.ts",
+    "src/**/*",
+    "src/**/*.vue",
+    "../server/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "src/**/__tests__/*"
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "WebWorker"
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@shared/types": [
+        "../shared/types/index.js"
+      ]
+    },
+    "noUncheckedIndexedAccess": false,
+    // Match server tsconfig settings for shared imports
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,
+    // Required for server imports that use legacy decorators
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}

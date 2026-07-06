@@ -1,4 +1,0 @@
-CAMERA_UI_OPTS=-D -C -T -S "/home/pi/Desktop/camera.ui/test/camera.ui"
-CUI_STORAGE_PATH="/home/pi/Desktop/camera.ui/test/camera.ui"
-
-DISABLE_OPENCOLLECTIVE=true

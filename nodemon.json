@@ -1,9 +1,0 @@
-{
-  "restartable": "rs",
-  "verbose": true,
-  "watch": ["src"],
-  "ext": "ts,js,json",
-  "exec": "node --trace-warnings bin/camera.ui.js -L 2 -S ./test/camera.ui",
-  "delay": "5000",
-  "signal": "SIGTERM"
-}

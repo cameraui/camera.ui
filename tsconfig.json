@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "noEmit": true,
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "preserveConstEnums": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitAny": true,
+    "types": [
+      "@types/node"
+    ],
+  },
+  "include": [
+    "scripts",
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages",
+    "plugins",
+    "server",
+    "shared",
+    "ui_old"
+  ]
+}

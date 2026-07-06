@@ -1,0 +1,39 @@
+name: 🚀 Feature Request
+description: Suggest an improvement or a new feature for this project.
+title: 'Feature Request: '
+labels: [enhancement]
+assignees:
+  - seydx
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hi. Thanks for taking the time to contribute to camera.ui! Please fill out the following template to help us understand your feature request better.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Current Situation
+      description: Please provide an overview of the current situation and illustrate potential problems or shortcomings.
+      placeholder: A clear and concise description of the problem or situation that should be addressed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Change
+      description: Please provide a clear and concise description of the solution or change you propose and how it should work.
+      placeholder: A clear and concise description of the solution or change you propose and how it should work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Please provide any additional context that might be relevant for your request.
+        You may add screenshots, log output or configuration files.
+      placeholder: Any additional context that might be relevant for your request.

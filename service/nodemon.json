@@ -1,0 +1,15 @@
+{
+  "restartable": "rs",
+  "verbose": true,
+  "execMap": {
+    "ts": "tsx --no-warnings=ExperimentalWarning --trace-deprecation --trace-warnings"
+  },
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "watch": ["nonexistent-dir"],
+  "ignore": ["**/__pycache__/**"],
+  "ext": "ts,json,py",
+  "signal": "SIGUSR2",
+  "delay": 2500
+}
