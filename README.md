@@ -6,7 +6,7 @@
   </a>
 </p>
 
-A self-hosted platform for your security cameras — live viewing, 24/7 recording\*, on-device AI detection, smart-home integration, and push notifications\*, all on hardware you own. No mandatory cloud: your footage stays on hardware you control.
+A self-hosted platform for your security cameras — live viewing, 24/7 recording\*, on-device AI detection, semantic search\*, smart-home integration, and push notifications\*, all built on an extensible plugin ecosystem for endless possibilities. Runs on hardware you own — no mandatory cloud, your footage stays with you.
 
 ## Getting Started
 
