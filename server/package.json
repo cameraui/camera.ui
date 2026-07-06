@@ -57,7 +57,7 @@
     "js-yaml": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "lmdb": "^3.5.6",
-    "node-av": "^6.2.0-beta.2",
+    "node-av": "^6.2.0-beta.3",
     "node-forge": "^1.4.0",
     "npm-registry-fetch": "^20.0.1",
     "object-path": "^0.11.8",
