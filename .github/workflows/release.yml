@@ -49,13 +49,13 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Python (server)
+      - name: Setup Python
         if: steps.r.outputs.dir == 'server'
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Install Python tooling + server deps (server)
+      - name: Install Python tooling + server deps
         if: steps.r.outputs.dir == 'server'
         run: pip install -r requirements.txt -r server/requirements.txt
 
