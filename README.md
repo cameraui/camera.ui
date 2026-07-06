@@ -6,7 +6,7 @@
   </a>
 </p>
 
-A self-hosted platform for your security cameras — live viewing, 24/7 recording, on-device AI detection, and smart-home integration, all on hardware you own. No mandatory cloud: your footage stays on hardware you control.
+A self-hosted platform for your security cameras — live viewing, 24/7 recording\*, on-device AI detection, smart-home integration, and push notifications\*, all on hardware you own. No mandatory cloud: your footage stays on hardware you control.
 
 ## Getting Started
 
@@ -28,4 +28,4 @@ Please make sure to read the [Contributing Guide](./CONTRIBUTING.md) before maki
 
 [MIT](./LICENSE.md) — Copyright (c) 2020-present [seydx](https://github.com/seydx)
 
-The core of camera.ui is free and open source. Two optional features — NVR recording and push notifications — require a [camera.ui subscription](https://cameraui.com) that funds ongoing development.
+The core of camera.ui is free and open source. Features marked with \* require a [camera.ui subscription](https://cameraui.com) that funds ongoing development.
