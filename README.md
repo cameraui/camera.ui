@@ -1,12 +1,12 @@
 # camera.ui [![npm](https://img.shields.io/npm/v/camera.ui.svg)](https://www.npmjs.com/package/camera.ui) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md) [![chat](https://img.shields.io/badge/chat-discord-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/bBGnGcbz8N)
 
-A self-hosted platform for your security cameras — live viewing, 24/7 recording, on-device AI detection, and smart-home integration, all on hardware you own. No mandatory cloud: your footage stays on hardware you control.
-
 <p align="center">
   <a href="https://docs.cameraui.com" target="_blank" rel="noopener noreferrer">
-    <img src="https://raw.githubusercontent.com/cameraui/camera.ui/master/.github/logo.png" alt="camera.ui" width="180" />
+    <img src="https://raw.githubusercontent.com/cameraui/camera.ui/master/.github/logo.png" alt="camera.ui" width="250" />
   </a>
 </p>
+
+A self-hosted platform for your security cameras — live viewing, 24/7 recording, on-device AI detection, and smart-home integration, all on hardware you own. No mandatory cloud: your footage stays on hardware you control.
 
 ## Getting Started
 
