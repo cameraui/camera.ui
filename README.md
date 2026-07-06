@@ -4,7 +4,7 @@ A self-hosted platform for your security cameras — live viewing, 24/7 recordin
 
 <p align="center">
   <a href="https://docs.cameraui.com" target="_blank" rel="noopener noreferrer">
-    <img src=".github/screenshot.png" alt="camera.ui interface" width="100%" />
+    <img src="https://raw.githubusercontent.com/cameraui/camera.ui/master/.github/logo.png" alt="camera.ui" width="180" />
   </a>
 </p>
 
