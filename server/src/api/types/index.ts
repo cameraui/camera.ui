@@ -27,7 +27,7 @@ import type {
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput } from '../schemas/remote.schema.js';
-import type { PatchServerInput, UpdateServerInput } from '../schemas/server.schema.js';
+import type { PatchServerInput, ServerChangelogQueryInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
 import type {
   CreateShortcutInput,
@@ -473,6 +473,10 @@ export interface ServerPatchRequest {
 
 export interface ServerUpdateRequest {
   Body: UpdateServerInput;
+}
+
+export interface ServerChangelogRequest {
+  Querystring: ServerChangelogQueryInput;
 }
 
 export interface RemotePatchRequest {

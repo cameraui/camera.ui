@@ -12,5 +12,12 @@ export const patchServerSchema = zod
   })
   .strict();
 
+export const serverChangelogQuerySchema = zod
+  .object({
+    version: zod.string().trim(),
+  })
+  .strict();
+
 export type PatchServerInput = zod.output<typeof patchServerSchema>;
 export type UpdateServerInput = zod.output<typeof updateServerSchema>;
+export type ServerChangelogQueryInput = zod.output<typeof serverChangelogQuerySchema>;

@@ -26,6 +26,11 @@ export async function checkVersion({ signal }: { signal: AbortSignal }): Promise
   return response.data;
 }
 
+export async function getServerChangelogFn({ version, signal }: { version: string; signal: AbortSignal }): Promise<string> {
+  const response: AxiosResponse<string> = await api.get('/server/changelog', { params: { version }, signal });
+  return response.data;
+}
+
 export async function clearLogFn(source?: string): Promise<AckResponse> {
   const params = source && source !== 'all' ? { source } : undefined;
   const response: AxiosResponse<AckResponse> = await api.delete('/server/log', { params });
@@ -79,6 +84,10 @@ export class ServerQuery {
     },
     {
       name: 'checkVersionQuery',
+      enabled: true,
+    },
+    {
+      name: 'getServerChangelogQuery',
       enabled: true,
     },
     {
@@ -146,6 +155,20 @@ export class ServerQuery {
       queryKey: ['version'],
       queryFn: ({ signal }) => checkVersion({ signal }),
       enabled: () => this.queryActivator.value.some((query) => query.name === 'checkVersionQuery' && query.enabled),
+    });
+  }
+
+  public getServerChangelogQuery(version: string | Ref<string> | ComputedRef<string>) {
+    return useQueryEnhanced({
+      queryKey: ['version', 'changelog', version],
+      queryFn: ({ signal }) => getServerChangelogFn({ version: unref(version), signal }),
+      enabled: () => this.queryActivator.value.some((query) => query.name === 'getServerChangelogQuery' && query.enabled),
+      retry: (failerCount, error) => {
+        if (error instanceof Error && error.message.includes('404')) {
+          return false;
+        }
+        return failerCount < 3;
+      },
     });
   }
 

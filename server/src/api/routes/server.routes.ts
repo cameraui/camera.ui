@@ -1,7 +1,7 @@
 import { ServerController } from '../controllers/server.controller.js';
 import { onlyAdminCanDoThisAction, onlyMasterCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import { patchServerSchema, updateServerSchema } from '../schemas/server.schema.js';
+import { patchServerSchema, serverChangelogQuerySchema, updateServerSchema } from '../schemas/server.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -40,6 +40,18 @@ export const ServerRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
     schema: {
       tags: ['Server'],
       summary: 'Check available server versions on npm',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/changelog',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: serverController.getServerChangelog.bind(serverController),
+    schema: {
+      tags: ['Server'],
+      summary: 'Get GitHub release notes for a server version',
+      querystring: serverChangelogQuerySchema,
     },
   });
 

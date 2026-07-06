@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import 'highlight.js/styles/vs2015.min.css';
 
+import { compareVersions } from 'compare-versions';
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import python from 'highlight.js/lib/languages/python';
@@ -77,6 +78,8 @@ hljs.registerLanguage('yaml', yaml);
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('python', python);
 
+const MIN_SERVER_VERSION = '2.0.0';
+
 const pluginsQuery = new PluginsQuery();
 const serverQuery = new ServerQuery();
 const queryClient = useQueryClient();
@@ -91,11 +94,13 @@ const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
 const { target, installVersion, isNewPlugin } = toRefs(props);
+const selectedVersion = ref<string | undefined>();
 
 pluginsQuery.toggleQueryActivator('getPluginVersionsQuery', false);
 pluginsQuery.toggleQueryActivator('getPluginChangelogQuery', false);
 pluginsQuery.toggleQueryActivator('getPluginCompatQuery', false);
 serverQuery.toggleQueryActivator('checkVersionQuery', false);
+serverQuery.toggleQueryActivator('getServerChangelogQuery', false);
 
 const logTarget = computed(() => (isPluginTarget(target.value) ? target.value.pluginName : 'server'));
 const isUninstall = computed(() => props.action === 'uninstall' && isPluginTarget(target.value));
@@ -114,6 +119,8 @@ const pluginQueryVersion = computed<{ pluginversion?: string }>(() => {
   return { pluginversion: selectedVersion.value || installVersion.value };
 });
 
+const serverChangelogVersion = computed<string>(() => selectedVersion.value || installVersion.value || '');
+
 const { data: versionInfo, isBusy: serverVersionsLoading } = serverQuery.checkVersionQuery();
 const { data: availableVersions, isBusy: pluginVersionsLoading } = pluginsQuery.getPluginVersionsQuery(isPluginTarget(target.value) ? target.value.pluginName : '');
 const {
@@ -121,6 +128,7 @@ const {
   isBusy: pluginChangelogLoading,
   suspense: pluginChangelogSuspense,
 } = pluginsQuery.getPluginChangelogQuery(isPluginTarget(target.value) ? target.value.pluginName : '', pluginQueryVersion);
+const { data: serverChangelog, isBusy: serverChangelogLoading, suspense: serverChangelogSuspense } = serverQuery.getServerChangelogQuery(serverChangelogVersion);
 const { data: pluginCompat, suspense: pluginCompatSuspense } = pluginsQuery.getPluginCompatQuery(
   isPluginTarget(target.value) ? target.value.pluginName : '',
   pluginQueryVersion,
@@ -146,7 +154,6 @@ const markdownIt = MarkdownIt('commonmark', {
 });
 
 const consoleRef = useTemplateRef<InstanceType<typeof CuiConsole>>('consoleRef');
-const selectedVersion = ref<string | undefined>();
 const showConsole = ref(false);
 const showReleaseNotes = ref(false);
 const newVersionInstalled = ref(false);
@@ -165,6 +172,7 @@ const isLoading = computed(() =>
     pluginVersionsLoading.value ||
     serverVersionsLoading.value ||
     pluginChangelogLoading.value ||
+    serverChangelogLoading.value ||
     installPluginLoading.value ||
     uninstallPluginLoading.value ||
     updateServerLoading.value ||
@@ -177,7 +185,7 @@ const allVersions = computed<string[]>(() => {
   if (isPluginTarget(target.value)) {
     return availableVersions.value?.versions || [];
   } else if (isServerTarget(target.value)) {
-    return versionInfo.value?.versions || [];
+    return (versionInfo.value?.versions || []).filter((version) => compareVersions(version, MIN_SERVER_VERSION) >= 0);
   }
 
   return [];
@@ -193,8 +201,7 @@ const changelog = computed<string | undefined>(() => {
   if (isPluginTarget(target.value)) {
     return pluginChangelog.value;
   }
-  // Placeholder for server changelog when API is available
-  return undefined;
+  return serverChangelog.value;
 });
 
 const options = computed<ITerminalOptions>(() => {
@@ -223,7 +230,18 @@ async function fetchChangelog(): Promise<void> {
       //
     }
   } else if (isServerTarget(target.value)) {
-    // Server doesn't have changelog endpoint yet
+    try {
+      serverQuery.toggleQueryActivator('getServerChangelogQuery', true);
+      const { isError } = await serverChangelogSuspense();
+
+      if (isError) {
+        throw new Error('Failed to fetch changelog');
+      }
+
+      showReleaseNotes.value = true;
+    } catch {
+      //
+    }
   }
 }
 
@@ -245,6 +263,7 @@ async function fetchCompat(): Promise<void> {
 }
 
 function shouldShowChangelog(version: string): boolean {
+  if (isServerTarget(target.value)) return true;
   if (!isPluginTarget(target.value)) return false;
   if (target.value.private) return false;
   if (version === target.value.installedVersion) return false;

@@ -14,11 +14,21 @@ import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { DBServer } from '../database/types.js';
-import type { AuthLoginRequest, FilesParamsRequest, Go2RtcInfo, NatsInfo, ServerInfo, ServerPatchRequest, ServerUpdateRequest } from '../types/index.js';
+import type {
+  AuthLoginRequest,
+  FilesParamsRequest,
+  Go2RtcInfo,
+  NatsInfo,
+  ServerChangelogRequest,
+  ServerInfo,
+  ServerPatchRequest,
+  ServerUpdateRequest,
+} from '../types/index.js';
 import type { SocketService } from '../websocket/index.js';
 import type { ServerNamespace } from '../websocket/nsp/server.js';
 
 const SYSTEM_LOG_SOURCES = new Set(['server', 'go2rtc', 'nats', 'tunnel']);
+const GITHUB_RELEASE_REPO = 'cameraui/camera.ui';
 
 export class ServerController {
   private configService: ConfigService;
@@ -102,6 +112,35 @@ export class ServerController {
       const data = await getVersionsAndDistTags(APP_SERVER_NAME);
 
       return reply.code(200).send(data);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async getServerChangelog(req: FastifyRequest<AuthLoginRequest & ServerChangelogRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const version = encodeURIComponent(req.query.version.replace(/^v/, ''));
+      const url = `https://api.github.com/repos/${GITHUB_RELEASE_REPO}/releases/tags/server-v${version}`;
+
+      const response = await fetch(url, {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': APP_SERVER_NAME },
+      });
+
+      if (response.status === 404) {
+        return reply.code(404).send({ statusCode: 404, message: 'Release notes not found' });
+      }
+
+      if (!response.ok) {
+        return reply.code(502).send({ statusCode: 502, message: `GitHub API responded with ${response.status}` });
+      }
+
+      const release = (await response.json()) as { body?: string };
+
+      reply.header('Content-Type', 'text/plain');
+      return reply.code(200).send(release.body ?? '');
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
