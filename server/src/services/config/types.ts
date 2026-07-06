@@ -53,6 +53,7 @@ export interface CorsConfig {
 
 export interface IConfig {
   port: number;
+  host?: string;
   ssl: IConfigSSL;
   logger: Logger;
   plugins: PluginsSettings;

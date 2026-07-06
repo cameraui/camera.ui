@@ -1,6 +1,6 @@
 import * as zod from 'zod';
 
-import { DEFAULT_CONFIG_LOGGER, DEFAULT_CONFIG_PLUGINS, DEFAULT_CONFIG_PORT, DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
+import { DEFAULT_CONFIG_HOST, DEFAULT_CONFIG_LOGGER, DEFAULT_CONFIG_PLUGINS, DEFAULT_CONFIG_PORT, DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
 import { WorkerCapability } from '../../workers/types.js';
 
 export const logLevelSchema = zod.union([zod.literal('info'), zod.literal('debug'), zod.literal('warn'), zod.literal('error'), zod.literal('trace')]);
@@ -58,6 +58,7 @@ export const workerSchema = zod
 export const patchConfigSchema = zod
   .object({
     port: zod.number().min(1024, 'Min port range').max(49151, 'Max port range').default(DEFAULT_CONFIG_PORT),
+    host: zod.string().trim().optional().default(DEFAULT_CONFIG_HOST),
     ssl: iConfigSSLSchema,
     logger: loggerSchema,
     plugins: pluginsSchema,

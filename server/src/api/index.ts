@@ -88,10 +88,21 @@ export class Server {
       throw new Error('Fastify instance not initialized');
     }
 
-    await this.app.listen({
-      host: '::',
-      port: this.configService.config.port,
-    });
+    const port = this.configService.config.port;
+    const host = this.configService.config.host ?? '::';
+
+    try {
+      await this.app.listen({ host, port });
+    } catch (error) {
+      // Only the default dual-stack bind (::) auto-falls back to IPv4 when IPv6
+      // is disabled (EAFNOSUPPORT); an explicitly configured host is respected.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (host !== '::' || (code !== 'EAFNOSUPPORT' && code !== 'EADDRNOTAVAIL')) {
+        throw error;
+      }
+      this.logger.warn('IPv6 wildcard (::) unavailable, falling back to 0.0.0.0');
+      await this.app.listen({ host: '0.0.0.0', port });
+    }
 
     if (this.internalApp) {
       await this.internalApp.listen({ host: '127.0.0.1', port: 0 });
