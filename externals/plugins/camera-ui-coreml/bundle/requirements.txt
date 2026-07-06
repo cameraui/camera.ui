@@ -1,5 +1,0 @@
-coremltools==9.0
-numpy==2.4.6
-Pillow==12.2.0
-aiohttp==3.14.1
-transformers==5.12.1
