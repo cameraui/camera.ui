@@ -106,6 +106,9 @@
     "updates": "^17.18.2",
     "vitest": "^4.1.10"
   },
+  "overrides": {
+    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2"
+  },
   "bugs": {
     "url": "https://github.com/cameraui/camera.ui/issues"
   },
