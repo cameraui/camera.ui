@@ -48,7 +48,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@capawesome/capacitor-badge": "^8.0.2",
     "@capgo/capacitor-updater": "^8.50.2",
-    "@iconify/json": "^2.2.496",
+    "@iconify/json": "^2.2.497",
     "@primeuix/themes": "^2.0.3",
     "@tanstack/vue-query": "^5.101.2",
     "@vue-flow/background": "^1.3.2",
