@@ -1,8 +1,10 @@
 import { getNpmPath } from '@camera.ui/common/node';
+import { IS_ELECTRON } from '@camera.ui/common/utils';
 import { TTLCache } from '@isaacs/ttlcache';
 import { spawn } from 'node:child_process';
-import { basename, dirname } from 'node:path';
+import { createRequire } from 'node:module';
 import { platform } from 'node:os';
+import { basename, dirname, join } from 'node:path';
 import npmFetch from 'npm-registry-fetch';
 import pacote from 'pacote';
 import { gt, parse } from 'semver';
@@ -13,6 +15,8 @@ import type { AbbreviatedManifest, AbbreviatedPackument, ManifestResult, Options
 
 type FullPackument = Packument & PackumentResult & { description?: string };
 type AbbrPackument = AbbreviatedPackument & PackumentResult;
+
+const __require = createRequire(import.meta.url);
 
 export interface UpdateCheckResult {
   updateAvailable: boolean;
@@ -128,8 +132,17 @@ export async function extractPackage(spec: string, dest: string): Promise<void> 
 
 export function installDependencies(packageDir: string, onOutput?: (chunk: string) => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    const npmCmd = getNpmPath()[0];
-    const args = ['install', '--omit=dev', '--include=prod', '--no-progress'];
+    let bundledNpmCli: string | undefined;
+    try {
+      bundledNpmCli = join(dirname(__require.resolve('npm/package.json')), 'bin', 'npm-cli.js');
+    } catch {
+      bundledNpmCli = undefined;
+    }
+
+    const command = bundledNpmCli ? process.execPath : getNpmPath()[0];
+    const args = bundledNpmCli
+      ? [bundledNpmCli, 'install', '--omit=dev', '--include=prod', '--no-progress']
+      : ['install', '--omit=dev', '--include=prod', '--no-progress'];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -140,13 +153,14 @@ export function installDependencies(packageDir: string, onOutput?: (chunk: strin
       npm_config_prefix: packageDir,
       npm_config_color: 'always',
       FORCE_COLOR: '1',
+      ...(bundledNpmCli && IS_ELECTRON ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
     };
 
     if (platform() !== 'win32' && basename(packageDir) === 'lib') {
       env.npm_config_prefix = dirname(packageDir);
     }
 
-    const child = spawn(npmCmd, args, { cwd: packageDir, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { cwd: packageDir, env, stdio: ['ignore', 'pipe', 'pipe'] });
 
     const handleChunk = (data: Buffer) => onOutput?.(data.toString());
     child.stdout.on('data', handleChunk);
