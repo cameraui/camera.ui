@@ -1,7 +1,7 @@
 import { SUPPORTED_LANGUAGES } from '@shared/types';
 import { createI18n } from 'vue-i18n';
 
-import { abbreviations, messages } from './languages.js';
+import { messages } from './languages.js';
 
 import type { SupportedLanguageAbbreviatons } from '@shared/types';
 import type { LanguageAbbreviations, LanguageList } from './types.js';
@@ -22,33 +22,16 @@ export const LANGUAGE_LIST: LanguageList = {
 };
 
 export const currentLanguage = (lang?: string): SupportedLanguageAbbreviatons => {
-  const getLanguage = (l: string) => {
-    return getSupportedLanguage(abbreviations.find((lng) => lng === l?.toLowerCase()));
-  };
-
   const windowProp = typeof window !== 'undefined' ? window : undefined;
-  if (!lang && windowProp?.navigator?.language) {
-    return getLanguage(windowProp.navigator.language);
-  }
+  const source = lang ?? windowProp?.navigator?.language ?? DEFAULT_LOCALE;
 
-  if (!lang) {
-    return getLanguage('en');
-  }
+  const primary = source.toLowerCase().split('-')[0];
 
-  return getLanguage(lang);
+  return getSupportedLanguage(primary as LanguageAbbreviations);
 };
 
 export const getSupportedLanguage = (lang?: LanguageAbbreviations): SupportedLanguageAbbreviatons => {
-  if (!lang) {
-    return DEFAULT_LOCALE;
-  }
-
-  switch (lang) {
-    case SUPPORTED_LOCALES.find((l) => l === lang):
-      return lang;
-    default:
-      return DEFAULT_LOCALE;
-  }
+  return SUPPORTED_LOCALES.find((l) => l === lang) ?? DEFAULT_LOCALE;
 };
 
 export const i18n = createI18n({
