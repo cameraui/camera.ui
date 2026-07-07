@@ -1,6 +1,7 @@
 import { Badge } from '@capawesome/capacitor-badge';
 
 import { isCapacitor } from '@/connection/index.js';
+import { setFaviconBadge } from '@/utils/faviconBadge.js';
 
 import type { SocketChannel } from '@/connection/index.js';
 import type { StoredNotification } from '@shared/types';
@@ -52,6 +53,7 @@ function ensureChannel(): SocketChannel {
       () => state.notifications.filter((n) => n.seenAt == null).length,
       (count) => {
         setNativeBadge(count);
+        setFaviconBadge(count > 0);
       },
       { immediate: true },
     );
