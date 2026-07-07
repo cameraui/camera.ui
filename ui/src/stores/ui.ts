@@ -1,6 +1,6 @@
 import type { SettingsViews, UiSettingsLocalStorage } from '@shared/types';
 
-export const settingsViews: SettingsViews[] = ['account', 'appearance', 'user', 'recordings', 'instances', 'remote', 'backup', 'system'];
+export const settingsViews: SettingsViews[] = ['account', 'appearance', 'user', 'notifications', 'recordings', 'remote', 'backup', 'system'];
 
 interface LoggerLocalStorage {
   'cui-logger-debug': number;

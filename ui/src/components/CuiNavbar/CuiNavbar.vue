@@ -205,7 +205,10 @@ const isElectronBuild = computed(() => apiInfo.value?.electron ?? false);
 
 const serverUpdatesViaElectron = computed(() => isElectronApp && isElectronBuild.value);
 
-const defaultSettingsPage = computed(() => uiSettings.value.interface.selectedSettingsView);
+const defaultSettingsPage = computed(() => {
+  const view = uiSettings.value.interface.selectedSettingsView;
+  return settingsViews.includes(view) ? view : 'account';
+});
 
 const hiddenInElectron = (route: RouteRecordRaw): boolean => isElectronBuild.value && !!route.meta?.disabledInElectron;
 
