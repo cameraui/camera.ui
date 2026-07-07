@@ -8,6 +8,8 @@ import { NamespaceManager } from '../rpc/namespaces.js';
 import type { Camera } from '@camera.ui/sdk';
 import type { DeviceManagerInterface, DeviceManagerProxyEvents, DeviceManagerProxyGenericEvent } from '../rpc/interfaces/device.js';
 
+const DEVICE_LIFECYCLE_TIMEOUT_MS = 30_000;
+
 @RPCClass
 export class DeviceManager implements DeviceManagerInterface {
   private proxyServer: ProxyServer;
@@ -38,7 +40,9 @@ export class DeviceManager implements DeviceManagerInterface {
   public async requestDeviceManagerEvent<K extends keyof DeviceManagerProxyEvents, R = any>(pluginId: string, type: K, data: DeviceManagerProxyEvents[K]): Promise<R> {
     const namespaces = NamespaceManager.pluginNamespaces(pluginId);
     const event: DeviceManagerProxyGenericEvent<K> = { type, data };
-    return this.proxyServer.proxy.request<DeviceManagerProxyGenericEvent<K>, R>(namespaces.pluginDeviceManagerSubject, event);
+    return this.proxyServer.proxy.request<DeviceManagerProxyGenericEvent<K>, R>(namespaces.pluginDeviceManagerSubject, event, {
+      timeout: DEVICE_LIFECYCLE_TIMEOUT_MS,
+    });
   }
 
   @RPCMethod

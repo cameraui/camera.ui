@@ -122,7 +122,7 @@ export class CameraUiAPI extends EventEmitter {
       // deselectCamera skips owner plugins, so notify the owner directly below
       await Promise.allSettled(Array.from(pluginIds).map((pluginId) => this.deselectCamera(pluginId, camera)));
 
-      if (camera.pluginInfo?.id) {
+      if (camera.pluginInfo?.id && this.pluginCanReceiveEvents(camera.pluginInfo.id)) {
         await proxyServer.deviceManager.requestDeviceManagerEvent(camera.pluginInfo.id, 'cameraReleased', { cameraId: camera._id });
       }
 
@@ -150,7 +150,9 @@ export class CameraUiAPI extends EventEmitter {
       this.addCamera(camera);
     }
 
-    await proxyServer.deviceManager.requestDeviceManagerEvent(pluginId, 'cameraAdded', { camera });
+    if (this.pluginCanReceiveEvents(pluginId)) {
+      await proxyServer.deviceManager.requestDeviceManagerEvent(pluginId, 'cameraAdded', { camera });
+    }
   }
 
   public async deselectCamera(pluginId: string, camera: Camera): Promise<void> {
@@ -159,10 +161,17 @@ export class CameraUiAPI extends EventEmitter {
     }
 
     const proxyServer = container.resolve<ProxyServer>('proxy');
-    await proxyServer.deviceManager.requestDeviceManagerEvent(pluginId, 'cameraReleased', { cameraId: camera._id });
+    if (this.pluginCanReceiveEvents(pluginId)) {
+      await proxyServer.deviceManager.requestDeviceManagerEvent(pluginId, 'cameraReleased', { cameraId: camera._id });
+    }
 
     const cameraController = this.cameraControllers.get(camera._id);
     cameraController?.removePluginSensors(pluginId);
+  }
+
+  private pluginCanReceiveEvents(pluginId: string): boolean {
+    const plugin = this.pluginsService.getPluginById(pluginId);
+    return !!plugin && !plugin.disabled && plugin.worker.isRunning();
   }
 
   // Lazy-instantiated services. CameraUiAPI is constructed before Database, so
