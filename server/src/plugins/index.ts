@@ -1,16 +1,17 @@
 import { API_EVENT, PluginRole, validateContractConsistency } from '@camera.ui/sdk';
 import { outputFile, pathExists, readJson, remove } from 'fs-extra/esm';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
 import { PluginsService } from '../api/services/plugins.service.js';
-import { checkBundledPlugin, extractBundledPlugin } from './bundle.js';
 import { ELECTRON_ASAR_UNPACKED } from '../services/config/constants.js';
 import { sendIPCMessage } from '../utils/ipc.js';
 import { DEFAULT_PY_VERSION, PythonInstaller } from '../utils/pythonInstaller.js';
+import { checkBundledPlugin, extractBundledPlugin } from './bundle.js';
 import { PluginHealthMonitor } from './healthMonitor.js';
 import { Plugin } from './plugin.js';
 import { PLUGIN_IDENTIFIER_PATTERN } from './types.js';
@@ -23,6 +24,8 @@ import type { LoggerService } from '../services/logger/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const KEEP_MARKER = '.cameraui-keep';
 
 export class PluginManager {
   public installedPythonVersions = new Set<string>();
@@ -245,7 +248,10 @@ export class PluginManager {
     await this.pluginsService.removePluginDbById(plugin.id);
 
     if (removeStorage) {
-      await remove(plugin.storagePath);
+      const fullyRemoved = await this.removeSparingKeptDirs(plugin.storagePath);
+      if (!fullyRemoved) {
+        this.logger.log(`Kept parts of the ${plugin.pluginName} storage (${KEEP_MARKER} marker present)`);
+      }
     }
 
     this.plugins.delete(plugin.pluginName);
@@ -504,6 +510,39 @@ export class PluginManager {
     if (allSucceeded) {
       await outputFile(this.configService.DEFAULTS_INSTALLED_FILE, new Date().toISOString());
     }
+  }
+
+  private async removeSparingKeptDirs(dir: string): Promise<boolean> {
+    if (!(await pathExists(dir))) {
+      return true;
+    }
+    if (await pathExists(join(dir, KEEP_MARKER))) {
+      return false;
+    }
+
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+
+    let removedAll = true;
+    for (const entry of entries) {
+      const entryPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!(await this.removeSparingKeptDirs(entryPath))) {
+          removedAll = false;
+        }
+      } else {
+        await remove(entryPath);
+      }
+    }
+
+    if (removedAll) {
+      await remove(dir);
+    }
+    return removedAll;
   }
 
   private async removeOrphanedPlugins(): Promise<void> {

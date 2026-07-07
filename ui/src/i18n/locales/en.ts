@@ -534,6 +534,8 @@ export default {
         confirm_restore: 'Are you sure you want to restore this backup?',
         confirm_delete_backup: 'Are you sure you want to delete "{filename}"?',
         confirm_uninstall_plugin: 'Are you sure you want to uninstall this plugin?',
+        uninstall_remove_storage: 'Also delete stored plugin data (settings, databases, caches)',
+        uninstall_remove_storage_hint: 'This cannot be undone. Recordings are not affected — like any folder containing a ".cameraui-keep" file, they are preserved.',
         compatibility_warning: 'This version may not be compatible with your current setup. You can install it anyway.',
         compatibility_engine: 'Requires {engine} {required} (installed: {current})',
         confirm_unregister_server: 'Are you sure you want to unregister the server?',

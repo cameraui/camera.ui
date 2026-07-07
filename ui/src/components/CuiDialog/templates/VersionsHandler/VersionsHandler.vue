@@ -23,6 +23,11 @@
 
     <div v-else-if="isUninstall && !showConsole">
       <p class="text-muted">{{ $t('components.dialog.message.confirm_uninstall_plugin') }}</p>
+      <label class="flex items-center gap-2 mt-4 cursor-pointer">
+        <Checkbox v-model="removeStorage" :binary="true" />
+        <span>{{ $t('components.dialog.message.uninstall_remove_storage') }}</span>
+      </label>
+      <p v-if="removeStorage" class="text-muted text-sm mt-2">{{ $t('components.dialog.message.uninstall_remove_storage_hint') }}</p>
     </div>
 
     <div v-else-if="!installVersion && !showConsole && !showReleaseNotes">
@@ -158,6 +163,7 @@ const showConsole = ref(false);
 const showReleaseNotes = ref(false);
 const newVersionInstalled = ref(false);
 const uninstallDone = ref(false);
+const removeStorage = ref(false);
 const changelogReady = ref(false);
 const showCompatWarning = ref(false);
 const compatChecked = ref(false);
@@ -335,7 +341,7 @@ async function uninstallTarget(): Promise<void> {
   startConsole();
 
   try {
-    await uninstallPlugin({ pluginName: target.value.pluginName });
+    await uninstallPlugin({ pluginName: target.value.pluginName, removeStorage: removeStorage.value });
 
     uninstallDone.value = true;
 
