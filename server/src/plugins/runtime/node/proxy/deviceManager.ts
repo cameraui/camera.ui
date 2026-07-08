@@ -1,5 +1,3 @@
-import { API_EVENT } from '@camera.ui/sdk';
-
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 import { CameraDeviceProxy } from './cameraDevice.js';
 
@@ -9,11 +7,9 @@ import type { BasePlugin, Camera, DeviceManager, DiscoveredCamera, PluginInfo } 
 import type { DeviceManagerInterface, DeviceManagerListenerMessagePayload } from '../../../../rpc/interfaces/device.js';
 import type { DiscoveryManagerInterface } from '../../../../rpc/interfaces/discovery.js';
 import type { DeviceManagerNamespaces, DiscoveryManagerNamespaces, PluginNamespaces } from '../../../../rpc/namespaces.js';
-import type { PluginAPI } from '../pluginApi.js';
 import type { StorageController } from '../storageController.js';
 
 export class DeviceManagerProxy implements DeviceManager {
-  #api: PluginAPI;
   #proxy: RPCClient;
   #storageController: StorageController;
   #logger: Logger;
@@ -27,8 +23,7 @@ export class DeviceManagerProxy implements DeviceManager {
 
   #devices = new Map<string, CameraDeviceProxy>();
 
-  constructor(proxy: RPCClient, api: PluginAPI, storageController: StorageController, pluginInfo: PluginInfo, logger: Logger) {
-    this.#api = api;
+  constructor(proxy: RPCClient, storageController: StorageController, pluginInfo: PluginInfo, logger: Logger) {
     this.#proxy = proxy;
     this.#storageController = storageController;
     this.#logger = logger;
@@ -38,9 +33,6 @@ export class DeviceManagerProxy implements DeviceManager {
       ...NamespaceManager.pluginNamespaces(this.#pluginInfo.id),
       ...NamespaceManager.discoveryManagerNamespaces(),
     };
-
-    this.#api.setMaxListeners(this.#api.getMaxListeners() + 1);
-    this.#api.once(API_EVENT.SHUTDOWN, this.#close.bind(this));
   }
 
   public setPlugin(plugin: BasePlugin): void {
@@ -76,6 +68,17 @@ export class DeviceManagerProxy implements DeviceManager {
 
   public async configureCameras(cameraDevices: CameraDeviceProxy[]): Promise<void> {
     await Promise.all(cameraDevices.map((cameraDevice) => this.#getCameraDevice(cameraDevice)));
+  }
+
+  /** Internal method to close the device manager and clean up resources */
+  public async close(): Promise<void> {
+    this.#initialized = false;
+    this.#closeRequests?.();
+
+    for (const device of this.#devices.values()) {
+      await device.cleanup();
+    }
+    this.#devices.clear();
   }
 
   get #deviceManagerProxy(): Promisify<DeviceManagerInterface> {
@@ -135,7 +138,7 @@ export class DeviceManagerProxy implements DeviceManager {
         cameraDevice = this.#devices.get(camera._id)!;
       } else {
         const cameraLogger = this.#logger.createLogger({ suffix: camera.name, targetId: camera._id, targetType: 'camera' });
-        cameraDevice = new CameraDeviceProxy(this.#proxy, this.#api, this.#storageController, camera, this.#pluginInfo, cameraLogger);
+        cameraDevice = new CameraDeviceProxy(this.#proxy, this.#storageController, camera, this.#pluginInfo, cameraLogger);
         this.#devices.set(camera._id, cameraDevice);
       }
     }
@@ -154,11 +157,5 @@ export class DeviceManagerProxy implements DeviceManager {
 
   async #removeCameraStorage(cameraId: string): Promise<void> {
     await this.#storageController.removeStorage('camera', cameraId);
-  }
-
-  async #close(): Promise<void> {
-    this.#initialized = false;
-    this.#api.removeListener(API_EVENT.SHUTDOWN, this.#close.bind(this));
-    this.#closeRequests?.();
   }
 }

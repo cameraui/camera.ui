@@ -20,18 +20,18 @@ export class PluginAPI extends EventEmitter implements PluginAPIInterface {
   readonly _storageController: StorageController;
 
   constructor(
-    proxy: RPCClient,
-    plugin: PluginInfo,
+    public readonly proxy: RPCClient,
+    public readonly plugin: PluginInfo,
     public readonly storagePath: string,
-    logger: Logger,
-    pluginDb: PluginConfigDb,
+    public readonly logger: Logger,
+    public readonly pluginDb: PluginConfigDb,
   ) {
     super();
 
-    this._storageController = new StorageController(this, proxy, plugin, pluginDb);
-    this.coreManager = new CoreManagerProxy(proxy, this, plugin);
-    this.deviceManager = new DeviceManagerProxy(proxy, this, this._storageController, plugin, logger);
-    this.downloadManager = new DownloadManagerProxy(proxy);
-    this.notificationManager = new NotificationManagerProxy(proxy, plugin);
+    this._storageController = new StorageController(this, this.proxy, this.plugin, this.pluginDb);
+    this.coreManager = new CoreManagerProxy(this.proxy, this.plugin);
+    this.deviceManager = new DeviceManagerProxy(this.proxy, this._storageController, this.plugin, this.logger);
+    this.downloadManager = new DownloadManagerProxy(this.proxy);
+    this.notificationManager = new NotificationManagerProxy(this.proxy, this.plugin);
   }
 }

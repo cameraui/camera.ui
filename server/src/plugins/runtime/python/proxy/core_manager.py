@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import Any, TypedDict
 
 from _camera_ui_tools.camera_ui_common import LoggerService
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
-    API_EVENT,
     BasePlugin,
     CoreManager,
     CoreManagerEvent,
@@ -15,12 +14,13 @@ from _camera_ui_tools.camera_ui_sdk import (
     PluginInterface,
     Subject,
 )
-from plugins.runtime.python.namespaces import CoreManagerNamespaces, NamespaceManager, PluginNamespaces
+from plugins.runtime.python.namespaces import (
+    CoreManagerNamespaces,
+    NamespaceManager,
+    PluginNamespaces,
+)
 from plugins.runtime.python.rpc.typings import CoreManagerInterface
 from plugins.runtime.python.typings import PluginInfo
-
-if TYPE_CHECKING:
-    from plugins.runtime.python.plugin_api import PluginAPI
 
 
 class RPCConnection(TypedDict):
@@ -32,13 +32,11 @@ class CoreManagerProxy(CoreManager):
     def __init__(
         self,
         proxy: RPCClient,
-        api: PluginAPI,
         logger: LoggerService,
         plugin: PluginInfo,
     ):
         self.__initialized = False
 
-        self.__api: PluginAPI = api
         self.__proxy = proxy
         self.__logger = logger
         self.__plugin = plugin
@@ -51,8 +49,6 @@ class CoreManagerProxy(CoreManager):
 
         self.__rpc_connections: dict[str, RPCConnection] = {}
         self.__event_subject: Subject[CoreManagerEvent] = Subject()
-
-        self.__api.once(API_EVENT.SHUTDOWN.value, self.__close)
 
     @property
     def __core_manager_proxy(self) -> CoreManagerInterface:
@@ -112,6 +108,11 @@ class CoreManagerProxy(CoreManager):
     async def getPluginsByInterface(self, interfaceName: PluginInterface) -> list[PluginInfo]:
         return await self.__core_manager_proxy.getPluginsByInterface(interfaceName)
 
+    async def close(self) -> None:
+        """Internal method to close the core manager proxy."""
+        self.__initialized = False
+        self.__event_subject.complete()
+
     async def __on_event_message(self, event: dict[str, Any]) -> None:
         event_type = event.get("type")
         if not event_type:
@@ -119,10 +120,6 @@ class CoreManagerProxy(CoreManager):
         data = event.get("data")
         self.__event_subject.next({"type": event_type, "data": data})
 
-    async def __close(self) -> None:
-        self.__initialized = False
-        self.__event_subject.complete()
-        self.__api.removeListener(API_EVENT.SHUTDOWN.value, self.__close)
         if self.__close_subscription:
             await self.__close_subscription()
             self.__close_subscription = None

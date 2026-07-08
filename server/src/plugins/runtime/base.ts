@@ -73,7 +73,11 @@ export abstract class BasePluginRuntime extends EventEmitter {
       this.api.setMaxListeners(this.api.getMaxListeners() + 1);
       this.api.once(API_EVENT.SHUTDOWN, () => {
         this.isShuttingDown = true;
-        this.cleanup();
+        if (this.worker) {
+          this.once('exit', () => setImmediate(() => this.cleanup()));
+        } else {
+          this.cleanup();
+        }
       });
     }
   }
@@ -82,18 +86,18 @@ export abstract class BasePluginRuntime extends EventEmitter {
 
   public stop(): Promise<void> {
     return new Promise<void>((resolve) => {
-      if (!this.worker || this.worker.killed) {
+      if (!this.worker || this.worker.killed || this.worker.exitCode !== null || this.worker.signalCode !== null) {
         resolve();
         return;
       }
 
       const killTimeout = setTimeout(() => {
-        this.logger.warn(`Plugin ${this.plugin.displayName} did not terminate gracefully. Forcing closure.`);
+        this.logger.trace(`Plugin ${this.plugin.displayName} still running after grace, force-closing.`);
         this.worker?.kill('SIGKILL');
         resolve();
       }, 3000);
 
-      this.worker.once('close', (code, signal) => {
+      this.worker.once('exit', (code, signal) => {
         clearTimeout(killTimeout);
         this.logger.log(`Plugin ${this.plugin.displayName} closed. Code: ${code}, Signal: ${signal}`);
         this.worker = undefined;
@@ -192,7 +196,7 @@ export abstract class BasePluginRuntime extends EventEmitter {
       PLUGIN_STORAGE_PATH: join(this.configService.PLUGINS_STORAGE_PATH, this.plugin.pluginName),
       PLUGIN_REMOTE_MODE: this.api ? undefined : '1',
       CAMERAUI_FFMPEG_PATH: this.api ? undefined : this.configService.go2rtcConfig.ffmpeg.bin,
-      PLUGIN_CONFIG_STORE_RPC: !this.api || this.plugin.isGo ? '1' : undefined,
+      PLUGIN_CONFIG_STORE_RPC: !this.api ? '1' : undefined,
       ...(this.plugin.remoteEnv ?? {}),
       CAMERA_UI_RUNMODE: process.env.CAMERA_UI_RUNMODE,
       ENV_MODE: process.env.NODE_ENV,

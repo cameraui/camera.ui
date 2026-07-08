@@ -1,4 +1,4 @@
-import { API_EVENT, Subject } from '@camera.ui/sdk';
+import { Subject } from '@camera.ui/sdk';
 
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
@@ -6,12 +6,10 @@ import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type { BasePlugin, CoreManager, CoreManagerEvent, Observable, PluginInfo, PluginInterface, PluginInterfaces } from '@camera.ui/sdk';
 import type { CoreManagerInterface, CoreManagerListenerMessagePayload } from '../../../../rpc/interfaces/core.js';
 import type { CoreManagerNamespaces, PluginNamespaces } from '../../../../rpc/namespaces.js';
-import type { PluginAPI } from '../pluginApi.js';
 
 export class CoreManagerProxy implements CoreManager {
   readonly onEvent: Observable<CoreManagerEvent>;
 
-  #api: PluginAPI;
   #proxy: RPCClient;
   #plugin: PluginInfo;
 
@@ -24,8 +22,7 @@ export class CoreManagerProxy implements CoreManager {
 
   #eventSubject = new Subject<CoreManagerEvent>();
 
-  constructor(proxy: RPCClient, api: PluginAPI, plugin: PluginInfo) {
-    this.#api = api;
+  constructor(proxy: RPCClient, plugin: PluginInfo) {
     this.#proxy = proxy;
     this.#plugin = plugin;
     this.#namespaces = {
@@ -34,9 +31,6 @@ export class CoreManagerProxy implements CoreManager {
     };
 
     this.onEvent = this.#eventSubject.asObservable();
-
-    this.#api.setMaxListeners(this.#api.getMaxListeners() + 1);
-    this.#api.once(API_EVENT.SHUTDOWN, this.#close.bind(this));
   }
 
   get #coreManagerProxy(): Promisify<CoreManagerInterface> {
@@ -98,18 +92,18 @@ export class CoreManagerProxy implements CoreManager {
     return await this.#coreManagerProxy.getPluginsByInterface(interfaceName);
   }
 
+  /** Internal method to close the core manager proxy */
+  public async close(): Promise<void> {
+    this.#initialized = false;
+    this.#eventSubject.complete();
+    this.#closeSubscription?.();
+    await this.#disconnectRpc();
+  }
+
   async #onEventMessage(event: CoreManagerListenerMessagePayload): Promise<void> {
     const { type, data } = event;
     if (!type) return;
     this.#eventSubject.next({ type, data });
-  }
-
-  async #close(): Promise<void> {
-    this.#initialized = false;
-    this.#eventSubject.complete();
-    this.#api.removeListener(API_EVENT.SHUTDOWN, this.#close.bind(this));
-    this.#closeSubscription?.();
-    await this.#disconnectRpc();
   }
 
   async #disconnectRpc(): Promise<void> {

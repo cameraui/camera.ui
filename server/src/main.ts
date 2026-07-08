@@ -195,7 +195,7 @@ class CameraUi {
 
     await Promise.allSettled(Array.from(this.pluginManager.plugins).map(([, plugin]) => plugin.worker.teardown(true)));
 
-    await sleep(1000);
+    await sleep(500);
 
     const processes = this.configService.processes;
     await fkill(

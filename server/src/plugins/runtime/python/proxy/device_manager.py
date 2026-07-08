@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from _camera_ui_tools.camera_ui_common import (
     LoggerService,
 )
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
-    API_EVENT,
     BasePlugin,
     Camera,
     DeviceManager,
@@ -20,21 +19,20 @@ from plugins.runtime.python.namespaces import (
     NamespaceManager,
     PluginNamespaces,
 )
-from plugins.runtime.python.rpc.typings import DeviceManagerInterface, DiscoveryManagerInterface
+from plugins.runtime.python.rpc.typings import (
+    DeviceManagerInterface,
+    DiscoveryManagerInterface,
+)
 from plugins.runtime.python.storage_controller import StorageController
 from plugins.runtime.python.typings import PluginInfo
 
 from .camera_device import CameraDeviceProxy
-
-if TYPE_CHECKING:
-    from plugins.runtime.python.plugin_api import PluginAPI
 
 
 class DeviceManagerProxy(DeviceManager):
     def __init__(
         self,
         proxy: RPCClient,
-        api: PluginAPI,
         storage_controller: StorageController,
         logger: LoggerService,
         plugin: PluginInfo,
@@ -42,7 +40,6 @@ class DeviceManagerProxy(DeviceManager):
         self.__initialized = False
         self.__plugin_instance: BasePlugin | None = None
 
-        self.__api: PluginAPI = api
         self.__proxy = proxy
         self.__storage_controller = storage_controller
         self.__logger = logger
@@ -55,8 +52,6 @@ class DeviceManagerProxy(DeviceManager):
             NamespaceManager.plugin_namespaces(self.__plugin["id"]),
             NamespaceManager.discovery_manager_namespaces(),
         )
-
-        self.__api.once(API_EVENT.SHUTDOWN.value, self.__close)
 
     @property
     def __device_manager_proxy(self) -> DeviceManagerInterface:
@@ -96,6 +91,16 @@ class DeviceManagerProxy(DeviceManager):
 
     async def configureCameras(self, camera_devices: list[CameraDeviceProxy]) -> None:
         await asyncio.gather(*[self.__get_camera_device(camera_device) for camera_device in camera_devices])
+
+    async def close(self) -> None:
+        """Internal method to close the device manager proxy and cleanup resources."""
+        self.__initialized = False
+        if self.__close_request:
+            await self.__close_request()
+
+        for device in self.__devices.values():
+            await device.cleanup()
+        self.__devices.clear()
 
     async def __on_event_message(self, event: Any) -> None:
         if not self.__plugin_instance:
@@ -153,11 +158,14 @@ class DeviceManagerProxy(DeviceManager):
                 camera_device = self.__devices[camera["_id"]]
             else:
                 camera_logger = self.__logger.create_logger(
-                    {"suffix": camera["name"], "target_id": camera["_id"], "target_type": "camera"}
+                    {
+                        "suffix": camera["name"],
+                        "target_id": camera["_id"],
+                        "target_type": "camera",
+                    }
                 )
                 camera_device = CameraDeviceProxy(
                     self.__proxy,
-                    self.__api,
                     self.__storage_controller,
                     camera,
                     self.__plugin,
@@ -177,9 +185,3 @@ class DeviceManagerProxy(DeviceManager):
 
     async def __remove_camera_storage(self, camera_id: str) -> None:
         await self.__storage_controller.removeStorage("camera", camera_id)
-
-    async def __close(self) -> None:
-        self.__initialized = False
-        self.__api.removeListener(API_EVENT.SHUTDOWN.value, self.__close)
-        if self.__close_request:
-            await self.__close_request()

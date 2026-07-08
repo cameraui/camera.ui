@@ -9,7 +9,6 @@ from deepdiff.diff import DeepDiff
 from _camera_ui_tools.camera_ui_common import Subscribed, TaskSet
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
-    API_EVENT,
     BehaviorSubject,
     Camera,
     CameraDetectionSettings,
@@ -53,7 +52,6 @@ from _camera_ui_tools.camera_ui_sdk import (
 from _camera_ui_tools.camera_ui_sdk import CameraDevice as CameraDeviceInterface
 from _camera_ui_tools.camera_ui_sdk.internal import SensorJSON
 from plugins.runtime.python.camera.utils import build_snapshot_url, build_target_url
-from plugins.runtime.python.remote_urls import rewrite_source_urls_for_remote
 from plugins.runtime.python.namespaces import (
     CameraNamespaces,
     FrameWorkerDetectionNamespaces,
@@ -67,6 +65,7 @@ from plugins.runtime.python.proxy.sensor import (
     SensorControllerInterface,
     SensorProxy,
 )
+from plugins.runtime.python.remote_urls import rewrite_source_urls_for_remote
 from plugins.runtime.python.typings import (
     CameraEventMessage,
     PluginInfo,
@@ -78,7 +77,6 @@ from plugins.runtime.python.typings import (
 )
 
 if TYPE_CHECKING:
-    from plugins.runtime.python.plugin_api import PluginAPI
     from plugins.runtime.python.storage_controller import StorageController
 
 
@@ -99,7 +97,10 @@ class CameraControllerInterface(Protocol):
     async def disconnect(self) -> None: ...
     async def snapshot(self, source_id: str, force_new: bool | None = None) -> bytes | None: ...
     async def probeStream(
-        self, source_id: str, probe_config: ProbeConfig | None = None, refresh: bool | None = False
+        self,
+        source_id: str,
+        probe_config: ProbeConfig | None = None,
+        refresh: bool | None = False,
     ) -> ProbeStream | None: ...
     async def refreshStates(self) -> dict[str, Any]: ...
     async def registerSensor(self, sensor: SensorJSON, plugin_id: str) -> bool: ...
@@ -144,7 +145,6 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
     def __init__(
         self,
         proxy: RPCClient,
-        api: PluginAPI,
         storage_controller: StorageController,
         camera: Camera,
         plugin: PluginInfo,
@@ -163,7 +163,6 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         )
 
         self._logger = logger
-        self._api: PluginAPI = api
         self._proxy = proxy
         self._plugin = plugin
         self._contract: PluginContract = plugin["contract"]
@@ -198,8 +197,6 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
             NamespaceManager.sensor_controller_namespaces(self.id),
             NamespaceManager.frame_worker_detection_namespaces(self.id),
         )
-
-        self._api.once(API_EVENT.SHUTDOWN.value, self.cleanup)
 
     @property
     def _cameraObject(self) -> Camera:
@@ -345,7 +342,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         return self._proxy.create_proxy(self._namespaces[4].detection_rpc)
 
     def getSourceById(self, id: str) -> CameraDeviceSource | None:
-        return next((s for s in self.sources if s._id == id), None)
+        return next((s for s in self.sources if s._id == id), None)  # pyright: ignore[reportPrivateUsage]
 
     def _can_access_sensor(self, sensor: StoredSensorData) -> bool:
         # Own sensors are always accessible
@@ -609,7 +606,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         return await self._camera_controller_proxy.snapshot(source_id, force_new)
 
     async def _probe_stream(
-        self, source_id: str, probe_config: ProbeConfig | None = None, refresh: bool | None = False
+        self,
+        source_id: str,
+        probe_config: ProbeConfig | None = None,
+        refresh: bool | None = False,
     ) -> ProbeStream | None:
         return await self._camera_controller_proxy.probeStream(source_id, probe_config, refresh)
 
@@ -623,8 +623,6 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         self._initialized.next(False)
 
         self.unsubscribe()
-
-        self._api.removeListener(API_EVENT.SHUTDOWN.value, self.cleanup)
 
         self._tasks.remove_all()
 
@@ -772,7 +770,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
             self._sensors.pop(removed_data["sensorId"], None)
 
             self._sensor_removed_subject.next(
-                {"sensorId": removed_data["sensorId"], "sensorType": removed_data["sensorType"]}
+                {
+                    "sensorId": removed_data["sensorId"],
+                    "sensorType": removed_data["sensorType"],
+                }
             )
 
         elif event_type == "sensor:assignment:changed":

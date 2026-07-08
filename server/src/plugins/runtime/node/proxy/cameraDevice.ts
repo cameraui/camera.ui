@@ -1,4 +1,4 @@
-import { API_EVENT, Subject } from '@camera.ui/sdk';
+import { Subject } from '@camera.ui/sdk';
 
 import { CameraDevice } from '../../../../camera/index.js';
 import { getDetectionTypes } from '../../../../camera/sensors/types.js';
@@ -33,12 +33,10 @@ import type {
   SnapshotUrlOptions,
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
-import type { EventEmitter } from 'node:events';
 import type { DetectionCoordinatorInterface } from '../../../../rpc/interfaces/detection.js';
 import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates } from '../../../../rpc/interfaces/device.js';
 import type { SensorControllerInterface, StoredSensorData } from '../../../../rpc/interfaces/sensor.js';
 import type { CameraNamespaces, FrameWorkerDetectionNamespaces, PluginCameraNamespaces, SensorControllerNamespaces } from '../../../../rpc/namespaces.js';
-import type { PluginAPI } from '../pluginApi.js';
 import type { StorageController } from '../storageController.js';
 
 const DETECTION_SENSOR_TYPES: ReadonlySet<SensorType> = new Set(getDetectionTypes());
@@ -51,7 +49,6 @@ export class CameraDeviceProxy extends CameraDevice {
   #proxy: RPCClient;
   #namespaces: CameraNamespaces & FrameWorkerDetectionNamespaces & PluginCameraNamespaces & SensorControllerNamespaces;
 
-  #api: EventEmitter;
   #plugin: PluginInfo;
   #contract: PluginContract;
   #storageController: StorageController;
@@ -67,14 +64,13 @@ export class CameraDeviceProxy extends CameraDevice {
   readonly #sensorRemovedSubject = new Subject<{ sensorId: string; sensorType: SensorType }>();
   readonly #detectionEventSubject = new Subject<{ type: DetectionEventType; event: DetectionEvent }>();
 
-  constructor(proxy: RPCClient, api: PluginAPI, storageController: StorageController, camera: Camera, plugin: PluginInfo, logger: Logger) {
+  constructor(proxy: RPCClient, storageController: StorageController, camera: Camera, plugin: PluginInfo, logger: Logger) {
     super(camera, logger);
 
     this.onSensorAdded = this.#sensorAddedSubject.asObservable();
     this.onSensorRemoved = this.#sensorRemovedSubject.asObservable();
     this.onDetectionEvent = this.#detectionEventSubject.asObservable();
 
-    this.#api = api;
     this.#plugin = plugin;
     this.#contract = plugin.contract;
     this.#proxy = proxy;
@@ -86,9 +82,6 @@ export class CameraDeviceProxy extends CameraDevice {
       ...NamespaceManager.pluginCameraNamespaces(plugin.id, camera._id),
       ...NamespaceManager.sensorControllerNamespaces(camera._id),
     };
-
-    this.#api.setMaxListeners(this.#api.getMaxListeners() + 1);
-    this.#api.once(API_EVENT.SHUTDOWN, this.cleanup.bind(this));
 
     this.addSubscriptions(
       this.onPropertyChange('name').subscribe(() => {
@@ -203,8 +196,6 @@ export class CameraDeviceProxy extends CameraDevice {
     this.initialized.next(false);
     this.removeAllListeners();
     this.unsubscribe();
-    this.#api.removeListener(API_EVENT.SHUTDOWN, this.cleanup.bind(this));
-    this.#api.setMaxListeners(this.#api.getMaxListeners() - 1);
     this.#closeSubscription?.();
     this.#closeSensorSubscription?.();
     this.#closeDetectionSubscription?.();

@@ -1,6 +1,4 @@
-from typing import Any, Literal, cast
-
-from plugins.runtime.python.config_db import PluginConfigDb
+from typing import Any, cast
 
 from _camera_ui_tools.camera_ui_common import LoggerService
 from _camera_ui_tools.camera_ui_rpc import RPCClient
@@ -14,6 +12,7 @@ from _camera_ui_tools.camera_ui_sdk import (
 )
 from _camera_ui_tools.camera_ui_sdk import PluginAPI as PluginAPIInterface
 from _camera_ui_tools.camera_ui_sdk.internal import AsyncEventEmitter
+from plugins.runtime.python.config_db import PluginConfigDb
 from plugins.runtime.python.proxy.core_manager import CoreManagerProxy
 from plugins.runtime.python.proxy.device_manager import DeviceManagerProxy
 from plugins.runtime.python.proxy.download_manager import DownloadManagerProxy
@@ -33,10 +32,11 @@ class PluginAPI(AsyncEventEmitter, PluginAPIInterface):
     ) -> None:
         super().__init__()
 
+        self.logger = logger
         self.storage_path = storage_path
         self.storage_controller = StorageController(self, proxy, plugin, plugin_db)
-        self.core_manager = CoreManagerProxy(proxy, self, logger, plugin)
-        self.device_manager = DeviceManagerProxy(proxy, self, self.storage_controller, logger, plugin)
+        self.core_manager = CoreManagerProxy(proxy, logger, plugin)
+        self.device_manager = DeviceManagerProxy(proxy, self.storage_controller, logger, plugin)
         self.download_manager = DownloadManagerProxy(proxy)
         self.notification_manager = NotificationManagerProxy(proxy, plugin)
 
