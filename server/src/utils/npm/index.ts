@@ -160,7 +160,7 @@ export function installDependencies(packageDir: string, onOutput?: (chunk: strin
       env.npm_config_prefix = dirname(packageDir);
     }
 
-    const child = spawn(command, args, { cwd: packageDir, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { cwd: packageDir, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
     const handleChunk = (data: Buffer) => onOutput?.(data.toString());
     child.stdout.on('data', handleChunk);

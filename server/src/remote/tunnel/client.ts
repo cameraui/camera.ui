@@ -130,6 +130,7 @@ export class TunnelClient {
         ),
         cwd: '.',
         stdio: 'pipe',
+        windowsHide: true,
       });
 
       let tunnelPid: number | undefined = undefined;

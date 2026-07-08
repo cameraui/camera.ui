@@ -245,7 +245,7 @@ export class CloudflareManagedService {
 
     const args = ['tunnel', '--no-autoupdate', '--config', this.configPath(tunnelId), 'run', tunnelId];
     const env = { ...process.env, TUNNEL_ORIGIN_CERT: this.certPath() };
-    this.runProcess = spawn(this.cloudflaredBinaryPath(), args, { stdio: ['ignore', 'pipe', 'pipe'], env });
+    this.runProcess = spawn(this.cloudflaredBinaryPath(), args, { stdio: ['ignore', 'pipe', 'pipe'], env, windowsHide: true });
 
     const pid = this.runProcess.pid;
     if (pid) {
@@ -270,7 +270,7 @@ export class CloudflareManagedService {
   private async runStep(args: string[], timeoutMs: number, onLine?: (line: string) => void): Promise<string> {
     return new Promise((resolve, reject) => {
       const env = { ...process.env, TUNNEL_ORIGIN_CERT: this.certPath() };
-      const proc = spawn(this.cloudflaredBinaryPath(), args, { stdio: ['ignore', 'pipe', 'pipe'], env });
+      const proc = spawn(this.cloudflaredBinaryPath(), args, { stdio: ['ignore', 'pipe', 'pipe'], env, windowsHide: true });
       this.stepProcess = proc;
 
       let output = '';

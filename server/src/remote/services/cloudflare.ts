@@ -166,6 +166,7 @@ export class CloudflareService {
 
     this.cloudflaredProcess = spawn(binPath, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     this.setupProcessHandlers();

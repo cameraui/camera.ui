@@ -80,6 +80,7 @@ export class Go2Rtc {
         env: Object.assign({}, process.env),
         cwd: '.',
         stdio: 'pipe',
+        windowsHide: true,
       });
 
       let go2rtcPID: number | undefined = undefined;

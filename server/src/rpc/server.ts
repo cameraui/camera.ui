@@ -413,7 +413,7 @@ export class NATS {
     this.logger.debug(`Starting Nats server with following command: ${this.configService.NATS_BINARY} ${args.join(' ')}`);
 
     await new Promise<void>((resolve, reject) => {
-      this.serverProcess = spawn(this.configService.NATS_BINARY, args);
+      this.serverProcess = spawn(this.configService.NATS_BINARY, args, { windowsHide: true });
       this.setupProcess(this.serverProcess, args, configFile, 'server', resolve, reject);
     });
   }
@@ -424,7 +424,7 @@ export class NATS {
     this.logger.debug(`Starting Nats cluster server with following command: ${this.configService.NATS_BINARY} ${args.join(' ')}`);
 
     await new Promise<void>((resolve, reject) => {
-      const clusterProcess = spawn(this.configService.NATS_BINARY, args);
+      const clusterProcess = spawn(this.configService.NATS_BINARY, args, { windowsHide: true });
       this.setupProcess(clusterProcess, args, configFile, 'cluster', resolve, reject);
       this.clusterProcesses.push(clusterProcess);
     });
@@ -438,7 +438,7 @@ export class NATS {
     this.logger.debug(`Starting Nats leaf-acceptor: ${this.configService.NATS_BINARY} ${args.join(' ')}`);
 
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn(this.configService.NATS_BINARY, args);
+      const proc = spawn(this.configService.NATS_BINARY, args, { windowsHide: true });
       this.leafAcceptorProcess = proc;
 
       let settled = false;
@@ -607,13 +607,17 @@ export class NATS {
   }
 
   private async kill(childProcess: ChildProcess): Promise<void> {
+    if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
+      return;
+    }
+
     return new Promise((resolve) => {
       const res = (): void => {
         clearTimeout(killTimeout);
         resolve();
       };
 
-      childProcess.on('exit', () => {
+      childProcess.once('exit', () => {
         res();
       });
       childProcess.kill('SIGKILL');

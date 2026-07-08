@@ -23,6 +23,7 @@ export class GoPluginRuntime extends BasePluginRuntime {
       this.worker = spawn(binaryPath, processNames, {
         env: this.getEnv(),
         cwd: this.plugin.mainPath,
+        windowsHide: true,
       });
 
       this.worker.on('spawn', this.onSpawn.bind(this, this.worker.pid!, binaryPath, processNames, processNames, resolve));

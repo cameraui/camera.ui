@@ -41,6 +41,7 @@ export class PythonPluginRuntime extends BasePluginRuntime {
           ...this.getEnv(),
         },
         cwd: this.plugin.mainPath,
+        windowsHide: true,
       });
 
       this.worker.on('spawn', this.onSpawn.bind(this, this.worker.pid!, command, args, processNames, resolve));
