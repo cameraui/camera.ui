@@ -22,6 +22,9 @@ export class NotificationManagerProxy implements NotificationManager {
   }
 
   async publish(notification: Notification): Promise<void> {
+    if (!notification.title) {
+      throw new Error('notification.title is required');
+    }
     const envelope: PublishEnvelope = {
       pluginId: this.#plugin.id,
       pluginName: this.#plugin.name,
