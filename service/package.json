@@ -24,13 +24,13 @@
     "fs-extra": "^11.3.6",
     "js-yaml": "^5.2.1",
     "ora": "^9.4.1",
-    "systeminformation": "^5.31.14",
+    "systeminformation": "^5.31.15",
     "tail": "^2.2.6"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "26.1.0",
+    "@types/node": "26.1.1",
     "@types/tail": "^2.2.3",
     "@typescript-eslint/parser": "^8.63.0",
     "eslint": "9.39.2",
