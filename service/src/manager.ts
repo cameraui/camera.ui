@@ -393,6 +393,7 @@ export class ServerManager {
       const args = [
         'install',
         `${APP_SERVER_NAME}@${version}`,
+        '--allow-scripts',
         '--prefix',
         prefix,
         '--omit=dev',

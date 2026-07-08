@@ -130,7 +130,7 @@ export async function extractPackage(spec: string, dest: string): Promise<void> 
   await pacote.extract(spec, dest, npmOptions());
 }
 
-export function installDependencies(packageDir: string, onOutput?: (chunk: string) => void): Promise<void> {
+export function installDependencies(packageDir: string, allowScripts: boolean, onOutput?: (chunk: string) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     let bundledNpmCli: string | undefined;
     try {
@@ -139,10 +139,14 @@ export function installDependencies(packageDir: string, onOutput?: (chunk: strin
       bundledNpmCli = undefined;
     }
 
+    // Explicit either way so behavior is deterministic across npm versions:
+    // older npm runs dependency scripts by default, npm v12+ blocks them by default.
+    const scriptsFlag = allowScripts ? '--allow-scripts' : '--ignore-scripts';
+
     const command = bundledNpmCli ? process.execPath : getNpmPath()[0];
     const args = bundledNpmCli
-      ? [bundledNpmCli, 'install', '--omit=dev', '--include=prod', '--no-progress']
-      : ['install', '--omit=dev', '--include=prod', '--no-progress'];
+      ? [bundledNpmCli, 'install', scriptsFlag, '--omit=dev', '--include=prod', '--no-progress']
+      : ['install', scriptsFlag, '--omit=dev', '--include=prod', '--no-progress'];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,

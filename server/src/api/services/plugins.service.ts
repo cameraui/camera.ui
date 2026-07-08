@@ -254,7 +254,7 @@ export class PluginsService {
         log.done();
       } else {
         log.block('Installing dependencies');
-        await installDependencies(targetDir, (chunk) => log.feed(chunk));
+        await installDependencies(targetDir, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => log.feed(chunk));
         log.flush();
       }
 
