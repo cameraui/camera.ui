@@ -318,7 +318,7 @@ function openExportDialog(): void {
       title: t('views.recordings.export.title'),
       contentProps: {
         cameras: availableCameras.value,
-        preselect: filters.value.cameraIds?.length ? filters.value.cameraIds : allCameraIds.value,
+        preselect: filters.value.cameraIds?.length ? filters.value.cameraIds : [],
       },
       confirmText: t('views.recordings.export.confirm'),
     },
