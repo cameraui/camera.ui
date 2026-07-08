@@ -594,7 +594,11 @@ export class NATS {
           lines.push(this.stringifyConfig(value, pad + '  '));
           lines.push(`${pad}}`);
         } else {
-          const escapedValue = typeof value === 'string' ? `"${value.replace(/"/g, '\\"')}"` : value;
+          // Escape backslashes BEFORE quotes: NATS treats `\` as an escape char
+          // in a quoted string, so a Windows path (C:\Users\…) written verbatim
+          // makes it choke on `\U` ("Invalid escape character") and crash. Order
+          // matters — escaping quotes first would double the backslash we add.
+          const escapedValue = typeof value === 'string' ? `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : value;
           if (!Array.isArray(config)) {
             lines.push(`${pad}${key}: ${escapedValue}`);
           } else {
