@@ -62,6 +62,10 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[lint.per-file-ignores]
+# truststore.inject_into_ssl() must run before any other import.
+"src/plugins/runtime/python/child.py" = ["E402"]
+
 [format]
 # Like Black, use double quotes for strings.
 quote-style = "double"

@@ -27,6 +27,7 @@
   },
   "include": [
     "scripts",
+    "tests",
   ],
   "exclude": [
     "node_modules",
