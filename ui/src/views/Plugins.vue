@@ -19,6 +19,28 @@
         </InputIcon>
         <InputText v-model="searchQuery" :placeholder="t('views.plugins.search')" class="w-full" />
       </IconField>
+
+      <template v-if="hasPermission(undefined, 'admin')">
+        <Button v-tooltip.left="{ value: t('views.plugins.settings') }" severity="secondary" outlined class="cui-button shrink-0" @click="menuRef?.toggleMenu($event)">
+          <template #icon>
+            <i-carbon:settings class="w-4.5 h-4.5" />
+          </template>
+        </Button>
+
+        <CuiMenu
+          ref="menuRef"
+          :items="menuItems"
+          :auto-hide="false"
+          :popover="{
+            pt: {
+              root: { class: 'w-[22rem]' },
+              content: {
+                class: 'p-0! rounded-xl! overflow-hidden!',
+              },
+            },
+          }"
+        />
+      </template>
     </div>
 
     <Transition name="fade-2" mode="out-in">
@@ -64,11 +86,15 @@
 <script lang="ts" setup>
 import PlusIcon from '~icons/typcn/plus';
 
+import type { IConfig } from '@shared/types';
+
+import { ConfigQuery } from '@/api/routes/config.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import PluginSearchDialog from '@/components/CuiDialog/templates/PluginSearch/PluginSearch.vue';
 import { PLUGIN_CARD_SIZE } from '@/components/CuiPluginCard/types.js';
 
 const pluginsQuery = new PluginsQuery();
+const configQuery = new ConfigQuery();
 
 const dialog = useCuiDialog();
 const { t } = useI18n();
@@ -76,8 +102,23 @@ const { smBreakpoint } = useSharedCuiBreakpoint();
 const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 
 const { data: plugins, isBusy: pluginsLoading } = pluginsQuery.getPluginsQuery({ page: 1, pageSize: -1 });
+const { data: config } = configQuery.getConfigQuery(true);
+const { mutateAsync: patchConfig } = configQuery.patchConfigQuery();
+
+const menuRef = useTemplateRef('menuRef');
 
 const searchQuery = ref('');
+
+const menuItems = computed(() => [
+  {
+    key: 'allowBuildScripts',
+    label: t('views.plugins.allow_build_scripts'),
+    description: t('views.plugins.allow_build_scripts_hint'),
+    toggle: true,
+    toggleState: (config.value as IConfig | undefined)?.plugins?.allowBuildScripts ?? false,
+    onClick: toggleAllowBuildScripts,
+  },
+]);
 
 const isLoading = computed(() => pluginsLoading.value);
 
@@ -93,6 +134,18 @@ const skeletonCount = computed(() => {
   const rows = Math.max(1, Math.ceil(windowHeight.value / (PLUGIN_CARD_SIZE.HEIGHT + 8)));
   return cols * rows;
 });
+
+async function toggleAllowBuildScripts() {
+  const current = config.value;
+  if (!current || typeof current === 'string') return;
+
+  const next: IConfig = {
+    ...current,
+    plugins: { ...current.plugins, allowBuildScripts: !current.plugins?.allowBuildScripts },
+  };
+
+  await patchConfig({ configData: JSON.stringify(next) });
+}
 
 function openPluginDialog() {
   dialog.openComponentDialog(PluginSearchDialog, {
