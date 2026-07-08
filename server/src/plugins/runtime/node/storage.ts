@@ -1,5 +1,5 @@
 import { isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
-import { RPCClass, RPCMethod } from '@camera.ui/rpc';
+import { RPCMethod } from '@camera.ui/rpc';
 import objectPath from 'object-path';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
@@ -13,7 +13,6 @@ import type { StoreLocation } from '../../store/location.js';
 import type { PluginConfigDb } from './configDb.js';
 import type { PluginAPI } from './pluginApi.js';
 
-@RPCClass
 export class DeviceStorage<T extends Record<string, any> = Record<string, any>> implements DeviceStorageInterface<T> {
   public values: T = {} as T;
 
@@ -181,28 +180,25 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   }
 
   @RPCMethod
-  public async changeSchema(key: string, newSchema: Partial<JsonSchema>): Promise<void> {
+  public async changeSchema(key: string, newSchema: JsonSchema): Promise<void> {
     newSchema.key = key;
-    const schema = this.schemas.find((schema) => schema.key === newSchema.key);
+    const index = this.schemas.findIndex((schema) => schema.key === key);
+    if (index === -1) {
+      return;
+    }
 
-    if (schema) {
-      const wasStorable = this.#containsStorableSchema(schema);
-      mergeWith(schema, newSchema, (source: any, target: any) => {
-        if (Array.isArray(source)) {
-          return target;
-        }
-      });
+    const wasStorable = this.#containsStorableSchema(this.schemas[index]);
+    this.schemas[index] = newSchema;
 
-      if (this.#containsStorableSchema(schema) !== wasStorable) {
-        this.#dirty = true;
-      }
+    if (this.#containsStorableSchema(newSchema) !== wasStorable) {
+      this.#dirty = true;
+    }
 
-      const oldValue = objectPath.get(this.values, key);
-      await this.#resolveOnGetFunctions(schema);
+    const oldValue = objectPath.get(this.values, key);
+    await this.#resolveOnGetFunctions(newSchema);
 
-      if (this.#containsStorableSchema(schema) && !isEqual(oldValue, objectPath.get(this.values, key), true)) {
-        await this.save();
-      }
+    if (this.#containsStorableSchema(newSchema) && !isEqual(oldValue, objectPath.get(this.values, key), true)) {
+      await this.save();
     }
   }
 

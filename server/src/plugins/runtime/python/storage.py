@@ -243,29 +243,30 @@ class DeviceStorage(DeviceStorageInterface):
     @RPCMethod
     async def changeSchema(self, key: str, new_schema: dict[str, Any]) -> None:
         new_schema["key"] = key
-        schema = next(
-            (schema for schema in self.schemas if schema["key"] == new_schema["key"]),
+        index = next(
+            (i for i, schema in enumerate(self.schemas) if schema["key"] == key),
             None,
         )
+        if index is None:
+            return
 
-        if schema:
-            was_storable = self.__contains_storable_schema(schema)
-            merge_with(schema, new_schema, merge)
+        was_storable = self.__contains_storable_schema(self.schemas[index])
+        self.schemas[index] = cast(JsonSchema, new_schema)
 
-            # Storable-ness flipped: the next write must persist even if the
-            # value compares unchanged, otherwise the flip never becomes durable.
-            if self.__contains_storable_schema(schema) != was_storable:
-                self.__dirty = True
+        # Storable-ness flipped: the next write must persist even if the
+        # value compares unchanged, otherwise the flip never becomes durable.
+        if self.__contains_storable_schema(self.schemas[index]) != was_storable:
+            self.__dirty = True
 
-            old_value = ObjectPath.get(self.values, key)
-            await self.__resolve_on_get_functions(schema)
+        old_value = ObjectPath.get(self.values, key)
+        await self.__resolve_on_get_functions(self.schemas[index])
 
-            new_value = ObjectPath.get(self.values, key)
-            if (
-                self.__contains_storable_schema(schema)
-                and DeepDiff(old_value, new_value, ignore_order=True) != {}
-            ):
-                await self.save()
+        new_value = ObjectPath.get(self.values, key)
+        if (
+            self.__contains_storable_schema(self.schemas[index])
+            and DeepDiff(old_value, new_value, ignore_order=True) != {}
+        ):
+            await self.save()
 
     @RPCMethod
     def getSchema(self, key: str) -> JsonSchema | None:

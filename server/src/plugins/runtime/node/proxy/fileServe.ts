@@ -1,7 +1,7 @@
 import { close, open, read, stat, unlink } from 'node:fs';
 import { promisify } from 'node:util';
 
-import { RPCClass, RPCMethod } from '@camera.ui/rpc';
+import { RPCMethod } from '@camera.ui/rpc';
 
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
@@ -14,7 +14,6 @@ const readAsync = promisify(read);
 const closeAsync = promisify(close);
 const unlinkAsync = promisify(unlink);
 
-@RPCClass
 export class PluginFileServer implements PluginFileServeInterface {
   #closeHandler?: () => Promise<void>;
 
@@ -25,7 +24,7 @@ export class PluginFileServer implements PluginFileServeInterface {
 
   public async register(): Promise<void> {
     const subject = NamespaceManager.pluginFileServeRpc(this.pluginId);
-    this.#closeHandler = await this.proxy.registerHandler(subject, this, { withoutDecorators: true });
+    this.#closeHandler = await this.proxy.registerHandler(subject, this);
   }
 
   public async close(): Promise<void> {
