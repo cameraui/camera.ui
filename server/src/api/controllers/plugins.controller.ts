@@ -13,8 +13,8 @@ import { container } from 'tsyringe';
 import { PluginManager } from '../../plugins/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { checkEngineCompatibility } from '../../utils/engines.js';
-import { isPlatformCompatible } from '../../utils/platform.js';
 import { checkForUpdate, extractPackage, getManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
+import { isPlatformCompatible } from '../../utils/platform.js';
 import { computeTrust, getBlock, getBlocklist, getCatalog, getVerified, getWeeklyDownloads, invalidateRegistry } from '../../utils/plugin-registry/index.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { PluginsService } from '../services/plugins.service.js';
@@ -115,7 +115,11 @@ export class PluginsController {
         this.configService.writeConfig();
       }
 
-      await this.pluginManager.startPluginChild(pluginName);
+      // Start the plugin in the background. The UI reflects the real state via the
+      // /plugins `plugin-status-<name>` socket event when the child reaches STARTED/ERROR.
+      this.pluginManager.startPluginChild(pluginName).catch((error: unknown) => {
+        this.logger.error(`Failed to start plugin ${pluginName} after enable:`, error);
+      });
 
       return reply.code(204).send();
     } catch (error: any) {
@@ -150,7 +154,11 @@ export class PluginsController {
       this.configService.config.plugins.disabledPlugins.push(pluginName);
       this.configService.writeConfig();
 
-      await this.pluginManager.stopPluginChild(pluginName);
+      // Stop in the background — same reasoning as enable: a graceful teardown can
+      // run into its shutdown grace period and shouldn't hold the HTTP reply open.
+      this.pluginManager.stopPluginChild(pluginName).catch((error: unknown) => {
+        this.logger.error(`Failed to stop plugin ${pluginName} after disable:`, error);
+      });
 
       return reply.code(204).send();
     } catch (error: any) {
