@@ -110,7 +110,7 @@ const TIMELAPSE_FACTOR = 30;
 
 const estimateFiles = ref<NvrExportEstimateFile[]>([]);
 const estimating = ref(false);
-const selectedCameraIds = ref(props.preselect?.length ? [...props.preselect] : props.cameras.map((c) => c.id));
+const selectedCameraIds = ref(props.preselect?.length ? [...props.preselect] : []);
 const quality = ref<'best' | 'smallest'>('best');
 const timelapseInterval = ref(0);
 const from = ref(new Date(new Date().setHours(0, 0, 0, 0)));
