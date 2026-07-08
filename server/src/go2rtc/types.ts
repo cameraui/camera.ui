@@ -38,6 +38,9 @@ export interface OnvifSource extends BaseDeviceSource {
   name?: string;
   url: string;
   info?: string;
+  encoding?: string;
+  width?: number;
+  height?: number;
   type: 'Onvif';
 }
 

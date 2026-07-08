@@ -12,7 +12,7 @@ import type { DiscoveredCamera, JsonSchemaWithoutCallbacks } from '@camera.ui/sd
 import type { CameraUiAPI } from '../api.js';
 import type { DBCamera } from '../api/database/types.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
-import type { DeviceSource } from '../go2rtc/types.js';
+import type { DeviceSource, OnvifSource } from '../go2rtc/types.js';
 import type { Plugin } from '../plugins/plugin.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
@@ -425,6 +425,11 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     }
   }
 
+  private publishDiscoveryEvent<K extends keyof DiscoveryManagerProxyEvents>(type: K, data: DiscoveryManagerProxyEvents[K]): void {
+    const event: DiscoveryManagerProxyGenericEvent<K> = { type, data };
+    this.proxyServer.proxy.publish(this.namespaces.discoveryManagerSubject, event);
+  }
+
   private getDiscoveryPlugins(): Plugin[] {
     return this.pluginsService.listPlugins().filter((plugin) => isDiscoveryProvider(plugin.contract) && plugin.worker?.isRunning());
   }
@@ -729,8 +734,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
             role: 'high-resolution',
             urls: [cached._originalUrl],
             useForSnapshot: true,
-            hotMode: false,
-            preload: false,
+            hotMode: true,
+            preload: true,
           },
         ];
         break;
@@ -769,33 +774,42 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       throw new Error('No ONVIF streams found. Check credentials.');
     }
 
-    const snapshotProfile = profiles.find((p) => p.id === 'snapshot');
-    const videoProfiles = profiles
-      .filter((p) => p.id !== 'snapshot')
-      .sort((a, b) => {
-        const numA = parseInt((a.id ?? '').replace('stream', ''), 10) || 99;
-        const numB = parseInt((b.id ?? '').replace('stream', ''), 10) || 99;
-        return numA - numB;
-      });
+    const area = (p: OnvifSource) => (p.width ?? 0) * (p.height ?? 0);
+    const isSnapshot = (p: OnvifSource) => p.url.includes('&snapshot');
+    const isMjpeg = (p: OnvifSource) => /jpe?g/i.test(p.encoding ?? '');
 
-    if (!videoProfiles.length) {
-      throw new Error('No ONVIF video streams found');
-    }
+    const onvifSnapshot = profiles.find(isSnapshot);
+    const streams = profiles.filter((p) => !isSnapshot(p));
 
     // go2rtc encodes profile names as "DeviceName stream1"; strip the suffix.
     // A stripped-to-empty name ('' after trim) must fall back, so || is intended over ??.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    const cameraName = videoProfiles[0]?.name?.replace(/\s+stream\d+$/i, '').trim() || 'ONVIF Camera';
+    const cameraName = streams[0]?.name?.replace(/\s+stream\d+$/i, '').trim() || 'ONVIF Camera';
+
+    // MJPEG is unfit for continuous decode (motion detection consumes the lowest
+    // role): the RTP/JPEG stream drops/corrupts frames and floods the decoder.
+    // Keep only H.264/H.265 for the decodable roles, ordered by real resolution.
+    const mjpegStreams = streams.filter(isMjpeg).sort((a, b) => area(b) - area(a));
+    let videoStreams = streams.filter((p) => !isMjpeg(p)).sort((a, b) => area(b) - area(a));
+
+    const onlyMjpeg = !videoStreams.length;
+    if (onlyMjpeg) {
+      if (!mjpegStreams.length) {
+        throw new Error('No ONVIF video streams found');
+      }
+      this.logger.warn(`ONVIF camera "${cameraName}" exposes only MJPEG video; motion detection may be unreliable.`);
+      videoStreams = mjpegStreams;
+    }
 
     const sources: { name: string; role: string; urls: string[]; useForSnapshot?: boolean; hotMode?: boolean; preload?: boolean }[] = [];
 
     // Role mapping: 1 stream → high; 2 streams → high+low; 3+ streams → high+mid+low (max 3).
-    videoProfiles.slice(0, 3).forEach((profile, index) => {
+    videoStreams.slice(0, 3).forEach((profile, index) => {
       let role: string;
 
       if (index === 0) {
         role = 'high-resolution';
-      } else if (videoProfiles.length === 2) {
+      } else if (videoStreams.length === 2) {
         role = 'low-resolution';
       } else if (index === 1) {
         role = 'mid-resolution';
@@ -803,26 +817,37 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
         role = 'low-resolution';
       }
 
+      const eagerSafe = this.onvifEagerConnectSafe(profile.url);
       sources.push({
         // Use simple names; go2rtc profile.name usually duplicates the camera name in the path.
         name: `Stream ${index + 1}`,
         role,
         urls: [profile.url],
-        useForSnapshot: index === 0 && !snapshotProfile,
-        // hotMode/preload disabled: numeric ONVIF profile tokens trigger "wrong subtype" on eager connect.
-        hotMode: false,
-        preload: false,
+        hotMode: eagerSafe,
+        preload: eagerSafe,
       });
     });
 
-    if (snapshotProfile) {
+    // Snapshot priority: dedicated ONVIF snapshot > MJPEG profile (frames are
+    // already JPEG → no transcode) > high-res video via go2rtc frame.jpeg.
+    if (onvifSnapshot) {
       sources.push({
         name: 'Snapshot',
         role: 'snapshot',
-        urls: [snapshotProfile.url],
+        urls: [onvifSnapshot.url],
         hotMode: false,
         preload: false,
       });
+    } else if (mjpegStreams.length && !onlyMjpeg) {
+      sources.push({
+        name: 'Snapshot',
+        role: 'snapshot',
+        urls: [mjpegStreams[0].url],
+        hotMode: false,
+        preload: false,
+      });
+    } else if (sources.length) {
+      sources[0].useForSnapshot = true;
     }
 
     return { name: cameraName, sources };
@@ -831,7 +856,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
   private async adoptHomeKitCamera(
     originalUrl: string,
     settings: Record<string, unknown>,
-  ): Promise<{ name: string; sources: { name: string; role: string; urls: string[]; useForSnapshot?: boolean }[] }> {
+  ): Promise<{ name: string; sources: { name: string; role: string; urls: string[]; useForSnapshot?: boolean; hotMode?: boolean; preload?: boolean }[] }> {
     const { pin } = settings as { pin: string };
 
     const url = new URL(originalUrl);
@@ -849,8 +874,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
         role: 'high-resolution',
         urls: [pairResult.source.url],
         useForSnapshot: true,
-        hotMode: false,
-        preload: false,
+        hotMode: true,
+        preload: true,
       },
     ];
 
@@ -864,7 +889,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     originalUrl: string,
     settings: Record<string, unknown>,
     cameraName: string,
-  ): Promise<{ name: string; sources: { name: string; role: string; urls: string[]; useForSnapshot?: boolean }[] }> {
+  ): Promise<{ name: string; sources: { name: string; role: string; urls: string[]; useForSnapshot?: boolean; hotMode?: boolean; preload?: boolean }[] }> {
     const { username, password } = settings as { username: string; password: string };
 
     // Format: dvrip://username:password@host?channel=0&subtype=0
@@ -887,8 +912,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
         role: 'high-resolution',
         urls: [authenticatedUrl],
         useForSnapshot: true,
-        hotMode: false,
-        preload: false,
+        hotMode: true,
+        preload: true,
       },
     ];
 
@@ -976,8 +1001,12 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     });
   }
 
-  public publishDiscoveryEvent<K extends keyof DiscoveryManagerProxyEvents>(type: K, data: DiscoveryManagerProxyEvents[K]): void {
-    const event: DiscoveryManagerProxyGenericEvent<K> = { type, data };
-    this.proxyServer.proxy.publish(this.namespaces.discoveryManagerSubject, event);
+  private onvifEagerConnectSafe(streamUrl: string): boolean {
+    try {
+      const token = new URL(streamUrl).searchParams.get('subtype');
+      return !!token && /\D/.test(token);
+    } catch {
+      return false;
+    }
   }
 }
