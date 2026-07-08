@@ -652,6 +652,67 @@
               }}</Message>
             </Field>
 
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.trackingSpeed" name="ptzAutotrack.trackingSpeed" as="div" class="flex flex-col field-gap">
+              <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_tracking_speed') }}</label>
+              <InputNumber
+                :model-value="cameraForm.ptzAutotrack?.trackingSpeed"
+                :min="1"
+                :max="5"
+                :step="0.5"
+                :min-fraction-digits="1"
+                :max-fraction-digits="1"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                class="w-full"
+                @value-change="
+                  (e) => {
+                    if (cameraForm.ptzAutotrack && e != null) cameraForm.ptzAutotrack.trackingSpeed = e;
+                  }
+                "
+              />
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_tracking_speed') }}</Message>
+            </Field>
+
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadFrames" name="ptzAutotrack.leadFrames" as="div" class="flex flex-col field-gap">
+              <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_frames') }}</label>
+              <InputNumber
+                :model-value="cameraForm.ptzAutotrack?.leadFrames"
+                :min="0"
+                :max="6"
+                :step="1"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                class="w-full"
+                @value-change="
+                  (e) => {
+                    if (cameraForm.ptzAutotrack && e != null) cameraForm.ptzAutotrack.leadFrames = e;
+                  }
+                "
+              />
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_lead_frames') }}</Message>
+            </Field>
+
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.panRate" name="ptzAutotrack.panRate" as="div" class="flex flex-col field-gap">
+              <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_pan_rate') }}</label>
+              <InputNumber
+                :model-value="cameraForm.ptzAutotrack?.panRate"
+                :min="0.1"
+                :max="3"
+                :step="0.05"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                class="w-full"
+                @value-change="
+                  (e) => {
+                    if (cameraForm.ptzAutotrack && e != null) cameraForm.ptzAutotrack.panRate = e;
+                  }
+                "
+              />
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_pan_rate') }}</Message>
+            </Field>
+
             <Field
               v-slot="{ field, errors }"
               :model-value="cameraForm.ptzAutotrack?.returnToHome"

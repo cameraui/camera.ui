@@ -677,6 +677,11 @@ export default {
         ptz_autotrack_min_confidence: 'Nur Erkennungen mit mindestens dieser Konfidenz verfolgen.',
         ptz_autotrack_trigger_dead_zone:
           'Das Ziel muss diese Zone um die Bildmitte verlassen, bevor sich die Kamera in Bewegung setzt. Größer = ruhigere Kamera, kleiner = genaueres Zentrieren.',
+        ptz_autotrack_tracking_speed: 'Wie energisch die Kamera nachzieht, um das Ziel zu zentrieren. Höher = schneller, niedriger = sanfter.',
+        ptz_autotrack_lead_frames:
+          'Zielt einem bewegten Objekt um so viele Erkennungs-Frames voraus, damit die Kamera mithält statt hinterherzuhängen. 0 deaktiviert die Vorhersage.',
+        ptz_autotrack_pan_rate:
+          'Kalibriert, wie weit ein Bewegungsschritt bei deiner Kamera schwenkt. Kleiner, wenn die Kamera vor dem Ziel stoppt, größer, wenn sie überschießt.',
         ptz_autotrack_return_home: 'Kamera zur Home-Position zurückfahren, wenn länger kein Ziel erkannt wird.',
         ptz_autotrack_home_wait: 'Wartezeit ohne Ziel, bevor die Kamera zur Home-Position zurückfährt.',
         frameworker_fps: "Die Anzahl der Frames pro Sekunde, welche für den Frame Worker verwendet werden. '0' verwendet die native Framerate",
@@ -745,6 +750,9 @@ export default {
         ptz_autotrack_target_labels: 'Ziel-Labels',
         ptz_autotrack_min_confidence: 'Minimale Konfidenz',
         ptz_autotrack_trigger_dead_zone: 'Totzone',
+        ptz_autotrack_tracking_speed: 'Verfolgungsgeschwindigkeit',
+        ptz_autotrack_lead_frames: 'Bewegungsvorhersage',
+        ptz_autotrack_pan_rate: 'Schwenkraten-Kalibrierung',
         ptz_autotrack_return_home: 'Zur Home-Position zurückkehren',
         ptz_autotrack_home_wait: 'Wartezeit vor Rückkehr',
         disconnected: 'Getrennt',
@@ -1514,9 +1522,13 @@ export default {
       notification_tab_tooltip: 'Benachrichtigungen',
     },
     plugins: {
+      allow_build_scripts: 'Plugin-Build-Skripte erlauben',
+      allow_build_scripts_hint:
+        'Plugins dürfen beim Installieren oder Aktualisieren Install-Skripte und native Builds ausführen. Nur aktivieren, wenn du den installierten Plugins vertraust.',
       no_plugins: 'Keine Plugins verfügbar',
       search: 'Plugins suchen...',
       search_plugins: 'Plugins suchen',
+      settings: 'Plugin-Einstellungen',
       title: 'Plugins',
     },
     menu: {
@@ -1878,6 +1890,7 @@ export default {
         nvr_not_running: 'NVR-Plugin ist nicht gestartet. Starten Sie das NVR-Plugin, um Aufnahmen zu verwalten.',
         disk_critical: 'Kritisch: Speicherplatz unter 5%. Aufnahme wurde pausiert, um Datenverlust zu vermeiden.',
         disk_warning: 'Warnung: Speicherplatz unter 8%. Alte Aufnahmen werden automatisch bereinigt.',
+        disk_small_volume: 'Das Speichervolumen ist klein. Aufnahmen werden häufig rotiert, um Platz freizuhalten.',
         storage_overview: 'Speicherübersicht',
         disk_total: 'Gesamtspeicher',
         nvr_usage: 'NVR-Nutzung',

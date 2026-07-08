@@ -105,6 +105,9 @@ export const DEFAULT_PTZ_AUTOTRACK_SETTINGS = {
   targetLabels: ['person'],
   minConfidence: 0.5,
   triggerDeadZone: 0.05,
+  trackingSpeed: 2,
+  leadFrames: 3,
+  panRate: 0.85,
   returnToHome: false,
   homeWaitMs: 10000,
 };
@@ -114,6 +117,9 @@ export const ptzAutotrackSettingsSchema = zod.object({
   targetLabels: zod.string().trim().min(1, 'Target label is required').array().default(['person']),
   minConfidence: zod.number().min(0.3, 'Minimum 0.3').max(1, 'Maximum 1').default(0.5),
   triggerDeadZone: zod.number().min(0, 'Minimum 0').max(0.3, 'Maximum 0.3').default(0.05),
+  trackingSpeed: zod.number().min(1, 'Minimum 1').max(5, 'Maximum 5').default(2),
+  leadFrames: zod.number().min(0, 'Minimum 0').max(6, 'Maximum 6').default(3),
+  panRate: zod.number().min(0.1, 'Minimum 0.1').max(3, 'Maximum 3').default(0.85),
   returnToHome: zod.boolean().default(false),
   homeWaitMs: zod.number().min(1000, 'Minimum 1000 ms').max(60000, 'Maximum 60000 ms').default(10000),
 });

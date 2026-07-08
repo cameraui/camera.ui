@@ -14,26 +14,31 @@ export interface PtzPoseDelta {
 
 const MIN_SPEED = 0.4;
 const MAX_SPEED = 1.0;
-const SPEED_GAIN = 2.0;
-const PAN_RATE_AT_MAX_SPEED = 0.85;
 const MIN_PULSE_MS = 250;
 const MAX_PULSE_MS = 1000;
 
-// Prevents rapid-fire re-issues; also protects PTZ firmware.
+// Rate-limit motor commands; also protects PTZ firmware.
 const MIN_COMMAND_INTERVAL_MS = 200;
 
-// Norfair Kalman speed below which we treat the target as standing still.
-// Bbox center jitter for a stationary person is ~0.002-0.005 normalized
-// units per frame (head sway, bbox size fluctuation). Replaces an older
-// per-frame "confirm streak" debounce.
+// Kalman speed (normalized units/frame) below which the target counts as stationary.
 const STATIONARY_SPEED_THRESHOLD = 0.006;
 
-// How long `suppressionActive` stays true AFTER the motor stop command.
-// Frame-diff is unreliable during motor decel (~100-300ms physical), stream
-// buffer drain (~500-1500ms mid-pan frames), and frame-diff settling.
+// Clamp the lead so a velocity spike can't fling the aim across the frame.
+const MAX_LEAD_DISPLACEMENT = 0.3;
+
+// Keep motion suppressed this long after a stop while decel + stream buffer settle.
 const POST_STOP_MOTION_SETTLE_MS = 800;
 
+// Fallbacks for the UI-configurable knobs when a stored config predates them.
+const DEFAULT_SPEED_GAIN = 2.0;
+const DEFAULT_LEAD_FRAMES = 3;
+const DEFAULT_PAN_RATE = 0.85;
+
 type AutotrackState = 'idle' | 'active' | 'lost';
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 export interface PtzSensorInfo {
   pluginId: string;
@@ -63,12 +68,10 @@ export class PtzAutotracker {
   private lastStopIssuedAt = 0;
   private currentPose: { pan: number; tilt: number } = { pan: 0, tilt: 0 };
 
-  // PTZ pose at the first observed Position event. consumePoseDelta() returns
-  // the ACCUMULATED offset from this reference (not a per-frame delta) —
-  // Norfair's TranslationTransformation needs a consistent reference across
-  // all frames. Seeded lazily on the first real Position event (not in
-  // bind()) because getValues() during bind can race with the plugin's first
-  // pollStatus(), yielding a phantom (0,0) reference.
+  // Reference pose for consumePoseDelta()'s accumulated offset — Norfair needs
+  // one consistent reference across frames. Seeded lazily on the first real
+  // Position event; getValues() during bind() can race the plugin's first poll
+  // and yield a phantom (0,0).
   private referencePose?: { pan: number; tilt: number };
 
   constructor(private readonly deps: PtzAutotrackerDeps) {
@@ -94,10 +97,7 @@ export class PtzAutotracker {
     this.teardown();
     this.sensorInfo = { ...info, capabilities: [...info.capabilities] };
 
-    // Seed currentPose as a warm start — but NOT referencePose. SDK default
-    // is (0,0,0) and getValues() can race with the plugin's first pollStatus.
-    // Lazy-seeding referencePose on the first real Position event guarantees
-    // it matches the camera's actual pose.
+    // Warm-start currentPose only; referencePose stays lazy (see its field).
     try {
       const values = await this.getPtzRpc(info).getValues();
       const initialPos = values[PTZProperty.Position] as PTZPosition | undefined;
@@ -138,12 +138,9 @@ export class PtzAutotracker {
 
     const now = Date.now();
 
-    // Gate on motor state. If the PTZ is moving (our command OR user via
-    // vendor app), we're in read-only mode — no decisions. The `moving`
-    // signal comes from the ONVIF plugin's GetStatus poller (not our own
-    // command echo) so it reflects the actual motor state. With Norfair's
-    // camera-motion compensation active the tracker still runs through the
-    // pan — we just don't issue new commands while one is in flight.
+    // Read-only while the motor moves (our command or the vendor app). The
+    // tracker still runs through the pan via camera-motion compensation; we
+    // just don't issue new commands mid-move.
     if (this.isPtzMoving) {
       return;
     }
@@ -175,9 +172,8 @@ export class PtzAutotracker {
       present = true;
       break;
     }
-    // If presence is active and we're in LOST, reset the grace timer so a
-    // bracketing external sensor extends tracking intent. We don't upgrade
-    // to ACTIVE — only the drivable path owns motor decisions.
+    // A bracketing external sensor extends the LOST grace timer but never
+    // upgrades to ACTIVE — only the drivable path issues motor commands.
     if (present && this.state === 'lost') {
       this.lostSinceTs = Date.now();
     }
@@ -189,10 +185,8 @@ export class PtzAutotracker {
 
   public consumePoseDelta(): PtzPoseDelta | undefined {
     if (!this.referencePose) return undefined;
-    // Always return a delta once the reference is set — even (0,0). Switching
-    // between "no transform" and "transform applied" mid-session leaves
-    // earlier filter state in the old frame while new detections arrive in
-    // the new one.
+    // Always emit a delta once seeded, even (0,0): toggling transform on/off
+    // mid-session would strand earlier filter state in the old frame.
     return {
       panDelta: this.currentPose.pan - this.referencePose.pan,
       tiltDelta: this.currentPose.tilt - this.referencePose.tilt,
@@ -201,10 +195,8 @@ export class PtzAutotracker {
 
   private stepIdle(targets: readonly TrackedDetection[]): void {
     if (targets.length === 0) return;
-    // Pick the largest bbox as the one to follow. Skip Kalman-extrapolated
-    // tracks — those don't correspond to a fresh detection this frame and
-    // could be anywhere; locking onto one sends the motor chasing a guess.
-    // No user-facing priority setting — "largest" is the intuitive default.
+    // Follow the largest fresh detection; skip extrapolated tracks so we don't
+    // lock the motor onto a Kalman guess.
     let best: TrackedDetection | undefined;
     let bestArea = -1;
     for (const t of targets) {
@@ -230,24 +222,24 @@ export class PtzAutotracker {
       return;
     }
 
-    // Extrapolated track (Kalman kept it alive through a detector miss).
-    // Don't drive the motor on a ghost: during a short blink the filter's
-    // predicted position is a reasonable guess, but over many frames it
-    // drifts outside the frame and commanding a chase sends the camera
-    // off into empty air. Wait it out — the track either matches again
-    // and we resume, or norfair drops it and we go LOST.
+    // Don't drive the motor on an extrapolated track: the Kalman guess drifts
+    // off-frame over a long miss. Wait for a real match or the drop to LOST.
     if (target.trackLost) {
       return;
     }
 
-    // Center-error tracking. Norfair gives us a stable track centroid and a
-    // Kalman-estimated velocity — we use both. `triggerDeadZone` defines a
-    // comfort box around frame center; inside it we do nothing. Outside it
-    // the camera pans proportionally to close the error in one pulse.
     const cx = target.box.x + target.box.width * 0.5;
     const cy = target.box.y + target.box.height * 0.5;
-    const errX = cx - 0.5;
-    const errY = cy - 0.5;
+
+    // Aim where the target will be, not where it was last seen. Velocity ~0
+    // for a stationary target, so the gates below are unchanged.
+    const leadFrames = settings.leadFrames ?? DEFAULT_LEAD_FRAMES;
+    const velocity = target.trackVelocity;
+    const leadX = clamp((velocity?.x ?? 0) * leadFrames, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
+    const leadY = clamp((velocity?.y ?? 0) * leadFrames, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
+
+    const errX = cx + leadX - 0.5;
+    const errY = cy + leadY - 0.5;
     const deadZone = settings.triggerDeadZone;
 
     const outsideDeadZone = Math.abs(errX) > deadZone || Math.abs(errY) > deadZone;
@@ -255,17 +247,9 @@ export class PtzAutotracker {
       return;
     }
 
-    // Velocity gate: don't chase a stationary target even when slightly off-
-    // center. Norfair's `track_speed` is the centroid speed from the Kalman
-    // filter in normalized units per frame step — below the noise floor we
-    // treat the track as "parked", which kills the ping-pong a non-moving
-    // person used to produce via bbox-size jitter.
-    //
-    // BYPASS the gate when the error is large (> 2x dead zone): a fresh
-    // detection can appear far off-center while Kalman's velocity estimate
-    // is still warming up — during those first ~10 frames `speed` reads
-    // artificially low and would otherwise freeze us. If the target is
-    // demonstrably far from center, move regardless.
+    // Don't chase a stationary target's bbox jitter. Bypassed on a large error
+    // (> 2x dead zone): a fresh detection can be far off-center while the
+    // Kalman velocity is still warming up and reads artificially low.
     const trackSpeed = target.trackSpeed ?? 0;
     const errMag = Math.max(Math.abs(errX), Math.abs(errY));
     const largeError = errMag > deadZone * 2;
@@ -275,26 +259,25 @@ export class PtzAutotracker {
 
     if (now - this.lastCommandAt < MIN_COMMAND_INTERVAL_MS) return;
 
-    // Proportional-to-error velocity. Tilt is inverted: image Y goes down
-    // but positive ONVIF tilt rotates the camera up.
-    const panMag = Math.abs(errX) * SPEED_GAIN;
-    const tiltMag = Math.abs(errY) * SPEED_GAIN;
+    // Speed proportional to error. Tilt is inverted: image Y grows downward,
+    // positive ONVIF tilt rotates up.
+    const speedGain = settings.trackingSpeed ?? DEFAULT_SPEED_GAIN;
+    const panMag = Math.abs(errX) * speedGain;
+    const tiltMag = Math.abs(errY) * speedGain;
     const finalPan = Math.abs(errX) <= deadZone ? 0 : Math.sign(errX) * Math.min(MAX_SPEED, Math.max(MIN_SPEED, panMag));
     const finalTilt = Math.abs(errY) <= deadZone ? 0 : -Math.sign(errY) * Math.min(MAX_SPEED, Math.max(MIN_SPEED, tiltMag));
 
-    // Proportional pulse duration — stop once we've closed roughly the
-    // error. Prevents overshoot on tiny adjustments.
+    // Pulse duration sized to close the error once (panRate = assumed pan
+    // travel per second at full speed), so the motor stops near the target.
+    const panRate = settings.panRate ?? DEFAULT_PAN_RATE;
     const speedMag = Math.max(Math.abs(finalPan), Math.abs(finalTilt));
     const pulseErrMag = Math.max(Math.abs(finalPan) > 0 ? Math.abs(errX) : 0, Math.abs(finalTilt) > 0 ? Math.abs(errY) : 0);
-    const estMs = (pulseErrMag / Math.max(0.01, speedMag * PAN_RATE_AT_MAX_SPEED)) * 1000;
+    const estMs = (pulseErrMag / Math.max(0.01, speedMag * panRate)) * 1000;
     const pulseMs = Math.max(MIN_PULSE_MS, Math.min(MAX_PULSE_MS, estMs));
 
     this.sendVelocity(ptz, { panSpeed: finalPan, tiltSpeed: finalTilt, zoomSpeed: 0 });
     this.lastCommandAt = now;
 
-    // Schedule the stop. Clear any earlier pending stop — if we issue two
-    // moves back-to-back (shouldn't happen given the moving-gate but be
-    // defensive), the more recent stop is the one that matters.
     this.clearStopTimer();
     this.stopTimer = setTimeout(() => {
       this.stopTimer = undefined;
@@ -340,11 +323,8 @@ export class PtzAutotracker {
   private handlePositionChange(pos: PTZPosition | undefined): void {
     if (!pos) return;
     this.currentPose = { pan: pos.pan ?? this.currentPose.pan, tilt: pos.tilt ?? this.currentPose.tilt };
-    // Seed the Norfair reference frame on the very first real position
-    // event so it matches whatever pose the camera is actually at. Must
-    // wait for a real event because the SDK's default is (0,0) and using
-    // that as reference would produce a spurious offset of "real pose
-    // minus zero" on frame 1 — a world-scale shift fed to the tracker.
+    // Seed the reference from a real event, not the SDK's (0,0) default, which
+    // would feed a spurious world-scale offset to the tracker on frame 1.
     this.referencePose ??= { ...this.currentPose };
   }
 
@@ -353,9 +333,7 @@ export class PtzAutotracker {
     this.isPtzMoving = moving;
     if (was === moving) return;
     if (moving && !was) {
-      // Transition into motion (our command OR user via vendor app).
-      // Notify the coordinator so it can blank motion bboxes for the
-      // duration — frame-diff is unusable during ego-motion.
+      // Blank motion bboxes for the move — frame-diff is unusable during ego-motion.
       this.deps.onSuppressionActivated();
     }
   }
