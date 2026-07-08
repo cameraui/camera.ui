@@ -112,6 +112,9 @@ class DeviceManagerProxy(DeviceManager):
 
         if event_type == "cameraAdded":
             camera: Camera = data.get("camera")
+            if camera["_id"] in self.__devices:
+                return
+
             camera_device = await self.__get_camera_device(camera)
 
             if camera_device:

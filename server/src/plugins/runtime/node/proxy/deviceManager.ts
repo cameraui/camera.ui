@@ -98,6 +98,9 @@ export class DeviceManagerProxy implements DeviceManager {
     switch (event.type) {
       case 'cameraAdded': {
         const { camera } = event.data as { camera: Camera };
+        if (this.#devices.has(camera._id)) {
+          break;
+        }
         const cameraDevice = await this.#getCameraDevice(camera);
         await this.#pluginInstance.onCameraAdded(cameraDevice);
         break;
@@ -105,7 +108,6 @@ export class DeviceManagerProxy implements DeviceManager {
       case 'cameraReleased': {
         const { cameraId } = event.data as { cameraId: string };
         await this.#pluginInstance.onCameraReleased(cameraId);
-
         const cameraDevice = this.#devices.get(cameraId);
         await cameraDevice?.cleanup();
         await this.#removeCameraStorage(cameraId);
