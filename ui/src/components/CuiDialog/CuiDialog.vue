@@ -1,5 +1,5 @@
 <template>
-  <div class="p-dialog-content">
+  <div class="p-dialog-content non-draggable-region">
     <div
       ref="dialogHeader"
       class="p-dialog-header justify-start gap-1"

@@ -1,7 +1,7 @@
 <template>
   <Drawer v-model:visible="visible" v-bind="drawerProps" class="border-0 md:border-l-[1px]" :pt="drawerPt" @hide="onHide">
     <template #container="{ closeCallback }">
-      <div class="w-full h-full p-safe !pb-0 md:!pl-0">
+      <div class="w-full h-full p-safe !pb-0 md:!pl-0 non-draggable-region">
         <div class="w-full h-full border-0 md:border-r-[1px] border-color overflow-y-auto pb-safe">
           <CameraOptions v-if="cameraOptions" v-bind="cameraOptions" @close="closeCallback" />
         </div>
