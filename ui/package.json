@@ -31,7 +31,7 @@
     "@camera.ui/browser": "~0.0.129",
     "@camera.ui/common": "~0.0.49",
     "@camera.ui/nvr": "~0.0.36",
-    "@camera.ui/sdk": "~0.0.12",
+    "@camera.ui/sdk": "~0.0.14",
     "@camera.ui/transport": "~0.0.19",
     "@capacitor-firebase/messaging": "^8.3.0",
     "@capacitor/app": "^8.1.0",
