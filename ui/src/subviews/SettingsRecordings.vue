@@ -10,6 +10,11 @@
         <span>{{ $t('views.settings.recordings.disk_warning') }}</span>
       </div>
 
+      <div v-if="stats && stats.smallVolume" class="cui-banner cui-banner-warn">
+        <i-mdi:alert-outline class="shrink-0 w-5 h-5" />
+        <span>{{ $t('views.settings.recordings.disk_small_volume') }}</span>
+      </div>
+
       <div>
         <span class="card-title">{{ $t('views.settings.recordings.license_title') }}</span>
         <Card class="cui-card">
