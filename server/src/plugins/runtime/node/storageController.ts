@@ -28,7 +28,7 @@ export class StorageController {
     let cameraStorage = this.#storages.get(cameraId);
 
     if (!cameraStorage) {
-      cameraStorage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, cameraId, schemas, false);
+      cameraStorage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, { kind: 'camera', cameraId }, schemas);
       this.#storages.set(cameraId, cameraStorage);
     } else {
       cameraStorage.updateSchema(schemas);
@@ -41,7 +41,7 @@ export class StorageController {
     let pluginStorage = this.#storages.get('storage');
 
     if (!pluginStorage) {
-      pluginStorage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, 'storage', schemas, true);
+      pluginStorage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, { kind: 'plugin' }, schemas);
       this.#storages.set('storage', pluginStorage);
     } else {
       pluginStorage.updateSchema(schemas);
@@ -70,8 +70,10 @@ export class StorageController {
     let storage = this.#storages.get(storageKey);
 
     if (!storage) {
-      // deviceId = storageKey (DB persistence); sensorId = runtime UUID (RPC namespace)
-      storage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, storageKey, schemas, false, sensorId, cameraId);
+      // storageKey is only the in-memory registry key; persistence addresses
+      // the canonical sensors.<camId>.<type>.<name> path. sensorId is the
+      // runtime UUID for the RPC namespace.
+      storage = new DeviceStorage<T>(this.#api, this.#proxy, this.#plugin, this.#pluginDb, { kind: 'sensor', cameraId, sensorType, sensorName }, schemas, sensorId);
       this.#storages.set(storageKey, storage);
       storage.updateSchema(schemas);
     } else {
@@ -159,5 +161,12 @@ export class StorageController {
     await deviceStorage?.destroy();
     await deviceStorage?.unregisterStorage();
     this.#storages.delete(storageKey);
+  }
+
+  /** Internal method to close all storages */
+  public async close(): Promise<void> {
+    for (const storage of this.#storages.values()) {
+      await storage.close();
+    }
   }
 }

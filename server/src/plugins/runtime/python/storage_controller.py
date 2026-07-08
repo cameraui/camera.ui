@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
-from plugins.runtime.python.config_db import PluginConfigDb
-
-from _camera_ui_tools.camera_ui_rpc import RPCClient
-from _camera_ui_tools.camera_ui_sdk import JsonSchema, SensorType
 from plugins.runtime.python.storage import DeviceStorage
-from plugins.runtime.python.typings import PluginInfo
+from plugins.runtime.python.store import CameraLocation, PluginLocation, SensorLocation
 
 if TYPE_CHECKING:
+    from _camera_ui_tools.camera_ui_rpc import RPCClient
+    from _camera_ui_tools.camera_ui_sdk import JsonSchema, SensorType
+    from plugins.runtime.python.config_db import PluginConfigDb
     from plugins.runtime.python.plugin_api import PluginAPI
+    from plugins.runtime.python.typings import PluginInfo
 
 
+# Stable storage key for sensor instance storage.
 def sensor_storage_key(camera_id: str, sensor_type: str, plugin_id: str, sensor_name: str) -> str:
     return f"{camera_id}:sensor:{sensor_type}:{plugin_id}:{sensor_name}"
 
@@ -39,7 +40,12 @@ class StorageController:
 
         if not camera_storage:
             camera_storage = DeviceStorage(
-                self.__api, self.__proxy, self.__plugin, self.__plugin_db, cameraId, schemas, False
+                self.__api,
+                self.__proxy,
+                self.__plugin,
+                self.__plugin_db,
+                CameraLocation(camera_id=cameraId),
+                schemas,
             )
             self.__storages[cameraId] = camera_storage
         else:
@@ -55,7 +61,12 @@ class StorageController:
 
         if not plugin_storage:
             plugin_storage = DeviceStorage(
-                self.__api, self.__proxy, self.__plugin, self.__plugin_db, "storage", schemas, True
+                self.__api,
+                self.__proxy,
+                self.__plugin,
+                self.__plugin_db,
+                PluginLocation(),
+                schemas,
             )
             self.__storages["storage"] = plugin_storage
         else:
@@ -82,16 +93,17 @@ class StorageController:
         storage = self.__storages.get(storage_key)
 
         if not storage:
+            # storage_key is only the in-memory registry key; persistence addresses
+            # the canonical sensors.<camId>.<type>.<name> path. sensor_id is the
+            # runtime UUID for the RPC namespace.
             storage = DeviceStorage(
                 self.__api,
                 self.__proxy,
                 self.__plugin,
                 self.__plugin_db,
-                storage_key,
+                SensorLocation(camera_id=camera_id, sensor_type=sensor_type.value, sensor_name=sensor_name),
                 schemas,
-                False,
                 sensor_id,
-                camera_id,
             )
             self.__storages[storage_key] = storage
             storage.update_schema(schemas)
@@ -106,7 +118,6 @@ class StorageController:
         storage_key = sensor_storage_key(camera_id, sensor_type.value, plugin_id, sensor_name)
         return self.__storages.get(storage_key)
 
-    # Internal method
     @overload
     async def createStorage(self, type_: Literal["camera"], device_id: str) -> DeviceStorage: ...
     @overload
@@ -150,7 +161,6 @@ class StorageController:
         await storage.register_storage()
         return storage
 
-    # Internal method
     @overload
     async def removeStorage(self, type_: Literal["camera"], device_id: str) -> None: ...
     @overload
@@ -194,3 +204,8 @@ class StorageController:
             await device_storage.unregister_storage()
             del self.__storages[storage_key]
             return
+
+    # Internal method to close all storages
+    async def close(self) -> None:
+        for storage in self.__storages.values():
+            await storage.close()

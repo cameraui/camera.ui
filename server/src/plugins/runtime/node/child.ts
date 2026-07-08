@@ -1,14 +1,14 @@
 import { Logger } from '@camera.ui/common/logger';
-import { SignalHandler, sleep } from '@camera.ui/common/utils';
+import { SignalHandler } from '@camera.ui/common/utils';
 import { createRPCClient } from '@camera.ui/rpc';
 import { API_EVENT } from '@camera.ui/sdk';
-import { open } from 'lmdb';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isPromise } from 'node:util/types';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
+import { PluginStoreFile } from '../../store/pluginStoreFile.js';
 import { PLUGIN_COMMAND, PLUGIN_STATUS } from '../../types.js';
-import { RemotePluginConfigDb } from './configDb.js';
+import { LocalPluginConfigDb, RemotePluginConfigDb } from './configDb.js';
 import { PluginAPI } from './pluginApi.js';
 import { CameraDeviceProxy } from './proxy/cameraDevice.js';
 import { PluginFileServer } from './proxy/fileServe.js';
@@ -17,10 +17,13 @@ import type { LoggerOptions } from '@camera.ui/common';
 import type { Channel, RPCClient } from '@camera.ui/rpc';
 import type { BasePlugin, Camera, DeviceStorage, PluginInfo } from '@camera.ui/sdk';
 import type { PluginConfigStoreRPC } from '../../config-store.js';
-import type { PluginConfigDb } from './configDb.js';
 import type { ProcessLoadMessage, ProcessMessage, ProcessResponse } from '../../types.js';
+import type { PluginConfigDb } from './configDb.js';
 
 type PluginConstructor = new (logger: Logger, api: PluginAPI, storage: DeviceStorage<Record<string, any>>) => BasePlugin;
+
+const SHUTDOWN_LISTENER_TIMEOUT = 1000;
+const RPC_TEARDOWN_TIMEOUT = 500;
 
 const processName = process.argv[3] || process.argv[2] || 'Plugin';
 process.title = `camera.ui - ${processName}`;
@@ -79,7 +82,7 @@ export class PluginChild {
 
     this.signalHandler = new SignalHandler({
       displayName: '[Signal]',
-      timeoutDuration: 3000,
+      timeoutDuration: 2000,
       logger: this.logger,
       closeFunction: this.stopPlugin.bind(this),
     });
@@ -153,14 +156,35 @@ export class PluginChild {
 
     this.stopped = true;
 
-    this.api?.emit(API_EVENT.SHUTDOWN);
-
-    await sleep(500);
+    await this.emitShutdownAndWait();
+    await this.api?.deviceManager.close();
+    await this.api?.coreManager.close();
+    await this.api?._storageController.close();
     await this.pluginDb?.close?.();
-    await this.fileServer?.close();
-    await this.channel?.close();
-    await this.closeProxy?.();
-    await this.proxy.disconnect();
+
+    const teardown = (async () => {
+      await this.fileServer?.close();
+      await this.channel?.close();
+      await this.closeProxy?.();
+      await this.proxy.disconnect();
+    })();
+
+    let timer: NodeJS.Timeout | undefined;
+    const timedOut = await Promise.race([
+      teardown.then(
+        () => false,
+        () => false,
+      ),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(true), RPC_TEARDOWN_TIMEOUT);
+      }),
+    ]);
+    clearTimeout(timer);
+
+    if (timedOut) {
+      this.logger.warn(`RPC teardown still pending after ${RPC_TEARDOWN_TIMEOUT}ms, force-closing transport`);
+      this.proxy.abortClose();
+    }
   }
 
   private async sendMessage(message: ProcessResponse): Promise<void> {
@@ -197,22 +221,15 @@ export class PluginChild {
       return remoteDb;
     }
 
-    const pluginDb = open(`${storagePath}/volume`, {
-      name: 'plugins',
-    });
-
-    const pluginConfig = pluginDb.get('config');
-    if (!pluginConfig) {
-      await pluginDb.put('config', {});
-    }
-
-    return pluginDb as PluginConfigDb;
+    const store = new PluginStoreFile(`${storagePath}/volume`, pluginId);
+    await store.open();
+    return new LocalPluginConfigDb(store);
   }
 
   private async configureCameras(api: PluginAPI, pluginInfo: PluginInfo, cameras: Camera[]): Promise<void> {
     const cameraDevices = cameras.map((camera) => {
       const cameraLogger = this.logger.createLogger({ suffix: camera.name, targetId: camera._id, targetType: 'camera' });
-      return new CameraDeviceProxy(this.proxy, api, api._storageController, camera, pluginInfo, cameraLogger);
+      return new CameraDeviceProxy(this.proxy, api._storageController, camera, pluginInfo, cameraLogger);
     });
 
     await this.api?.deviceManager.configureCameras(cameraDevices);
@@ -238,6 +255,43 @@ export class PluginChild {
       return defaultModule;
     } else {
       throw new Error(`Plugin ${process.env.MODULE_PATH} does not export a initializer function from main.`);
+    }
+  }
+
+  private async emitShutdownAndWait(): Promise<void> {
+    if (!this.api) {
+      return;
+    }
+
+    // Detach before invoking so once-wrappers cannot fire a second time.
+    const listeners = this.api.rawListeners(API_EVENT.SHUTDOWN) as ((...args: unknown[]) => unknown)[];
+    this.api.removeAllListeners(API_EVENT.SHUTDOWN);
+
+    if (listeners.length === 0) {
+      return;
+    }
+
+    const settled = Promise.all(
+      listeners.map(async (listener) => {
+        try {
+          await listener();
+        } catch (error: any) {
+          this.logger.error(`Shutdown listener failed: ${error.message}`);
+        }
+      }),
+    );
+
+    let timer: NodeJS.Timeout | undefined;
+    const timedOut = await Promise.race([
+      settled.then(() => false),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(true), SHUTDOWN_LISTENER_TIMEOUT);
+      }),
+    ]);
+    clearTimeout(timer);
+
+    if (timedOut) {
+      this.logger.warn(`Shutdown listeners still pending after ${SHUTDOWN_LISTENER_TIMEOUT}ms, continuing teardown`);
     }
   }
 }

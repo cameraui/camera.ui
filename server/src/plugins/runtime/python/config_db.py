@@ -1,5 +1,9 @@
-import asyncio
-from typing import Any, Literal, Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal, Protocol
+
+if TYPE_CHECKING:
+    from plugins.runtime.python.store import PluginStoreFile
 
 
 class PluginConfigStoreRPC(Protocol):
@@ -9,11 +13,25 @@ class PluginConfigStoreRPC(Protocol):
 
 
 class PluginConfigDb(Protocol):
-    def get(self, key: Literal["config"]) -> dict[str, Any] | None: ...
+    def get(self, key: Literal["config"], /) -> dict[str, Any] | None: ...
 
-    def update(self, mapping: dict[Literal["config"], dict[str, Any]], /) -> None: ...
+    async def put(self, key: Literal["config"], value: dict[str, Any], /) -> None: ...
 
-    def close(self) -> None: ...
+    async def close(self) -> None: ...
+
+
+class LocalPluginConfigDb:
+    def __init__(self, store: PluginStoreFile) -> None:
+        self._store = store
+
+    def get(self, key: Literal["config"], /) -> dict[str, Any]:
+        return self._store.get()
+
+    async def put(self, key: Literal["config"], value: dict[str, Any], /) -> None:
+        await self._store.put(value)
+
+    async def close(self) -> None:
+        await self._store.close()
 
 
 class RemotePluginConfigDb:
@@ -24,19 +42,12 @@ class RemotePluginConfigDb:
     async def init(self) -> None:
         self._cache = (await self._store.get()) or {}
 
-    def get(self, _key: Literal["config"]) -> dict[str, Any]:
+    def get(self, key: Literal["config"], /) -> dict[str, Any]:
         return self._cache
 
-    def update(self, mapping: dict[Literal["config"], dict[str, Any]], /) -> None:
-        config = mapping["config"]
-        self._cache = config
-        # Lmdb-compatible sync signature — persistence is fire-and-forget; the
-        # cache is already current and errors only cost durability of this write.
-        task = asyncio.create_task(self._persist(dict(config)))
-        task.add_done_callback(lambda t: t.exception())
+    async def put(self, key: Literal["config"], value: dict[str, Any], /) -> None:
+        self._cache = value
+        await self._store.put(value)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         return None
-
-    async def _persist(self, config: dict[str, Any]) -> None:
-        await self._store.put(config)

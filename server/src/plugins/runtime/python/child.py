@@ -1,19 +1,19 @@
+from __future__ import annotations
+
 import truststore
 
 truststore.inject_into_ssl()
 
 import asyncio
 import importlib.util
-import json
 import os
 import sys
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import setproctitle
-from lmdbm import Lmdb
 
 from _camera_ui_tools.camera_ui_common import (
     LoggerOptions,
@@ -23,11 +23,18 @@ from _camera_ui_tools.camera_ui_common import (
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient, create_rpc_client
 from _camera_ui_tools.camera_ui_sdk import API_EVENT, BasePlugin, Camera
 from _camera_ui_tools.camera_ui_sdk import CameraDevice as CameraDeviceInterface
-from plugins.runtime.python.config_db import PluginConfigDb, PluginConfigStoreRPC, RemotePluginConfigDb
+from plugins.runtime.python.config_db import (
+    LocalPluginConfigDb,
+    PluginConfigDb,
+    PluginConfigStoreRPC,
+    RemotePluginConfigDb,
+)
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.plugin_api import PluginAPI
 from plugins.runtime.python.proxy.camera_device import CameraDeviceProxy
 from plugins.runtime.python.proxy.file_serve import PluginFileServer
+from plugins.runtime.python.store import STORE_FILE_NAME, PluginStoreFile
+from plugins.runtime.python.store_migrate import migrate_legacy_lmdbm, needs_lmdbm_migration
 from plugins.runtime.python.typings import (
     PLUGIN_COMMAND,
     PLUGIN_STATUS,
@@ -40,20 +47,7 @@ from plugins.runtime.python.typings import (
 process_name = sys.argv[2] if len(sys.argv) > 2 else sys.argv[1] if len(sys.argv) > 1 else "Plugin"
 setproctitle.setproctitle(f"camera.ui - {process_name}")
 
-
-class JsonLmdb(Lmdb[Literal["config"], dict[str, Any]]):
-    def _pre_key(self, key: Literal["config"]) -> bytes:
-        return key.encode("utf-8")
-
-    def _post_key(self, key: bytes) -> Literal["config"]:
-        _key: Any = key.decode("utf-8")
-        return _key
-
-    def _pre_value(self, value: dict[str, Any]) -> bytes:
-        return json.dumps(value).encode("utf-8")
-
-    def _post_value(self, value: bytes) -> dict[str, Any]:
-        return json.loads(value.decode("utf-8"))
+RPC_TEARDOWN_TIMEOUT = 0.5
 
 
 class PluginChild:
@@ -98,7 +92,7 @@ class PluginChild:
         self.signal_handler = SignalHandler(
             {
                 "display_name": "[Signal]",
-                "timeout_duration": 3,
+                "timeout_duration": 2,
                 "logger": self.logger,
                 "close_function": self.stop_plugin,
             }
@@ -125,7 +119,7 @@ class PluginChild:
 
     async def start_plugin(self, data: ProcessLoadMessage) -> None:
         try:
-            # Host-local writable dir - on a remote worker the master's path from
+            # Host-local writable dir — on a remote worker the master's path from
             # the START message would point at the wrong machine.
             storage_path = os.environ.get("PLUGIN_STORAGE_PATH") or data["storage"]["storagePath"]
             plugin_info = data["plugin"]
@@ -145,7 +139,6 @@ class PluginChild:
             plugin_storage = await self.api.storage_controller.createStorage("plugin")
             self.plugin = cast(BasePlugin, plugin_constructor(self.logger, self.api, plugin_storage))
 
-            # Apply storage_schema if defined by plugin
             if hasattr(self.plugin, "storage_schema") and self.plugin.storage_schema:
                 plugin_storage.defineSchemas(self.plugin.storage_schema)
 
@@ -154,11 +147,12 @@ class PluginChild:
                 namespaces.plugin_child_rpc, self.plugin, without_decorators=True
             )
 
+            # Remote-hosted: serve this worker's files so the master can stream
+            # downloads/exports of them.
             if os.environ.get("PLUGIN_REMOTE_MODE"):
                 self.file_server = PluginFileServer(self.proxy, plugin_info["id"])
                 await self.file_server.register()
 
-            # Set the plugin instance on device_manager for lifecycle callbacks
             self.api.device_manager.set_plugin(self.plugin)
 
             await self.api.device_manager.init()
@@ -180,15 +174,31 @@ class PluginChild:
         self.stopped = True
 
         if self.api:
-            self.api.emit(API_EVENT.SHUTDOWN.value)
-            await asyncio.sleep(0.5)
+            completed = await self.api.emit_and_wait(
+                API_EVENT.SHUTDOWN.value,
+                timeout=1.0,
+                on_error=lambda e: self.logger.error(f"Shutdown listener failed: {e}"),
+            )
+            if not completed:
+                self.logger.warn("Shutdown listeners still pending after 1s, continuing teardown")
+
+            await self.api.device_manager.close()
+            await self.api.core_manager.close()
+            await self.api.storage_controller.close()
+
             self.api.cancel()
 
         if self.plugin_db is not None:
             with suppress(Exception):
-                self.plugin_db.close()
+                await self.plugin_db.close()
             self.plugin_db = None
 
+        try:
+            await asyncio.wait_for(self._close_rpc(), timeout=RPC_TEARDOWN_TIMEOUT)
+        except TimeoutError:
+            self.logger.warn(f"RPC teardown still pending after {RPC_TEARDOWN_TIMEOUT}s, exiting anyway")
+
+    async def _close_rpc(self) -> None:
         if self.channel:
             with suppress(Exception):
                 await self.channel.close()
@@ -202,7 +212,8 @@ class PluginChild:
             with suppress(Exception):
                 await self.close_proxy()
 
-        await self.proxy.disconnect()
+        with suppress(Exception):
+            await self.proxy.disconnect()
 
     async def send_message(self, message: ProcessResponse) -> None:
         await self.channel.send(message)
@@ -224,25 +235,24 @@ class PluginChild:
                 pass
 
     async def configure_plugin_db(self, storage_path: str, plugin_id: str) -> PluginConfigDb:
-        # Remote-hosted: config lives on the master (re-homing safe) - persist
+        # Remote-hosted: config lives on the master (re-homing safe) — persist
         # through its config store instead of a worker-local file.
         if os.environ.get("PLUGIN_CONFIG_STORE_RPC"):
             namespaces = NamespaceManager.plugin_namespaces(plugin_id)
-            store = self.proxy.create_proxy(namespaces.plugin_config_store_rpc, PluginConfigStoreRPC)
-            remote_db = RemotePluginConfigDb(store)
+            store_rpc = self.proxy.create_proxy(namespaces.plugin_config_store_rpc, PluginConfigStoreRPC)
+            remote_db = RemotePluginConfigDb(store_rpc)
             await remote_db.init()
             return remote_db
 
-        db_path = Path(storage_path) / "volume"
-        Path(db_path).mkdir(parents=True, exist_ok=True)
+        volume_dir = Path(storage_path) / "volume"
+        store_path = volume_dir / STORE_FILE_NAME
 
-        plugin_db = cast(Lmdb[Literal["config"], dict[str, Any]], JsonLmdb.open(file=str(db_path), flag="c"))
-        config = cast(dict[str, Any] | None, plugin_db.get("config"))
+        if await asyncio.to_thread(needs_lmdbm_migration, volume_dir, store_path):
+            await migrate_legacy_lmdbm(volume_dir, store_path, self.logger)
 
-        if config is None:
-            plugin_db.update({"config": {}})
-
-        return plugin_db
+        store = PluginStoreFile(str(volume_dir), plugin_id, self.logger)
+        await store.open()
+        return LocalPluginConfigDb(store)
 
     async def configure_cameras(self, api: PluginAPI, plugin_info: PluginInfo, cameras: list[Camera]) -> None:
         cameras_devices: list[CameraDeviceProxy] = []
@@ -254,7 +264,6 @@ class PluginChild:
             cameras_devices.append(
                 CameraDeviceProxy(
                     self.proxy,
-                    api,
                     api.storage_controller,
                     camera,
                     plugin_info,

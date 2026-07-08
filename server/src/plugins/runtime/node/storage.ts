@@ -1,13 +1,15 @@
 import { isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { RPCClass, RPCMethod } from '@camera.ui/rpc';
-import { API_EVENT } from '@camera.ui/sdk';
 import objectPath from 'object-path';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
 import { generateConfigFromSchemas, getValueByKey, isButtonType, isSubmitType, removeCallbacksFromSchemas } from '../../schema.js';
+import { deleteLocation, readLocation, writeLocation } from '../../store/location.js';
+import { validateStoreValue } from '../../store/validate.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type { DeviceStorage as DeviceStorageInterface, FormSubmitResponse, JsonSchema, PluginInfo, SchemaConfig } from '@camera.ui/sdk';
+import type { StoreLocation } from '../../store/location.js';
 import type { PluginConfigDb } from './configDb.js';
 import type { PluginAPI } from './pluginApi.js';
 
@@ -15,16 +17,16 @@ import type { PluginAPI } from './pluginApi.js';
 export class DeviceStorage<T extends Record<string, any> = Record<string, any>> implements DeviceStorageInterface<T> {
   public values: T = {} as T;
 
-  #deviceId: string;
+  #location: StoreLocation;
   #api: PluginAPI;
   #proxy: RPCClient;
   #plugin: PluginInfo;
   #pluginDb: PluginConfigDb;
 
   #storageNamespace: string;
-  #isPluginStorage: boolean;
   #sensorId?: string;
-  #cameraId?: string;
+
+  #dirty = false;
 
   #closeProxy?: () => Promise<void>;
 
@@ -33,36 +35,29 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
     proxy: RPCClient,
     plugin: PluginInfo,
     pluginDb: PluginConfigDb,
-    deviceId: string,
+    location: StoreLocation,
     public schemas: JsonSchema[] = [],
-    isPluginStorage: boolean,
     sensorId?: string,
-    cameraId?: string,
   ) {
     this.#api = api;
     this.#proxy = proxy;
     this.#plugin = plugin;
     this.#pluginDb = pluginDb;
-    this.#deviceId = deviceId;
-    this.#isPluginStorage = isPluginStorage;
+    this.#location = location;
     this.#sensorId = sensorId;
-    this.#cameraId = cameraId;
 
-    if (this.#sensorId && this.#cameraId) {
-      // Sensor storage: plugin + camera + sensor instance specific
-      const sensorNs = NamespaceManager.pluginSensorNamespaces(this.#plugin.id, this.#cameraId, this.#sensorId);
+    if (location.kind === 'sensor' && this.#sensorId) {
+      const sensorNs = NamespaceManager.pluginSensorNamespaces(this.#plugin.id, location.cameraId, this.#sensorId);
       this.#storageNamespace = sensorNs.sensorStorageRpc;
-    } else if (this.#isPluginStorage) {
+    } else if (location.kind === 'plugin') {
       const pluginNs = NamespaceManager.pluginNamespaces(this.#plugin.id);
       this.#storageNamespace = pluginNs.pluginStorageRpc;
-    } else {
-      // Camera storage (per plugin + camera)
-      const cameraNs = NamespaceManager.pluginCameraNamespaces(this.#plugin.id, this.#deviceId);
+    } else if (location.kind === 'camera') {
+      const cameraNs = NamespaceManager.pluginCameraNamespaces(this.#plugin.id, location.cameraId);
       this.#storageNamespace = cameraNs.cameraStorageRpc;
+    } else {
+      throw new Error(`sensor storage for ${this.#plugin.id} requires a sensorId`);
     }
-
-    this.#api.setMaxListeners(this.#api.getMaxListeners() + 1);
-    this.#api.once(API_EVENT.SHUTDOWN, this.#close.bind(this));
   }
 
   public getValue<T = string>(key: string): Promise<T> | undefined;
@@ -79,13 +74,20 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
     const schema = this.schemas.find((schema) => schema.key === key);
 
     if (schema) {
+      validateStoreValue(key, newValue);
       const oldValue = objectPath.get(this.values, key);
-      objectPath.set(this.values, key, newValue);
-      await (schema as any).onSet?.(newValue, oldValue);
+      const unchanged = newValue === null || newValue === undefined ? oldValue === undefined : isEqual(oldValue, newValue);
+      if (newValue === null || newValue === undefined) {
+        objectPath.del(this.values, key);
+      } else {
+        objectPath.set(this.values, key, typeof newValue === 'object' ? structuredClone(newValue) : newValue);
+      }
 
-      if (this.#containsStorableSchema(schema)) {
+      if (this.#containsStorableSchema(schema) && (!unchanged || this.#dirty)) {
         await this.save();
       }
+
+      this.#runOnSetDetached((schema as any).onSet, key, newValue, oldValue);
     }
   }
 
@@ -100,7 +102,18 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   @RPCMethod
   public async setInternalValue(key: string, value: unknown): Promise<void> {
-    objectPath.set(this.values, key, value);
+    validateStoreValue(key, value);
+    const oldValue = objectPath.get(this.values, key);
+    const unchanged = value === null || value === undefined ? oldValue === undefined : isEqual(oldValue, value);
+    if (value === null || value === undefined) {
+      objectPath.del(this.values, key);
+    } else {
+      objectPath.set(this.values, key, typeof value === 'object' ? structuredClone(value) : value);
+    }
+
+    if (unchanged && !this.#dirty) {
+      return;
+    }
     await this.save();
   }
 
@@ -120,6 +133,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   @RPCMethod
   public async setConfig(newConfig: T): Promise<void> {
+    validateStoreValue('config', newConfig);
     const oldConfig = structuredClone(this.values);
 
     this.values = mergeWith(this.values, newConfig, (source: any, target: any) => {
@@ -128,8 +142,8 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       }
     });
 
-    await this.#triggerOnSetForChanges(oldConfig, this.values);
     await this.save();
+    this.#triggerOnSetForChanges(oldConfig, this.values);
   }
 
   public defineSchemas(schemas: JsonSchema[]): void {
@@ -139,8 +153,6 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   @RPCMethod
   public async addSchema(schema: JsonSchema): Promise<void> {
-    let shouldSave = false;
-
     const schemaExist = this.hasSchema(schema.key);
     if (schemaExist) {
       throw new Error(`Schema with key ${schema.key} already exists`);
@@ -148,13 +160,10 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       this.schemas.push(schema);
     }
 
+    const oldValue = objectPath.get(this.values, schema.key);
     await this.#resolveOnGetFunctions(schema);
 
-    if (this.#containsStorableSchema(schema)) {
-      shouldSave = true;
-    }
-
-    if (shouldSave) {
+    if (this.#containsStorableSchema(schema) && !isEqual(oldValue, objectPath.get(this.values, schema.key), true)) {
       await this.save();
     }
   }
@@ -162,10 +171,11 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   @RPCMethod
   public async removeSchema(key: string): Promise<void> {
     const schema = this.schemas.find((schema) => schema.key === key);
+    const hadValue = objectPath.get(this.values, key) !== undefined;
     this.schemas = this.schemas.filter((schema) => schema.key !== key);
     objectPath.del(this.values, key);
 
-    if (schema && this.#containsStorableSchema(schema)) {
+    if (schema && this.#containsStorableSchema(schema) && hadValue) {
       await this.save();
     }
   }
@@ -176,15 +186,21 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
     const schema = this.schemas.find((schema) => schema.key === newSchema.key);
 
     if (schema) {
+      const wasStorable = this.#containsStorableSchema(schema);
       mergeWith(schema, newSchema, (source: any, target: any) => {
         if (Array.isArray(source)) {
           return target;
         }
       });
 
+      if (this.#containsStorableSchema(schema) !== wasStorable) {
+        this.#dirty = true;
+      }
+
+      const oldValue = objectPath.get(this.values, key);
       await this.#resolveOnGetFunctions(schema);
 
-      if (this.#containsStorableSchema(schema)) {
+      if (this.#containsStorableSchema(schema) && !isEqual(oldValue, objectPath.get(this.values, key), true)) {
         await this.save();
       }
     }
@@ -203,9 +219,8 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   @RPCMethod
   public async destroy(): Promise<void> {
-    this.#api.removeListener(API_EVENT.SHUTDOWN, this.#close.bind(this));
     const config = this.#pluginDb.get('config') ?? {};
-    delete config[this.#deviceId];
+    deleteLocation(config, this.#location);
     this.values = {} as T;
     await this.#pluginDb.put('config', config);
   }
@@ -213,8 +228,14 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   public async save(): Promise<void> {
     const config = this.#pluginDb.get('config') ?? {};
     const storableConfig = this.schemas.length ? this.#filterStorableValues(this.schemas) : this.values;
-    config[this.#deviceId] = storableConfig;
-    await this.#pluginDb.put('config', config);
+    writeLocation(config, this.#location, storableConfig);
+    try {
+      await this.#pluginDb.put('config', config);
+      this.#dirty = false;
+    } catch (error) {
+      this.#dirty = true;
+      throw error;
+    }
   }
 
   public updateSchema(schemas: JsonSchema[] = []): void {
@@ -228,6 +249,16 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   public async unregisterStorage(): Promise<void> {
     await this.#closeProxy?.();
+  }
+
+  /** Internal method to close the storage */
+  public async close(): Promise<void> {
+    try {
+      await this.save();
+      await this.unregisterStorage();
+    } catch (error) {
+      this.#api.logger.error('store: close save failed:', error);
+    }
   }
 
   async #resolveOnGetFunctions(schemas: JsonSchema | JsonSchema[]): Promise<void> {
@@ -245,9 +276,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
     }
   }
 
-  async #triggerOnSetForChanges(oldConfig: Record<string, any>, newConfig: Record<string, any>): Promise<void> {
-    const promises: Promise<void>[] = [];
-
+  #triggerOnSetForChanges(oldConfig: Record<string, any>, newConfig: Record<string, any>): void {
     for (const configKey in newConfig) {
       const oldValue = getValueByKey(oldConfig, configKey);
       const newValue = newConfig[configKey];
@@ -255,12 +284,20 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       if (!isEqual(oldValue, newValue, true)) {
         const schema = this.schemas.find((schema) => schema.key === configKey);
         if (schema && !isSubmitType(schema) && typeof schema.onSet === 'function') {
-          promises.push(schema.onSet(newValue, oldValue));
+          this.#runOnSetDetached(schema.onSet, configKey, newValue, oldValue);
         }
       }
     }
+  }
 
-    await Promise.all(promises);
+  #runOnSetDetached(onSet: unknown, key: string, newValue: unknown, oldValue: unknown): void {
+    if (typeof onSet !== 'function') {
+      return;
+    }
+
+    (async () => onSet(newValue, oldValue))().catch((error: unknown) => {
+      this.#api.logger.error(`onSet handler for "${key}" failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }
 
   #filterStorableValues(schemas: JsonSchema[], result: Record<string, any> = {}): Record<string, any> {
@@ -275,9 +312,10 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       }
     }
 
-    // Preserve internal values (prefixed with '_') that have no schema.
+    // Keys without any schema are internal values and always persist;
+    // schema-covered keys persist only via their store flag above.
     for (const [key, value] of Object.entries(this.values)) {
-      if (key.startsWith('_')) {
+      if (!schemas.some((schema) => schema.key === key || schema.key.startsWith(`${key}.`))) {
         result[key] = value;
       }
     }
@@ -299,7 +337,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   async #initializeStorage(): Promise<void> {
     const config = this.#pluginDb.get('config') ?? {};
-    const deviceConfig = config[this.#deviceId] ?? {};
+    const deviceConfig = readLocation(config, this.#location) ?? {};
     const schemaConfig = generateConfigFromSchemas(this.schemas);
 
     this.values = mergeWith(schemaConfig, deviceConfig, (source: any, target: any) => {
@@ -310,15 +348,6 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       if (target === undefined) {
         return source;
       }
-    });
-  }
-
-  async #close(): Promise<void> {
-    try {
-      await this.save();
-      await this.unregisterStorage();
-    } catch {
-      //
-    }
+    }) as T;
   }
 }

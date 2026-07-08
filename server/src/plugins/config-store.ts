@@ -1,9 +1,9 @@
-import { open } from 'lmdb';
+import { join } from 'node:path';
 
 import { NamespaceManager } from '../rpc/namespaces.js';
+import { PluginStoreFile } from './store/pluginStoreFile.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
-import type { RootDatabase } from 'lmdb';
 
 export interface PluginConfigStoreRPC {
   get(): Promise<Record<string, any>>;
@@ -11,7 +11,7 @@ export interface PluginConfigStoreRPC {
 }
 
 export class PluginConfigStore implements PluginConfigStoreRPC {
-  private db?: RootDatabase<Record<string, any>, 'config'>;
+  private store?: PluginStoreFile;
   private closeHandler?: () => Promise<void>;
 
   constructor(
@@ -20,11 +20,8 @@ export class PluginConfigStore implements PluginConfigStoreRPC {
   ) {}
 
   public async register(proxy: RPCClient): Promise<void> {
-    this.db = open(`${this.storagePath}/volume`, { name: 'plugins' });
-
-    if (!this.db.get('config')) {
-      await this.db.put('config', {});
-    }
+    this.store = new PluginStoreFile(join(this.storagePath, 'volume'), this.pluginId);
+    await this.store.open();
 
     const namespaces = NamespaceManager.pluginNamespaces(this.pluginId);
     this.closeHandler = await proxy.registerHandler(
@@ -37,15 +34,23 @@ export class PluginConfigStore implements PluginConfigStoreRPC {
   public async close(): Promise<void> {
     await this.closeHandler?.();
     this.closeHandler = undefined;
-    await this.db?.close();
-    this.db = undefined;
+    await this.store?.close();
+    this.store = undefined;
   }
 
   public async get(): Promise<Record<string, any>> {
-    return this.db?.get('config') ?? {};
+    if (!this.store) {
+      // An empty result here would boot the plugin with default config while
+      // its real data sits in the closed store. Fail loudly instead.
+      throw new Error(`store: config store for ${this.pluginId} is closed`);
+    }
+    return this.store.get();
   }
 
   public async put(config: Record<string, any>): Promise<void> {
-    await this.db?.put('config', config);
+    if (!this.store) {
+      throw new Error(`store: config store for ${this.pluginId} is closed`);
+    }
+    await this.store.put(config);
   }
 }

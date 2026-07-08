@@ -1,4 +1,5 @@
 import { sleep } from '@camera.ui/common/utils';
+import { join } from 'node:path';
 import { container } from 'tsyringe';
 
 import { CamerasService } from '../api/services/cameras.service.js';
@@ -8,6 +9,8 @@ import { isShuttingDown } from '../shutdown-state.js';
 import { describePlatformRequirement } from '../utils/platform.js';
 import { PluginConfigStore } from './config-store.js';
 import { RuntimeFactory } from './runtime/index.js';
+import { migrateLmdbToStoreFile } from './store/migrate.js';
+import { STORE_FILE_NAME } from './store/pluginStoreFile.js';
 
 import type { PrivateChannel, Promisify } from '@camera.ui/rpc';
 import type { BasePlugin, Camera, DeviceStorage, PluginInterfaces } from '@camera.ui/sdk';
@@ -164,7 +167,8 @@ export class PluginWorker {
         }
 
         if (this.plugin.isGo) {
-          await this.ensureConfigStore();
+          const volumeDir = join(this.plugin.storagePath, 'volume');
+          await migrateLmdbToStoreFile(volumeDir, join(volumeDir, STORE_FILE_NAME));
         }
 
         this.runtime.once('exit', () => {
@@ -215,12 +219,10 @@ export class PluginWorker {
         // lands on the old, closed channel and can never trigger a second START.
         await this.openChannel(resolve, reject);
 
-        // Node/Python run their config locally (own LMDB); only Go keeps the
-        // master-hosted store. Release the store opened for the remote attempt.
-        if (!this.plugin.isGo) {
-          await this.configStore?.close();
-          this.configStore = undefined;
-        }
+        // Local plugins own their store file themselves — release the store
+        // opened for the remote attempt so the child can take ownership.
+        await this.configStore?.close();
+        this.configStore = undefined;
 
         if (!this.plugin.info.compatible) {
           this.setStatus(PLUGIN_STATUS.INCOMPATIBLE);
@@ -272,7 +274,6 @@ export class PluginWorker {
       await this.kill();
     }
 
-    // Local Go plugins host a config store too — release the LMDB handle.
     await this.configStore?.close();
     this.configStore = undefined;
   }
