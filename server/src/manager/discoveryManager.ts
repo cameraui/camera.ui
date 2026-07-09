@@ -653,7 +653,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
   private parseUrl(url: string): { address: string } {
     try {
       const parsed = new URL(url);
-      return { address: parsed.hostname };
+      return { address: parsed.hostname || parsed.pathname };
     } catch {
       const regex = /^(?:\w+:\/\/)?([^:/]+)/;
       const match = regex.exec(url);
