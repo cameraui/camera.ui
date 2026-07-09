@@ -1,6 +1,24 @@
 <template>
   <div>
     <div class="flex flex-col w-full gap-6">
+      <div v-if="!isElectronBuild">
+        <Card class="cui-card">
+          <template #content>
+            <div>
+              <div class="flex items-center gap-4">
+                <div class="flex flex-col field-switch-gap">
+                  <label for="betaChannel" class="cui-label-switch">{{ $t('views.settings.beta_updates') }}</label>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">
+                    {{ $t('views.settings.beta_updates_info') }}
+                  </Message>
+                </div>
+                <ToggleSwitch input-id="betaChannel" :model-value="isBeta" class="ml-auto shrink-0" @update:model-value="onBetaToggle" />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
       <div>
         <span class="card-title">camera.ui</span>
         <Card class="cui-card">
@@ -10,6 +28,13 @@
                 <span class="text-sm">{{ $t('views.settings.app') }}</span>
                 <ProgressSpinner v-if="isLoading" class="w-[15px] h-[15px] m-0" stroke-width="5" />
                 <span v-else class="text-sm font-bold">v{{ currentElectronVersion }}</span>
+              </div>
+
+              <div v-if="isCapacitor && appVersion" class="flex flex-row items-center justify-between">
+                <span class="text-sm">{{ $t('views.settings.app') }}</span>
+                <span class="text-sm font-bold">
+                  v{{ appVersion }}<span v-if="nativeVersion && nativeVersion !== appVersion" class="text-muted font-normal"> ({{ nativeVersion }})</span>
+                </span>
               </div>
 
               <div class="flex flex-row items-center justify-between">
@@ -127,6 +152,7 @@ import { compareVersions } from 'compare-versions';
 import { ApiQuery } from '@/api/routes/api.js';
 import { downloadCertFn, ServerQuery } from '@/api/routes/server.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
+import { isCapacitor } from '@/connection/index.js';
 
 import type { VersionsHandlerProps } from '@/components/CuiDialog/templates/VersionsHandler/types.js';
 
@@ -141,6 +167,8 @@ const { t } = useI18n();
 const { isElectronApp, electron } = useElectron();
 const { isOnline } = useConnection();
 const { restarting, beginServerRestart } = useServerRestart();
+const { isBeta, setChannel } = useUpdateChannel();
+const { appVersion, nativeVersion, refreshAppVersion } = useAppVersion();
 
 const authStore = useAuthStore();
 
@@ -154,6 +182,7 @@ const { mutateAsync: resetServer, isPending: resetServerLoading } = serverQuery.
 const currentVersion = ref(t('views.settings.unknown'));
 const currentElectronVersion = ref(t('views.settings.unknown'));
 const latestAlphaVersion = ref<string>();
+const latestBetaVersion = ref<string>();
 const latestVersion = ref<string>();
 const latestElectronVersion = ref<string>();
 const loadingCert = ref(false);
@@ -196,9 +225,29 @@ const updateAvailableAlpha = computed(() => {
   return false;
 });
 
-const installVersion = computed(() => {
-  return updateAvailable.value ? latestVersion.value : updateAvailableAlpha.value ? latestAlphaVersion.value : undefined;
+const updateAvailableBeta = computed(() => {
+  if (isBeta.value && installedVersion.value && latestBetaVersion.value) {
+    return compareVersions(latestBetaVersion.value, installedVersion.value) === 1;
+  }
+
+  return false;
 });
+
+const installVersion = computed(() => {
+  const candidates = [
+    updateAvailable.value ? latestVersion.value : undefined,
+    updateAvailableBeta.value ? latestBetaVersion.value : undefined,
+    updateAvailableAlpha.value ? latestAlphaVersion.value : undefined,
+  ].filter((v): v is string => Boolean(v));
+
+  if (!candidates.length) return undefined;
+
+  return candidates.sort((a, b) => compareVersions(b, a))[0];
+});
+
+function onBetaToggle(next: boolean | string | undefined): void {
+  setChannel(next === true ? 'beta' : 'production');
+}
 
 async function downloadCert(): Promise<void> {
   if (loadingCert.value) {
@@ -334,6 +383,7 @@ watch(
   () => {
     latestVersion.value = versionInfo.value?.['dist-tags'].latest;
     latestAlphaVersion.value = versionInfo.value?.['dist-tags'].alpha;
+    latestBetaVersion.value = versionInfo.value?.['dist-tags'].beta;
   },
   { deep: true, immediate: true },
 );
@@ -346,6 +396,9 @@ watch(isOnline, (online, wasOnline) => {
 });
 
 onMounted(() => {
+  if (isCapacitor) {
+    refreshAppVersion();
+  }
   if (isElectronApp) {
     checkElectronVersion();
     checkElectronUpdates();

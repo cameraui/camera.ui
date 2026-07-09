@@ -95,6 +95,7 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { beginServerRestart } = useServerRestart();
+const { isBeta } = useUpdateChannel();
 const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
@@ -191,7 +192,9 @@ const allVersions = computed<string[]>(() => {
   if (isPluginTarget(target.value)) {
     return availableVersions.value?.versions || [];
   } else if (isServerTarget(target.value)) {
-    return (versionInfo.value?.versions || []).filter((version) => compareVersions(version, MIN_SERVER_VERSION) >= 0);
+    return (versionInfo.value?.versions || [])
+      .filter((version) => compareVersions(version, MIN_SERVER_VERSION) >= 0)
+      .filter((version) => isBeta.value || !version.includes('-'));
   }
 
   return [];

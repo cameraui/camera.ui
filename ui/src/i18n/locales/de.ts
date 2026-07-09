@@ -1550,11 +1550,7 @@ export default {
       title: 'Über',
       versions: 'Versionen',
       version_app: 'App',
-      version_ui: 'UI',
       version_server: 'Server',
-      updates: 'Updates',
-      beta_updates: 'Beta-Updates',
-      beta_updates_hint: 'Vorabversionen empfangen, bevor sie für alle ausgerollt werden.',
     },
     faces: {
       title: 'Gesichter',
@@ -1709,6 +1705,8 @@ export default {
       app: 'App',
       available_updates: 'Verfügbare Aktualisierungen',
       available_updates_info: 'Es sind Aktualisierungen für camera.ui verfügbar.',
+      beta_updates: 'Beta-Updates',
+      beta_updates_info: 'Vorabversionen empfangen, bevor sie allgemein ausgerollt werden — sowohl Server-Updates als auch, in der mobilen App, OTA-UI-Updates.',
       certificate: 'Zertifikat',
       certificate_info:
         'Laden Sie hier das SSL-Zertifikat der Webseite herunter. Durch das Hinzufügen dieses Zertifikats zu Ihrem Keychain oder Ihrer Zertifikatsverwaltung wird die Seite als sicher erkannt. Dies verbessert die Browsererfahrung und vermeidet Sicherheitswarnungen.',

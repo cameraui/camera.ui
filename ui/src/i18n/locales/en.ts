@@ -1542,11 +1542,7 @@ export default {
       title: 'About',
       versions: 'Versions',
       version_app: 'App',
-      version_ui: 'UI',
       version_server: 'Server',
-      updates: 'Updates',
-      beta_updates: 'Beta updates',
-      beta_updates_hint: 'Receive pre-release versions before they are rolled out to everyone.',
     },
     faces: {
       title: 'Faces',
@@ -1700,6 +1696,8 @@ export default {
       app: 'App',
       available_updates: 'Available updates',
       available_updates_info: 'Updates are available for camera.ui.',
+      beta_updates: 'Beta updates',
+      beta_updates_info: 'Receive pre-release versions before the general rollout — both server updates and, on the mobile app, over-the-air UI updates.',
       certificate: 'Certificate',
       certificate_info:
         'Download the SSL certificate of the website here. By adding this certificate to your keychain or certificate management, the site is recognized as secure. This improves the browser experience and avoids security warnings.',
