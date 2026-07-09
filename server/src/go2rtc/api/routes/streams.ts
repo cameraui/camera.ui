@@ -40,17 +40,15 @@ export class StreamsRoute {
   public async pairHomekit(data: HomeKitPairData): Promise<HomeKitPairResponse> {
     const { id, url, pin } = data;
 
-    const newUrl = new URL(url);
-    newUrl.searchParams.set('pin', pin);
-
-    const formData = new FormData();
-    formData.append('id', id);
-    formData.append('url', newUrl.toString());
+    const body = new URLSearchParams();
+    body.append('id', id);
+    body.append('src', url);
+    body.append('pin', pin);
 
     const response = await this.requestManager.queuedRequest(`homekit:${id}`, `pairHomekit:${id}:${url}`, () =>
       fetchInstance()('/homekit', {
         method: 'POST',
-        body: formData,
+        body,
       }),
     );
 
