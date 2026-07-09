@@ -151,5 +151,12 @@
     "motion detection",
     "object detection",
     "ui"
-  ]
+  ],
+  "allowScripts": {
+    "@parcel/watcher@2.5.6": true,
+    "vue-demi@0.14.10": true,
+    "fsevents@2.3.3": true,
+    "msgpackr-extract@3.0.4": true,
+    "sharp@0.33.5": true
+  }
 }

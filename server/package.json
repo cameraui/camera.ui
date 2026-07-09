@@ -133,5 +133,14 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cameraui/camera.ui.git"
+  },
+  "allowScripts": {
+    "@scrypted/node-pty@1.0.25": true,
+    "cloudflared@0.7.1": true,
+    "fsevents@2.3.3": true,
+    "lmdb@3.5.6": true,
+    "msgpackr-extract@3.0.4": true,
+    "node-av@6.2.0-beta.3": true,
+    "protobufjs@7.6.4": true
   }
 }
