@@ -128,7 +128,6 @@ export class TunnelClient {
           },
           process.env,
         ),
-        cwd: '.',
         stdio: 'pipe',
         windowsHide: true,
       });

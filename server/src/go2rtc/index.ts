@@ -78,7 +78,6 @@ export class Go2Rtc {
     return new Promise((resolve, reject) => {
       this.go2rtcProcess = spawn(command, args, {
         env: Object.assign({}, process.env),
-        cwd: '.',
         stdio: 'pipe',
         windowsHide: true,
       });
