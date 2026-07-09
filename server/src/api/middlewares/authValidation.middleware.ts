@@ -10,7 +10,7 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { DBUser } from '../database/types.js';
 import type { AuthLoginRequest, AuthNewLoginRequest, JwtTokenDecoded, TwoFactorPendingResponse } from '../types/index.js';
 
-const FIRST_LOGIN_ALLOWED_ROUTES: ReadonlySet<string> = new Set(['GET /api/auth/check']);
+const FIRST_LOGIN_ALLOWED_ROUTES: ReadonlySet<string> = new Set(['GET /api/auth/check', 'POST /api/backup/restore']);
 
 export function hashPassword(salt: string, password: string): string {
   return createHmac('sha512', salt).update(password).digest('base64');
