@@ -288,6 +288,9 @@ export class WorkerManager {
     try {
       const socketService = container.resolve<SocketService>('socketService');
       socketService.io.of('/workers').emit('worker-removed', { agentId });
+
+      const workersNsp = socketService.namespaces.get('/workers') as WorkersNamespace | undefined;
+      workersNsp?.handleWorkerRemoved(agentId);
     } catch {
       // SocketService may not be available yet during startup
     }

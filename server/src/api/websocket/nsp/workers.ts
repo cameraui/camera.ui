@@ -39,6 +39,10 @@ export class WorkersNamespace {
     this.history[worker.agentId] = this.history[worker.agentId].slice(-this.MAX_HISTORY_POINTS);
   }
 
+  public handleWorkerRemoved(agentId: string): void {
+    delete this.history[agentId];
+  }
+
   private getWorkerHistory(_payload: any, callback?: Function): Record<string, WorkerInfo[]> {
     callback?.(this.history);
     return this.history;

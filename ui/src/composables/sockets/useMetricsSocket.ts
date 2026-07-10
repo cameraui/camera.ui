@@ -71,9 +71,18 @@ function applyRealtimeProcessInfos(data: AllProcesses): void {
   if (data['camera.ui']) state.coreProcesses['camera.ui'] = data['camera.ui'];
   if (data.go2rtc) state.coreProcesses.go2rtc = data.go2rtc;
   if (data.nats) state.coreProcesses.nats = data.nats;
-  for (const [name, processInfo] of Object.entries(data.workers ?? {})) {
+
+  const workers = data.workers ?? {};
+  for (const name of Object.keys(state.frameWorkersProcess)) {
+    if (!(name in workers)) {
+      delete state.frameWorkersProcess[name];
+      delete state.frameWorkersProcessInfos[name];
+    }
+  }
+  for (const [name, processInfo] of Object.entries(workers)) {
     state.frameWorkersProcess[name] = processInfo;
   }
+
   for (const [name, processInfo] of Object.entries(data.plugins ?? {})) {
     state.pluginsProcesses[name] = processInfo;
   }
