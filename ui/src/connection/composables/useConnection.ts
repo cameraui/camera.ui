@@ -55,8 +55,7 @@ export function useConnection(): UseConnectionReturn {
   const bannerMode = computed<BannerMode>(() => {
     const kind = connection.phase.value.kind;
     if (kind === 'online' || kind === 'idle' || kind === 'needs-auth') return null;
-    if (kind === 'discovering') return 'connecting';
-    return 'reconnecting';
+    return connection.hasBeenOnline.value ? 'reconnecting' : 'connecting';
   });
 
   const inTrouble = computed(() => connection.troubleElapsedMs.value >= IN_TROUBLE_MS);

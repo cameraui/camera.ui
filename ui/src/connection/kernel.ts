@@ -43,6 +43,8 @@ export function createConnection(options: ConnectionOptions): Connection {
   let troubleTick: ReturnType<typeof setInterval> | undefined;
   const troubleElapsedMs = computed(() => (troubleSince.value === null ? 0 : troubleNow.value - troubleSince.value));
 
+  const hasBeenOnline = ref(false);
+
   let restoredTarget: ConnectionTarget | null = null;
   let natsRecovering = false;
   let lastWakeAt = 0;
@@ -105,6 +107,9 @@ export function createConnection(options: ConnectionOptions): Connection {
       if (next.kind === 'idle' && prev.kind !== 'idle') {
         options.callbacks.onConnectionReset?.();
       }
+
+      if (next.kind === 'online') hasBeenOnline.value = true;
+      else if (next.kind === 'idle') hasBeenOnline.value = false;
 
       if (next.kind === 'online') recoverNatsIfStale();
 
@@ -423,6 +428,7 @@ export function createConnection(options: ConnectionOptions): Connection {
     ws,
     lastReachableEndpoint,
     troubleElapsedMs,
+    hasBeenOnline,
     boot,
     retry,
     reset,

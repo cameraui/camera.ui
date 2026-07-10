@@ -53,6 +53,7 @@ export interface Connection {
 
   readonly lastReachableEndpoint: Ref<string | null>;
   readonly troubleElapsedMs: ComputedRef<number>;
+  readonly hasBeenOnline: Ref<boolean>;
 
   boot(instanceId: string): void;
   retry(): void;

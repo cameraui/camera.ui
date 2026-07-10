@@ -9,6 +9,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { RemoteAccessManager } from '../../remote/index.js';
 import type { ConnectionInfo, RemoteTestResult } from '../../remote/types.js';
 import type { ConfigService } from '../../services/config/index.js';
+import type { LoggerService } from '../../services/logger/index.js';
 import type {
   AuthLoginRequest,
   CloudflareManagedConnectRequest,
@@ -23,6 +24,7 @@ import type {
 export class RemoteController {
   private remoteAccessManager: RemoteAccessManager;
   private configService: ConfigService;
+  private logger: LoggerService;
 
   private service: RemoteService;
   private serverService: ServerService;
@@ -30,6 +32,7 @@ export class RemoteController {
   constructor(_app: FastifyInstance) {
     this.remoteAccessManager = container.resolve<RemoteAccessManager>('remoteAccessManager');
     this.configService = container.resolve<ConfigService>('configService');
+    this.logger = container.resolve<LoggerService>('logger');
 
     this.service = new RemoteService();
     this.serverService = new ServerService();
@@ -62,8 +65,13 @@ export class RemoteController {
   public async patchRemoteInfo(req: FastifyRequest<AuthLoginRequest & RemotePatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const remoteInfo = await this.service.patch(req.body);
-      await this.remoteAccessManager.update();
-      return reply.code(200).send(remoteInfo);
+      reply.code(200).send(remoteInfo);
+      setTimeout(() => {
+        this.remoteAccessManager.update().catch((error) => {
+          this.logger.error('Failed to apply remote access settings:', error);
+        });
+      }, 500);
+      return reply;
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
