@@ -23,11 +23,13 @@
 
     <div v-else-if="isUninstall && !showConsole">
       <p class="text-muted">{{ $t('components.dialog.message.confirm_uninstall_plugin') }}</p>
-      <label class="flex items-center gap-2 mt-4 cursor-pointer">
-        <Checkbox v-model="removeStorage" :binary="true" />
-        <span>{{ $t('components.dialog.message.uninstall_remove_storage') }}</span>
-      </label>
-      <p v-if="removeStorage" class="text-muted text-sm mt-2">{{ $t('components.dialog.message.uninstall_remove_storage_hint') }}</p>
+      <div class="flex items-center gap-4 mt-4 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
+        <div class="flex flex-col gap-1 min-w-0">
+          <span class="text-sm font-semibold text-orange-400">{{ $t('components.dialog.message.uninstall_remove_storage') }}</span>
+          <span class="text-xs text-muted-color">{{ $t('components.dialog.message.uninstall_remove_storage_hint') }}</span>
+        </div>
+        <ToggleSwitch v-model="removeStorage" class="ml-auto shrink-0" />
+      </div>
     </div>
 
     <div v-else-if="!installVersion && !showConsole && !showReleaseNotes">

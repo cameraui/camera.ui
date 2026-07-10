@@ -1,8 +1,15 @@
 <template>
-  <div v-if="schema.length === 0" class="text-center py-4">
-    <p class="text-muted">{{ $t('views.devices.no_settings_required') }}</p>
+  <div class="flex flex-col gap-6">
+    <div v-if="camera.address" class="flex flex-col field-gap">
+      <label class="cui-label">{{ $t('views.devices.address') }}</label>
+      <InputText :model-value="camera.address" readonly />
+    </div>
+
+    <div v-if="schema.length === 0" class="text-center py-4">
+      <p class="text-muted">{{ $t('views.devices.no_settings_required') }}</p>
+    </div>
+    <CuiSchema v-else ref="schemaFormRef" :schema-form="schemaForm" :loading="isLoading" />
   </div>
-  <CuiSchema v-else ref="schemaFormRef" :schema-form="schemaForm" :loading="isLoading" />
 </template>
 
 <script setup lang="ts">

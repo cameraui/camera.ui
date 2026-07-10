@@ -118,13 +118,13 @@
                       <CuiNotificationInterface v-else-if="segment.name === 'notification'" :plugin-name="resolvedPluginName" />
 
                       <div v-else-if="segment.name === 'cameras'" class="w-full h-full">
-                        <div v-if="!isPluginRunning" class="flex items-center gap-2 text-muted text-sm mb-3">
-                          <i-mdi:information-outline class="w-4 h-4 flex-shrink-0" />
-                          <span>{{ $t('views.plugin.assignment_requires_running') }}</span>
-                        </div>
-
                         <div v-if="!contract?.cameras?.length" class="flex items-center justify-center w-full h-full text-muted text-sm">
                           <span>{{ $t('views.plugin.no_cameras') }}</span>
+                        </div>
+
+                        <div v-else-if="!isPluginRunning" class="flex items-center justify-center gap-2 w-full h-full text-muted text-sm">
+                          <i-mdi:information-outline class="w-4 h-4 flex-shrink-0" />
+                          <span>{{ $t('views.plugin.assignment_requires_running') }}</span>
                         </div>
 
                         <div v-for="camera in contract.cameras" v-else :key="camera.name" class="cui-list-item">

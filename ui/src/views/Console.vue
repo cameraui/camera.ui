@@ -24,7 +24,7 @@
       </template>
 
       <template v-if="!mobileSearchActive" #left>
-        <CuiTopNavbarItem v-for="lvl in levelToggles" :key="lvl" type="button" :label="lvl" :active="activeLevels.has(lvl)" @click="toggleLevel(lvl)" />
+        <CuiTopNavbarItem :label="$t('views.console.levels')" :menu-open="levelMenuRef?.isOpen" @click="(e) => levelMenuRef?.toggleMenu(e)" />
       </template>
 
       <template v-if="!mobileSearchActive" #right>
@@ -61,8 +61,9 @@
 
     <div class="w-full h-full flex flex-col" :style="{ paddingTop: `${TOPNAVBAR_HEIGHT}px` }">
       <div ref="scrollEl" class="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] leading-snug">
-        <div v-if="!filtered.length" class="text-muted p-4 text-center">
-          {{ recording ? $t('views.console.empty') : $t('views.console.recording_off') }}
+        <div v-if="!filtered.length" class="h-full flex flex-col items-center justify-center gap-4">
+          <i-lucide:terminal class="w-12 h-12 text-muted" />
+          <span class="text-muted text-sm px-4 text-center">{{ recording ? $t('views.console.empty') : $t('views.console.recording_off') }}</span>
         </div>
         <div v-for="(e, i) in filtered" :key="i" class="whitespace-pre-wrap break-words py-0.5 border-b border-white/5" :class="levelClass(e.level)">
           <span class="text-muted">{{ time(e.t) }}</span>
@@ -83,6 +84,19 @@
         <i-lucide:refresh-cw class="text-sm" />
       </template>
     </Button>
+
+    <CuiMenu
+      ref="levelMenuRef"
+      :items="levelMenuItems"
+      :auto-hide="false"
+      :popover="{
+        pt: {
+          content: {
+            class: 'p-0! rounded-xl! overflow-hidden!',
+          },
+        },
+      }"
+    />
   </div>
 </template>
 
@@ -93,6 +107,8 @@ import { Capacitor } from '@capacitor/core';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
 import type { LogEntry, LogLevel } from '@camera.ui/logger';
+import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
+import type { MenuItem } from '@/components/CuiMenu/types.js';
 
 const props = withDefaults(
   defineProps<{
@@ -112,23 +128,36 @@ const { registerScrollToTop } = useCuiTopbarSlots();
 const { navbarWidth, navbarLeft } = toRefs(props);
 const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
 
+const logLevels: LogLevel[] = ['debug', 'log', 'info', 'warn', 'error'];
+
 const entries = ref<LogEntry[]>([]);
 const filter = ref('');
-const levelToggles: LogLevel[] = ['debug', 'log', 'info', 'warn', 'error'];
-const activeLevels = ref(new Set<LogLevel>(levelToggles));
+const selectedLevels = ref<LogLevel[]>([...logLevels]);
 const scrollEl = ref<HTMLElement | null>(null);
 const mobileSearchActive = ref(false);
 const mobileSearchInput = useTemplateRef<{ $el: HTMLElement }>('mobileSearchInput');
+const levelMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('levelMenuRef');
 
 const recording = ref(Logger.isRecording());
 
 let offEntries: (() => void) | undefined;
 let offFlags: (() => void) | undefined;
 
+const levelMenuItems = computed<MenuItem[]>(() =>
+  logLevels.map((level) => ({
+    key: level,
+    label: t(`views.console.level.${level}`),
+    toggle: true,
+    toggleState: selectedLevels.value.includes(level),
+    onClick: () => toggleLevel(level),
+  })),
+);
+
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase();
+  const active = new Set(selectedLevels.value);
   return entries.value.filter((e) => {
-    if (!activeLevels.value.has(e.level)) return false;
+    if (!active.has(e.level)) return false;
     if (q && !e.msg.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -148,10 +177,7 @@ function levelClass(level: LogLevel): string {
 }
 
 function toggleLevel(level: LogLevel): void {
-  const next = new Set(activeLevels.value);
-  if (next.has(level)) next.delete(level);
-  else next.add(level);
-  activeLevels.value = next;
+  selectedLevels.value = selectedLevels.value.includes(level) ? selectedLevels.value.filter((l) => l !== level) : [...selectedLevels.value, level];
 }
 
 function openMobileSearch(): void {

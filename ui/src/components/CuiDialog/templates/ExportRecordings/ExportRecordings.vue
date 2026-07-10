@@ -85,10 +85,6 @@
           </div>
         </div>
       </div>
-
-      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
-        {{ $t('views.recordings.export.size_hint') }}
-      </Message>
     </div>
   </div>
 </template>
@@ -122,8 +118,8 @@ const qualityOptions = computed(() => [
 ]);
 
 const timelapseOptions = computed(() =>
-  [0, 1, 2, 5, 10, 30, 60].map((v) => ({
-    label: v === 0 ? t('views.recordings.export.timelapse_off') : `${v} s`,
+  [0, 1, 2, 5, 10, 30, 60, 120, 180, 240, 300].map((v) => ({
+    label: v === 0 ? t('views.recordings.export.timelapse_off') : v < 60 ? `${v} s` : `${v / 60} min`,
     value: v,
   })),
 );
