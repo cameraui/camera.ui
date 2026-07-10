@@ -33,6 +33,7 @@ export class AudioSource {
   private waiter?: Waiter;
   private ended = false;
   private producerPromise?: Promise<void>;
+  private producerError?: Error;
 
   constructor(
     private readonly config: AudioSourceConfig,
@@ -41,6 +42,10 @@ export class AudioSource {
 
   public get isStreaming(): boolean {
     return this._isStreaming;
+  }
+
+  public get lastError(): Error | undefined {
+    return this.producerError;
   }
 
   public async start(): Promise<void> {
@@ -53,6 +58,7 @@ export class AudioSource {
     this.ended = false;
     this.latest = undefined;
     this.nextId = 0;
+    this.producerError = undefined;
 
     this.input = await Demuxer.open(this.config.streamUrl, {
       options: {
@@ -94,6 +100,7 @@ export class AudioSource {
 
     this.ended = true;
     this.wakeWaiter();
+    this.input?.interrupt();
 
     if (this.producerPromise) {
       try {
@@ -199,6 +206,11 @@ export class AudioSource {
         this.latest = { frame, id: this.nextId++ };
 
         this.wakeWaiter();
+      }
+    } catch (error) {
+      if (this.shouldRun) {
+        this.producerError = error instanceof Error ? error : new Error(String(error));
+        this.logger.debug('Audio producer ended with read error:', error);
       }
     } finally {
       this.ended = true;

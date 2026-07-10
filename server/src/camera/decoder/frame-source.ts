@@ -128,6 +128,7 @@ export class FrameSource {
   private waiter?: Waiter;
   private ended = false;
   private producerPromise?: Promise<void>;
+  private producerError?: Error;
 
   private startCount = 0;
 
@@ -152,6 +153,10 @@ export class FrameSource {
     return this._resolvedFps ?? this.config.fps;
   }
 
+  public get lastError(): Error | undefined {
+    return this.producerError;
+  }
+
   public async start(): Promise<void> {
     if (this._isStreaming) {
       this.logger.warn('start() called while already streaming — skipped');
@@ -164,6 +169,7 @@ export class FrameSource {
     this.ended = false;
     this.latest = undefined;
     this.nextId = 0;
+    this.producerError = undefined;
 
     this.input = await Demuxer.open(this.config.streamUrl, {
       options: {
@@ -230,6 +236,7 @@ export class FrameSource {
     // so the consumer can break out of its loop and stop holding it up.
     this.ended = true;
     this.wakeWaiter();
+    this.input?.interrupt();
 
     if (this.producerPromise) {
       try {
@@ -380,6 +387,11 @@ export class FrameSource {
         this.latest = { frame, id: this.nextId++ };
 
         this.wakeWaiter();
+      }
+    } catch (error) {
+      if (this.shouldRun) {
+        this.producerError = error instanceof Error ? error : new Error(String(error));
+        this.logger.debug('Frame producer ended with read error:', error);
       }
     } finally {
       this.ended = true;

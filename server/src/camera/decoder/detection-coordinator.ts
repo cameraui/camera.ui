@@ -1220,9 +1220,15 @@ export class DetectionCoordinator {
           }
         }
 
+        const streamError = this.audioSource.lastError;
         await this.audioSource.stop();
 
-        if (this.audioLoopRunning && frameCount === 0) {
+        if (this.audioLoopRunning && streamError) {
+          this.audioReconnectCount = Math.min(this.audioReconnectCount + 1, this.maxReconnectCount);
+          const delay = this.audioReconnectCount >= this.maxReconnectCount ? this.maxReconnectDelay : this.normalReconnectDelay;
+          this.logger.warn(`Audio stream ended with read error, reconnecting in ${delay / 1000}s: ${streamError.message}`);
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        } else if (this.audioLoopRunning && frameCount === 0) {
           this.logger.debug('Audio stream ended without frames, waiting before reconnect...');
           await new Promise<void>((resolve) => setTimeout(resolve, this.normalReconnectDelay));
         }
@@ -1274,10 +1280,16 @@ export class DetectionCoordinator {
           }
         }
 
+        const streamError = this.frameSource.lastError;
         await this.frameSource.stop();
         this.frameScaler.clearCache();
 
-        if (this.loopRunning && frameCount === 0) {
+        if (this.loopRunning && streamError) {
+          this.reconnectCount = Math.min(this.reconnectCount + 1, this.maxReconnectCount);
+          const delay = this.reconnectCount >= this.maxReconnectCount ? this.maxReconnectDelay : this.normalReconnectDelay;
+          this.logger.warn(`Stream ended with read error, reconnecting in ${delay / 1000}s: ${streamError.message}`);
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        } else if (this.loopRunning && frameCount === 0) {
           this.logger.debug('Stream ended without frames, waiting before reconnect...');
           await new Promise<void>((resolve) => setTimeout(resolve, this.normalReconnectDelay));
         }
