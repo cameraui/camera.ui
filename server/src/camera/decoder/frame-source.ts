@@ -45,6 +45,7 @@ export class FrameHandle implements AsyncDisposable {
     });
 
     let decoder: Decoder | undefined;
+    let firstFrame: Frame | undefined;
     try {
       const videoStream = demuxer.video();
       if (!videoStream) {
@@ -57,7 +58,6 @@ export class FrameHandle implements AsyncDisposable {
       // keep iterating until a frame appears or the stream ends.
       const packets = demuxer.packets(videoStream.index);
       const frames = decoder.frames(packets);
-      let firstFrame: Frame | undefined;
       for await (const frame of frames) {
         if (!frame) continue;
         firstFrame = frame;
@@ -68,8 +68,17 @@ export class FrameHandle implements AsyncDisposable {
         throw new Error('Snapshot source produced no frame');
       }
 
-      return new FrameHandle(firstFrame, demuxer, decoder);
+      decoder[Symbol.dispose]();
+      decoder = undefined;
+      await demuxer[Symbol.asyncDispose]();
+
+      return new FrameHandle(firstFrame);
     } catch (error) {
+      try {
+        firstFrame?.[Symbol.dispose]?.();
+      } catch {
+        // best-effort
+      }
       try {
         decoder?.[Symbol.dispose]();
       } catch {
