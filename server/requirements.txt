@@ -1,4 +1,4 @@
-camera-ui-sdk==1.1.1
+camera-ui-sdk==1.1.2
 camera-ui-common==1.0.20
 camera-ui-rpc==1.0.5
 deepdiff==9.1.0
