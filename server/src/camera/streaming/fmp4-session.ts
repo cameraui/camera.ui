@@ -10,6 +10,8 @@ import type { FFHWDeviceType } from 'node-av/constants';
 import type { CameraDevice } from '../index.js';
 
 export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterface {
+  static readonly #MAX_QUEUED_BOXES = 32;
+
   readonly onStarted = new ReplaySubject<void>(1);
   readonly onError = new Subject<Error>();
   readonly onEnded = new ReplaySubject<void>(1);
@@ -157,11 +159,15 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     const queue: Buffer[] = [];
     let resolveNext: ((value: Buffer | null) => void) | null = null;
     let done = false;
+    let overflowed = false;
 
     const subscription = this.#boxDataSubject.subscribe((data) => {
       if (resolveNext) {
         resolveNext(data);
         resolveNext = null;
+      } else if (queue.length >= Fmp4Session.#MAX_QUEUED_BOXES) {
+        overflowed = true;
+        cleanup();
       } else {
         queue.push(data);
       }
@@ -198,6 +204,10 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
         if (data === null) break;
 
         yield data;
+      }
+
+      if (overflowed) {
+        throw new Error(`fMP4 consumer too slow: ended stream after ${Fmp4Session.#MAX_QUEUED_BOXES} queued fragments`);
       }
     } finally {
       cleanup();
