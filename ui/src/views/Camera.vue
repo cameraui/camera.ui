@@ -242,6 +242,7 @@ import { usePrimeVue } from 'primevue';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
+import { extractErrorMessage } from '@/common/utils.js';
 import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 
 import type CuiCameraPipCard from '@/components/CuiCameraPipCard/CuiCameraPipCard.vue';
@@ -256,6 +257,7 @@ const CuiBottomSheet = asyncComponent(() => import('@/components/CuiBottomSheet/
 const camerasQuery = new CamerasQuery();
 
 const log = useLogger();
+const toast = useCuiToast();
 const i18n = useI18n();
 const primevue = usePrimeVue();
 const route = useRoute();
@@ -380,6 +382,7 @@ async function onTrimExport() {
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Export failed:', error);
+    toast.add({ severity: 'error', summary: i18n.t('views.recordings.download_failed'), detail: extractErrorMessage(error), life: 5000 });
   } finally {
     trimExporting.value = false;
   }

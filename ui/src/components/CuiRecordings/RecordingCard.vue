@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { EventHoverPreviewKey, getPrimaryThumbnailFromCache, thumbnailToUrl, useEventStore } from '@camera.ui/nvr';
 
+import { extractErrorMessage } from '@/common/utils.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { EventThumbnails } from '@camera.ui/nvr';
@@ -85,6 +86,8 @@ const props = defineProps<RecordingCardProps>();
 const emit = defineEmits<RecordingCardEmits>();
 
 const log = useLogger();
+const toast = useCuiToast();
+const { t } = useI18n();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 
@@ -249,6 +252,7 @@ async function handleDownload(): Promise<void> {
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Download failed:', error);
+    toast.add({ severity: 'error', summary: t('views.recordings.download_failed'), detail: extractErrorMessage(error), life: 5000 });
   } finally {
     isDownloading.value = false;
   }

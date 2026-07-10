@@ -68,6 +68,8 @@ import { usePrimeVue } from 'primevue';
 import DownloadIcon from '~icons/tabler/download';
 import SparklesIcon from '~icons/tabler/sparkles';
 
+import { extractErrorMessage } from '@/common/utils.js';
+
 import type CuiCameraCard from '@/components/CuiCameraCard/CuiCameraCard.vue';
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { CuiTimelineLocale } from '@camera.ui/nvr';
@@ -77,6 +79,7 @@ import type { CameraStreamEventProps } from './types.js';
 const props = defineProps<CameraStreamEventProps>();
 
 const log = useLogger();
+const toast = useCuiToast();
 const i18n = useI18n();
 const { t } = i18n;
 const primevue = usePrimeVue();
@@ -137,6 +140,7 @@ async function handleDownload(): Promise<void> {
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Download failed:', error);
+    toast.add({ severity: 'error', summary: t('views.recordings.download_failed'), detail: extractErrorMessage(error), life: 5000 });
   } finally {
     isDownloading.value = false;
   }
