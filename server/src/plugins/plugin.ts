@@ -114,9 +114,7 @@ export class Plugin {
   }
 
   public async load(): Promise<void> {
-    const issues = checkEngineCompatibility(this.loadContext.engines, ConfigService.VERSION, process.version);
-
-    for (const issue of issues) {
+    for (const issue of this._info.engineIssues ?? []) {
       if (issue.engine === 'camera.ui') {
         this.logger.warn(`The plugin "${this.pluginName}" requires a camera.ui version of ${issue.required} which does \
 not satisfy the current camera.ui version of ${ConfigService.VERSION}. Please update camera.ui to the required version.`);
@@ -159,6 +157,7 @@ not satisfy the current Node.js version of ${process.version}. You may need to u
       os: pjson.os,
       cpu: pjson.cpu,
       compatible: isPlatformCompatible(pjson.os, pjson.cpu),
+      engineIssues: checkEngineCompatibility(pjson.engines, ConfigService.VERSION, process.version),
     };
 
     return pluginPackageJson;

@@ -1002,6 +1002,8 @@ export default {
     },
     plugin_card: {
       author: 'Author',
+      compat_engine: 'Requires {engine} {required} (currently {current})',
+      compat_platform: 'Not supported on this system — requires {requirement}',
       installed: 'Installed',
       no_description: 'No description available',
       restart: 'Restart',

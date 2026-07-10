@@ -25,8 +25,9 @@
                 <i-icon-park-solid:up-c
                   v-if="pluginUpdate?.updateAvailable"
                   v-tooltip="{ value: $t('components.form.tooltip.update_available') }"
-                  class="text-green-500"
+                  class="text-green-500 flex-shrink-0"
                 />
+                <i-ic:round-warning v-if="compatWarnings.length" v-tooltip="{ value: compatWarnings.join(' · ') }" class="text-yellow-500 flex-shrink-0" />
               </div>
             </RouterLink>
 
@@ -206,6 +207,24 @@ const isPluginStopped = computed(
 
 const isNvr = plugin.value.contract && hasInterface(plugin.value.contract, PluginInterface.NVR);
 const isOAuthCapable = plugin.value.contract && hasInterface(plugin.value.contract, PluginInterface.OAuthCapable);
+
+const compatWarnings = computed<string[]>(() => {
+  const warnings: string[] = [];
+
+  if (!plugin.value.compatible) {
+    const parts: string[] = [];
+    if (plugin.value.os?.length) parts.push(`os ${plugin.value.os.join('/')}`);
+    if (plugin.value.cpu?.length) parts.push(`cpu ${plugin.value.cpu.join('/')}`);
+    warnings.push(t('components.plugin_card.compat_platform', { requirement: parts.join(', ') }));
+  }
+
+  for (const issue of plugin.value.engineIssues ?? []) {
+    const engine = issue.engine === 'node' ? 'Node.js' : 'camera.ui';
+    warnings.push(t('components.plugin_card.compat_engine', { engine, required: issue.required, current: issue.current }));
+  }
+
+  return warnings;
+});
 
 const items = computed<MenuItem[]>(() => {
   const menuItems: MenuItem[] = [

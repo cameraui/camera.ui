@@ -792,6 +792,7 @@ export interface CameraUiPlugin {
   os?: string[];
   cpu?: string[];
   compatible: boolean;
+  engineIssues?: EngineIssue[];
   workerAgentId?: string;
 }
 
