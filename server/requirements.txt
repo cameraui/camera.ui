@@ -1,6 +1,7 @@
 camera-ui-sdk==1.1.2
 camera-ui-common==1.0.20
 camera-ui-rpc==1.0.5
+certifi==2026.2.25
 deepdiff==9.1.0
 lmdbm==0.0.6
 lmdb==2.2.1

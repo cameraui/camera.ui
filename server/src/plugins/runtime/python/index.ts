@@ -34,10 +34,13 @@ export class PythonPluginRuntime extends BasePluginRuntime {
 
       this.logger.debug(`Spawning plugin: ${this.plugin.pluginName}`);
 
+      const caCertFile = join(this.py.serverPackagesPath, 'certifi', 'cacert.pem');
+
       this.worker = spawn(this.py.pluginPythonPath, args, {
         env: {
           PYTHONUNBUFFERED: '1',
           PYTHONPATH: this.createPythonPath(),
+          ...(existsSync(caCertFile) ? { SSL_CERT_FILE: caCertFile } : {}),
           ...this.getEnv(),
         },
         cwd: this.plugin.mainPath,
