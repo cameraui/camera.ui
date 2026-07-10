@@ -22,8 +22,8 @@ import type { PluginConfigDb } from './configDb.js';
 
 type PluginConstructor = new (logger: Logger, api: PluginAPI, storage: DeviceStorage<Record<string, any>>) => BasePlugin;
 
-const SHUTDOWN_LISTENER_TIMEOUT = 1000;
-const RPC_TEARDOWN_TIMEOUT = 500;
+const SHUTDOWN_LISTENER_TIMEOUT = 1500;
+const RPC_TEARDOWN_TIMEOUT = 1000;
 
 const processName = process.argv[3] || process.argv[2] || 'Plugin';
 process.title = `camera.ui - ${processName}`;

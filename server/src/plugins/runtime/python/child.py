@@ -47,7 +47,8 @@ from plugins.runtime.python.typings import (
 process_name = sys.argv[2] if len(sys.argv) > 2 else sys.argv[1] if len(sys.argv) > 1 else "Plugin"
 setproctitle.setproctitle(f"camera.ui - {process_name}")
 
-RPC_TEARDOWN_TIMEOUT = 0.5
+SHUTDOWN_LISTENER_TIMEOUT = 1.5
+RPC_TEARDOWN_TIMEOUT = 1.0
 
 
 class PluginChild:
@@ -176,11 +177,11 @@ class PluginChild:
         if self.api:
             completed = await self.api.emit_and_wait(
                 API_EVENT.SHUTDOWN.value,
-                timeout=1.0,
+                timeout=SHUTDOWN_LISTENER_TIMEOUT,
                 on_error=lambda e: self.logger.error(f"Shutdown listener failed: {e}"),
             )
             if not completed:
-                self.logger.warn("Shutdown listeners still pending after 1s, continuing teardown")
+                self.logger.warn(f"Shutdown listeners still pending after {SHUTDOWN_LISTENER_TIMEOUT}s, continuing teardown")
 
             await self.api.device_manager.close()
             await self.api.core_manager.close()
