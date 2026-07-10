@@ -84,6 +84,7 @@
 
     <CuiConnectionIndicator />
     <CuiUpdateIndicator />
+    <CuiRestoreOverlay />
 
     <CuiAppLockOverlay />
   </div>

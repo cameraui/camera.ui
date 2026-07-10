@@ -1,9 +1,12 @@
 import { sleep } from '@camera.ui/common/utils';
 import { open } from 'lmdb';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
+import { DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
 import { createSourceName } from '../../utils/camera.js';
 import { GOP_REGEX, REGEX_ESCAPE } from '../utils/regex.js';
 import {
@@ -59,7 +62,7 @@ export class Database {
   public settingsDB!: DB<DBSettings, 'settings'>;
   public serverDB!: DB<DBServer, 'server'>;
   public remoteDB!: DB<DBRemote, 'remote'>;
-  public cloudDB!: DB<DBCloud, 'cloud' | 'cloudDev'>;
+  public cloudDB!: DB<DBCloud, 'cloud'>;
   public instancesConfigDB!: DB<DBInstancesConfig, 'instancesConfig'>;
 
   public camerasDB!: DB<DBCamera, string>;
@@ -132,6 +135,7 @@ export class Database {
     await this.checkOldVersion();
     await this.selfCheck.run();
     await this.ensureDatabases();
+    await this.resetRestoredIdentity();
     await this.prepareDatabases();
     await this.ensureMaster();
     await this.migrationRunner.migrate();
@@ -287,12 +291,31 @@ export class Database {
     if (!this.cloudDB.get('cloud')) {
       await this.cloudDB.put('cloud', {});
     }
-    if (!this.cloudDB.get('cloudDev')) {
-      await this.cloudDB.put('cloudDev', {});
-    }
     if (!this.instancesConfigDB.get('instancesConfig')) {
       await this.instancesConfigDB.put('instancesConfig', { homeId: randomUUID() });
     }
+  }
+
+  private async resetRestoredIdentity(): Promise<void> {
+    const markerFile = this.configService.RESTORE_RESET_IDENTITY_FILE;
+    if (!existsSync(markerFile)) {
+      return;
+    }
+
+    await this.instancesConfigDB.put('instancesConfig', { homeId: randomUUID() });
+    await this.serverDB.put('server', { serverAddresses: [] });
+    await this.cloudDB.put('cloud', {});
+    await this.remoteDB.put('remote', {
+      enabled: false,
+      directEnabled: false,
+      directMode: 'cloudflare',
+      customDomain: { url: null },
+      cloudflare: { mode: 'quick', hostname: null, token: null, tunnelId: null },
+    });
+
+    this.configService.writeConfig({ ssl: { addresses: [...DEFAULT_CONFIG_SSL.addresses!] } });
+
+    await unlink(markerFile);
   }
 
   private async prepareDatabases(): Promise<void> {

@@ -10,13 +10,20 @@ export interface BackupSchedulerState {
   defaultDestination: string;
 }
 
+const BACKUP_TIMEOUT_MS = 300_000;
+
 export async function downloadBackupFn(localStorage?: Partial<UiLocalStorage>): Promise<BlobPart> {
-  const response: AxiosResponse<BlobPart> = await api.post('/backup/download', { localStorage }, { responseType: 'arraybuffer' });
+  const response: AxiosResponse<BlobPart> = await api.post('/backup/download', { localStorage }, { responseType: 'arraybuffer', timeout: BACKUP_TIMEOUT_MS });
   return response.data;
 }
 
-export async function restoreBackupFn(formData: FormData): Promise<Partial<UiLocalStorage>> {
-  const response: AxiosResponse<Partial<UiLocalStorage>> = await api.post('/backup/restore', formData);
+export async function restoreBackupFn(formData: FormData, onUploadProgress?: (percent: number) => void): Promise<Partial<UiLocalStorage>> {
+  const response: AxiosResponse<Partial<UiLocalStorage>> = await api.post('/backup/restore', formData, {
+    timeout: BACKUP_TIMEOUT_MS,
+    onUploadProgress: (e) => {
+      if (e.total) onUploadProgress?.(Math.round((e.loaded / e.total) * 100));
+    },
+  });
   return response.data;
 }
 
@@ -36,7 +43,10 @@ export async function runBackupSchedulerFn(): Promise<DBBackupSchedulerLastRun> 
 }
 
 export async function downloadScheduledBackupFn(filename: string): Promise<BlobPart> {
-  const response: AxiosResponse<BlobPart> = await api.get(`/backup/scheduler/backups/${encodeURIComponent(filename)}`, { responseType: 'arraybuffer' });
+  const response: AxiosResponse<BlobPart> = await api.get(`/backup/scheduler/backups/${encodeURIComponent(filename)}`, {
+    responseType: 'arraybuffer',
+    timeout: BACKUP_TIMEOUT_MS,
+  });
   return response.data;
 }
 
@@ -66,7 +76,7 @@ export class BackupQuery {
 
   public restoreBackupQuery() {
     return useMutation({
-      mutationFn: restoreBackupFn,
+      mutationFn: (formData: FormData) => restoreBackupFn(formData),
       onSuccess: async () => {
         this.toast.add({ severity: 'success', detail: this.t('components.toast.backup_restored'), life: 3000 });
       },

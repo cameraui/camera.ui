@@ -6,6 +6,7 @@ import { c, x } from 'tar';
 import { container } from 'tsyringe';
 
 import { ConfigService } from '../../services/config/index.js';
+import { ROOT_KEY_FILENAME } from '../utils/constants.js';
 import { moveFiles } from '../utils/moveFiles.js';
 import { PluginsService } from './plugins.service.js';
 
@@ -47,6 +48,10 @@ export class BackupService {
       this.configService.PIDS_FILE,
       this.configService.REPORTS_FILE,
       this.configService.BACKUP_INFO_FILE,
+      this.configService.config.ssl.caFile,
+      this.configService.config.ssl.certFile,
+      this.configService.config.ssl.keyFile,
+      join(this.configService.STORAGE_PATH, ROOT_KEY_FILENAME),
       ...extraExcludePaths,
     ].map((path) => resolve(path));
 
@@ -139,6 +144,8 @@ export class BackupService {
     await moveFiles(infoPath, join(this.configService.STORAGE_PATH, 'camera.ui.backup.json'), {
       overwrite: true,
     });
+
+    await writeFile(this.configService.RESTORE_RESET_IDENTITY_FILE, '');
 
     await remove(backupDirectory);
 

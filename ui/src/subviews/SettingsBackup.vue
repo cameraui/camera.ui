@@ -187,10 +187,8 @@ import {
   downloadScheduledBackupFn,
   getBackupSchedulerFn,
   patchBackupSchedulerFn,
-  restoreBackupFn,
   runBackupSchedulerFn,
 } from '@/api/routes/backup.js';
-import { restartSystemFn } from '@/api/routes/server.js';
 import { extractErrorMessage } from '@/common/utils.js';
 
 import type CuiUploadFiles from '@/components/CuiUploadFIles/CuiUploadFiles.vue';
@@ -199,7 +197,6 @@ import type { DBBackupSchedulerLastRun, DBBackupSchedulerSettings, ScheduledBack
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const { t, locale } = useI18n();
-const { beginServerRestart } = useServerRestart();
 
 const filesRef = useTemplateRef<InstanceType<typeof CuiUploadFiles>>('filesRef');
 const uploadedFiles = shallowRef<File[]>([]);
@@ -288,38 +285,13 @@ function openDialog() {
 }
 
 async function restoreBackup(): Promise<void> {
+  const file = uploadedFiles.value[0];
+  if (!file) return;
+
   isLoading.value = true;
-
-  try {
-    const formData = new FormData();
-    formData.append('upload', uploadedFiles.value[0]);
-
-    const userStorage = await restoreBackupFn(formData);
-    restoreLocalStorage(userStorage);
-
-    filesRef.value?.reset();
-    toast.add({ severity: 'success', detail: t('components.toast.backup_restored'), life: 3000 });
-
-    beginServerRestart();
-    restartSystemFn();
-  } catch (error: any) {
-    toast.add({ severity: 'error', detail: error ?? error, life: 3000 });
-    isLoading.value = false;
-  }
-}
-
-function restoreLocalStorage(ls: Partial<UiLocalStorage>): void {
-  if (ls.theme) {
-    localStorage.setItem('theme', JSON.stringify(ls.theme));
-  }
-
-  if (ls.language) {
-    localStorage.setItem('language', ls.language);
-  }
-
-  if (ls.ui) {
-    localStorage.setItem('ui', JSON.stringify(ls.ui));
-  }
+  await useBackupRestore().run(file);
+  filesRef.value?.reset();
+  isLoading.value = false;
 }
 
 function formatBytes(bytes: number): string {

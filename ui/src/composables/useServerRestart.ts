@@ -1,4 +1,4 @@
-const restarting = ref(false);
+export const restarting = ref(false);
 
 let scope: ReturnType<typeof effectScope> | null = null;
 let fallbackTimer: ReturnType<typeof setTimeout> | undefined;

@@ -116,21 +116,17 @@
 <script setup lang="ts">
 import InlineSvg from 'vue-inline-svg';
 
-import { restoreBackupFn } from '@/api/routes/backup.js';
-import { restartSystemFn } from '@/api/routes/server.js';
 import { deepToRaw, getImageUrl } from '@/common/utils.js';
 import SettingsAccount from '@/subviews/SettingsAccount.vue';
 import SettingsAppearance from '@/subviews/SettingsAppearance.vue';
 
 import type { PatchUserInput } from '@/schemas/users.schema.js';
-import type { UiLocalStorage } from '@shared/types';
 import type { Form } from 'vee-validate';
 
 const log = useLogger();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const { t } = useI18n();
-const { beginServerRestart } = useServerRestart();
 
 const authStore = useAuthStore();
 const { loginLoading } = storeToRefs(authStore);
@@ -223,43 +219,11 @@ function handleBackupFileSelect(event: Event) {
 }
 
 async function restoreBackup(): Promise<void> {
+  if (!uploadedFile.value) return;
+
   loading.value = true;
-
-  if (!uploadedFile.value) {
-    loading.value = false;
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append('upload', uploadedFile.value);
-
-    const userStorage = await restoreBackupFn(formData);
-    restoreLocalStorage(userStorage);
-
-    toast.add({ severity: 'success', detail: t('components.toast.backup_restored'), life: 3000 });
-
-    beginServerRestart();
-    restartSystemFn();
-    authStore.logout();
-  } catch (error: any) {
-    toast.add({ severity: 'error', detail: error, life: 3000 });
-    loading.value = false;
-  }
-}
-
-function restoreLocalStorage(ls: Partial<UiLocalStorage>): void {
-  if (ls.theme) {
-    localStorage.setItem('theme', JSON.stringify(ls.theme));
-  }
-
-  if (ls.language) {
-    localStorage.setItem('language', ls.language);
-  }
-
-  if (ls.ui) {
-    localStorage.setItem('ui', JSON.stringify(ls.ui));
-  }
+  await useBackupRestore().run(uploadedFile.value);
+  loading.value = false;
 }
 
 async function onFormSubmit(): Promise<void> {

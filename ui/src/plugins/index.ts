@@ -8,6 +8,8 @@ import Tooltip from 'primevue/tooltip';
 import { ViewTransitionsPlugin } from 'vue-view-transitions';
 
 import { isCancellationError } from '@/common/utils.js';
+import { isRestoreActive } from '@/composables/useBackupRestore.js';
+import { restarting } from '@/composables/useServerRestart.js';
 import { i18n } from '@/i18n/index.js';
 import Pinia from '@/stores/index.js';
 import CameraUiPreset from './preset.js';
@@ -17,6 +19,7 @@ import type { App } from 'vue';
 
 function surfaceQueryFailure(error: unknown): void {
   if (isCancellationError(error)) return;
+  if (isRestoreActive.value || restarting.value) return;
   const toast = useCuiToast();
   toast.add({ severity: 'error', detail: error, life: 3000 });
 }

@@ -83,6 +83,7 @@ export class ConfigService {
   readonly NATS_BINARY: string;
   readonly BACKUP_INFO_FILE: string;
   readonly DEFAULTS_INSTALLED_FILE: string;
+  readonly RESTORE_RESET_IDENTITY_FILE: string;
 
   readonly UI_PORT = parseInt(process.env.CAMERA_UI_DEV_UI_PORT!); // dotenv
 
@@ -175,6 +176,7 @@ export class ConfigService {
     this.CONFIG_FILE = join(this.STORAGE_PATH, 'camera.ui.yaml');
     this.BACKUP_INFO_FILE = join(this.STORAGE_PATH, 'camera.ui.backup.json');
     this.DEFAULTS_INSTALLED_FILE = join(this.STORAGE_PATH, '.camera.ui.defaults-installed');
+    this.RESTORE_RESET_IDENTITY_FILE = join(this.STORAGE_PATH, '.restore-reset-identity');
     this.DATABASE_PATH = join(this.STORAGE_PATH, 'database');
     this.USERS_STORAGE_PATH = join(this.STORAGE_PATH, 'users');
     this.INTERFACE_CACHE_PATH = join(this.STORAGE_PATH, 'interface');
