@@ -11,6 +11,7 @@ import type { RuntimePlugin } from '../base.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const serverTsconfigPath = resolve(__dirname, '..', '..', '..', '..', 'tsconfig.json');
 
 export class NodePluginRuntime extends BasePluginRuntime {
   constructor(plugin: RuntimePlugin) {
@@ -36,6 +37,7 @@ export class NodePluginRuntime extends BasePluginRuntime {
           ...this.cleanedProcessEnv(),
           ...this.getEnv(),
           NODE_PATH: this.createNodePath(),
+          ...(IS_DEV && !IS_ELECTRON ? { TSX_TSCONFIG_PATH: serverTsconfigPath } : {}),
         },
         cwd: this.plugin.mainPath,
         silent: true,
