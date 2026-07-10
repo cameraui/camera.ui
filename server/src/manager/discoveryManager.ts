@@ -45,6 +45,7 @@ interface SourceCacheEntry {
 
 interface DiscoveredCameraInternal extends DiscoveredCamera {
   provider: string;
+  address?: string;
   _internalAddress?: string;
   _originalUrl?: string;
 }
@@ -569,6 +570,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       name: camera.name,
       manufacturer: camera.manufacturer,
       model: camera.model,
+      address: camera.address,
       provider: isGo2rtc ? 'camera.ui' : this.formatPluginName(camera.provider),
       status,
       errorMessage: connectionState?.errorMessage,
@@ -617,6 +619,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
         name: displayName,
         manufacturer: source.type,
         model,
+        address,
         provider: 'go2rtc',
         _internalAddress: address,
         _originalUrl: source.url,

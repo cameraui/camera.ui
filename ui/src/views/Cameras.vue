@@ -87,6 +87,11 @@
                     </div>
                   </template>
                 </Column>
+                <Column field="address" :header="$t('views.devices.address')" header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
+                  <template #body="{ data }">
+                    <span v-if="data.address" :class="['text-xs text-muted whitespace-nowrap', getRowClass(data)]">{{ data.address }}</span>
+                  </template>
+                </Column>
                 <Column field="provider" :header="$t('views.devices.provider')" header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
                   <template #body="{ data }">
                     <Chip :label="data.provider" :class="['text-xs whitespace-nowrap', getRowClass(data)]" />
@@ -265,6 +270,7 @@ async function handleRowClick(device: DeviceListItem) {
               id: device.discoveredId,
               name: device.name,
               model: device.model,
+              address: device.address,
               provider: device.provider,
               connectionStatus: 'idle',
             },

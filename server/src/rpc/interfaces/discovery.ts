@@ -8,6 +8,7 @@ export interface DeviceListItem {
   name: string;
   manufacturer?: string;
   model?: string;
+  address?: string;
   provider: string;
   status: DeviceStatus;
   errorMessage?: string;
