@@ -15,6 +15,8 @@ import type { LoggerService } from '../../services/logger/index.js';
 import type { BackupInfo, BackupStorage, PluginBackupInfo, UiLocalStorage } from '../types/index.js';
 
 export class BackupService {
+  private static activeOperation: 'backup' | 'restore' | null = null;
+
   private logger: LoggerService;
   private configService: ConfigService;
   private pluginsService: PluginsService;
@@ -27,6 +29,37 @@ export class BackupService {
   }
 
   public async createBackup(localStorage: Partial<UiLocalStorage> = {}, extraExcludePaths: string[] = []): Promise<BackupStorage> {
+    this.acquireLock('backup');
+
+    try {
+      return await this.runCreateBackup(localStorage, extraExcludePaths);
+    } finally {
+      BackupService.activeOperation = null;
+    }
+  }
+
+  public async restoreBackup(file: MultipartFile): Promise<any> {
+    this.acquireLock('restore');
+
+    try {
+      return await this.runRestoreBackup(file);
+    } finally {
+      BackupService.activeOperation = null;
+    }
+  }
+
+  public async removeBackup(backup: BackupStorage): Promise<void> {
+    await remove(backup.backupDirectory);
+  }
+
+  private acquireLock(operation: 'backup' | 'restore'): void {
+    if (BackupService.activeOperation) {
+      throw new Error(`A ${BackupService.activeOperation} operation is already in progress. Please wait for it to finish and try again.`);
+    }
+    BackupService.activeOperation = operation;
+  }
+
+  private async runCreateBackup(localStorage: Partial<UiLocalStorage>, extraExcludePaths: string[]): Promise<BackupStorage> {
     const timestamp = Date.now();
     const backupDirectory = await mkdtemp(join(tmpdir(), 'camera.ui-backup-'));
     const backupFileName = `camera.ui-backup-${timestamp}.tar.gz`;
@@ -111,7 +144,7 @@ export class BackupService {
     };
   }
 
-  public async restoreBackup(file: MultipartFile): Promise<any> {
+  private async runRestoreBackup(file: MultipartFile): Promise<any> {
     const backupDirectory = await mkdtemp(join(tmpdir(), 'cameraui-restore-'));
     const backupFile = join(backupDirectory, 'upload.tar.gz');
     const fileBuffer = await file.toBuffer();
@@ -152,9 +185,5 @@ export class BackupService {
     this.logger.log('Backup was successfully restored');
 
     return infoFile.localStorage;
-  }
-
-  public async removeBackup(backup: BackupStorage): Promise<void> {
-    await remove(backup.backupDirectory);
   }
 }
