@@ -2,8 +2,6 @@ import { mergeWith } from '@camera.ui/common/utils';
 import { hostname } from 'node:os';
 import { container } from 'tsyringe';
 
-import { CLOUD_SERVICE_URL } from '../../services/config/constants.js';
-
 import type { CloudApi } from '../../remote/api/index.js';
 import type { RemoteAccessManager } from '../../remote/index.js';
 import type { TunnelClient } from '../../remote/tunnel/client.js';
@@ -26,13 +24,6 @@ export class RemoteService {
 
   private get cloudApi(): CloudApi {
     return container.resolve<CloudApi>('cloudApi');
-  }
-
-  private get cloudDBKey(): 'cloud' | 'cloudDev' {
-    if (CLOUD_SERVICE_URL !== 'https://cloud.cameraui.com') {
-      return 'cloudDev';
-    }
-    return 'cloud';
   }
 
   public info(): DBRemote {
@@ -59,13 +50,13 @@ export class RemoteService {
   }
 
   public getCloud(): DBCloud {
-    return this.dbs.cloudDB.get(this.cloudDBKey) ?? {};
+    return this.dbs.cloudDB.get('cloud') ?? {};
   }
 
   public async patchCloud(patch: Partial<DBCloud>): Promise<DBCloud> {
     const before = this.getCloud().oauth?.grant_id;
     const cloud = { ...this.getCloud(), ...patch };
-    await this.dbs.cloudDB.put(this.cloudDBKey, cloud);
+    await this.dbs.cloudDB.put('cloud', cloud);
     this.emitCloudCredsChangedIfNeeded(before, cloud.oauth?.grant_id);
     return cloud;
   }
@@ -74,7 +65,7 @@ export class RemoteService {
     const cloud = this.getCloud();
     const before = cloud.oauth?.grant_id;
     delete cloud.oauth;
-    await this.dbs.cloudDB.put(this.cloudDBKey, cloud);
+    await this.dbs.cloudDB.put('cloud', cloud);
     this.emitCloudCredsChangedIfNeeded(before, undefined);
   }
 
@@ -152,7 +143,7 @@ export class RemoteService {
       return;
     }
     delete cloud.pending_pair;
-    await this.dbs.cloudDB.put(this.cloudDBKey, cloud);
+    await this.dbs.cloudDB.put('cloud', cloud);
   }
 
   public async updateCloudServer(enabled: boolean): Promise<void> {
@@ -186,7 +177,7 @@ export class RemoteService {
     const previousName = cloud.name;
 
     cloud.name = name;
-    await this.dbs.cloudDB.put(this.cloudDBKey, cloud);
+    await this.dbs.cloudDB.put('cloud', cloud);
 
     if (!(await this.cloudApi.credentialStore.peek())) {
       return; // not registered
@@ -199,7 +190,7 @@ export class RemoteService {
       await this.cloudApi.serverRoute.update({ name, disabled: !status.enabled });
     } catch (err) {
       cloud.name = previousName;
-      await this.dbs.cloudDB.put(this.cloudDBKey, cloud);
+      await this.dbs.cloudDB.put('cloud', cloud);
       throw err;
     }
   }
