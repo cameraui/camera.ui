@@ -181,7 +181,9 @@ class PluginChild:
                 on_error=lambda e: self.logger.error(f"Shutdown listener failed: {e}"),
             )
             if not completed:
-                self.logger.warn(f"Shutdown listeners still pending after {SHUTDOWN_LISTENER_TIMEOUT}s, continuing teardown")
+                self.logger.warn(
+                    f"Shutdown listeners still pending after {SHUTDOWN_LISTENER_TIMEOUT}s, continuing teardown"
+                )
 
             await self.api.device_manager.close()
             await self.api.core_manager.close()
