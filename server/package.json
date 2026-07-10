@@ -109,13 +109,19 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2"
+    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2",
+    "werift": {
+      "ip": "npm:neoip@2.1.0"
+    },
+    "werift-ice": {
+      "ip": "npm:neoip@2.1.0"
+    }
   },
   "bugs": {
     "url": "https://github.com/cameraui/camera.ui/issues"
   },
   "engines": {
-    "node": ">=22.2.0"
+    "node": ">=22.18.0"
   },
   "homepage": "https://github.com/cameraui/camera.ui#readme",
   "keywords": [
