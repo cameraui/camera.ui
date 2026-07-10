@@ -92,39 +92,23 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     }
 
     let supportedAudioCodec: (AVCodecID | FFAudioEncoder)[] | undefined;
-    let samplesPerFrame: number;
     switch (this.#options.audio?.codec) {
       case 'opus':
         supportedAudioCodec = [FF_ENCODER_LIBOPUS];
-        const frameDuration = this.#options.audio?.frameDuration ?? 20;
-        const sampleRate = this.#options.audio?.sampleRate ?? 48000;
-        samplesPerFrame = (sampleRate / 1000) * frameDuration;
         break;
       case 'aac':
         supportedAudioCodec = [FF_ENCODER_LIBFDK_AAC];
-        samplesPerFrame = 1024;
         break;
       case 'pcma':
         supportedAudioCodec = [AV_CODEC_ID_PCM_ALAW];
-        samplesPerFrame = 8000;
         break;
       case 'pcmu':
         supportedAudioCodec = [AV_CODEC_ID_PCM_MULAW];
-        samplesPerFrame = 8000;
         break;
     }
 
-    let lastAudio = 0;
-
     this.#rtpStream = RTPStream.create(this.#url, {
       onAudioPacket: (packet: RtpPacket) => {
-        if (lastAudio === 0) {
-          lastAudio = packet.header.timestamp;
-        }
-
-        packet.header.timestamp = lastAudio + samplesPerFrame;
-        lastAudio = packet.header.timestamp;
-
         this.onAudioRtp.next(packet);
       },
       onVideoPacket: (packet: RtpPacket) => {
