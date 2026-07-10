@@ -8,6 +8,13 @@
       </Button>
     </CuiTopbarSlot>
 
+    <CuiTopNavbar :left-offset="navbarOffset" animate>
+      <template #left>
+        <CuiTopNavbarItem type="button" label="camera.ui" :active="currentConfig === 'camera.ui'" @click="currentConfig = 'camera.ui'" />
+        <CuiTopNavbarItem type="button" label="go2rtc" :active="currentConfig === 'go2rtc'" @click="currentConfig = 'go2rtc'" />
+      </template>
+    </CuiTopNavbar>
+
     <SpeedDial
       :model="items"
       direction="up"
@@ -69,19 +76,7 @@
       </template>
     </SpeedDial>
 
-    <Button
-      class="opacity-40 hover:opacity-100 active:opacity-100 focus:opacity-100 transition absolute bottom-3 right-14 z-2"
-      rounded
-      :loading="isLoading"
-      @click="toggleCurrentConfig"
-    >
-      <template #icon>
-        <CuiCameraUiIcon v-if="currentConfig === 'camera.ui'" v-tooltip="{ value: 'camera.ui' }" class="fill-white w-[30px]" />
-        <CuiGo2RtcIcon v-else v-tooltip="{ value: 'go2rtc' }" class="fill-white w-[30px]" />
-      </template>
-    </Button>
-
-    <div class="w-full h-full">
+    <div class="w-full h-full" :style="{ paddingTop: `${TOPNAVBAR_HEIGHT}px` }">
       <Suspense>
         <CuiEditor
           v-if="currentConfig === 'camera.ui'"
@@ -104,8 +99,11 @@
           lang="yaml"
           :options="options"
           :read-only="isLoading"
-          :border-radius="!smBreakpoint"
           :border="!smBreakpoint"
+          :border-bottom-left-radius="!smBreakpoint"
+          :border-bottom-right-radius="!smBreakpoint"
+          :border-top-right-radius="false"
+          :border-top-left-radius="false"
         />
 
         <template #fallback>
@@ -126,12 +124,24 @@ import ZoomOutIcon from '~icons/tabler/zoom-out';
 
 import { ConfigQuery } from '@/api/routes/config.js';
 import { ServerQuery } from '@/api/routes/server.js';
+import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
 import type { Ace } from 'ace-builds';
 import type { ButtonProps } from 'primevue';
 
 const configQuery = new ConfigQuery();
 const serverQuery = new ServerQuery();
+
+const props = withDefaults(
+  defineProps<{
+    navbarWidth?: number;
+    navbarLeft?: number;
+  }>(),
+  {
+    navbarWidth: 0,
+    navbarLeft: 0,
+  },
+);
 
 const log = useLogger();
 const dialog = useCuiDialog();
@@ -141,6 +151,9 @@ const { beginServerRestart } = useServerRestart();
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
+
+const { navbarWidth, navbarLeft } = toRefs(props);
+const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
 
 const json = ref(false);
 
@@ -228,10 +241,6 @@ async function saveAndRestart(): Promise<void> {
   } catch (error: any) {
     log.error(error);
   }
-}
-
-function toggleCurrentConfig(): void {
-  currentConfig.value = currentConfig.value === 'camera.ui' ? 'go2rtc' : 'camera.ui';
 }
 
 function zoomIn(): void {
