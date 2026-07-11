@@ -6,6 +6,9 @@
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.general_hint') }}
+          </Message>
           <Field v-slot="{ field, errors }" v-model.trim="cameraForm.name" name="name" as="div" class="flex flex-col field-gap">
             <label for="name" class="cui-label">{{ $t('components.form.label.name') }}</label>
             <InputGroup>
@@ -106,6 +109,9 @@
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.branding_hint') }}
+          </Message>
           <Field v-slot="{ field, errors }" v-model.trim="cameraForm.info.manufacturer" name="info.manufacturer" as="div" class="flex flex-col field-gap">
             <label for="info.manufacturer" class="cui-label">{{ $t('components.form.label.manufacturer') }}</label>
             <InputGroup>
@@ -181,6 +187,9 @@
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.interface_hint') }}
+          </Message>
           <Field
             v-slot="{ errors }"
             :model-value="cameraForm.interfaceSettings.streamingMode"
@@ -274,6 +283,9 @@
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.detection_hint') }}
+          </Message>
           <div class="w-full flex flex-col gap-2">
             <Field
               v-slot="{ field, errors }"
@@ -535,12 +547,122 @@
       </AccordionContent>
     </AccordionPanel>
 
+    <AccordionPanel value="sensors">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.virtual_sensors') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="flex flex-col gap-4">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.virtual_sensors_hint') }}
+          </Message>
+
+          <div v-if="cameraVirtualSensors.length" class="flex flex-col gap-2">
+            <div v-for="virtualSensor in cameraVirtualSensors" :key="virtualSensor._id" class="flex items-center gap-2 p-2 rounded-md border-color">
+              <div class="flex flex-col flex-1 min-w-0">
+                <span class="text-sm font-medium truncate">{{ virtualSensor.displayName || virtualSensor.name }}</span>
+                <span class="text-xs text-muted">{{ $t(`components.camera_options.sensor_type_${virtualSensor.type}`) }}</span>
+              </div>
+              <Button
+                v-tooltip.top="$t('components.camera_options.sensor_display_name')"
+                text
+                rounded
+                severity="secondary"
+                class="cui-icon-sm shrink-0"
+                @click="openRenameVirtualSensorDialog(virtualSensor)"
+              >
+                <template #icon>
+                  <i-mdi:pencil width="100%" height="100%" />
+                </template>
+              </Button>
+              <Button
+                v-tooltip.top="$t('components.camera_options.virtual_sensor_delete')"
+                text
+                rounded
+                severity="danger"
+                class="cui-icon-sm shrink-0"
+                @click="confirmDeleteVirtualSensor(virtualSensor)"
+              >
+                <template #icon>
+                  <i-mdi:trash-can-outline width="100%" height="100%" />
+                </template>
+              </Button>
+            </div>
+          </div>
+
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.virtual_sensors_empty') }}</span>
+
+          <Button fluid class="cui-button-medium" :label="$t('components.camera_options.virtual_sensor_create')" @click="openCreateVirtualSensorDialog" />
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
+    <AccordionPanel value="zones">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.zones') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="flex flex-col gap-4">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.zones_hint') }}
+          </Message>
+
+          <div v-if="zoneEntries.length" class="flex flex-col gap-2">
+            <div v-for="entry in zoneEntries" :key="`${entry.kind}-${entry.index}`" class="flex items-center gap-2 p-2 rounded-md border-color">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: entry.color }" />
+              <div class="flex flex-col flex-1 min-w-0">
+                <span class="text-sm font-medium truncate">{{ entry.name }}</span>
+                <span class="text-xs text-muted">{{ entry.typeLabel }}</span>
+              </div>
+              <Button
+                v-tooltip.top="$t('components.zone_editor.edit_zones')"
+                text
+                rounded
+                severity="secondary"
+                class="cui-icon-sm shrink-0"
+                @click="openEditZoneEntry(entry)"
+              >
+                <template #icon>
+                  <i-mdi:pencil width="100%" height="100%" />
+                </template>
+              </Button>
+              <Button
+                v-tooltip.top="$t('components.camera_options.zone_entry_delete')"
+                text
+                rounded
+                severity="danger"
+                class="cui-icon-sm shrink-0"
+                @click="confirmDeleteZoneEntry(entry)"
+              >
+                <template #icon>
+                  <i-mdi:trash-can-outline width="100%" height="100%" />
+                </template>
+              </Button>
+            </div>
+          </div>
+
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.zones_empty') }}</span>
+
+          <Button
+            fluid
+            class="cui-button-medium"
+            :loading="isLoading"
+            :label="$t('components.form.button.edit_zones')"
+            @click="openEditZoneDialog(camera.detectionZones)"
+          ></Button>
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
     <AccordionPanel value="ptzAutotrack">
       <AccordionHeader class="px-0">
         <span class="text-color font-normal">{{ $t('components.camera_options.ptz_autotrack') }}</span>
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="w-full flex flex-col gap-4">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.ptz_autotrack_hint') }}
+          </Message>
           <Message v-if="!hasPtzCapability" severity="secondary" variant="simple" size="small" class="cui-banner cui-banner-warn">
             <i-mdi:information-outline class="w-4 h-4 shrink-0 inline-block mr-1" />
             {{ $t('components.form.hint.ptz_autotrack_requires') }}
@@ -781,29 +903,15 @@
       </AccordionContent>
     </AccordionPanel>
 
-    <AccordionPanel value="zones">
-      <AccordionHeader class="px-0">
-        <span class="text-color font-normal">{{ $t('components.camera_options.zones') }}</span>
-      </AccordionHeader>
-      <AccordionContent :pt="{ content: { class: 'px-0' } }">
-        <div class="flex flex-col gap-6 w-full items-center justify-center">
-          <Button
-            fluid
-            class="cui-button-medium"
-            :loading="isLoading"
-            :label="$t('components.form.button.edit_zones')"
-            @click="openEditZoneDialog(camera.detectionZones)"
-          ></Button>
-        </div>
-      </AccordionContent>
-    </AccordionPanel>
-
     <AccordionPanel value="snapshot">
       <AccordionHeader class="px-0">
         <span class="text-color font-normal">{{ $t('components.camera_options.snapshot') }}</span>
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.snapshot_hint') }}
+          </Message>
           <div class="w-full flex flex-col gap-2">
             <Field
               v-slot="{ field, errors }"
@@ -894,6 +1002,9 @@
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.frame_worker_hint') }}
+          </Message>
           <Field v-slot="{ errors }" :model-value="cameraForm.frameWorkerSettings.fps" name="frameWorkerSettings.fps" as="div" class="flex flex-col field-gap">
             <label for="frameWorkerSettings.fps" class="cui-label">{{ $t('components.form.label.fps') }}</label>
             <InputGroup>
@@ -962,13 +1073,17 @@ import { SensorType } from '@camera.ui/sdk';
 import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
+import { VirtualSensorsQuery } from '@/api/routes/virtualsensors.js';
 import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
+import RenameSensorDialog from '@/components/CuiDialog/templates/RenameSensor/RenameSensor.vue';
+import VirtualSensorCreateDialog from '@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue';
 import ZoneEditorDialog from '@/components/CuiDialog/templates/ZoneEditor/ZoneEditor.vue';
 
+import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
 import type { ZoneEditorProps } from '@/components/CuiDialog/templates/ZoneEditor/types.js';
 import type { VideoStreamingMode } from '@camera.ui/browser';
 import type { CameraAspectRatio, CameraType, DetectionZone, MotionResolution, StreamingRole } from '@camera.ui/sdk';
-import type { DBCamera } from '@shared/types';
+import type { DBCamera, DBVirtualSensor } from '@shared/types';
 import type { CameraOptionsTabEmits, CameraOptionsTabProps } from '../../types.js';
 
 const TRIGGERABLE_TYPES = new Set([
@@ -987,6 +1102,7 @@ const TRIGGERABLE_TYPES = new Set([
 
 const camerasQuery = new CamerasQuery();
 const camerasQueryRooms = new CamerasQuery();
+const virtualSensorsQuery = new VirtualSensorsQuery();
 
 const props = defineProps<CameraOptionsTabProps>();
 
@@ -1005,6 +1121,12 @@ const { sensors: allSensors } = useSensors(cameraDevice);
 
 const { data: roomsData, isBusy: roomsLoading } = camerasQueryRooms.getRoomsQuery();
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
+const { mutateAsync: patchZones, isPending: zonesPatching } = camerasQuery.patchZonesQuery();
+const { mutateAsync: patchLines, isPending: linesPatching } = camerasQuery.patchLinesQuery();
+const { data: virtualSensorsData } = virtualSensorsQuery.getVirtualSensorsQuery();
+const { mutateAsync: createVirtualSensor, isPending: virtualSensorCreating } = virtualSensorsQuery.createVirtualSensorQuery();
+const { mutateAsync: patchVirtualSensor } = virtualSensorsQuery.patchVirtualSensorQuery();
+const { mutateAsync: deleteVirtualSensor, isPending: virtualSensorDeleting } = virtualSensorsQuery.deleteVirtualSensorQuery();
 
 const cameraTypes = ref<CameraType[]>(['camera', 'doorbell']);
 const streamingModes = ref<VideoStreamingMode[]>(['auto', 'mse', 'webrtc', 'webrtc/tcp']);
@@ -1014,6 +1136,27 @@ const motionResolutions = ref<MotionResolution[]>(['low', 'medium', 'high']);
 const localRooms = ref<string[]>([]);
 
 const hasPtzCapability = computed(() => allSensors.value.some((s) => s.type === SensorType.PTZ));
+
+const cameraVirtualSensors = computed(() => (virtualSensorsData.value ?? []).filter((sensor) => sensor.cameraId === cameraForm.value._id));
+
+const zoneEntryDeleting = computed(() => zonesPatching.value || linesPatching.value);
+
+const zoneEntries = computed(() => [
+  ...(camera.value.detectionZones ?? []).map((zone, index) => ({
+    kind: 'zone' as const,
+    index,
+    name: zone.name,
+    color: zone.color,
+    typeLabel: zone.isPrivacyMask ? t('components.camera_options.zone_entry_privacy_mask') : t('components.camera_options.zone_entry_zone'),
+  })),
+  ...(camera.value.detectionLines ?? []).map((line, index) => ({
+    kind: 'line' as const,
+    index,
+    name: line.name,
+    color: line.color,
+    typeLabel: t('components.camera_options.zone_entry_line'),
+  })),
+]);
 
 const ptzAutotrackLabels = computed(() => [
   { label: t('components.automation_nodes.label_person'), value: 'person' },
@@ -1081,6 +1224,54 @@ function openCreateRoomDialog() {
   });
 }
 
+function openCreateVirtualSensorDialog() {
+  dialog.openComponentDialog<{ cameraId: string }>(VirtualSensorCreateDialog, {
+    data: {
+      title: t('components.camera_options.virtual_sensor_create'),
+      confirmText: t('components.form.button.save'),
+      loading: virtualSensorCreating,
+      contentProps: {
+        cameraId: cameraForm.value._id,
+      },
+    },
+    onConfirm: async (result: VirtualSensorCreateResult | null) => {
+      if (!result) return;
+      await createVirtualSensor({ data: result });
+    },
+  });
+}
+
+function openRenameVirtualSensorDialog(sensor: DBVirtualSensor) {
+  dialog.openComponentDialog<{ currentDisplayName: string }>(RenameSensorDialog, {
+    data: {
+      title: t('components.camera_options.sensor_display_name'),
+      confirmText: t('components.form.button.save'),
+      contentProps: {
+        currentDisplayName: sensor.displayName || sensor.name,
+      },
+    },
+    onConfirm: async (newName: string | null) => {
+      if (newName && newName !== sensor.displayName) {
+        await patchVirtualSensor({ id: sensor._id, data: { displayName: newName } });
+      }
+    },
+  });
+}
+
+function confirmDeleteVirtualSensor(sensor: DBVirtualSensor) {
+  dialog.openTextDialog({
+    data: {
+      title: t('components.camera_options.virtual_sensor_delete'),
+      contentText: t('components.camera_options.virtual_sensor_delete_confirm'),
+      confirmText: t('components.form.button.remove'),
+      loading: virtualSensorDeleting,
+    },
+    onConfirm: async () => {
+      await deleteVirtualSensor({ id: sensor._id });
+    },
+  });
+}
+
 function deleteCamera() {
   dialog.openTextDialog({
     data: {
@@ -1116,6 +1307,42 @@ function openEditZoneDialog(zones: DetectionZone[] = []) {
         zones,
         lines: camera.value.detectionLines ?? [],
       },
+    },
+  });
+}
+
+function openEditZoneEntry(entry: { kind: 'zone' | 'line'; index: number }) {
+  dialog.openComponentDialog<ZoneEditorProps>(ZoneEditorDialog, {
+    data: {
+      title: t('components.zone_editor.edit_zones'),
+      loading: isLoading,
+      contentProps: {
+        cameraName: camera.value.name,
+        zones: camera.value.detectionZones ?? [],
+        lines: camera.value.detectionLines ?? [],
+        initialTab: entry.kind === 'line' ? 'lines' : 'zones',
+        initialSelection: entry.index,
+      },
+    },
+  });
+}
+
+function confirmDeleteZoneEntry(entry: { kind: 'zone' | 'line'; index: number }) {
+  dialog.openTextDialog({
+    data: {
+      title: t('components.camera_options.zone_entry_delete'),
+      contentText: t('components.camera_options.zone_entry_delete_confirm'),
+      confirmText: t('components.form.button.remove'),
+      loading: zoneEntryDeleting,
+    },
+    onConfirm: async () => {
+      if (entry.kind === 'zone') {
+        const zoneData = (camera.value.detectionZones ?? []).filter((_, index) => index !== entry.index);
+        await patchZones({ cameraname: camera.value.name, zoneData });
+      } else {
+        const lineData = (camera.value.detectionLines ?? []).filter((_, index) => index !== entry.index);
+        await patchLines({ cameraname: camera.value.name, lineData });
+      }
     },
   });
 }
