@@ -152,12 +152,8 @@ export class CloudflareService {
 
   private startTokenTunnel(token: string, hostname: string): void {
     this.cloudflareUrl = `https://${hostname}`;
-    const args = ['tunnel', '--no-autoupdate', ...this.originArgs(hostname), 'run', '--token', token];
+    const args = ['tunnel', '--no-autoupdate', 'run', '--token', token];
     this.spawnCloudflared(args);
-  }
-
-  private originArgs(hostname: string): string[] {
-    return ['--no-tls-verify', '--http-host-header', hostname, '--connect-timeout', '10s'];
   }
 
   private spawnCloudflared(args: string[]): void {
