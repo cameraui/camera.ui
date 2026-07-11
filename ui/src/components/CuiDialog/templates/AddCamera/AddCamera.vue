@@ -34,7 +34,7 @@
 import { Form } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
-import { fixSource } from '@/common/cameraSources.js';
+import { normalizeSource } from '@/common/cameraSources.js';
 import { deepToRaw } from '@/common/utils.js';
 import { cameraCreateSchema } from '@/schemas/cameras.schema.js';
 import { DEFAULT_CAMERA } from './types.js';
@@ -118,20 +118,10 @@ async function onSave() {
     },
     plugins: cameraData.plugins || [],
     assignments: cameraData.assignments || {},
-    sources: cameraData.sources.map((input) => {
-      const urls: string[] = input.urls
-        .map((source) => {
-          if (source.url) {
-            return fixSource(source);
-          }
-        })
-        .filter(Boolean) as string[];
-
-      return {
-        ...input,
-        urls,
-      };
-    }),
+    sources: cameraData.sources.map((input) => ({
+      ...input,
+      urls: input.urls.map(normalizeSource).filter(Boolean),
+    })),
   };
 
   await addCamera({ cameraData: newCameraData });

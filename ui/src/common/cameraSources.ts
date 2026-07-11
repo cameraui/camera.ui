@@ -1,63 +1,48 @@
-import { sourcePrefixes } from '@shared/types';
+import { allowedSourceProtocols } from '@shared/types';
 
 import type { CameraRole } from '@camera.ui/sdk';
 import type { SourcePrefixes } from '@shared/types';
-
-export interface Go2RtcSourcesModel {
-  protocol: SourcePrefixes;
-  url: string[];
-}
 
 export interface Go2RtcModel {
   _id: string;
   name: string;
   role: CameraRole;
-  urls: Go2RtcSourcesModel[];
+  urls: string[];
   useForSnapshot: boolean;
   hotMode: boolean;
   preload: boolean;
 }
 
-export function fixSource(source: Go2RtcSourcesModel): string {
-  let sourceString = source.url.join('');
+// Protocols whose payload is a query string; go2rtc expects a leading "?".
+const QUERY_PREFIX_PROTOCOLS: SourcePrefixes[] = ['nest:', 'ring:', 'yandex:', 'webtorrent:'];
 
-  switch (source.protocol) {
-    case 'nest:':
-    case 'ring:':
-    case 'yandex:':
-    case 'webtorrent:':
-      if (!sourceString.startsWith('?') && !sourceString.startsWith(source.protocol)) {
-        sourceString = `?${sourceString}`;
-      }
-  }
+export function detectProtocol(url: string): SourcePrefixes | undefined {
+  const trimmed = url.trim();
 
-  if (sourceString.startsWith(source.protocol)) {
-    return sourceString;
-  } else {
-    return `${source.protocol}${sourceString}`;
-  }
-}
-
-export function parseSourceUrl(url: string): Go2RtcSourcesModel {
   let match: SourcePrefixes | undefined;
-
-  for (const prefix of sourcePrefixes) {
-    if (url.startsWith(prefix) && (!match || prefix.length > match.length)) {
+  for (const prefix of allowedSourceProtocols) {
+    if (trimmed.startsWith(prefix) && (!match || prefix.length > match.length)) {
       match = prefix;
     }
   }
+  return match;
+}
 
-  if (!match) {
-    return { protocol: 'rtsp://', url: [url] };
+export function normalizeSource(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  for (const prefix of QUERY_PREFIX_PROTOCOLS) {
+    if (trimmed.startsWith(prefix)) {
+      const rest = trimmed.slice(prefix.length);
+      if (rest && !rest.startsWith('?')) return `${prefix}?${rest}`;
+      return trimmed;
+    }
   }
 
-  return { protocol: match, url: [url.slice(match.length)] };
+  return trimmed;
 }
 
 export function isGeneratedUrl(url: string): boolean {
   return url.startsWith('cui://') && url.includes('/api/cameras/streams/');
-}
-
-export function isManagedUrlEntry(entry: Go2RtcSourcesModel): boolean {
-  return isGeneratedUrl(fixSource(entry));
 }

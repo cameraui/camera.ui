@@ -3,7 +3,7 @@ import { randomLetter } from '@/common/utils.js';
 import type { AssignedPlugin, CameraInformation, CameraType, CameraUiSettings, PluginAssignments } from '@camera.ui/sdk';
 import type { Go2RtcModel } from '@/common/cameraSources.js';
 
-export type { Go2RtcModel, Go2RtcSourcesModel } from '@/common/cameraSources.js';
+export type { Go2RtcModel } from '@/common/cameraSources.js';
 
 export interface CameraFormModel {
   disabled: boolean;
@@ -43,12 +43,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
       _id: randomLetter(8),
       name: '',
       role: 'high-resolution',
-      urls: [
-        {
-          protocol: 'rtsp://',
-          url: [],
-        },
-      ],
+      urls: [''],
       useForSnapshot: false,
       hotMode: true,
       preload: true,

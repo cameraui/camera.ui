@@ -35,7 +35,7 @@
 import { Form } from 'vee-validate';
 import * as zod from 'zod';
 
-import { fixSource, parseSourceUrl } from '@/common/cameraSources.js';
+import { normalizeSource } from '@/common/cameraSources.js';
 import { deepToRaw } from '@/common/utils.js';
 
 import type { DBCamera } from '@shared/types';
@@ -61,7 +61,7 @@ const cameraForm = ref<ConfirmCameraForm>({
   info: originalDraft.value.info,
   sources: originalDraft.value.sources.map((source) => ({
     ...source,
-    urls: source.urls.map(parseSourceUrl),
+    urls: [...source.urls],
   })),
 });
 const confirming = ref(false);
@@ -94,7 +94,7 @@ async function onSave(): Promise<void | null> {
       info: cameraForm.value.info,
       sources: cameraForm.value.sources.map((source) => ({
         ...source,
-        urls: source.urls.map(fixSource).filter(Boolean),
+        urls: source.urls.map(normalizeSource).filter(Boolean),
       })),
     };
     await props.onConfirm(draft);

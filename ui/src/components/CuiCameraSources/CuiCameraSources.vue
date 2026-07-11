@@ -196,154 +196,71 @@
                 }}</Message>
               </div>
 
-              <template v-for="(urlField, i2) in source.urls" :key="i2">
-                <div v-if="isManagedUrlEntry(urlField)" class="w-full flex flex-row gap-2">
+              <template v-for="(url, i2) in source.urls" :key="i2">
+                <div v-if="isGeneratedUrl(url)" class="w-full flex flex-row gap-2">
                   <InputGroup>
-                    <InputText :model-value="fixSource(urlField)" readonly :loading="busy" type="text" />
+                    <InputText :model-value="url" readonly :loading="busy" type="text" />
                   </InputGroup>
                 </div>
 
-                <div v-else>
-                  <Field
-                    v-if="smBreakpoint"
-                    v-slot="{ errors }"
-                    :model-value="urlField.protocol"
-                    :name="`sources[${i}].urls[${i2}].protocol`"
-                    as="div"
-                    class="flex flex-col field-gap mb-2"
-                  >
-                    <InputGroup>
-                      <Select
-                        :model-value="urlField.protocol"
-                        :options="sourcePrefixes as unknown as string[]"
-                        :invalid="errors.length > 0"
-                        :loading="busy"
-                        @update:model-value="(newVal) => updateProtocol(newVal, urlField)"
-                      />
+                <Field v-else v-slot="{ errors }" :model-value="url" :name="`sources[${i}].urls[${i2}]`" as="div" class="flex flex-col field-gap w-full">
+                  <InputGroup>
+                    <InputText
+                      :model-value="url"
+                      :invalid="errors.length > 0"
+                      :loading="busy"
+                      type="text"
+                      :placeholder="URL_PLACEHOLDER"
+                      @update:model-value="(value) => setUrl(i, i2, value ?? '')"
+                    />
 
-                      <InputGroupAddon>
-                        <Button
-                          v-tooltip.top="{ value: $t('components.dialog.components.new_camera.protocol_info') }"
-                          text
-                          rounded
-                          severity="secondary"
-                          :loading="busy"
-                          @click="openDialog(undefined, urlField.protocol)"
-                        >
-                          <template #icon>
-                            <i-mdi:information width="100%" height="100%" />
-                          </template>
-                        </Button>
-                      </InputGroupAddon>
-                    </InputGroup>
+                    <InputGroupAddon>
+                      <Button
+                        v-tooltip.top="{ value: $t('components.dialog.components.new_camera.protocol_info') }"
+                        text
+                        rounded
+                        severity="secondary"
+                        :disabled="busy || !hasProtocolHelp(url)"
+                        class="border-right-color"
+                        @click="openProtocolHelp(url)"
+                      >
+                        <template #icon>
+                          <i-mdi:information width="100%" height="100%" />
+                        </template>
+                      </Button>
 
-                    <Transition name="fade">
-                      <ErrorMessage :name="`sources[${i}].urls[${i2}].protocol`" class="cui-input-error" />
-                    </Transition>
+                      <Button
+                        v-tooltip.top="{ value: $t('components.dialog.components.new_camera.test_source') }"
+                        text
+                        rounded
+                        severity="secondary"
+                        :disabled="busy || !detectProtocol(url)"
+                        class="border-right-color"
+                        @click="testSource(url)"
+                      >
+                        <template #icon>
+                          <i-material-symbols:camera-rounded width="100%" height="100%" />
+                        </template>
+                      </Button>
 
-                    <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_protocol') }}</Message>
-                  </Field>
+                      <Button v-if="source.urls.length > 1" text rounded severity="danger" :disabled="busy" @click.prevent="deleteUrl(i, i2)">
+                        <template #icon>
+                          <i-mdi:close width="100%" height="100%" />
+                        </template>
+                      </Button>
+                    </InputGroupAddon>
+                  </InputGroup>
 
-                  <div class="w-full flex flex-row my-1 gap-2">
-                    <Field
-                      v-if="!smBreakpoint"
-                      v-slot="{ errors }"
-                      :model-value="urlField.protocol"
-                      :name="`sources[${i}].urls[${i2}].protocol`"
-                      as="div"
-                      class="flex flex-col field-gap max-w-[125px]"
-                    >
-                      <InputGroup>
-                        <Select
-                          :model-value="urlField.protocol"
-                          :options="sourcePrefixes as unknown as string[]"
-                          :invalid="errors.length > 0"
-                          :loading="busy"
-                          :pt="{ root: { class: 'rounded-r-none' } }"
-                          @update:model-value="(newVal) => updateProtocol(newVal, urlField)"
-                        />
-                      </InputGroup>
+                  <Transition name="fade">
+                    <ErrorMessage :name="`sources[${i}].urls[${i2}]`" class="cui-input-error" />
+                  </Transition>
 
-                      <Transition name="fade">
-                        <ErrorMessage :name="`sources[${i}].urls[${i2}].protocol`" class="cui-input-error" />
-                      </Transition>
-
-                      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_protocol') }}</Message>
-                    </Field>
-
-                    <Field v-slot="{ field, errors }" :model-value="urlField.url" :name="`sources[${i}].urls[${i2}].url`" as="div" class="flex flex-col field-gap w-full">
-                      <InputGroup>
-                        <AutoComplete
-                          :model-value="urlField.url"
-                          :invalid="errors.length > 0"
-                          :loading="busy"
-                          multiple
-                          fluid
-                          :typeahead="false"
-                          :suggestions="activePresets"
-                          :pt="{ inputMultiple: { class: 'rounded-none overflow-y-scroll max-h-[42px]' } }"
-                          @complete="listPresets(getPresets(urlField.protocol).presets)"
-                          @hide="activePresets = []"
-                          @value-change="(e) => (field.value = e) && (urlField.url = e)"
-                        >
-                          <template #dropdown="{ toggleCallback }">
-                            <InputGroupAddon>
-                              <Button text rounded severity="secondary" :disabled="busy" class="border-right-color" @click="toggleCallback">
-                                <template #icon>
-                                  <i-fluent:chevron-down-12-filled v-if="!busy" />
-                                </template>
-                              </Button>
-                            </InputGroupAddon>
-                          </template>
-                        </AutoComplete>
-
-                        <InputGroupAddon>
-                          <Button
-                            v-if="!smBreakpoint"
-                            v-tooltip.top="{ value: $t('components.dialog.components.new_camera.protocol_info') }"
-                            text
-                            rounded
-                            severity="secondary"
-                            :disabled="busy"
-                            class="border-right-color"
-                            @click="openDialog(undefined, urlField.protocol)"
-                          >
-                            <template #icon>
-                              <i-mdi:information width="100%" height="100%" />
-                            </template>
-                          </Button>
-
-                          <Button
-                            v-tooltip.top="{ value: $t('components.dialog.components.new_camera.test_source') }"
-                            text
-                            rounded
-                            severity="secondary"
-                            :disabled="!urlField.protocol || !urlField.url.length || busy"
-                            class="border-right-color"
-                            @click="openDialog(urlField)"
-                          >
-                            <template #icon>
-                              <i-material-symbols:camera-rounded width="100%" height="100%" />
-                            </template>
-                          </Button>
-
-                          <Button v-if="source.urls.length > 1" text rounded severity="danger" :disabled="busy" @click.prevent="deleteSource(i, i2)">
-                            <template #icon>
-                              <i-mdi:close width="100%" height="100%" />
-                            </template>
-                          </Button>
-                        </InputGroupAddon>
-                      </InputGroup>
-
-                      <Transition name="fade">
-                        <ErrorMessage :name="`sources[${i}].urls[${i2}].url`" class="cui-input-error" />
-                      </Transition>
-
-                      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_url') }}</Message>
-                      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.type_and_enter') }}</Message>
-                    </Field>
-                  </div>
-                </div>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+                    {{
+                      detectProtocol(url) ? $t('components.form.hint.source_detected_protocol', { protocol: detectProtocol(url) }) : $t('components.form.hint.source_url')
+                    }}
+                  </Message>
+                </Field>
               </template>
 
               <Button
@@ -351,7 +268,7 @@
                 :loading="busy"
                 :label="$t('components.form.button.add_source')"
                 class="ml-auto cui-button-medium"
-                @click="addSource(i)"
+                @click="addUrl(i)"
               />
             </div>
           </div>
@@ -362,16 +279,14 @@
 </template>
 
 <script setup lang="ts">
-import { ffmpegPresets, homekitPresets, httpPresets, nestPresets, ringPresets, rtspPresets, sourcePrefixes, webrtcPresets } from '@shared/types';
 import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
-import { fixSource, isManagedUrlEntry } from '@/common/cameraSources.js';
+import { detectProtocol, isGeneratedUrl, normalizeSource } from '@/common/cameraSources.js';
 import { randomLetter } from '@/common/utils.js';
 
+import type { Go2RtcModel } from '@/common/cameraSources.js';
 import type { CameraRole } from '@camera.ui/sdk';
-import type { SourcePrefixes } from '@shared/types';
-import type { Go2RtcModel, Go2RtcSourcesModel } from '@/common/cameraSources.js';
 import type { CuiCameraSourcesProps } from './types.js';
 
 const camerasQuery = new CamerasQuery();
@@ -382,27 +297,44 @@ const props = withDefaults(defineProps<CuiCameraSourcesProps>(), {
 
 const dialog = useCuiDialog();
 const { t } = useI18n();
-const { smBreakpoint } = useSharedCuiBreakpoint();
 
 const { mutateAsync: previewCamera, isPending: previewLoading } = camerasQuery.previewCameraQuery();
 
+const protocolHelpFiles = import.meta.glob('../../markdowns/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
+
+const URL_PLACEHOLDER = 'rtsp://user:pass@192.168.1.50:554/stream';
+
 const sourceRoles = ref<CameraRole[]>(['high-resolution', 'mid-resolution', 'low-resolution', 'snapshot']);
 const sourcePanels = ref(props.sources.map((_, i) => i));
-const activePresets = ref<string[]>([]);
 
 const busy = computed(() => props.isLoading || previewLoading.value);
 
 function isManagedSource(source: Go2RtcModel): boolean {
-  return source.urls.some(isManagedUrlEntry);
+  return source.urls.some(isGeneratedUrl);
+}
+
+function protocolHelp(url: string): string | undefined {
+  const protocol = detectProtocol(url);
+  if (!protocol) return undefined;
+  const key = protocol.replace(/[:/]+$/, '');
+  return protocolHelpFiles[`../../markdowns/${key}.md`];
+}
+
+function hasProtocolHelp(url: string): boolean {
+  return !!protocolHelp(url);
 }
 
 /* eslint-disable vue/no-mutating-props -- sources is the parent dialog's reactive array; this component owns its row/source mutations */
-function addSource(i: number): void {
-  props.sources[i].urls.push({ protocol: 'rtsp://', url: [] });
+function addUrl(i: number): void {
+  props.sources[i].urls.push('');
 }
 
-function deleteSource(i: number, i2: number): void {
+function deleteUrl(i: number, i2: number): void {
   props.sources[i].urls.splice(i2, 1);
+}
+
+function setUrl(i: number, i2: number, value: string): void {
+  props.sources[i].urls[i2] = value;
 }
 
 function newSource(): void {
@@ -410,12 +342,7 @@ function newSource(): void {
     _id: randomLetter(8),
     name: '',
     role: null as any,
-    urls: [
-      {
-        protocol: 'rtsp://',
-        url: [],
-      },
-    ],
+    urls: [''],
     useForSnapshot: false,
     hotMode: true,
     preload: true,
@@ -429,196 +356,36 @@ function removeSource(i: number): void {
 }
 /* eslint-enable vue/no-mutating-props */
 
-function getPresets(source: SourcePrefixes): { presets: string[]; md?: string } {
-  let presets: readonly string[];
-  let mdFile: Record<string, any> | undefined;
-  let md: string | undefined;
+function openProtocolHelp(url: string): void {
+  const md = protocolHelp(url);
+  if (!md) return;
 
-  switch (source) {
-    case 'bubble://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/bubble.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'cui://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/cui.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'doorbird://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/doorbird.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'dvrip://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/dvrip.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'echo:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/echo.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'eseecloud://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/eseecloud.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'exec:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/exec.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'expr:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/expr.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'ffmpeg:':
-      presets = ffmpegPresets;
-      mdFile = import.meta.glob('../../markdowns/ffmpeg.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'flussonic://':
-      presets = ffmpegPresets;
-      mdFile = import.meta.glob('../../markdowns/flussonic.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'gopro://':
-      presets = ffmpegPresets;
-      mdFile = import.meta.glob('../../markdowns/gopro.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'hass:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/hass.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'homekit://':
-      presets = homekitPresets;
-      mdFile = import.meta.glob('../../markdowns/homekit.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'http://':
-    case 'https://':
-    case 'httpx://':
-    case 'tcp://':
-      presets = httpPresets;
-      mdFile = import.meta.glob('../../markdowns/http.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'isapi://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/isapi.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'ivideon:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/ivideon.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'kasa://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/kasa.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'nest:':
-      presets = nestPresets;
-      mdFile = import.meta.glob('../../markdowns/nest.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'onvif://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/onvif.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'ring:':
-      presets = ringPresets;
-      mdFile = import.meta.glob('../../markdowns/ring.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'roborock://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/roborock.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'rtmp://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/rtmp.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'rtsp://':
-    case 'rtspx://':
-      presets = rtspPresets;
-      mdFile = import.meta.glob('../../markdowns/rtsp.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'tapo://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/tapo.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'tuya://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/tuya.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'xiaomi://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/xiaomi.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'yandex:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/yandex.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'webrtc:':
-      presets = webrtcPresets;
-      mdFile = import.meta.glob('../../markdowns/webrtc.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'webtorrent:':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/webtorrent.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    case 'wyze://':
-      presets = [];
-      mdFile = import.meta.glob('../../markdowns/wyze.md', { eager: true, query: '?raw', import: 'default' });
-      break;
-    default:
-      presets = [];
-      mdFile = undefined;
-      break;
-  }
-
-  if (mdFile) {
-    md = Object.values(mdFile)[0];
-  }
-
-  return {
-    presets: presets as string[],
-    md,
-  };
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.information'),
+      hideConfirmButton: true,
+      contentText: md,
+      markdown: true,
+    },
+  });
 }
 
-function listPresets(presets: string[]): void {
-  activePresets.value = presets;
-}
+async function testSource(url: string): Promise<void> {
+  const normalized = normalizeSource(url);
+  if (!normalized) return;
 
-function updateProtocol(value: SourcePrefixes, urlField: Go2RtcSourcesModel): void {
-  urlField.protocol = value;
-}
+  try {
+    const previewBuffer = await previewCamera({ cameraData: { url: normalized } });
 
-async function openDialog(source?: Go2RtcSourcesModel, protocol?: SourcePrefixes): Promise<void> {
-  if (!source && !protocol) {
-    return;
-  }
-
-  if (source) {
-    const cameraData: { url: string } = {
-      url: fixSource(source),
-    };
-
-    try {
-      const previewBuffer = await previewCamera({ cameraData });
-
-      dialog.openImageDialog({
-        data: {
-          title: t('components.dialog.title.preview'),
-          src: `data:image/jpeg;base64,${previewBuffer}`,
-          hideConfirmButton: true,
-        },
-      });
-    } catch {
-      //
-    }
-  } else if (protocol) {
-    const preset = getPresets(protocol);
-    if (!preset.md) {
-      return;
-    }
-    dialog.openTextDialog({
+    dialog.openImageDialog({
       data: {
-        title: t('components.dialog.title.information'),
+        title: t('components.dialog.title.preview'),
+        src: `data:image/jpeg;base64,${previewBuffer}`,
         hideConfirmButton: true,
-        contentText: preset.md,
-        markdown: true,
       },
     });
+  } catch {
+    //
   }
 }
 

@@ -1,9 +1,9 @@
 import {
+  allowedSourceProtocols,
   createCameraBaseSchema as _createCameraBaseSchema,
   createCameraSchema as _createCameraSchema,
   detectionLineSchema,
   detectionZoneSchema,
-  inputProtocolSchema,
   inputRoleSchema,
   patchCameraSchema,
 } from '@shared/types';
@@ -11,18 +11,18 @@ import * as zod from 'zod';
 
 import type { patchStorageSchema, previewCameraSchema } from '@shared/types';
 
-export const inputSourcesSchema = zod
-  .object({
-    protocol: inputProtocolSchema,
-    // url: zod.string().trim().array(),
-    url: zod.string().trim().min(1, 'Camera Source is required').array().nonempty('Camera Source is required'),
-  })
-  .strict();
+const protocolRegex = new RegExp(`^(${allowedSourceProtocols.join('|')})`);
+
+export const inputSourceUrlSchema = zod
+  .string()
+  .trim()
+  .min(1, 'Camera Source is required')
+  .regex(protocolRegex, 'Unsupported protocol — start the URL with a supported one (e.g. rtsp://)');
 
 export const inputSchema = zod
   .object({
     name: zod.string().trim().min(1, 'Camera Source Name is required'),
-    urls: inputSourcesSchema.array(),
+    urls: inputSourceUrlSchema.array(),
     role: inputRoleSchema,
     useForSnapshot: zod.boolean().default(false),
     hotMode: zod.boolean().default(true),

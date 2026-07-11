@@ -165,8 +165,10 @@ export const inputProtocolSchema = zod.union([
   zod.literal('wyze://'),
 ]);
 
-const protocolList = inputProtocolSchema.options.map((option) => option.value);
-const protocolRegex = new RegExp(`^(${protocolList.join('|')})`);
+// Allowlist of source protocols accepted from user input. echo:/exec:/expr: are
+// intentionally excluded above — they can execute arbitrary commands.
+export const allowedSourceProtocols = inputProtocolSchema.options.map((option) => option.value);
+const protocolRegex = new RegExp(`^(${allowedSourceProtocols.join('|')})`);
 
 const urlSchema = zod.string().refine(
   (val) => {
