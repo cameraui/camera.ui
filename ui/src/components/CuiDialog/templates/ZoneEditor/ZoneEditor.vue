@@ -549,7 +549,7 @@ const containerRef = useTemplateRef('container');
 const draggablesRef = useTemplateRef<HTMLElement[]>('draggablesRef');
 const outsideRef = useTemplateRef('outsideRef');
 const playgroundContainerRef = useTemplateRef<HTMLElement>('playgroundContainerRef');
-const activeTab = ref<'zones' | 'lines'>('zones');
+const activeTab = ref<'zones' | 'lines'>(props.initialTab ?? 'zones');
 const draggies = shallowRef<Draggabilly[]>([]);
 const detectionZones = ref<DetectionZone[]>([]);
 const detectionLines = ref<DetectionLine[]>([]);
@@ -559,6 +559,14 @@ const currentZone = ref<number | undefined>(undefined);
 const selectedZone = ref(-1);
 const selectedAction = ref(-1);
 const selectedLine = ref(-1);
+
+if (props.initialSelection !== undefined) {
+  if ((props.initialTab ?? 'zones') === 'zones') {
+    selectedZone.value = props.initialSelection;
+  } else {
+    selectedLine.value = props.initialSelection;
+  }
+}
 const dragStart = { x: 0, y: 0 };
 
 let isDragging = false;

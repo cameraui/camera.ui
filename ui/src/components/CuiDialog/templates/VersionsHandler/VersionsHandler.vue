@@ -1,18 +1,21 @@
 <template>
   <div>
     <div v-if="showCompatWarning && !showConsole">
-      <h3 class="text-base font-semibold border-b-[1px] border-color mb-3 pb-3">{{ $t('components.form.label.compatibility') }}</h3>
-      <p v-if="compatIssues.length" class="text-muted mb-4">{{ $t('components.dialog.message.compatibility_warning') }}</p>
-      <ul v-if="compatIssues.length" class="list-disc pl-5 space-y-1 mb-4">
-        <li v-for="issue in compatIssues" :key="issue.engine" class="text-sm">
+      <div v-if="platformIncompatible" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30 mb-3">
+        <i-mdi:alert-circle class="w-5 h-5 shrink-0 text-orange-400 mt-0.5" />
+        <div class="flex flex-col gap-1 min-w-0">
+          <span class="text-sm font-semibold text-orange-400">
+            {{ $t('components.plugin_search.incompatible_system') }}<span v-if="platformRequirement"> — {{ platformRequirement }}</span>
+          </span>
+          <span class="text-xs text-orange-600 dark:text-orange-300">{{ $t('components.plugin_search.incompatible_worker_hint') }}</span>
+        </div>
+      </div>
+
+      <div v-for="issue in compatIssues" :key="issue.engine" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30 mb-3">
+        <i-mdi:alert-circle class="w-5 h-5 shrink-0 text-orange-400 mt-0.5" />
+        <span class="text-sm text-orange-400">
           {{ $t('components.dialog.message.compatibility_engine', { engine: issue.engine, required: issue.required, current: issue.current }) }}
-        </li>
-      </ul>
-      <div v-if="platformIncompatible">
-        <p class="font-medium">
-          {{ $t('components.plugin_search.incompatible_system') }}<span v-if="platformRequirement"> — {{ platformRequirement }}</span>
-        </p>
-        <p class="text-muted text-sm mt-1">{{ $t('components.plugin_search.incompatible_worker_hint') }}</p>
+        </span>
       </div>
     </div>
 
@@ -26,7 +29,7 @@
       <div class="flex items-center gap-4 mt-4 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
         <div class="flex flex-col gap-1 min-w-0">
           <span class="text-sm font-semibold text-orange-400">{{ $t('components.dialog.message.uninstall_remove_storage') }}</span>
-          <span class="text-xs text-muted-color">{{ $t('components.dialog.message.uninstall_remove_storage_hint') }}</span>
+          <span class="text-xs text-orange-600 dark:text-orange-300">{{ $t('components.dialog.message.uninstall_remove_storage_hint') }}</span>
         </div>
         <ToggleSwitch v-model="removeStorage" class="ml-auto shrink-0" />
       </div>

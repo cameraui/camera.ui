@@ -4,6 +4,8 @@ export interface ZoneEditorProps {
   cameraName: string;
   zones: DetectionZone[];
   lines: DetectionLine[];
+  initialTab?: 'zones' | 'lines';
+  initialSelection?: number;
 }
 
 export interface CoordsPosition {

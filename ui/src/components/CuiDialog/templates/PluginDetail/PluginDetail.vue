@@ -105,21 +105,22 @@
         </div>
       </template>
 
-      <div v-else class="cui-banner cui-banner-warn !items-start">
-        <i-mdi:alert-circle class="w-5 h-5 shrink-0 mt-0.5" />
-        <div class="flex flex-col gap-1">
-          <span class="font-medium">
+      <div v-else class="flex items-start gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
+        <i-mdi:alert-circle class="w-5 h-5 shrink-0 text-orange-400 mt-0.5" />
+        <div class="flex flex-col gap-1 min-w-0">
+          <span class="text-sm font-semibold text-orange-400">
             {{ $t('components.plugin_search.incompatible_system') }}<span v-if="platformRequirement"> — {{ platformRequirement }}</span>
           </span>
-          <span class="text-xs opacity-90">{{ $t('components.plugin_search.incompatible_worker_hint') }}</span>
+          <span class="text-xs text-orange-600 dark:text-orange-300">{{ $t('components.plugin_search.incompatible_worker_hint') }}</span>
         </div>
       </div>
 
-      <ul v-if="compat?.issues?.length" class="ml-4 list-disc">
-        <li v-for="issue in compat.issues" :key="issue.engine" class="text-xs text-muted">
+      <div v-for="issue in compat?.issues ?? []" :key="issue.engine" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
+        <i-mdi:alert-circle class="w-5 h-5 shrink-0 text-orange-400 mt-0.5" />
+        <span class="text-sm text-orange-400">
           {{ $t('components.dialog.message.compatibility_engine', { engine: issue.engine, required: issue.required, current: issue.current }) }}
-        </li>
-      </ul>
+        </span>
+      </div>
     </div>
 
     <div v-if="plugin.screenshots?.length" class="mt-5">

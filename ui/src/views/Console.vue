@@ -62,7 +62,7 @@
     <div class="w-full h-full flex flex-col" :style="{ paddingTop: `${TOPNAVBAR_HEIGHT}px` }">
       <div ref="scrollEl" class="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] leading-snug">
         <div v-if="!filtered.length" class="h-full flex flex-col items-center justify-center gap-4">
-          <i-lucide:terminal class="w-12 h-12 text-muted" />
+          <i-mdi:bug class="w-12 h-12 text-muted" />
           <span class="text-muted text-sm px-4 text-center">{{ recording ? $t('views.console.empty') : $t('views.console.recording_off') }}</span>
         </div>
         <div v-for="(e, i) in filtered" :key="i" class="whitespace-pre-wrap break-words py-0.5 border-b border-white/5" :class="levelClass(e.level)">
@@ -106,9 +106,9 @@ import { Capacitor } from '@capacitor/core';
 
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
-import type { LogEntry, LogLevel } from '@camera.ui/logger';
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
+import type { LogEntry, LogLevel } from '@camera.ui/logger';
 
 const props = withDefaults(
   defineProps<{
