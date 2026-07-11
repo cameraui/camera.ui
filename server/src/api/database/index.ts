@@ -26,6 +26,7 @@ import {
   SHARES_ID,
   TOKENS_ID,
   USERS_ID,
+  VIRTUAL_SENSORS_ID,
   WORKER_STATE_ID,
 } from './constants.js';
 import { MigrationRunner } from './migration.js';
@@ -50,6 +51,7 @@ import type {
   DBSettings,
   DBShare,
   DBUser,
+  DBVirtualSensor,
   DBWorkerState,
 } from './types.js';
 
@@ -70,6 +72,7 @@ export class Database {
   public usersDB!: DB<DBUser, string>;
   public sharesDB!: DB<DBShare, string>;
   public automationsDB!: DB<DBAutomation, string>;
+  public virtualSensorsDB!: DB<DBVirtualSensor, string>;
   public notificationsDB!: DB<DBNotificationSettings, string>;
   public notificationHistoryDB!: DB<DBNotificationHistory, string>;
   public downloadsDB!: DB<DBDownloadEntry, string>;
@@ -114,6 +117,7 @@ export class Database {
     this.sharesDB = this.lowdb.openDB({ name: SHARES_ID });
     this.instancesDB = this.lowdb.openDB({ name: INSTANCES_ID });
     this.automationsDB = this.lowdb.openDB({ name: AUTOMATIONS_ID });
+    this.virtualSensorsDB = this.lowdb.openDB({ name: VIRTUAL_SENSORS_ID });
     this.notificationsDB = this.lowdb.openDB({ name: NOTIFICATIONS_ID });
     this.notificationHistoryDB = this.lowdb.openDB({ name: NOTIFICATION_HISTORY_ID });
     this.downloadsDB = this.lowdb.openDB({ name: DOWNLOADS_ID });

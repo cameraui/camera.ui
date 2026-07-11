@@ -3,7 +3,7 @@ import { canCreateCameras, isHub, PluginRole, SensorType } from '@camera.ui/sdk'
 import { TTLCache } from '@isaacs/ttlcache';
 import { container, delay, registry } from 'tsyringe';
 
-import { getMultiProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG } from '../../camera/sensors/types.js';
+import { getMultiProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../camera/sensors/types.js';
 import { ConfigService } from '../../services/config/index.js';
 import { createSourceName } from '../../utils/camera.js';
 import { Database } from '../database/index.js';
@@ -812,7 +812,7 @@ export class CamerasService {
 
         if (Array.isArray(assignment)) {
           const originalLength = assignment.length;
-          const filtered = assignment.filter((p) => selectedPluginNames.has(p.name));
+          const filtered = assignment.filter((p) => selectedPluginNames.has(p.name) || p.id === VIRTUAL_SENSOR_OWNER_ID);
           if (filtered.length !== originalLength) {
             (camera.assignments as Record<string, unknown>)[key] = filtered;
             modified = true;
@@ -844,7 +844,7 @@ export class CamerasService {
 
         if (Array.isArray(assignment)) {
           const originalLength = assignment.length;
-          const filtered = assignment.filter((p) => existingPluginNames.has(p.name));
+          const filtered = assignment.filter((p) => existingPluginNames.has(p.name) || p.id === VIRTUAL_SENSOR_OWNER_ID);
           if (filtered.length !== originalLength) {
             (camera.assignments as Record<string, unknown>)[key] = filtered;
             modified = true;

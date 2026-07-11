@@ -18,11 +18,11 @@ import {
   OccupancyProperty,
   PTZProperty,
   SecuritySystemProperty,
+  SensorCategory,
   SensorType,
   SirenCapability,
   SirenProperty,
   SmokeProperty,
-  SensorCategory,
   SwitchProperty,
   TemperatureProperty,
 } from '@camera.ui/sdk';
@@ -276,3 +276,49 @@ export function getSensorProperties(type: SensorType): string[] {
 export const MULTI_PROVIDER_TYPES = new Set<SensorType>(getMultiProviderTypes());
 
 export const DETECTION_SENSOR_TYPES: ReadonlySet<SensorType> = new Set(getDetectionTypes());
+
+export const VIRTUAL_SENSOR_OWNER_ID = 'cameraui.virtual';
+export const VIRTUAL_SENSOR_OWNER_NAME = 'Virtual';
+
+export const VIRTUAL_SENSOR_TYPES = [
+  SensorType.Doorbell,
+  SensorType.Switch,
+  SensorType.Contact,
+  SensorType.Occupancy,
+  SensorType.Smoke,
+  SensorType.Leak,
+  SensorType.Light,
+  SensorType.Siren,
+  SensorType.Lock,
+  SensorType.Garage,
+  SensorType.SecuritySystem,
+  SensorType.Temperature,
+  SensorType.Humidity,
+] as const;
+
+export type VirtualSensorType = (typeof VIRTUAL_SENSOR_TYPES)[number];
+
+export const VIRTUAL_SENSOR_DEFAULT_PROPERTIES: Record<VirtualSensorType, Record<string, unknown>> = {
+  [SensorType.Doorbell]: { [DoorbellProperty.Ring]: false },
+  [SensorType.Switch]: { [SwitchProperty.On]: false },
+  [SensorType.Contact]: { [ContactProperty.Detected]: false },
+  [SensorType.Occupancy]: { [OccupancyProperty.Detected]: false },
+  [SensorType.Smoke]: { [SmokeProperty.Detected]: false },
+  [SensorType.Leak]: { [LeakProperty.Detected]: false },
+  [SensorType.Light]: { [LightProperty.On]: false, [LightProperty.Brightness]: 100 },
+  [SensorType.Siren]: { [SirenProperty.Active]: false, [SirenProperty.Volume]: 100 },
+  [SensorType.Lock]: { [LockProperty.CurrentState]: 0, [LockProperty.TargetState]: 0 },
+  [SensorType.Garage]: { [GarageProperty.CurrentState]: 1, [GarageProperty.TargetState]: 1 },
+  [SensorType.SecuritySystem]: { [SecuritySystemProperty.CurrentState]: 3, [SecuritySystemProperty.TargetState]: 3 },
+  [SensorType.Temperature]: { [TemperatureProperty.Current]: 20 },
+  [SensorType.Humidity]: { [HumidityProperty.Current]: 50 },
+};
+
+export const VIRTUAL_SENSOR_DEFAULT_CAPABILITIES: Partial<Record<VirtualSensorType, string[]>> = {
+  [SensorType.Light]: [LightCapability.Brightness],
+  [SensorType.Siren]: [SirenCapability.Volume],
+};
+
+export function isVirtualSensorType(type: SensorType): type is VirtualSensorType {
+  return (VIRTUAL_SENSOR_TYPES as readonly SensorType[]).includes(type);
+}

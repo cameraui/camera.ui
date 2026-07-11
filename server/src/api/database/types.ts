@@ -1,4 +1,4 @@
-import type { BaseCamera, Point, Severity } from '@camera.ui/sdk';
+import type { BaseCamera, Point, SensorType, Severity } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
@@ -283,6 +283,17 @@ export interface DBAutomation {
     timestamp: number;
     error?: string;
   };
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DBVirtualSensor {
+  readonly _id: string;
+  cameraId: string;
+  type: SensorType;
+  name: string;
+  displayName: string;
+  state?: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
 }

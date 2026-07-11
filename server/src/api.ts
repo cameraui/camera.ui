@@ -3,6 +3,7 @@ import { container } from 'tsyringe';
 
 import { CamerasService } from './api/services/cameras.service.js';
 import { PluginsService } from './api/services/plugins.service.js';
+import { VirtualSensorsService } from './api/services/virtualsensors.service.js';
 import { CameraController } from './camera/controller.js';
 
 import type { API_EVENT, Camera, PluginAssignments } from '@camera.ui/sdk';
@@ -20,6 +21,7 @@ export class CameraUiAPI extends EventEmitter {
 
   private _camerasService?: CamerasService;
   private _pluginsService?: PluginsService;
+  private _virtualSensorsService?: VirtualSensorsService;
 
   constructor() {
     super();
@@ -46,6 +48,13 @@ export class CameraUiAPI extends EventEmitter {
       await cameraController.init();
 
       this.cameraControllers.set(camera._id, cameraController);
+
+      try {
+        await this.virtualSensorsService.hydrateCamera(cameraController);
+      } catch (error) {
+        const logger = container.resolve<LoggerService>('logger');
+        logger.warn(`Failed to hydrate virtual sensors for camera ${camera.name}:`, error);
+      }
 
       try {
         const bus = container.resolve<InternalEventBus>('internalBus');
@@ -98,7 +107,11 @@ export class CameraUiAPI extends EventEmitter {
     const proxyServer = container.resolve<ProxyServer>('proxy');
     const cameraController = this.cameraControllers.get(camera._id);
 
-    if (cameraController) {
+    if (!cameraController) {
+      return;
+    }
+
+    try {
       await cameraController.stop();
 
       const pluginIds = new Set<string>();
@@ -125,7 +138,10 @@ export class CameraUiAPI extends EventEmitter {
       if (camera.pluginInfo?.id && this.pluginCanReceiveEvents(camera.pluginInfo.id)) {
         await proxyServer.deviceManager.requestDeviceManagerEvent(camera.pluginInfo.id, 'cameraReleased', { cameraId: camera._id });
       }
-
+    } catch (error) {
+      const logger = container.resolve<LoggerService>('logger');
+      logger.warn(`Failed to fully tear down camera ${camera.name}, removing it anyway:`, error);
+    } finally {
       try {
         const bus = container.resolve<InternalEventBus>('internalBus');
         bus.emitEvent('camera:removed', { cameraId: camera._id, cameraName: camera.name });
@@ -134,7 +150,6 @@ export class CameraUiAPI extends EventEmitter {
       }
 
       this.cameraControllers.delete(camera._id);
-
       proxyServer.discoveryManager.notifyCameraDeleted(camera._id, camera.pluginInfo?.id);
     }
   }
@@ -174,13 +189,15 @@ export class CameraUiAPI extends EventEmitter {
     return !!plugin && !plugin.disabled && plugin.worker.isRunning();
   }
 
-  // Lazy-instantiated services. CameraUiAPI is constructed before Database, so
-  // eager construction would crash at boot — these getters defer until first use.
   private get camerasService(): CamerasService {
     return (this._camerasService ??= new CamerasService());
   }
 
   private get pluginsService(): PluginsService {
     return (this._pluginsService ??= new PluginsService());
+  }
+
+  private get virtualSensorsService(): VirtualSensorsService {
+    return (this._virtualSensorsService ??= new VirtualSensorsService());
   }
 }

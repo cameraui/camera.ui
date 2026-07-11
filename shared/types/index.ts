@@ -8,6 +8,7 @@ export * from '../../server/src/api/schemas/remote.schema.js';
 export * from '../../server/src/api/schemas/server.schema.js';
 export * from '../../server/src/api/schemas/storage.schema.js';
 export * from '../../server/src/api/schemas/users.schema.js';
+export * from '../../server/src/api/schemas/virtualsensors.schema.js';
 export type * from '../../server/src/api/types/index.js';
 export type * from '../../server/src/api/websocket/types.js';
 export * from '../../server/src/camera/sensors/types.js';
