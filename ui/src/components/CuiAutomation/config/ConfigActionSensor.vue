@@ -46,14 +46,21 @@
       <div v-for="prop in propertyOptions" :key="prop.value" class="flex flex-col gap-1.5 p-2 rounded-md border-color">
         <div class="flex items-center gap-2">
           <Checkbox :model-value="isPropertyEnabled(prop.value)" binary @update:model-value="toggleProperty(prop.value, $event)" />
-          <span class="text-sm font-medium">{{ prop.label }}</span>
+          <span class="text-sm font-medium flex-1">{{ prop.label }}</span>
+          <ConfigSensorValueInput
+            v-if="isPropertyEnabled(prop.value) && isBooleanProperty(prop.value)"
+            :sensor-type="data.sensorType"
+            :property="prop.value"
+            :model-value="getPropertyValue(prop.value)"
+            @update:model-value="(value) => setPropertyValue(prop.value, value)"
+          />
         </div>
-        <InputText
-          v-if="isPropertyEnabled(prop.value)"
+        <ConfigSensorValueInput
+          v-if="isPropertyEnabled(prop.value) && !isBooleanProperty(prop.value)"
+          :sensor-type="data.sensorType"
+          :property="prop.value"
           :model-value="getPropertyValue(prop.value)"
-          :placeholder="t('components.automation_nodes.condition_value_placeholder')"
-          class="w-full"
-          @update:model-value="setPropertyValue(prop.value, String($event ?? ''))"
+          @update:model-value="(value) => setPropertyValue(prop.value, value)"
         />
       </div>
     </div>
@@ -63,6 +70,9 @@
 <script setup lang="ts">
 import { SensorCategory, SensorType } from '@camera.ui/sdk';
 
+import { SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '@shared/types';
+import ConfigSensorValueInput from './ConfigSensorValueInput.vue';
+import { getSensorPropertyDefaultValue, getSensorPropertyInput } from './sensorPropertyInputs.js';
 import { useCameraOptions } from './useCameraOptions.js';
 
 import type { ConfigActionSensorProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -76,12 +86,16 @@ const { cameraOptions, getSensorTypes, useSensorInstances, getPropertiesForSenso
 
 const sensorOptions = computed(() => {
   if (!props.data.cameraId) return [];
-  return getSensorTypes(props.data.cameraId)
-    .filter((s) => s.meta.category === SensorCategory.Control)
-    .map((s) => ({
-      label: t(`components.camera_options.sensor_type_${s.value}`),
-      value: s.value,
-    }));
+  return (
+    getSensorTypes(props.data.cameraId)
+      // Trigger sensors (doorbell) dispatch updateValue to trigger(); read-only sensor
+      // categories are only writable when a virtual instance backs them
+      .filter((s) => s.meta.category === SensorCategory.Control || s.meta.category === SensorCategory.Trigger || (s.hasVirtual && !s.meta.isDetectionType))
+      .map((s) => ({
+        label: t(`components.camera_options.sensor_type_${s.value}`),
+        value: s.value,
+      }))
+  );
 });
 
 const cameraIdRef = computed(() => props.data.cameraId || undefined);
@@ -93,12 +107,15 @@ const selectedInstanceKey = computed(() => {
   return `${props.data.sensorName}::${props.data.sensorPluginId}`;
 });
 
-const instanceSelectOptions = computed(() =>
-  instanceOptions.value.map((inst) => ({
-    label: inst.label,
-    value: `${inst.sensorName}::${inst.pluginId}`,
-  })),
-);
+const instanceSelectOptions = computed(() => {
+  const category = props.data.sensorType ? SENSOR_TYPE_CONFIG[props.data.sensorType as SensorType]?.category : undefined;
+  return instanceOptions.value
+    .filter((inst) => category === SensorCategory.Control || category === SensorCategory.Trigger || inst.pluginId === VIRTUAL_SENSOR_OWNER_ID)
+    .map((inst) => ({
+      label: inst.label,
+      value: `${inst.sensorName}::${inst.pluginId}`,
+    }));
+});
 
 const propertyOptions = computed(() => {
   if (!props.data.sensorType) return [];
@@ -117,6 +134,10 @@ function isPropertyEnabled(property: string): boolean {
   return propertiesMap.value.has(property);
 }
 
+function isBooleanProperty(property: string): boolean {
+  return getSensorPropertyInput(String(props.data.sensorType ?? ''), property).kind === 'boolean';
+}
+
 function getPropertyValue(property: string): string {
   return propertiesMap.value.get(property) ?? '';
 }
@@ -125,7 +146,7 @@ function toggleProperty(property: string, enabled: unknown) {
   const current = [...(props.data.properties ?? [])];
   if (enabled) {
     if (!current.some((p) => p.property === property)) {
-      current.push({ property, value: '' });
+      current.push({ property, value: getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), property) });
     }
   } else {
     const idx = current.findIndex((p) => p.property === property);

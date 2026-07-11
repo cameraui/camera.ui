@@ -66,18 +66,27 @@
             class="flex-1"
             @update:model-value="updateCondition(idx, 'property', $event as string)"
           />
+          <ConfigSensorValueInput
+            v-if="cond.property && isBooleanProperty(cond.property)"
+            :sensor-type="data.sensorType as string"
+            :property="cond.property"
+            :model-value="cond.expectedValue"
+            class="shrink-0"
+            @update:model-value="(value) => updateCondition(idx, 'expectedValue', value)"
+          />
           <Button v-if="conditions.length > 1" severity="danger" text rounded class="shrink-0 cui-icon-sm" @click="removeCondition(idx)">
             <template #icon>
               <i-mdi:close width="100%" height="100%" />
             </template>
           </Button>
         </div>
-        <InputText
+        <ConfigSensorValueInput
+          v-if="!cond.property || !isBooleanProperty(cond.property)"
+          :sensor-type="data.sensorType"
+          :property="cond.property"
           :model-value="cond.expectedValue"
-          :placeholder="t('components.automation_nodes.condition_value_placeholder')"
-          class="w-full"
           :disabled="!cond.property"
-          @update:model-value="updateCondition(idx, 'expectedValue', String($event ?? ''))"
+          @update:model-value="(value) => updateCondition(idx, 'expectedValue', value)"
         />
       </div>
 
@@ -89,6 +98,8 @@
 <script setup lang="ts">
 import { SensorType } from '@camera.ui/sdk';
 
+import ConfigSensorValueInput from './ConfigSensorValueInput.vue';
+import { getSensorPropertyDefaultValue, getSensorPropertyInput } from './sensorPropertyInputs.js';
 import { useCameraOptions } from './useCameraOptions.js';
 
 import type { ConfigConditionSensorStateProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -136,6 +147,10 @@ const propertyOptions = computed(() => {
 
 const conditions = computed(() => props.data.conditions ?? []);
 
+function isBooleanProperty(property: string): boolean {
+  return getSensorPropertyInput(String(props.data.sensorType ?? ''), property).kind === 'boolean';
+}
+
 function addCondition() {
   const current = [...conditions.value, { property: '', expectedValue: '' }];
   emit('update:data', { conditions: current });
@@ -150,6 +165,10 @@ function removeCondition(idx: number) {
 function updateCondition(idx: number, field: 'property' | 'expectedValue', value: string) {
   const current = [...conditions.value];
   current[idx] = { ...current[idx], [field]: value };
+  // switching the property changes the input kind — reset to a matching default
+  if (field === 'property') {
+    current[idx].expectedValue = getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), value);
+  }
   emit('update:data', { conditions: current });
 }
 
