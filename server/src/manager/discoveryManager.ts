@@ -767,8 +767,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     const { username, password } = settings as { username: string; password: string };
 
     const url = new URL(originalUrl);
-    url.username = username;
-    url.password = password;
+    url.username = encodeURIComponent(username);
+    url.password = encodeURIComponent(password);
     const authenticatedUrl = url.toString();
 
     const { sources: profiles } = await this.go2rtcApi.discoverRoute.discoverOnvif({ src: authenticatedUrl });
@@ -897,8 +897,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
 
     // Format: dvrip://username:password@host?channel=0&subtype=0
     const url = new URL(originalUrl);
-    url.username = username;
-    url.password = password;
+    url.username = encodeURIComponent(username);
+    url.password = encodeURIComponent(password);
 
     if (!url.searchParams.has('channel')) {
       url.searchParams.set('channel', '0');
