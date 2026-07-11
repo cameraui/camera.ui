@@ -1,5 +1,6 @@
 import { Subject } from '@camera.ui/sdk';
 
+import { computeSensorStableId } from '../../../../camera/sensors/stable-id.js';
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -167,6 +168,7 @@ export class SensorProxy implements SensorLike {
   toStoredData(): StoredSensorData {
     return {
       id: this.id,
+      stableId: computeSensorStableId(this._ownerId, this.type, this.name),
       type: this.type,
       name: this.name,
       displayName: this.displayName,

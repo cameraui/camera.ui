@@ -14,6 +14,7 @@ import type { Notification, NotifierDevice, NotifierInterface, PluginInterface }
 import type { Database } from '../api/database/index.js';
 import type { DBRoles, StoredNotification } from '../api/database/types.js';
 import type { SocketService } from '../api/websocket/index.js';
+import type { InternalEventBus } from '../internal-bus.js';
 import type { Plugin } from '../plugins/plugin.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { NotifyResult } from '../rpc/interfaces/notification.js';
@@ -185,6 +186,19 @@ export class NotificationManager {
       source,
       data: { ...opts.notification.data, ...originData },
     };
+
+    if (source.kind === 'system') {
+      try {
+        container.resolve<InternalEventBus>('internalBus').emitEvent('system:notification', {
+          typeId: source.id,
+          title: resolved.title,
+          body: resolved.body,
+          severity: String(resolved.severity),
+        });
+      } catch {
+        // bus not registered (worker mode) — ignore
+      }
+    }
 
     // Per-user filtering (settings / source / quiet-hours / history) is
     // genuinely per recipient; delivery is batched per notifier afterwards.

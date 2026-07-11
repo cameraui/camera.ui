@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { container } from 'tsyringe';
 
-export type SystemEvent = 'system:started' | 'system:shutdown' | 'camera:added' | 'camera:removed';
+export type SystemEvent = 'system:started' | 'system:shutdown' | 'system:notification' | 'camera:added' | 'camera:removed';
 
 export type PluginEvent = 'plugin:started' | 'plugin:stopped' | 'plugin:error' | 'plugin:crashed';
 
@@ -14,6 +14,13 @@ export type InternalEvent = SystemEvent | PluginEvent | CameraEvent | SensorEven
 export interface SystemEventPayload {
   cameraId?: string;
   cameraName?: string;
+}
+
+export interface SystemNotificationPayload {
+  typeId: string;
+  title: string;
+  body?: string;
+  severity?: string;
 }
 
 export interface PluginEventPayload {
@@ -32,6 +39,7 @@ export interface CameraEventPayload {
 export interface SensorPropertyChangedPayload {
   cameraId: string;
   sensorId: string;
+  sensorStableId: string;
   sensorType: string;
   property: string;
   value: unknown;
@@ -41,11 +49,13 @@ export interface SensorPropertyChangedPayload {
 export interface SensorLifecyclePayload {
   cameraId: string;
   sensorId: string;
+  sensorStableId: string;
   sensorType: string;
   sensorName?: string;
 }
 
-export type InternalEventPayload = SystemEventPayload | PluginEventPayload | CameraEventPayload | SensorPropertyChangedPayload | SensorLifecyclePayload;
+export type InternalEventPayload =
+  SystemEventPayload | SystemNotificationPayload | PluginEventPayload | CameraEventPayload | SensorPropertyChangedPayload | SensorLifecyclePayload;
 
 export class InternalEventBus extends EventEmitter {
   constructor() {

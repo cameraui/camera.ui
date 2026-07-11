@@ -7,6 +7,7 @@ import { PluginsService } from '../../api/services/plugins.service.js';
 import { PLUGIN_STATUS } from '../../plugins/types.js';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { ServerSensor } from './sensor.js';
+import { computeSensorStableId } from './stable-id.js';
 import { MULTI_PROVIDER_TYPES, SENSOR_TYPE_CONFIG } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
@@ -172,6 +173,7 @@ export class SensorController {
     const capabilities = sensor.capabilities ? [...new Set(sensor.capabilities)] : [];
     const storedData: StoredSensorData = {
       id: sensor.id,
+      stableId: computeSensorStableId(pluginId, sensor.type, sensor.name),
       type: sensor.type,
       name: sensor.name,
       displayName: sensor.displayName,
@@ -224,7 +226,7 @@ export class SensorController {
 
     this.enqueue(() => this.pushSensorRemoved(sensorId));
 
-    this.emitSensorRemoved(sensorId, sensor.type, sensor.name);
+    this.emitSensorRemoved(sensor);
   }
 
   public removePluginSensors(pluginId: string): void {
@@ -247,7 +249,7 @@ export class SensorController {
         this.emitSensorAdded(sensor);
         this.enqueue(() => this.pushSensorAdded(sensor));
       } else {
-        this.emitSensorRemoved(sensor.id, sensor.type, sensor.name);
+        this.emitSensorRemoved(sensor);
         this.enqueue(() => this.pushSensorRemoved(sensor.id));
       }
     }
@@ -518,21 +520,23 @@ export class SensorController {
     this.context.emitBus('sensor:added', {
       cameraId: this.cameraController.id,
       sensorId: data.id,
+      sensorStableId: data.stableId,
       sensorType: String(event.state.type),
       sensorName: data.name,
     });
   }
 
-  private emitSensorRemoved(sensorId: string, sensorType: SensorType, sensorName: string): void {
-    const event: SensorRemovedEvent = { cameraId: this.cameraController.id, sensorId, sensorType };
+  private emitSensorRemoved(sensor: StoredSensorData): void {
+    const event: SensorRemovedEvent = { cameraId: this.cameraController.id, sensorId: sensor.id, sensorType: sensor.type };
 
     this.safePublish(this.namespaces.sensorSubject, { type: 'sensor:removed', data: event });
 
     this.context.emitBus('sensor:removed', {
       cameraId: this.cameraController.id,
-      sensorId,
-      sensorType: String(sensorType),
-      sensorName,
+      sensorId: sensor.id,
+      sensorStableId: sensor.stableId,
+      sensorType: String(sensor.type),
+      sensorName: sensor.name,
     });
   }
 

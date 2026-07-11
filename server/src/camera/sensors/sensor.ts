@@ -166,6 +166,7 @@ export class ServerSensor implements SensorLike {
     this.ctx.emitBus('sensor:property:changed', {
       cameraId: this.ctx.cameraId,
       sensorId: this.id,
+      sensorStableId: this.data.stableId,
       sensorType: String(this.type),
       property: String(property),
       value,
