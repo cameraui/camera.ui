@@ -8,7 +8,9 @@ export class DiscoverRoute {
 
   public async discoverHomekit(): Promise<{ sources: HomeKitSource[] }> {
     return this.requestManager.deduplicatedRequest('discoverHomekit', async () => {
-      const response = await fetchInstance()('/discovery/homekit', {
+      const hkDiscoveryTimeout = 10;
+
+      const response = await fetchInstance()(`/discovery/homekit?timeout=${hkDiscoveryTimeout}`, {
         method: 'GET',
       });
 
