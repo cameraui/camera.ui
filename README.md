@@ -1,4 +1,4 @@
-# camera.ui [![npm](https://img.shields.io/npm/v/camera.ui.svg)](https://www.npmjs.com/package/camera.ui) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md) [![chat](https://img.shields.io/badge/chat-discord-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/bBGnGcbz8N)
+# camera.ui [![npm](https://img.shields.io/npm/v/@camera.ui/server.svg)](https://www.npmjs.com/package/@camera.ui/server) [![docker](https://img.shields.io/badge/ghcr.io-cameraui%2Fcamera.ui-2496ED?logo=docker&logoColor=white)](https://github.com/cameraui/camera.ui/pkgs/container/camera.ui) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md) [![chat](https://img.shields.io/badge/chat-discord-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/bBGnGcbz8N)
 
 <p align="center">
   <a href="https://docs.cameraui.com" target="_blank" rel="noopener noreferrer">
