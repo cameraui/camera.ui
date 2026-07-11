@@ -9,6 +9,7 @@ import { createInterface } from 'node:readline';
 import { container } from 'tsyringe';
 
 import { RemoteService } from '../../api/services/remote.service.js';
+import { isShuttingDown } from '../../shutdown-state.js';
 import { CloudflareManagedService } from './cloudflare-managed.js';
 
 import type { Logger } from '@camera.ui/common';
@@ -194,10 +195,7 @@ export class CloudflareService {
         this.configService.removeProcessByPID(cloudflaredPID);
       }
 
-      // The async exit event can land after a mode-switch / stop() has already
-      // moved on. Ignore it if we're no longer tracking this exact process —
-      // otherwise we'd trigger a phantom reconnect loop.
-      if (this.cloudflaredProcess !== proc) return;
+      if (this.cloudflaredProcess !== proc || isShuttingDown()) return;
 
       this.handleError(new Error(`Process exited unexpectedly with code ${code}`));
     });

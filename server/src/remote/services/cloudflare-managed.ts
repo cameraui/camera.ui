@@ -8,6 +8,7 @@ import { createInterface } from 'node:readline';
 import { container } from 'tsyringe';
 
 import { RemoteService } from '../../api/services/remote.service.js';
+import { isShuttingDown } from '../../shutdown-state.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { ChildProcess } from 'node:child_process';
@@ -254,7 +255,7 @@ export class CloudflareManagedService {
 
     this.runProcess.on('exit', (code) => {
       if (pid) this.configService.removeProcessByPID(pid);
-      if (this._state === 'running') {
+      if (this._state === 'running' && !isShuttingDown()) {
         this.fail(`tunnel run exited unexpectedly (code=${code})`);
       }
     });

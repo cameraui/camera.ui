@@ -33,7 +33,7 @@ import type { FastifyDynamicSwaggerOptions } from '@fastify/swagger';
 import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
 import type { FastifyBaseLogger, FastifyHttp2SecureOptions, FastifyInstance } from 'fastify';
 import type { Http2SecureServer } from 'node:http2';
-import type { AddressInfo } from 'node:net';
+import type { AddressInfo, Socket } from 'node:net';
 import type { ServerOptions } from 'socket.io';
 import type { CameraUiAPI } from '../api.js';
 import type { ProxyServer } from '../rpc/index.js';
@@ -56,6 +56,12 @@ export class Server {
   private _internalPort = 0;
   private sharesCleanupTimer?: NodeJS.Timeout;
 
+  // http2SecureServer has no closeAllConnections() and Fastify's forceCloseConnections
+  // does not cover upgraded WebSockets / idle HTTP/2 sessions. We track every raw socket
+  // and destroy it on close so the drain-based server close resolves instead of hanging
+  // until the shutdown timeout (e.g. the Electron renderer holding a live connection).
+  private readonly connections = new Set<Socket>();
+
   constructor() {
     container.registerInstance('server', this);
 
@@ -77,6 +83,8 @@ export class Server {
 
     this.app.setValidatorCompiler(validatorCompiler);
     this.app.setSerializerCompiler(serializerCompiler);
+    this.trackConnections(this.app.server);
+    this.trackConnections(this.internalApp.server);
     this.setupListeners();
     await this.registerPlugins();
     await this.registerRouters();
@@ -122,11 +130,25 @@ export class Server {
       this.sharesCleanupTimer = undefined;
     }
 
-    await Promise.allSettled([this.app?.close(), this.internalApp?.close()]);
+    const closing = Promise.allSettled([this.app?.close(), this.internalApp?.close()]);
+
+    for (const socket of this.connections) {
+      socket.destroy();
+    }
+    this.connections.clear();
+
+    await closing;
 
     this.app = undefined;
     this.internalApp = undefined;
     this._internalPort = 0;
+  }
+
+  private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }): void {
+    server.on('connection', (socket: Socket) => {
+      this.connections.add(socket);
+      socket.once('close', () => this.connections.delete(socket));
+    });
   }
 
   private startSharesCleanup(): void {
@@ -174,7 +196,7 @@ export class Server {
       });
 
       this.app.addHook('onClose', async () => {
-        this.logger.warn('camera.ui stopped');
+        this.logger.debug('camera.ui server closed, cleaning up connections');
       });
     }
   }

@@ -131,7 +131,7 @@ export class FrameWorker extends Subscribed {
       return;
     }
 
-    this.logger.debug('Stopping Frame Worker');
+    this.logger.log('Stopping Frame Worker');
     this.setStatus(PLUGIN_STATUS.STOPPING);
 
     // If running on a remote worker, remove it from the desired state — the
@@ -344,10 +344,10 @@ export class FrameWorker extends Subscribed {
         resolve();
       }, 3000);
 
-      this.process.once('exit', () => {
+      this.process.once('exit', (code, signal) => {
         clearTimeout(timeout);
         this.setStatus(PLUGIN_STATUS.STOPPED);
-        this.logger.debug('Worker closed!');
+        this.logger.log(`Frame Worker closed. Code: ${code}, Signal: ${signal}`);
         resolve();
       });
 
@@ -381,7 +381,14 @@ export class FrameWorker extends Subscribed {
     });
 
     this.process.once('exit', (code, signal) => {
-      this.logger.trace(`Process exited with code: ${code} and signal: ${signal}`);
+      const intentional = this.isClosed || isShuttingDown() || this.status === PLUGIN_STATUS.STOPPING || this.status === PLUGIN_STATUS.STOPPED;
+
+      if (intentional) {
+        this.logger.log('Frame Worker exited');
+      } else {
+        this.logger.warn(`Frame Worker exited unexpectedly. Code: ${code}, Signal: ${signal}`);
+      }
+
       this.setStatus(PLUGIN_STATUS.STOPPED);
       this.configService.removeProcessByPID(this.process?.pid);
       this.handleProcessExit();
@@ -433,7 +440,6 @@ export class FrameWorker extends Subscribed {
   }
 
   private async handleProcessExit(): Promise<void> {
-    this.logger.warn('Worker process exited!');
     await this.clearProcessState();
     this.attemptRestart();
   }
