@@ -70,23 +70,6 @@ export interface Logger {
   level: LoggingLevel;
 }
 
-export interface Mqtt {
-  enabled?: boolean;
-  host?: string;
-  port?: number;
-  topicPrefix?: string;
-  clientId?: string;
-  user?: string;
-  password?: string;
-  tls?: MqttTLS;
-}
-
-export interface MqttTLS {
-  enabled?: boolean;
-  cert?: string;
-  key?: string;
-}
-
 export interface IConfigSSL {
   certFile: string;
   keyFile: string;

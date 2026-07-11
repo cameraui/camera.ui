@@ -8,6 +8,7 @@ import { DownloadRoute } from './download.routes.js';
 import { FilesRoute } from './files.routes.js';
 import { FrameWorkersRoute } from './frameWorkers.routes.js';
 import { InstancesRoute } from './instances.routes.js';
+import { MqttRoute } from './mqtt.routes.js';
 import { NotificationsRoute } from './notifications.routes.js';
 import { OAuthCallbackRoute } from './oauthCallback.routes.js';
 import { PluginsRoute } from './plugins.routes.js';
@@ -42,6 +43,7 @@ export class FastifyRoutes {
     await this.app.register(PluginsRoute, { prefix: '/api/plugins' });
     await this.app.register(ServerRoute, { prefix: '/api/server' });
     await this.app.register(RemoteRoute, { prefix: '/api/remote' });
+    await this.app.register(MqttRoute, { prefix: '/api/mqtt' });
     await this.app.register(UsersRoute, { prefix: '/api/users' });
     await this.app.register(WorkersRoute, { prefix: '/api/workers' });
     await this.app.register(InstancesRoute, { prefix: '/api/instances' });

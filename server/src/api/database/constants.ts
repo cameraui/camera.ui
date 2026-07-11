@@ -6,6 +6,7 @@ export const SETTINGS_ID = 'settings';
 export const USERS_ID = 'users';
 export const SERVER_ID = 'server';
 export const REMOTE_ID = 'remote';
+export const MQTT_ID = 'mqtt';
 export const CLOUD_ID = 'cloud';
 export const INSTANCES_CONFIG_ID = 'instances-config';
 export const TOKENS_ID = 'tokens';

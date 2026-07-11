@@ -17,6 +17,7 @@ import {
   DOWNLOADS_ID,
   INSTANCES_CONFIG_ID,
   INSTANCES_ID,
+  MQTT_ID,
   NOTIFICATION_HISTORY_ID,
   NOTIFICATIONS_ID,
   PLUGINS_ID,
@@ -43,6 +44,7 @@ import type {
   DBDownloadEntry,
   DBInstance,
   DBInstancesConfig,
+  DBMqtt,
   DBNotificationHistory,
   DBNotificationSettings,
   DBPlugin,
@@ -64,6 +66,7 @@ export class Database {
   public settingsDB!: DB<DBSettings, 'settings'>;
   public serverDB!: DB<DBServer, 'server'>;
   public remoteDB!: DB<DBRemote, 'remote'>;
+  public mqttDB!: DB<DBMqtt, 'mqtt'>;
   public cloudDB!: DB<DBCloud, 'cloud'>;
   public instancesConfigDB!: DB<DBInstancesConfig, 'instancesConfig'>;
 
@@ -95,7 +98,7 @@ export class Database {
     this.lowdb = open({
       path: this.configService.DATABASE_PATH,
       name: DATABASE_ID,
-      maxDbs: 20,
+      maxDbs: 24,
     });
 
     this.workerStateDB = this.lowdb.openDB({ name: WORKER_STATE_ID });
@@ -112,6 +115,7 @@ export class Database {
     this.usersDB = this.lowdb.openDB({ name: USERS_ID });
     this.serverDB = this.lowdb.openDB({ name: SERVER_ID });
     this.remoteDB = this.lowdb.openDB({ name: REMOTE_ID });
+    this.mqttDB = this.lowdb.openDB({ name: MQTT_ID });
     this.cloudDB = this.lowdb.openDB({ name: CLOUD_ID });
     this.instancesConfigDB = this.lowdb.openDB({ name: INSTANCES_CONFIG_ID });
     this.sharesDB = this.lowdb.openDB({ name: SHARES_ID });
@@ -290,6 +294,30 @@ export class Database {
         directMode: existingRemote.directMode ?? 'cloudflare',
         customDomain: existingRemote.customDomain ?? { url: null },
         cloudflare: existingRemote.cloudflare ?? { mode: 'quick', hostname: null, token: null, tunnelId: null },
+      });
+    }
+    const existingMqtt = this.mqttDB.get('mqtt') as Partial<DBMqtt> | undefined;
+    if (!existingMqtt) {
+      await this.mqttDB.put('mqtt', {
+        enabled: false,
+        mode: 'external',
+        broker: { port: 1883, username: 'cameraui', password: randomBytes(16).toString('hex') },
+        host: null,
+        port: 1883,
+        protocol: 'mqtt',
+        username: null,
+        password: null,
+        clientId: 'cameraui',
+        topicPrefix: 'cameraui',
+        tls: { rejectUnauthorized: true, ca: null, cert: null, key: null },
+        haDiscovery: { enabled: false, prefix: 'homeassistant' },
+      });
+    } else if (existingMqtt.haDiscovery === undefined || existingMqtt.mode === undefined) {
+      await this.mqttDB.put('mqtt', {
+        ...(existingMqtt as DBMqtt),
+        mode: existingMqtt.mode ?? 'external',
+        broker: existingMqtt.broker ?? { port: 1883, username: 'cameraui', password: randomBytes(16).toString('hex') },
+        haDiscovery: existingMqtt.haDiscovery ?? { enabled: false, prefix: 'homeassistant' },
       });
     }
     if (!this.cloudDB.get('cloud')) {

@@ -106,6 +106,36 @@ export interface DBRemote {
   };
 }
 
+export type DBMqttProtocol = 'mqtt' | 'mqtts';
+export type DBMqttMode = 'external' | 'embedded';
+
+export interface DBMqtt {
+  enabled: boolean;
+  mode: DBMqttMode;
+  broker: {
+    port: number;
+    username: string | null;
+    password: string | null;
+  };
+  host: string | null;
+  port: number;
+  protocol: DBMqttProtocol;
+  username: string | null;
+  password: string | null;
+  clientId: string;
+  topicPrefix: string;
+  tls: {
+    rejectUnauthorized: boolean;
+    ca: string | null;
+    cert: string | null;
+    key: string | null;
+  };
+  haDiscovery: {
+    enabled: boolean;
+    prefix: string;
+  };
+}
+
 export interface ServerOAuthCredentials {
   access_token: string;
   refresh_token: string;

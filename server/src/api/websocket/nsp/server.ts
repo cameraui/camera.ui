@@ -8,6 +8,8 @@ import { checkForUpdate } from '../../../utils/npm/index.js';
 import { PluginsService } from '../../services/plugins.service.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
+import type { MqttManager } from '../../../mqtt/manager.js';
+import type { MqttStatus } from '../../../mqtt/types.js';
 import type { ProxyServer } from '../../../rpc/index.js';
 import type { AppUpdateAvailableMessage } from '../../../types.js';
 import type { INpmPluginState } from '../../types/index.js';
@@ -40,6 +42,7 @@ export class ServerNamespace {
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
       socket.on('get-updates', this.getUpdates.bind(this));
+      socket.on('get-mqtt-status', this.getMqttStatus.bind(this));
     });
 
     this.checkPlugins();
@@ -59,6 +62,18 @@ export class ServerNamespace {
 
     callback?.(data);
     return data;
+  }
+
+  public getMqttStatus(_payload?: any, callback?: Function): MqttStatus | undefined {
+    let status: MqttStatus | undefined;
+    try {
+      status = container.resolve<MqttManager>('mqttManager').getStatus();
+    } catch {
+      // manager not constructed (worker mode)
+    }
+
+    callback?.(status);
+    return status;
   }
 
   public async checkPlugins(interval?: boolean): Promise<void> {

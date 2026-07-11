@@ -20,6 +20,7 @@ import { setupNodeAvLog } from './camera/streaming/node-av-log.js';
 import { Go2RtcApi } from './go2rtc/api/index.js';
 import { Go2Rtc } from './go2rtc/index.js';
 import { InternalEventBus } from './internal-bus.js';
+import { MqttManager } from './mqtt/manager.js';
 import { PluginManager } from './plugins/index.js';
 import { CloudApi } from './remote/api/index.js';
 import { RemoteAccessManager } from './remote/index.js';
@@ -52,6 +53,7 @@ class CameraUi {
   private automationEngine: AutomationEngine;
   private workerManager: WorkerManager;
   private backupScheduler: BackupSchedulerService;
+  private mqttManager: MqttManager;
   private signalHandler: SignalHandler;
 
   private homePath: string | undefined;
@@ -97,6 +99,7 @@ class CameraUi {
     this.automationEngine = new AutomationEngine();
     this.workerManager = new WorkerManager();
     this.backupScheduler = new BackupSchedulerService();
+    this.mqttManager = new MqttManager();
   }
 
   public async start(): Promise<void> {
@@ -137,6 +140,7 @@ class CameraUi {
     await this.server.register();
     await this.server.listen();
     await this.tunnelClient.start();
+    await this.mqttManager.start();
 
     this.logger.log('---');
 
@@ -185,10 +189,11 @@ class CameraUi {
 
     this.automationEngine?.stop();
     this.backupScheduler?.stop();
-    await this.workerManager?.stop();
+    await this.mqttManager?.stop().catch(() => {});
+    await this.workerManager?.stop().catch(() => {});
 
     if (this.server.isRunning) {
-      await this.server.close();
+      await this.server.close().catch(() => {});
     } else {
       await Promise.allSettled([this.server.close(), this.go2rtc.stop(), this.tunnelClient.stop()]);
     }
@@ -205,7 +210,9 @@ class CameraUi {
 
     await Promise.allSettled([this.proxy.close()]);
 
-    await this.database?.close();
+    await this.database?.close().catch(() => {});
+
+    this.logger.log('camera.ui has been stopped');
   }
 
   public async restart(): Promise<void> {

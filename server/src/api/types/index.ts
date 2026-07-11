@@ -26,6 +26,7 @@ import type {
   TestMotionInput,
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
+import type { PatchMqttInput, TestMqttInput } from '../schemas/mqtt.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput } from '../schemas/remote.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
@@ -478,6 +479,14 @@ export interface ServerUpdateRequest {
 
 export interface ServerChangelogRequest {
   Querystring: ServerChangelogQueryInput;
+}
+
+export interface MqttPatchRequest {
+  Body: PatchMqttInput;
+}
+
+export interface MqttTestRequest {
+  Body: TestMqttInput;
 }
 
 export interface RemotePatchRequest {
