@@ -1214,6 +1214,8 @@ export default {
       mqtt_updated: 'MQTT settings updated successfully',
       mqtt_test_success: 'Connection to the MQTT broker succeeded',
       mqtt_test_failed: 'Connection failed: {message}',
+      remote_test_success: 'Connection test succeeded',
+      remote_test_failed: 'Connection test failed: {message}',
       server_name_updated: 'Server name updated successfully',
       server_resetted: 'Server reset successfully',
       server_restarted: 'Server restarted successfully',

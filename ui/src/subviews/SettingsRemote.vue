@@ -314,20 +314,12 @@
                       <div class="flex items-center gap-3">
                         <Button
                           type="button"
-                          :severity="testButtonSeverity"
+                          severity="secondary"
                           :loading="testRunning"
-                          :disabled="testButtonLocked"
                           class="cui-button-small"
-                          :label="testButtonLabel"
+                          :label="$t('components.form.button.test_connection')"
                           @click="onTestMode('cloudflare')"
-                        >
-                          <template v-if="testOutcome === 'success'" #icon>
-                            <i-material-symbols:check />
-                          </template>
-                          <template v-else-if="testOutcome === 'error'" #icon>
-                            <i-mdi:close />
-                          </template>
-                        </Button>
+                        />
                       </div>
                     </template>
 
@@ -366,20 +358,13 @@
                       <div class="flex items-center gap-3">
                         <Button
                           type="button"
-                          :severity="testButtonSeverity"
+                          severity="secondary"
                           :loading="testRunning"
-                          :disabled="!canTestCloudflare || testButtonLocked"
+                          :disabled="!canTestCloudflare"
                           class="cui-button-small"
-                          :label="testButtonLabel"
+                          :label="$t('components.form.button.test_connection')"
                           @click="onTestMode('cloudflare')"
-                        >
-                          <template v-if="testOutcome === 'success'" #icon>
-                            <i-material-symbols:check />
-                          </template>
-                          <template v-else-if="testOutcome === 'error'" #icon>
-                            <i-mdi:close />
-                          </template>
-                        </Button>
+                        />
                       </div>
                     </template>
 
@@ -530,20 +515,12 @@
                             <div class="flex items-center gap-3">
                               <Button
                                 type="button"
-                                :severity="testButtonSeverity"
+                                severity="secondary"
                                 :loading="testRunning"
-                                :disabled="testButtonLocked"
                                 class="cui-button-small"
-                                :label="testButtonLabel"
+                                :label="$t('components.form.button.test_connection')"
                                 @click="onTestMode('cloudflare')"
-                              >
-                                <template v-if="testOutcome === 'success'" #icon>
-                                  <i-material-symbols:check />
-                                </template>
-                                <template v-else-if="testOutcome === 'error'" #icon>
-                                  <i-mdi:close />
-                                </template>
-                              </Button>
+                              />
                               <Button
                                 type="button"
                                 severity="secondary"
@@ -587,20 +564,13 @@
                     <div class="flex items-center gap-3">
                       <Button
                         type="button"
-                        :severity="testButtonSeverity"
+                        severity="secondary"
                         :loading="testRunning"
-                        :disabled="!customDomainUrlInput || testButtonLocked"
+                        :disabled="!customDomainUrlInput"
                         class="cui-button-small"
-                        :label="testButtonLabel"
+                        :label="$t('components.form.button.test_connection')"
                         @click="onTestMode('customDomain')"
-                      >
-                        <template v-if="testOutcome === 'success'" #icon>
-                          <i-material-symbols:check />
-                        </template>
-                        <template v-else-if="testOutcome === 'error'" #icon>
-                          <i-mdi:close />
-                        </template>
-                      </Button>
+                      />
                     </div>
                   </div>
 
@@ -710,8 +680,6 @@ const cloudflareVariantInput = ref<DBCloudflareMode>('quick');
 const cloudflareHostnameInput = ref('');
 const cloudflareTokenInput = ref('');
 const cloudflareTokenSet = ref(false);
-const testOutcome = ref<'success' | 'error' | null>(null);
-
 const pairCode = ref<string | null>(null);
 const pairUrl = ref('');
 const pairExpiresAt = ref<number | null>(null);
@@ -719,14 +687,6 @@ const pairPollIntervalSec = ref(2);
 const pairCountdown = ref('');
 let pairPollTimer: ReturnType<typeof setTimeout> | null = null;
 let pairCountdownTimer: ReturnType<typeof setInterval> | null = null;
-
-const { start: startTestOutcomeReset, stop: stopTestOutcomeReset } = useTimeoutFn(
-  () => {
-    testOutcome.value = null;
-  },
-  1500,
-  { immediate: false },
-);
 
 const isLoading = computed(() => {
   return (
@@ -833,20 +793,6 @@ const canTestCloudflare = computed(() => {
   const stored = remoteInfo.value?.remoteSettings.cloudflare;
   return stored?.mode === cloudflareVariantInput.value && !!stored?.hostname;
 });
-
-const testButtonSeverity = computed(() => {
-  if (testOutcome.value === 'success') return 'success' as const;
-  if (testOutcome.value === 'error') return 'danger' as const;
-  return 'secondary' as const;
-});
-
-const testButtonLabel = computed(() => {
-  if (testOutcome.value === 'success') return t('components.form.button.test_connection_success');
-  if (testOutcome.value === 'error') return t('components.form.button.test_connection_error');
-  return t('components.form.button.test_connection');
-});
-
-const testButtonLocked = computed(() => testRunning.value || testOutcome.value !== null);
 
 const managedState = computed(() => managedStatus.value?.state ?? 'idle');
 
@@ -1077,12 +1023,10 @@ function onToggleDirect(enabled: boolean) {
 function onSelectMode(mode: DBRemoteDirectMode) {
   if (!remoteInfoForm.value) return;
   remoteInfoForm.value.directMode = mode;
-  testOutcome.value = null;
 }
 
 function onSelectCloudflareVariant(variant: DBCloudflareMode) {
   cloudflareVariantInput.value = variant;
-  testOutcome.value = null;
 }
 
 async function onManagedConnect() {
@@ -1133,15 +1077,16 @@ function onOpenManagedUrl(url: string) {
 }
 
 async function onTestMode(mode: DBRemoteDirectMode) {
-  stopTestOutcomeReset();
-  testOutcome.value = null;
   try {
     const result = await testRemoteMode(mode);
-    testOutcome.value = result.ok ? 'success' : 'error';
-  } catch {
-    testOutcome.value = 'error';
+    if (result.ok) {
+      toast.add({ severity: 'success', detail: t('components.toast.remote_test_success'), life: 3000 });
+    } else {
+      toast.add({ severity: 'error', detail: t('components.toast.remote_test_failed', { message: result.message ?? '' }), life: 5000 });
+    }
+  } catch (error: any) {
+    toast.add({ severity: 'error', detail: t('components.toast.remote_test_failed', { message: error?.message ?? '' }), life: 5000 });
   }
-  startTestOutcomeReset();
 }
 
 async function onPatchRemote(values: PatchRemoteInput) {
@@ -1169,7 +1114,6 @@ async function onPatchRemote(values: PatchRemoteInput) {
   }
   try {
     await patchRemote(patch);
-    testOutcome.value = null;
   } catch {
     //
   }
