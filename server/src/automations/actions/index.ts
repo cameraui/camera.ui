@@ -1,6 +1,7 @@
 import { actionCameraControl } from './cameraControl.js';
 import { actionDelay } from './delay.js';
 import { actionHttp } from './http.js';
+import { actionMqtt } from './mqtt.js';
 import { actionNotification } from './notification.js';
 import { actionPlugin } from './plugin.js';
 import { actionSensor } from './sensor.js';
@@ -14,6 +15,7 @@ export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'action-sensor': actionSensor,
   'action-notification': actionNotification,
   'action-http': actionHttp,
+  'action-mqtt': actionMqtt,
   'action-delay': actionDelay,
   'action-variable': actionVariable,
   'action-plugin': actionPlugin,

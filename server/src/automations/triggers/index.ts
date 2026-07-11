@@ -1,5 +1,6 @@
 export { subscribeDetection } from './detection.js';
 export { registerGeofence } from './geofence.js';
+export { subscribeMqtt } from './mqtt.js';
 export { scheduleTimer } from './schedule.js';
 export { subscribeSensor } from './sensor.js';
 export { subscribeSystem } from './system.js';

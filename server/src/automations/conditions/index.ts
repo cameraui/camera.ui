@@ -20,6 +20,7 @@ export const TRIGGER_TYPES = new Set([
   'trigger-system',
   'trigger-manual',
   'trigger-geofence',
+  'trigger-mqtt',
 ]);
 
 export type { ConditionResult, ConditionHandler } from './types.js';

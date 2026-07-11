@@ -50,6 +50,8 @@ export function getNodeSummary(node: AutomationNode): string | undefined {
       return undefined;
     case 'trigger-geofence':
       return data.zoneName || undefined;
+    case 'trigger-mqtt':
+      return data.topic || undefined;
     case 'condition-ifelse':
       return data.leftOperand && data.operator ? `${data.leftOperand} ${data.operator} ${data.rightOperand}` : undefined;
     case 'condition-switch':
@@ -68,6 +70,8 @@ export function getNodeSummary(node: AutomationNode): string | undefined {
       return data.title || undefined;
     case 'action-http':
       return data.url ? `${data.method} ${data.url}` : undefined;
+    case 'action-mqtt':
+      return data.topic || undefined;
     case 'action-delay':
       return `${data.duration} ${data.unit}`;
     case 'action-variable':

@@ -3,7 +3,8 @@ import type { Edge, Node } from '@vue-flow/core';
 
 export type AutomationNodeCategory = 'trigger' | 'condition' | 'action' | 'utility';
 
-export type TriggerNodeType = 'trigger-detection' | 'trigger-sensor' | 'trigger-schedule' | 'trigger-webhook' | 'trigger-system' | 'trigger-manual' | 'trigger-geofence';
+export type TriggerNodeType =
+  'trigger-detection' | 'trigger-sensor' | 'trigger-schedule' | 'trigger-webhook' | 'trigger-system' | 'trigger-manual' | 'trigger-geofence' | 'trigger-mqtt';
 
 export type ConditionNodeType = 'condition-ifelse' | 'condition-switch' | 'condition-sensorstate' | 'condition-time';
 
@@ -17,7 +18,8 @@ export type ActionNodeType =
   | 'action-plugin'
   | 'action-image-input'
   | 'action-output'
-  | 'action-camera-control';
+  | 'action-camera-control'
+  | 'action-mqtt';
 
 export type AutomationNodeType = TriggerNodeType | ConditionNodeType | ActionNodeType;
 
@@ -57,6 +59,12 @@ export interface TriggerSystemData {
   category: 'system' | 'plugin' | 'camera';
   eventType: string;
   targetId: string;
+}
+
+export interface TriggerMqttData {
+  type: 'trigger-mqtt';
+  topic: string;
+  payloadFilter: string;
 }
 
 export interface TriggerManualData {
@@ -123,6 +131,13 @@ export interface ActionHttpData extends RepeatSettings {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers: Record<string, string>;
   body: string;
+}
+
+export interface ActionMqttData extends RepeatSettings {
+  type: 'action-mqtt';
+  topic: string;
+  payload: string;
+  retain: boolean;
 }
 
 export interface ActionDelayData {
@@ -195,6 +210,7 @@ export type AutomationNodeData =
   | TriggerSystemData
   | TriggerManualData
   | TriggerGeofenceData
+  | TriggerMqttData
   | ConditionIfElseData
   | ConditionSwitchData
   | ConditionSensorStateData
@@ -203,6 +219,7 @@ export type AutomationNodeData =
   | ActionSensorData
   | ActionNotificationData
   | ActionHttpData
+  | ActionMqttData
   | ActionDelayData
   | ActionVariableData
   | ActionPluginData
@@ -496,6 +513,15 @@ export interface ConfigTriggerScheduleProps {
 
 export interface ConfigTriggerWebhookProps {
   data: TriggerWebhookData;
+}
+
+export interface ConfigTriggerMqttProps {
+  data: TriggerMqttData;
+}
+
+export interface ConfigActionMqttProps {
+  data: ActionMqttData;
+  nodeId: string;
 }
 
 export interface ConfigTriggerSystemProps {

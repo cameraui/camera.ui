@@ -31,6 +31,7 @@ import SettingsIcon from '~icons/mdi/cog-outline';
 import FacesIcon from '~icons/mdi/face-recognition';
 import ConfigIconActive from '~icons/mdi/note-edit';
 import ConfigIcon from '~icons/mdi/note-edit-outline';
+import SettingsMqttIcon from '~icons/mdi/transit-connection-variant';
 import SettingsUsersIconActive from '~icons/mdi/users';
 import SettingsUsersIcon from '~icons/mdi/users-outline';
 import GridIconActive from '~icons/mingcute/grid-fill';
@@ -76,6 +77,7 @@ const SettingsAppearance = () => import('@/subviews/SettingsAppearance.vue');
 const SettingsBackup = () => import('@/subviews/SettingsBackup.vue');
 const SettingsRecordings = () => import('@/subviews/SettingsRecordings.vue');
 const SettingsRemote = () => import('@/subviews/SettingsRemote.vue');
+const SettingsMqtt = () => import('@/subviews/SettingsMqtt.vue');
 const SettingsSystem = () => import('@/subviews/SettingsSystem.vue');
 const SettingsUsers = () => import('@/subviews/SettingsUsers.vue');
 const SettingsNotifications = () => import('@/subviews/SettingsNotifications.vue');
@@ -934,6 +936,31 @@ export const routes: RouteRecordRaw[] = [
             icon: {
               default: SettingsRemoteIcon,
               active: SettingsRemoteIconActive,
+            },
+          },
+        },
+      },
+      {
+        name: 'SettingsMqtt',
+        path: 'mqtt',
+        component: SettingsMqtt,
+        meta: {
+          name: 'mqtt',
+          description: 'mqtt_description',
+          auth: {
+            requiresAuth: true,
+            role: 'admin',
+          },
+          ui: {
+            showNavbar: true,
+            showTopbar: true,
+            showBottombar: true,
+            showRouterLoadingSub: true,
+          },
+          settingsBar: {
+            icon: {
+              default: SettingsMqttIcon,
+              active: SettingsMqttIcon,
             },
           },
         },

@@ -47,6 +47,11 @@ export interface FlowContext {
     lon: number;
     distance: number;
   };
+
+  mqtt?: {
+    topic: string;
+    payload: string;
+  };
 }
 
 export function createEmptyContext(): FlowContext {
@@ -103,6 +108,24 @@ export function seedVariables(context: FlowContext): void {
     if (context.system.sensorId) context.variables.set('system.sensorId', context.system.sensorId);
     if (context.system.sensorType) context.variables.set('system.sensorType', context.system.sensorType);
     if (context.system.sensorName) context.variables.set('system.sensorName', context.system.sensorName);
+  }
+
+  if (context.mqtt) {
+    context.variables.set('mqtt.topic', context.mqtt.topic);
+    context.variables.set('mqtt.payload', context.mqtt.payload);
+
+    try {
+      const parsed = JSON.parse(context.mqtt.payload) as unknown;
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            context.variables.set(`mqtt.${key}`, String(value));
+          }
+        }
+      }
+    } catch {
+      // non-JSON payload — mqtt.payload carries the raw text
+    }
   }
 
   if (context.geofence) {

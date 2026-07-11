@@ -1,3 +1,4 @@
+import { PromiseTimeout } from '@camera.ui/common/utils';
 import { API_EVENT } from '@camera.ui/sdk';
 import FastifyCors from '@fastify/cors';
 import FastifyFormbody from '@fastify/formbody';
@@ -137,7 +138,7 @@ export class Server {
     }
     this.connections.clear();
 
-    await closing;
+    await PromiseTimeout(closing, 2000).catch(() => {});
 
     this.app = undefined;
     this.internalApp = undefined;

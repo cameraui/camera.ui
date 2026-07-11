@@ -14,6 +14,7 @@ import LightbulbIcon from '~icons/mdi/lightbulb-outline';
 import MapPinIcon from '~icons/mdi/map-marker-radius';
 import PluginIcon from '~icons/mdi/puzzle-outline';
 import GitBranchIcon from '~icons/mdi/source-branch';
+import MqttIcon from '~icons/mdi/transit-connection-variant';
 import TimerIcon from '~icons/mdi/timer-sand';
 import VariableIcon from '~icons/mdi/variable';
 import HttpIcon from '~icons/mdi/web';
@@ -66,6 +67,15 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     icon: WebhookIcon,
     color: '#22c55e',
     defaults: { type: 'trigger-webhook', webhookId: '' },
+  },
+  {
+    type: 'trigger-mqtt',
+    category: 'trigger',
+    labelKey: 'components.automation_nodes.trigger_mqtt',
+    descriptionKey: 'components.automation_nodes.trigger_mqtt_desc',
+    icon: MqttIcon,
+    color: '#22c55e',
+    defaults: { type: 'trigger-mqtt', topic: '', payloadFilter: '' },
   },
   {
     type: 'trigger-system',
@@ -166,6 +176,16 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     icon: HttpIcon,
     color: '#3b82f6',
     defaults: { type: 'action-http', url: '', method: 'POST', headers: {}, body: '' },
+    supportsRepeat: true,
+  },
+  {
+    type: 'action-mqtt',
+    category: 'action',
+    labelKey: 'components.automation_nodes.action_mqtt',
+    descriptionKey: 'components.automation_nodes.action_mqtt_desc',
+    icon: MqttIcon,
+    color: '#3b82f6',
+    defaults: { type: 'action-mqtt', topic: '', payload: '', retain: false },
     supportsRepeat: true,
   },
   {

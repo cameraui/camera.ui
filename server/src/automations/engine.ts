@@ -6,7 +6,7 @@ import { UsersService } from '../api/services/users.service.js';
 import { createEmptyContext } from './context.js';
 import { haversineDistance } from './haversine.js';
 import { FlowRunner } from './runner.js';
-import { registerGeofence, registerWebhook, scheduleTimer, subscribeDetection, subscribeSensor, subscribeSystem } from './triggers/index.js';
+import { registerGeofence, registerWebhook, scheduleTimer, subscribeDetection, subscribeMqtt, subscribeSensor, subscribeSystem } from './triggers/index.js';
 
 import type { Disposable } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
@@ -274,6 +274,9 @@ export class AutomationEngine {
           break;
         case 'trigger-system':
           subscribeSystem(ctx, flow, node);
+          break;
+        case 'trigger-mqtt':
+          subscribeMqtt(ctx, flow, node);
           break;
         case 'trigger-manual':
           break;

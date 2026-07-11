@@ -113,6 +113,11 @@ function addVariablesForNodeType(type: string, variables: VariableOption[], data
       add('Webhook — Method', '{{webhook.method}}');
       break;
 
+    case 'trigger-mqtt':
+      add('MQTT — Topic', '{{mqtt.topic}}');
+      add('MQTT — Payload', '{{mqtt.payload}}');
+      break;
+
     case 'trigger-geofence':
       add('Geo — User', '{{geo.user}}');
       add('Geo — Event', '{{geo.event}}');
