@@ -209,9 +209,12 @@ const filters = ref<RecordingsFilterState>({
   gridRegions: [],
   minConfidence: 0.5,
   minSemanticScore: 0.5,
+  onlyWithRecordings: true,
 });
 // Stabilized: only emits a new object reference when the serialized value actually changes.
-const serverFilter = shallowRef<GetEventsOptions>({ state: 'ended', hasDetections: true });
+// withRecordingInfo is always requested so the download button can gate on real footage
+// even when the "only with recordings" filter is off.
+const serverFilter = shallowRef<GetEventsOptions>({ state: 'ended', hasDetections: true, withRecordingInfo: true, hasRecording: true });
 let _prevFilterJSON = JSON.stringify(serverFilter.value);
 const ungrouped = ref(false);
 const ungroupedItems = shallowRef<UngroupedItem[]>([]);
@@ -501,6 +504,8 @@ watch(
       minConfidence: f.minConfidence > 0 ? f.minConfidence : undefined,
       state: 'ended',
       hasDetections: !hasAnyContentFilter,
+      withRecordingInfo: true,
+      hasRecording: f.onlyWithRecordings || undefined,
     };
 
     const nextJSON = JSON.stringify(next);

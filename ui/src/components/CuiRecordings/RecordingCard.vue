@@ -203,10 +203,10 @@ const formatDateTime = computed(() => {
   return `${dateStr} ${time}`;
 });
 
-const canDownload = computed(() => Boolean(nvrPluginRef.value && props.event.endTime));
+const canDownload = computed(() => Boolean(nvrPluginRef.value && props.event.endTime && props.event.hasRecording !== false));
 
 function handleMouseEnter(): void {
-  if (!preview || !props.event.endTime) return;
+  if (!preview || !props.event.endTime || props.event.hasRecording === false) return;
   const canvas = previewCanvasRef.value;
   if (!canvas) return;
   isPreviewActive.value = true;

@@ -22,6 +22,12 @@
       </div>
 
       <div class="sidebar-divider" />
+      <div class="flex items-center justify-between gap-2">
+        <label class="sidebar-section-title !mb-0">{{ $t('views.recordings.only_with_recordings') }}</label>
+        <ToggleSwitch :model-value="filters.onlyWithRecordings" class="shrink-0" @update:model-value="updateFilter('onlyWithRecordings', $event)" />
+      </div>
+
+      <div class="sidebar-divider" />
       <div class="flex flex-col gap-2">
         <label class="sidebar-section-title flex items-center gap-1.5">
           <i-tabler:sparkles class="w-3.5 h-3.5" />

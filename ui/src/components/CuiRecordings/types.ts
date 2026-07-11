@@ -18,6 +18,7 @@ export interface RecordingsFilterState {
   gridRegions: GridRegion[];
   minConfidence: number;
   minSemanticScore: number;
+  onlyWithRecordings: boolean;
 }
 
 export interface ThumbnailOverride {
