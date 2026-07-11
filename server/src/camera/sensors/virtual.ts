@@ -9,24 +9,23 @@ import type { Database } from '../../api/database/index.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { CameraController } from '../controller.js';
 
-@RPCClass
-class VirtualSensorRpcHandler {
-  constructor(private host: VirtualSensorHost) {}
+const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.SecuritySystem]);
+const hosts = new Map<string, VirtualSensorHost>();
 
-  @RPCMethod
-  public updateValue(property: string, value: unknown): void {
-    this.host.applyUpdate(property, value);
-  }
+export async function registerVirtualSensorHost(cameraController: CameraController, sensorId: string, type: SensorType): Promise<void> {
+  await disposeVirtualSensorHost(sensorId);
+
+  const host = new VirtualSensorHost(cameraController, sensorId, type);
+  hosts.set(sensorId, host);
+  await host.register();
 }
 
-@RPCClass
-class VirtualSensorStorageHandler {
-  constructor(private host: VirtualSensorHost) {}
+export async function disposeVirtualSensorHost(sensorId: string): Promise<void> {
+  const existing = hosts.get(sensorId);
+  if (!existing) return;
 
-  @RPCMethod
-  public async setInternalValue(key: string, value: unknown): Promise<void> {
-    await this.host.setInternalValue(key, value);
-  }
+  hosts.delete(sensorId);
+  await existing.dispose();
 }
 
 export class VirtualSensorHost {
@@ -124,22 +123,22 @@ export class VirtualSensorHost {
   }
 }
 
-const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.SecuritySystem]);
+@RPCClass
+class VirtualSensorRpcHandler {
+  constructor(private host: VirtualSensorHost) {}
 
-const hosts = new Map<string, VirtualSensorHost>();
-
-export async function registerVirtualSensorHost(cameraController: CameraController, sensorId: string, type: SensorType): Promise<void> {
-  await disposeVirtualSensorHost(sensorId);
-
-  const host = new VirtualSensorHost(cameraController, sensorId, type);
-  hosts.set(sensorId, host);
-  await host.register();
+  @RPCMethod
+  public updateValue(property: string, value: unknown): void {
+    this.host.applyUpdate(property, value);
+  }
 }
 
-export async function disposeVirtualSensorHost(sensorId: string): Promise<void> {
-  const existing = hosts.get(sensorId);
-  if (!existing) return;
+@RPCClass
+class VirtualSensorStorageHandler {
+  constructor(private host: VirtualSensorHost) {}
 
-  hosts.delete(sensorId);
-  await existing.dispose();
+  @RPCMethod
+  public async setInternalValue(key: string, value: unknown): Promise<void> {
+    await this.host.setInternalValue(key, value);
+  }
 }
