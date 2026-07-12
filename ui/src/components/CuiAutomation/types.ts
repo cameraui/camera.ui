@@ -64,7 +64,10 @@ export interface TriggerSystemData {
 export interface TriggerMqttData {
   type: 'trigger-mqtt';
   topic: string;
+  matchMode: 'any' | 'exact' | 'json';
   payloadFilter: string;
+  jsonPath: string;
+  jsonValue: string;
 }
 
 export interface TriggerManualData {

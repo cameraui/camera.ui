@@ -75,7 +75,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     descriptionKey: 'components.automation_nodes.trigger_mqtt_desc',
     icon: MqttIcon,
     color: '#22c55e',
-    defaults: { type: 'trigger-mqtt', topic: '', payloadFilter: '' },
+    defaults: { type: 'trigger-mqtt', topic: '', matchMode: 'any', payloadFilter: '', jsonPath: '', jsonValue: '' },
   },
   {
     type: 'trigger-system',
