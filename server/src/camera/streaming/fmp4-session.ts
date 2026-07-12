@@ -141,6 +141,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
         width: this.#options.video?.width,
         height: this.#options.video?.height,
         fps: this.#options.video?.fps,
+        bitrate: this.#options.video?.bitrate,
         encoderOptions: this.#options.video?.encoderOptions,
       },
       audio: {
