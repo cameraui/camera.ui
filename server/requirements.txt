@@ -1,10 +1,10 @@
-camera-ui-sdk==1.1.3
+camera-ui-sdk==1.1.4
 camera-ui-common==1.0.20
 camera-ui-rpc==1.0.5
 certifi==2026.6.17
 deepdiff==9.1.0
 lmdbm==0.0.6
-lmdb==2.2.1
+lmdb==2.3.0
 msgpack==1.2.1
 virtualenv==21.6.1
 setproctitle==1.3.7
