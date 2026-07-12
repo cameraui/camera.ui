@@ -883,7 +883,9 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     ];
 
     return {
-      name: pairResult.source.name || 'HomeKit Camera',
+      // go2rtc doesn't return an accessory name; fall through to the discovered
+      // camera name (prepareGo2rtcCamera keeps cached.name when this is empty).
+      name: pairResult.source.name ?? '',
       sources,
     };
   }
