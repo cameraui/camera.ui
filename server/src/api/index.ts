@@ -98,7 +98,10 @@ export class Server {
     }
 
     const port = this.configService.config.port;
-    const host = this.configService.config.host ?? '::';
+    let host = this.configService.config.host ?? '::';
+    if (host === '::' && process.platform === 'win32') {
+      host = '0.0.0.0';
+    }
 
     try {
       await this.app.listen({ host, port });
