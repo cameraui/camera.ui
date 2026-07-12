@@ -14,10 +14,10 @@
       </div>
     </div>
 
-    <Handle v-if="showInput" type="target" :position="Position.Top" :connectable="maxInputs" class="!w-3 !h-3 !border-2" :style="handleStyle" />
+    <Handle v-if="showInput" type="target" :position="Position.Top" :connectable="maxInputs" class="!w-5 !h-5 !border-2" :style="handleStyle" />
 
     <slot name="handles">
-      <Handle v-if="showOutput" type="source" :position="Position.Bottom" class="!w-3 !h-3 !border-2" :style="handleStyle" />
+      <Handle v-if="showOutput" type="source" :position="Position.Bottom" class="!w-5 !h-5 !border-2" :style="handleStyle" />
     </slot>
   </div>
 </template>

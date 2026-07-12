@@ -14,14 +14,14 @@
         type="source"
         :position="Position.Bottom"
         id="true"
-        class="!w-3 !h-3 !border-2"
+        class="!w-5 !h-5 !border-2"
         :style="{ ...handleStyle, backgroundColor: 'var(--text-success-color)', left: '30%' }"
       />
       <Handle
         type="source"
         :position="Position.Bottom"
         id="false"
-        class="!w-3 !h-3 !border-2"
+        class="!w-5 !h-5 !border-2"
         :style="{ ...handleStyle, backgroundColor: 'var(--text-danger-color)', left: '70%' }"
       />
     </template>

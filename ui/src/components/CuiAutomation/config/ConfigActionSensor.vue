@@ -45,21 +45,31 @@
       <label class="cui-label">{{ t('components.automation_nodes.sensor_properties') }}</label>
       <div v-for="prop in propertyOptions" :key="prop.value" class="flex flex-col gap-1.5 p-2 rounded-md border-color">
         <div class="flex items-center gap-2">
-          <Checkbox :model-value="isPropertyEnabled(prop.value)" binary @update:model-value="toggleProperty(prop.value, $event)" />
-          <span class="text-sm font-medium flex-1">{{ prop.label }}</span>
-          <ConfigSensorValueInput
-            v-if="isPropertyEnabled(prop.value) && isBooleanProperty(prop.value)"
-            :sensor-type="data.sensorType"
-            :property="prop.value"
-            :model-value="getPropertyValue(prop.value)"
-            @update:model-value="(value) => setPropertyValue(prop.value, value)"
-          />
+          <label class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0">
+            <Checkbox :model-value="isPropertyEnabled(prop.value)" binary class="shrink-0" @update:model-value="toggleProperty(prop.value, $event)" />
+            <span class="text-sm font-medium truncate">{{ prop.label }}</span>
+          </label>
+          <SelectButton
+            v-if="isPropertyEnabled(prop.value)"
+            :model-value="isVariableMode(prop.value) ? 'variable' : 'fixed'"
+            :options="modeOptions"
+            option-value="value"
+            :allow-empty="false"
+            class="cui-select-button-small shrink-0"
+            @update:model-value="(v) => setVariableMode(prop.value, v === 'variable')"
+          >
+            <template #option="{ option }">
+              <component :is="option.icon" v-tooltip.top="$t(option.tooltipKey)" class="w-3.5 h-3.5" />
+            </template>
+          </SelectButton>
         </div>
         <ConfigSensorValueInput
-          v-if="isPropertyEnabled(prop.value) && !isBooleanProperty(prop.value)"
+          v-if="isPropertyEnabled(prop.value)"
           :sensor-type="data.sensorType"
           :property="prop.value"
           :model-value="getPropertyValue(prop.value)"
+          :variable-mode="isVariableMode(prop.value)"
+          :node-id="nodeId"
           @update:model-value="(value) => setPropertyValue(prop.value, value)"
         />
       </div>
@@ -69,10 +79,12 @@
 
 <script setup lang="ts">
 import { SensorCategory, SensorType } from '@camera.ui/sdk';
+import EqualIcon from '~icons/mdi/equal';
+import VariableIcon from '~icons/mdi/variable';
 
 import { SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '@shared/types';
 import ConfigSensorValueInput from './ConfigSensorValueInput.vue';
-import { getSensorPropertyDefaultValue, getSensorPropertyInput } from './sensorPropertyInputs.js';
+import { getSensorPropertyDefaultValue } from './sensorPropertyInputs.js';
 import { useCameraOptions } from './useCameraOptions.js';
 
 import type { ConfigActionSensorProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -83,6 +95,13 @@ const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
 const { cameraOptions, getSensorTypes, useSensorInstances, getPropertiesForSensor } = useCameraOptions();
+
+const modeOverride = reactive<Record<string, boolean>>({});
+
+const modeOptions = [
+  { value: 'fixed', icon: EqualIcon, tooltipKey: 'components.automation_nodes.sensor_value_fixed' },
+  { value: 'variable', icon: VariableIcon, tooltipKey: 'components.automation_nodes.sensor_value_variable' },
+];
 
 const sensorOptions = computed(() => {
   if (!props.data.cameraId) return [];
@@ -134,12 +153,19 @@ function isPropertyEnabled(property: string): boolean {
   return propertiesMap.value.has(property);
 }
 
-function isBooleanProperty(property: string): boolean {
-  return getSensorPropertyInput(String(props.data.sensorType ?? ''), property).kind === 'boolean';
-}
-
 function getPropertyValue(property: string): string {
   return propertiesMap.value.get(property) ?? '';
+}
+
+function isVariableMode(property: string): boolean {
+  return modeOverride[property] ?? /\{\{.*\}\}/.test(getPropertyValue(property));
+}
+
+function setVariableMode(property: string, enabled: boolean) {
+  modeOverride[property] = enabled;
+  if (!enabled && /\{\{.*\}\}/.test(getPropertyValue(property))) {
+    setPropertyValue(property, '');
+  }
 }
 
 function toggleProperty(property: string, enabled: unknown) {

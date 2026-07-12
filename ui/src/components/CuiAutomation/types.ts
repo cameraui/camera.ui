@@ -388,6 +388,7 @@ export interface ConfigActionPluginProps {
 
 export interface ConfigActionSensorProps {
   data: ActionSensorData;
+  nodeId: string;
 }
 
 export interface ConfigActionVariableProps {

@@ -63,17 +63,22 @@
             option-label="label"
             option-value="value"
             placeholder="Property"
-            class="flex-1"
+            class="flex-1 min-w-0"
             @update:model-value="updateCondition(idx, 'property', $event as string)"
           />
-          <ConfigSensorValueInput
-            v-if="cond.property && isBooleanProperty(cond.property)"
-            :sensor-type="data.sensorType as string"
-            :property="cond.property"
-            :model-value="cond.expectedValue"
-            class="shrink-0"
-            @update:model-value="(value) => updateCondition(idx, 'expectedValue', value)"
-          />
+          <SelectButton
+            v-if="cond.property"
+            :model-value="isVariableMode(idx) ? 'variable' : 'fixed'"
+            :options="modeOptions"
+            option-value="value"
+            :allow-empty="false"
+            class="cui-select-button-small shrink-0"
+            @update:model-value="(v) => setVariableMode(idx, v === 'variable')"
+          >
+            <template #option="{ option }">
+              <component :is="option.icon" v-tooltip.top="$t(option.tooltipKey)" class="w-3.5 h-3.5" />
+            </template>
+          </SelectButton>
           <Button v-if="conditions.length > 1" severity="danger" text rounded class="shrink-0 cui-icon-sm" @click="removeCondition(idx)">
             <template #icon>
               <i-mdi:close width="100%" height="100%" />
@@ -81,10 +86,11 @@
           </Button>
         </div>
         <ConfigSensorValueInput
-          v-if="!cond.property || !isBooleanProperty(cond.property)"
           :sensor-type="data.sensorType"
           :property="cond.property"
           :model-value="cond.expectedValue"
+          :variable-mode="isVariableMode(idx)"
+          :node-id="nodeId"
           :disabled="!cond.property"
           @update:model-value="(value) => updateCondition(idx, 'expectedValue', value)"
         />
@@ -97,9 +103,11 @@
 
 <script setup lang="ts">
 import { SensorType } from '@camera.ui/sdk';
+import EqualIcon from '~icons/mdi/equal';
+import VariableIcon from '~icons/mdi/variable';
 
 import ConfigSensorValueInput from './ConfigSensorValueInput.vue';
-import { getSensorPropertyDefaultValue, getSensorPropertyInput } from './sensorPropertyInputs.js';
+import { getSensorPropertyDefaultValue } from './sensorPropertyInputs.js';
 import { useCameraOptions } from './useCameraOptions.js';
 
 import type { ConfigConditionSensorStateProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -115,6 +123,24 @@ const logicOptions = [
   { label: 'AND', value: 'AND' },
   { label: 'OR', value: 'OR' },
 ];
+
+const modeOptions = [
+  { value: 'fixed', icon: EqualIcon, tooltipKey: 'components.automation_nodes.sensor_value_fixed' },
+  { value: 'variable', icon: VariableIcon, tooltipKey: 'components.automation_nodes.sensor_value_variable' },
+];
+
+const modeOverride = reactive<Record<number, boolean>>({});
+
+function isVariableMode(idx: number): boolean {
+  return modeOverride[idx] ?? /\{\{.*\}\}/.test(conditions.value[idx]?.expectedValue ?? '');
+}
+
+function setVariableMode(idx: number, enabled: boolean) {
+  modeOverride[idx] = enabled;
+  if (!enabled && /\{\{.*\}\}/.test(conditions.value[idx]?.expectedValue ?? '')) {
+    updateCondition(idx, 'expectedValue', '');
+  }
+}
 
 const sensorOptions = computed(() => {
   if (!props.data.cameraId) return [];
@@ -147,19 +173,23 @@ const propertyOptions = computed(() => {
 
 const conditions = computed(() => props.data.conditions ?? []);
 
-function isBooleanProperty(property: string): boolean {
-  return getSensorPropertyInput(String(props.data.sensorType ?? ''), property).kind === 'boolean';
-}
-
 function addCondition() {
   const current = [...conditions.value, { property: '', expectedValue: '' }];
+  clearModeOverrides();
   emit('update:data', { conditions: current });
 }
 
 function removeCondition(idx: number) {
   const current = [...conditions.value];
   current.splice(idx, 1);
+  clearModeOverrides();
   emit('update:data', { conditions: current });
+}
+
+function clearModeOverrides() {
+  for (const key of Object.keys(modeOverride)) {
+    delete modeOverride[Number(key)];
+  }
 }
 
 function updateCondition(idx: number, field: 'property' | 'expectedValue', value: string) {
