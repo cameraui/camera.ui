@@ -19,7 +19,12 @@ export class SnapshotRoute {
 
       await assertResponseOk(response);
 
-      return response.arrayBuffer();
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength === 0) {
+        throw new Error(`Empty snapshot frame for ${data.src}`);
+      }
+
+      return buffer;
     });
   }
 

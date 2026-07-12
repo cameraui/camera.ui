@@ -77,7 +77,7 @@ export interface WebtorrentSource extends BaseDeviceSource {
 
 export interface HomeKitPairResponse {
   source: {
-    name: string;
+    name?: string;
     url: string;
   };
 }
