@@ -94,6 +94,8 @@ export class PythonInstaller {
       await this.python.install();
     }
 
+    await this.ensureCertifi();
+
     if (type === 'server') {
       if (!requirementsPath) {
         throw new Error('Requirements path is not defined');
@@ -185,6 +187,18 @@ export class PythonInstaller {
 
   private async installServerRequirements(requirementsPath: string): Promise<string> {
     return this.installRequirements(this.serverPythonPath, requirementsPath);
+  }
+
+  private async ensureCertifi(): Promise<void> {
+    if (existsSync(join(this.serverPackagesPath, 'certifi', 'cacert.pem'))) {
+      return;
+    }
+
+    try {
+      await this.installServerPackages(['certifi']);
+    } catch (error) {
+      this.logger.warn(`Failed to install certifi into the base Python — plugins may fail TLS to external hosts: ${(error as Error).message}`);
+    }
   }
 
   private async updateRequirements(
