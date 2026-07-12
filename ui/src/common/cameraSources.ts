@@ -11,6 +11,7 @@ export interface Go2RtcModel {
   useForSnapshot: boolean;
   hotMode: boolean;
   preload: boolean;
+  muted?: boolean;
 }
 
 // Protocols whose payload is a query string; go2rtc expects a leading "?".

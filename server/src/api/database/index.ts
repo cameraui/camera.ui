@@ -7,8 +7,8 @@ import semver from 'semver';
 import { container } from 'tsyringe';
 
 import { DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
-import { createSourceName } from '../../utils/camera.js';
-import { GOP_REGEX, REGEX_ESCAPE } from '../utils/regex.js';
+import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
+import { REGEX_ESCAPE } from '../utils/regex.js';
 import {
   AUTOMATIONS_ID,
   CAMERAS_ID,
@@ -204,25 +204,24 @@ export class Database {
           if (url.startsWith('cui://')) {
             url = `cui://127.0.0.1:${port}/api/cameras/streams/${camera._id}/${source.name}`;
           }
-          if (source.preload && !GOP_REGEX.test(url)) {
-            url += '#gop=1';
-          } else if (!source.preload && GOP_REGEX.test(url)) {
-            url = url.replace(GOP_REGEX, '');
-          }
-          return url;
+          return applySourceUrlFlags(url, source);
         });
 
         const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
 
         const existing = streams[sourceName];
         if (!existing) {
-          streams[sourceName] = [...source.urls, ffmpegUrl];
+          streams[sourceName] = source.muted ? [...source.urls] : [...source.urls, ffmpegUrl];
         } else if (source.role !== 'snapshot') {
           const go2rtcUrls = Array.isArray(existing) ? existing : [existing];
           const escaped = sourceName.replace(REGEX_ESCAPE, '\\$&');
           const ourPattern = new RegExp(`^ffmpeg:${escaped}(#cameraui)?#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio$`);
           const idx = go2rtcUrls.findIndex((u) => ourPattern.test(u));
-          if (idx !== -1) {
+          if (source.muted) {
+            if (idx !== -1) {
+              go2rtcUrls.splice(idx, 1);
+            }
+          } else if (idx !== -1) {
             go2rtcUrls[idx] = ffmpegUrl;
           } else {
             go2rtcUrls.push(ffmpegUrl);
@@ -231,7 +230,7 @@ export class Database {
         }
 
         if (source.hotMode) {
-          preload[sourceName] = 'video&audio&microphone';
+          preload[sourceName] = source.muted ? 'video&microphone' : 'video&audio&microphone';
         } else {
           delete preload[sourceName];
         }

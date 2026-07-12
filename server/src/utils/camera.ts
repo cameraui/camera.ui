@@ -1,4 +1,24 @@
+import { GOP_REGEX } from '../api/utils/regex.js';
+
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
+
+const NO_AUDIO_FLAG = '#noAudio';
+
+export function applySourceUrlFlags(url: string, source: { preload: boolean; muted?: boolean }): string {
+  if (source.preload && !GOP_REGEX.test(url)) {
+    url += '#gop=1';
+  } else if (!source.preload && GOP_REGEX.test(url)) {
+    url = url.replace(GOP_REGEX, '');
+  }
+
+  if (source.muted && !url.includes(NO_AUDIO_FLAG)) {
+    url += NO_AUDIO_FLAG;
+  } else if (!source.muted && url.includes(NO_AUDIO_FLAG)) {
+    url = url.replace(NO_AUDIO_FLAG, '');
+  }
+
+  return url;
+}
 
 export function buildTargetUrl(rtspUrl: string, options: RTSPUrlOptions): string {
   const url = new URL(rtspUrl);

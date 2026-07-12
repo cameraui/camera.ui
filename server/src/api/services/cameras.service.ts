@@ -5,7 +5,7 @@ import { container, delay, registry } from 'tsyringe';
 
 import { getMultiProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../camera/sensors/types.js';
 import { ConfigService } from '../../services/config/index.js';
-import { createSourceName } from '../../utils/camera.js';
+import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
 import { Database } from '../database/index.js';
 import { PluginsService } from './plugins.service.js';
 import { UsersService } from './users.service.js';
@@ -605,6 +605,7 @@ export class CamerasService {
         useForSnapshot: source.useForSnapshot,
         hotMode: source.hotMode,
         preload: source.preload,
+        muted: source.muted,
         childSourceId: source.childSourceId,
         urls: {
           ws: this.generateWsUrls(camera, source),
@@ -634,31 +635,21 @@ export class CamerasService {
         if (url.startsWith('cui://')) {
           url = `cui://127.0.0.1:${this.configService.config.port}/api/cameras/streams/${cameraId}/${source.name}`;
         }
-
-        const gopRegex = /#gop=\d+/;
-        if (source.preload && !gopRegex.test(url)) {
-          url += '#gop=1';
-        } else if (!source.preload && gopRegex.test(url)) {
-          url = url.replace(/#gop=\d+/, '');
-        }
-
-        return url;
+        return applySourceUrlFlags(url, source);
       });
 
       const sourceName = createSourceName(cameraname, source.name);
       const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
       let baseUrls = [...source.urls];
 
-      const hasFFmpegUrl = baseUrls.some((url) => url.startsWith('ffmpeg:') && url.includes('#cameraui'));
-      if (!hasFFmpegUrl && source.role !== 'snapshot') {
+      const isCompanionUrl = (url: string): boolean => url.startsWith('ffmpeg:') && url.includes('#cameraui');
+      const hasFFmpegUrl = baseUrls.some(isCompanionUrl);
+      if (source.muted) {
+        baseUrls = baseUrls.filter((url) => !isCompanionUrl(url));
+      } else if (!hasFFmpegUrl && source.role !== 'snapshot') {
         baseUrls.push(ffmpegUrl);
       } else if (hasFFmpegUrl) {
-        baseUrls = baseUrls.map((url) => {
-          if (url.startsWith('ffmpeg:') && url.includes('#cameraui')) {
-            return ffmpegUrl;
-          }
-          return url;
-        });
+        baseUrls = baseUrls.map((url) => (isCompanionUrl(url) ? ffmpegUrl : url));
       }
 
       const cameraSource: CreateStreamData = {

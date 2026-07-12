@@ -494,7 +494,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       if (!source.hotMode) continue;
       try {
         const sourceName = createSourceName(this.name, source.name);
-        await this.go2rtcApi.streamsRoute.addPreloadStream({ src: sourceName }, { video: true, audio: true, microphone: true });
+        await this.go2rtcApi.streamsRoute.addPreloadStream({ src: sourceName }, { video: true, audio: !source.muted, microphone: true });
       } catch {
         // Non-fatal: go2rtc might not be ready yet, 30s loop will retry
       }
@@ -523,7 +523,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         const preloadInfo = await this.go2rtcApi.streamsRoute.getPreloadStream({ src });
         if (source.hotMode && preloadInfo.status === 'stopped') {
           this.logger.debug(`Preloading source "${source.name}" for camera "${this.name}"`);
-          await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, { video: true, audio: true, microphone: true });
+          await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, { video: true, audio: !source.muted, microphone: true });
         } else if (!source.hotMode && preloadInfo.status === 'started') {
           this.logger.debug(`Stopping preload for source "${source.name}" for camera "${this.name}"`);
           await this.go2rtcApi.streamsRoute.deletePreloadStream({ src });

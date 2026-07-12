@@ -201,6 +201,7 @@ export const inputSchema = zod
     useForSnapshot: zod.boolean().default(false),
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
+    muted: zod.boolean().default(false),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod.string().trim().min(1, 'Child Source ID is required').optional(),
   })
@@ -221,6 +222,7 @@ export const patchInputSchema = zod
     useForSnapshot: zod.boolean().default(false),
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
+    muted: zod.boolean().default(false),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod.string().trim().min(1, 'Child Source ID is required').optional(),
   })

@@ -47,6 +47,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
       useForSnapshot: false,
       hotMode: true,
       preload: true,
+      muted: false,
     },
   ],
   interfaceSettings: {

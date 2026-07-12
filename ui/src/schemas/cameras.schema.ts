@@ -27,6 +27,7 @@ export const inputSchema = zod
     useForSnapshot: zod.boolean().default(false),
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
+    muted: zod.boolean().default(false),
     childSourceId: zod.string().trim().optional(),
   })
   .strict();

@@ -120,6 +120,7 @@ async function onSave() {
     assignments: cameraData.assignments || {},
     sources: cameraData.sources.map((input) => ({
       ...input,
+      muted: input.muted ?? false,
       urls: input.urls.map(normalizeSource).filter(Boolean),
     })),
   };
