@@ -178,15 +178,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       }
 
       // Track manual-camera addresses so go2rtc duplicates can be filtered out.
-      const manualCameraAddresses = new Set<string>();
-      for (const device of dbDevices) {
-        if (device.provider === 'camera.ui') {
-          const address = this.extractAddressFromDbCamera(device);
-          if (address) {
-            manualCameraAddresses.add(address);
-          }
-        }
-      }
+      const manualCameraAddresses = this.collectManualCameraAddresses();
 
       const discoveryPlugins = this.getDiscoveryPlugins();
       const sources = ['go2rtc', ...discoveryPlugins.map((p) => `plugin-${p.id}`)];
@@ -631,23 +623,31 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     return /^[\d.:[\]]+$/.test(value) || /^\d+\.\d+\.\d+\.\d+(:\d+)?$/.test(value);
   }
 
-  private extractAddressFromDbCamera(camera: DeviceListItem): string | undefined {
-    const cc = this.api.getCameras().find((c) => c.id === camera.cameraId);
-    if (!cc) return undefined;
-    return this.extractAddressFromSources(cc.sources);
-  }
+  private collectManualCameraAddresses(): Set<string> {
+    const addresses = new Set<string>();
 
-  private extractAddressFromSources(sources: { urls?: { rtsp?: { base?: string } } }[]): string | undefined {
-    if (!sources || sources.length === 0) return undefined;
-
-    for (const source of sources) {
-      const rtspUrl = source.urls?.rtsp?.base;
-      if (rtspUrl) {
-        const { address } = this.parseUrl(rtspUrl);
-        if (address && address !== 'localhost' && address !== '127.0.0.1') {
-          return address;
+    for (const camera of this.camerasService.list()) {
+      for (const source of camera.sources) {
+        for (const url of source.urls) {
+          const address = this.extractUpstreamAddress(url);
+          if (address) {
+            addresses.add(address);
+          }
         }
       }
+    }
+
+    return addresses;
+  }
+
+  private extractUpstreamAddress(url: string): string | undefined {
+    if (url.startsWith('cui://') || url.startsWith('ffmpeg:') || url.startsWith('exec:')) {
+      return undefined;
+    }
+
+    const { address } = this.parseUrl(url);
+    if (address && address !== 'localhost' && address !== '127.0.0.1') {
+      return address;
     }
 
     return undefined;
