@@ -9,7 +9,7 @@ const listenWithOffset = (host: string, base: number): string => `${host}:${with
 
 // server
 export const DEFAULT_CONFIG_PORT = withOffset(3443);
-export const DEFAULT_CONFIG_HOST = '::';
+export const DEFAULT_CONFIG_HOST = '0.0.0.0';
 export const DEFAULT_CONFIG_SSL: IConfigSSL = {
   certFile: '',
   keyFile: '',
