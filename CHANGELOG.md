@@ -6,11 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The interface stayed a blank white screen on Windows.** The server started fine, but the desktop app only ever showed white, and other devices on the network couldn't reach it either. On Windows the server was listening on IPv6 only, so any connection over IPv4 — which is how the app and most local devices connect — was refused. The server now listens on IPv4 on Windows, so the interface loads again and the server is reachable from phones and other computers.
+
 - **Python plugins couldn't reach external services over HTTPS.** Plugins such as Wyze failed to log in with a TLS certificate error (`CERTIFICATE_VERIFY_FAILED`) because the bundled Python interpreter ships without a certificate authority store. camera.ui now provisions one for it, so plugins can verify secure connections again.
 
 - **Pairing a discovered HomeKit camera failed with "Unexpected end of JSON input".** A successful pairing returned no data to parse, which aborted the flow even though the camera had actually paired. Pairing now completes and adds the camera.
 
 - **Empty camera snapshots are no longer treated as valid.** When go2rtc momentarily couldn't produce a frame it could return an empty image, which was stored as a blank thumbnail; camera.ui now treats a zero-byte frame as a failure instead.
+
+- **Adopted cameras no longer reappear under "Discovered".** After adding a discovered camera (e.g. an ONVIF camera found via go2rtc), it kept showing up in the Discovered list on the next scan. camera.ui now matches an already-added camera against its discovered entry by the camera's real address, so it stays out of the list once adopted.
 
 ## [2.0.8] - 2026-07-11
 
