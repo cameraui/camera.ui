@@ -54,9 +54,12 @@ export class StreamsRoute {
 
     await assertResponseOk(response);
 
-    const json: HomeKitPairResponse = (await response.json()) as any;
+    const text = await response.text();
+    if (!text) {
+      throw new Error('HomeKit pairing did not return stream info!');
+    }
 
-    return json;
+    return JSON.parse(text) as HomeKitPairResponse;
   }
 
   public async unpairHomekit(data: UnpairData): Promise<void> {
