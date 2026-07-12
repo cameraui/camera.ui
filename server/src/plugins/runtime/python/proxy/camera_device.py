@@ -118,6 +118,7 @@ class CameraSourceImpl(CameraSource):
         self.useForSnapshot: bool = source["useForSnapshot"]
         self.hotMode: bool = source["hotMode"]
         self.preload: bool = source["preload"]
+        self.muted: bool | None = source.get("muted")
         self.urls: StreamUrls = source["urls"]
         self.childSourceId: str | None = source.get("childSourceId")
 
