@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.10] - 2026-07-12
+
+### Added
+
+- **MQTT triggers can now react to a value inside a JSON message.** An MQTT message trigger offers a match mode: fire on any message on the topic, on an exact payload, or on a specific value at a path inside a JSON payload — for example a field like `output` being `true`, including nested fields. Since most smart-home devices publish JSON, a flow can now trigger on exactly the state you care about without adding a separate condition step.
+
+- **Sensor values in automations can be driven by a variable.** When controlling a sensor (or checking one in a condition), the value field has a variable toggle: instead of a fixed number or option, you can insert a value carried by the trigger — for example set a light's brightness from an incoming MQTT message with `{{ mqtt.brightness }}`.
+
+- **Audio can be disabled per camera source.** Each source in the camera's settings has a "Mute audio" toggle that removes the audio track entirely — live view, recordings and connected integrations then receive video only. Useful for cameras with a broken or unwanted audio stream.
+
+### Fixed
+
+- **Automations using an MQTT trigger or publish action can now be saved.** Adding an MQTT message trigger or an MQTT publish action to a flow failed to save with a validation error; these node types are now accepted.
+
 ## [2.0.9] - 2026-07-12
 
 ### Fixed
