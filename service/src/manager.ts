@@ -127,6 +127,8 @@ export class ServerManager {
         renameSync(backupModules, this.serverModulesPath);
       }
 
+      this.finalizeStagedInstall();
+
       const installed = existsSync(join(this.serverModulesPath, APP_SERVER_NAME));
       const state = this.readState();
       const abiChanged = installed && state.nodeAbi !== undefined && state.nodeAbi !== process.versions.modules;
@@ -140,8 +142,12 @@ export class ServerManager {
 
       if (!installed || abiChanged || incomplete) {
         this.cli.logger('Installing camera.ui server ...', 'info');
-        await this.npmInstall(state.version ?? 'latest', true);
-        this.writeState();
+        await this.stageInstall(state.version ?? 'latest', true);
+        this.finalizeStagedInstall();
+
+        if (!this.isServerHealthy()) {
+          throw new Error('Server install verification failed — files incomplete after install');
+        }
       }
     } catch (error) {
       this.cli.logger(`Failed to manage server: ${error.message}`, 'fail');
@@ -153,6 +159,8 @@ export class ServerManager {
     if (this.isRunning) {
       return;
     }
+
+    this.finalizeStagedInstall();
 
     if (!existsSync(this.serverBinPath)) {
       throw new Error(`Server binary not found at: ${this.serverBinPath}`);
@@ -251,20 +259,14 @@ export class ServerManager {
     });
 
     try {
-      await this.npmInstall(version, stdout);
-
-      if (!this.isServerHealthy()) {
-        throw new Error('Server install verification failed — files incomplete after update');
-      }
-
-      this.writeState();
+      await this.stageInstall(version, stdout);
 
       this.send({
         type: 'UPDATE_COMPLETE',
         version: version,
       });
 
-      this.cli.logger('Server update completed', 'succeed');
+      this.cli.logger('Server update staged — applied on restart', 'succeed');
     } catch (error) {
       this.send({
         type: 'UPDATE_FAILED',
@@ -308,14 +310,13 @@ export class ServerManager {
     }
   }
 
-  private async npmInstall(version: string, stdout?: boolean): Promise<void> {
+  private async stageInstall(version: string, stdout?: boolean): Promise<void> {
     if (IS_DEV) {
       throw new Error('npm install is disabled in development mode');
     }
 
     const stagingPath = join(this.serverPath, '.staging');
     const stagedModules = join(stagingPath, 'node_modules');
-    const backupModules = `${this.serverModulesPath}.bak`;
 
     rmSync(stagingPath, { recursive: true, force: true });
     await mkdirp(stagingPath);
@@ -324,8 +325,7 @@ export class ServerManager {
     try {
       await this.npmInstallWithRetry(stagingPath, version, stdout);
 
-      const staged = existsSync(join(stagedModules, APP_SERVER_NAME, 'package.json')) && existsSync(join(stagedModules, this.binDir, this.serverBinName));
-      if (!staged) {
+      if (!this.isStagedInstallComplete()) {
         throw new Error('Server install verification failed — staged files incomplete');
       }
 
@@ -334,25 +334,52 @@ export class ServerManager {
       rmSync(stagingPath, { recursive: true, force: true });
       throw error;
     }
+  }
 
-    rmSync(backupModules, { recursive: true, force: true });
-    const hadLive = existsSync(this.serverModulesPath);
-    if (hadLive) {
-      renameSync(this.serverModulesPath, backupModules);
+  private isStagedInstallComplete(): boolean {
+    const stagedModules = join(this.serverPath, '.staging', 'node_modules');
+    return existsSync(join(stagedModules, APP_SERVER_NAME, 'package.json')) && existsSync(join(stagedModules, this.binDir, this.serverBinName));
+  }
+
+  private finalizeStagedInstall(): void {
+    const stagingPath = join(this.serverPath, '.staging');
+    const stagedModules = join(stagingPath, 'node_modules');
+
+    if (!existsSync(stagingPath)) {
+      return;
     }
+
+    if (!this.isStagedInstallComplete()) {
+      rmSync(stagingPath, { recursive: true, force: true });
+      return;
+    }
+
+    const backupModules = `${this.serverModulesPath}.bak`;
 
     try {
-      renameSync(stagedModules, this.serverModulesPath);
-    } catch (error) {
-      if (hadLive && !existsSync(this.serverModulesPath)) {
-        renameSync(backupModules, this.serverModulesPath);
+      rmSync(backupModules, { recursive: true, force: true });
+      const hadLive = existsSync(this.serverModulesPath);
+      if (hadLive) {
+        renameSync(this.serverModulesPath, backupModules);
       }
-      rmSync(stagingPath, { recursive: true, force: true });
-      throw error;
-    }
 
-    rmSync(backupModules, { recursive: true, force: true });
-    rmSync(stagingPath, { recursive: true, force: true });
+      try {
+        renameSync(stagedModules, this.serverModulesPath);
+      } catch (error) {
+        if (hadLive && !existsSync(this.serverModulesPath)) {
+          renameSync(backupModules, this.serverModulesPath);
+        }
+        throw error;
+      }
+
+      rmSync(backupModules, { recursive: true, force: true });
+      rmSync(stagingPath, { recursive: true, force: true });
+      this.writeState();
+      this.cli.logger('Staged server update applied', 'info');
+    } catch (error) {
+      // Keep the staging dir — the swap is retried on the next start.
+      this.cli.logger(`Could not apply staged server update: ${error.message}`, 'warn');
+    }
   }
 
   private async npmInstallWithRetry(prefix: string, version: string, stdout?: boolean): Promise<void> {

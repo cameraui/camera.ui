@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Server updates via the launcher no longer collide with the running server on Windows.** The `camera.ui` launcher swapped the server's files while the server was still running, which Windows refuses for files in use — a server update could fail halfway through. The update is now downloaded and verified in the background as before, but the actual swap happens during the restart that follows the update, when nothing holds the files anymore. An interrupted swap is picked up and completed on the next start. (Ships with the updated `camera.ui` launcher package.)
+
 - **Plugins can be updated and uninstalled on Windows again.** Updating or removing a plugin failed with "EPERM: operation not permitted" because the plugin process was still running and Windows refuses to move or delete a folder that is in use. A running plugin is now stopped before its files are touched and started again afterwards — on an update it comes back up on the new version right away, and if an update fails the restored previous version is restarted.
 
 - **No more red pip "not on PATH" errors during Python setup on Windows.** Installing Python dependencies logged pip's harmless "scripts are not on PATH" notices as errors on Windows. The scripts are never used via PATH, so pip is now told not to warn about them.
