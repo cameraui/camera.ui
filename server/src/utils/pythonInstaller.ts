@@ -297,7 +297,7 @@ export class PythonInstaller {
       args.push('--root-user-action=ignore');
     }
 
-    args.push('--use-pep517');
+    args.push('--use-pep517', '--no-warn-script-location');
 
     const command = args.join(' ');
     this.logger.trace(`Installing requirements command: ${command}`);
@@ -346,7 +346,7 @@ export class PythonInstaller {
       args.push('--root-user-action=ignore');
     }
 
-    args.push('--use-pep517');
+    args.push('--use-pep517', '--no-warn-script-location');
 
     const command = args.join(' ');
     this.logger.trace(`Installing packages command: ${command}`);
@@ -442,7 +442,7 @@ export class PythonInstaller {
       args.push('--root-user-action=ignore');
     }
 
-    args.push('--use-pep517');
+    args.push('--use-pep517', '--no-warn-script-location');
 
     const command = args.join(' ');
     this.logger.trace(`Reinstalling packages command: ${command}`);

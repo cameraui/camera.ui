@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **No more red pip "not on PATH" errors during Python setup on Windows.** Installing Python dependencies logged pip's harmless "scripts are not on PATH" notices as errors on Windows. The scripts are never used via PATH, so pip is now told not to warn about them.
+
 - **Cloudflare tunnels work on Windows again.** The bundled `cloudflared` binary was installed without the `.exe` extension, which Windows refuses to execute — every tunnel start failed with a "spawn ENOENT" error, and with a named or managed tunnel configured this even crashed the whole server in a restart loop. The binary now gets the proper extension on Windows, the leftover broken download is cleaned up automatically, and a failure to start `cloudflared` can no longer take the server down.
 
 - **Remote clients no longer lock themselves out after a tunnel URL change.** The server now announces its remote URL (Cloudflare quick tunnel, named tunnel or custom domain) only after verifying it resolves on public DNS and answers a health check. Previously, apps learning a brand-new quick-tunnel hostname too early cached the failed DNS lookup and couldn't reconnect for several minutes after a server restart.
