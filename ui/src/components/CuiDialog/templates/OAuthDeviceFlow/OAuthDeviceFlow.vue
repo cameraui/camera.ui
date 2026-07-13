@@ -18,15 +18,31 @@
 
         <div class="flex flex-col items-center gap-2">
           <span class="text-sm text-muted">{{ $t('components.oauth.enter_code_at') }}</span>
-          <a
-            :href="state.verificationUriComplete || state.verificationUri"
-            target="_blank"
-            rel="noopener"
-            class="text-sm font-mono text-primary hover:underline break-all"
-            >{{ state.verificationUri }}</a
-          >
-          <div class="mt-1 card-background border border-color rounded-xl px-6 py-3">
-            <span class="text-2xl font-mono font-semibold tracking-[0.25em]">{{ state.userCode }}</span>
+          <div class="flex items-center gap-1 max-w-full min-w-0">
+            <a
+              :href="state.verificationUriComplete || state.verificationUri"
+              target="_blank"
+              rel="noopener"
+              class="text-sm font-mono text-primary hover:underline break-all select-text"
+              >{{ state.verificationUri }}</a
+            >
+            <CuiActionButton
+              :action-text="$t('components.form.tooltip.copied')"
+              :icon="CopyIcon"
+              :button-props="{ severity: 'secondary', text: true, size: 'small' }"
+              @action="onCopyLink"
+            />
+          </div>
+          <div class="mt-1 flex items-center gap-1">
+            <div class="card-background border border-color rounded-xl px-6 py-3">
+              <span class="text-2xl font-mono font-semibold tracking-[0.25em] select-text">{{ state.userCode }}</span>
+            </div>
+            <CuiActionButton
+              :action-text="$t('components.form.tooltip.copied')"
+              :icon="CopyIcon"
+              :button-props="{ severity: 'secondary', text: true, size: 'small' }"
+              @action="onCopyCode"
+            />
           </div>
         </div>
 
@@ -51,6 +67,7 @@
 
 <script setup lang="ts">
 import { useOAuth } from '@camera.ui/browser';
+import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { OAuthDeviceFlowProps } from './types.js';
@@ -59,8 +76,18 @@ const props = defineProps<OAuthDeviceFlowProps>();
 
 const { t } = useI18n();
 const { state, metadata, startDeviceFlow, disconnect, cancel } = useOAuth(props.pluginName);
+const { copy } = useClipboard({ legacy: true });
 
 const requestedScopes = computed(() => Object.keys(metadata.value?.scopeDescriptions ?? {}));
+
+function onCopyLink() {
+  const uri = state.value.verificationUriComplete || state.value.verificationUri;
+  if (uri) copy(uri);
+}
+
+function onCopyCode() {
+  if (state.value.userCode) copy(state.value.userCode);
+}
 
 function errorText(code?: string): string {
   switch (code) {
