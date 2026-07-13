@@ -30,7 +30,7 @@
     "@camera.ui/nats": "^2.14.3",
     "@camera.ui/rpc": "^1.0.9",
     "@camera.ui/rust-postprocessor": "~0.0.5",
-    "@camera.ui/sdk": "~0.0.18",
+    "@camera.ui/sdk": "~0.0.19",
     "@camera.ui/tunnel": "^1.0.4",
     "@eneris/push-receiver": "^4.3.1",
     "@fastify/cors": "^11.3.0",
