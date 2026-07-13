@@ -472,7 +472,7 @@ export function generateZodSchemaField(schema: JsonSchema): zod.ZodTypeAny {
       return schema.required ? zod.boolean() : zod.boolean().optional();
 
     case 'array':
-      const schemaItems = generateZodSchemaField(schema.items as any);
+      const schemaItems = schema.items ? generateZodSchemaField(schema.items as any) : zod.any();
       const arraySchema = zod.array(schemaItems);
       return schema.required ? arraySchema : arraySchema.optional();
 
