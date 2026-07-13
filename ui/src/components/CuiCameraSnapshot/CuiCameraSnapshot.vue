@@ -1,6 +1,7 @@
 <template>
   <div
-    class="bg-black aspect-video flex items-center justify-center relative"
+    class="bg-black aspect-video flex items-center justify-center"
+    :class="{ relative: showTimestamp }"
     :style="{
       width: `${width}`,
       height: `${height}`,
