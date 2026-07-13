@@ -3,6 +3,7 @@ import { sleep } from '@camera.ui/common/utils';
 import { RemoteService } from '../../api/services/remote.service.js';
 import { CloudflareService } from './cloudflare.js';
 import { CustomDomainService } from './customDomain.js';
+import { UrlReadinessGate } from './urlReadiness.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { DBRemote, DBRemoteDirectMode } from '../../api/database/types.js';
@@ -17,6 +18,7 @@ export class RemoteAccessService {
   private remoteService: RemoteService;
   private cloudflareService: CloudflareService;
   private customDomainService: CustomDomainService;
+  private urlReadiness: UrlReadinessGate;
 
   private remoteConfig: DBRemote;
   private activeMode: ActiveMode = null;
@@ -28,7 +30,8 @@ export class RemoteAccessService {
     private proxyService: ProxyService,
   ) {
     this.remoteService = new RemoteService();
-    this.cloudflareService = new CloudflareService(this.logger);
+    this.urlReadiness = new UrlReadinessGate(this.logger);
+    this.cloudflareService = new CloudflareService(this.logger, (url) => this.urlReadiness.ensureReady(url));
     this.customDomainService = new CustomDomainService(this.logger);
     this.remoteConfig = this.remoteService.info();
   }
@@ -40,6 +43,7 @@ export class RemoteAccessService {
   public stop(): void {
     this.cloudflareService.stop();
     this.customDomainService.reset();
+    this.urlReadiness.clear();
     this.activeMode = null;
     this.override = { active: false, fallback: false };
   }
@@ -277,13 +281,21 @@ export class RemoteAccessService {
   }
 
   private activeExternalUrl(): string | null {
+    let url: string | null = null;
     if (this.activeMode === 'cloudflare' || this.activeMode === 'cloudflareQuick') {
-      return this.cloudflareService.url;
+      url = this.cloudflareService.url;
+    } else if (this.activeMode === 'customDomain') {
+      url = this.customDomainService.url;
     }
-    if (this.activeMode === 'customDomain') {
-      return this.customDomainService.url;
+    if (!url) return null;
+
+    // Hand the URL out only once it's publicly resolvable. Clients that learn
+    // a not-yet-live hostname cache the NXDOMAIN and stay locked out for minutes.
+    if (!this.urlReadiness.isReady(url)) {
+      this.urlReadiness.ensureReady(url);
+      return null;
     }
-    return null;
+    return url;
   }
 
   private isActiveRunning(): boolean {
@@ -303,6 +315,7 @@ export class RemoteAccessService {
       const url = this.remoteConfig.customDomain.url;
       if (url) {
         this.customDomainService.testDomain(url);
+        this.urlReadiness.ensureReady(url);
       } else {
         this.customDomainService.reset();
       }
@@ -315,6 +328,7 @@ export class RemoteAccessService {
     } else if (this.activeMode === 'customDomain') {
       this.customDomainService.reset();
     }
+    this.urlReadiness.clear();
     this.activeMode = null;
   }
 

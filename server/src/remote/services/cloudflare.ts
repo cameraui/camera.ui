@@ -41,7 +41,10 @@ export class CloudflareService {
   private stdoutLine?: Interface;
   private stderrLine?: Interface;
 
-  constructor(private logger: Logger) {
+  constructor(
+    private logger: Logger,
+    private onUrlDetected?: (url: string) => void,
+  ) {
     this.api = container.resolve<CameraUiAPI>('api');
     this.configService = container.resolve<ConfigService>('configService');
     this.remoteService = new RemoteService();
@@ -89,6 +92,7 @@ export class CloudflareService {
           return;
         case 'managed':
           this.cloudflareUrl = config?.hostname ? `https://${config.hostname}` : null;
+          if (this.cloudflareUrl) this.onUrlDetected?.(this.cloudflareUrl);
           await this.managed.resumeIfReady();
           return;
       }
@@ -153,6 +157,7 @@ export class CloudflareService {
 
   private startTokenTunnel(token: string, hostname: string): void {
     this.cloudflareUrl = `https://${hostname}`;
+    this.onUrlDetected?.(this.cloudflareUrl);
     const args = ['tunnel', '--no-autoupdate', 'run', '--token', token];
     this.spawnCloudflared(args);
   }
@@ -253,6 +258,7 @@ export class CloudflareService {
     if (match && !this.cloudflareUrl) {
       this.logger.log('Cloudflare URL detected:', match[1]);
       this.cloudflareUrl = match[1];
+      this.onUrlDetected?.(match[1]);
     }
   }
 
