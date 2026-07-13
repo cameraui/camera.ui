@@ -22,8 +22,11 @@ import type {
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
+const PLUGIN_INSTALL_TIMEOUT_MS = 600_000;
+const PLUGIN_UNINSTALL_TIMEOUT_MS = 120_000;
+
 export async function installPluginFn({ pluginData }: { pluginData: InstallPluginInput }): Promise<CameraUiPlugin> {
-  const response: AxiosResponse<CameraUiPlugin> = await api.post('/plugins', pluginData);
+  const response: AxiosResponse<CameraUiPlugin> = await api.post('/plugins', pluginData, { timeout: PLUGIN_INSTALL_TIMEOUT_MS });
   return response.data;
 }
 
@@ -171,12 +174,12 @@ export async function restartPluginFn({ pluginName }: { pluginName: string }): P
 }
 
 export async function uninstallPluginFn({ pluginName, removeStorage }: { pluginName: string; removeStorage?: boolean }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.delete(`/plugins/${pluginName}`, { params: { removeStorage } });
+  const response: AxiosResponse<AckResponse> = await api.delete(`/plugins/${pluginName}`, { params: { removeStorage }, timeout: PLUGIN_UNINSTALL_TIMEOUT_MS });
   return response.data;
 }
 
 export async function uninstallPluginsFn(): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.delete('/plugins');
+  const response: AxiosResponse<AckResponse> = await api.delete('/plugins', { timeout: PLUGIN_UNINSTALL_TIMEOUT_MS });
   return response.data;
 }
 
