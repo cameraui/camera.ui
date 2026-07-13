@@ -264,7 +264,7 @@ export interface AutomationBlueprint {
   edges: AutomationEdge[];
 }
 
-export type AutomationInputType = 'camera' | 'plugin' | 'sensor' | 'notification-targets' | 'system-target';
+export type AutomationInputType = 'camera' | 'plugin' | 'sensor' | 'notification-targets' | 'system-target' | 'text';
 
 export interface AutomationBlueprintInput {
   key: string;
@@ -272,6 +272,8 @@ export interface AutomationBlueprintInput {
   label?: string;
   interface?: string;
   multiple?: boolean;
+  placeholder?: string;
+  default?: string;
 }
 
 export interface AutomationStoreBlueprint extends AutomationBlueprint {

@@ -106,6 +106,18 @@ async function onConfirm() {
 }
 
 watch(
+  inputs,
+  (list) => {
+    for (const input of list) {
+      if (bindings[input.key] === undefined && input.default !== undefined) {
+        bindings[input.key] = input.default;
+      }
+    }
+  },
+  { immediate: true },
+);
+
+watch(
   canImport,
   (ready) => {
     dialogRefProps.disabled.value = !ready;

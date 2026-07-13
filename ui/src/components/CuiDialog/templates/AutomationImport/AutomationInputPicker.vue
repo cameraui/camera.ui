@@ -78,6 +78,14 @@
       class="w-full"
       @update:model-value="emit('update:modelValue', $event ?? '')"
     />
+
+    <InputText
+      v-else-if="input.type === 'text'"
+      :model-value="(modelValue as string) ?? ''"
+      :placeholder="input.placeholder"
+      class="w-full"
+      @update:model-value="emit('update:modelValue', $event ?? '')"
+    />
   </div>
 </template>
 

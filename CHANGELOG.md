@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.11] - 2026-07-13
+
+### Added
+
+- **New "MQTT doorbell" blueprint in the automation store.** Rings a doorbell sensor whenever a matching MQTT message arrives — for example from a Shelly relay, a Tasmota device or a Zigbee2MQTT button. Combined with a virtual doorbell sensor, this turns any MQTT-capable button into a doorbell, including in HomeKit. The blueprint matches a value inside the JSON payload, so on/off devices ring exactly once per press.
+
+- **Blueprints can now ask for text values during import.** The blueprint import wizard supports free-text inputs (with sensible defaults prefilled), so a blueprint like MQTT doorbell can ask for the MQTT topic and the field to match right in the import dialog — no editing the flow afterwards.
+
 ## [2.0.10] - 2026-07-12
 
 ### Added

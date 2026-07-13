@@ -15,6 +15,7 @@ const INPUT_LABEL_KEY: Record<AutomationInputType, string> = {
   sensor: 'components.automation_store.input_sensor',
   'notification-targets': 'components.automation_store.input_notification_targets',
   'system-target': 'components.automation_store.input_system_target',
+  text: 'components.automation_store.input_text',
 };
 
 export function formatRequiredInputs(inputs: AutomationRequiredInput[] | undefined, t: (key: string, named: Record<string, unknown>) => string): string[] {
