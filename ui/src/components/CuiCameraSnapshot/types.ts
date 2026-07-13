@@ -12,4 +12,5 @@ export interface CuiCameraSnapshotProps {
   aspectRatio?: string;
   imageStyle?: HTMLAttributes['style'];
   imageClass?: HTMLAttributes['class'];
+  showTimestamp?: boolean;
 }

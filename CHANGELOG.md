@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 - **Blueprints can now ask for text values during import.** The blueprint import wizard supports free-text inputs (with sensible defaults prefilled), so a blueprint like MQTT doorbell can ask for the MQTT topic and the field to match right in the import dialog — no editing the flow afterwards.
 
+- **Camera cards show the snapshot age.** Every camera card on the dashboard has a small live-ticking badge in Apple-Home style (now → 45s → 3min → 2h → 1d) telling how long ago the displayed snapshot was actually fetched from the camera. The server reports the true age of its cached snapshots, so the badge stays accurate across page reloads.
+
+### Fixed
+
+- **Dashboard snapshots now refresh automatically.** Camera cards on the dashboard subscribe to the server's snapshot auto-refresh again — previously the pushed snapshots never reached the dashboard, so the preview images (and now the age badge) stayed frozen until a page reload or manual refresh.
+
+- **The plugin pairing dialog now has copy buttons.** The device-flow pairing dialog (e.g. when connecting the NVR plugin to cameraui.com) offers a copy button next to the verification link and the pairing code, and both are text-selectable — previously there was no way to copy either one, especially in the desktop app.
+
 ## [2.0.10] - 2026-07-12
 
 ### Added

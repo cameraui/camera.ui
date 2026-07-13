@@ -29,6 +29,11 @@ import type {
   SnapshotSettings,
 } from '@camera.ui/sdk';
 
+export interface CachedSnapshot {
+  data: ArrayBuffer;
+  fetchedAt: number;
+}
+
 export abstract class CameraDevice extends Subscribed implements CameraDeviceInterface {
   public readonly cameraSubject: BehaviorSubject<Camera>;
   public readonly cameraState = new BehaviorSubject<boolean>(false);
@@ -41,7 +46,7 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
   public abstract readonly onSensorRemoved: Observable<{ sensorId: string; sensorType: SensorType }>;
   public abstract readonly onDetectionEvent: Observable<{ type: DetectionEventType; event: DetectionEvent }>;
 
-  protected snapshotCache: TTLCache<string, ArrayBuffer>;
+  protected snapshotCache: TTLCache<string, CachedSnapshot>;
 
   protected readonly initialized = new BehaviorSubject<boolean>(false);
   protected readonly onInitialized = this.initialized.pipe(distinctUntilChanged(), share({ connector: () => new ReplaySubject(1) }));

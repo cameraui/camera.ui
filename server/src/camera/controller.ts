@@ -41,7 +41,7 @@ import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { ProxyServer } from '../rpc/index.js';
-import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent } from '../rpc/interfaces/device.js';
+import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent, SnapshotWithMeta } from '../rpc/interfaces/device.js';
 import type { StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { CameraNamespaces, FrameWorkerDetectionNamespaces } from '../rpc/namespaces.js';
 import type { LoggerService } from '../services/logger/index.js';
@@ -213,7 +213,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     const fromCache = this.snapshotCache.get(sourceId);
     if (!forceNew && fromCache) {
-      return fromCache;
+      return fromCache.data;
     }
 
     const source = this.sources.find((source) => source._id === sourceId);
@@ -227,7 +227,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
         const snapshot = await this.go2rtcApi.snapshotRoute.jpeg({ src: sourceName });
         if (snapshot.byteLength > 0) {
-          this.snapshotCache.set(s._id, snapshot);
+          this.snapshotCache.set(s._id, { data: snapshot, fetchedAt: Date.now() });
         }
 
         return snapshot;
@@ -244,7 +244,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       try {
         const pluginSnapshot = await this.cameraDeviceProxy?.snapshot?.(s._id, forceNew);
         if (pluginSnapshot && pluginSnapshot.byteLength > 0) {
-          this.snapshotCache.set(s._id, pluginSnapshot);
+          this.snapshotCache.set(s._id, { data: pluginSnapshot, fetchedAt: Date.now() });
           return pluginSnapshot;
         }
       } catch {
@@ -264,6 +264,17 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         return snapshot;
       }
     }
+  }
+
+  @RPCMethod
+  public async snapshotWithMeta(sourceId: string, forceNew?: boolean): Promise<SnapshotWithMeta | undefined> {
+    const data = await this.snapshot(sourceId, forceNew);
+    if (!data) return undefined;
+
+    const cached = this.snapshotCache.get(sourceId);
+    const ageMs = cached?.data === data ? Math.max(0, Date.now() - cached.fetchedAt) : 0;
+
+    return { data, ageMs };
   }
 
   @RPCMethod

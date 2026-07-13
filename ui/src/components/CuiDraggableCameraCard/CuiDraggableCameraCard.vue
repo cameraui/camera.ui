@@ -65,7 +65,7 @@
         </Button>
       </div>
 
-      <CuiCameraSnapshot :ref="snapshotRef" :camera class="cursor-pointer" @click="$emit('click')" />
+      <CuiCameraSnapshot :ref="snapshotRef" :camera show-timestamp class="cursor-pointer" @click="$emit('click')" />
     </div>
   </div>
 </template>
