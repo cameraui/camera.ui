@@ -392,7 +392,6 @@ declare module 'vue' {
     'IMdi:unfoldLessVertical': typeof import('~icons/mdi/unfold-less-vertical')['default']
     'IMdi:unfoldMoreHorizontal': typeof import('~icons/mdi/unfold-more-horizontal')['default']
     'IMdi:upload': typeof import('~icons/mdi/upload')['default']
-    'IMdi:variable': typeof import('~icons/mdi/variable')['default']
     'IMdi:vectorIntersection': typeof import('~icons/mdi/vector-intersection')['default']
     'IMdi:videoOff': typeof import('~icons/mdi/video-off')['default']
     'IMdi:viewGrid': typeof import('~icons/mdi/view-grid')['default']
