@@ -1,7 +1,7 @@
 import { InstancesService } from '../services/instances.service.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { AuthLoginRequest, CreateInstanceRequest, InstanceParamsRequest, UpdateInstanceRequest } from '../types/index.js';
+import type { AuthLoginRequest, CreateInstanceRequest, InstanceLoginRequest, InstanceParamsRequest, UpdateInstanceRequest } from '../types/index.js';
 
 export class InstancesController {
   private service: InstancesService;
@@ -21,8 +21,8 @@ export class InstancesController {
 
   public async create(req: FastifyRequest<AuthLoginRequest & CreateInstanceRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const instance = await this.service.create(req.body, req.locals.user!.username);
-      return reply.code(201).send(instance);
+      const result = await this.service.create(req.body, req.locals.user!.username);
+      return reply.code(201).send({ ...result.instance, requires2fa: result.requires2fa });
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
@@ -30,11 +30,11 @@ export class InstancesController {
 
   public async update(req: FastifyRequest<AuthLoginRequest & InstanceParamsRequest & UpdateInstanceRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const instance = await this.service.update(req.params.id, req.body);
-      if (!instance) {
+      const result = await this.service.update(req.params.id, req.body);
+      if (!result) {
         return reply.code(404).send({ statusCode: 404, message: 'Instance not found' });
       }
-      return reply.code(200).send(instance);
+      return reply.code(200).send({ ...result.instance, requires2fa: result.requires2fa });
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
@@ -64,10 +64,10 @@ export class InstancesController {
     }
   }
 
-  public async loginToRemote(req: FastifyRequest<AuthLoginRequest & InstanceParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async loginToRemote(req: FastifyRequest<AuthLoginRequest & InstanceParamsRequest & InstanceLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const userData = await this.service.loginToRemote(req.params.id);
-      return reply.code(200).send(userData);
+      const result = await this.service.loginToRemote(req.params.id, req.body?.code);
+      return reply.code(200).send(result);
     } catch (error: any) {
       const status = error.message.includes('not found') ? 404 : error.message.includes('No credentials') ? 400 : 502;
       return reply.code(status).send({ statusCode: status, message: error.message });

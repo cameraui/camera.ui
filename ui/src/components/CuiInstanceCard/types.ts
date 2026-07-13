@@ -6,6 +6,7 @@ export interface InstanceInfo {
   active: boolean;
   favorite: boolean;
   hasCredentials: boolean;
+  pending2fa?: boolean;
   version?: string;
   lastUpdatedAt?: number;
   cameras?: {

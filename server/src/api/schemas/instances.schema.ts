@@ -25,6 +25,13 @@ export const instanceParamsSchema = zod.object({
   id: zod.string().min(1, 'ID is required'),
 });
 
+export const instanceLoginSchema = zod
+  .object({
+    code: zod.string().trim().min(1, 'Code is required').optional(),
+  })
+  .optional();
+
 export type CreateInstanceInput = zod.output<typeof createInstanceSchema>;
 export type UpdateInstanceInput = zod.output<typeof updateInstanceSchema>;
 export type InstanceParamsInput = zod.output<typeof instanceParamsSchema>;
+export type InstanceLoginInput = zod.output<typeof instanceLoginSchema>;

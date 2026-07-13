@@ -44,6 +44,14 @@ export interface InstancesResponse {
   homeId: string;
 }
 
+export type InstanceMutationResponse = DBInstance & { requires2fa?: boolean };
+
+export type InstanceLoginResult = UserData | { requires2fa: true };
+
+export function isRequires2fa(result: InstanceLoginResult): result is { requires2fa: true } {
+  return 'requires2fa' in result && result.requires2fa === true;
+}
+
 export async function getInstancesFn(signal?: AbortSignal): Promise<InstancesResponse> {
   const response: AxiosResponse<InstancesResponse> = await api.get('/instances', { signal });
   return response.data;
@@ -58,13 +66,13 @@ export async function getIdentityFn(url: string, token: string): Promise<{ homeI
   return (await response.json()) as { homeId: string };
 }
 
-export async function createInstanceFn(data: CreateInstancePayload): Promise<DBInstance> {
-  const response: AxiosResponse<DBInstance> = await api.post('/instances', data);
+export async function createInstanceFn(data: CreateInstancePayload): Promise<InstanceMutationResponse> {
+  const response: AxiosResponse<InstanceMutationResponse> = await api.post('/instances', data);
   return response.data;
 }
 
-export async function updateInstanceFn({ id, data }: { id: string; data: UpdateInstancePayload }): Promise<DBInstance> {
-  const response: AxiosResponse<DBInstance> = await api.put(`/instances/${id}`, data);
+export async function updateInstanceFn({ id, data }: { id: string; data: UpdateInstancePayload }): Promise<InstanceMutationResponse> {
+  const response: AxiosResponse<InstanceMutationResponse> = await api.put(`/instances/${id}`, data);
   return response.data;
 }
 
@@ -77,8 +85,8 @@ export async function toggleFavoriteFn(id: string): Promise<{ favorite: boolean 
   return response.data;
 }
 
-export async function loginToRemoteFn(id: string): Promise<UserData> {
-  const response: AxiosResponse<UserData> = await api.post(`/instances/${id}/login`);
+export async function loginToRemoteFn(id: string, code?: string): Promise<InstanceLoginResult> {
+  const response: AxiosResponse<InstanceLoginResult> = await api.post(`/instances/${id}/login`, code ? { code } : {});
   return response.data;
 }
 
@@ -158,7 +166,7 @@ export class InstancesQuery {
 
   public loginMutation() {
     return useMutation({
-      mutationFn: loginToRemoteFn,
+      mutationFn: (id: string) => loginToRemoteFn(id),
       onError: () => {
         // Error handled by caller
       },

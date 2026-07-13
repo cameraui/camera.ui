@@ -14,7 +14,7 @@ import type { ConfigQueryInput, PatchConfigInput } from '../schemas/config.schem
 import type { FilesParamsInput } from '../schemas/files.schema.js';
 import type { FrameWorkerParamsInput } from '../schemas/frameWorkers.schema.js';
 import type { PatchGo2RtcConfigInput } from '../schemas/go2rtc.schema.js';
-import type { CreateInstanceInput, UpdateInstanceInput } from '../schemas/instances.schema.js';
+import type { CreateInstanceInput, InstanceLoginInput, UpdateInstanceInput } from '../schemas/instances.schema.js';
 import type {
   ActionPluginInput,
   InstallPluginInput,
@@ -854,6 +854,10 @@ export interface CreateInstanceRequest {
 
 export interface UpdateInstanceRequest {
   Body: UpdateInstanceInput;
+}
+
+export interface InstanceLoginRequest {
+  Body: InstanceLoginInput;
 }
 
 export interface CreateShareBody {

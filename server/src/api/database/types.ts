@@ -218,10 +218,18 @@ export interface DBInstanceCredentials {
   iv: string;
 }
 
+export interface DBInstanceCachedUser {
+  _id: string;
+  username: string;
+  role: DBRoles;
+  avatar?: string;
+}
+
 export interface DBInstanceTokenCache {
   accessToken: string;
   refreshToken: string;
   cachedAt: number;
+  user?: DBInstanceCachedUser;
 }
 
 export interface DBInstance {
@@ -234,6 +242,10 @@ export interface DBInstance {
   favorite?: boolean;
   addedAt: number;
   addedBy: string;
+  // Set (timestamp) when the remote account requires 2FA and the challenge
+  // hasn't been completed yet — the UI surfaces this state and offers to
+  // finish it. Cleared by any successfully cached session.
+  pending2fa?: number;
 }
 
 export interface DBInstancesConfig {

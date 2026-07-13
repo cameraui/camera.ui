@@ -20,6 +20,7 @@
             <h3 class="text-xl font-semibold truncate">{{ instance.name }}</h3>
           </div>
           <div class="flex items-center gap-1 shrink-0">
+            <Tag v-if="instance.pending2fa" severity="warn" value="2FA" class="text-xs" />
             <Tag v-if="instance.status === 'offline'" severity="danger" :value="$t('views.instances.offline')" class="text-xs" />
             <Tag v-if="instance.active" severity="success" :value="$t('views.instances.active')" />
             <Button severity="secondary" text rounded class="cui-icon-sm" @click.stop="emit('open-menu', $event)">
@@ -76,6 +77,10 @@
 
         <div v-else-if="!instance.hasCredentials" class="mt-1">
           <span class="text-sm text-orange-500">{{ $t('views.instances.credentials_required') }}</span>
+        </div>
+
+        <div v-else-if="instance.pending2fa" class="mt-1">
+          <span class="text-sm text-orange-500">{{ $t('views.instances.two_factor_pending_hint') }}</span>
         </div>
 
         <div v-else class="mt-1">

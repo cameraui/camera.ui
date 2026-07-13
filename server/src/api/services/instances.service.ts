@@ -9,9 +9,34 @@ import { decryptPassword, encryptPassword } from '../utils/encryption.js';
 import type { CameraUiAPI } from '../../api.js';
 import type { PluginManager } from '../../plugins/index.js';
 import type { Database } from '../database/index.js';
-import type { DBInstance, DBInstancesConfig } from '../database/types.js';
+import type { DBInstance, DBInstanceCachedUser, DBInstancesConfig } from '../database/types.js';
 import type { CreateInstanceInput, UpdateInstanceInput } from '../schemas/instances.schema.js';
 import type { UserData } from '../types/index.js';
+
+type RemoteLoginOutcome = { userData: UserData } | { requires2fa: true; tempToken: string };
+
+function pickCachedUser(userData: UserData): DBInstanceCachedUser {
+  return {
+    _id: userData._id,
+    username: userData.username,
+    role: userData.role,
+    avatar: userData.avatar || undefined,
+  };
+}
+
+interface RemoteTokens {
+  access_token: string;
+  refresh_token: string;
+  access_token_expires_at: number;
+  refresh_token_expires_at: number;
+}
+
+export type InstanceLoginResult = UserData | { requires2fa: true };
+
+export interface InstanceMutationResult {
+  instance: DBInstance;
+  requires2fa: boolean;
+}
 
 export interface ServerStatus {
   name: string;
@@ -60,7 +85,7 @@ export class InstancesService {
     return this.maskInstance(instance);
   }
 
-  public async create(input: CreateInstanceInput, username: string): Promise<DBInstance> {
+  public async create(input: CreateInstanceInput, username: string): Promise<InstanceMutationResult> {
     const instances = this.getInstances();
 
     const instance: DBInstance = {
@@ -80,28 +105,37 @@ export class InstancesService {
     };
 
     // Try to login and cache tokens, then fetch remote homeId for self-reference detection
+    let requires2fa = false;
     try {
-      const userData = await this.loginRemote(instance.url, input.credentials.username, input.credentials.password);
-      instance.tokenCache = {
-        accessToken: userData.access_token,
-        refreshToken: userData.refresh_token,
-        cachedAt: Date.now(),
-      };
+      const outcome = await this.loginRemote(instance.url, input.credentials.username, input.credentials.password);
+      if ('requires2fa' in outcome) {
+        // Tokens arrive once the caller completes the 2FA challenge via loginToRemote({code}).
+        requires2fa = true;
+        instance.pending2fa = Date.now();
+      } else {
+        const userData = outcome.userData;
+        instance.tokenCache = {
+          accessToken: userData.access_token,
+          refreshToken: userData.refresh_token,
+          cachedAt: Date.now(),
+          user: pickCachedUser(userData),
+        };
 
-      // With a valid token, fetch the remote server's homeId
-      try {
-        const res = await fetch(`${instance.url}/api/instances/identity`, {
-          headers: { Authorization: `Bearer ${userData.access_token}` },
-          signal: AbortSignal.timeout(5_000),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { homeId: string };
-          if (data.homeId) {
-            instance.remoteHomeId = data.homeId;
+        // With a valid token, fetch the remote server's homeId
+        try {
+          const res = await fetch(`${instance.url}/api/instances/identity`, {
+            headers: { Authorization: `Bearer ${userData.access_token}` },
+            signal: AbortSignal.timeout(5_000),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { homeId: string };
+            if (data.homeId) {
+              instance.remoteHomeId = data.homeId;
+            }
           }
+        } catch {
+          // Remote doesn't support identity endpoint yet — ignore
         }
-      } catch {
-        // Remote doesn't support identity endpoint yet — ignore
       }
     } catch {
       // Login failed — still save the instance, tokens will be fetched later
@@ -110,16 +144,18 @@ export class InstancesService {
     instances.push(instance);
     await this.saveInstances(instances);
 
-    return this.maskInstance(instance);
+    return { instance: this.maskInstance(instance), requires2fa };
   }
 
-  public async update(id: string, input: UpdateInstanceInput): Promise<DBInstance | undefined> {
+  public async update(id: string, input: UpdateInstanceInput): Promise<InstanceMutationResult | undefined> {
     const instances = this.getInstances();
     const instance = instances.find((i) => i.id === id);
     if (!instance) return undefined;
 
     if (input.name !== undefined) instance.name = input.name;
     if (input.url !== undefined) instance.url = input.url.replace(/\/+$/, '');
+
+    let requires2fa = false;
 
     if (input.credentials === null) {
       delete instance.credentials;
@@ -134,12 +170,19 @@ export class InstancesService {
       delete instance.tokenCache;
 
       try {
-        const userData = await this.loginRemote(instance.url, input.credentials.username, input.credentials.password);
-        instance.tokenCache = {
-          accessToken: userData.access_token,
-          refreshToken: userData.refresh_token,
-          cachedAt: Date.now(),
-        };
+        const outcome = await this.loginRemote(instance.url, input.credentials.username, input.credentials.password);
+        if ('requires2fa' in outcome) {
+          requires2fa = true;
+          instance.pending2fa = Date.now();
+        } else {
+          delete instance.pending2fa;
+          instance.tokenCache = {
+            accessToken: outcome.userData.access_token,
+            refreshToken: outcome.userData.refresh_token,
+            cachedAt: Date.now(),
+            user: pickCachedUser(outcome.userData),
+          };
+        }
       } catch {
         // Login failed — tokens will be fetched later
       }
@@ -147,7 +190,7 @@ export class InstancesService {
 
     await this.saveInstances(instances);
 
-    return this.maskInstance(instance);
+    return { instance: this.maskInstance(instance), requires2fa };
   }
 
   public async toggleFavorite(id: string): Promise<boolean | undefined> {
@@ -178,16 +221,37 @@ export class InstancesService {
     return { username: instance.credentials.username, password };
   }
 
-  public async loginToRemote(id: string): Promise<UserData> {
+  public async loginToRemote(id: string, code?: string): Promise<InstanceLoginResult> {
     const instance = this.getInstances().find((i) => i.id === id);
     if (!instance) throw new Error('Instance not found');
+
+    if (!code && instance.tokenCache?.refreshToken) {
+      try {
+        const tokens = await this.refreshToken(instance.url, instance.tokenCache.refreshToken);
+        const user = instance.tokenCache.user;
+        await this.cacheToken(id, tokens.access_token, tokens.refresh_token, user);
+        return this.composeUserData(tokens, user, instance.credentials?.username);
+      } catch {
+        // Refresh failed — fall through to credentials login
+      }
+    }
 
     const credentials = this.getCredentials(id);
     if (!credentials) throw new Error('No credentials configured for this instance');
 
-    const userData = await this.loginRemote(instance.url, credentials.username, credentials.password);
-    await this.cacheToken(id, userData.access_token, userData.refresh_token);
-    return userData;
+    const outcome = await this.loginRemote(instance.url, credentials.username, credentials.password);
+
+    if ('requires2fa' in outcome) {
+      if (!code) {
+        return { requires2fa: true };
+      }
+      const userData = await this.verifyRemote2FA(instance.url, outcome.tempToken, code);
+      await this.cacheToken(id, userData.access_token, userData.refresh_token, pickCachedUser(userData));
+      return userData;
+    }
+
+    await this.cacheToken(id, outcome.userData.access_token, outcome.userData.refresh_token, pickCachedUser(outcome.userData));
+    return outcome.userData;
   }
 
   public async getLocalStatus(): Promise<ServerStatus> {
@@ -314,12 +378,15 @@ export class InstancesService {
     });
   }
 
-  private async cacheToken(id: string, accessToken: string, refreshToken: string): Promise<void> {
+  private async cacheToken(id: string, accessToken: string, refreshToken: string, user?: DBInstanceCachedUser): Promise<void> {
     const instances = this.getInstances();
     const instance = instances.find((i) => i.id === id);
     if (!instance) return;
 
-    instance.tokenCache = { accessToken, refreshToken, cachedAt: Date.now() };
+    // A cached session proves the challenge was completed — the instance is no
+    // longer an abandoned 2FA add.
+    delete instance.pending2fa;
+    instance.tokenCache = { accessToken, refreshToken, cachedAt: Date.now(), user: user ?? instance.tokenCache?.user };
     await this.saveInstances(instances);
   }
 
@@ -350,9 +417,13 @@ export class InstancesService {
     const credentials = this.getCredentials(id);
     if (!credentials) throw new Error('No credentials configured for this instance');
 
-    const userData = await this.loginRemote(instance.url, credentials.username, credentials.password);
-    await this.cacheToken(id, userData.access_token, userData.refresh_token);
-    return userData.access_token;
+    const outcome = await this.loginRemote(instance.url, credentials.username, credentials.password);
+    if ('requires2fa' in outcome) {
+      throw new Error('Remote account requires a 2FA code — open the instance to log in');
+    }
+
+    await this.cacheToken(id, outcome.userData.access_token, outcome.userData.refresh_token, pickCachedUser(outcome.userData));
+    return outcome.userData.access_token;
   }
 
   private async testToken(url: string, token: string): Promise<boolean> {
@@ -367,7 +438,7 @@ export class InstancesService {
     }
   }
 
-  private async refreshToken(url: string, refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  private async refreshToken(url: string, refreshToken: string): Promise<RemoteTokens> {
     const res = await fetch(`${url}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -376,10 +447,10 @@ export class InstancesService {
     });
 
     if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
-    return (await res.json()) as { access_token: string; refresh_token: string };
+    return (await res.json()) as RemoteTokens;
   }
 
-  private async loginRemote(url: string, username: string, password: string): Promise<UserData> {
+  private async loginRemote(url: string, username: string, password: string): Promise<RemoteLoginOutcome> {
     const res = await fetch(`${url}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -402,6 +473,46 @@ export class InstancesService {
       throw new Error(`Remote login failed (${res.status}): ${body}`);
     }
 
+    // 2FA-enabled accounts answer 200 with a pending challenge instead of tokens.
+    const data = (await res.json()) as UserData | { requires2fa: boolean; tempToken: string };
+    if ('requires2fa' in data && data.requires2fa && data.tempToken) {
+      return { requires2fa: true, tempToken: data.tempToken };
+    }
+
+    return { userData: data as UserData };
+  }
+
+  private async verifyRemote2FA(url: string, tempToken: string, code: string): Promise<UserData> {
+    const res = await fetch(`${url}/api/auth/2fa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempToken, code }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(body.message ?? `Remote 2FA verification failed (${res.status})`);
+    }
+
     return (await res.json()) as UserData;
+  }
+
+  private composeUserData(tokens: RemoteTokens, user: DBInstanceCachedUser | undefined, fallbackUsername?: string): UserData {
+    return {
+      _id: user?._id ?? '',
+      username: user?.username ?? fallbackUsername ?? '',
+      avatar: user?.avatar ?? '',
+      role: user?.role ?? 'user',
+      firstLogin: false,
+      language: 'auto',
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_type: 'Bearer',
+      access_token_expires_at: tokens.access_token_expires_at,
+      refresh_token_expires_at: tokens.refresh_token_expires_at,
+      internalAddresses: [],
+      externalAddresses: [],
+    };
   }
 }

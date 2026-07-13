@@ -82,6 +82,7 @@
 import { isEqual } from '@camera.ui/common/utils';
 import TrashIcon from '~icons/iconamoon/trash-fill';
 import EditIcon from '~icons/mdi/pencil-outline';
+import TwoFactorIcon from '~icons/mdi/two-factor-authentication';
 import PlusIcon from '~icons/typcn/plus';
 
 import { InstancesQuery } from '@/api/routes/instances.js';
@@ -161,6 +162,7 @@ const allInstances = computed(() => {
       active: si.id === instanceStore.activeId,
       favorite: instanceStore.isFavorite(si.id),
       hasCredentials,
+      pending2fa: !!si.pending2fa,
       version: status?.version,
       lastUpdatedAt: query?.dataUpdatedAt,
       cameras: status?.cameras,
@@ -184,6 +186,14 @@ const filteredInstances = computed(() => {
 });
 
 const menuItems = computed<MenuItem[]>(() => [
+  {
+    label: t('views.instances.two_factor_enter_code'),
+    icon: TwoFactorIcon,
+    hide: !(menuRef.value?.data as InstanceInfo | undefined)?.pending2fa,
+    onClick: (instance: InstanceInfo) => {
+      instanceStore.complete2FALogin(instance.id, instance.name);
+    },
+  },
   {
     label: t('views.settings.edit'),
     icon: EditIcon,
@@ -240,6 +250,12 @@ function toInstanceEntry(info: InstanceInfo): InstanceEntry | undefined {
 
 function onCardClick(instance: InstanceInfo) {
   if (instance.active || instance.status === 'offline') return;
+  if (instance.pending2fa) {
+    // The instance has no completed session yet — finish the 2FA challenge
+    // instead of attempting a switch that would prompt for it anyway.
+    instanceStore.complete2FALogin(instance.id, instance.name);
+    return;
+  }
   if (instance.id === '__home__') {
     instanceStore.switchInstance(null);
   } else {
@@ -260,7 +276,11 @@ function openAddDialog() {
     onConfirm: async (result: { name: string; url: string; credentials: { username: string; password: string } } | null) => {
       if (!result) return;
       try {
-        await createInstance({ name: result.name, url: result.url, credentials: result.credentials });
+        const created = await createInstance({ name: result.name, url: result.url, credentials: result.credentials });
+        if (created.requires2fa) {
+          // Cancelled prompt is fine — the card shows the pending-2FA state.
+          await instanceStore.complete2FALogin(created.id, created.name);
+        }
       } catch (error: any) {
         toast.add({ severity: 'error', detail: error, life: 3000 });
       }
@@ -282,13 +302,16 @@ function openEditDialog(instance: InstanceEntry) {
     onConfirm: async (result: { name: string; credentials?: { username: string; password: string } } | null) => {
       if (!result) return;
       try {
-        await updateInstance({
+        const updated = await updateInstance({
           id: instance.id,
           data: {
             name: result.name !== instance.name ? result.name : undefined,
             credentials: result.credentials ?? undefined,
           },
         });
+        if (updated.requires2fa) {
+          await instanceStore.complete2FALogin(updated.id, updated.name);
+        }
       } catch (error: any) {
         toast.add({ severity: 'error', detail: error, life: 3000 });
       }

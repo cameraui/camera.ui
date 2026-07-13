@@ -1,7 +1,8 @@
 import { resetClientState } from '@camera.ui/browser';
 import { clearEventDataCache, resetEventStore } from '@camera.ui/nvr';
 
-import { createInstanceFn, deleteInstanceFn, getInstancesFn, loginToRemoteFn, toggleFavoriteFn, updateInstanceFn } from '@/api/routes/instances.js';
+import { createInstanceFn, deleteInstanceFn, getInstancesFn, isRequires2fa, loginToRemoteFn, toggleFavoriteFn, updateInstanceFn } from '@/api/routes/instances.js';
+import InstanceTwoFactorPrompt from '@/components/CuiDialog/templates/InstanceTwoFactorPrompt/InstanceTwoFactorPrompt.vue';
 import { getConnection, instanceOverride } from '@/connection/instance.js';
 import { i18n } from '@/i18n/index.js';
 
@@ -258,8 +259,27 @@ export const useInstanceStore = defineStore('instances', () => {
       let freshUserData: UserData | null = null;
       if (targetId !== null && target.hasCredentials) {
         try {
-          freshUserData = await loginToRemoteFn(targetId);
-          log.debug('[switch]', 'backend relay login OK');
+          let result = await loginToRemoteFn(targetId);
+
+          if (isRequires2fa(result)) {
+            // Release the switching overlay so the code dialog is visible.
+            log.debug('[switch]', 'remote requires 2FA — prompting for code');
+            isSwitching.value = false;
+            const userData = await run2FALogin(targetId, target.name);
+            if (generation !== _switchGeneration) return;
+            isSwitching.value = true;
+
+            if (!userData) {
+              log.debug('[switch]', '2FA prompt cancelled — aborting switch');
+              return;
+            }
+            result = userData;
+          }
+
+          if (!isRequires2fa(result)) {
+            freshUserData = result;
+            log.debug('[switch]', 'backend relay login OK');
+          }
         } catch (err) {
           log.warn('[switch]', 'backend relay login FAILED — will try cached tokens', err);
         }
@@ -386,6 +406,52 @@ export const useInstanceStore = defineStore('instances', () => {
     }
   }
 
+  function prompt2FACode(instanceName: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const settle = (value: string | null): void => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      dialog.openComponentDialog(InstanceTwoFactorPrompt, {
+        data: {
+          title: t('instances.two_factor_title'),
+          confirmText: t('views.login.2fa_verify'),
+          contentProps: { instanceName },
+        },
+        onConfirm: async (code: string | null) => settle(code ?? null),
+        onCancel: async () => settle(null),
+      });
+    });
+  }
+
+  // Re-prompts on a wrong code until the user cancels; null = cancelled.
+  async function run2FALogin(id: string, name: string): Promise<UserData | null> {
+    for (;;) {
+      const code = await prompt2FACode(name);
+      if (!code) return null;
+
+      try {
+        const result = await loginToRemoteFn(id, code);
+        if (!isRequires2fa(result)) return result;
+      } catch (err) {
+        log.warn('[2fa]', 'verification failed', err);
+        toast.add({ severity: 'error', detail: t('instances.two_factor_failed'), life: 3000 });
+      }
+    }
+  }
+
+  async function complete2FALogin(id: string, name: string): Promise<boolean> {
+    const userData = await run2FALogin(id, name);
+    if (!userData) return false;
+
+    toast.add({ severity: 'success', detail: t('instances.two_factor_completed', { name }), life: 3000 });
+    // The server cleared the instance's pending flag — refresh so the UI drops it.
+    await fetchInstances().catch(() => {});
+    return true;
+  }
+
   function confirmInsecureHandoff(name: string): Promise<boolean> {
     log.warn('[switch]', `target "${name}" requires URL handoff — asking user confirmation`);
     return new Promise((resolve) => {
@@ -455,6 +521,7 @@ export const useInstanceStore = defineStore('instances', () => {
     updateInstance,
     switchInstance,
     probeInstance,
+    complete2FALogin,
     reset,
     saveCurrentTokens,
     restoreActiveOverride,
