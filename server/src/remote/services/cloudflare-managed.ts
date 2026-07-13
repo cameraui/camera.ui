@@ -1,4 +1,3 @@
-import { install } from 'cloudflared';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -9,6 +8,7 @@ import { container } from 'tsyringe';
 
 import { RemoteService } from '../../api/services/remote.service.js';
 import { isShuttingDown } from '../../shutdown-state.js';
+import { cloudflaredBinaryPath, ensureCloudflaredBinary } from './cloudflaredBinary.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { ChildProcess } from 'node:child_process';
@@ -253,6 +253,13 @@ export class CloudflareManagedService {
       this.configService.addProcess({ pid, startTime: Date.now(), command: this.cloudflaredBinaryPath(), args });
     }
 
+    this.runProcess.on('error', (error) => {
+      if (pid) this.configService.removeProcessByPID(pid);
+      if (this._state === 'running' && !isShuttingDown()) {
+        this.fail(`tunnel run failed: ${error.message}`);
+      }
+    });
+
     this.runProcess.on('exit', (code) => {
       if (pid) this.configService.removeProcessByPID(pid);
       if (this._state === 'running' && !isShuttingDown()) {
@@ -292,6 +299,12 @@ export class CloudflareManagedService {
         reject(new Error(`cloudflared ${args[0]} ${args[1]} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
+      proc.on('error', (error) => {
+        clearTimeout(timer);
+        if (this.stepProcess === proc) this.stepProcess = undefined;
+        reject(error);
+      });
+
       proc.on('exit', (code) => {
         clearTimeout(timer);
         if (this.stepProcess === proc) this.stepProcess = undefined;
@@ -309,12 +322,11 @@ export class CloudflareManagedService {
   }
 
   private async ensureCloudflaredInstalled(): Promise<void> {
-    if (existsSync(this.cloudflaredBinaryPath())) return;
-    await install(this.cloudflaredBinaryPath());
+    await ensureCloudflaredBinary(this.cloudflarePath);
   }
 
   private cloudflaredBinaryPath(): string {
-    return join(this.cloudflarePath, 'cloudflared');
+    return cloudflaredBinaryPath(this.cloudflarePath);
   }
 
   private certPath(): string {

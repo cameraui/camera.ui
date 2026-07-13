@@ -1,16 +1,15 @@
 import { API_EVENT } from '@camera.ui/sdk';
 import { strip } from 'ansicolor';
-import { install } from 'cloudflared';
-import { mkdir } from 'fs/promises';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { container } from 'tsyringe';
 
 import { RemoteService } from '../../api/services/remote.service.js';
 import { isShuttingDown } from '../../shutdown-state.js';
 import { CloudflareManagedService } from './cloudflare-managed.js';
+import { cloudflaredBinaryPath, ensureCloudflaredBinary } from './cloudflaredBinary.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { ChildProcess } from 'node:child_process';
@@ -125,7 +124,7 @@ export class CloudflareService {
       return;
     }
     this.logger.debug('Cloudflare: Installing cloudflared...');
-    this.installPromise = this.installCloudflared();
+    this.installPromise = ensureCloudflaredBinary(this.cloudflarePath);
     try {
       await this.installPromise;
     } finally {
@@ -190,9 +189,12 @@ export class CloudflareService {
     }
 
     proc.on('error', (error) => {
-      if (!this.manuallyKilled && !this.shuttingDown) {
-        this.logger.error('Cloudflare:', error);
+      if (cloudflaredPID) {
+        this.configService.removeProcessByPID(cloudflaredPID);
       }
+
+      if (this.cloudflaredProcess !== proc || isShuttingDown()) return;
+      this.handleError(error);
     });
 
     proc.on('exit', (code) => {
@@ -263,22 +265,10 @@ export class CloudflareService {
   }
 
   private cloudflaredBinaryPath(): string {
-    return join(this.cloudflarePath, 'cloudflared');
+    return cloudflaredBinaryPath(this.cloudflarePath);
   }
 
   private isCloudflaredInstalled(): boolean {
     return existsSync(this.cloudflaredBinaryPath());
-  }
-
-  private async installCloudflared(): Promise<string> {
-    const binPath = this.cloudflaredBinaryPath();
-    const binDir = dirname(binPath);
-
-    if (!existsSync(binDir)) {
-      await mkdir(binDir, { recursive: true });
-    }
-
-    await install(binPath);
-    return binPath;
   }
 }
