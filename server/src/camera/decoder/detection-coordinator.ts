@@ -369,8 +369,14 @@ export class DetectionCoordinator {
   }
 
   private applyExternalDetectionFilters(sensorType: SensorType, properties: Record<string, unknown>): Record<string, unknown> {
-    const detections = properties.detections;
-    if (!Array.isArray(detections) || detections.length === 0) return properties;
+    const raw = properties.detections;
+    if (!Array.isArray(raw) || raw.length === 0) return properties;
+
+    // Smart-camera plugins may report label-only detections without
+    // coordinates (current SDKs substitute full-frame, but older or
+    // third-party plugins can still send box-less writes) — the zone filter
+    // and rust merge assume a box on every detection.
+    const detections = raw.map((detection) => (detection.box ? detection : { ...detection, box: { x: 0, y: 0, width: 1, height: 1 } }));
 
     let filtered: Detection[];
     switch (sensorType) {
@@ -386,7 +392,7 @@ export class DetectionCoordinator {
         filtered = this.pipeline.runZoneFilter(detections as Detection[]);
         break;
       default:
-        return properties; // Audio etc — no zone filter
+        return { ...properties, detections }; // Audio etc — no zone filter
     }
 
     return {
