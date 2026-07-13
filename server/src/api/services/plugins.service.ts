@@ -1,17 +1,17 @@
 import { move, pathExists, readJson, remove } from 'fs-extra/esm';
 
-import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { container, delay, registry } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
+import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
 
 import { PluginManager } from '../../plugins/index.js';
 import { Plugin } from '../../plugins/plugin.js';
 import { extractPackage, installDependencies } from '../../utils/npm/index.js';
 import { Database } from '../database/index.js';
-import { CamerasService } from './cameras.service.js';
 import { elidePath, getTerminalCols, InstallLogger } from '../utils/install-logger.js';
+import { CamerasService } from './cameras.service.js';
 
 import type { Server } from 'socket.io';
 import type { PluginWorker } from '../../plugins/worker.js';
@@ -196,7 +196,16 @@ export class PluginsService {
 
     this.managingPluginsMap.set(pluginName, { pluginName, action, version: version ?? 'latest' });
 
+    const worker = this.getPluginProcessByName(pluginName);
+    const wasRunning = worker?.isRunning() === true;
+
     try {
+      if (worker && wasRunning) {
+        log.step('Stopping running plugin');
+        await worker.teardown();
+        log.done();
+      }
+
       switch (action) {
         case 'install':
           await this.installPlugin(log, pluginName, version ?? 'latest', targetDir);
@@ -214,6 +223,12 @@ export class PluginsService {
           break;
       }
     } finally {
+      if (wasRunning && action !== 'uninstall' && (await pathExists(targetDir))) {
+        log.step('Starting plugin');
+        await this.pluginManager.startPluginChild(pluginName);
+        log.done();
+      }
+
       this.managingPluginsMap.delete(pluginName);
     }
 

@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Plugins can be updated and uninstalled on Windows again.** Updating or removing a plugin failed with "EPERM: operation not permitted" because the plugin process was still running and Windows refuses to move or delete a folder that is in use. A running plugin is now stopped before its files are touched and started again afterwards — on an update it comes back up on the new version right away, and if an update fails the restored previous version is restarted.
+
 - **No more red pip "not on PATH" errors during Python setup on Windows.** Installing Python dependencies logged pip's harmless "scripts are not on PATH" notices as errors on Windows. The scripts are never used via PATH, so pip is now told not to warn about them.
 
 - **Cloudflare tunnels work on Windows again.** The bundled `cloudflared` binary was installed without the `.exe` extension, which Windows refuses to execute — every tunnel start failed with a "spawn ENOENT" error, and with a named or managed tunnel configured this even crashed the whole server in a restart loop. The binary now gets the proper extension on Windows, the leftover broken download is cleaned up automatically, and a failure to start `cloudflared` can no longer take the server down.
