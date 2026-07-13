@@ -1112,7 +1112,7 @@ export class DetectionCoordinator {
     if (wanted && !this.hqSnapshotSource.isRunning) {
       this.hqSnapshotSource.start();
     } else if (!wanted && this.hqSnapshotSource.isRunning) {
-      void this.hqSnapshotSource.stop();
+      this.hqSnapshotSource.stop();
     }
   }
 

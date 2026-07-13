@@ -36,8 +36,8 @@ function installCameraRemovedCleanup(): void {
     const dbs = container.resolve<Database>('dbs');
     for (const { value } of dbs.virtualSensorsDB.getRange()) {
       if (value.cameraId !== cameraId) continue;
-      void disposeVirtualSensorHost(value._id);
-      void dbs.virtualSensorsDB.remove(value._id);
+      disposeVirtualSensorHost(value._id);
+      dbs.virtualSensorsDB.remove(value._id);
     }
   });
 }

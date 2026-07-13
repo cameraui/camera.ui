@@ -42,7 +42,7 @@ export const useLocaleStore = defineStore('locale', () => {
     if (l === serverLanguage) return;
     serverLanguage = l;
     if (authStore.isLoggedIn) {
-      void authStore.updateUser({ preferences: { language: l } });
+      authStore.updateUser({ preferences: { language: l } });
     }
   });
 

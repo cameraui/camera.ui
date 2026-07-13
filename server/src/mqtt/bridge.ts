@@ -159,7 +159,7 @@ export class MqttBridge {
     const sensor = controller.sensorController.getAllSensors().find((s) => s.data.stableId === stableId);
     if (!sensor || SENSOR_TYPE_CONFIG[sensor.type]?.isDetectionType) return;
 
-    void sensor.updateValue(property, parseCommandPayload(payload.toString('utf8')));
+    sensor.updateValue(property, parseCommandPayload(payload.toString('utf8')));
   }
 
   public clearDiscovery(haPrefix: string): void {

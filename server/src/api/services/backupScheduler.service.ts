@@ -136,7 +136,7 @@ export class BackupSchedulerService {
           this.arm();
           return;
         }
-        void this.run()
+        this.run()
           .catch(() => {
             // run() persists its own error state
           })
