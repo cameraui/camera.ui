@@ -9,6 +9,7 @@ export interface FrameSourceConfig {
   snapshotUrl: string;
   fps: number;
   snapshotTimeoutMs?: number;
+  snapshotProvider?: () => Promise<Buffer | null>;
 }
 
 export interface FrameSnap {
@@ -44,6 +45,15 @@ export class FrameHandle implements AsyncDisposable {
       },
     });
 
+    return FrameHandle.decodeFirstFrame(demuxer);
+  }
+
+  public static async fromBuffer(data: Buffer): Promise<FrameHandle> {
+    const demuxer = await Demuxer.open(data);
+    return FrameHandle.decodeFirstFrame(demuxer);
+  }
+
+  private static async decodeFirstFrame(demuxer: Demuxer): Promise<FrameHandle> {
     let decoder: Decoder | undefined;
     let firstFrame: Frame | undefined;
     try {
@@ -310,7 +320,7 @@ export class FrameSource {
   public async fetchSnapshotFrame(): Promise<FrameHandle | null> {
     if (!this.inflightFetch) {
       const timeoutMs = this.config.snapshotTimeoutMs ?? FrameSource.FETCH_DEFAULT_TIMEOUT_MS;
-      const thisFetch = FrameHandle.fromUrl(this.config.snapshotUrl, timeoutMs).catch((e) => {
+      const thisFetch = this.fetchSnapshotHandle(timeoutMs).catch((e) => {
         this.logger.debug('fetchSnapshotFrame failed:', e);
         return null;
       });
@@ -336,6 +346,20 @@ export class FrameSource {
     if (!rootHandle) return null;
     const cloned = rootHandle.frame.clone();
     return cloned ? FrameHandle.fromClonedFrame(cloned) : null;
+  }
+
+  private async fetchSnapshotHandle(timeoutMs: number): Promise<FrameHandle | null> {
+    if (this.config.snapshotProvider) {
+      try {
+        const jpeg = await this.config.snapshotProvider();
+        if (jpeg && jpeg.length > 0) {
+          return await FrameHandle.fromBuffer(jpeg);
+        }
+      } catch {
+        // fall back to snapshotUrl
+      }
+    }
+    return FrameHandle.fromUrl(this.config.snapshotUrl, timeoutMs);
   }
 
   private wakeWaiter(): void {

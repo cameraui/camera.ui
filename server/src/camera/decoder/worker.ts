@@ -420,6 +420,7 @@ export class FrameWorker extends Subscribed {
         streamUrl: source,
         snapshotUrl: snapshotSource,
         audioStreamUrl: audioSource,
+        controllerSnapshotSourceId: this.getControllerSnapshotSourceId(),
         availableSources,
         zones: this.camera.detectionZones,
         lines: this.camera.detectionLines,
@@ -607,6 +608,12 @@ export class FrameWorker extends Subscribed {
       backchannel: false,
       timeout: 10,
     });
+  }
+
+  private getControllerSnapshotSourceId(): string | undefined {
+    if (!this.camera.pluginInfo) return undefined;
+    const source = this.camera.snapshotSource ?? this.camera.lowResolutionSource ?? this.camera.midResolutionSource ?? this.camera.streamSource;
+    return source?._id;
   }
 
   private getSnapshotSource(): string {

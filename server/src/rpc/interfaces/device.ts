@@ -57,6 +57,7 @@ export interface CameraDeviceInterface extends CameraDeviceImplementation {
   refreshStates(): Promise<RefreshedStates>;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
+  snapshot(sourceId: string, forceNew?: boolean): Promise<ArrayBuffer | undefined>;
   snapshotWithMeta(sourceId: string, forceNew?: boolean): Promise<SnapshotWithMeta | undefined>;
   probeStream(sourceId: string, probeConfig?: ProbeConfig, refresh?: boolean): Promise<ProbeStream | undefined>;
   getStreamStatus(sourceId: string): Promise<string>;

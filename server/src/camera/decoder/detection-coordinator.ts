@@ -50,6 +50,7 @@ import type {
 import type { Frame } from 'node-av/lib';
 import type { CoreManagerInterface } from '../../rpc/interfaces/core.js';
 import type { CoordinatorSensorInfo, CroppedRegion, DetectionPluginInterface, DetectionResults, DetectionThumbnail } from '../../rpc/interfaces/detection.js';
+import type { CameraDeviceInterface } from '../../rpc/interfaces/device.js';
 import type { SensorWriteMessage } from '../../rpc/interfaces/sensor.js';
 import type { AudioSourceConfig } from './audio-source.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
@@ -89,6 +90,7 @@ export interface DetectionCoordinatorConfig {
   streamUrl: string;
   snapshotUrl: string;
   audioStreamUrl: string;
+  controllerSnapshotSourceId?: string;
   availableSources?: CoordinatorSourceUrl[];
   zones: DetectionZone[];
   lines: DetectionLine[];
@@ -222,6 +224,17 @@ export class DetectionCoordinator {
       snapshotUrl: config.snapshotUrl,
       fps: this.config.frameWorkerSettings.fps,
     };
+
+    if (config.controllerSnapshotSourceId) {
+      const sourceId = config.controllerSnapshotSourceId;
+      const controllerProxy = this.proxy.createProxy<CameraDeviceInterface>(NamespaceManager.cameraNamespaces(config.cameraId).cameraControllerRpc);
+      frameSourceConfig.snapshotProvider = async () => {
+        const jpeg = await controllerProxy.snapshot(sourceId, true);
+        if (!jpeg || jpeg.byteLength === 0) return null;
+        return Buffer.from(jpeg);
+      };
+    }
+
     this.frameSource = new FrameSource(frameSourceConfig, logger);
     this.frameScaler = new FrameScaler(null, logger);
     this.pipeline = new DetectionPipeline(config.zones, config.detectionSettings);
@@ -709,7 +722,15 @@ export class DetectionCoordinator {
       this.ingestDetectionResult(SensorType.Object, sensorId, filtered);
       this.eventManager.processResults(this.buildSnapshot());
 
-      if (!this.hasFrameBasedSecondary()) return;
+      if (!this.hasFrameBasedSecondary()) {
+        // Smart-camera objects arrive after the motion-start thumbnail was
+        // shot — usually before the subject fully entered the frame. Re-shoot
+        // so the event picture actually shows what was detected.
+        if (filtered.detected === true && this.eventManager.hasActiveEvent()) {
+          this.fetchEventThumbnailAsync();
+        }
+        return;
+      }
       if (this.processingExternalSecondary) return; // busy-skip: previous RPC still running
 
       this.processingExternalSecondary = true;
@@ -1041,7 +1062,9 @@ export class DetectionCoordinator {
 
         await using handle = await this.frameSource.fetchSnapshotFrame();
         if (!handle) return;
-        const jpeg = await this.frameScaler.frameToJPEG(handle.frame, EVENT_THUMB_MAX_WIDTH);
+        // Large frames (plugin-native snapshots) can afford the HQ thumbnail width.
+        const maxWidth = handle.frame.width >= EVENT_THUMB_HQ_MAX_WIDTH * 2 ? EVENT_THUMB_HQ_MAX_WIDTH : EVENT_THUMB_MAX_WIDTH;
+        const jpeg = await this.frameScaler.frameToJPEG(handle.frame, maxWidth);
         if (!jpeg) return;
         this.eventManager.publishEventThumbnail(jpeg);
       } catch (e) {
