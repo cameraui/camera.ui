@@ -18,6 +18,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Detections reported by smart cameras trigger reliably.** Detection reports coming from the camera's own intelligence (smart-camera plugins) could get lost in two ways: reports without bounding boxes fell through the zone filter, and presence reports without motion tracking were misjudged as "stationary" and suppressed. Both now count as real activity, so sensors driven by camera-side detection fire as expected.
+
+- **Less error noise while shutting down.** Sensor updates arriving during server shutdown no longer race the already-stopping detection pipeline, which previously produced RPC "no responders" errors in the log.
+
 - **Logs are easy to copy now — on phones too.** Every log console (logs view, camera and plugin logs, update console) has a copy button that copies the current selection. On touch devices, selecting works like native text selection: long-press a line to select it, keep holding and drag to extend across lines (scrolling past the edge included), then tap the copy button — previously there was no way to copy log output on mobile at all. The log consoles also dropped their GPU-based renderer, which could blank out on phones after switching apps, and install logs now render at the correct width in every console.
 
 - **Plugin installs no longer time out in the interface.** Installing or updating a plugin aborted client-side after 30 seconds while the server was still busy running npm — the console kept streaming, but the result was reported as a failure. Installs now get the time they actually need.
