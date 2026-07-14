@@ -6,6 +6,7 @@ import { container } from 'tsyringe';
 import { PluginsService } from '../../api/services/plugins.service.js';
 import { PLUGIN_STATUS } from '../../plugins/types.js';
 import { NamespaceManager } from '../../rpc/namespaces.js';
+import { isShuttingDown } from '../../shutdown-state.js';
 import { ServerSensor } from './sensor.js';
 import { computeSensorStableId } from './stable-id.js';
 import { MULTI_PROVIDER_TYPES, SENSOR_TYPE_CONFIG } from './types.js';
@@ -449,7 +450,7 @@ export class SensorController {
   }
 
   private async pushSensorAdded(data: StoredSensorData): Promise<void> {
-    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED) return;
+    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED || isShuttingDown()) return;
     if (!data.pluginId) return;
     try {
       await this.detectionCoordinatorProxy.onSensorAdded(this.toCoordinatorSensorInfo(data));
@@ -459,7 +460,7 @@ export class SensorController {
   }
 
   private async pushSensorRemoved(sensorId: string): Promise<void> {
-    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED) return;
+    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED || isShuttingDown()) return;
     try {
       await this.detectionCoordinatorProxy.onSensorRemoved(sensorId);
     } catch (error) {
@@ -468,7 +469,7 @@ export class SensorController {
   }
 
   private async pushSensorCapabilities(sensorId: string, capabilities: string[]): Promise<void> {
-    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED) return;
+    if (this.frameWorker.status !== PLUGIN_STATUS.STARTED || isShuttingDown()) return;
     try {
       await this.detectionCoordinatorProxy.onSensorCapabilitiesChanged(sensorId, capabilities);
     } catch (error) {
