@@ -49,7 +49,7 @@
         paddingTop: `${TOPNAVBAR_HEIGHT}px`,
       }"
     >
-      <CuiConsole ref="consoleRef" :options />
+      <CuiConsole ref="consoleRef" :options @resize="logsSocket.reportSize" />
     </div>
 
     <SpeedDial
@@ -147,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import CopyIcon from '~icons/mdi/content-copy';
 import DownloadIcon from '~icons/heroicons-solid/download';
 import TrashIcon from '~icons/lucide/trash-2';
 import ZoomInIcon from '~icons/tabler/zoom-in';
@@ -425,6 +426,13 @@ const items = ref<{ label: string; icon: any; buttonProps?: ButtonProps; command
         },
         onConfirm: clearLog,
       });
+    },
+  },
+  {
+    label: t('components.form.tooltip.copy_all'),
+    icon: CopyIcon,
+    command: () => {
+      consoleRef.value?.copyAll();
     },
   },
   {

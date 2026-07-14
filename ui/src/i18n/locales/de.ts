@@ -927,6 +927,7 @@ export default {
         console: 'Konsole',
         contain: 'Enthalten',
         copied: 'Kopiert',
+        copy_all: 'Alles kopieren',
         delete: 'Löschen',
         disable_drag: 'Ziehen deaktivieren',
         disabled: 'Deaktiviert',

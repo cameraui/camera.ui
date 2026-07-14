@@ -21,6 +21,7 @@ export function useLogsSocket(options: LogsSocketOptions = {}) {
   let dynamicUnsub: SocketUnsubscribe | null = null;
   let currentTarget: string | undefined = target;
   let hasConnectedOnce = false;
+  let lastCols = 0;
 
   if (target) {
     channel.on<string>(`stdout/${target}`, (data) => onStdout?.(data));
@@ -48,6 +49,9 @@ export function useLogsSocket(options: LogsSocketOptions = {}) {
   }
 
   function reportSize(cols: number): void {
+    if (cols > 0) {
+      lastCols = cols;
+    }
     if (currentTarget && cols > 0) {
       channel.emit('term-size', { target: currentTarget, cols });
     }
@@ -63,6 +67,10 @@ export function useLogsSocket(options: LogsSocketOptions = {}) {
     dynamicUnsub?.();
     dynamicUnsub = channel.on<string>(channelFor(source), (data) => onStdout?.(data));
     currentTarget = source.kind === 'all' ? undefined : source.id;
+
+    if (lastCols > 0) {
+      reportSize(lastCols);
+    }
 
     lastRequest = () => {
       switch (source.kind) {

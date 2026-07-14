@@ -41,16 +41,6 @@
     </div>
 
     <div v-else-if="showConsole" class="w-full h-full relative">
-      <Button
-        v-tooltip.left="$t('components.form.button.copy')"
-        type="button"
-        severity="secondary"
-        rounded
-        class="!absolute top-2 right-2 z-10 !w-8 !h-8 !p-0 opacity-70 hover:opacity-100"
-        @click="consoleRef?.copyAll()"
-      >
-        <i-mdi:content-copy class="w-4 h-4" />
-      </Button>
       <CuiConsole ref="consoleRef" :options="options" class="bg-black !w-full" ignore-breakpoint @resize="logsSocket.reportSize" />
     </div>
 

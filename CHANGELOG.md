@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Logs are easy to copy now — on phones too.** Every log console (logs view, camera and plugin logs, update console) has a copy button that copies the current selection. On touch devices, selecting works like native text selection: long-press a line to select it, keep holding and drag to extend across lines (scrolling past the edge included), then tap the copy button — previously there was no way to copy log output on mobile at all. The log consoles also dropped their GPU-based renderer, which could blank out on phones after switching apps, and install logs now render at the correct width in every console.
+
+- **Plugin installs no longer time out in the interface.** Installing or updating a plugin aborted client-side after 30 seconds while the server was still busy running npm — the console kept streaming, but the result was reported as a failure. Installs now get the time they actually need.
+
 - **Server updates via the launcher no longer collide with the running server on Windows.** The `camera.ui` launcher swapped the server's files while the server was still running, which Windows refuses for files in use — a server update could fail halfway through. The update is now downloaded and verified in the background as before, but the actual swap happens during the restart that follows the update, when nothing holds the files anymore. An interrupted swap is picked up and completed on the next start. (Ships with the updated `camera.ui` launcher package.)
 
 - **Plugins can be updated and uninstalled on Windows again.** Updating or removing a plugin failed with "EPERM: operation not permitted" because the plugin process was still running and Windows refuses to move or delete a folder that is in use. A running plugin is now stopped before its files are touched and started again afterwards — on an update it comes back up on the new version right away, and if an update fails the restored previous version is restarted.

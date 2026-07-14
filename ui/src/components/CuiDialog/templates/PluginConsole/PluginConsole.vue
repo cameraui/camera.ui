@@ -1,6 +1,6 @@
 <template>
   <div>
-    <CuiConsole ref="consoleRef" :options class="bg-black !w-full" ignore-breakpoint />
+    <CuiConsole ref="consoleRef" :options class="bg-black !w-full" ignore-breakpoint @resize="logsSocket.reportSize" />
   </div>
 </template>
 

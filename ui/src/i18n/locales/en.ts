@@ -915,6 +915,7 @@ export default {
         console: 'Console',
         contain: 'Contain',
         copied: 'Copied',
+        copy_all: 'Copy all',
         delete: 'Delete',
         disable_drag: 'Disable drag',
         disabled: 'Disabled',

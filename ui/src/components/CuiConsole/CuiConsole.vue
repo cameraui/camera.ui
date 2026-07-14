@@ -1,11 +1,27 @@
 <template>
-  <div
-    ref="terminalContainerRef"
-    class="w-full h-full bg-none z-1 overflow-hidden p-2 min-w-0"
-    :class="{
-      'pb-0': !smBreakpoint && !ignoreBreakpoint,
-    }"
-  ></div>
+  <div class="relative w-full h-full min-w-0">
+    <Button
+      v-tooltip.left="{ value: $t('components.form.button.copy'), disabled: !hasSelection }"
+      type="button"
+      rounded
+      :disabled="!hasSelection"
+      class="!absolute top-2 right-2 z-10 !w-8 !h-8 !p-0 opacity-30 text-black"
+      :class="{
+        'opacity-80': hasSelection,
+      }"
+      @click="copySelection"
+    >
+      <i-mdi:content-copy class="w-4 h-4" />
+    </Button>
+
+    <div
+      ref="terminalContainerRef"
+      class="w-full h-full bg-none z-1 overflow-hidden p-2 min-w-0"
+      :class="{
+        'pb-0': !smBreakpoint && !ignoreBreakpoint,
+      }"
+    ></div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -14,7 +30,6 @@ import '@xterm/xterm/css/xterm.css';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal } from '@xterm/xterm';
 
 import type { ITerminalAddon, ITerminalOptions } from '@xterm/xterm';
@@ -48,11 +63,11 @@ const terminalContainerRef = useTemplateRef('terminalContainerRef');
 const scrollPosition = ref(0);
 const term = shallowRef<Terminal | null>(null);
 const isHovering = ref(false);
+const hasSelection = ref(false);
 
 let fitAddon: FitAddon | null = null;
 let unicode11Addon: Unicode11Addon | null = null;
 let webLinksAddon: WebLinksAddon | null = null;
-let webglAddon: WebglAddon | null = null;
 let scrollInterval: ReturnType<typeof setInterval>;
 let writeBuffer = '';
 let pendingNewline = false;
@@ -219,6 +234,25 @@ function handleContextMenu(event: MouseEvent): void {
   copySelection();
 }
 
+// Touch devices have no xterm selection at all (renderer-independent), so the
+// mobile gesture is built here: long-press anchors a line selection, dragging
+// while still holding extends it line by line, and the copy button copies it.
+function bufferRowAt(clientY: number): number | undefined {
+  const el = term.value?.element;
+  if (!term.value || !el) {
+    return undefined;
+  }
+
+  const rect = el.getBoundingClientRect();
+  const rowHeight = rect.height / term.value.rows;
+  if (rowHeight <= 0) {
+    return undefined;
+  }
+
+  const viewportRow = Math.max(0, Math.min(Math.floor((clientY - rect.top) / rowHeight), term.value.rows - 1));
+  return Math.min(term.value.buffer.active.viewportY + viewportRow, term.value.buffer.active.length - 1);
+}
+
 function setupSmoothScrolling() {
   const element = term.value?.element;
   if (!element) {
@@ -230,14 +264,47 @@ function setupSmoothScrolling() {
   let scrollSpeed = 0;
   let lastTouchMove = 0;
   let isScrolling = false;
+  let longPressTimer: ReturnType<typeof setTimeout> | undefined;
+  let selectionAnchorRow: number | undefined;
   const maxScrollSpeed = 1.2;
   const scrollLines = 12;
   const friction = 0.92;
+  const longPressMs = 500;
+  const longPressMoveTolerance = 10;
+  const edgeScrollZone = 28;
 
   function clearScrolling() {
     if (scrollInterval) {
       clearInterval(scrollInterval);
     }
+  }
+
+  function cancelLongPress() {
+    clearTimeout(longPressTimer);
+    longPressTimer = undefined;
+  }
+
+  function extendSelection(clientY: number) {
+    if (!term.value || selectionAnchorRow === undefined) {
+      return;
+    }
+
+    // Dragging past the edges scrolls the buffer so the selection can grow
+    // beyond the visible viewport.
+    const rect = element!.getBoundingClientRect();
+    if (clientY < rect.top + edgeScrollZone) {
+      term.value.scrollLines(-1);
+    } else if (clientY > rect.bottom - edgeScrollZone) {
+      term.value.scrollLines(1);
+    }
+
+    const row = bufferRowAt(clientY);
+    if (row === undefined) {
+      return;
+    }
+
+    term.value.selectLines(Math.min(selectionAnchorRow, row), Math.max(selectionAnchorRow, row));
+    debouncedUpdateScrollPosition();
   }
 
   function handleTouchStart(event: TouchEvent) {
@@ -247,17 +314,39 @@ function setupSmoothScrolling() {
     scrollSpeed = 0;
     lastTouchMove = Date.now();
     isScrolling = false;
+    selectionAnchorRow = undefined;
+
+    cancelLongPress();
+    const touchY = startY;
+    longPressTimer = setTimeout(() => {
+      const row = bufferRowAt(touchY);
+      if (row === undefined || !term.value) {
+        return;
+      }
+      selectionAnchorRow = row;
+      term.value.selectLines(row, row);
+    }, longPressMs);
   }
 
   function handleTouchMove(event: TouchEvent) {
     event.preventDefault();
     const currentY = event.touches[0].clientY;
+
+    if (selectionAnchorRow !== undefined) {
+      extendSelection(currentY);
+      return;
+    }
+
     const currentTime = Date.now();
     const deltaY = currentY - lastY;
     const deltaTime = Math.max(currentTime - lastTouchMove, 1);
 
     lastTouchMove = currentTime;
     lastY = currentY;
+
+    if (Math.abs(currentY - startY) > longPressMoveTolerance) {
+      cancelLongPress();
+    }
 
     scrollSpeed = Math.max(-maxScrollSpeed, Math.min(deltaY / deltaTime, maxScrollSpeed));
 
@@ -270,6 +359,19 @@ function setupSmoothScrolling() {
   }
 
   function handleTouchEnd() {
+    cancelLongPress();
+
+    if (selectionAnchorRow !== undefined) {
+      // Selection stays after lifting the finger — the copy button picks it up.
+      selectionAnchorRow = undefined;
+      return;
+    }
+
+    // A plain tap outside a selection dismisses it, like native text selection.
+    if (!isScrolling && term.value?.hasSelection()) {
+      term.value.clearSelection();
+    }
+
     if (isScrolling && Math.abs(scrollSpeed) > 0.2) {
       let currentSpeed = scrollSpeed;
 
@@ -295,6 +397,7 @@ function setupSmoothScrolling() {
     element.removeEventListener('touchstart', handleTouchStart);
     element.removeEventListener('touchmove', handleTouchMove);
     element.removeEventListener('touchend', handleTouchEnd);
+    cancelLongPress();
     clearScrolling();
   });
 }
@@ -336,13 +439,11 @@ onMounted(() => {
   });
 
   fitAddon = new FitAddon();
-  webglAddon = new WebglAddon();
   unicode11Addon = new Unicode11Addon();
   webLinksAddon = new WebLinksAddon();
 
   term.value.loadAddon(unicode11Addon);
   term.value.loadAddon(webLinksAddon);
-  term.value.loadAddon(webglAddon);
   term.value.loadAddon(fitAddon);
 
   term.value.open(terminalContainerRef.value!);
@@ -357,17 +458,16 @@ onMounted(() => {
     updateScrollPosition();
   });
 
+  term.value.onSelectionChange(() => {
+    hasSelection.value = term.value?.hasSelection() ?? false;
+  });
+
   resizeHandler();
   setupSmoothScrolling();
-
-  webglAddon.onContextLoss(() => {
-    safeDispose(webglAddon);
-  });
 });
 
 onUnmounted(() => {
   safeDispose(fitAddon);
-  safeDispose(webglAddon);
   safeDispose(unicode11Addon);
   safeDispose(webLinksAddon);
   safeDispose(term.value);
