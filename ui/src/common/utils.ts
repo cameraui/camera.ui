@@ -212,15 +212,16 @@ export function pluginMessageResponseTypeToToastType(type: 'error' | 'info' | 's
 function legacyCopy(text: string): boolean {
   const ta = document.createElement('textarea');
   ta.value = text;
-  ta.setAttribute('readonly', '');
+  ta.setAttribute('inputmode', 'none');
   ta.style.position = 'fixed';
   ta.style.top = '0';
-  ta.style.left = '0';
-  ta.style.opacity = '0';
+  ta.style.left = '-9999px';
+  ta.style.fontSize = '12pt';
   document.body.appendChild(ta);
-  ta.focus();
+
+  ta.focus({ preventScroll: true });
   ta.select();
-  ta.setSelectionRange(0, ta.value.length);
+  ta.setSelectionRange(0, text.length);
 
   let ok = false;
   try {
@@ -233,21 +234,34 @@ function legacyCopy(text: string): boolean {
   return ok;
 }
 
+export function copyToClipboardSync(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+
+  const ok = legacyCopy(text);
+  navigator.clipboard?.writeText(text).catch(() => {});
+  return ok;
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   if (!text) {
     return false;
   }
 
-  if (!navigator.clipboard?.writeText) {
-    return legacyCopy(text);
+  const legacyOk = legacyCopy(text);
+
+  let apiOk = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      apiOk = true;
+    } catch {
+      apiOk = false;
+    }
   }
 
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return legacyCopy(text);
-  }
+  return legacyOk || apiOk;
 }
 
 export function extractErrorMessage(error: unknown, fallback?: string): string {

@@ -31,7 +31,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal } from '@xterm/xterm';
 
-import { copyToClipboard } from '@/common/utils.js';
+import { copyToClipboard, copyToClipboardSync } from '@/common/utils.js';
 
 import type { ITerminalAddon, ITerminalOptions } from '@xterm/xterm';
 import type { VConsoleOptions } from './types.js';
@@ -231,12 +231,53 @@ function handleCopyKeydown(event: KeyboardEvent): void {
 }
 
 function handleContextMenu(event: MouseEvent): void {
-  if (!term.value?.hasSelection()) {
+  const selection = term.value?.getSelection() ?? '';
+  if (!selection) {
     return;
   }
 
-  event.preventDefault();
-  copySelection();
+  if (copyToClipboardSync(selection)) {
+    event.preventDefault();
+    toast.add({ severity: 'success', detail: t('components.toast.copied'), life: 1500 });
+    return;
+  }
+
+  mirrorSelectionForNativeCopy(selection, event);
+}
+
+function mirrorSelectionForNativeCopy(text: string, event: MouseEvent): void {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('inputmode', 'none');
+  ta.style.position = 'fixed';
+  ta.style.left = `${event.clientX}px`;
+  ta.style.top = `${event.clientY}px`;
+  ta.style.width = '1px';
+  ta.style.height = '1px';
+  ta.style.opacity = '0';
+  ta.style.fontSize = '12pt';
+  document.body.appendChild(ta);
+
+  ta.focus({ preventScroll: true });
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+
+  const cleanup = () => {
+    ta.remove();
+    clearTimeout(timeoutId);
+  };
+
+  ta.addEventListener(
+    'copy',
+    () => {
+      toast.add({ severity: 'success', detail: t('components.toast.copied'), life: 1500 });
+      setTimeout(cleanup, 0);
+    },
+    { once: true },
+  );
+
+  setTimeout(() => document.addEventListener('mousedown', cleanup, { once: true }), 0);
+  const timeoutId = setTimeout(cleanup, 15_000);
 }
 
 // Touch devices have no xterm selection at all (renderer-independent), so the
