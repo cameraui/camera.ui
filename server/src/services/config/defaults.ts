@@ -22,6 +22,7 @@ export const DEFAULT_CONFIG_LOGGER: Logger = {
 export const DEFAULT_CONFIG_PLUGINS: PluginsSettings = {
   disabledPlugins: [],
   allowBuildScripts: false,
+  betaVersions: false,
 };
 
 // go2rtc

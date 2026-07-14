@@ -21,6 +21,7 @@ export class ServerNamespace {
 
   private proxyServer: ProxyServer;
   private pluginsService: PluginsService;
+  private configService: ConfigService;
 
   private serverUpdate: INpmPluginState = {
     updateAvailable: false,
@@ -38,6 +39,7 @@ export class ServerNamespace {
   constructor(io: Server) {
     this.proxyServer = container.resolve<ProxyServer>('proxy');
     this.pluginsService = new PluginsService();
+    this.configService = container.resolve<ConfigService>('configService');
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
@@ -195,7 +197,12 @@ export class ServerNamespace {
 
     for (const plugin of plugins) {
       try {
-        const state = await checkForUpdate(plugin.info.pluginName, plugin.info.installedVersion ?? '0.0.0');
+        const state = await checkForUpdate(
+          plugin.info.pluginName,
+          plugin.info.installedVersion ?? '0.0.0',
+          'beta',
+          this.configService.config.plugins.betaVersions ?? false,
+        );
         if (state.updateAvailable || state.betaUpdateAvailable) {
           pluginStates.push(state);
         }

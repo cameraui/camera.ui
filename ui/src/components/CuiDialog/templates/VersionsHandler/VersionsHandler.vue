@@ -61,6 +61,7 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import yaml from 'highlight.js/lib/languages/yaml';
 import MarkdownIt from 'markdown-it';
 
+import { ConfigQuery } from '@/api/routes/config.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { describePlatform } from '@/common/platformLabels.js';
@@ -68,7 +69,7 @@ import { isPluginTarget, isServerTarget } from './types.js';
 
 import type CuiConsole from '@/components/CuiConsole/CuiConsole.vue';
 import type { ContentComponentProps, DialogRefProps } from '@/composables/useCuiDialog.js';
-import type { EngineIssue } from '@shared/types';
+import type { EngineIssue, IConfig } from '@shared/types';
 import type { ITerminalOptions } from '@xterm/xterm';
 import type { DynamicDialogInstance } from 'primevue/dynamicdialogoptions';
 import type { VersionsHandlerProps } from './types.js';
@@ -82,6 +83,7 @@ const MIN_SERVER_VERSION = '2.0.0';
 
 const pluginsQuery = new PluginsQuery();
 const serverQuery = new ServerQuery();
+const configQuery = new ConfigQuery();
 const queryClient = useQueryClient();
 
 const props = defineProps<VersionsHandlerProps>();
@@ -123,6 +125,7 @@ const pluginQueryVersion = computed<{ pluginversion?: string }>(() => {
 const serverChangelogVersion = computed<string>(() => selectedVersion.value || installVersion.value || '');
 
 const { data: versionInfo, isBusy: serverVersionsLoading } = serverQuery.checkVersionQuery();
+const { data: config } = configQuery.getConfigQuery(true);
 const { data: availableVersions, isBusy: pluginVersionsLoading } = pluginsQuery.getPluginVersionsQuery(isPluginTarget(target.value) ? target.value.pluginName : '');
 const {
   data: pluginChangelog,
@@ -183,9 +186,14 @@ const isLoading = computed(() =>
   ),
 );
 
+const pluginBetaVersions = computed(() => {
+  const cfg = config.value;
+  return cfg && typeof cfg !== 'string' ? ((cfg as IConfig).plugins?.betaVersions ?? false) : false;
+});
+
 const allVersions = computed<string[]>(() => {
   if (isPluginTarget(target.value)) {
-    return availableVersions.value?.versions || [];
+    return (availableVersions.value?.versions || []).filter((version) => pluginBetaVersions.value || !version.includes('-'));
   } else if (isServerTarget(target.value)) {
     return (versionInfo.value?.versions || [])
       .filter((version) => compareVersions(version, MIN_SERVER_VERSION) >= 0)

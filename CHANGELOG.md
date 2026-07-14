@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **Instances now work with 2FA-protected accounts.** Adding or switching to a remote instance whose account has two-factor authentication enabled prompts for the 6-digit code (backup codes work too). After one successful code entry the connection keeps itself alive through rotating refresh tokens, so the code is only asked again if the instance hasn't been used for a long time. A wrong code simply re-prompts, and an instance whose challenge wasn't completed yet is clearly marked in the instances list with a "2FA" badge and an "Enter code" button to finish it whenever you like.
 
+- **Beta versions for plugins are now opt-in.** The plugins page has a "Beta versions" toggle in its settings menu (next to the search bar). When enabled, pre-release versions show up in the plugin version picker and beta releases are offered as available updates; when disabled (the default), only stable versions are listed — previously, pre-releases always appeared in the version picker.
+
 - **Camera cards show the snapshot age.** Every camera card on the dashboard has a small live-ticking badge in Apple-Home style (now → 45s → 3min → 2h → 1d) telling how long ago the displayed snapshot was actually fetched from the camera. The server reports the true age of its cached snapshots, so the badge stays accurate across page reloads.
 
 ### Fixed

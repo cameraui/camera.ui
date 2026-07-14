@@ -24,6 +24,7 @@ export const pluginsSchema = zod
   .object({
     disabledPlugins: zod.string().trim().array().default(DEFAULT_CONFIG_PLUGINS.disabledPlugins),
     allowBuildScripts: zod.boolean().default(DEFAULT_CONFIG_PLUGINS.allowBuildScripts ?? false),
+    betaVersions: zod.boolean().default(DEFAULT_CONFIG_PLUGINS.betaVersions ?? false),
   })
   .strict();
 

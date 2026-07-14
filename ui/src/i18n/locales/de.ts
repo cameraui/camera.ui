@@ -1649,6 +1649,8 @@ export default {
       allow_build_scripts: 'Plugin-Build-Skripte erlauben',
       allow_build_scripts_hint:
         'Plugins dürfen beim Installieren oder Aktualisieren Install-Skripte und native Builds ausführen. Nur aktivieren, wenn du den installierten Plugins vertraust.',
+      beta_versions: 'Beta-Versionen',
+      beta_versions_hint: 'Zeigt Vorabversionen in der Versionsauswahl der Plugins und bietet Beta-Releases als verfügbare Updates an.',
       no_plugins: 'Keine Plugins verfügbar',
       search: 'Plugins suchen...',
       search_plugins: 'Plugins suchen',

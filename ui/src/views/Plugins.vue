@@ -111,6 +111,14 @@ const searchQuery = ref('');
 
 const menuItems = computed(() => [
   {
+    key: 'betaVersions',
+    label: t('views.plugins.beta_versions'),
+    description: t('views.plugins.beta_versions_hint'),
+    toggle: true,
+    toggleState: (config.value as IConfig | undefined)?.plugins?.betaVersions ?? false,
+    onClick: toggleBetaVersions,
+  },
+  {
     key: 'allowBuildScripts',
     label: t('views.plugins.allow_build_scripts'),
     description: t('views.plugins.allow_build_scripts_hint'),
@@ -142,6 +150,18 @@ async function toggleAllowBuildScripts() {
   const next: IConfig = {
     ...current,
     plugins: { ...current.plugins, allowBuildScripts: !current.plugins?.allowBuildScripts },
+  };
+
+  await patchConfig({ configData: JSON.stringify(next) });
+}
+
+async function toggleBetaVersions() {
+  const current = config.value;
+  if (!current || typeof current === 'string') return;
+
+  const next: IConfig = {
+    ...current,
+    plugins: { ...current.plugins, betaVersions: !current.plugins?.betaVersions },
   };
 
   await patchConfig({ configData: JSON.stringify(next) });

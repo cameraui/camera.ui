@@ -97,7 +97,7 @@ export async function getVersionsAndDistTags(name: string): Promise<{ versions: 
   };
 }
 
-export async function checkForUpdate(name: string, currentVersion: string, prereleaseTag = 'beta'): Promise<UpdateCheckResult> {
+export async function checkForUpdate(name: string, currentVersion: string, prereleaseTag = 'beta', includePrerelease = false): Promise<UpdateCheckResult> {
   const tags = await getDistTags(name);
   const latest = tags.latest;
   const prerelease = tags[prereleaseTag];
@@ -107,8 +107,8 @@ export async function checkForUpdate(name: string, currentVersion: string, prere
   let betaUpdateAvailable = false;
 
   if (!updateAvailable && prerelease) {
-    const parsed = parse(currentVersion);
-    if (parsed?.prerelease[0] === prereleaseTag && gt(prerelease, currentVersion)) {
+    const onPrereleaseTrack = parse(currentVersion)?.prerelease[0] === prereleaseTag;
+    if ((onPrereleaseTrack || includePrerelease) && gt(prerelease, currentVersion)) {
       betaUpdateAvailable = true;
     }
   }

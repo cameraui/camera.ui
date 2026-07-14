@@ -32,6 +32,7 @@ export const enum RUNTIME_STATUS {
 export interface PluginsSettings {
   disabledPlugins: string[];
   allowBuildScripts?: boolean;
+  betaVersions?: boolean;
 }
 
 export interface WorkersConfig {

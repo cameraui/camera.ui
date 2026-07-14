@@ -1635,6 +1635,8 @@ export default {
     plugins: {
       allow_build_scripts: 'Allow plugin build scripts',
       allow_build_scripts_hint: 'Let plugins run install scripts and native builds when installing or updating. Only enable if you trust the plugins you install.',
+      beta_versions: 'Beta versions',
+      beta_versions_hint: 'Show pre-release versions in the plugin version picker and offer beta releases as available updates.',
       no_plugins: 'No plugins available',
       search: 'Search plugins...',
       search_plugins: 'Search plugins',

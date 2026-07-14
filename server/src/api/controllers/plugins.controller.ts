@@ -1038,7 +1038,7 @@ export class PluginsController {
     }
 
     try {
-      return await checkForUpdate(plugin.pluginName, plugin.installedVersion ?? '0.0.0');
+      return await checkForUpdate(plugin.pluginName, plugin.installedVersion ?? '0.0.0', 'beta', this.configService.config.plugins.betaVersions ?? false);
     } catch {
       return pluginState;
     }
