@@ -279,7 +279,10 @@ export class PluginsService {
         log.done();
       } else {
         log.block('Installing dependencies');
-        await installDependencies(targetDir, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => log.feed(chunk));
+        await installDependencies(targetDir, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => log.feed(chunk), {
+          add: (proc) => this.configService.addProcess(proc),
+          remove: (pid) => this.configService.removeProcessByPID(pid),
+        });
         log.flush();
       }
 

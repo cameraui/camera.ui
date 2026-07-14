@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Desktop app updates on Windows no longer stop at "camera.ui cannot be closed".** When shutting down took too long, helper processes (go2rtc, ffmpeg, the tunnel client) could be left running — invisible in a quick Task Manager check, but enough for the installer to refuse to continue since they run from the installation directory. The server now reaps its helper processes on every exit path, and the desktop app additionally sweeps any leftovers before the installer starts.
+
 - **Plugin updates no longer ask for a restart they don't need.** Since a plugin restarts itself as part of an update, the "restart to apply" hints were stale: the install log, the update dialog's restart button and the restart indicator on the plugin card all claimed a restart was still required. The log now finishes with the plugin already running the new version, the dialog simply closes, and the indicator only appears when a restart is genuinely needed.
 
 ## [2.0.11] - 2026-07-13

@@ -8,6 +8,7 @@ import './utils/env.js';
 import { IS_ELECTRON, SignalHandler, sleep } from '@camera.ui/common/utils';
 import { green } from 'ansicolor';
 import fkill from 'fkill';
+import { execSync } from 'node:child_process';
 import { container } from 'tsyringe';
 
 import { CameraUiAPI } from './api.js';
@@ -79,6 +80,7 @@ class CameraUi {
     this.homePath = process.argv[2];
 
     this.configService = new ConfigService(this.homePath);
+    reapTrackedProcessesOnExit(this.configService);
 
     const logLevel = this.configService.config.logger?.level === 'debug' ? 'debug' : this.configService.config.logger?.level === 'trace' ? 'trace' : 'log';
     this.logger.initLogManager(this.configService.LOGS_PATH, this.configService.LOG_FILE, logLevel);
@@ -382,6 +384,7 @@ class CameraUiWorker {
 
     const homePath = process.argv.find((arg) => !arg.startsWith('--') && arg !== process.argv[0] && arg !== process.argv[1]);
     this.configService = new ConfigService(homePath);
+    reapTrackedProcessesOnExit(this.configService);
 
     const logLevel = this.configService.config.logger?.level === 'debug' ? 'debug' : this.configService.config.logger?.level === 'trace' ? 'trace' : 'log';
     this.logger.initLogManager(this.configService.LOGS_PATH, this.configService.LOG_FILE, logLevel);
@@ -431,7 +434,25 @@ class CameraUiWorker {
 
 const isWorkerMode = process.argv.includes('--worker');
 
-const launch = async () => {
+function reapTrackedProcessesOnExit(configService: ConfigService): void {
+  process.on('exit', () => {
+    for (const proc of configService.processes) {
+      try {
+        if (process.platform === 'win32') {
+          // TerminateProcess doesn't touch children — go2rtc's own ffmpeg
+          // processes would survive. taskkill /T takes the whole tree.
+          execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
+        } else {
+          process.kill(proc.pid, 'SIGKILL');
+        }
+      } catch {
+        // already gone
+      }
+    }
+  });
+}
+
+async function launch(): Promise<void> {
   if (isWorkerMode) {
     process.title = 'camera.ui-worker';
 
@@ -467,7 +488,7 @@ const launch = async () => {
 
     process.exit(1);
   }
-};
+}
 
 launch();
 

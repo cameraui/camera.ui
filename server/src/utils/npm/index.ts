@@ -130,7 +130,12 @@ export async function extractPackage(spec: string, dest: string): Promise<void> 
   await pacote.extract(spec, dest, npmOptions());
 }
 
-export function installDependencies(packageDir: string, allowScripts: boolean, onOutput?: (chunk: string) => void): Promise<void> {
+export interface ProcessTracker {
+  add: (proc: { pid: number; startTime: number; command: string; args: string[] }) => void;
+  remove: (pid: number) => void;
+}
+
+export function installDependencies(packageDir: string, allowScripts: boolean, onOutput?: (chunk: string) => void, tracker?: ProcessTracker): Promise<void> {
   return new Promise((resolve, reject) => {
     let bundledNpmCli: string | undefined;
     try {
@@ -166,6 +171,11 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
 
     const child = spawn(command, args, { cwd: packageDir, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
+    const childPID = child.pid;
+    if (childPID) {
+      tracker?.add({ pid: childPID, startTime: Date.now(), command, args });
+    }
+
     const handleChunk = (data: Buffer) => onOutput?.(data.toString());
     child.stdout.on('data', handleChunk);
     child.stderr.on('data', handleChunk);
@@ -177,6 +187,9 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
 
     child.on('close', (code) => {
       clearTimeout(timeoutTimer);
+      if (childPID) {
+        tracker?.remove(childPID);
+      }
       if (code === 0) {
         resolve();
       } else {
@@ -186,6 +199,9 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
 
     child.on('error', (err) => {
       clearTimeout(timeoutTimer);
+      if (childPID) {
+        tracker?.remove(childPID);
+      }
       reject(new Error(`Failed to start process: ${err.message}`));
     });
   });

@@ -157,7 +157,10 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
     if (installed?.version !== spec.version) {
       this.logger.log(`Installing ${spec.pluginName}@${spec.version} (was: ${installed?.version ?? 'not installed'})`);
       await extractPackage(`${spec.pluginName}@${spec.version}`, installPath);
-      await installDependencies(installPath, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => this.logger.debug(chunk.toString().trim()));
+      await installDependencies(installPath, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => this.logger.debug(chunk.toString().trim()), {
+        add: (proc) => this.configService.addProcess(proc),
+        remove: (pid) => this.configService.removeProcessByPID(pid),
+      });
       await extractBundledPlugin(installPath);
     }
 
