@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.12]
+
+### Fixed
+
+- **Plugin updates no longer ask for a restart they don't need.** Since a plugin restarts itself as part of an update, the "restart to apply" hints were stale: the install log, the update dialog's restart button and the restart indicator on the plugin card all claimed a restart was still required. The log now finishes with the plugin already running the new version, the dialog simply closes, and the indicator only appears when a restart is genuinely needed.
+
 ## [2.0.11] - 2026-07-13
 
 ### Added

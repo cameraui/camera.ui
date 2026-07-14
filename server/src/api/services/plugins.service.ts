@@ -198,6 +198,7 @@ export class PluginsService {
 
     const worker = this.getPluginProcessByName(pluginName);
     const wasRunning = worker?.isRunning() === true;
+    let installedNew = false;
 
     try {
       if (worker && wasRunning) {
@@ -209,9 +210,10 @@ export class PluginsService {
       switch (action) {
         case 'install':
           await this.installPlugin(log, pluginName, version ?? 'latest', targetDir);
+          installedNew = true;
           break;
         case 'update':
-          await this.updatePlugin(log, pluginName, version ?? 'latest', targetDir);
+          installedNew = await this.updatePlugin(log, pluginName, version ?? 'latest', targetDir);
           break;
         case 'uninstall':
           await this.uninstallPlugin(log, pluginName, targetDir);
@@ -224,12 +226,20 @@ export class PluginsService {
       }
     } finally {
       if (wasRunning && action !== 'uninstall' && (await pathExists(targetDir))) {
+        await this.getPluginByName(pluginName)
+          ?.reparsePackageJson()
+          .catch(() => {});
+
         log.step('Starting plugin');
         await this.pluginManager.startPluginChild(pluginName);
         log.done();
       }
 
       this.managingPluginsMap.delete(pluginName);
+    }
+
+    if (installedNew) {
+      log.success(`${pluginName}@${version ?? 'latest'} ${action === 'update' ? 'updated' : 'installed'}`);
     }
 
     return targetDir;
@@ -278,8 +288,6 @@ export class PluginsService {
       log.step('Cleaning up');
       await remove(backupTempDir);
       log.done();
-
-      log.success(`${pluginName}@${version} ${update ? 'updated' : 'installed'} — restart to apply`);
     } catch (error: any) {
       log.error(`${update ? 'Update' : 'Installation'} of ${pluginName}@${version} failed: ${error.message}`);
 
@@ -298,7 +306,7 @@ export class PluginsService {
     }
   }
 
-  private async updatePlugin(log: InstallLogger, pluginName: string, version: string, targetDir: string): Promise<void> {
+  private async updatePlugin(log: InstallLogger, pluginName: string, version: string, targetDir: string): Promise<boolean> {
     try {
       log.step('Preparing update');
 
@@ -309,7 +317,7 @@ export class PluginsService {
       if (currentVersion === version) {
         log.done('up to date');
         log.success(`${pluginName}@${version} is already up to date`);
-        return;
+        return false;
       }
 
       log.done();
@@ -320,6 +328,7 @@ export class PluginsService {
 
     // installPlugin handles its own error/restore output, so it stays outside the try above.
     await this.installPlugin(log, pluginName, version, targetDir, true);
+    return true;
   }
 
   private async uninstallPlugin(log: InstallLogger, pluginName: string, targetDir: string): Promise<void> {

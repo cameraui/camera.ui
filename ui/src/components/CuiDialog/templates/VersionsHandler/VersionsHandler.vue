@@ -96,7 +96,7 @@ const { isBeta } = useUpdateChannel();
 const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
-const { target, installVersion, isNewPlugin } = toRefs(props);
+const { target, installVersion } = toRefs(props);
 const selectedVersion = ref<string | undefined>();
 
 pluginsQuery.toggleQueryActivator('getPluginVersionsQuery', false);
@@ -332,7 +332,7 @@ async function installTarget(version: string): Promise<void> {
     newVersionInstalled.value = true;
 
     if (dialogRefProps.confirmText) {
-      dialogRefProps.confirmText.value = !isNewPlugin.value ? t('components.form.button.restart') : t('components.form.button.finish');
+      dialogRefProps.confirmText.value = isServerTarget(target.value) ? t('components.form.button.restart') : t('components.form.button.finish');
     }
   } catch (error: any) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
@@ -380,12 +380,10 @@ async function onConfirm(): Promise<void | null> {
     return null;
   }
 
-  if (newVersionInstalled.value && isNewPlugin.value) {
-    return;
-  }
-
   if (newVersionInstalled.value) {
-    restartTarget();
+    if (isServerTarget(target.value)) {
+      restartTarget();
+    }
     return;
   }
 

@@ -196,7 +196,6 @@ function onConfirm() {
       contentProps: {
         target: unref(plugin),
         installVersion: 'latest',
-        isNewPlugin: true,
       },
     },
   });

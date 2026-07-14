@@ -9,7 +9,6 @@ export interface ServerTarget {
 export interface VersionsHandlerProps {
   target: PluginTarget | ServerTarget;
   installVersion?: string;
-  isNewPlugin?: boolean;
   action?: 'install' | 'uninstall';
 }
 

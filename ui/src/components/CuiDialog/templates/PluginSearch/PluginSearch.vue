@@ -204,7 +204,6 @@ function openDialog(plugin: CameraUiPlugin) {
       contentProps: {
         target: unref(plugin),
         installVersion: 'latest',
-        isNewPlugin: true,
       },
     },
   });
