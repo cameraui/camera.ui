@@ -1,15 +1,15 @@
 import { assertResponseOk, fetchInstance } from '../instance.js';
 
-import type { SourceData } from '../../types.js';
+import type { SourceDataWithQuery } from '../../types.js';
 import type { RequestManager } from '../manager.js';
 
 export class SnapshotRoute {
   constructor(private requestManager: RequestManager) {}
 
-  public async jpeg(data: SourceData): Promise<ArrayBuffer> {
+  public async jpeg(data: SourceDataWithQuery): Promise<ArrayBuffer> {
     const params = new URLSearchParams(data as any);
 
-    return this.requestManager.deduplicatedRequest(`jpeg:${data.src}`, async () => {
+    return this.requestManager.deduplicatedRequest(`jpeg:${data.src}:gop${data.gop ?? ''}`, async () => {
       const response = await fetchInstance()(`/frame.jpeg?${params}`, {
         method: 'GET',
         headers: {
@@ -28,7 +28,7 @@ export class SnapshotRoute {
     });
   }
 
-  public async mp4(data: SourceData): Promise<ArrayBuffer> {
+  public async mp4(data: SourceDataWithQuery): Promise<ArrayBuffer> {
     const params = new URLSearchParams(data as any);
 
     return this.requestManager.deduplicatedRequest(`mp4:${data.src}`, async () => {

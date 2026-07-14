@@ -224,8 +224,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     const fetchSnapshotFromSource = async (s: CameraDeviceSource): Promise<ArrayBuffer | undefined> => {
       try {
         const sourceName = createSourceName(this.name, s.name);
-
-        const snapshot = await this.go2rtcApi.snapshotRoute.jpeg({ src: sourceName });
+        const snapshot = await this.go2rtcApi.snapshotRoute.jpeg({ src: sourceName, ...(forceNew ? { gop: 0 as const } : {}) });
         if (snapshot.byteLength > 0) {
           this.snapshotCache.set(s._id, { data: snapshot, fetchedAt: Date.now() });
         }

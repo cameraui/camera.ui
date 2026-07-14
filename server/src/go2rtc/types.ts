@@ -94,6 +94,10 @@ export interface SourceData {
   src: string;
 }
 
+export interface SourceDataWithQuery extends SourceData {
+  gop?: 0 | 1;
+}
+
 export interface HomeKitPairData {
   id: string;
   url: string;
