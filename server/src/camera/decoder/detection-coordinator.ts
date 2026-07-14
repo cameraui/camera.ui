@@ -433,6 +433,13 @@ export class DetectionCoordinator {
       let hasActiveTrack = false;
       for (const t of detections) {
         if (t.trackLost) continue;
+        // No trackId = external smart-camera write (edge-triggered presence
+        // report, no tracking) — there is no speed/identity to judge
+        // stationarity by, so it always counts as active.
+        if (t.trackId === undefined) {
+          hasActiveTrack = true;
+          continue;
+        }
         const isStationary = (t.trackSpeed ?? 0) < STATIONARY_SPEED_THRESHOLD;
         if (isStationary) {
           if (t.trackId !== undefined && !this.seenStationaryTracks.has(t.trackId)) {
