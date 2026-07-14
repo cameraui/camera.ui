@@ -1201,6 +1201,7 @@ export default {
       config_go2rtc_updated: 'Go2RTC configuration updated successfully',
       config_updated: 'Configuration updated successfully',
       copied: 'Copied',
+      copy_failed: 'Copy failed',
       error_see_console: 'Error, see console',
       frame_worker_restarted: 'Frame worker restarted successfully',
       go2rtc_restarted: 'Go2RTC restarted successfully',

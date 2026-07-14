@@ -1,5 +1,11 @@
 <template>
-  <div class="relative w-full h-full min-w-0">
+  <div
+    ref="terminalContainerRef"
+    class="relative w-full h-full bg-none z-1 overflow-hidden p-2 min-w-0"
+    :class="{
+      'pb-0': !smBreakpoint && !ignoreBreakpoint,
+    }"
+  >
     <Button
       v-tooltip.left="{ value: $t('components.form.button.copy'), disabled: !hasSelection }"
       type="button"
@@ -13,14 +19,6 @@
     >
       <i-mdi:content-copy class="w-4 h-4" />
     </Button>
-
-    <div
-      ref="terminalContainerRef"
-      class="w-full h-full bg-none z-1 overflow-hidden p-2 min-w-0"
-      :class="{
-        'pb-0': !smBreakpoint && !ignoreBreakpoint,
-      }"
-    ></div>
   </div>
 </template>
 
@@ -30,7 +28,10 @@ import '@xterm/xterm/css/xterm.css';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal } from '@xterm/xterm';
+
+import { copyToClipboard } from '@/common/utils.js';
 
 import type { ITerminalAddon, ITerminalOptions } from '@xterm/xterm';
 import type { VConsoleOptions } from './types.js';
@@ -46,7 +47,6 @@ const emit = defineEmits<{ resize: [cols: number] }>();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { t } = useI18n();
 const toast = useCuiToast();
-const { copy } = useClipboard({ legacy: true });
 
 const { options, ignoreBreakpoint } = toRefs(props);
 
@@ -68,6 +68,7 @@ const hasSelection = ref(false);
 let fitAddon: FitAddon | null = null;
 let unicode11Addon: Unicode11Addon | null = null;
 let webLinksAddon: WebLinksAddon | null = null;
+let webglAddon: WebglAddon | null = null;
 let scrollInterval: ReturnType<typeof setInterval>;
 let writeBuffer = '';
 let pendingNewline = false;
@@ -193,9 +194,13 @@ async function copyText(text: string): Promise<boolean> {
     return false;
   }
 
-  await copy(text);
-  toast.add({ severity: 'success', detail: t('components.toast.copied'), life: 1500 });
-  return true;
+  const ok = await copyToClipboard(text);
+  if (ok) {
+    toast.add({ severity: 'success', detail: t('components.toast.copied'), life: 1500 });
+  } else {
+    toast.add({ severity: 'error', detail: t('components.toast.copy_failed'), life: 3000 });
+  }
+  return ok;
 }
 
 function copySelection(): boolean {
@@ -439,11 +444,13 @@ onMounted(() => {
   });
 
   fitAddon = new FitAddon();
+  webglAddon = new WebglAddon();
   unicode11Addon = new Unicode11Addon();
   webLinksAddon = new WebLinksAddon();
 
   term.value.loadAddon(unicode11Addon);
   term.value.loadAddon(webLinksAddon);
+  term.value.loadAddon(webglAddon);
   term.value.loadAddon(fitAddon);
 
   term.value.open(terminalContainerRef.value!);
@@ -464,10 +471,16 @@ onMounted(() => {
 
   resizeHandler();
   setupSmoothScrolling();
+
+  webglAddon.onContextLoss(() => {
+    safeDispose(webglAddon);
+    webglAddon = null;
+  });
 });
 
 onUnmounted(() => {
   safeDispose(fitAddon);
+  safeDispose(webglAddon);
   safeDispose(unicode11Addon);
   safeDispose(webLinksAddon);
   safeDispose(term.value);

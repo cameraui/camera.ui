@@ -119,6 +119,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import CopyIcon from '~icons/carbon/copy';
 
+import { copyToClipboard } from '@/common/utils.js';
 import { useUserOptions } from './useUserOptions.js';
 
 import type { ConfigNodeUpdateEmits, ConfigTriggerGeofenceProps } from '../types.js';
@@ -228,7 +229,7 @@ async function useMyLocation() {
 }
 
 function copy(text: string) {
-  window.navigator.clipboard.writeText(text);
+  copyToClipboard(text);
 }
 
 function update(key: string, value: unknown) {

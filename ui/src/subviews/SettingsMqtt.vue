@@ -222,7 +222,7 @@ import { ErrorMessage, Field, Form } from 'vee-validate';
 import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import { MqttQuery } from '@/api/routes/mqtt.js';
-import { deepToRaw } from '@/common/utils.js';
+import { copyToClipboard, deepToRaw } from '@/common/utils.js';
 import { mqttPatchSchema } from '@/schemas/mqtt.schema.js';
 
 import type { DBMqttMode, DBMqttProtocol, MqttMaskedSettings, MqttStatus, PatchMqttInput } from '@shared/types';
@@ -284,10 +284,6 @@ const statusHint = computed(() => {
 });
 
 const brokerAddress = computed(() => `mqtt://${window.location.hostname}:${mqttForm.value?.broker.port ?? 1883}`);
-
-function copyToClipboard(text: string) {
-  window.navigator.clipboard.writeText(text);
-}
 
 function buildPatch(): PatchMqttInput {
   const form = deepToRaw(mqttForm.value!);

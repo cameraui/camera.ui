@@ -104,6 +104,7 @@
 import { buildExport, Logger } from '@camera.ui/logger';
 import { Capacitor } from '@capacitor/core';
 
+import { copyToClipboard } from '@/common/utils.js';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
@@ -220,11 +221,11 @@ function buildText(): string {
 }
 
 async function copy(): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(buildText());
+  const ok = await copyToClipboard(buildText());
+  if (ok) {
     toast.add({ severity: 'success', summary: t('views.console.copied') });
-  } catch (err) {
-    toast.add({ severity: 'error', summary: t('views.console.copy_failed'), detail: err });
+  } else {
+    toast.add({ severity: 'error', summary: t('views.console.copy_failed') });
   }
 }
 

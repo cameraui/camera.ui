@@ -69,6 +69,8 @@
 import { useOAuth } from '@camera.ui/browser';
 import CopyIcon from '~icons/fluent/copy-16-filled';
 
+import { copyToClipboard } from '@/common/utils.js';
+
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { OAuthDeviceFlowProps } from './types.js';
 
@@ -76,17 +78,15 @@ const props = defineProps<OAuthDeviceFlowProps>();
 
 const { t } = useI18n();
 const { state, metadata, startDeviceFlow, disconnect, cancel } = useOAuth(props.pluginName);
-const { copy } = useClipboard({ legacy: true });
-
 const requestedScopes = computed(() => Object.keys(metadata.value?.scopeDescriptions ?? {}));
 
 function onCopyLink() {
   const uri = state.value.verificationUriComplete || state.value.verificationUri;
-  if (uri) copy(uri);
+  if (uri) copyToClipboard(uri);
 }
 
 function onCopyCode() {
-  if (state.value.userCode) copy(state.value.userCode);
+  if (state.value.userCode) copyToClipboard(state.value.userCode);
 }
 
 function errorText(code?: string): string {

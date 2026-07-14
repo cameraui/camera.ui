@@ -52,14 +52,13 @@ import DeleteIcon from '~icons/fluent/delete-16-filled';
 
 import { SharesQuery } from '@/api/routes/shares.js';
 import { SHARE_SERVICE_URL } from '@/common/constants.js';
+import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { CuiCameraSharesProps } from './types.js';
 
 const sharesQuery = new SharesQuery();
 
 const props = defineProps<CuiCameraSharesProps>();
-
-const { copy } = useClipboard({ legacy: true });
 
 const { data: sharesData, isLoading } = sharesQuery.getSharesQuery(computed(() => props.cameraId));
 const { mutateAsync: revokeShare } = sharesQuery.revokeShareQuery();

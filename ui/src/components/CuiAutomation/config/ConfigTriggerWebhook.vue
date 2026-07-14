@@ -46,6 +46,8 @@
 <script setup lang="ts">
 import CopyIcon from '~icons/carbon/copy';
 
+import { copyToClipboard } from '@/common/utils.js';
+
 import type { ConfigTriggerWebhookProps } from '../types.js';
 
 const props = defineProps<ConfigTriggerWebhookProps>();
@@ -58,6 +60,6 @@ const webhookUrl = computed(() => {
 });
 
 function copy(text: string) {
-  window.navigator.clipboard.writeText(text);
+  copyToClipboard(text);
 }
 </script>

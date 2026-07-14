@@ -1213,6 +1213,7 @@ export default {
       config_go2rtc_updated: 'Go2RTC-Konfiguration erfolgreich aktualisiert',
       config_updated: 'Konfiguration erfolgreich aktualisiert',
       copied: 'Kopiert',
+      copy_failed: 'Kopieren fehlgeschlagen',
       error_see_console: 'Fehler, siehe Konsole',
       frame_worker_restarted: 'Frame Worker erfolgreich neugestartet',
       go2rtc_restarted: 'Go2RTC erfolgreich neugestartet',

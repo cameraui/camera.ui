@@ -637,7 +637,7 @@ import LanIcon from '~icons/mdi/lan';
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
-import { deepToRaw } from '@/common/utils.js';
+import { copyToClipboard, deepToRaw } from '@/common/utils.js';
 import { isCapacitor, isInCloudSession } from '@/connection/index.js';
 import { remotePatchSchema } from '@/schemas/remote.schema.js';
 import { serverPatchSchema } from '@/schemas/server.schema.js';
@@ -960,7 +960,7 @@ function onCancelPairing() {
 async function onCopyPairCode() {
   if (!pairCode.value) return;
   try {
-    await navigator.clipboard.writeText(pairCode.value);
+    await copyToClipboard(pairCode.value);
   } catch {
     //
   }
@@ -969,7 +969,7 @@ async function onCopyPairCode() {
 async function onCopyPairUrl() {
   if (!pairUrl.value) return;
   try {
-    await navigator.clipboard.writeText(pairUrl.value);
+    await copyToClipboard(pairUrl.value);
   } catch {
     //
   }
@@ -1066,7 +1066,7 @@ async function onManagedLogout() {
 
 async function onCopyManagedUrl(url: string) {
   try {
-    await navigator.clipboard.writeText(url);
+    await copyToClipboard(url);
   } catch {
     //
   }

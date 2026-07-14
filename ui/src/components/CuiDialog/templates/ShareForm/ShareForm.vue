@@ -69,6 +69,7 @@
 import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import { SharesQuery } from '@/api/routes/shares.js';
+import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { ShareCreateResult } from '@/api/routes/shares.js';
 import type { CustomDialogComponent, DialogRefProps } from '@/composables/useCuiDialog.js';
@@ -79,7 +80,6 @@ const sharesQuery = new SharesQuery();
 const props = defineProps<ShareFormProps>();
 
 const { t } = useI18n();
-const { copy } = useClipboard({ legacy: true });
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
 const { mutateAsync: createShare, isPending: createLoading } = sharesQuery.createShareQuery();

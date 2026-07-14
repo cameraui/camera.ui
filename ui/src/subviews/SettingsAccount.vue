@@ -306,7 +306,7 @@ import PhoneIcon from '~icons/mdi/cellphone';
 import LaptopIcon from '~icons/mdi/laptop';
 
 import { AuthQuery } from '@/api/routes/auth.js';
-import { readImgUpload } from '@/common/utils.js';
+import { copyToClipboard, readImgUpload } from '@/common/utils.js';
 import TwoFactorBackupCodesDialog from '@/components/CuiDialog/templates/TwoFactorBackupCodes/TwoFactorBackupCodes.vue';
 import TwoFactorDisableDialog from '@/components/CuiDialog/templates/TwoFactorDisable/TwoFactorDisable.vue';
 import TwoFactorRegenerateDialog from '@/components/CuiDialog/templates/TwoFactorRegenerate/TwoFactorRegenerate.vue';
@@ -409,7 +409,7 @@ const otpauthUri = computed(() => {
 
 async function copySecret(): Promise<void> {
   if (setupData.value?.secret) {
-    await navigator.clipboard.writeText(setupData.value.secret);
+    await copyToClipboard(setupData.value.secret);
   }
 }
 

@@ -219,6 +219,7 @@ import RestartIcon from '~icons/ic/round-restart-alt';
 import RemoveIcon from '~icons/mdi/delete-outline';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
+import { copyToClipboard as copy } from '@/common/utils.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { WorkersQuery } from '@/api/routes/workers.js';
 
@@ -231,7 +232,6 @@ import type { DataTablePassThroughOptions } from 'primevue';
 
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
-const { copy } = useClipboard({ legacy: true });
 const dialog = useCuiDialog();
 
 const workersSocket = useWorkersSocket();

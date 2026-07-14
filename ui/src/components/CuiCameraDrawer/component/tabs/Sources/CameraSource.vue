@@ -87,6 +87,7 @@ import ReloadIcon from '~icons/fluent/arrow-sync-16-filled';
 import CopyButton from '~icons/fluent/copy-16-filled';
 
 import { CamerasQuery, probeCameraSourceFn } from '@/api/routes/cameras.js';
+import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
 import type { CameraSourceProps } from '../../types.js';
@@ -97,7 +98,6 @@ const props = defineProps<CameraSourceProps>();
 
 const { t } = useI18n();
 const { getSourceStatus, connect: connectStreamStatus } = useStreamStatus();
-const { copy } = useClipboard({ legacy: true });
 const queryClient = useQueryClient();
 const toast = useCuiToast();
 
