@@ -27,7 +27,7 @@
 
     <span
       v-if="showTimestamp && snapshotTimestamp && !isDisabled"
-      class="absolute top-0 right-0 m-4 px-1.5 py-0.5 text-[10px] font-semibold bg-black/60 rounded-full text-white pointer-events-none"
+      class="absolute top-0 right-0 m-4 px-1.5 py-0.5 text-[10px] font-semibold bg-black/30 rounded-full text-white pointer-events-none"
       >{{ snapshotAge }}</span
     >
   </div>
