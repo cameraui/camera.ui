@@ -30,6 +30,8 @@ All notable changes to this project will be documented in this file.
 
 - **Bounding boxes in the live view stay accurate.** Object boxes now keep updating while a PTZ camera moves instead of vanishing for the whole pan. Face and license-plate boxes no longer freeze on screen: they clear when the camera starts moving and expire after a couple of seconds once nothing is detected anymore.
 
+- **Timeline playback no longer loops at recording gaps.** Playing across a spot where the camera stopped recording bounced the playhead a few seconds back and replayed them forever, with "No Recording" flashing every two seconds. The playhead now keeps ticking through the gap with the overlay shown and playback picks up on its own once recordings resume. Short gaps that the player bridges internally no longer leave the overlay stuck on top of running video.
+
 - **Recording exports work again when the UI runs over HTTPS in the browser.** The download never started and the export dialog kept spinning forever.
 
 - **Camera snapshots refresh without flashing.** Auto-refreshed snapshots swapped in before the browser had decoded the new image, so every refresh flashed briefly. With several cameras the whole dashboard blinked at once. New images are now decoded in the background and swapped in seamlessly.
