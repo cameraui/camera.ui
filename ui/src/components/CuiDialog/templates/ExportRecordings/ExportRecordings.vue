@@ -60,7 +60,7 @@
           <span class="font-semibold">{{ files.length }} {{ files.length === 1 ? $t('views.recordings.export.file') : $t('views.recordings.export.files') }}</span>
           <span class="text-muted">·</span>
           <span class="font-semibold">{{ approx }}{{ fmtBytes(totalBytes) }}</span>
-          <Tag value="ZIP" severity="info" />
+          <Tag :value="files.length === 1 ? 'MP4' : 'ZIP'" severity="info" />
         </div>
       </div>
 
@@ -255,7 +255,9 @@ async function onConfirm(): Promise<void | null> {
 watchDebounced([selectedCameraIds, daySlices, quality], runEstimate, { debounce: 350, immediate: true, deep: true });
 
 watchEffect(() => {
-  if (dialogRefProps.disabled) dialogRefProps.disabled.value = !rangeValid.value || selectedCameraIds.value.length === 0;
+  if (dialogRefProps.disabled) {
+    dialogRefProps.disabled.value = !rangeValid.value || selectedCameraIds.value.length === 0 || (!estimating.value && files.value.length === 0);
+  }
 });
 
 defineExpose<CustomDialogComponent>({ onConfirm });

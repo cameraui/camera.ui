@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 - **Parked cars no longer trigger on every event.** Objects that stay put, like a car parked in the driveway, keep their identity across detection events and are suppressed as long as they don't move: they no longer re-trigger object detection every time something else causes an event. Identity attributes (faces, license plates, classifiers) are captured in full during the first event and then pause as well, so a stationary object stops producing new snapshots and inference load entirely. The moment the object actually moves, everything kicks back in immediately, and a new object showing up in the same spot is detected as usual. Enabled by default, can be turned off per camera under Detection settings ("Ignore stationary objects").
 
+- **Exports with a single video download as a plain MP4.** The ZIP wrapper is only used when the export contains more than one file, and the format badge in the export dialog shows what you'll get.
+
 ### Fixed
 
 - **Settings added in updates now reach existing installations automatically.** Fields introduced by newer versions stayed empty on records created earlier, visible as blank inputs in the camera settings (e.g. tracking speed, motion prediction and pan rate calibration under PTZ autotracking). On every start the server now fills missing fields with their defaults across cameras, users, instances, automations, virtual sensors, shares, notification settings and the MQTT/remote-access/server settings; existing values are never changed. The camera validation also learned the sensor types added over time (CLIP, lock, temperature, humidity, occupancy, smoke, leak, garage door), which it previously rejected as unknown.
@@ -19,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - **PTZ movements no longer flood motion and object detections.** While the camera repositions (an autotracking pulse, the PTZ controls or the vendor app), the tracker silently keeps following its target, but detections no longer reach sensors, events or notifications: previously every pan shifted all bounding boxes at once and fired motion and object triggers like crazy. The motion detector now keeps learning the scene during the move (instead of comparing against the pre-move image afterwards), remembered stationary objects reset cleanly since their position is no longer valid, and the quiet period after a movement also applies to movements not initiated by camera.ui.
 
 - **Bounding boxes in the live view stay accurate.** Object boxes now keep updating while a PTZ camera moves instead of vanishing for the whole pan. Face and license-plate boxes no longer freeze on screen: they clear when the camera starts moving and expire after a couple of seconds once nothing is detected anymore.
+
+- **Recording exports work again when the UI runs over HTTPS in the browser.** The download never started and the export dialog kept spinning forever.
 
 - **Classifier plugins now contribute their results to events.** Classifier detections computed on object crops in the standard detection loop were collected but silently dropped before reaching their sensor and the running event; only externally reported classifier results ever made it through. They now appear as detections, event types and thumbnails just like face and license-plate results. An error from a classifier plugin during inference could previously also crash the camera's detection worker; it is now handled and logged like errors from the other detectors.
 
