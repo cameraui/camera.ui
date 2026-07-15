@@ -29,8 +29,8 @@
     "@camera.ui/go2rtc": "^1.9.14-cui.17",
     "@camera.ui/nats": "^2.14.3",
     "@camera.ui/rpc": "^1.0.9",
-    "@camera.ui/rust-postprocessor": "~0.0.5",
-    "@camera.ui/sdk": "~0.0.19",
+    "@camera.ui/rust-postprocessor": "~0.0.8",
+    "@camera.ui/sdk": "~0.0.20",
     "@camera.ui/tunnel": "^1.0.4",
     "@eneris/push-receiver": "^4.3.1",
     "@fastify/cors": "^11.3.0",
@@ -80,7 +80,7 @@
     "undici": "^8.7.0",
     "uuid": "^14.0.1",
     "werift": "^0.23.0",
-    "ws": "^8.21.0",
+    "ws": "^8.21.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -107,7 +107,7 @@
     "rimraf": "^6.1.3",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.64.0",
-    "updates": "^17.18.2",
+    "updates": "^17.19.1",
     "vitest": "^4.1.10"
   },
   "overrides": {

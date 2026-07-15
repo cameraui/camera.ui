@@ -35,7 +35,7 @@ jobs:
           if [[ "$version" == *-* ]]; then preid="${version#*-}"; tag="${preid%%.*}"; else tag="latest"; fi
           printf 'dir=%s\nversion=%s\ntag=%s\n' "$dir" "$version" "$tag" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
