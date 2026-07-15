@@ -281,6 +281,12 @@ export class CamerasService {
     await this.addCameraSourcesToConfig(camera._id, camera.name, camera.sources);
     await this.dbs.camerasDB.put(camera._id, camera);
 
+    // keep go2rtc's preload section in step with the disabled flag, a go2rtc
+    // restart must not preload a disabled camera
+    if (cameraOld.disabled !== camera.disabled) {
+      this.dbs.syncCamerasToGo2RtcConfig();
+    }
+
     if (!isEqual(cameraOld.sources, camera.sources, true)) {
       cameraController?.streamInfos.clear();
       for (const source of camera.sources) {

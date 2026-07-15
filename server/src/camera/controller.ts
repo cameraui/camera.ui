@@ -154,11 +154,6 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.closeProxy = await this.proxy.registerHandler(this.namespaces.cameraControllerRpc, this, { isolatedConnection: true });
     await this.sensorController.init();
 
-    // Bridge: subscribe to NATS detection events published by the EventManager
-    // (which lives in the FrameWorker child process) and forward them to the
-    // local `onDetectionEvent` Observable. Existing in-process consumers
-    // (automations, plugin runtime cameraDevice proxy) read from the Observable
-    // and need no changes.
     const detectionEventSubject = NamespaceManager.detectionEventNamespaces(this.id).detectionEventSubject;
     this.detectionEventUnsub = await this.proxy.subscribe<DetectionEventMessage>(detectionEventSubject, (msg) => {
       this.#detectionEventSubject.next({ type: msg.type, event: msg.data });
@@ -166,12 +161,10 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     if (this.disabled) {
       this.logger.log('Camera is disabled — skipping preload, auto-refresh, and stream startup');
+      this.stopAllPreloads();
       return;
     }
 
-    // Non-plugin cameras: preload go2rtc sources, then mark as connected.
-    // FrameWorker starts reactively via the onConnected subscriber.
-    // Plugin cameras stay disconnected until the plugin calls connect().
     if (!this.pluginInfo) {
       await this.initialPreload();
       this.cameraState.next(true);
@@ -288,8 +281,6 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
   @RPCMethod
   public unregisterSensor(sensorId: string): void {
-    // No DetectionCoordinator notify needed for individual removal — plugin
-    // unregistration happens via removePluginSensors when the plugin exits.
     this.sensorController.unregisterSensor(sensorId);
   }
 
@@ -688,8 +679,6 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
           }
         }
 
-        // hotMode toggles only flip the source flag — nothing re-issues the
-        // go2rtc preload. Reconcile right away (the 30s loop is the fallback).
         if (!newCamera.disabled && oldCamera.disabled === newCamera.disabled && !isEqual(oldCamera.sources, newCamera.sources, true)) {
           this.reconcilePreloads();
         }
