@@ -19,15 +19,6 @@
           :class="imageClass"
         />
 
-        <img
-          v-if="preloadUrl && preloadUrl !== displayedUrl"
-          :src="preloadUrl"
-          decoding="async"
-          style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none"
-          @load="onPreloadComplete"
-          @error="onError"
-        />
-
         <img v-if="error || !src" :src="fallbackUrl" :alt="alt" decoding="async" :width="width" :height="height" class="object-contain h-full" />
       </div>
     </template>
@@ -66,21 +57,35 @@ const formatHeight = computed(() => {
   return typeof height.value === 'number' ? `${height.value}px` : height.value;
 });
 
-function onPreloadComplete() {
-  displayedUrl.value = preloadUrl.value;
-  error.value = false;
-}
+watch(
+  preloadUrl,
+  (url) => {
+    error.value = false;
+    if (!url) {
+      displayedUrl.value = undefined;
+      return;
+    }
+    if (url === displayedUrl.value) {
+      return;
+    }
 
-function onError() {
-  error.value = true;
-}
-
-watch(src, (newSrc) => {
-  if (!newSrc) {
-    displayedUrl.value = undefined;
-  }
-  error.value = false;
-});
+    const loader = new Image();
+    loader.src = url;
+    loader
+      .decode()
+      .then(() => {
+        if (preloadUrl.value === url) {
+          displayedUrl.value = url;
+        }
+      })
+      .catch(() => {
+        if (preloadUrl.value === url) {
+          error.value = true;
+        }
+      });
+  },
+  { immediate: true },
+);
 
 defineExpose({
   snapshotDimensions,
