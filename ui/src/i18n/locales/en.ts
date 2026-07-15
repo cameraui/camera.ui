@@ -1811,7 +1811,10 @@ export default {
       events_count: '{count} events',
     },
     login: {
-      '2fa_backup_hint': 'You can also use a backup code',
+      '2fa_backup_hint': 'Use a backup code',
+      '2fa_backup_description': 'Enter one of your 8-character backup codes',
+      '2fa_backup_placeholder': 'Backup code',
+      '2fa_use_app': 'Use your authenticator app',
       '2fa_description': 'Enter the 6-digit code from your authenticator app',
       '2fa_title': 'Two-Factor Authentication',
       '2fa_invalid_code': 'Invalid code. Please try again.',

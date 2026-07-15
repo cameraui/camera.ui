@@ -95,19 +95,38 @@
       <div v-else key="2fa" v-focustrap class="flex flex-col h-full">
         <div class="flex flex-col items-center text-center mt-10 sm:mt-0">
           <h2 class="text-lg font-semibold mb-2">{{ $t('views.login.2fa_title') }}</h2>
-          <p class="text-muted text-sm">{{ $t('views.login.2fa_description') }}</p>
+          <p class="text-muted text-sm">{{ useBackupCode ? $t('views.login.2fa_backup_description') : $t('views.login.2fa_description') }}</p>
         </div>
 
         <div class="flex flex-col items-center mt-10">
-          <InputOtp v-model="otpCode" :length="6" integer-only size="large" @complete="onVerify2FA" />
-          <p class="mt-4 text-xs text-muted text-center">{{ $t('views.login.2fa_backup_hint') }}</p>
+          <InputOtp v-if="!useBackupCode" v-model="otpCode" :length="OTP_LENGTH" integer-only size="large" @complete="onVerify2FA" />
+          <InputText
+            v-else
+            v-model="backupCode"
+            size="large"
+            autocapitalize="characters"
+            autocomplete="one-time-code"
+            spellcheck="false"
+            :maxlength="BACKUP_CODE_LENGTH"
+            :placeholder="$t('views.login.2fa_backup_placeholder')"
+            class="text-center font-mono tracking-[0.3em] uppercase"
+            @keyup.enter="onVerify2FA"
+          />
+          <Button
+            severity="secondary"
+            text
+            size="small"
+            class="mt-4 text-xs"
+            :label="useBackupCode ? $t('views.login.2fa_use_app') : $t('views.login.2fa_backup_hint')"
+            @click="onToggle2FAMode"
+          />
         </div>
 
         <div class="flex flex-col gap-3 mt-auto pt-10">
           <Button
             class="text-white font-semibold cui-button-large"
             :loading="loginLoading"
-            :disabled="otpCode.length < 6"
+            :disabled="!canVerify2FA"
             :label="$t('views.login.2fa_verify')"
             fluid
             @click="onVerify2FA"
@@ -133,6 +152,8 @@ import { isCapacitor } from '@/connection/runtime.js';
 import { authValidationSchema } from '@/schemas/users.schema.js';
 
 const SAVE_PROMPT_DECLINED_KEY = 'cui.biometric.declined';
+const OTP_LENGTH = 6;
+const BACKUP_CODE_LENGTH = 8;
 
 const log = useLogger();
 const toast = useCuiToast();
@@ -152,11 +173,14 @@ const username = ref('');
 const password = ref('');
 const rememberMe = ref(false);
 const otpCode = ref('');
+const backupCode = ref('');
+const useBackupCode = ref(false);
 const biometricLoading = ref(false);
 const hasCredsForServer = ref(false);
 const biometryAvailable = ref(false);
 
 const canGoBack = computed(() => !instanceStore.isHomeActive || instanceStore.redirectInfo !== null);
+const canVerify2FA = computed(() => (useBackupCode.value ? backupCode.value.trim().length === BACKUP_CODE_LENGTH : otpCode.value.length === OTP_LENGTH));
 const showCloudButton = computed(() => mode === 'cloud' && instanceStore.isHomeActive);
 const showConnecting = computed(() => !isOnline.value && !isNeedsAuth.value && !loginLoading.value && !requires2FA.value);
 const connectingText = computed(() => (inTrouble.value ? t('connection.unreachable') : t('connection.connecting_remote')));
@@ -294,19 +318,28 @@ async function goToCloud(): Promise<void> {
   window.location.href = CLOUD_SERVICE_URL;
 }
 
+function onToggle2FAMode(): void {
+  useBackupCode.value = !useBackupCode.value;
+  otpCode.value = '';
+  backupCode.value = '';
+}
+
 async function onVerify2FA(): Promise<void> {
-  if (otpCode.value.length < 6) return;
+  if (!canVerify2FA.value) return;
   try {
-    await authStore.verify2FA(otpCode.value);
+    await authStore.verify2FA(useBackupCode.value ? backupCode.value.trim() : otpCode.value);
   } catch (error: unknown) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error) ?? t('views.login.2fa_invalid_code'), life: 3000 });
     otpCode.value = '';
+    backupCode.value = '';
   }
 }
 
 function onCancel2FA(): void {
   authStore.cancel2FA();
   otpCode.value = '';
+  backupCode.value = '';
+  useBackupCode.value = false;
 }
 
 onMounted(async () => {
