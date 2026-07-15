@@ -2,6 +2,7 @@ import { getNpmPath } from '@camera.ui/common/node';
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 import { TTLCache } from '@isaacs/ttlcache';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { platform } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -135,6 +136,15 @@ export interface ProcessTracker {
   remove: (pid: number) => void;
 }
 
+function declaresAllowScripts(packageDir: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as { allowScripts?: unknown };
+    return !!pkg.allowScripts && typeof pkg.allowScripts === 'object' && Object.keys(pkg.allowScripts).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function installDependencies(packageDir: string, allowScripts: boolean, onOutput?: (chunk: string) => void, tracker?: ProcessTracker): Promise<void> {
   return new Promise((resolve, reject) => {
     let bundledNpmCli: string | undefined;
@@ -145,13 +155,22 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
     }
 
     // Explicit either way so behavior is deterministic across npm versions:
-    // older npm runs dependency scripts by default, npm v12+ blocks them by default.
-    const scriptsFlag = allowScripts ? '--allow-scripts' : '--ignore-scripts';
+    // older npm runs dependency scripts by default, npm v12+ blocks them by
+    // default. A plugin that declares its own allowScripts policy gets npm's
+    // enforcement (no flag); otherwise the dangerously flag keeps the
+    // pre-v12 behavior the user consented to (--allow-scripts itself is
+    // rejected in project-scoped installs).
+    const scriptsFlag = allowScripts ? (declaresAllowScripts(packageDir) ? undefined : '--dangerously-allow-all-scripts') : '--ignore-scripts';
 
     const command = bundledNpmCli ? process.execPath : getNpmPath()[0];
-    const args = bundledNpmCli
-      ? [bundledNpmCli, 'install', scriptsFlag, '--omit=dev', '--include=prod', '--no-progress']
-      : ['install', scriptsFlag, '--omit=dev', '--include=prod', '--no-progress'];
+    const args = [
+      ...(bundledNpmCli ? [bundledNpmCli] : []),
+      'install',
+      ...(scriptsFlag ? [scriptsFlag] : []),
+      '--omit=dev',
+      '--include=prod',
+      '--no-progress',
+    ];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,

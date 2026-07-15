@@ -320,10 +320,11 @@ export class ServerManager {
 
     rmSync(stagingPath, { recursive: true, force: true });
     await mkdirp(stagingPath);
+    const seeded = await this.seedAllowScripts(stagingPath, version);
     await this.cli.chownPath(stagingPath);
 
     try {
-      await this.npmInstallWithRetry(stagingPath, version, stdout);
+      await this.npmInstallWithRetry(stagingPath, version, stdout, !seeded);
 
       if (!this.isStagedInstallComplete()) {
         throw new Error('Server install verification failed — staged files incomplete');
@@ -382,13 +383,59 @@ export class ServerManager {
     }
   }
 
-  private async npmInstallWithRetry(prefix: string, version: string, stdout?: boolean): Promise<void> {
+  private async seedAllowScripts(prefix: string, version: string): Promise<boolean> {
+    const policy = await this.fetchAllowScripts(version);
+    if (!policy) {
+      return false;
+    }
+
+    writeFileSync(join(prefix, 'package.json'), JSON.stringify({ private: true, allowScripts: policy }, null, 2) + '\n');
+    return true;
+  }
+
+  private fetchAllowScripts(version: string): Promise<Record<string, boolean> | undefined> {
+    return new Promise((resolve) => {
+      const npmPath = getNpmPath().join(' ');
+      const args = ['view', `${APP_SERVER_NAME}@${version}`, 'allowScripts', '--json', '--loglevel', 'silent'];
+
+      const npm = spawn(npmPath, args, {
+        uid: this.cli.allowRunRoot && this.cli.uid ? this.cli.uid : undefined,
+        gid: this.cli.allowRunRoot && this.cli.gid ? this.cli.gid : undefined,
+        env: process.env,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 30_000,
+      });
+
+      let out = '';
+      npm.stdout?.on('data', (chunk) => (out += chunk));
+      npm.on('error', () => resolve(undefined));
+      npm.on('close', (code) => {
+        if (code !== 0) {
+          return resolve(undefined);
+        }
+        try {
+          const parsed = JSON.parse(out || 'null');
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const entries = Object.entries(parsed).filter(([, value]) => typeof value === 'boolean');
+            if (entries.length > 0) {
+              return resolve(Object.fromEntries(entries) as Record<string, boolean>);
+            }
+          }
+        } catch {
+          // fall through to the bypass flag
+        }
+        resolve(undefined);
+      });
+    });
+  }
+
+  private async npmInstallWithRetry(prefix: string, version: string, stdout?: boolean, allowAllScripts?: boolean): Promise<void> {
     const MAX_ATTEMPTS = 3;
     let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        await this.runNpmInstall(prefix, version, stdout);
+        await this.runNpmInstall(prefix, version, stdout, allowAllScripts);
         return;
       } catch (error) {
         lastError = error as Error;
@@ -403,7 +450,7 @@ export class ServerManager {
     throw lastError ?? new Error('npm install failed');
   }
 
-  private runNpmInstall(prefix: string, version: string, stdout?: boolean): Promise<void> {
+  private runNpmInstall(prefix: string, version: string, stdout?: boolean, allowAllScripts?: boolean): Promise<void> {
     if (stdout) {
       process.stdout.write('\n');
     }
@@ -420,7 +467,9 @@ export class ServerManager {
       const args = [
         'install',
         `${APP_SERVER_NAME}@${version}`,
-        '--allow-scripts',
+        // bypass only when the manifest declares no allowScripts policy
+        // (older npm treats the flag as unknown config and just warns)
+        ...(allowAllScripts ? ['--dangerously-allow-all-scripts'] : []),
         '--prefix',
         prefix,
         '--omit=dev',

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.13]
+
+### Fixed
+
+- **Fresh installs no longer fail with an npm error.** Installing the server or a plugin's dependencies aborted with "EALLOWSCRIPTS" on current npm versions, visible as a restart loop on new Docker setups. Existing installations were not affected. The packages allowed to run install scripts are now declared explicitly instead of being approved wholesale.
+
 ## [2.0.12]
 
 ### Added
