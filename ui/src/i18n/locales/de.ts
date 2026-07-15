@@ -474,14 +474,14 @@ export default {
         'Bestimmt, wie empfindlich diese Kamera auf Ereignisse reagiert. Höhere Konfidenz und längere Timeouts bedeuten weniger, dafür zuverlässigere Ereignisse.',
       ptz_autotrack_hint: 'Wenn aktiviert, schwenkt die Kamera automatisch, um ausgewählte Objekttypen im Bild zu halten.',
       zones_hint:
-        'Ohne Zonen löst das gesamte Bild Ereignisse aus. Zonen beschränken Erkennungen auf relevante Bereiche, Privatsphäre-Masken blenden sensible Bereiche aus und Linien melden Objekte, die sie überqueren.',
+        'Ohne Zonen löst das gesamte Bild Ereignisse aus. Zonen beschränken Erkennungen auf relevante Bereiche, ignorierte Zonen verwerfen Erkennungen darin und Linien melden Objekte, die sie überqueren.',
       snapshot_hint:
         'Schnappschüsse werden für Vorschauen und Benachrichtigungen verwendet. Kürzere Intervalle halten sie aktuell, erhöhen aber die Last auf der Kamera.',
       frame_worker_hint:
         'Der FrameWorker analysiert den Videostream für Erkennungen. Ändern Sie diese Werte nur, wenn Erkennungen verzögert sind oder die Systemlast zu hoch ist.',
       zones_empty: 'Noch keine Zonen oder Linien an dieser Kamera.',
       zone_entry_zone: 'Zone',
-      zone_entry_privacy_mask: 'Privatsphäre-Maske',
+      zone_entry_privacy_mask: 'Ignorierte Zone',
       zone_entry_line: 'Linienüberquerung',
       zone_entry_delete: 'Löschen',
       zone_entry_delete_confirm: 'Sind Sie sicher, dass Sie diesen Eintrag löschen möchten?',
@@ -963,8 +963,8 @@ export default {
         mute: 'Stumm',
         new: 'Neu',
         nvr_settings: 'NVR-Einstellungen',
-        privacy_mask: 'Privatsphärenmaske',
-        public_mask: 'Öffentliche Maske',
+        privacy_mask: 'Ignorierte Zone',
+        public_mask: 'Erkennungszone',
         resolution: 'Auflösung',
         restart: 'Neustarten',
         show_timeline: 'Zeitleiste anzeigen',
