@@ -52,6 +52,9 @@ export class MainNamespace {
     for (const camera of cameras) {
       const cameraStatuses: Record<string, StreamStatus> = {};
       for (const source of camera.sources) {
+        if (source.role === 'snapshot') {
+          continue;
+        }
         const sourceName = createSourceName(camera.name, source.name);
         cameraStatuses[source.name] = statuses[sourceName] ?? 'idle';
       }
