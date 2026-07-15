@@ -34,6 +34,8 @@ const MULTI_PROVIDER_ASSIGNMENT_TYPES = new Set<string>([...getMultiProviderType
 
 const cameraSourceProbeCache = new TTLCache<string, Go2RTCProbe>({ max: 100, ttl: Infinity });
 
+const DEFAULT_EXTENSION_PLUGINS = ['@camera.ui/camera-ui-nvr'];
+
 @registry([
   {
     token: 'dbs',
@@ -95,7 +97,7 @@ export class CamerasService {
     const transformedCamera = this.transformCamera(cameraData);
     await this.api.addCamera(transformedCamera);
 
-    return cameraData;
+    return (await this.activateDefaultExtensions(cameraData)) ?? cameraData;
   }
 
   public async patchZones(cameraname: string, zoneData: DetectionZone[]): Promise<DBCamera | undefined> {
@@ -622,6 +624,18 @@ export class CamerasService {
     };
 
     return transformedCamera;
+  }
+
+  private async activateDefaultExtensions(camera: DBCamera): Promise<DBCamera | undefined> {
+    let updated: DBCamera | undefined;
+    for (const pluginName of DEFAULT_EXTENSION_PLUGINS) {
+      const plugin = this.pluginsService.getPluginByName(pluginName);
+      if (!plugin || plugin.disabled || camera.plugins.some((p) => p.id === plugin.id)) {
+        continue;
+      }
+      updated = (await this.activatePluginByName(camera.name, pluginName).catch(() => undefined)) ?? updated;
+    }
+    return updated;
   }
 
   private async removeOne(camera: DBCamera): Promise<void> {
