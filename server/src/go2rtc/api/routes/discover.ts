@@ -37,6 +37,8 @@ export class DiscoverRoute {
   }
 
   public async discoverOnvif(data?: SourceData): Promise<{ sources: OnvifSource[] }> {
+    const onvifDiscoveryTimeout = 10;
+
     let target = '/onvif';
     if (data) {
       const params = new URLSearchParams(data as any);
@@ -46,7 +48,7 @@ export class DiscoverRoute {
     const cacheKey = data ? `discoverOnvif:${data.src}` : 'discoverOnvif';
 
     return this.requestManager.deduplicatedRequest(cacheKey, async () => {
-      const response = await fetchInstance()(target, {
+      const response = await fetchInstance()(`${target}?timeout=${onvifDiscoveryTimeout}`, {
         method: 'GET',
       });
 
