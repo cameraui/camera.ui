@@ -78,6 +78,7 @@ export const detectionSettingsSchema = zod.object({
   }),
   object: zod.object({
     confidence: zod.number().min(0.3, 'Minimum 0.3').max(1, 'Maximum 1'),
+    suppressStatic: zod.boolean().default(true),
   }),
   audio: zod.object({
     minDecibels: zod.number().min(-100, 'Minimum -100 dBFS').max(0, 'Maximum 0 dBFS'),
@@ -407,6 +408,7 @@ export const createCameraBaseSchema = zod
       },
       object: {
         confidence: 0.5,
+        suppressStatic: true,
       },
       audio: {
         minDecibels: -40,

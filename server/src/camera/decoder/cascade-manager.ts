@@ -1,4 +1,3 @@
-// Default delay (ms) before cascade is marked inactive after the last trigger ends.
 export const CASCADE_CLEAR_DELAY_MS = 1500;
 
 export type CascadeState = 'activated' | 'deactivated';
@@ -13,20 +12,18 @@ export type CascadeListener = (event: CascadeEvent) => void;
 export class CascadeManager {
   private active = false;
 
-  // Auto-clear timer for `triggerMomentary()`.
   private momentaryTimer?: NodeJS.Timeout;
   private momentaryFlag = false;
 
-  // Delayed cascade-end timer — gives brief trigger gaps a grace period.
   private deactivateTimer?: NodeJS.Timeout;
 
   private readonly listeners = new Set<CascadeListener>();
 
-  get isActive(): boolean {
+  public get isActive(): boolean {
     return this.active;
   }
 
-  triggerMomentary(timeoutSeconds: number): void {
+  public triggerMomentary(timeoutSeconds: number): void {
     this.momentaryFlag = true;
     this.cancelDeactivateTimer();
     this.activateIfNeeded();
@@ -39,14 +36,14 @@ export class CascadeManager {
     }, timeoutSeconds * 1000);
   }
 
-  onChange(listener: CascadeListener): () => void {
+  public onChange(listener: CascadeListener): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
     };
   }
 
-  dispose(): void {
+  public dispose(): void {
     if (this.momentaryTimer) clearTimeout(this.momentaryTimer);
     if (this.deactivateTimer) clearTimeout(this.deactivateTimer);
 
@@ -90,7 +87,7 @@ export class CascadeManager {
       try {
         listener(event);
       } catch {
-        // Listener errors must not corrupt manager state.
+        // ignore
       }
     }
   }

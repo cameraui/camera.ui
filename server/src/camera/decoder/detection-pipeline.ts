@@ -19,9 +19,10 @@ const OBJECT_MERGE_CLOSE_THRESHOLD = 0.0;
 const MOTION_MERGE_IOU_THRESHOLD = 0.01;
 const MOTION_MERGE_CLOSE_THRESHOLD = 0.1;
 const TRACKER_IOU_THRESHOLD = 0.1;
-const TRACKER_HIT_COUNTER_MAX = 15;
+const TRACKER_HIT_COUNTER_MAX = 30;
 const TRACKER_INITIALIZATION_DELAY = 3;
-const PAN_TO_IMAGE_RATIO = 4.0;
+
+export const PAN_TO_IMAGE_RATIO = 4.0;
 
 export interface LineCrossingEvent {
   lineName: string;
@@ -39,6 +40,8 @@ export interface LineCrossingEvent {
 export interface PipelineResult {
   tracked: TrackedDetection[];
   crossings: LineCrossingEvent[];
+  created: number[];
+  removed: number[];
 }
 
 function toRustDetection(det: Detection): RustDetection {
@@ -161,31 +164,16 @@ export class DetectionPipeline {
 
   public process(rawDetections: Detection[], frame: VideoFrameData, poseDelta?: { panDelta: number; tiltDelta: number }): PipelineResult {
     const flat = rawDetections.length === 0 ? [] : this.runNmsAndMergeFlat(rawDetections);
-    // Map PTZ pose offset into the detection coordinate frame (normalized
-    // image space) so Norfair's TranslationTransformation can compensate
-    // Kalman predictions and keep track ids across pans.
-    //
-    // Sign convention: Norfair's `movement_vector` is the *scene flow* —
-    // how features appear to move in the image. Camera panning RIGHT
-    // (positive panDelta) makes the scene drift LEFT in the image, so the
-    // image-space x component is NEGATIVE panDelta. ONVIF tilt is the
-    // opposite: camera tilted UP (positive tiltDelta) makes the scene drift
-    // DOWN in the image (image y grows downward), so image-space y is
-    // POSITIVE tiltDelta.
-    //
-    // The autotracker feeds an accumulated offset from its reference pose,
-    // not a per-frame delta — Norfair needs one consistent reference across
-    // all frames so the Kalman filter's accumulated world-frame state stays
-    // coherent.
+    // Norfair's movement_vector is the scene flow: panning right drifts the
+    // scene left (x = -panDelta), tilting up drifts it down (y = +tiltDelta,
+    // image y grows downward). The autotracker feeds an accumulated offset
+    // from its reference pose, not a per-frame delta, so the Kalman state
+    // keeps one consistent reference across frames.
     const cameraMotion = poseDelta ? { x: -poseDelta.panDelta * PAN_TO_IMAGE_RATIO, y: poseDelta.tiltDelta * PAN_TO_IMAGE_RATIO } : undefined;
     const result = this.tracker.update(flat, Date.now(), frame.data as Buffer, frame.width, frame.height, cameraMotion);
 
-    // Build a `trackId → box` lookup for crossing event back-fill.
-    // Tracks emitted in the same frame as a crossing are guaranteed to
-    // be in the result.tracked list, so this is a single O(n) pass.
-    // Lost tracks (Kalman-extrapolated) are kept in the output so the UI
-    // gets smooth bbox continuity. The detection-coordinator is responsible
-    // for excluding lost tracks from the event lifecycle (detected flag).
+    // lost (Kalman-extrapolated) tracks stay in the output for smooth UI
+    // bboxes, the coordinator excludes them from the event lifecycle
     const tracked = result.tracked.map(fromRustTracked);
     const boxLookup = new Map<number, BoundingBox>();
     for (const t of tracked) {
@@ -195,6 +183,8 @@ export class DetectionPipeline {
     return {
       tracked,
       crossings: result.crossings.map((c) => fromRustCrossing(c, boxLookup)),
+      created: result.created,
+      removed: result.removed,
     };
   }
 
@@ -249,6 +239,10 @@ export class DetectionPipeline {
 
   public cleanup(): void {
     this.tracker.reset();
+  }
+
+  public retainTracks(trackIds: number[]): number[] {
+    return this.tracker.retainTracks(trackIds);
   }
 
   private runNmsAndMergeFlat(rawDetections: Detection[]): RustDetection[] {

@@ -33,7 +33,7 @@ export class FrameHandle implements AsyncDisposable {
   }
 
   public static async fromUrl(url: string, timeoutMs: number): Promise<FrameHandle> {
-    // libavformat expects `timeout` in microseconds for both HTTP and RTSP demuxers.
+    // libavformat expects timeout in microseconds
     const timeoutUs = Math.max(1, Math.floor(timeoutMs * 1000));
     const isRTSP = url.startsWith('rtsp://') || url.startsWith('rtsps://');
 
@@ -64,8 +64,7 @@ export class FrameHandle implements AsyncDisposable {
 
       decoder = await Decoder.create(videoStream, { exitOnError: false });
 
-      // The frames() generator yields nulls for packets that produce no frame;
-      // keep iterating until a frame appears or the stream ends.
+      // frames() yields null for packets that produce no frame, keep iterating
       const packets = demuxer.packets(videoStream.index);
       const frames = decoder.frames(packets);
       for await (const frame of frames) {
@@ -141,7 +140,7 @@ export class FrameSource {
   private _resolvedFps?: number;
   private shouldRun = false;
 
-  // Mailbox state — single-slot frame buffer with monotonic id
+  // single-slot mailbox with monotonic id
   private latest?: FrameSnap;
   private nextId = 0;
   private waiter?: Waiter;
@@ -216,9 +215,7 @@ export class FrameSource {
       exitOnError: false,
     });
 
-    // Resolve FPS: user-configured value, or native stream rate as fallback.
-    // Stored as _resolvedFps so consumers (DetectionCoordinator, etc.) can
-    // read the actual effective rate via the `fps` getter.
+    // user-configured fps, native stream rate as fallback
     let nativeFps = videoStream.avgFrameRate.num / videoStream.avgFrameRate.den;
     if (!isFinite(nativeFps) || nativeFps <= 0 || isNaN(nativeFps)) {
       nativeFps = 20;
@@ -251,8 +248,8 @@ export class FrameSource {
     this._isStreaming = false;
     this._resolvedFps = undefined;
 
-    // Mark ended and wake any waiting consumer BEFORE awaiting the producer
-    // so the consumer can break out of its loop and stop holding it up.
+    // wake waiting consumers BEFORE awaiting the producer, otherwise they
+    // hold it up
     this.ended = true;
     this.wakeWaiter();
     this.input?.interrupt();
@@ -326,7 +323,7 @@ export class FrameSource {
       });
       this.inflightFetch = thisFetch;
 
-      // Per-fetch dispose timer via closure so overlapping fetches don't share state.
+      // per-fetch dispose timer, overlapping fetches must not share state
       thisFetch.finally(() => {
         setTimeout(async () => {
           if (this.inflightFetch === thisFetch) {
@@ -409,7 +406,7 @@ export class FrameSource {
           firstFrame = false;
         }
 
-        // Overwrite mailbox slot — dispose any un-picked-up frame so we don't leak.
+        // dispose any un-picked-up frame before overwriting the slot
         if (this.latest) {
           try {
             this.latest.frame[Symbol.dispose]?.();

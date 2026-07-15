@@ -83,6 +83,7 @@ async function onSave() {
       },
       object: {
         confidence: 0.7,
+        suppressStatic: true,
       },
       audio: {
         minDecibels: -40,

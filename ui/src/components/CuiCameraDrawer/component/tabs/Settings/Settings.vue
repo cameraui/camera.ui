@@ -413,6 +413,38 @@
           </Field>
 
           <Field
+            v-slot="{ field, errors }"
+            :model-value="cameraForm.detectionSettings.object.suppressStatic ?? true"
+            :value="true"
+            :unchecked-value="false"
+            type="checkbox"
+            name="detectionSettings.object.suppressStatic"
+            as="div"
+            class="flex flex-col field-gap cui-toggle-switch"
+          >
+            <div class="flex items-center gap-4">
+              <div class="flex flex-col field-switch-gap">
+                <label for="detectionSettings.object.suppressStatic" class="cui-label-switch">{{ $t('components.form.label.suppress_static') }}</label>
+
+                <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ $t('components.form.hint.suppress_static') }}</Message>
+
+                <Transition name="fade">
+                  <ErrorMessage name="detectionSettings.object.suppressStatic" class="cui-input-switch-error" />
+                </Transition>
+              </div>
+
+              <ToggleSwitch
+                :model-value="cameraForm.detectionSettings.object.suppressStatic ?? true"
+                v-bind="field"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                class="ml-auto shrink-0"
+                @value-change="(e) => (cameraForm.detectionSettings.object.suppressStatic = e)"
+              />
+            </div>
+          </Field>
+
+          <Field
             v-slot="{ errors }"
             :model-value="cameraForm.detectionSettings.audio.minDecibels"
             name="detectionSettings.audio.minDecibels"

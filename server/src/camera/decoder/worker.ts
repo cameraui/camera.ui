@@ -31,8 +31,7 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { LogManager } from '../../services/logger/logManager.js';
 import type { WorkerManager } from '../../workers/manager.js';
 import type { CameraController } from '../controller.js';
-import type { CoordinatorSourceUrl } from './detection-coordinator.js';
-import type { WorkerToMainMessage } from './types.js';
+import type { CoordinatorSourceUrl, WorkerToMainMessage } from './types.js';
 
 const REMOTE_START_TIMEOUT_MS = 30_000;
 
@@ -78,7 +77,6 @@ export class FrameWorker extends Subscribed {
     this.logManager = container.resolve('logManager');
     this.workerManager = container.resolve('workerManager');
 
-    // Initialize logger for Frame Worker messages
     this.logger = (camera.logger as Logger).createLogger({
       prefix: 'Frame Worker',
       suffix: camera.name,
@@ -112,7 +110,6 @@ export class FrameWorker extends Subscribed {
       return;
     }
 
-    // Clear any existing retry timeout
     this.isClosed = false;
     this.isRestarting = false;
     clearTimeout(this.retryTimeout);
@@ -134,8 +131,8 @@ export class FrameWorker extends Subscribed {
     this.logger.log('Stopping Frame Worker');
     this.setStatus(PLUGIN_STATUS.STOPPING);
 
-    // If running on a remote worker, remove it from the desired state — the
-    // agent converges (stops the child) on the next nudge/heartbeat.
+    // remote worker: remove from the desired state, the agent converges
+    // (stops the child) on the next nudge/heartbeat
     if (this.isRemote) {
       clearTimeout(this.remoteStartTimeout);
       this.remoteStartTimeout = undefined;
@@ -269,9 +266,8 @@ export class FrameWorker extends Subscribed {
         this.channel = await this.proxyServer.proxy.privateChannel('frameworker-communication', this.namespaces.frameWorkerChild);
         this.channel.on('message', this.handleWorkerMessage.bind(this, resolve));
 
-        // desireFrameDecoding registers the camera in the master's desired
-        // state and returns the agentId, or undefined when delegation is not
-        // possible — then we fork locally.
+        // registers the camera in the master's desired state; undefined =
+        // delegation not possible, fork locally
         const agentId = this.workerManager.desireFrameDecoding(this.camera.id);
 
         if (agentId) {

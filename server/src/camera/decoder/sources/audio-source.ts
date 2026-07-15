@@ -27,7 +27,7 @@ export class AudioSource {
   private _isStreaming = false;
   private shouldRun = false;
 
-  // Mailbox state — single-slot frame buffer with monotonic id
+  // single-slot mailbox with monotonic id
   private latest?: AudioFrameSnap;
   private nextId = 0;
   private waiter?: Waiter;
@@ -76,7 +76,7 @@ export class AudioSource {
       exitOnError: false,
     });
 
-    // Resample to plugin spec (pattern from rtp-session.ts:236-241)
+    // resample to plugin spec
     const sampleFmt = this.config.format === 'pcm16' ? AV_SAMPLE_FMT_S16 : AV_SAMPLE_FMT_FLT;
     const layout = this.config.channels === 1 ? 'mono' : 'stereo';
     const chain = FilterPreset.chain().aformat(sampleFmt, this.config.sampleRate, layout);

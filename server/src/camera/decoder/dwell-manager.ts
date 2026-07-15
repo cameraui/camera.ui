@@ -14,7 +14,7 @@ export class DwellManager {
   private readonly expiries = new Map<string, number>();
   private readonly listeners = new Set<DwellListener>();
 
-  refresh(sensorId: string, timeoutSeconds: number): { wasActive: boolean } {
+  public refresh(sensorId: string, timeoutSeconds: number): { wasActive: boolean } {
     const wasActive = this.active.get(sensorId) === true;
 
     const existing = this.timers.get(sensorId);
@@ -37,18 +37,18 @@ export class DwellManager {
     return { wasActive };
   }
 
-  isActive(sensorId: string): boolean {
+  public isActive(sensorId: string): boolean {
     return this.active.get(sensorId) === true;
   }
 
-  hasActive(): boolean {
+  public hasActive(): boolean {
     for (const active of this.active.values()) {
       if (active) return true;
     }
     return false;
   }
 
-  maxExpiry(): number {
+  public maxExpiry(): number {
     let max = 0;
     for (const [sensorId, expiry] of this.expiries) {
       if (this.active.get(sensorId) && expiry > max) max = expiry;
@@ -56,7 +56,7 @@ export class DwellManager {
     return max;
   }
 
-  clear(sensorId: string): void {
+  public clear(sensorId: string): void {
     const timer = this.timers.get(sensorId);
     if (timer) {
       clearTimeout(timer);
@@ -70,14 +70,14 @@ export class DwellManager {
     }
   }
 
-  onChange(listener: DwellListener): () => void {
+  public onChange(listener: DwellListener): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
     };
   }
 
-  dispose(): void {
+  public dispose(): void {
     for (const timer of this.timers.values()) {
       clearTimeout(timer);
     }
@@ -92,7 +92,7 @@ export class DwellManager {
       try {
         listener(event);
       } catch {
-        // Listener errors must not corrupt manager state.
+        // ignore
       }
     }
   }

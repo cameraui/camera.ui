@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { boxIntersectsPolygon } from '../utils/filter.js';
-import { STATIONARY_SPEED_THRESHOLD } from './detection-coordinator.js';
+import { STATIONARY_SPEED_THRESHOLD } from './stationary-suppressor.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type {
@@ -34,7 +34,7 @@ export interface TrackedClipEmbedding extends ClipEmbedding, TrackedSecondary {}
 
 export interface NormalizedDetectionZone {
   name: string;
-  // Polygon points in 0–1 normalized coordinates, closed (first point repeated).
+  // 0-1 normalized, closed (first point repeated)
   points: Point[];
 }
 
@@ -65,11 +65,9 @@ export interface ProcessedDetectionData {
   detectionZones?: NormalizedDetectionZone[];
 }
 
-const UPDATE_THROTTLE_MS = 1000; // Minimum interval between throttled 'update' publishes (ms)
-const MIN_MOVING_SPEED = 0.05; // Minimum speed to consider an object as moving (normalized units/second)
+const UPDATE_THROTTLE_MS = 1000;
+const MIN_MOVING_SPEED = 0.05;
 
-// Debug helper — reads WxH from a JPEG's SOF marker so event logs can show
-// thumbnail resolutions without carrying dimension metadata around.
 function jpegInfo(jpeg: Buffer): string {
   let i = 2;
   while (i + 9 < jpeg.length) {
@@ -82,7 +80,7 @@ function jpegInfo(jpeg: Buffer): string {
       i++;
       continue;
     }
-    // SOF0–SOF15 carry the frame size — skip DHT (C4), JPG (C8), DAC (CC)
+    // SOF0-SOF15 carry the frame size, skip DHT (C4), JPG (C8), DAC (CC)
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       const height = jpeg.readUInt16BE(i + 5);
       const width = jpeg.readUInt16BE(i + 7);
@@ -152,9 +150,7 @@ export class DetectionEventManager {
       return;
     }
 
-    // Coordinator delivered the requested event-level thumbnail — store it and
-    // immediately publish an update so the UI gets the picture without waiting
-    // for the next throttled update.
+    // publish immediately, the UI shouldn't wait for the next throttled update
     if (data.eventThumbnail && this.needsEventThumbnail) {
       this.eventThumbnail = data.eventThumbnail;
       this.needsEventThumbnail = false;
@@ -165,8 +161,7 @@ export class DetectionEventManager {
       this.enrichTriggers(triggers, now);
       this.activeEvent.lastUpdate = now;
       this.activeEvent.expectedEndTime = data.expectedEndTime;
-      // Throttled update so UI knows event is still alive (trigger bar grows).
-      // When a segment is active, segment-update already carries this info.
+      // keep-alive for the UI; with an active segment, segment-update carries this
       if (!this.activeSegment) {
         this.publishUpdateThrottled();
       }
@@ -235,9 +230,6 @@ export class DetectionEventManager {
       expectedEndTime: data.expectedEndTime,
     };
     this.segmentIndex = 0;
-    // Request a full-frame thumbnail from the coordinator on the next frame
-    // tick. If `data.eventThumbnail` is already populated (event triggered by
-    // a frame-driven path that pre-captured) consume it immediately.
     this.needsEventThumbnail = true;
     this.eventThumbnail = null;
     if (data.eventThumbnail) {
@@ -246,10 +238,8 @@ export class DetectionEventManager {
     }
 
     this.updateTypes();
-    // If we already have a thumbnail (frame-driven path captured one for us in
-    // the same tick that started the event), include it inline in the start
-    // message so the UI gets it immediately. Otherwise the next processResults
-    // tick from the coordinator will deliver it via an 'update' message.
+    // pre-captured thumbnail rides inline in the start message, otherwise the
+    // next coordinator tick delivers it via update
     if (this.eventThumbnail) {
       this.activeEvent.thumbnail = this.eventThumbnail;
     }
@@ -355,7 +345,7 @@ export class DetectionEventManager {
     this.activeSegment.lastSeen = now;
 
     if (data.objects.length > 0) {
-      // Count objects per label in this frame — upsert by label, track best score/box/trackId and maxCount
+      // upsert per label, keep best score/box/trackId and maxCount
       const labelCounts = new Map<string, { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean }>();
       for (const obj of data.objects) {
         const t = obj as { trackId?: number; trackSpeed?: number; label: string; confidence: number; box: BoundingBox };
@@ -394,8 +384,7 @@ export class DetectionEventManager {
         }
       }
 
-      // Track which detection zones any object box overlapped during this segment.
-      // Boxes are normalized 0–1, polygons are pre-normalized to the same space.
+      // boxes and polygons are both normalized 0-1, direct overlap test
       if (data.detectionZones && data.detectionZones.length > 0) {
         const zonesSet = new Set<string>(this.activeSegment.zones ?? []);
         for (const obj of data.objects) {
@@ -509,7 +498,7 @@ export class DetectionEventManager {
     if (data.motion?.detected) {
       triggers.push({ type: 'motion', firstSeen: now, lastSeen: now });
     } else if (data.cascadeTriggered && !data.motion && (!data.sensorTriggers || data.sensorTriggers.length === 0)) {
-      // External motion (backward compatible: no specific sensor trigger)
+      // external motion, backward compatible: no specific sensor trigger
       triggers.push({ type: 'motion', firstSeen: now, lastSeen: now });
     }
 
@@ -553,8 +542,8 @@ export class DetectionEventManager {
     const types = new Set<string>();
 
     for (const t of this.activeEvent.triggers) types.add(t.type);
-    // activeEvent.segments is only populated during publishSegment,
-    // so also include the current activeSegment for up-to-date types.
+    // activeEvent.segments is only filled during publishSegment, include the
+    // current activeSegment for up-to-date types
     const segs = this.activeSegment ? [this.activeSegment] : this.activeEvent.segments;
     for (const seg of segs) {
       for (const d of seg.detections) types.add(d.label);
@@ -623,7 +612,7 @@ export class DetectionEventManager {
     const cm = DetectionEventManager.isMoving(candidate);
     const currM = DetectionEventManager.isMoving(current);
 
-    // Prefer moving objects over stationary
+    // prefer moving objects over stationary
     if (cm && !currM) {
       this.logger.trace(`Thumbnail ${key}: prefer moving track#${candidate.trackId} (speed=${candidate.speed?.toFixed(4)}) over static track#${current.trackId}`);
       map.set(key, candidate);
@@ -762,13 +751,12 @@ export class DetectionEventManager {
       parts.push(`duration=${seg.lastSeen - seg.firstSeen}ms`);
     }
 
-    // Detections: "person(0.92,x2) vehicle(0.78,x1)"
+    // "person(0.92,x2) vehicle(0.78,x1)"
     if (seg.detections.length > 0) {
       const dets = seg.detections.map((d) => `${d.label}(${d.score.toFixed(2)},x${d.maxCount})`).join(' ');
       parts.push(`det=[${dets}]`);
     }
 
-    // Attributes summary: group by type
     if (seg.attributes.length > 0) {
       const groups = new Map<string, string[]>();
       for (const a of seg.attributes) {
@@ -785,7 +773,6 @@ export class DetectionEventManager {
       parts.push(`attr={${attr}}`);
     }
 
-    // Tracker info from detections
     const tracked = seg.detections.filter((d) => d.trackId !== undefined);
     if (tracked.length > 0) {
       const info = tracked
