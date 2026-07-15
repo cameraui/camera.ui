@@ -8,7 +8,13 @@ import { container } from 'tsyringe';
 
 import { DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
 import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
+import { createAutomationSchema } from '../schemas/automations.schema.js';
+import { createCameraBaseSchema } from '../schemas/cameras.schema.js';
+import { notificationSettingsSchema } from '../schemas/notifications.schema.js';
+import { createShareSchema } from '../schemas/shares.schema.js';
+import { createVirtualSensorSchema } from '../schemas/virtualsensors.schema.js';
 import { REGEX_ESCAPE } from '../utils/regex.js';
+import { backfillDefaults, backfillSingletonDefaults } from './backfill.js';
 import {
   AUTOMATIONS_ID,
   CAMERAS_ID,
@@ -31,6 +37,16 @@ import {
   WORKER_STATE_ID,
 } from './constants.js';
 import { MigrationRunner } from './migration.js';
+import {
+  dbCloudSchema,
+  dbInstanceSchema,
+  dbInstancesConfigSchema,
+  dbMqttSchema,
+  dbRemoteSchema,
+  dbServerSchema,
+  dbSettingsSchema,
+  dbUserSchema,
+} from './record-schemas.js';
 import { SelfCheck } from './selfcheck.js';
 
 import type { Database as DB, RootDatabase as RootDB } from 'lmdb';
@@ -147,6 +163,7 @@ export class Database {
     await this.prepareDatabases();
     await this.ensureMaster();
     await this.migrationRunner.migrate();
+    await this.backfillSchemaDefaults();
     this.syncCamerasToGo2RtcConfig();
 
     this.logger.debug('Database initialized!');
@@ -229,7 +246,8 @@ export class Database {
           streams[sourceName] = go2rtcUrls;
         }
 
-        if (source.hotMode) {
+        // a disabled camera must not be preloaded by go2rtc at its own startup
+        if (source.hotMode && !camera.disabled) {
           preload[sourceName] = source.muted ? 'video&microphone' : 'video&audio&microphone';
         } else {
           delete preload[sourceName];
@@ -249,6 +267,22 @@ export class Database {
     }
 
     this.configService.writeGo2RtcConfigFile();
+  }
+
+  private async backfillSchemaDefaults(): Promise<void> {
+    await backfillDefaults(this.camerasDB, createCameraBaseSchema.strip(), this.logger, CAMERAS_ID);
+    await backfillDefaults(this.automationsDB, createAutomationSchema.strip(), this.logger, AUTOMATIONS_ID);
+    await backfillDefaults(this.virtualSensorsDB, createVirtualSensorSchema.strip(), this.logger, VIRTUAL_SENSORS_ID);
+    await backfillDefaults(this.sharesDB, createShareSchema.strip(), this.logger, SHARES_ID);
+    await backfillDefaults(this.notificationsDB, notificationSettingsSchema.strip(), this.logger, NOTIFICATIONS_ID);
+    await backfillDefaults(this.usersDB, dbUserSchema, this.logger, USERS_ID);
+    await backfillDefaults(this.instancesDB, dbInstanceSchema, this.logger, INSTANCES_ID);
+    await backfillSingletonDefaults(this.settingsDB, 'settings', dbSettingsSchema, this.logger, SETTINGS_ID);
+    await backfillSingletonDefaults(this.serverDB, 'server', dbServerSchema, this.logger, SERVER_ID);
+    await backfillSingletonDefaults(this.remoteDB, 'remote', dbRemoteSchema, this.logger, REMOTE_ID);
+    await backfillSingletonDefaults(this.mqttDB, 'mqtt', dbMqttSchema, this.logger, MQTT_ID);
+    await backfillSingletonDefaults(this.cloudDB, 'cloud', dbCloudSchema, this.logger, CLOUD_ID);
+    await backfillSingletonDefaults(this.instancesConfigDB, 'instancesConfig', dbInstancesConfigSchema, this.logger, INSTANCES_CONFIG_ID);
   }
 
   private async checkOldVersion(): Promise<void> {
@@ -277,47 +311,11 @@ export class Database {
     if (!this.serverDB.get('server')) {
       await this.serverDB.put('server', { serverAddresses: [] });
     }
-    const existingRemote = this.remoteDB.get('remote') as Partial<DBRemote> | undefined;
-    if (!existingRemote) {
-      await this.remoteDB.put('remote', {
-        enabled: false,
-        directEnabled: false,
-        directMode: 'cloudflare',
-        customDomain: { url: null },
-        cloudflare: { mode: 'quick', hostname: null, token: null, tunnelId: null },
-      });
-    } else if (existingRemote.directMode === undefined || existingRemote.customDomain === undefined || existingRemote.cloudflare === undefined) {
-      await this.remoteDB.put('remote', {
-        enabled: existingRemote.enabled ?? false,
-        directEnabled: existingRemote.directEnabled ?? false,
-        directMode: existingRemote.directMode ?? 'cloudflare',
-        customDomain: existingRemote.customDomain ?? { url: null },
-        cloudflare: existingRemote.cloudflare ?? { mode: 'quick', hostname: null, token: null, tunnelId: null },
-      });
+    if (!this.remoteDB.get('remote')) {
+      await this.remoteDB.put('remote', dbRemoteSchema.parse({}));
     }
-    const existingMqtt = this.mqttDB.get('mqtt') as Partial<DBMqtt> | undefined;
-    if (!existingMqtt) {
-      await this.mqttDB.put('mqtt', {
-        enabled: false,
-        mode: 'external',
-        broker: { port: 1883, username: 'cameraui', password: randomBytes(16).toString('hex') },
-        host: null,
-        port: 1883,
-        protocol: 'mqtt',
-        username: null,
-        password: null,
-        clientId: 'cameraui',
-        topicPrefix: 'cameraui',
-        tls: { rejectUnauthorized: true, ca: null, cert: null, key: null },
-        haDiscovery: { enabled: false, prefix: 'homeassistant' },
-      });
-    } else if (existingMqtt.haDiscovery === undefined || existingMqtt.mode === undefined) {
-      await this.mqttDB.put('mqtt', {
-        ...(existingMqtt as DBMqtt),
-        mode: existingMqtt.mode ?? 'external',
-        broker: existingMqtt.broker ?? { port: 1883, username: 'cameraui', password: randomBytes(16).toString('hex') },
-        haDiscovery: existingMqtt.haDiscovery ?? { enabled: false, prefix: 'homeassistant' },
-      });
+    if (!this.mqttDB.get('mqtt')) {
+      await this.mqttDB.put('mqtt', dbMqttSchema.parse({}));
     }
     if (!this.cloudDB.get('cloud')) {
       await this.cloudDB.put('cloud', {});
