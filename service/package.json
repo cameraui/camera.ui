@@ -6,6 +6,10 @@
   "bin": {
     "cameraui": "./dist/cameraui.js"
   },
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
+  },
   "scripts": {
     "build": "rimraf dist && tsc",
     "format": "prettier --write 'src/' --ignore-unknown --no-error-on-unmatched-pattern",

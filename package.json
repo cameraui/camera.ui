@@ -5,6 +5,10 @@
   "description": "camera.ui",
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "type": "module",
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
+  },
   "scripts": {
     "audit": "npm audit fix && tsx ./scripts/audit.ts",
     "build": "tsx ./scripts/build.ts",
@@ -31,9 +35,5 @@
   "dependencies": {
     "commander": "^15.0.0",
     "ora": "^9.4.1"
-  },
-  "allowScripts": {
-    "esbuild@0.28.1": true,
-    "fsevents@2.3.3": true
   }
 }
