@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - **Connecting to ONVIF cameras that use non-standard service paths works now.** Hikvision, TP-Link Tapo and others put their media service at a different address than most cameras, and the connection failed with "wrong response 404". Their reported stream address is also corrected to the address the camera was reached on, so cameras behind a port forward or reporting a stale internal IP connect too.
 
+- **Installing or updating the desktop app on Windows no longer gets stuck asking to close camera.ui.** The installer wrongly reported the app as still running even when it was closed, and demanded it be closed manually before continuing. It now detects the running app reliably.
+
 - **Uninstalling the desktop app on Windows no longer silently deletes your data.** The uninstaller now asks whether settings and recordings should be removed too. Updates never touch them.
 
 ## [2.0.13]
