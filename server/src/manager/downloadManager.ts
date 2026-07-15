@@ -364,6 +364,7 @@ export class DownloadManager implements DownloadManagerInterface {
     const res = reply.raw;
     const reqRaw = req.raw;
     res.writeHead(200, {
+      ...this.corsHeaders(reply),
       'Content-Type': entry.mimeType,
       'Content-Disposition': `attachment; filename="${entry.filename}"`,
       'Cache-Control': 'no-cache',
@@ -435,6 +436,7 @@ export class DownloadManager implements DownloadManagerInterface {
     const reqRaw = req.raw;
 
     res.writeHead(200, {
+      ...this.corsHeaders(reply),
       'Content-Type': entry.mimeType,
       'Content-Disposition': `attachment; filename="${entry.filename}"`,
       'Cache-Control': 'no-cache',
@@ -558,5 +560,16 @@ export class DownloadManager implements DownloadManagerInterface {
     } catch (err) {
       this.logger.warn(`Failed to delete download file: ${filePath}`, err);
     }
+  }
+
+  private corsHeaders(reply: FastifyReply): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const name of ['access-control-allow-origin', 'access-control-allow-credentials', 'access-control-expose-headers', 'vary']) {
+      const value = reply.getHeader(name);
+      if (value != null) {
+        out[name] = String(value);
+      }
+    }
+    return out;
   }
 }
