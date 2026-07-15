@@ -230,7 +230,7 @@ function installNpmDependencies(): void {
       warn(`skipping ${dir} (no package.json)`);
       continue;
     }
-    run("npm install --allow-scripts", cwd);
+    run("npm install", cwd);
   }
   ok("dependencies installed (root, service, server, ui)");
 }
@@ -425,7 +425,8 @@ function bundlePlugins(): void {
         if (hasScript(dir, "setup")) {
           run("npm run setup", dir, env);
         } else {
-          run("npm install --allow-scripts", dir, env);
+          // local plugins don't declare allowScripts, npm v12 would block their scripts
+          run("npm install --dangerously-allow-all-scripts", dir, env);
           run("npm run bundle:dev --if-present", dir, env);
         }
         ok(`local plugin bundled: ${name}`);
