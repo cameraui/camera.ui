@@ -366,7 +366,6 @@ export class DownloadManager implements DownloadManagerInterface {
     res.writeHead(200, {
       'Content-Type': entry.mimeType,
       'Content-Disposition': `attachment; filename="${entry.filename}"`,
-      'Transfer-Encoding': 'chunked',
       'Cache-Control': 'no-cache',
     });
     reply.hijack();
@@ -438,7 +437,6 @@ export class DownloadManager implements DownloadManagerInterface {
     res.writeHead(200, {
       'Content-Type': entry.mimeType,
       'Content-Disposition': `attachment; filename="${entry.filename}"`,
-      'Transfer-Encoding': 'chunked',
       'Cache-Control': 'no-cache',
     });
 
