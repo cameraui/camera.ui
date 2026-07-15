@@ -245,6 +245,7 @@ export const assignmentsSchema = zod
     ptz: pluginInfo.optional(),
     battery: pluginInfo.optional(),
     cameraController: pluginInfo.optional(),
+    clip: pluginInfo.optional(),
 
     // classifiers like bird classifier, dog breed, etc.
     classifier: pluginInfo.array().optional(),
@@ -255,6 +256,13 @@ export const assignmentsSchema = zod
     securitySystem: pluginInfo.array().optional(),
     contact: pluginInfo.array().optional(),
     doorbell: pluginInfo.array().optional(),
+    lock: pluginInfo.array().optional(),
+    temperature: pluginInfo.array().optional(),
+    humidity: pluginInfo.array().optional(),
+    occupancy: pluginInfo.array().optional(),
+    smoke: pluginInfo.array().optional(),
+    leak: pluginInfo.array().optional(),
+    garage: pluginInfo.array().optional(),
 
     hub: pluginInfo.array().optional(),
   })
