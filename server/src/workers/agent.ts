@@ -52,9 +52,11 @@ export class WorkerAgent implements WorkerAgentRPC {
     const workerName = this.configService.config.worker?.name ?? 'worker';
     this.agentId = new WorkersService().getOrCreateAgentId(workerName);
 
-    const validCapabilities = new Set(Object.values(WorkerCapability) as string[]);
+    const allCapabilities = Object.values(WorkerCapability);
+    const validCapabilities = new Set(allCapabilities as string[]);
     const configuredCapabilities = this.configService.config.worker?.capabilities ?? [];
-    this.capabilities = configuredCapabilities.filter((cap) => validCapabilities.has(cap)) as WorkerCapability[];
+    this.capabilities =
+      configuredCapabilities.length === 0 ? allCapabilities : (configuredCapabilities.filter((cap) => validCapabilities.has(cap)) as WorkerCapability[]);
 
     const loggerOptions: LoggerOptions = {
       prefix: 'WorkerAgent',
@@ -78,7 +80,7 @@ export class WorkerAgent implements WorkerAgentRPC {
 
     if (this.capabilities.length === 0) {
       const available = Object.values(WorkerCapability).join(', ');
-      throw new Error(`Worker has no valid capabilities configured. Configure "worker.capabilities" in config (available: ${available})`);
+      throw new Error(`Configured "worker.capabilities" are all unknown. Use one of: ${available}, or leave it empty to offer all.`);
     }
 
     const configuredCapabilities = this.configService.config.worker?.capabilities ?? [];

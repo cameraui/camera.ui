@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.14]
+
+- **A Docker worker starts without listing its capabilities.** A worker started without `CAMERA_UI_WORKER_CAPABILITIES` refused to boot ("no capabilities configured"). It now offers everything by default; the master still assigns only what you give it. Set the variable to restrict a worker to a single job.
+
+- **Connecting to ONVIF cameras that use non-standard service paths works now.** Hikvision, TP-Link Tapo and others put their media service at a different address than most cameras, and the connection failed with "wrong response 404". Their reported stream address is also corrected to the address the camera was reached on, so cameras behind a port forward or reporting a stale internal IP connect too.
+
+- **Uninstalling the desktop app on Windows no longer silently deletes your data.** The uninstaller now asks whether settings and recordings should be removed too. Updates never touch them.
+
 ## [2.0.13]
 
 ### Fixed
