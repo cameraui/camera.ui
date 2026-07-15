@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **Exports with a single video download as a plain MP4.** The ZIP wrapper is only used when the export contains more than one file, and the format badge in the export dialog shows what you'll get.
 
+- **The desktop app can live in the tray.** Two new options in the tray menu: "Close to tray" keeps camera.ui (and a local server) running in the background when you close the window, and "Open at login" starts the app automatically with your system, minimized to the tray. Handy when the desktop app acts as your server and you only connect from other devices. On Windows a left-click on the tray icon brings the window back.
+
 ### Fixed
 
 - **Settings added in updates now reach existing installations automatically.** Fields introduced by newer versions stayed empty on records created earlier, visible as blank inputs in the camera settings (e.g. tracking speed, motion prediction and pan rate calibration under PTZ autotracking). On every start the server now fills missing fields with their defaults across cameras, users, instances, automations, virtual sensors, shares, notification settings and the MQTT/remote-access/server settings; existing values are never changed. The camera validation also learned the sensor types added over time (CLIP, lock, temperature, humidity, occupancy, smoke, leak, garage door), which it previously rejected as unknown.
