@@ -176,7 +176,7 @@ const camerasQuery = new CamerasQuery();
 
 const { t } = useI18n();
 const toast = useCuiToast();
-const { stats, isLoading } = useStorageStats();
+const { stats, isLoading, refresh: refreshStats } = useStorageStats();
 const { state: oauthState } = useOAuth(NVR_PLUGIN_NAME);
 const { isConnected: pluginConnected, isLoading: storageLoading, config: pluginConfig, getConfig, setConfig, setValue, submitValue } = usePluginStorage(NVR_PLUGIN_NAME);
 
@@ -286,6 +286,7 @@ async function onAction(state: { key: string }): Promise<void> {
   try {
     await setValue(state.key, undefined);
     toast.add({ severity: 'success', detail: t('components.toast.config_updated'), life: 3000 });
+    refreshStats();
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
@@ -299,6 +300,7 @@ async function onSubmit(state: { key: string; payload: any }): Promise<void> {
     } else {
       toast.add({ severity: 'success', detail: t('components.toast.config_updated'), life: 3000 });
     }
+    refreshStats();
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
@@ -308,6 +310,7 @@ async function onFormSubmit(config: Record<string, unknown>): Promise<void> {
   try {
     await setConfig(config);
     toast.add({ severity: 'success', detail: t('components.toast.config_updated'), life: 3000 });
+    refreshStats();
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
