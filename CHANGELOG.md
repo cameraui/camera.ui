@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **Exports with a single video download as a plain MP4.** The ZIP wrapper is only used when the export contains more than one file, and the format badge in the export dialog shows what you'll get.
 
+- **Setting up a second machine as a worker got easier.** Worker mode can now be enabled via the `CAMERA_UI_WORKER=true` environment variable instead of the `--worker` flag, which makes a Docker worker a pure compose setup (see `docker-compose.worker.yml` in the docker repo). `cameraui install --worker` now also keeps worker mode across reboots; previously the installed service silently started as a normal server.
+
 - **The desktop app can live in the tray.** Two new options in the tray menu: "Close to tray" keeps camera.ui (and a local server) running in the background when you close the window, and "Open at login" starts the app automatically with your system, minimized to the tray. Handy when the desktop app acts as your server and you only connect from other devices. On Windows a left-click on the tray icon brings the window back.
 
 ### Fixed

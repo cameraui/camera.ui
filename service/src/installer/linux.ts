@@ -413,7 +413,7 @@ export class LinuxInstaller extends BasePlatform {
 
   private async createSystemdEnvFile(): Promise<void> {
     const envFile = [
-      `CAMERA_UI_OPTS=-H "${this.cli.homePath}"`,
+      `CAMERA_UI_OPTS=-H "${this.cli.homePath}"${this.cli.worker ? ' --worker' : ''}`,
       `CAMERA_UI_HOME_PATH="${this.cli.homePath}"`,
       `CAMERA_UI_STORAGE_PATH="${this.cli.storagePath}"`,
       '',

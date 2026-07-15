@@ -207,7 +207,7 @@ export class FreeBSDInstaller extends BasePlatform {
       'pidfile="/var/run/${name}.pid"',
       'command="/usr/sbin/daemon"',
       'procname="daemon"',
-      'command_args=" -c -f -R 3 -P ${pidfile} ' + this.cli.selfPath + ` run -H ${this.cli.homePath}"`,
+      'command_args=" -c -f -R 3 -P ${pidfile} ' + this.cli.selfPath + ` run -H ${this.cli.homePath}${this.cli.worker ? ' --worker' : ''}"`,
       'start_precmd="cameraui_precmd"',
       '',
       'start_precmd="${name}_precmd"',

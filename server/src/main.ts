@@ -432,7 +432,7 @@ class CameraUiWorker {
   }
 }
 
-const isWorkerMode = process.argv.includes('--worker');
+const isWorkerMode = process.argv.includes('--worker') || process.env.CAMERA_UI_WORKER === 'true';
 
 function reapTrackedProcessesOnExit(configService: ConfigService): void {
   process.on('exit', () => {

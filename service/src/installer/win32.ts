@@ -21,8 +21,11 @@ export class Win32Installer extends BasePlatform {
       const nssmPath: string = await this.downloadNssm();
 
       // commands to run
-      // eslint-disable-next-line no-useless-escape
-      const installCmd = `"${nssmPath}" install ${this.cli.serviceName} ` + `"${process.execPath}" "\""${this.cli.selfPath}"\"" run -H "\""${this.cli.homePath}"\""`;
+
+      const installCmd =
+        `"${nssmPath}" install ${this.cli.serviceName} ` +
+        // eslint-disable-next-line no-useless-escape
+        `"${process.execPath}" "\""${this.cli.selfPath}"\"" run -H "\""${this.cli.homePath}"\""${this.cli.worker ? ' --worker' : ''}`;
       const setUserDirCmd =
         `"${nssmPath}" set ${this.cli.serviceName} AppEnvironmentExtra ` +
         `":CAMERA_UI_HOME_PATH=${this.cli.homePath}` +

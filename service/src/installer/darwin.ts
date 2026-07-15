@@ -164,6 +164,7 @@ export class DarwinInstaller extends BasePlatform {
       '             <string>run</string>',
       '             <string>-H</string>',
       `             <string>${this.cli.homePath}</string>`,
+      ...(this.cli.worker ? ['             <string>--worker</string>'] : []),
       '        </array>',
       '    <key>WorkingDirectory</key>',
       `         <string>${this.cli.homePath}</string>`,
