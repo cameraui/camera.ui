@@ -461,6 +461,7 @@ async function launch(): Promise<void> {
 
     try {
       await worker.start();
+      sendIPCMessage({ type: 'STARTED', port: 0 });
     } catch (error) {
       logger.error('Failed to start camera.ui worker', error);
       sendIPCMessage({ type: 'START_ERROR', error: error.message });

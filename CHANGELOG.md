@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 - **Setting up a second machine as a worker got easier.** Worker mode can now be enabled via the `CAMERA_UI_WORKER=true` environment variable instead of the `--worker` flag, which makes a Docker worker a pure compose setup (see `docker-compose.worker.yml` in the docker repo). `cameraui install --worker` now also keeps worker mode across reboots; previously the installed service silently started as a normal server.
 
+- **The desktop app can run as a worker.** New option in the mode picker: enter the master's address and a pairing code (generated on the master in the Workers view) and the machine joins as a worker. It runs no UI of its own, a small status window shows the connection, and together with "Close to tray" and "Open at login" an old laptop becomes a headless worker.
+
 - **The desktop app can live in the tray.** Two new options in the tray menu: "Close to tray" keeps camera.ui (and a local server) running in the background when you close the window, and "Open at login" starts the app automatically with your system, minimized to the tray. Handy when the desktop app acts as your server and you only connect from other devices. On Windows a left-click on the tray icon brings the window back.
 
 ### Fixed
