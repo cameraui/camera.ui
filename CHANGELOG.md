@@ -26,6 +26,12 @@ All notable changes to this project will be documented in this file.
 
 - **Recording exports work again when the UI runs over HTTPS in the browser.** The download never started and the export dialog kept spinning forever.
 
+- **Camera snapshots refresh without flashing.** Auto-refreshed snapshots swapped in before the browser had decoded the new image, so every refresh flashed briefly. With several cameras the whole dashboard blinked at once. New images are now decoded in the background and swapped in seamlessly.
+
+- **A snapshot source no longer drags the camera status down to "partial".** Snapshot sources never stream, but they were counted as idle in the connection status.
+
+- **Empty sensor categories are hidden in the camera drawer.** Sensor types a plugin offers in general but not for this specific camera (e.g. face on a camera without face detection) no longer show up as empty categories under Plugins.
+
 - **Classifier plugins now contribute their results to events.** Classifier detections computed on object crops in the standard detection loop were collected but silently dropped before reaching their sensor and the running event; only externally reported classifier results ever made it through. They now appear as detections, event types and thumbnails just like face and license-plate results. An error from a classifier plugin during inference could previously also crash the camera's detection worker; it is now handled and logged like errors from the other detectors.
 
 - **Disabled cameras no longer keep their streams warm.** Sources with "always active" (hot mode) were still preloaded by go2rtc while their camera was disabled: the boot-time config sync wrote the preload entry regardless of the disabled state, and go2rtc happily connected to the camera on its own startup. Disabled cameras are now excluded from the generated preload config, any leftover preload is stopped on server start, and toggling a camera on/off updates the go2rtc config immediately so a go2rtc restart can't bring the stream back.
