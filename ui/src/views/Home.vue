@@ -49,14 +49,16 @@
                   :camera="camera"
                   :find-card="findCard"
                   :move-card="moveCard"
-                  :no-drag="uiSettings.cameras.dragDisabled"
+                  :no-drag="uiSettings.cameras.dragDisabled || selectionMode"
+                  :selection-mode="selectionMode"
+                  :selected="selectedIds.has(camera._id)"
                   :snapshot-ref="(el: any) => (snapshotRefs[camera.name] = el)"
                   class="shadow-lg rounded-xl transition-transform"
                   view-transition
                   @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
                   @open-console="openConsoleDialog(camera.name)"
                   @open-settings="drawer.open({ cameraName: camera.name })"
-                  @click="$router.push(`/cameras/${camera.name}`)"
+                  @click="onCardClick(camera)"
                 />
               </TransitionGroup>
             </DndProvider>
@@ -77,14 +79,16 @@
                     :camera="camera"
                     :find-card="(id) => findGroupCard(group.room, id)"
                     :move-card="(id, atIndex) => moveGroupCard(group.room, id, atIndex)"
-                    :no-drag="uiSettings.cameras.dragDisabled"
+                    :no-drag="uiSettings.cameras.dragDisabled || selectionMode"
+                    :selection-mode="selectionMode"
+                    :selected="selectedIds.has(camera._id)"
                     :snapshot-ref="(el: any) => (snapshotRefs[camera.name] = el)"
                     class="shadow-lg rounded-xl transition-transform"
                     view-transition
                     @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
                     @open-console="openConsoleDialog(camera.name)"
                     @open-settings="drawer.open({ cameraName: camera.name })"
-                    @click="$router.push(`/cameras/${camera.name}`)"
+                    @click="onCardClick(camera)"
                   />
                 </TransitionGroup>
               </DndProvider>
@@ -94,23 +98,86 @@
       </Transition>
     </div>
 
-    <CuiFloatingButtonGroup v-if="sortedCameras.length > 1">
-      <CuiFloatingButton
-        grouped
-        :tooltip-props="{ value: viewMode === 'default' ? $t('components.form.tooltip.view_grouped') : $t('components.form.tooltip.view_default') }"
-        :button-props="{ severity: viewMode === 'default' ? 'secondary' : 'primary' }"
-        :icon="viewMode === 'default' ? GridIcon : GroupIcon"
-        :icon-props="{ width: '100%', height: '100%' }"
-        @click="toggleViewMode"
-      />
-      <CuiFloatingButton
-        grouped
-        :tooltip-props="{ value: uiSettings.cameras.dragDisabled ? $t('components.form.tooltip.enable_drag') : $t('components.form.tooltip.disable_drag') }"
-        :button-props="{ severity: uiSettings.cameras.dragDisabled ? 'secondary' : 'success' }"
-        :icon="uiSettings.cameras.dragDisabled ? LockIcon : LockOpenIcon"
-        :icon-props="{ width: '100%', height: '100%' }"
-        @click="uiSettings.cameras.dragDisabled = !uiSettings.cameras.dragDisabled"
-      />
+    <CuiFloatingButtonGroup v-if="sortedCameras.length > 1" :force-visible="selectionMode">
+      <template v-if="!selectionMode">
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: viewMode === 'default' ? $t('components.form.tooltip.view_grouped') : $t('components.form.tooltip.view_default') }"
+          :button-props="{ severity: viewMode === 'default' ? 'secondary' : 'primary' }"
+          :icon="viewMode === 'default' ? GridIcon : GroupIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleViewMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: uiSettings.cameras.dragDisabled ? $t('components.form.tooltip.enable_drag') : $t('components.form.tooltip.disable_drag') }"
+          :button-props="{ severity: uiSettings.cameras.dragDisabled ? 'secondary' : 'success' }"
+          :icon="uiSettings.cameras.dragDisabled ? LockIcon : LockOpenIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="uiSettings.cameras.dragDisabled = !uiSettings.cameras.dragDisabled"
+        />
+        <CuiFloatingButton
+          v-if="isAdmin"
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.select_cameras') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="enterSelectionMode"
+        />
+      </template>
+
+      <template v-else>
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="CloseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="exitSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
+          :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
+          :icon="SelectAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleSelectAll"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelectedDisabled ? $t('components.form.tooltip.enable_selected') : $t('components.form.tooltip.disable_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :icon="allSelectedDisabled ? VideoOnIcon : VideoOffIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkToggleDisabled"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelectedSnoozed ? $t('components.form.tooltip.unsnooze_selected') : $t('components.form.tooltip.snooze_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :icon="SnoozeIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkToggleSnooze"
+        />
+        <CuiFloatingButton
+          v-if="anyNvrCamera"
+          grouped
+          :tooltip-props="{ value: allSelectedRecording ? $t('components.form.tooltip.recording_off_selected') : $t('components.form.tooltip.recording_on_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedNvrCameras.length || bulkBusy }"
+          :icon="allSelectedRecording ? RecordOffIcon : RecordIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkToggleRecording"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.delete_selected') }"
+          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
+          :icon="TrashIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="confirmBulkDelete"
+        />
+      </template>
     </CuiFloatingButtonGroup>
   </div>
 </template>
@@ -120,14 +187,23 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import InlineSvg from 'vue-inline-svg';
 import { DndProvider } from 'vue3-dnd';
+import RecordOffIcon from '~icons/fluent/record-stop-12-filled';
+import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
+import VideoOnIcon from '~icons/fluent/video-32-filled';
+import VideoOffIcon from '~icons/fluent/video-off-32-filled';
+import RecordIcon from '~icons/fluent/video-recording-20-filled';
+import SelectIcon from '~icons/gis/arrow';
+import CloseIcon from '~icons/mdi/close';
+import TrashIcon from '~icons/mdi/delete-outline';
 import LockIcon from '~icons/mdi/lock';
 import LockOpenIcon from '~icons/mdi/lock-open';
 import GroupIcon from '~icons/mdi/view-agenda';
 import GridIcon from '~icons/mdi/view-grid';
+import SnoozeIcon from '~icons/solar/moon-sleep-bold';
 
-import { CamerasQuery } from '@/api/routes/cameras.js';
+import { CamerasQuery, getCameraExtensionConfigFn, patchCameraExtensionConfigFn, patchCameraFn, removeCameraFn } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
-import { getImageUrl } from '@/common/utils.js';
+import { extractErrorMessage, getImageUrl } from '@/common/utils.js';
 
 import type CuiCameraSnapshot from '@/components/CuiCameraSnapshot/CuiCameraSnapshot.vue';
 import type { CameraConsoleProps } from '@/components/CuiDialog/templates/CameraConsole/types.js';
@@ -144,6 +220,9 @@ const camerasQuery = new CamerasQuery();
 
 const drawer = useCuiCameraDrawer();
 const dialog = useCuiDialog();
+const toast = useCuiToast();
+const queryClient = useQueryClient();
+const router = useRouter();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { isTouch } = useSharedCuiUserAgent();
@@ -260,6 +339,138 @@ function moveGroupCard(room: string, id: string, atIndex: number) {
   const groupOrder = { ...(uiSettings.value.cameras.groupOrder || {}) };
   groupOrder[room] = newOrder;
   uiSettings.value.cameras.groupOrder = groupOrder;
+}
+
+const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
+
+const selectionMode = ref(false);
+const selectedIds = ref(new Set<string>());
+const bulkBusy = ref(false);
+
+// recordingEnabled lives in the NVR plugin's camera storage, not on the
+// camera record — fetched lazily per selected camera to aim the toggle
+const recordingStates = ref(new Map<string, boolean>());
+
+const selectedCameras = computed(() => sortedCameras.value.filter((camera) => selectedIds.value.has(camera._id)));
+const allSelected = computed(() => sortedCameras.value.length > 0 && sortedCameras.value.every((camera) => selectedIds.value.has(camera._id)));
+const allSelectedDisabled = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.disabled));
+const allSelectedSnoozed = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.detectionSettings?.snooze));
+
+const anyNvrCamera = computed(() => sortedCameras.value.some(hasNvr));
+const selectedNvrCameras = computed(() => selectedCameras.value.filter(hasNvr));
+const allSelectedRecording = computed(
+  () => selectedNvrCameras.value.length > 0 && selectedNvrCameras.value.every((camera) => recordingStates.value.get(camera._id) !== false),
+);
+
+watch([selectedIds, selectionMode], () => {
+  if (!selectionMode.value) return;
+  for (const camera of selectedNvrCameras.value) {
+    if (recordingStates.value.has(camera._id)) continue;
+    fetchRecordingState(camera);
+  }
+});
+
+function hasNvr(camera: DBCamera) {
+  return camera.plugins.some((plugin) => plugin.name === NVR_PLUGIN_NAME);
+}
+
+async function fetchRecordingState(camera: DBCamera) {
+  try {
+    const config = await getCameraExtensionConfigFn({ cameraname: camera.name, pluginname: NVR_PLUGIN_NAME, signal: new AbortController().signal });
+    const next = new Map(recordingStates.value);
+    next.set(camera._id, (config.config?.recordingEnabled as boolean | undefined) ?? true);
+    recordingStates.value = next;
+  } catch {
+    // toggle direction falls back to the schema default (recording on)
+  }
+}
+
+function enterSelectionMode() {
+  selectionMode.value = true;
+}
+
+function exitSelectionMode() {
+  selectionMode.value = false;
+  selectedIds.value = new Set();
+  recordingStates.value = new Map();
+}
+
+function toggleSelectAll() {
+  selectedIds.value = allSelected.value ? new Set() : new Set(sortedCameras.value.map((camera) => camera._id));
+}
+
+function onCardClick(camera: DBCamera) {
+  if (!selectionMode.value) {
+    router.push(`/cameras/${camera.name}`);
+    return;
+  }
+
+  const next = new Set(selectedIds.value);
+  if (next.has(camera._id)) {
+    next.delete(camera._id);
+  } else {
+    next.add(camera._id);
+  }
+  selectedIds.value = next;
+}
+
+// Sequential on purpose: every patch triggers a server-side reconfigure of the
+// shared config — hammering them in parallel invites write races.
+async function runBulk(operation: (camera: DBCamera) => Promise<unknown>, successDetail: string) {
+  if (!selectedCameras.value.length || bulkBusy.value) return;
+
+  bulkBusy.value = true;
+  try {
+    for (const camera of selectedCameras.value) {
+      await operation(camera);
+    }
+    toast.add({ severity: 'success', detail: successDetail, life: 3000 });
+  } catch (error) {
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 4000 });
+  } finally {
+    bulkBusy.value = false;
+    await queryClient.refetchQueries({ queryKey: ['camerasList'] });
+  }
+}
+
+async function bulkToggleDisabled() {
+  const disabled = !allSelectedDisabled.value;
+  await runBulk((camera) => patchCameraFn({ cameraname: camera.name, cameraData: { disabled } }), t('components.toast.camera_updated'));
+}
+
+async function bulkToggleSnooze() {
+  const snooze = !allSelectedSnoozed.value;
+  await runBulk((camera) => patchCameraFn({ cameraname: camera.name, cameraData: { detectionSettings: { snooze } } }), t('components.toast.camera_updated'));
+}
+
+async function bulkToggleRecording() {
+  const recordingEnabled = !allSelectedRecording.value;
+  await runBulk(async (camera) => {
+    if (!hasNvr(camera)) return;
+    await patchCameraExtensionConfigFn({ cameraname: camera.name, pluginname: NVR_PLUGIN_NAME, configData: { recordingEnabled } });
+    const next = new Map(recordingStates.value);
+    next.set(camera._id, recordingEnabled);
+    recordingStates.value = next;
+  }, t('components.toast.camera_updated'));
+}
+
+function confirmBulkDelete() {
+  if (!selectedCameras.value.length) return;
+
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('components.dialog.message.confirm_remove_selected', { count: selectedCameras.value.length }),
+      confirmText: t('components.form.button.remove'),
+      confirmButtonProps: {
+        severity: 'danger',
+      },
+    },
+    onConfirm: async () => {
+      await runBulk((camera) => removeCameraFn({ cameraname: camera.name }), t('components.toast.cameras_removed'));
+      exitSelectionMode();
+    },
+  });
 }
 
 function openConsoleDialog(cameraName: string) {

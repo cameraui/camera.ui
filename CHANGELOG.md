@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Select multiple cameras at once on the home screen.** A new select button (bottom right) puts the camera grid into selection mode: tapping a card selects it (marked with a round check badge in its corner), and the action buttons let you disable/enable, snooze/resume detections, turn NVR recording on/off, or remove all selected cameras in one go. Removal asks for confirmation first, and the recording button appears once the NVR plugin is set up. The per-card buttons and drag-and-drop pause while selecting, and the buttons flip direction automatically (e.g. "Enable" when every selected camera is disabled).
+
 - **Parked cars no longer trigger on every event.** Objects that stay put, like a car parked in the driveway, keep their identity across detection events and are suppressed as long as they don't move: they no longer re-trigger object detection every time something else causes an event. Identity attributes (faces, license plates, classifiers) are captured in full during the first event and then pause as well, so a stationary object stops producing new snapshots and inference load entirely. The moment the object actually moves, everything kicks back in immediately, and a new object showing up in the same spot is detected as usual. Enabled by default, can be turned off per camera under Detection settings ("Ignore stationary objects").
 
 ### Fixed

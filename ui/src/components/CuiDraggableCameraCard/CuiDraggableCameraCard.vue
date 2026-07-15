@@ -16,6 +16,15 @@
         <i-fluent:video-off-32-filled class="w-8 h-8 text-white/60" />
       </div>
 
+      <div v-if="selectionMode" class="absolute top-3 left-3 z-4 pointer-events-none">
+        <div
+          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
+          :class="selected ? 'bg-primary border-primary' : 'bg-black/40 border-white/80'"
+        >
+          <i-mdi:check v-if="selected" class="w-4 h-4 text-white" />
+        </div>
+      </div>
+
       <div class="w-full h-[60px] p-4 absolute bottom-0 z-3 flex items-center gap-1 justify-between pointer-events-none">
         <span class="text-xs font-semibold p-2 bg-black/60 rounded-full text-white flex items-center gap-1">
           {{ camera.name }}
@@ -23,46 +32,48 @@
           <i-solar:moon-sleep-bold v-else-if="camera.detectionSettings?.snooze" class="w-3 h-3 text-amber-400" />
         </span>
 
-        <template v-if="!camera.disabled">
-          <Button
-            v-tooltip.top="{ value: $t('components.player.refresh_snapshot') }"
-            severity="secondary"
-            rounded
-            class="dark-mode cui-icon-md pointer-events-auto ml-auto"
-            @click.stop="$emit('refresh-snapshot')"
-          >
-            <template #icon>
-              <i-material-symbols:refresh-rounded width="100%" height="100%" />
-            </template>
-          </Button>
+        <template v-if="!selectionMode">
+          <template v-if="!camera.disabled">
+            <Button
+              v-tooltip.top="{ value: $t('components.player.refresh_snapshot') }"
+              severity="secondary"
+              rounded
+              class="dark-mode cui-icon-md pointer-events-auto ml-auto"
+              @click.stop="$emit('refresh-snapshot')"
+            >
+              <template #icon>
+                <i-material-symbols:refresh-rounded width="100%" height="100%" />
+              </template>
+            </Button>
+
+            <Button
+              v-if="hasPermission(undefined, 'admin')"
+              v-tooltip.top="{ value: $t('components.player.log') }"
+              severity="secondary"
+              rounded
+              class="dark-mode cui-icon-md pointer-events-auto"
+              @click.stop="$emit('open-console')"
+            >
+              <template #icon>
+                <i-icon-park-outline:terminal width="100%" height="100%" />
+              </template>
+            </Button>
+          </template>
 
           <Button
             v-if="hasPermission(undefined, 'admin')"
-            v-tooltip.top="{ value: $t('components.player.log') }"
-            severity="secondary"
+            v-tooltip.top="{ value: $t('components.player.settings') }"
             rounded
+            severity="secondary"
             class="dark-mode cui-icon-md pointer-events-auto"
-            @click.stop="$emit('open-console')"
+            :class="{ 'ml-auto': camera.disabled }"
+            @click.stop="$emit('open-settings')"
           >
             <template #icon>
-              <i-icon-park-outline:terminal width="100%" height="100%" />
+              <i-mdi:cog width="100%" height="100%" />
             </template>
           </Button>
         </template>
-
-        <Button
-          v-if="hasPermission(undefined, 'admin')"
-          v-tooltip.top="{ value: $t('components.player.settings') }"
-          rounded
-          severity="secondary"
-          class="dark-mode cui-icon-md pointer-events-auto"
-          :class="{ 'ml-auto': camera.disabled }"
-          @click.stop="$emit('open-settings')"
-        >
-          <template #icon>
-            <i-mdi:cog width="100%" height="100%" />
-          </template>
-        </Button>
       </div>
 
       <CuiCameraSnapshot :ref="snapshotRef" :camera show-timestamp class="cursor-pointer" @click="$emit('click')" />

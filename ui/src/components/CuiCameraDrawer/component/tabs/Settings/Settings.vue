@@ -806,10 +806,16 @@
               }}</Message>
             </Field>
 
-            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.trackingSpeed" name="ptzAutotrack.trackingSpeed" as="div" class="flex flex-col field-gap">
+            <Field
+              v-slot="{ errors }"
+              :model-value="cameraForm.ptzAutotrack?.trackingSpeed ?? 2"
+              name="ptzAutotrack.trackingSpeed"
+              as="div"
+              class="flex flex-col field-gap"
+            >
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_tracking_speed') }}</label>
               <InputNumber
-                :model-value="cameraForm.ptzAutotrack?.trackingSpeed"
+                :model-value="cameraForm.ptzAutotrack?.trackingSpeed ?? 2"
                 :min="1"
                 :max="5"
                 :step="0.5"
@@ -827,10 +833,10 @@
               <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_tracking_speed') }}</Message>
             </Field>
 
-            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadFrames" name="ptzAutotrack.leadFrames" as="div" class="flex flex-col field-gap">
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadFrames ?? 3" name="ptzAutotrack.leadFrames" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_frames') }}</label>
               <InputNumber
-                :model-value="cameraForm.ptzAutotrack?.leadFrames"
+                :model-value="cameraForm.ptzAutotrack?.leadFrames ?? 3"
                 :min="0"
                 :max="6"
                 :step="1"
@@ -846,10 +852,10 @@
               <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_lead_frames') }}</Message>
             </Field>
 
-            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.panRate" name="ptzAutotrack.panRate" as="div" class="flex flex-col field-gap">
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.panRate ?? 0.85" name="ptzAutotrack.panRate" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_pan_rate') }}</label>
               <InputNumber
-                :model-value="cameraForm.ptzAutotrack?.panRate"
+                :model-value="cameraForm.ptzAutotrack?.panRate ?? 0.85"
                 :min="0.1"
                 :max="3"
                 :step="0.05"

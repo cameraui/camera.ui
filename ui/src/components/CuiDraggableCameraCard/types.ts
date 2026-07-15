@@ -4,6 +4,8 @@ export interface CuiDraggableCameraCardProps {
   camera: DBCamera;
   noDrag?: boolean;
   viewTransition?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
   findCard: (id: string) => { index: number };
   moveCard: (id: string, atIndex: number) => void;
   snapshotRef: (el: any) => void;
