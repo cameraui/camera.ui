@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 - **Recording exports work again when the UI runs over HTTPS in the browser.** The download never started and the export dialog kept spinning forever.
 
+- **ONVIF camera discovery now finds cameras on Windows and multi-network machines.** The search probed only one network interface (often a VPN or virtual adapter) and the Windows firewall swallowed the answers. Every network is now scanned directly, which also works through the firewall without extra rules. Cameras that report their address twice (IPv4 and IPv6) no longer get dropped from the results.
+
 - **Camera snapshots refresh without flashing.** Auto-refreshed snapshots swapped in before the browser had decoded the new image, so every refresh flashed briefly. With several cameras the whole dashboard blinked at once. New images are now decoded in the background and swapped in seamlessly.
 
 - **A snapshot source no longer drags the camera status down to "partial".** Snapshot sources never stream, but they were counted as idle in the connection status.
