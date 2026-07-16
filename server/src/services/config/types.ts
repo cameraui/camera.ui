@@ -63,6 +63,7 @@ export interface IConfig {
   cors?: CorsConfig;
   workers?: WorkersConfig;
   worker?: WorkerConfig;
+  mdns?: boolean;
 }
 
 export type LoggingLevel = 'info' | 'debug' | 'warn' | 'error' | 'trace';

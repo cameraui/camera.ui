@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import * as zod from 'zod';
 
 import { pointsSchema } from '../schemas/cameras.schema.js';
@@ -103,6 +103,7 @@ export const dbInstanceSchema = zod.object({
 
 export const dbSettingsSchema = zod.object({
   version: zod.string(),
+  instanceId: zod.string().default(() => randomUUID()),
   knownWorkers: zod.object({ agentId: zod.string(), name: zod.string(), lastSeen: zod.number() }).array().optional(),
   workerCredentials: zod.object({ agentId: zod.string(), name: zod.string(), user: zod.string(), secret: zod.string(), createdAt: zod.number() }).array().optional(),
   workerPairings: zod.object({ code: zod.string(), expiresAt: zod.number() }).array().optional(),

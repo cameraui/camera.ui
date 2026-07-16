@@ -59,6 +59,7 @@ export interface DBBackupSchedulerSettings {
 
 export interface DBSettings {
   version: string;
+  instanceId?: string;
   knownWorkers?: DBKnownWorker[];
   workerCredentials?: DBWorkerCredential[];
   workerPairings?: DBWorkerPairing[];

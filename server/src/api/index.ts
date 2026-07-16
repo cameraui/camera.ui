@@ -17,6 +17,7 @@ import { container } from 'tsyringe';
 import { PROXY_SERVICE_URL, SHARE_SERVICE_URL } from '../services/config/constants.js';
 import { ConfigService } from '../services/config/index.js';
 import { RUNTIME_STATUS } from '../services/config/types.js';
+import { MdnsService } from '../services/mdns/index.js';
 import { syncInterfaceCache } from '../utils/interface-cache.js';
 import { HeaderPlugin } from './plugins/header.plugin.js';
 import { ProxyPlugin } from './plugins/proxy.plugin.js';
@@ -56,6 +57,7 @@ export class Server {
 
   private _internalPort = 0;
   private sharesCleanupTimer?: NodeJS.Timeout;
+  private mdnsService = new MdnsService();
 
   // http2SecureServer has no closeAllConnections() and Fastify's forceCloseConnections
   // does not cover upgraded WebSockets / idle HTTP/2 sessions. We track every raw socket
@@ -126,6 +128,7 @@ export class Server {
     this.isRunning = true;
 
     this.startSharesCleanup();
+    this.mdnsService.advertise();
   }
 
   public async close(): Promise<void> {
@@ -133,6 +136,8 @@ export class Server {
       clearInterval(this.sharesCleanupTimer);
       this.sharesCleanupTimer = undefined;
     }
+
+    await this.mdnsService.stop();
 
     const closing = Promise.allSettled([this.app?.close(), this.internalApp?.close()]);
 
