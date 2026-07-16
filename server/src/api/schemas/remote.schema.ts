@@ -35,18 +35,6 @@ export const patchRemoteSchema = zod
   )
   .refine(
     (data) => {
-      if (data.cloudflare?.mode === 'token' && !data.cloudflare?.token) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: 'Token is required when cloudflare.mode is "token"',
-      path: ['cloudflare', 'token'],
-    },
-  )
-  .refine(
-    (data) => {
       if (data.cloudflare?.mode && data.cloudflare.mode !== 'quick' && !data.cloudflare?.hostname) {
         return false;
       }

@@ -64,6 +64,20 @@ export class RemoteController {
 
   public async patchRemoteInfo(req: FastifyRequest<AuthLoginRequest & RemotePatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
+      const cloudflare = req.body?.cloudflare;
+      if (cloudflare) {
+        const stored = this.service.info()?.cloudflare;
+        const mode = cloudflare.mode ?? stored?.mode;
+        const token = cloudflare.token === undefined ? stored?.token : cloudflare.token;
+
+        if (mode === 'token' && !token) {
+          return reply.code(400).send({
+            statusCode: 400,
+            message: 'Token is required when cloudflare.mode is "token"',
+          });
+        }
+      }
+
       const remoteInfo = await this.service.patch(req.body);
       reply.code(200).send(remoteInfo);
       setTimeout(() => {

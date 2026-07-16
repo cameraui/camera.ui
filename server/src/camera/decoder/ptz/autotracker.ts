@@ -24,7 +24,6 @@ const MAX_LEAD_DISPLACEMENT = 0.45;
 
 const POSE_EPSILON = 0.002;
 const AIM_SETTLE_MS = 600;
-const BLIND_TIME_MS = 1800;
 const EDGE_TOUCH_MARGIN = 0.02;
 const EDGE_ERR_FLOOR = 0.3;
 const POST_STOP_MOTION_SETTLE_MS = 1200;
@@ -32,7 +31,7 @@ const MOVE_WATCHDOG_MS = 5000;
 const EXTERNAL_COOLDOWN_MS = 45_000;
 
 const DEFAULT_SPEED_GAIN = 2.0;
-const DEFAULT_LEAD_FRAMES = 3;
+const DEFAULT_LEAD_MS = 1800;
 const DEFAULT_PAN_RATE = 0.85;
 
 type MoveStrategy = 'relative' | 'absolute' | 'velocity';
@@ -252,11 +251,10 @@ export class PtzAutotracker {
     const cx = target.box.x + target.box.width * 0.5;
     const cy = target.box.y + target.box.height * 0.5;
 
-    // aim where the target will be after the blind window (move + settle),
-    // not where it was on this frame; leadFrames 0 keeps prediction off
-    const leadFrames = settings.leadFrames ?? DEFAULT_LEAD_FRAMES;
+    // lead across the camera's move+settle blind window; velocity is per frame
+    const leadMs = settings.leadMs ?? DEFAULT_LEAD_MS;
     const fps = this.deps.getFps?.() ?? 10;
-    const blindFrames = leadFrames === 0 ? 0 : Math.max(leadFrames, (BLIND_TIME_MS / 1000) * fps);
+    const blindFrames = (leadMs / 1000) * fps;
     const velocity = target.trackVelocity;
     const leadX = clamp((velocity?.x ?? 0) * blindFrames, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
     const leadY = clamp((velocity?.y ?? 0) * blindFrames, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);

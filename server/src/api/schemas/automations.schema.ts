@@ -70,7 +70,7 @@ export const patchAutomationSchema = zod.object({
 
 export const importBlueprintSchema = zod
   .object({
-    version: zod.literal(1),
+    version: zod.union([zod.literal(1), zod.literal(2)]),
     name: zod.string().trim().min(1, 'Name is required').max(200, 'Name cannot be more than 200 characters'),
     description: zod.string().trim().optional(),
     nodes: zod.array(automationNodeSchema).min(1, 'Blueprint must contain at least one node'),

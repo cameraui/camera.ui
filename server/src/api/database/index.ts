@@ -74,7 +74,7 @@ import type {
 } from './types.js';
 
 export class Database {
-  static readonly VERSION = '2.0.49';
+  static readonly VERSION = '2.0.50';
 
   public workerStateDB!: DB<DBWorkerState, 'state'>;
 
