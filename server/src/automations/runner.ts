@@ -64,7 +64,7 @@ export class FlowRunner {
 
       if (result) {
         const edges = this.getOutgoingEdges(flow, nodeId);
-        const target = 'handle' in result ? edges.find((e) => e.sourceHandle === result.handle) : edges[result.index];
+        const target = edges.find((e) => e.sourceHandle === result.handle);
         if (target) await this.executeNode(flow, target.target);
       }
       return;

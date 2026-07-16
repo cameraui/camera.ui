@@ -16,6 +16,8 @@ import type { LoggerService } from '../services/logger/index.js';
 import type { FlowContext } from './context.js';
 import type { GeofenceMapping, GeofenceState, TriggerContext, WebhookMapping } from './triggers/index.js';
 
+const DUPLICATE_WINDOW_MS = 5000;
+
 export class AutomationEngine {
   private api: CameraUiAPI;
   private logger: LoggerService;
@@ -28,7 +30,7 @@ export class AutomationEngine {
   private geofenceMap = new Map<string, GeofenceMapping>();
   private geofenceStates = new Map<string, GeofenceState>();
   private runningFlows = new Set<string>();
-  private lastEventData = new Map<string, string>();
+  private lastEventData = new Map<string, { key: string; at: number }>();
 
   constructor() {
     container.registerInstance('automationEngine', this);
@@ -318,9 +320,18 @@ export class AutomationEngine {
     if (flow.singleExecution && this.runningFlows.has(flow._id)) return;
 
     if (flow.suppressDuplicates) {
-      const eventKey = JSON.stringify({ event: context.event, sensor: context.sensor });
-      if (this.lastEventData.get(flow._id) === eventKey) return;
-      this.lastEventData.set(flow._id, eventKey);
+      const { variables, ...payload } = context;
+      if (Object.keys(payload).length > 0) {
+        const eventKey = JSON.stringify(payload);
+        const last = this.lastEventData.get(flow._id);
+        const now = Date.now();
+        // sliding: detection keep-alives republish every second, a fixed window would expire mid-event
+        if (last?.key === eventKey && now - last.at <= DUPLICATE_WINDOW_MS) {
+          last.at = now;
+          return;
+        }
+        this.lastEventData.set(flow._id, { key: eventKey, at: now });
+      }
     }
 
     this.logger.trace(`Automation "${flow.name}" triggered (${triggerNode.type})`);

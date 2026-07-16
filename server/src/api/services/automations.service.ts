@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { container } from 'tsyringe';
 
+import { normalizeSwitchCaseHandles } from '../../automations/switchHandles.js';
+
 import type { AutomationEngine } from '../../automations/engine.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { Database } from '../database/index.js';
@@ -123,11 +125,16 @@ export class AutomationsService {
       target: idMap.get(edge.target) ?? edge.target,
     }));
 
+    const flow = { nodes, edges };
+    if (input.version === 1) {
+      normalizeSwitchCaseHandles(flow);
+    }
+
     return this.create({
       name: input.name,
       enabled: false,
-      nodes,
-      edges,
+      nodes: flow.nodes,
+      edges: flow.edges,
       suppressDuplicates: false,
       singleExecution: false,
     });
@@ -138,7 +145,7 @@ export class AutomationsService {
     if (!automation) return undefined;
 
     return {
-      version: 1,
+      version: 2,
       name: automation.name,
       nodes: automation.nodes,
       edges: automation.edges,
