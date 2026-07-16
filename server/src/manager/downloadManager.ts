@@ -168,7 +168,7 @@ export class DownloadManager implements DownloadManagerInterface {
     if (Date.now() > entry.expiresAt) {
       this.registry.delete(token);
       this.removePersistedEntry(token);
-      this.tryDeleteFile(entry.filePath);
+      this.expireEntry(entry);
       reply.code(404).send({ error: 'Download expired' });
       return;
     }
@@ -544,11 +544,18 @@ export class DownloadManager implements DownloadManagerInterface {
       if (now > entry.expiresAt) {
         this.registry.delete(token);
         this.removePersistedEntry(token);
-        if (entry.cleanup !== 'never') {
-          this.tryDeleteFile(entry.filePath);
-        }
+        this.expireEntry(entry);
         this.logger.debug(`Download expired and cleaned up: ${token}`);
       }
+    }
+  }
+
+  private expireEntry(entry: DownloadEntry): void {
+    if (entry.cleanup === 'never') return;
+    if (entry.remotePluginId) {
+      this.deleteRemoteFile(entry).catch(() => {});
+    } else {
+      this.tryDeleteFile(entry.filePath);
     }
   }
 
