@@ -233,68 +233,6 @@
         </div>
 
         <div>
-          <span class="card-title">{{ $t('views.settings.active_sessions.title') }}</span>
-          <Card class="cui-card">
-            <template #content>
-              <div class="flex flex-col gap-6">
-                <CuiDataTable :value="sessions ?? []" data-key="id" :loading="sessionsLoading" :pt="sessionsTablePt" striped-rows scrollable>
-                  <template #loading>
-                    <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
-                  </template>
-
-                  <template #empty>
-                    <span class="text-muted text-sm">{{ $t('views.settings.active_sessions.empty') }}</span>
-                  </template>
-
-                  <Column field="device" :header="$t('views.settings.title_device')" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7">
-                    <template #body="{ data }">
-                      <div class="flex items-center gap-3">
-                        <component :is="iconForKind(data.device.kind)" class="cui-session-icon" />
-                        <div class="flex flex-col min-w-0">
-                          <div class="flex items-center gap-2">
-                            <span class="text-sm font-semibold text-color truncate">{{ data.device.name }}</span>
-                            <Tag v-if="data.is_current" severity="success" :value="$t('views.settings.active_sessions.this_device')" class="cui-session-tag" />
-                          </div>
-                          <span class="text-xs text-muted truncate">{{ data.device.ip || '—' }}</span>
-                        </div>
-                      </div>
-                    </template>
-                  </Column>
-
-                  <Column field="action" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7 text-right">
-                    <template #body="{ data }">
-                      <Button
-                        v-if="!data.is_current"
-                        v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
-                        severity="danger"
-                        text
-                        rounded
-                        class="cui-icon-md"
-                        :loading="revokingId === data.id"
-                        @click="onRevoke(data.id)"
-                      >
-                        <template #icon>
-                          <i-mdi:logout width="100%" height="100%" />
-                        </template>
-                      </Button>
-                    </template>
-                  </Column>
-                </CuiDataTable>
-
-                <div v-if="otherSessionsCount > 0" class="flex flex-row items-end justify-end gap-2">
-                  <Button
-                    :loading="revokeAllLoading"
-                    class="cui-button-medium mr-4 md:mr-0"
-                    :label="$t('views.settings.active_sessions.revoke_all_others', { count: otherSessionsCount })"
-                    @click="onRevokeOthers"
-                  />
-                </div>
-              </div>
-            </template>
-          </Card>
-        </div>
-
-        <div>
           <span class="card-title">{{ $t('views.settings.api_tokens.title') }}</span>
           <Card class="cui-card">
             <template #content>
@@ -355,6 +293,68 @@
                     class="cui-button-medium mr-4 md:mr-0"
                     :label="$t('views.settings.api_tokens.create')"
                     @click="onCreateApiToken"
+                  />
+                </div>
+              </div>
+            </template>
+          </Card>
+        </div>
+
+        <div>
+          <span class="card-title">{{ $t('views.settings.active_sessions.title') }}</span>
+          <Card class="cui-card">
+            <template #content>
+              <div class="flex flex-col gap-6">
+                <CuiDataTable :value="sessions ?? []" data-key="id" :loading="sessionsLoading" :pt="sessionsTablePt" striped-rows scrollable>
+                  <template #loading>
+                    <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
+                  </template>
+
+                  <template #empty>
+                    <span class="text-muted text-sm">{{ $t('views.settings.active_sessions.empty') }}</span>
+                  </template>
+
+                  <Column field="device" :header="$t('views.settings.title_device')" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7">
+                    <template #body="{ data }">
+                      <div class="flex items-center gap-3">
+                        <component :is="iconForKind(data.device.kind)" class="cui-session-icon" />
+                        <div class="flex flex-col min-w-0">
+                          <div class="flex items-center gap-2">
+                            <span class="text-sm font-semibold text-color truncate">{{ data.device.name }}</span>
+                            <Tag v-if="data.is_current" severity="success" :value="$t('views.settings.active_sessions.this_device')" class="cui-session-tag" />
+                          </div>
+                          <span class="text-xs text-muted truncate">{{ data.device.ip || '—' }}</span>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
+
+                  <Column field="action" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7 text-right">
+                    <template #body="{ data }">
+                      <Button
+                        v-if="!data.is_current"
+                        v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
+                        severity="danger"
+                        text
+                        rounded
+                        class="cui-icon-md"
+                        :loading="revokingId === data.id"
+                        @click="onRevoke(data.id)"
+                      >
+                        <template #icon>
+                          <i-mdi:logout width="100%" height="100%" />
+                        </template>
+                      </Button>
+                    </template>
+                  </Column>
+                </CuiDataTable>
+
+                <div v-if="otherSessionsCount > 0" class="flex flex-row items-end justify-end gap-2">
+                  <Button
+                    :loading="revokeAllLoading"
+                    class="cui-button-medium mr-4 md:mr-0"
+                    :label="$t('views.settings.active_sessions.revoke_all_others', { count: otherSessionsCount })"
+                    @click="onRevokeOthers"
                   />
                 </div>
               </div>
