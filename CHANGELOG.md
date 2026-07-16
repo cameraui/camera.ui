@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **ONVIF cameras stream and snapshot reliably again, in the right quality.** Discovered ONVIF sources got malformed addresses, with two visible symptoms: cameras that offered their high-resolution stream over ONVIF (like the 2K main stream of Vatilon cameras) fell back to a low-resolution default, and Reolink cameras rejected streaming and snapshots with authentication errors ("streams: 401", "wrong user/pass"). New discoveries produce clean addresses, and already saved sources are repaired on the fly, without re-adding the camera.
+
 - **Changing camera settings while its frame worker is busy no longer logs an unhandled error.** Pushing a new name, zones or detection settings to an unresponsive frame worker timed out with "unhandledRejection: RPC call ... timed out after 30000ms". It now logs a short warning instead; the settings still apply on the next worker start.
 
 - **The navigation sidebar no longer gets out of sync after logging out and back in.** If the sidebar was open before logging out, the page content stayed shifted aside after logging back in while the sidebar itself rendered collapsed, and the toggle button stopped working. Same fix for the settings sub-menu.
