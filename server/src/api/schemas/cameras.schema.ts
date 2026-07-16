@@ -275,13 +275,14 @@ export const streamingModeSchema: zod.ZodType<VideoStreamingMode> = zod.union([
   zod.literal('webrtc/tcp'),
 ]);
 
-export const aspectRatioSchema: zod.ZodType<CameraAspectRatio> = zod.union([
-  zod.literal('16:9'),
-  zod.literal('9:16'),
-  zod.literal('8:3'),
-  zod.literal('4:3'),
-  zod.literal('1:1'),
-]);
+export const aspectRatioSchema: zod.ZodType<CameraAspectRatio> = zod
+  .string()
+  .regex(/^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/, 'Use a width:height ratio, e.g. 16:9')
+  .refine((value) => {
+    const [w, h] = value.split(':').map(Number);
+    return Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0;
+  }, 'Both sides must be greater than 0')
+  .transform((value) => value as CameraAspectRatio);
 
 export const frameWorkerSettingsSchema = zod.object({
   fps: zod.number().min(0, 'Minimum 0 fps').max(30, 'Maximum 30 fps'),

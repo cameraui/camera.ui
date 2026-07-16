@@ -255,13 +255,13 @@
           >
             <label for="interfaceSettings.aspectRatio" class="cui-label">{{ $t('components.form.label.aspect_ratio') }}</label>
             <InputGroup>
-              <Select
+              <InputText
                 :model-value="cameraForm.interfaceSettings.aspectRatio"
-                :options="aspectRatios"
                 :invalid="errors.length > 0"
-                :loading="isLoading"
-                type="text"
-                @value-change="(e) => (cameraForm.interfaceSettings.aspectRatio = e)"
+                readonly
+                tabindex="-1"
+                class="cursor-pointer"
+                @click="openAspectRatioDialog"
               />
             </InputGroup>
 
@@ -1112,11 +1112,13 @@ import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { VirtualSensorsQuery } from '@/api/routes/virtualsensors.js';
+import AspectRatioDialog from '@/components/CuiDialog/templates/AspectRatio/AspectRatio.vue';
 import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
 import RenameSensorDialog from '@/components/CuiDialog/templates/RenameSensor/RenameSensor.vue';
 import VirtualSensorCreateDialog from '@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue';
 import ZoneEditorDialog from '@/components/CuiDialog/templates/ZoneEditor/ZoneEditor.vue';
 
+import type { AspectRatioProps } from '@/components/CuiDialog/templates/AspectRatio/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
 import type { ZoneEditorProps } from '@/components/CuiDialog/templates/ZoneEditor/types.js';
 import type { VideoStreamingMode } from '@camera.ui/browser';
@@ -1345,6 +1347,23 @@ function openEditZoneDialog(zones: DetectionZone[] = []) {
         zones,
         lines: camera.value.detectionLines ?? [],
       },
+    },
+  });
+}
+
+function openAspectRatioDialog() {
+  dialog.openComponentDialog<AspectRatioProps>(AspectRatioDialog, {
+    data: {
+      title: t('components.form.label.aspect_ratio'),
+      contentProps: {
+        camera: camera.value,
+        current: cameraForm.value.interfaceSettings.aspectRatio,
+        presets: aspectRatios.value,
+      },
+      confirmText: t('components.form.button.apply'),
+    },
+    onConfirm: (newValue: string) => {
+      cameraForm.value.interfaceSettings.aspectRatio = newValue as CameraAspectRatio;
     },
   });
 }

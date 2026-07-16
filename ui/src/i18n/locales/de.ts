@@ -682,6 +682,7 @@ export default {
         add_source: 'Quelle hinzufügen',
         create_room: 'Neuen Raum erstellen',
         add_view: 'Ansicht hinzufügen',
+        apply: 'Übernehmen',
         back: 'Zurück',
         biometric_login: 'Mit Face ID anmelden',
         cancel: 'Abbrechen',
@@ -739,6 +740,9 @@ export default {
       },
       hint: {
         aspect_ratio: 'Zwingt das Seitenverhältnis der Kamera auf den gewählten Wert',
+        aspect_ratio_custom: 'Eigenes Verhältnis ({ratio}:1) angewendet',
+        aspect_ratio_invalid: 'Verhältnis als Breite:Höhe angeben, z.B. 16:9 oder 21:9',
+        aspect_ratio_required: 'Verhältnis eingeben, z.B. 16:9',
         audio_codec: 'Der erkannte Audio Codec für diesen Stream',
         auto_refresh: 'Aktualisiert den Snapshot automatisch in regelmäßigen Abständen',
         cache_time: 'Zeit in Sekunden, die der Cache für die Kamerabilder verwendet',
@@ -820,6 +824,7 @@ export default {
       },
       label: {
         aspect_ratio: 'Seitenverhältnis',
+        aspect_ratio_custom: 'Eigenes Verhältnis',
         audio_codec: 'Audio Codec',
         auto_refresh: 'Automatische Aktualisierung',
         cache_time: 'Cache Zeit',

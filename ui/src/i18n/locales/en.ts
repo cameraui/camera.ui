@@ -673,6 +673,7 @@ export default {
         add_source: 'Add source',
         create_room: 'Create new room',
         add_view: 'Add view',
+        apply: 'Apply',
         back: 'Back',
         biometric_login: 'Sign in with Face ID',
         cancel: 'Cancel',
@@ -730,6 +731,9 @@ export default {
       },
       hint: {
         aspect_ratio: 'Forces the camera aspect ratio to the selected value',
+        aspect_ratio_custom: 'Custom ratio ({ratio}:1) applied',
+        aspect_ratio_invalid: 'Use a width:height ratio, e.g. 16:9 or 21:9',
+        aspect_ratio_required: 'Enter a ratio like 16:9',
         audio_codec: 'The audio codec detected for this stream',
         auto_refresh: 'Automatically refreshes the snapshot at regular intervals',
         cache_time: 'Time in seconds used for the camera image cache',
@@ -809,6 +813,7 @@ export default {
       },
       label: {
         aspect_ratio: 'Aspect ratio',
+        aspect_ratio_custom: 'Custom ratio',
         audio_codec: 'Audio codec',
         auto_refresh: 'Auto refresh',
         cache_time: 'Cache time',
