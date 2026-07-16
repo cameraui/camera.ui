@@ -1,6 +1,6 @@
+import { uuidv4 } from '@camera.ui/common/utils';
 import { hasCapability, PluginCapability, Severity } from '@camera.ui/sdk';
 import { container } from 'tsyringe';
-import { v4 as uuidv4 } from 'uuid';
 
 import { NotificationsService } from '../api/services/notifications.service.js';
 import { PluginsService } from '../api/services/plugins.service.js';

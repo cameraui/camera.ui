@@ -23,7 +23,6 @@ import { HeaderPlugin } from './plugins/header.plugin.js';
 import { ProxyPlugin } from './plugins/proxy.plugin.js';
 import { SocketIoPlugin } from './plugins/socket.plugin.js';
 import { SystemPlugin } from './plugins/system.plugin.js';
-import { UserAgentPlugin } from './plugins/useragent.plugin.js';
 import { FastifyRoutes } from './routes/index.js';
 import { SharesService } from './services/shares.service.js';
 
@@ -219,7 +218,6 @@ export class Server {
     await this.app?.register(ProxyPlugin, this.natsProxyOptions);
     await this.app?.register(ProxyPlugin, this.go2rtcProxyOptions);
     await this.app?.register(FastifyFormbody);
-    await this.app?.register(UserAgentPlugin);
     await this.app?.register(FastifyMultipart, this.multipartOptions);
     await this.app?.register(FastifyStatic, this.staticOptions);
     await this.app?.register(FastifySwagger, this.swaggerOptions);

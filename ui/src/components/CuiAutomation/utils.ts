@@ -1,4 +1,4 @@
-import { generateUUID } from '@/common/deviceId.js';
+import { uuidv4 } from '@camera.ui/common/utils';
 
 import type { AutomationNode, AutomationNodeData } from './types.js';
 
@@ -23,10 +23,10 @@ export function inheritFieldsFromSource(sourceData: AutomationNodeData | undefin
 
 export function initNodeData(data: AutomationNodeData): AutomationNodeData {
   if (data.type === 'trigger-webhook' && !data.webhookId) {
-    return { ...data, webhookId: generateUUID() };
+    return { ...data, webhookId: uuidv4() };
   }
   if (data.type === 'trigger-geofence' && !data.geofenceId) {
-    return { ...data, geofenceId: generateUUID() };
+    return { ...data, geofenceId: uuidv4() };
   }
   return data;
 }

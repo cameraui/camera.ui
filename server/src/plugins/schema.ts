@@ -141,12 +141,8 @@ export function generateConfigFromSchemas(schemas: JsonSchema[]): Record<string,
   return config;
 }
 
-export function getValueByKey(config: Record<string, any> = {}, key: string): any {
-  if (!key.includes('.') && !key.includes('[')) {
-    return config[key];
-  }
-
-  const keys = key.split('.').reduce<string[]>((acc, part) => {
+function splitKey(key: string): string[] {
+  return key.split('.').reduce<string[]>((acc, part) => {
     if (part.includes('[')) {
       const [keyPart, indexPart] = part.split('[');
       acc.push(keyPart, indexPart.slice(0, -1));
@@ -155,9 +151,19 @@ export function getValueByKey(config: Record<string, any> = {}, key: string): an
     }
     return acc;
   }, []);
+}
+
+function isIndexKey(key: string): boolean {
+  return !isNaN(Number(key));
+}
+
+export function getValueByKey(config: Record<string, any> = {}, key: string): any {
+  if (!key.includes('.') && !key.includes('[')) {
+    return config[key];
+  }
 
   let current = config;
-  for (const k of keys) {
+  for (const k of splitKey(key)) {
     if (current === undefined || current === null) {
       return undefined;
     }
@@ -173,29 +179,45 @@ export function setValueByKey(config: Record<string, any>, key: string, value: a
     return;
   }
 
-  const keys = key.split('.').reduce<string[]>((acc, part) => {
-    if (part.includes('[')) {
-      const [keyPart, indexPart] = part.split('[');
-      acc.push(keyPart, indexPart.slice(0, -1));
-    } else {
-      acc.push(part);
-    }
-    return acc;
-  }, []);
-
+  const keys = splitKey(key);
   const lastKey = keys.pop();
   if (!lastKey) return;
 
   let current = config;
-  for (const k of keys) {
-    if (current[k] === undefined || current[k] === null) {
-      const nextKey = keys[keys.indexOf(k) + 1];
-      current[k] = !isNaN(Number(nextKey)) ? [] : {};
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (typeof current[k] !== 'object' || current[k] === null) {
+      current[k] = isIndexKey(keys[i + 1] ?? lastKey) ? [] : {};
     }
     current = current[k];
   }
 
   current[lastKey] = value;
+}
+
+export function deleteValueByKey(config: Record<string, any>, key: string): void {
+  if (!key.includes('.') && !key.includes('[')) {
+    delete config[key];
+    return;
+  }
+
+  const keys = splitKey(key);
+  const lastKey = keys.pop();
+  if (!lastKey) return;
+
+  let current: any = config;
+  for (const k of keys) {
+    if (typeof current[k] !== 'object' || current[k] === null) {
+      return;
+    }
+    current = current[k];
+  }
+
+  if (Array.isArray(current) && isIndexKey(lastKey)) {
+    current.splice(Number(lastKey), 1);
+  } else {
+    delete current[lastKey];
+  }
 }
 
 export function findSchemaByKey(schemas: JsonSchema[], key: string): JsonSchema | undefined {

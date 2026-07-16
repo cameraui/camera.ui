@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@camera.ui/common/utils';
 import * as zod from 'zod';
 
 import type { CameraAspectRatio, DetectionLabel, SensorType, VideoStreamingMode } from '@camera.ui/sdk';

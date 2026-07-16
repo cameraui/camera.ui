@@ -2,8 +2,8 @@ import { move, pathExists, readJson, remove } from 'fs-extra/esm';
 
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
+import { uuidv4 } from '@camera.ui/common/utils';
 import { container, delay, registry } from 'tsyringe';
-import { v4 as uuidv4 } from 'uuid';
 import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
 
 import { PluginManager } from '../../plugins/index.js';

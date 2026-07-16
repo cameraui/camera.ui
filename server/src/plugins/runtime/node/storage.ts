@@ -1,9 +1,16 @@
 import { isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
-import objectPath from 'object-path';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
-import { generateConfigFromSchemas, getValueByKey, isButtonType, isSubmitType, removeCallbacksFromSchemas } from '../../schema.js';
+import {
+  deleteValueByKey,
+  generateConfigFromSchemas,
+  getValueByKey,
+  isButtonType,
+  isSubmitType,
+  removeCallbacksFromSchemas,
+  setValueByKey,
+} from '../../schema.js';
 import { deleteLocation, readLocation, writeLocation } from '../../store/location.js';
 import { validateStoreValue } from '../../store/validate.js';
 
@@ -64,7 +71,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   @RPCMethod
   public getValue<T = string>(key: string, defaultValue?: T): Promise<T> | undefined {
     const schema = this.schemas.find((schema) => schema.key === key);
-    const configValue = objectPath.get(this.values, key);
+    const configValue = getValueByKey(this.values, key);
     return (schema as any)?.onGet?.() ?? configValue ?? (schema as any)?.defaultValue ?? defaultValue;
   }
 
@@ -74,12 +81,12 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
     if (schema) {
       validateStoreValue(key, newValue);
-      const oldValue = objectPath.get(this.values, key);
+      const oldValue = getValueByKey(this.values, key);
       const unchanged = newValue === null || newValue === undefined ? oldValue === undefined : isEqual(oldValue, newValue);
       if (newValue === null || newValue === undefined) {
-        objectPath.del(this.values, key);
+        deleteValueByKey(this.values, key);
       } else {
-        objectPath.set(this.values, key, typeof newValue === 'object' ? structuredClone(newValue) : newValue);
+        setValueByKey(this.values, key, typeof newValue === 'object' ? structuredClone(newValue) : newValue);
       }
 
       if (this.#containsStorableSchema(schema) && (!unchanged || this.#dirty)) {
@@ -102,12 +109,12 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   @RPCMethod
   public async setInternalValue(key: string, value: unknown): Promise<void> {
     validateStoreValue(key, value);
-    const oldValue = objectPath.get(this.values, key);
+    const oldValue = getValueByKey(this.values, key);
     const unchanged = value === null || value === undefined ? oldValue === undefined : isEqual(oldValue, value);
     if (value === null || value === undefined) {
-      objectPath.del(this.values, key);
+      deleteValueByKey(this.values, key);
     } else {
-      objectPath.set(this.values, key, typeof value === 'object' ? structuredClone(value) : value);
+      setValueByKey(this.values, key, typeof value === 'object' ? structuredClone(value) : value);
     }
 
     if (unchanged && !this.#dirty) {
@@ -118,7 +125,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   @RPCMethod
   public hasValue(key: string): boolean {
-    const configValue = objectPath.get(this.values, key);
+    const configValue = getValueByKey(this.values, key);
     return configValue !== undefined;
   }
 
@@ -159,10 +166,10 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       this.schemas.push(schema);
     }
 
-    const oldValue = objectPath.get(this.values, schema.key);
+    const oldValue = getValueByKey(this.values, schema.key);
     await this.#resolveOnGetFunctions(schema);
 
-    if (this.#containsStorableSchema(schema) && !isEqual(oldValue, objectPath.get(this.values, schema.key), true)) {
+    if (this.#containsStorableSchema(schema) && !isEqual(oldValue, getValueByKey(this.values, schema.key), true)) {
       await this.save();
     }
   }
@@ -170,9 +177,9 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   @RPCMethod
   public async removeSchema(key: string): Promise<void> {
     const schema = this.schemas.find((schema) => schema.key === key);
-    const hadValue = objectPath.get(this.values, key) !== undefined;
+    const hadValue = getValueByKey(this.values, key) !== undefined;
     this.schemas = this.schemas.filter((schema) => schema.key !== key);
-    objectPath.del(this.values, key);
+    deleteValueByKey(this.values, key);
 
     if (schema && this.#containsStorableSchema(schema) && hadValue) {
       await this.save();
@@ -194,10 +201,10 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       this.#dirty = true;
     }
 
-    const oldValue = objectPath.get(this.values, key);
+    const oldValue = getValueByKey(this.values, key);
     await this.#resolveOnGetFunctions(newSchema);
 
-    if (this.#containsStorableSchema(newSchema) && !isEqual(oldValue, objectPath.get(this.values, key), true)) {
+    if (this.#containsStorableSchema(newSchema) && !isEqual(oldValue, getValueByKey(this.values, key), true)) {
       await this.save();
     }
   }
@@ -266,7 +273,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
       if (!isButtonType(schema) && !isSubmitType(schema) && typeof schema.onGet === 'function') {
         const schemaValue = await this.getValue(schema.key);
         if (schemaValue !== undefined && schemaValue !== null) {
-          objectPath.set(this.values, schema.key, schemaValue);
+          setValueByKey(this.values, schema.key, schemaValue);
         }
       }
     }
@@ -304,7 +311,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
       if (schema.store) {
         const configValue = getValueByKey(this.values, schema.key);
-        objectPath.set(result, schema.key, configValue);
+        setValueByKey(result, schema.key, configValue);
       }
     }
 

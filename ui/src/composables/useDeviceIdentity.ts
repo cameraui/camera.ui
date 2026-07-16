@@ -1,4 +1,5 @@
-import { generateUUID } from '@/common/deviceId.ts';
+import { uuidv4 } from '@camera.ui/common/utils';
+
 import { isCapacitor } from '@/connection/runtime.js';
 
 const DEVICE_ID_KEY = 'cui_device_id';
@@ -25,7 +26,7 @@ export async function getDeviceId(): Promise<string> {
     _cachedId = stored;
     return stored;
   }
-  const generated = generateUUID();
+  const generated = uuidv4();
   localStorage.setItem(DEVICE_ID_KEY, generated);
   _cachedId = generated;
   return generated;

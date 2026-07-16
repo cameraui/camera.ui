@@ -1,6 +1,6 @@
+import { reservePorts } from '@camera.ui/common/camera';
 import { SubscribedPublic } from '@camera.ui/common/utils';
 import { ReplaySubject, Subject } from '@camera.ui/sdk';
-import getPort from 'get-port';
 import { Decoder, Demuxer, Encoder, FilterAPI, FilterPreset, Muxer, StreamingUtils } from 'node-av/api';
 import {
   AV_CODEC_ID_H264,
@@ -179,7 +179,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     const cameraSampleRate = backchannelInfo.sampleRate ?? 8000;
     const cameraChannels = backchannelInfo.channels ?? 1;
 
-    const udpPort = await getPort({ host: '127.0.0.1', ipv6Only: false });
+    const [udpPort] = await reservePorts({ type: 'udp' });
 
     const sdp = StreamingUtils.createInputSDP([
       {

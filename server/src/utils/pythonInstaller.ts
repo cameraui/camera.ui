@@ -1,5 +1,4 @@
 import { PortablePython } from '@bjia56/portable-python';
-import { compareVersions } from 'compare-versions';
 import { copy, ensureDir, remove } from 'fs-extra/esm';
 import { exec } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -7,6 +6,7 @@ import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { platform } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
+import semver from 'semver';
 
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 
@@ -595,7 +595,7 @@ export class PythonInstaller {
         const version = match[1];
         const platformSuffix = match[2];
 
-        if (compareVersions(version, currentVersion) === -1) {
+        if (semver.lt(semver.coerce(version)!, semver.coerce(currentVersion)!)) {
           const fullPath = join(this.installPath, `python-${version}${platformSuffix}`);
           const requirementsLockPath = join(this.installPath, `requirements-lock-${version}.txt`);
 

@@ -1,6 +1,6 @@
+import { reservePorts } from '@camera.ui/common/camera';
 import { IS_DEV, sleep } from '@camera.ui/common/utils';
 import { strip } from 'ansicolor';
-import getPort from 'get-port';
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -226,9 +226,9 @@ export class NATS {
   }
 
   private async configServer(): Promise<void> {
-    this._serverPort ||= await getPort({ host: 'localhost', ipv6Only: false });
-    this._clusterPort ||= await getPort({ host: 'localhost', ipv6Only: false });
-    this._wsPort ||= await getPort({ host: 'localhost', ipv6Only: false });
+    this._serverPort ||= (await reservePorts({ type: 'tcp' }))[0];
+    this._clusterPort ||= (await reservePorts({ type: 'tcp' }))[0];
+    this._wsPort ||= (await reservePorts({ type: 'tcp' }))[0];
 
     this._endpoints = [`nats://localhost:${this._serverPort}`];
 
@@ -247,7 +247,7 @@ export class NATS {
     };
 
     if (this.clusterListenerEnabled) {
-      this._leafAcceptorPort ||= await getPort({ host: 'localhost', ipv6Only: false });
+      this._leafAcceptorPort ||= (await reservePorts({ type: 'tcp' }))[0];
       config.cluster = {
         name: 'camera.ui-cluster',
         host: 'localhost',
@@ -263,7 +263,7 @@ export class NATS {
     }
 
     if (IS_DEV) {
-      config.http = await getPort({ host: 'localhost', ipv6Only: false });
+      config.http = (await reservePorts({ type: 'tcp' }))[0];
     }
 
     // Worker mode: connect outwards to the master, pinned to its CA.
@@ -290,7 +290,7 @@ export class NATS {
   private async buildLeafAcceptorConfig(): Promise<NatsConfig> {
     const leaf = this.leafNodeConfig!;
 
-    this._leafAcceptorClusterPort ||= await getPort({ host: 'localhost', ipv6Only: false });
+    this._leafAcceptorClusterPort ||= (await reservePorts({ type: 'tcp' }))[0];
 
     const config: NatsConfig = {
       host: 'localhost',
@@ -327,7 +327,7 @@ export class NATS {
     }
 
     for (let i = 0; i < this.clusterAmount; i++) {
-      const _clusterPort = await getPort({ host: 'localhost', ipv6Only: false });
+      const _clusterPort = (await reservePorts({ type: 'tcp' }))[0];
       this._endpoints.push(`nats://localhost:${_clusterPort}`);
 
       const config = {
@@ -336,7 +336,7 @@ export class NATS {
         port: _clusterPort,
         cluster: {
           ...this.config.cluster,
-          port: await getPort({ host: 'localhost', ipv6Only: false }),
+          port: (await reservePorts({ type: 'tcp' }))[0],
           routes: [`nats://${this.config.cluster.authorization.user}:${this.config.cluster.authorization.password}@localhost:${this._clusterPort}`],
         },
       };
