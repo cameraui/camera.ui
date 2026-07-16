@@ -83,7 +83,7 @@ export function buildSnapshotUrl(cameraName: string, sourceName: string, snapsho
     params.push(`h=${height}`);
   }
 
-  if (rotate && rotate > 0) {
+  if (rotate) {
     params.push(`rotate=${rotate}`);
   }
 

@@ -76,7 +76,7 @@ def build_snapshot_url(
     if height and height > 0:
         params.append(f"h={height}")
 
-    if rotate and rotate > 0:
+    if rotate:
         params.append(f"rotate={rotate}")
 
     if cache:
