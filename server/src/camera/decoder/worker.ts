@@ -210,13 +210,13 @@ export class FrameWorker extends Subscribed {
           if (property === 'name') {
             this.logger.suffix = this.camera.name;
             if (this.status === PLUGIN_STATUS.STARTED) {
-              this.frameWorkerChildProxy.updateCameraName(this.camera.name);
+              this.pushChildUpdate('name', this.frameWorkerChildProxy.updateCameraName(this.camera.name));
             }
             return;
           }
 
           if (property === 'frameWorkerSettings') {
-            this.frameWorkerChildProxy.updateFrameWorkerSettings(newData as CameraFrameWorkerSettings);
+            this.pushChildUpdate('frame worker settings', this.frameWorkerChildProxy.updateFrameWorkerSettings(newData as CameraFrameWorkerSettings));
             if ((newData as CameraFrameWorkerSettings).fps !== (oldData as CameraFrameWorkerSettings).fps) {
               this.restart();
             }
@@ -224,27 +224,27 @@ export class FrameWorker extends Subscribed {
           }
 
           if (property === 'detectionSettings') {
-            this.frameWorkerChildProxy.updateDetectionSettings(newData as CameraDetectionSettings);
+            this.pushChildUpdate('detection settings', this.frameWorkerChildProxy.updateDetectionSettings(newData as CameraDetectionSettings));
             return;
           }
 
           if (property === 'ptzAutotrack') {
-            this.frameWorkerChildProxy.updatePtzAutotrackSettings(newData as PtzAutotrackSettings);
+            this.pushChildUpdate('autotrack settings', this.frameWorkerChildProxy.updatePtzAutotrackSettings(newData as PtzAutotrackSettings));
             return;
           }
 
           if (property === 'detectionZones') {
-            this.frameWorkerChildProxy.updateZones(newData as DetectionZone[]);
+            this.pushChildUpdate('zones', this.frameWorkerChildProxy.updateZones(newData as DetectionZone[]));
             return;
           }
 
           if (property === 'detectionLines') {
-            this.frameWorkerChildProxy.updateLines(newData as DetectionLine[]);
+            this.pushChildUpdate('lines', this.frameWorkerChildProxy.updateLines(newData as DetectionLine[]));
             return;
           }
 
           if (property === 'interfaceSettings') {
-            this.frameWorkerChildProxy.updateInterfaceSettings(newData as CameraUiSettings);
+            this.pushChildUpdate('interface settings', this.frameWorkerChildProxy.updateInterfaceSettings(newData as CameraUiSettings));
           }
         }),
 
@@ -434,6 +434,10 @@ export class FrameWorker extends Subscribed {
 
   private get frameWorkerChildProxy(): Promisify<FrameWorkerChildInterface> {
     return this.proxyServer.proxy.createProxy<FrameWorkerChildInterface>(this.namespaces.frameWorkerChildRpc);
+  }
+
+  private pushChildUpdate(label: string, update: Promise<unknown>): void {
+    update.catch((error) => this.logger.warn(`Frame worker did not accept the ${label} update:`, error instanceof Error ? error.message : error));
   }
 
   private async handleProcessExit(): Promise<void> {
