@@ -779,7 +779,8 @@ export default {
         ptz_autotrack_min_confidence: 'Nur Erkennungen mit mindestens dieser Konfidenz verfolgen.',
         ptz_autotrack_trigger_dead_zone:
           'Das Ziel muss diese Zone um die Bildmitte verlassen, bevor sich die Kamera in Bewegung setzt. Größer = ruhigere Kamera, kleiner = genaueres Zentrieren.',
-        ptz_autotrack_tracking_speed: 'Wie energisch die Kamera nachzieht, um das Ziel zu zentrieren. Höher = schneller, niedriger = sanfter. Nur für Kameras, die sich über kontinuierliche Bewegung steuern lassen, andere wählen ihre Geschwindigkeit selbst.',
+        ptz_autotrack_tracking_speed:
+          'Wie energisch die Kamera nachzieht, um das Ziel zu zentrieren. Höher = schneller, niedriger = sanfter. Nur für Kameras, die sich über kontinuierliche Bewegung steuern lassen, andere wählen ihre Geschwindigkeit selbst.',
         ptz_autotrack_lead_ms:
           'Wie weit die Kamera einem bewegten Ziel vorausblickt. Der Standardwert deckt die Zeit ab, die die Kamera zum Bewegen und Einschwingen braucht. Kleiner, wenn die Kamera überschießt, größer für schnelle Ziele. 0 schaltet die Vorhersage ab.',
         ptz_autotrack_pan_rate:
@@ -1947,6 +1948,24 @@ export default {
         revoke_all_others: '{count} andere Geräte abmelden',
         revoke_others_success: 'Andere Geräte abgemeldet',
       },
+      api_tokens: {
+        title: 'API-Tokens',
+        info: 'Für externe Integrationen wie Home Assistant. Tokens haben vollen Kontozugriff und bleiben gültig, bis sie widerrufen werden.',
+        empty: 'Keine API-Tokens',
+        create: 'Token erstellen',
+        create_confirm: 'Erstellen',
+        name_label: 'Name',
+        name_placeholder: 'z.B. Home Assistant',
+        name_exists: 'Ein Token mit diesem Namen existiert bereits',
+        last_used: 'Zuletzt benutzt',
+        never: 'Nie',
+        revoke: 'Widerrufen',
+        revoke_title: 'API-Token widerrufen',
+        revoke_confirm: 'Integrationen, die "{name}" verwenden, funktionieren danach nicht mehr. Fortfahren?',
+        revoke_success: 'API-Token widerrufen',
+        created_title: 'API-Token erstellt',
+        created_warning: 'Dieser Token wird nur einmal angezeigt. Kopiere ihn jetzt und bewahre ihn sicher auf.',
+      },
       scheduled_backup: 'Backup-Zeitplan',
       scheduled_backup_info: 'Backups automatisch nach Zeitplan erstellen und nur die neuesten Archive behalten',
       backup_interval: 'Häufigkeit',
@@ -2076,7 +2095,8 @@ export default {
       recordings: {
         nvr_not_running: 'NVR-Plugin ist nicht gestartet. Starten Sie das NVR-Plugin, um Aufnahmen zu verwalten.',
         disk_critical: 'Kritisch: Speicherplatz wird knapp. Aufnahme ist pausiert, um Datenverlust zu vermeiden.',
-        disk_warning: 'Warnung: Speicherplatz unter 8%. Alte Aufnahmen werden nur mit Aufbewahrungsmodus "Overwrite" und ohne Speicherlimit automatisch gelöscht. Andernfalls pausiert die Aufnahme, wenn der Platz ausgeht.',
+        disk_warning:
+          'Warnung: Speicherplatz unter 8%. Alte Aufnahmen werden nur mit Aufbewahrungsmodus "Overwrite" und ohne Speicherlimit automatisch gelöscht. Andernfalls pausiert die Aufnahme, wenn der Platz ausgeht.',
         disk_small_volume: 'Das Speichervolumen ist klein. Aufnahmen werden häufig rotiert, um Platz freizuhalten.',
         storage_overview: 'Speicherübersicht',
         disk_total: 'Gesamtspeicher',

@@ -4,6 +4,8 @@ import { axiosInstance as api } from '..';
 import { i18n } from '@/i18n/index.js';
 import type { LoginUserInput } from '@/schemas/users.schema.js';
 import type {
+  ApiTokenCreatedResponse,
+  ApiTokenInfo,
   JwtTokenResponse,
   LogoutResponse,
   MethodKeys,
@@ -51,6 +53,20 @@ export async function revokeSessionFn({ id }: { id: string }): Promise<void> {
 
 export async function revokeOtherSessionsFn(): Promise<void> {
   await api.delete('/auth/sessions');
+}
+
+export async function listApiTokensFn(signal?: AbortSignal): Promise<ApiTokenInfo[]> {
+  const response: AxiosResponse<ApiTokenInfo[]> = await api.get('/auth/tokens', { signal });
+  return response.data ?? [];
+}
+
+export async function createApiTokenFn({ name }: { name: string }): Promise<ApiTokenCreatedResponse> {
+  const response: AxiosResponse<ApiTokenCreatedResponse> = await api.post('/auth/tokens', { name });
+  return response.data;
+}
+
+export async function revokeApiTokenFn({ id }: { id: string }): Promise<void> {
+  await api.delete(`/auth/tokens/${id}`);
 }
 
 export async function loginFn({ loginInformation }: { loginInformation: LoginUserInput }): Promise<LoginResponse> {
@@ -128,6 +144,10 @@ export class AuthQuery {
       name: 'get2FAStatusQuery',
       enabled: true,
     },
+    {
+      name: 'listApiTokensQuery',
+      enabled: true,
+    },
   ]);
 
   get queryClient() {
@@ -192,6 +212,33 @@ export class AuthQuery {
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['auth', 'sessions'] });
         this.toast.add({ severity: 'success', detail: this.t('views.settings.active_sessions.revoke_others_success'), life: 3000 });
+      },
+    });
+  }
+
+  public listApiTokensQuery() {
+    return useQueryEnhanced({
+      queryKey: ['auth', 'apiTokens'],
+      queryFn: ({ signal }) => listApiTokensFn(signal),
+      enabled: () => this.queryActivator.value.some((query) => query.name === 'listApiTokensQuery' && query.enabled),
+    });
+  }
+
+  public createApiTokenQuery() {
+    return useMutation({
+      mutationFn: createApiTokenFn,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['auth', 'apiTokens'] });
+      },
+    });
+  }
+
+  public revokeApiTokenQuery() {
+    return useMutation({
+      mutationFn: revokeApiTokenFn,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['auth', 'apiTokens'] });
+        this.toast.add({ severity: 'success', detail: this.t('views.settings.api_tokens.revoke_success'), life: 3000 });
       },
     });
   }

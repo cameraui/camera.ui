@@ -10,7 +10,6 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
 import type { DBCamviewLayout, DBUser } from '../database/types.js';
 import type { UserLanguage } from '../schemas/users.schema.js';
-import type { SocketService } from '../websocket/index.js';
 import type {
   AuthLoginRequest,
   AuthParamsRequest,
@@ -26,6 +25,7 @@ import type {
   ViewsParamsRequest,
   ViewsPatchRequest,
 } from '../types/index.js';
+import type { SocketService } from '../websocket/index.js';
 
 export class UsersController {
   private configService: ConfigService;
@@ -164,6 +164,13 @@ export class UsersController {
         return reply.code(403).send({
           statusCode: 403,
           message: 'Forbidden: only admins can change roles',
+        });
+      }
+
+      if (req.locals.authKind !== 'session' && (req.body.password !== undefined || req.body.username !== undefined || req.body.role !== undefined)) {
+        return reply.code(403).send({
+          statusCode: 403,
+          message: 'Changing credentials or roles requires a logged-in session',
         });
       }
 

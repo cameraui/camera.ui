@@ -1,5 +1,5 @@
 import { UsersController } from '../controllers/users.controller.js';
-import { onlyAdminCanDoThisAction, onlySameUserOrAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
+import { onlyAdminCanDoThisAction, onlySameUserOrAdminCanDoThisAction, onlySessionCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import { pages } from '../middlewares/pagination.middleware.js';
 import { paginationQuerySchema } from '../schemas/common.schema.js';
@@ -39,7 +39,7 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'POST',
     url: '/',
-    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
     handler: usersController.insert.bind(usersController),
     schema: {
       tags: ['Users'],
@@ -51,7 +51,7 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
   app.route({
     method: 'DELETE',
     url: '/',
-    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
     handler: usersController.removeAll.bind(usersController),
     schema: {
       tags: ['Users'],
@@ -87,7 +87,7 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'DELETE',
     url: '/:username',
-    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
     handler: usersController.removeByName.bind(usersController),
     schema: {
       tags: ['Users'],

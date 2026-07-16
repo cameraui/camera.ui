@@ -42,7 +42,19 @@ export const sessionParamsSchema = zod.object({
   id: zod.string(),
 });
 
+export const createApiTokenSchema = zod
+  .object({
+    name: zod.string().trim().min(1, 'Name is required').max(64, 'Name is too long'),
+  })
+  .strict();
+
+export const apiTokenParamsSchema = zod.object({
+  id: zod.string(),
+});
+
 export type RefreshTokenInput = zod.output<typeof refreshTokenSchema>;
+export type CreateApiTokenInput = zod.output<typeof createApiTokenSchema>;
+export type ApiTokenParamsInput = zod.output<typeof apiTokenParamsSchema>;
 export type Verify2FAInput = zod.output<typeof verify2FASchema>;
 export type Enable2FAInput = zod.output<typeof enable2FASchema>;
 export type Disable2FAInput = zod.output<typeof disable2FASchema>;

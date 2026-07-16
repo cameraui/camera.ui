@@ -51,7 +51,7 @@ export class UsersService {
     });
 
     if (usernameChanged || passwordChanged) {
-      await this.authService.invalidateByUserId(user._id);
+      await this.authService.invalidateSessionsByUserId(user._id);
     }
 
     await this.dbs.usersDB.put(user._id, user);

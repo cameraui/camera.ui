@@ -61,6 +61,8 @@ export interface DBTokenDevice {
   last_seen_at: number;
 }
 
+export type DBTokenType = 'session' | 'api';
+
 export interface DBToken {
   readonly id: string;
   user_id: string;
@@ -71,6 +73,22 @@ export interface DBToken {
   device: DBTokenDevice;
   parent_token_id?: string;
   stream_scope?: string;
+  type?: DBTokenType;
+  name?: string;
+}
+
+export const API_TOKEN_PREFIX = 'cui_';
+
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  token_hint: string;
+  created_at: number;
+  last_seen_at: number;
+}
+
+export interface ApiTokenCreatedResponse extends ApiTokenInfo {
+  token: string;
 }
 
 export interface UserData {
@@ -249,6 +267,10 @@ export interface PaginationRequest {
 
 export interface AuthParamsRequest {
   Params: { id: string; username?: string };
+}
+
+export interface ApiTokenCreateRequest {
+  Body: { name: string };
 }
 
 export interface AuthLoginRequest {

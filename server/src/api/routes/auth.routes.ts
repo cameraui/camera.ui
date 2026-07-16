@@ -1,8 +1,10 @@
 import { AuthController } from '../controllers/auth.controller.js';
-import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
+import { onlyAdminCanDoThisAction, onlySessionCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { isPasswordAndUserMatch, validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import { pages } from '../middlewares/pagination.middleware.js';
 import {
+  apiTokenParamsSchema,
+  createApiTokenSchema,
   disable2FASchema,
   enable2FASchema,
   oauthTokenSchema,
@@ -80,6 +82,41 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
     },
   });
 
+  app.route({
+    url: '/tokens',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: authController.listApiTokens.bind(authController),
+    schema: {
+      tags: ['Auth'],
+      summary: 'List API tokens for the current user',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/tokens',
+    method: 'POST',
+    preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
+    handler: authController.createApiToken.bind(authController),
+    schema: {
+      tags: ['Auth'],
+      summary: 'Create a long-lived API token (plain token is returned once)',
+      body: createApiTokenSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/tokens/:id',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded],
+    handler: authController.deleteApiToken.bind(authController),
+    schema: {
+      tags: ['Auth'],
+      summary: 'Revoke an API token',
+      params: apiTokenParamsSchema,
+    },
+  });
+
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/login',
     method: 'POST',
@@ -138,7 +175,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
   app.route({
     url: '/2fa/setup',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
     handler: authController.setup2FA.bind(authController),
     schema: {
       tags: ['Auth'],
@@ -149,7 +186,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/2fa/enable',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
     handler: authController.enable2FA.bind(authController),
     schema: {
       tags: ['Auth'],
@@ -161,7 +198,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/2fa/disable',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
     handler: authController.disable2FA.bind(authController),
     schema: {
       tags: ['Auth'],
@@ -173,7 +210,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/2fa/backup-codes',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
     handler: authController.regenerateBackupCodes.bind(authController),
     schema: {
       tags: ['Auth'],

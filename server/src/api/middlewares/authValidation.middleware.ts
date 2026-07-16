@@ -4,6 +4,7 @@ import { container } from 'tsyringe';
 
 import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
+import { API_TOKEN_PREFIX } from '../types/index.js';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
@@ -92,6 +93,23 @@ export async function validJWTNeeded(req: FastifyRequest<AuthLoginRequest>, repl
 
   const accessToken = authorization[1];
 
+  if (accessToken.startsWith(API_TOKEN_PREFIX)) {
+    const dbToken = authService.findByAccessToken(accessToken);
+    if (dbToken?.type !== 'api') {
+      return reply.code(401).send({ statusCode: 401, message: 'Token revoked' });
+    }
+
+    const user = userService.findById(dbToken.user_id);
+    if (!user) {
+      return reply.code(403).send({ statusCode: 403, message: 'User is not in database' });
+    }
+
+    req.locals = { user, authKind: 'api' };
+    authService.bumpLastSeen(dbToken.id, req.ip);
+
+    return {} as FastifyReply;
+  }
+
   let decoded: JwtTokenDecoded;
   try {
     decoded = jwt.verify(accessToken, configService.SECRETS.jwtAccessKey) as JwtTokenDecoded;
@@ -110,7 +128,7 @@ export async function validJWTNeeded(req: FastifyRequest<AuthLoginRequest>, repl
     return reply.code(403).send({ statusCode: 403, message: 'User is not in database' });
   }
 
-  req.locals = { user, jwt: decoded };
+  req.locals = { user, jwt: decoded, authKind: 'session' };
 
   if (user.firstLogin) {
     const routeUrl = req.routeOptions?.url;

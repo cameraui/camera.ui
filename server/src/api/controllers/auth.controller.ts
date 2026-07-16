@@ -16,6 +16,9 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { DBUser } from '../database/types.js';
 import type { LoginUserInput } from '../schemas/users.schema.js';
 import type {
+  ApiTokenCreatedResponse,
+  ApiTokenCreateRequest,
+  ApiTokenInfo,
   Auth2FADisableRequest,
   Auth2FAEnableRequest,
   Auth2FARegenerateBackupCodesRequest,
@@ -74,7 +77,7 @@ export class AuthController {
   public list(req: FastifyRequest<AuthLoginRequest & PaginationRequest>, reply: FastifyReply): FastifyReply | SessionInfo[] {
     try {
       const user = req.locals.user!;
-      const tokens = this.service.listTokensByUserId(user._id);
+      const tokens = this.service.listSessionsByUserId(user._id);
       return this.toSessionInfos(tokens, req);
     } catch (error: any) {
       return reply.code(500).send({
@@ -86,7 +89,7 @@ export class AuthController {
 
   public listAll(req: FastifyRequest<AuthLoginRequest & PaginationRequest>, reply: FastifyReply): FastifyReply | SessionInfo[] {
     try {
-      const tokens = this.service.listTokens();
+      const tokens = this.service.listTokens().filter((t) => t.type !== 'api');
       return this.toSessionInfos(tokens, req);
     } catch (error: any) {
       return reply.code(500).send({
@@ -200,7 +203,7 @@ export class AuthController {
       const currentAccessToken = authorization?.[0] === 'Bearer' ? authorization[1] : undefined;
       const current = currentAccessToken ? this.service.findByAccessToken(currentAccessToken) : undefined;
 
-      const tokens = this.service.listTokensByUserId(requester._id).filter((t) => t.id !== current?.id);
+      const tokens = this.service.listSessionsByUserId(requester._id).filter((t) => t.id !== current?.id);
       await Promise.all(tokens.map((t) => this.service.invalidateById(t.id)));
 
       return reply.code(204).send();
@@ -218,9 +221,9 @@ export class AuthController {
       const isAdmin = requester.role === 'admin' || requester.role === 'master';
 
       if (isAdmin) {
-        await this.service.invalidateAll();
+        await this.service.invalidateAllSessions();
       } else {
-        await this.service.invalidateByUserId(requester._id);
+        await this.service.invalidateSessionsByUserId(requester._id);
       }
 
       return reply.code(204).send();
@@ -538,6 +541,81 @@ export class AuthController {
         message: error.message,
       });
     }
+  }
+
+  public listApiTokens(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply | ApiTokenInfo[] {
+    try {
+      const user = req.locals.user!;
+      return this.service
+        .listApiTokensByUserId(user._id)
+        .map((t) => this.toApiTokenInfo(t))
+        .sort((a, b) => b.created_at - a.created_at);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async createApiToken(req: FastifyRequest<AuthLoginRequest & ApiTokenCreateRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const user = req.locals.user!;
+      const name = req.body.name;
+
+      const duplicate = this.service.listApiTokensByUserId(user._id).some((t) => t.name === name);
+      if (duplicate) {
+        return reply.code(409).send({ statusCode: 409, message: 'A token with this name already exists' });
+      }
+
+      const token = this.service.createApiToken({ userId: user._id, name, ip: req.ip });
+      await this.service.insert(token);
+
+      const response: ApiTokenCreatedResponse = {
+        ...this.toApiTokenInfo(token),
+        token: token.access_token,
+      };
+      return reply.code(201).send(response);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async deleteApiToken(req: FastifyRequest<AuthLoginRequest & AuthParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const requester = req.locals.user!;
+      const target = this.service.findById(req.params.id);
+
+      if (target?.type !== 'api') {
+        return reply.code(404).send({ statusCode: 404, message: 'Token not found' });
+      }
+
+      const isAdmin = requester.role === 'admin' || requester.role === 'master';
+      if (target.user_id !== requester._id && !isAdmin) {
+        return reply.code(403).send({ statusCode: 403, message: 'Forbidden' });
+      }
+
+      await this.service.invalidateById(target.id);
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  private toApiTokenInfo(token: DBToken): ApiTokenInfo {
+    return {
+      id: token.id,
+      name: token.name ?? '',
+      token_hint: `${token.access_token.slice(0, 8)}…${token.access_token.slice(-4)}`,
+      created_at: token.device.created_at,
+      last_seen_at: token.device.last_seen_at,
+    };
   }
 
   private toSessionInfos(tokens: DBToken[], req: FastifyRequest): SessionInfo[] {

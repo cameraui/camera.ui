@@ -61,10 +61,11 @@ export interface AuthorizeOptions {
   secret: string | SecretCallback;
   algorithms?: Algorithm[];
   onAuthentication?: (decodedToken: any) => Promise<any>;
+  resolveOpaqueToken?: (token: string) => any | undefined;
 }
 
 export function authorize(options: AuthorizeOptions): SocketIOMiddleware {
-  const { secret, algorithms = ['HS256'], onAuthentication } = options;
+  const { secret, algorithms = ['HS256'], onAuthentication, resolveOpaqueToken } = options;
 
   return async (socket, next) => {
     let encodedToken: string | null = null;
@@ -99,6 +100,23 @@ export function authorize(options: AuthorizeOptions): SocketIOMiddleware {
     }
 
     socket.encodedToken = encodedToken;
+
+    if (resolveOpaqueToken) {
+      const opaquePayload = resolveOpaqueToken(encodedToken);
+      if (opaquePayload) {
+        socket.decodedToken = opaquePayload;
+
+        if (onAuthentication != null) {
+          try {
+            socket.user = await onAuthentication(opaquePayload);
+          } catch (error: any) {
+            return next(error);
+          }
+        }
+
+        return next();
+      }
+    }
 
     let keySecret: string | null = null;
     let decodedToken: any = null;

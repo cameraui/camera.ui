@@ -5,6 +5,7 @@ export interface CustomLocals {
   user?: DBUser;
   items?: any[];
   jwt?: JwtTokenDecoded;
+  authKind?: 'session' | 'api';
 }
 
 declare module 'fastify' {

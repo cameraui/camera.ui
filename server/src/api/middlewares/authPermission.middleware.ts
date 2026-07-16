@@ -44,3 +44,14 @@ export async function sameUserCantDoThisAction(req: FastifyRequest<AuthLoginRequ
 
   return {} as FastifyReply;
 }
+
+export async function onlySessionCanDoThisAction(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  if (req.locals.authKind !== 'session') {
+    return reply.code(403).send({
+      statusCode: 403,
+      message: 'This action requires a logged-in session',
+    });
+  }
+
+  return {} as FastifyReply;
+}

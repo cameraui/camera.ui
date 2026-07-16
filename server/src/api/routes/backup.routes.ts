@@ -1,5 +1,5 @@
 import { BackupController } from '../controllers/backup.controller.js';
-import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
+import { onlyAdminCanDoThisAction, onlySessionCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import { downloadBackupSchema, patchBackupSchedulerSettingsSchema, scheduledBackupParamsSchema } from '../schemas/backup.schema.js';
 
@@ -24,7 +24,7 @@ export const BackupRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
   app.route({
     url: '/restore',
     method: 'POST',
-    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
     handler: backupController.restore.bind(backupController),
     schema: {
       tags: ['Backup'],

@@ -293,6 +293,74 @@
             </template>
           </Card>
         </div>
+
+        <div>
+          <span class="card-title">{{ $t('views.settings.api_tokens.title') }}</span>
+          <Card class="cui-card">
+            <template #content>
+              <div class="flex flex-col gap-6">
+                <span class="text-sm text-muted">{{ $t('views.settings.api_tokens.info') }}</span>
+
+                <CuiDataTable :value="apiTokens ?? []" data-key="id" :loading="apiTokensLoading" :pt="sessionsTablePt" striped-rows scrollable>
+                  <template #loading>
+                    <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
+                  </template>
+
+                  <template #empty>
+                    <span class="text-muted text-sm">{{ $t('views.settings.api_tokens.empty') }}</span>
+                  </template>
+
+                  <Column field="name" :header="$t('views.settings.api_tokens.name_label')" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7">
+                    <template #body="{ data }">
+                      <div class="flex items-center gap-3">
+                        <KeyIcon class="cui-session-icon" />
+                        <div class="flex flex-col min-w-0">
+                          <span class="text-sm font-semibold text-color truncate">{{ data.name }}</span>
+                          <span class="text-xs text-muted truncate font-mono">{{ data.token_hint }}</span>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
+
+                  <Column field="last_seen_at" :header="$t('views.settings.api_tokens.last_used')" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7">
+                    <template #body="{ data }">
+                      <span class="text-xs text-muted">
+                        {{ data.last_seen_at > data.created_at ? formatRelativeTime(data.last_seen_at) : $t('views.settings.api_tokens.never') }}
+                      </span>
+                    </template>
+                  </Column>
+
+                  <Column field="action" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7 text-right">
+                    <template #body="{ data }">
+                      <Button
+                        v-tooltip="{ value: $t('views.settings.api_tokens.revoke') }"
+                        severity="danger"
+                        text
+                        rounded
+                        class="cui-icon-md"
+                        :loading="revokingTokenId === data.id"
+                        @click="onRevokeApiToken(data)"
+                      >
+                        <template #icon>
+                          <i-mdi:delete-outline width="100%" height="100%" />
+                        </template>
+                      </Button>
+                    </template>
+                  </Column>
+                </CuiDataTable>
+
+                <div class="flex flex-row items-end justify-end gap-2">
+                  <Button
+                    :loading="createTokenLoading"
+                    class="cui-button-medium mr-4 md:mr-0"
+                    :label="$t('views.settings.api_tokens.create')"
+                    @click="onCreateApiToken"
+                  />
+                </div>
+              </div>
+            </template>
+          </Card>
+        </div>
       </template>
     </div>
   </div>
@@ -303,10 +371,13 @@ import { ErrorMessage, Field, Form } from 'vee-validate';
 import { z } from 'zod';
 import CopyIcon from '~icons/fluent/copy-16-filled';
 import PhoneIcon from '~icons/mdi/cellphone';
+import KeyIcon from '~icons/mdi/key-variant';
 import LaptopIcon from '~icons/mdi/laptop';
 
 import { AuthQuery } from '@/api/routes/auth.js';
-import { copyToClipboard, readImgUpload } from '@/common/utils.js';
+import { copyToClipboard, formatRelativeTime, readImgUpload } from '@/common/utils.js';
+import ApiTokenCreatedDialog from '@/components/CuiDialog/templates/ApiTokenCreated/ApiTokenCreated.vue';
+import CreateApiTokenDialog from '@/components/CuiDialog/templates/CreateApiToken/CreateApiToken.vue';
 import TwoFactorBackupCodesDialog from '@/components/CuiDialog/templates/TwoFactorBackupCodes/TwoFactorBackupCodes.vue';
 import TwoFactorDisableDialog from '@/components/CuiDialog/templates/TwoFactorDisable/TwoFactorDisable.vue';
 import TwoFactorRegenerateDialog from '@/components/CuiDialog/templates/TwoFactorRegenerate/TwoFactorRegenerate.vue';
@@ -314,11 +385,13 @@ import { checkBiometryAvailable, clearCredentials, hasStoredCredentials } from '
 import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
 import { userPasswordSchema } from '@/schemas/users.schema.js';
 
+import type { ApiTokenCreatedProps } from '@/components/CuiDialog/templates/ApiTokenCreated/types.js';
+import type { CreateApiTokenProps } from '@/components/CuiDialog/templates/CreateApiToken/types.js';
 import type { TwoFactorBackupCodesProps } from '@/components/CuiDialog/templates/TwoFactorBackupCodes/types.js';
 import type { TwoFactorDisableProps } from '@/components/CuiDialog/templates/TwoFactorDisable/types.js';
 import type { TwoFactorRegenerateProps } from '@/components/CuiDialog/templates/TwoFactorRegenerate/types.js';
 import type { PassThrough } from '@primevue/core';
-import type { ClientKind } from '@shared/types';
+import type { ApiTokenInfo, ClientKind } from '@shared/types';
 import type { DataTablePassThroughOptions } from 'primevue';
 
 const authQuery = new AuthQuery();
@@ -341,6 +414,9 @@ const { mutateAsync: enable2FAFn, isPending: enableLoading } = authQuery.enable2
 const { data: sessions, isBusy: sessionsLoading } = authQuery.toggleQueryActivator('listSessionsQuery', !firststeps.value).listSessionsQuery({ page: 1, pageSize: -1 });
 const { mutateAsync: revokeSession } = authQuery.revokeSessionQuery();
 const { mutateAsync: revokeOtherSessions } = authQuery.revokeOtherSessionsQuery();
+const { data: apiTokens, isBusy: apiTokensLoading } = authQuery.toggleQueryActivator('listApiTokensQuery', !firststeps.value).listApiTokensQuery();
+const { mutateAsync: createApiToken, isPending: createTokenLoading } = authQuery.createApiTokenQuery();
+const { mutateAsync: revokeApiToken } = authQuery.revokeApiTokenQuery();
 
 const passwordSchema = z
   .object({
@@ -380,6 +456,7 @@ const setupCode = ref('');
 
 const revokingId = ref<string | null>(null);
 const revokeAllLoading = ref(false);
+const revokingTokenId = ref<string | null>(null);
 
 const biometryAvailable = ref(false);
 const biometricEnabled = ref(false);
@@ -426,6 +503,61 @@ async function onRevoke(id: string): Promise<void> {
   } finally {
     revokingId.value = null;
   }
+}
+
+function onCreateApiToken(): void {
+  dialog.openComponentDialog<CreateApiTokenProps>(CreateApiTokenDialog, {
+    data: {
+      title: t('views.settings.api_tokens.create'),
+      confirmText: t('views.settings.api_tokens.create_confirm'),
+      contentProps: {
+        existingNames: (apiTokens.value ?? []).map((token) => token.name),
+      },
+    },
+    onConfirm: async (name: string | null) => {
+      if (!name) return;
+      try {
+        const created = await createApiToken({ name });
+        openApiTokenCreatedDialog(created.token);
+      } catch (error: any) {
+        toast.add({ severity: 'error', detail: error, life: 3000 });
+      }
+    },
+  });
+}
+
+function openApiTokenCreatedDialog(token: string): void {
+  dialog.openComponentDialog<ApiTokenCreatedProps>(ApiTokenCreatedDialog, {
+    data: {
+      title: t('views.settings.api_tokens.created_title'),
+      confirmText: t('components.form.button.close'),
+      hideCancelButton: true,
+      contentProps: {
+        token,
+      },
+    },
+  });
+}
+
+function onRevokeApiToken(token: ApiTokenInfo): void {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.api_tokens.revoke_title'),
+      contentText: t('views.settings.api_tokens.revoke_confirm', { name: token.name }),
+      confirmText: t('views.settings.api_tokens.revoke'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: async () => {
+      revokingTokenId.value = token.id;
+      try {
+        await revokeApiToken({ id: token.id });
+      } catch (error: any) {
+        toast.add({ severity: 'error', detail: error, life: 3000 });
+      } finally {
+        revokingTokenId.value = null;
+      }
+    },
+  });
 }
 
 function onRevokeOthers(): void {

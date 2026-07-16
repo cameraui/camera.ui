@@ -2,7 +2,7 @@ import { mergeWith } from '@camera.ui/common/utils';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { container, delay, registry } from 'tsyringe';
 
-import { TOKEN_LIFETIME } from '../types/index.js';
+import { API_TOKEN_PREFIX, TOKEN_LIFETIME } from '../types/index.js';
 import { SocketService } from '../websocket/index.js';
 
 import type { Database } from '../database/index.js';
@@ -29,6 +29,14 @@ export class AuthService {
 
   public listTokensByUserId(userId: string): DBToken[] {
     return this.listTokens().filter((t) => t.user_id === userId);
+  }
+
+  public listSessionsByUserId(userId: string): DBToken[] {
+    return this.listTokensByUserId(userId).filter((t) => t.type !== 'api');
+  }
+
+  public listApiTokensByUserId(userId: string): DBToken[] {
+    return this.listTokensByUserId(userId).filter((t) => t.type === 'api');
   }
 
   public findById(id: string): DBToken | undefined {
@@ -77,10 +85,20 @@ export class AuthService {
     await Promise.all(tokens.map((t) => this.invalidateById(t.id)));
   }
 
+  public async invalidateSessionsByUserId(userId: string): Promise<void> {
+    const tokens = this.listSessionsByUserId(userId);
+    await Promise.all(tokens.map((t) => this.invalidateById(t.id)));
+  }
+
   public async invalidateAll(): Promise<void> {
     const tokens = this.listTokens();
     await this.dbs.tokensDB.clearAsync();
     for (const token of tokens) this.unauthenticateToken(token.access_token);
+  }
+
+  public async invalidateAllSessions(): Promise<void> {
+    const tokens = this.listTokens().filter((t) => t.type !== 'api');
+    await Promise.all(tokens.map((t) => this.invalidateById(t.id)));
   }
 
   public async invalidateFamily(parentTokenId: string): Promise<number> {
@@ -134,6 +152,31 @@ export class AuthService {
       persistent: params.persistent,
       device,
       parent_token_id: params.parentTokenId,
+    };
+  }
+
+  public createApiToken(params: { userId: string; name: string; ip: string }): DBToken {
+    const now = Date.now();
+    const id = randomUUID();
+
+    return {
+      id,
+      user_id: params.userId,
+      access_token: `${API_TOKEN_PREFIX}${randomBytes(32).toString('base64url')}`,
+      refresh_token: '',
+      refresh_token_expires_at: 0,
+      persistent: true,
+      type: 'api',
+      name: params.name,
+      device: {
+        id: `api_${id}`,
+        name: params.name,
+        kind: 'web',
+        user_agent: '',
+        ip: params.ip,
+        created_at: now,
+        last_seen_at: now,
+      },
     };
   }
 

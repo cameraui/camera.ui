@@ -5,6 +5,7 @@ import { container } from 'tsyringe';
 import { authorize, UnauthorizedError } from '../middlewares/socketAuth.middleware.js';
 import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
+import { API_TOKEN_PREFIX } from '../types/index.js';
 import { CamerasNamespace } from './nsp/cameras.js';
 import { LogsNamespace } from './nsp/logs.js';
 import { MainNamespace } from './nsp/main.js';
@@ -68,12 +69,29 @@ export class SocketService {
 
     for (const [nsp, contructor] of this.namespaces) {
       contructor.nsp
-        .use(authorize({ secret: this.configService.SECRETS.jwtAccessKey }))
+        .use(
+          authorize({
+            secret: this.configService.SECRETS.jwtAccessKey,
+            resolveOpaqueToken: (token) => this.resolveApiToken(token),
+          }),
+        )
         .use(this.authorizeConnection(nsp))
         .on('connection', (socket: Socket) => {
           this.setupConnection(socket, nsp);
         });
     }
+  }
+
+  private resolveApiToken(token: string): JwtTokenDecoded | undefined {
+    if (!token.startsWith(API_TOKEN_PREFIX)) return undefined;
+
+    const dbToken = this.authService.findByAccessToken(token);
+    if (dbToken?.type !== 'api') return undefined;
+
+    const user = this.usersService.findById(dbToken.user_id);
+    if (!user) return undefined;
+
+    return { _id: user._id, username: user.username, device_id: dbToken.device.id, exp: 0, iat: 0 };
   }
 
   private authorizeConnection(nsp: SocketNsp) {

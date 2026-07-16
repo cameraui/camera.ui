@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **API tokens for external integrations.** Create long-lived tokens under Settings > Account for tools like Home Assistant, instead of pasting your session token. Tokens work for the REST API and live updates, show when they were last used, and can be revoked at any time.
+
 - **Set a custom aspect ratio for a camera.** The aspect ratio field opens a dialog where you pick a preset or type any width:height (like 21:9 or 3:2), with a live preview of the camera framed at that ratio so you see exactly what fits before saving.
 
 ### Fixed
