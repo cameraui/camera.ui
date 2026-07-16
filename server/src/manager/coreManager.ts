@@ -63,7 +63,7 @@ export class CoreManager implements CoreManagerInterface {
   @RPCMethod
   public async getPluginsByInterface(interfaceName: PluginInterface): Promise<PluginInfo[]> {
     const allPlugins = this.pluginService.listPlugins();
-    return allPlugins.filter((p) => p.contract.interfaces?.includes(interfaceName)).map((p) => ({ id: p.id, name: p.pluginName, contract: p.contract }));
+    return allPlugins.filter((p) => p.contract.interfaces?.includes(interfaceName) && !p.disabled).map((p) => ({ id: p.id, name: p.pluginName, contract: p.contract }));
   }
 
   @RPCMethod
