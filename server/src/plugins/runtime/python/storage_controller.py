@@ -101,7 +101,11 @@ class StorageController:
                 self.__proxy,
                 self.__plugin,
                 self.__plugin_db,
-                SensorLocation(camera_id=camera_id, sensor_type=sensor_type.value, sensor_name=sensor_name),
+                SensorLocation(
+                    camera_id=camera_id,
+                    sensor_type=sensor_type.value,
+                    sensor_name=sensor_name,
+                ),
                 schemas,
                 sensor_id,
             )
@@ -207,5 +211,6 @@ class StorageController:
 
     # Internal method to close all storages
     async def close(self) -> None:
-        for storage in self.__storages.values():
+        for storage in list(self.__storages.values()):
             await storage.close()
+        self.__storages.clear()

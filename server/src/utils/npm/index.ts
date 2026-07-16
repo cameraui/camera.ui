@@ -163,14 +163,7 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
     const scriptsFlag = allowScripts ? (declaresAllowScripts(packageDir) ? undefined : '--dangerously-allow-all-scripts') : '--ignore-scripts';
 
     const command = bundledNpmCli ? process.execPath : getNpmPath()[0];
-    const args = [
-      ...(bundledNpmCli ? [bundledNpmCli] : []),
-      'install',
-      ...(scriptsFlag ? [scriptsFlag] : []),
-      '--omit=dev',
-      '--include=prod',
-      '--no-progress',
-    ];
+    const args = [...(bundledNpmCli ? [bundledNpmCli] : []), 'install', ...(scriptsFlag ? [scriptsFlag] : []), '--omit=dev', '--include=prod', '--no-progress'];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
