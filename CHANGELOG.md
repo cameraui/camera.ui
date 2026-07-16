@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 - **Changing camera settings while its frame worker is busy no longer logs an unhandled error.** Pushing a new name, zones or detection settings to an unresponsive frame worker timed out with "unhandledRejection: RPC call ... timed out after 30000ms". It now logs a short warning instead; the settings still apply on the next worker start.
 
+- **The default settings page is respected everywhere.** Opening Settings from the mobile menu always landed on Account instead of the page chosen under Appearance. Only the sidebar honored the choice; now every path into Settings does.
+
 - **The navigation sidebar no longer gets out of sync after logging out and back in.** If the sidebar was open before logging out, the page content stayed shifted aside after logging back in while the sidebar itself rendered collapsed, and the toggle button stopped working. Same fix for the settings sub-menu.
 
 - **"Open at login" in the desktop app no longer shows as turned off on Windows.** The setting kept working, but its checkmark disappeared whenever the menu refreshed, for example after restarting the server from within the app. The checkbox now reflects the real state.

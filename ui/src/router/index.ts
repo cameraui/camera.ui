@@ -1121,7 +1121,8 @@ router.beforeEach(async (to, from) => {
     } else if (pageName === 'login') {
       return '/home';
     } else if (to.path === '/settings') {
-      return '/settings/account';
+      const view = useUiStore().uiSettings.interface.selectedSettingsView;
+      return `/settings/${settingsViews.includes(view) ? view : 'account'}`;
     }
   } else if (pageName !== 'login') {
     return '/';
