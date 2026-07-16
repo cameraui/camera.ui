@@ -75,8 +75,8 @@ export async function probeCameraSourceFn({
   return response.data;
 }
 
-export async function getCameraSnapshotFn({ cameraname, forceNew, signal }: { cameraname: string; forceNew?: boolean; signal?: AbortSignal }): Promise<string> {
-  const response: AxiosResponse<string> = await api.get(`/cameras/${cameraname}/snapshot`, { signal, params: { forceNew } });
+export async function getCameraSnapshotFn({ cameraname, forceNew, signal }: { cameraname: string; forceNew?: boolean; signal?: AbortSignal }): Promise<ArrayBuffer> {
+  const response: AxiosResponse<ArrayBuffer> = await api.get(`/cameras/${cameraname}/snapshot`, { signal, params: { forceNew }, responseType: 'arraybuffer' });
   return response.data;
 }
 

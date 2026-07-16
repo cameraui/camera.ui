@@ -25,7 +25,6 @@ import type {
   CamerasExtensionsParamsRequest,
   CamerasExtensionsRequest,
   CamerasInsertRequest,
-  CamerasParamsIdRequest,
   CamerasParamsRequest,
   CamerasPatchRequest,
   CamerasPreviewRequest,
@@ -469,36 +468,16 @@ export class CamerasController {
 
       const source = cameraController.snapshotSource ?? cameraController.streamSource;
       const snapshot = await cameraController.snapshot(source._id, req.query.forceNew);
-      const base64string = snapshot ? Buffer.from(snapshot).toString('base64') : undefined;
 
-      reply.header('Content-Type', 'image/jpeg');
-      return reply.code(200).send(base64string);
-    } catch (error: any) {
-      return reply.code(error.response?.status ?? 500).send({
-        statusCode: error.response?.status ?? 500,
-        message: error.response?.statusText ?? error.message,
-      });
-    }
-  }
-
-  public async getSnapshotById(req: FastifyRequest<AuthLoginRequest & CamerasParamsIdRequest & CameraSnapshotQueryRequest>, reply: FastifyReply): Promise<FastifyReply> {
-    try {
-      const camera = this.service.findById(req.params.cameraid);
-      const cameraController = this.api.getCamera(camera?._id ?? '');
-
-      if (!camera || !cameraController) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'Camera not exists',
+      if (!snapshot) {
+        return reply.code(503).send({
+          statusCode: 503,
+          message: 'Snapshot not available',
         });
       }
 
-      const source = cameraController.snapshotSource ?? cameraController.streamSource;
-      const snapshot = await cameraController.snapshot(source._id, req.query.forceNew);
-      const base64string = snapshot ? Buffer.from(snapshot).toString('base64') : undefined;
-
       reply.header('Content-Type', 'image/jpeg');
-      return reply.code(200).send(base64string);
+      return reply.code(200).send(Buffer.from(snapshot));
     } catch (error: any) {
       return reply.code(error.response?.status ?? 500).send({
         statusCode: error.response?.status ?? 500,
