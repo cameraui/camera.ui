@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.15]
+
+- **A "camera offline" marker on the timeline no longer keeps growing after the camera is back.** It stretched toward the current time for up to a minute once a camera recovered, then snapped to its real, much shorter length. It now settles at the moment the camera came back right away.
+
+- **System event markers on the timeline have rounded ends.** They now match the recording and event bars instead of having square corners.
+
 ## [2.0.14]
 
 - **Exporting recordings works over remote access again.** When the interface was opened through the cloud address (proxy.cameraui.com) but the server ran on its own domain, the export download was blocked by the browser (CORS). Streamed downloads now send the same cross-origin headers the rest of the API already did.
@@ -70,7 +76,7 @@ All notable changes to this project will be documented in this file.
 
 - **Plugin updates no longer ask for a restart they don't need.** Since a plugin restarts itself as part of an update, the "restart to apply" hints were stale: the install log, the update dialog's restart button and the restart indicator on the plugin card all claimed a restart was still required. The log now finishes with the plugin already running the new version, the dialog simply closes, and the indicator only appears when a restart is genuinely needed.
 
-## [2.0.11] - 2026-07-13
+## [2.0.11]
 
 ### Added
 
@@ -108,7 +114,7 @@ All notable changes to this project will be documented in this file.
 
 - **The plugin pairing dialog now has copy buttons.** The device-flow pairing dialog (e.g. when connecting the NVR plugin to cameraui.com) offers a copy button next to the verification link and the pairing code, and both are text-selectable — previously there was no way to copy either one, especially in the desktop app.
 
-## [2.0.10] - 2026-07-12
+## [2.0.10]
 
 ### Added
 
@@ -122,7 +128,7 @@ All notable changes to this project will be documented in this file.
 
 - **Automations using an MQTT trigger or publish action can now be saved.** Adding an MQTT message trigger or an MQTT publish action to a flow failed to save with a validation error; these node types are now accepted.
 
-## [2.0.9] - 2026-07-12
+## [2.0.9]
 
 ### Fixed
 
@@ -136,13 +142,13 @@ All notable changes to this project will be documented in this file.
 
 - **Adopted cameras no longer reappear under "Discovered".** After adding a discovered camera (e.g. an ONVIF camera found via go2rtc), it kept showing up in the Discovered list on the next scan. camera.ui now matches an already-added camera against its discovered entry by the camera's real address, so it stays out of the list once adopted.
 
-## [2.0.8] - 2026-07-11
+## [2.0.8]
 
 ### Fixed
 
 - **The server failed to start on 2.0.7.** A code-ordering bug in the virtual-sensor module crashed the server during startup (`Cannot access 'VirtualSensorHost' before initialization`) — fresh installs never came up and existing installs crash-looped after their next restart. If you are on 2.0.7, update to this version.
 
-## [2.0.7] - 2026-07-11
+## [2.0.7]
 
 ### Added
 
@@ -170,7 +176,7 @@ All notable changes to this project will be documented in this file.
 
 - **Minor UI polish** across the plugin-detail and version dialogs, the zone editor, and the console.
 
-## [2.0.6] - 2026-07-10
+## [2.0.6]
 
 ### Added
 
@@ -210,7 +216,7 @@ All notable changes to this project will be documented in this file.
 
 - **Changing remote-access settings over remote access no longer fails with a 502.** Switching the connection mode (e.g. Cloudflare to custom domain) from the mobile app or a remote session tore down the tunnel the request itself came through, so the confirmation could never arrive. The server now confirms the change first and applies it right after; the app then reconnects over the new route.
 
-## [2.0.5] - 2026-07-08
+## [2.0.5]
 
 ### Changed
 
@@ -262,20 +268,20 @@ All notable changes to this project will be documented in this file.
 
 - **Windows crash on backslash paths.** A config value containing a Windows path (e.g. `C:\Users\…`) no longer crashes the server — the generated NATS config now escapes backslashes correctly.
 
-## [2.0.4] - 2026-07-07
+## [2.0.4]
 
 ### Fixed
 
 - **Default settings page could point to a page that doesn't exist.** The "default settings page" option under Settings > Appearance listed an "Instances" entry that has no matching page (selecting it led to a dead route) and was missing "Notifications". The list now matches the actual settings pages, and any previously saved invalid choice falls back to Account.
 - **Interface language detection.** Regional system locales now resolve to their base language (e.g. `de-AT` and `de-CH` map to German), and any unsupported system language falls back to English.
 
-## [2.0.3] - 2026-07-07
+## [2.0.3]
 
 ### Fixed
 
 - **Plugin installs failed in the desktop app.** Installing or updating a plugin tried to launch a system `npm`, which the desktop app doesn't ship, so it failed with `spawn npm ENOENT`. The desktop app now uses its own bundled npm to install plugin dependencies.
 
-## [2.0.2] - 2026-07-07
+## [2.0.2]
 
 ### Added
 
@@ -285,7 +291,7 @@ All notable changes to this project will be documented in this file.
 
 - **Snapshots and streams could fail with `ffmpeg: executable file not found`.** When the bundled ffmpeg wasn't detected at first launch, go2rtc's ffmpeg path fell back to a bare `ffmpeg` and stayed there even once the bundled binary became available. The path now re-points to the bundled ffmpeg on every start.
 
-## [2.0.1] - 2026-07-07
+## [2.0.1]
 
 ### Added
 
@@ -296,7 +302,7 @@ All notable changes to this project will be documented in this file.
 
 - **Server wouldn't start with IPv6 disabled.** Binding to the IPv6 wildcard (`::`) now falls back to IPv4 (`0.0.0.0`) when IPv6 is turned off at the kernel level.
 
-## [2.0.0] - 2026-07-06
+## [2.0.0]
 
 camera.ui v2 is a **complete rewrite** — a new server, a new interface, and a new architecture. Listing every change here wouldn't do it justice; instead:
 
