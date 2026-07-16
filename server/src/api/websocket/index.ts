@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
 import { API_TOKEN_PREFIX } from '../types/index.js';
 import { CamerasNamespace } from './nsp/cameras.js';
+import { EventsNamespace } from './nsp/events.js';
 import { LogsNamespace } from './nsp/logs.js';
 import { MainNamespace } from './nsp/main.js';
 import { MetricsNamespace } from './nsp/metrics.js';
@@ -58,6 +59,7 @@ export class SocketService {
     this.usersService = new UsersService();
 
     this.namespaces.set('/camera.ui', new MainNamespace(this.io));
+    this.namespaces.set('/events', new EventsNamespace(this.io));
     this.namespaces.set('/server', new ServerNamespace(this.io));
     this.namespaces.set('/notifications', new NotificationsNamespace(this.io));
     this.namespaces.set('/metrics', new MetricsNamespace(this.io));
