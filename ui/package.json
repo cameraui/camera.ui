@@ -30,7 +30,7 @@
     "preview": "vite preview",
     "pwa": "pwa-assets-generator",
     "type-check": "vue-tsc --build",
-    "update": "updates --update ./"
+    "update": "updates -u -e primevue,@primevue/auto-import-resolver,@primeuix/themes"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
@@ -38,7 +38,7 @@
     "@camera.ui/browser": "~0.0.135",
     "@camera.ui/common": "~0.0.49",
     "@camera.ui/nvr": "~0.0.45",
-    "@camera.ui/sdk": "~0.0.21",
+    "@camera.ui/sdk": "~0.0.22",
     "@camera.ui/transport": "~0.0.19",
     "@capacitor-firebase/messaging": "^8.3.0",
     "@capacitor/app": "^8.1.1",

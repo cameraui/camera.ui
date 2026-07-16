@@ -1,3 +1,3 @@
 export default {
-  exclude: ['typescript', 'eslint'],
+  exclude: ['typescript', 'eslint', 'primevue', '@primevue/auto-import-resolver', '@primeuix/themes'],
 };
