@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.15]
 
+- **Set a custom aspect ratio for a camera.** The aspect ratio field opens a dialog where you pick a preset or type any width:height (like 21:9 or 3:2), with a live preview of the camera framed at that ratio so you see exactly what fits before saving.
+
 - **A "camera offline" marker on the timeline no longer keeps growing after the camera is back.** It stretched toward the current time for up to a minute once a camera recovered, then snapped to its real, much shorter length. It now settles at the moment the camera came back right away.
 
 - **System event markers on the timeline have rounded ends.** They now match the recording and event bars instead of having square corners.
