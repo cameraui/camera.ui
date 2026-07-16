@@ -73,7 +73,7 @@
                   :options="sourceRoles.filter((role) => !sources.some((s) => s.role === role && s._id !== source._id))"
                   :invalid="errors.length > 0"
                   :loading="busy"
-                  @value-change="(e) => (source.role = e)"
+                  @value-change="(e) => setRole(source, e)"
                 />
               </InputGroup>
 
@@ -368,6 +368,15 @@ function deleteUrl(i: number, i2: number): void {
 
 function setUrl(i: number, i2: number, value: string): void {
   props.sources[i].urls[i2] = value;
+}
+
+function setRole(source: Go2RtcModel, role: CameraRole): void {
+  source.role = role;
+  if (role === 'snapshot') {
+    source.useForSnapshot = false;
+    source.hotMode = false;
+    source.preload = false;
+  }
 }
 
 function newSource(): void {

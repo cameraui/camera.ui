@@ -43,7 +43,7 @@
                 :options="sourceRoles.filter((role) => !cameraForm.sources.some((s) => s.role === role && s._id !== source._id))"
                 :invalid="errors.length > 0"
                 :loading
-                @value-change="(e) => (source.role = e)"
+                @value-change="(e) => setRole(source, e)"
               />
             </InputGroup>
 
@@ -335,6 +335,15 @@ function removeSource(i: number): void {
 
 function deleteSource(i: number, i2: number): void {
   cameraForm.value.sources[i].urls.splice(i2, 1);
+}
+
+function setRole(source: CameraInputSettings, role: CameraRole): void {
+  source.role = role;
+  if (role === 'snapshot') {
+    source.useForSnapshot = false;
+    source.hotMode = false;
+    source.preload = false;
+  }
 }
 
 function newSource(): void {

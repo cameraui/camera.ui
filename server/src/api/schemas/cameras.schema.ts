@@ -206,7 +206,8 @@ export const inputSchema = zod
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod.string().trim().min(1, 'Child Source ID is required').optional(),
   })
-  .strict();
+  .strict()
+  .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
 
 export const patchInputSchema = zod
   .object({
@@ -227,7 +228,8 @@ export const patchInputSchema = zod
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod.string().trim().min(1, 'Child Source ID is required').optional(),
   })
-  .strict();
+  .strict()
+  .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
 
 export const pluginInfo = zod.object({
   id: zod.string(),
@@ -365,34 +367,6 @@ export const createCameraBaseSchema = zod
       )
       .refine(
         (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.useForSnapshot);
-        },
-        {
-          message: 'Snapshot source can not be used with useForSnapshot',
-          path: ['sources'],
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.hotMode);
-        },
-        {
-          message: 'Snapshot source can not be used with hotMode',
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.preload);
-        },
-        {
-          message: 'Snapshot source can not be used with preload',
-        },
-      )
-      .refine(
-        (sources) => {
           const roles = sources.map((source) => source.role).filter(Boolean);
           return new Set(roles).size === roles.length;
         },
@@ -481,34 +455,6 @@ export const patchCameraSchema = zod
         {
           message: 'Only one source can be used for snapshot',
           path: ['sources'],
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.useForSnapshot);
-        },
-        {
-          message: 'Snapshot source can not be used with useForSnapshot',
-          path: ['sources'],
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.hotMode);
-        },
-        {
-          message: 'Snapshot source can not be used with hotMode',
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.preload);
-        },
-        {
-          message: 'Snapshot source can not be used with preload',
         },
       )
       .refine(

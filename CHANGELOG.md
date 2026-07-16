@@ -4,17 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.15]
 
+### Added
+
+- **Set a custom aspect ratio for a camera.** The aspect ratio field opens a dialog where you pick a preset or type any width:height (like 21:9 or 3:2), with a live preview of the camera framed at that ratio so you see exactly what fits before saving.
+
+### Fixed
+
+- **Adding a source with the snapshot role works now.** Saving failed with "Snapshot source can not be used with hotMode/preload" even though those switches are not shown for snapshot sources. Snapshot sources now ignore these options instead of rejecting the save.
+
 - **Renaming a camera no longer breaks its settings panel.** After saving a new name, the panel kept looking for the old one: the Plugins tab showed "Camera not exists" and further changes failed until the panel was reopened. It now follows the new name right away.
 
 - **Python plugins shut down cleanly again.** Stopping the server could log an error ("dictionary changed size during iteration") while a Python plugin closed its storage, which could stall shutdown until it timed out. Its storages now close from a stable snapshot.
-
-- **Set a custom aspect ratio for a camera.** The aspect ratio field opens a dialog where you pick a preset or type any width:height (like 21:9 or 3:2), with a live preview of the camera framed at that ratio so you see exactly what fits before saving.
 
 - **A "camera offline" marker on the timeline no longer keeps growing after the camera is back.** It stretched toward the current time for up to a minute once a camera recovered, then snapped to its real, much shorter length. It now settles at the moment the camera came back right away.
 
 - **System event markers on the timeline have rounded ends.** They now match the recording and event bars instead of having square corners.
 
 ## [2.0.14]
+
+### Fixed
 
 - **Exporting recordings works over remote access again.** When the interface was opened through the cloud address (proxy.cameraui.com) but the server ran on its own domain, the export download was blocked by the browser (CORS). Streamed downloads now send the same cross-origin headers the rest of the API already did.
 

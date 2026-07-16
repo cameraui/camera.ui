@@ -1,7 +1,7 @@
 import {
-  allowedSourceProtocols,
   createCameraBaseSchema as _createCameraBaseSchema,
   createCameraSchema as _createCameraSchema,
+  allowedSourceProtocols,
   detectionLineSchema,
   detectionZoneSchema,
   inputRoleSchema,
@@ -30,7 +30,8 @@ export const inputSchema = zod
     muted: zod.boolean().default(false),
     childSourceId: zod.string().trim().optional(),
   })
-  .strict();
+  .strict()
+  .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
 
 export const createCameraSchema = zod
   .object({
@@ -49,34 +50,6 @@ export const createCameraSchema = zod
         {
           message: 'Only one source can be used for snapshot',
           path: ['sources'],
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.useForSnapshot);
-        },
-        {
-          message: 'Snapshot source can not be used with useForSnapshot',
-          path: ['sources'],
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.hotMode);
-        },
-        {
-          message: 'Snapshot source can not be used with hotMode',
-        },
-      )
-      .refine(
-        (sources) => {
-          const snapshotSources = sources.filter((source) => source.role === 'snapshot');
-          return snapshotSources.every((source) => !source.preload);
-        },
-        {
-          message: 'Snapshot source can not be used with preload',
         },
       )
       .refine(
