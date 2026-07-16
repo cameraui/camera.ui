@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The navigation sidebar no longer gets out of sync after logging out and back in.** If the sidebar was open before logging out, the page content stayed shifted aside after logging back in while the sidebar itself rendered collapsed, and the toggle button stopped working. Same fix for the settings sub-menu.
+
+- **"Open at login" in the desktop app no longer shows as turned off on Windows.** The setting kept working, but its checkmark disappeared whenever the menu refreshed, for example after restarting the server from within the app. The checkbox now reflects the real state.
+
 - **Adding a source with the snapshot role works now.** Saving failed with "Snapshot source can not be used with hotMode/preload" even though those switches are not shown for snapshot sources. Snapshot sources now ignore these options instead of rejecting the save.
 
 - **Renaming a camera no longer breaks its settings panel.** After saving a new name, the panel kept looking for the old one: the Plugins tab showed "Camera not exists" and further changes failed until the panel was reopened. It now follows the new name right away.

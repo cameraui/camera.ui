@@ -14,6 +14,11 @@ const state = reactive<AppBus>({
   subbarState: undefined,
 });
 
+export function resetCuiBus(): void {
+  state.navbarState = undefined;
+  state.subbarState = undefined;
+}
+
 export function useCuiBus() {
   const eventBus = useEventBus(bus);
 

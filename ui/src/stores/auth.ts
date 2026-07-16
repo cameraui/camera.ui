@@ -99,6 +99,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null;
       pending2FA.value = null;
       logoutLoading.value = false;
+      resetCuiBus();
       router.push('/');
     }
   }
@@ -139,6 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (loginLoading.value || logoutLoading.value) return;
     if (next === null && prev !== null) {
       pending2FA.value = null;
+      resetCuiBus();
       if (!connection.isNeedsAuth.value) {
         connection.reset();
         connection.boot('default');

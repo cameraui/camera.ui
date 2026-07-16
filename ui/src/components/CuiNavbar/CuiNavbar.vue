@@ -348,11 +348,15 @@ watch(serverSocket.pluginUpdateAvailable, (val) => {
   pluginUpdateAvailable.value = val;
 });
 
-watch(navState, (newState) => {
-  if (newState && newState !== state.value) {
-    state.value = newState === 'minified' || newState === 'closed' ? 'closed' : 'opened';
-  }
-});
+watch(
+  navState,
+  (newState) => {
+    if (newState && newState !== state.value) {
+      state.value = newState === 'minified' || newState === 'closed' ? 'closed' : 'opened';
+    }
+  },
+  { immediate: true },
+);
 
 watch(router.currentRoute, (newRoute, oldRoute) => {
   if (newRoute.path !== oldRoute.path) {

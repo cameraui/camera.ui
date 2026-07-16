@@ -87,11 +87,15 @@ useResizeObserver(subnavbarRef, () => {
   debouncedScrollActiveItemIntoView();
 });
 
-watch(subState, (newState) => {
-  if (newState && newState !== state.value) {
-    state.value = newState;
-  }
-});
+watch(
+  subState,
+  (newState) => {
+    if (newState && newState !== state.value) {
+      state.value = newState;
+    }
+  },
+  { immediate: true },
+);
 
 watch(router.currentRoute, (newRoute, oldRoute) => {
   if (newRoute.path !== oldRoute.path) {

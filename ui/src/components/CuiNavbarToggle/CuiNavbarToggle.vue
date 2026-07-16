@@ -59,11 +59,15 @@ function toggleNavbar() {
   bus.emit({ navbarState: state.value === 'opened' ? 'closed' : 'opened' });
 }
 
-watch(navState, (newState) => {
-  if (newState && newState !== state.value) {
-    state.value = newState === 'minified' || newState === 'closed' ? 'closed' : 'opened';
-  }
-});
+watch(
+  navState,
+  (newState) => {
+    if (newState && newState !== state.value) {
+      state.value = newState === 'minified' || newState === 'closed' ? 'closed' : 'opened';
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped></style>
