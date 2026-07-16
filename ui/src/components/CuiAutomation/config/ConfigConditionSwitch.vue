@@ -26,7 +26,7 @@
         multiple
         :typeahead="false"
         :placeholder="t('components.automation_nodes.switch_cases_placeholder')"
-        @update:model-value="update('cases', $event)"
+        @update:model-value="updateCases($event)"
       />
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.switch_cases_hint') }}</Message>
     </div>
@@ -57,5 +57,9 @@ const sourceLabel = computed(() => {
 
 function update(key: string, value: unknown) {
   emit('update:data', { [key]: value });
+}
+
+function updateCases(value: string[]) {
+  update('cases', [...new Set(value)]);
 }
 </script>

@@ -103,7 +103,7 @@ async function onSave() {
       minConfidence: 0.5,
       triggerDeadZone: 0.05,
       trackingSpeed: 2,
-      leadFrames: 3,
+      leadMs: 1800,
       panRate: 0.85,
       returnToHome: false,
       homeWaitMs: 10000,

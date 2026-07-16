@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex flex-col w-full gap-6">
-      <div v-if="stats && stats.diskFreePercent > 0 && stats.diskFreePercent < 5" class="cui-banner cui-banner-error">
+      <div v-if="stats && stats.paused === true" class="cui-banner cui-banner-error">
         <i-mdi:alert-circle-outline class="shrink-0 w-5 h-5" />
         <span>{{ $t('views.settings.recordings.disk_critical') }}</span>
       </div>

@@ -10,7 +10,7 @@
       <div v-if="!uploadedFiles.length" class="w-full">
         <div class="flex flex-col justify-center items-center mb-5">
           <label for="restoreInput" class="cursor-pointer text-center text-sm">
-            {{ $t(`components.detection_interface.drop_or_select_${fileType}_to_detect${fileType === 'image' ? '_objects' : fileType === 'video' ? '_motion' : ''}`) }}
+            {{ $t(`components.detection_interface.${dropLabelKey}`) }}
           </label>
 
           <input id="restoreInput" ref="fileInputRef" type="file" class="hidden" :accept="accept" @change="onSelect" />
@@ -102,6 +102,16 @@ import type { AudioMetadata, ImageMetadata, JsonSchema } from '@camera.ui/sdk';
 import type { PluginClipInterfaceProps } from '../CuiDialog/templates/PluginClipInterface/types.js';
 import type { CuiDetectionInterfaceEmits, CuiDetectionInterfaceProps } from './types.js';
 
+const DROP_LABEL_KEYS: Record<CuiDetectionInterfaceProps['type'], string> = {
+  motionDetection: 'drop_or_select_video_to_detect_motion',
+  audioDetection: 'drop_or_select_audio_to_detect',
+  objectDetection: 'drop_or_select_image_to_detect_objects',
+  faceDetection: 'drop_or_select_image_to_detect_faces',
+  licensePlateDetection: 'drop_or_select_image_to_detect_license_plates',
+  classifierDetection: 'drop_or_select_image_to_classify',
+  clipDetection: 'drop_or_select_image_for_semantic_search',
+};
+
 const props = defineProps<CuiDetectionInterfaceProps>();
 
 const emit = defineEmits<CuiDetectionInterfaceEmits>();
@@ -131,6 +141,8 @@ const pluginInterfaceSchema = shallowRef<JsonSchema[] | undefined>();
 const schemaLoading = ref(false);
 
 const isLoading = computed(() => schemaLoading.value || pluginLoading.value || loading.value);
+
+const dropLabelKey = computed(() => DROP_LABEL_KEYS[type.value]);
 
 const fileType = computed<'image' | 'video' | 'audio'>(() => {
   switch (type.value) {

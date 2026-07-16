@@ -833,23 +833,23 @@
               <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_tracking_speed') }}</Message>
             </Field>
 
-            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadFrames ?? 3" name="ptzAutotrack.leadFrames" as="div" class="flex flex-col field-gap">
-              <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_frames') }}</label>
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1800" name="ptzAutotrack.leadMs" as="div" class="flex flex-col field-gap">
+              <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_ms') }}</label>
               <InputNumber
-                :model-value="cameraForm.ptzAutotrack?.leadFrames ?? 3"
+                :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1800"
                 :min="0"
-                :max="6"
-                :step="1"
+                :max="4000"
+                :step="100"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
                 class="w-full"
                 @value-change="
                   (e) => {
-                    if (cameraForm.ptzAutotrack && e != null) cameraForm.ptzAutotrack.leadFrames = e;
+                    if (cameraForm.ptzAutotrack && e != null) cameraForm.ptzAutotrack.leadMs = e;
                   }
                 "
               />
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_lead_frames') }}</Message>
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_lead_ms') }}</Message>
             </Field>
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.panRate ?? 0.85" name="ptzAutotrack.panRate" as="div" class="flex flex-col field-gap">

@@ -42,10 +42,12 @@ import { Controls } from '@vue-flow/controls';
 import { useVueFlow, VueFlow } from '@vue-flow/core';
 
 import { randomLetter } from '@/common/utils.js';
+import { caseHandleId } from './caseHandle.js';
 import DeletableEdge from './edges/DeletableEdge.vue';
 import { getNodeDefinition } from './nodeDefinitions.js';
 import ActionNode from './nodes/ActionNode.vue';
 import ConditionNode from './nodes/ConditionNode.vue';
+import SwitchNode from './nodes/SwitchNode.vue';
 import TriggerNode from './nodes/TriggerNode.vue';
 import { useFlowHistory } from './useFlowHistory.js';
 import { inheritFieldsFromSource, initNodeData } from './utils.js';
@@ -72,7 +74,7 @@ const nodeTypes: Record<string, any> = {
   'trigger-geofence': markRaw(TriggerNode),
   'trigger-mqtt': markRaw(TriggerNode),
   'condition-ifelse': markRaw(ConditionNode),
-  'condition-switch': markRaw(ConditionNode),
+  'condition-switch': markRaw(SwitchNode),
   'condition-sensorstate': markRaw(ConditionNode),
   'condition-time': markRaw(ConditionNode),
   'action-snapshot': markRaw(ActionNode),
@@ -158,7 +160,7 @@ function onConnect(connection: Connection) {
   }
 
   const edge: AutomationEdge = {
-    id: `e-${connection.source}-${connection.target}`,
+    id: `e-${connection.source}-${connection.sourceHandle ?? 'out'}-${connection.target}`,
     source: connection.source,
     target: connection.target,
     sourceHandle: connection.sourceHandle ?? undefined,
@@ -260,8 +262,15 @@ function getEdges() {
 
 function updateNodeData(nodeId: string, data: Record<string, unknown>) {
   const node = nodes.value.find((n) => n.id === nodeId);
-  if (node) {
-    node.data = data as unknown as AutomationNode['data'];
+  if (!node) return;
+
+  node.data = data as unknown as AutomationNode['data'];
+
+  // a removed case takes its handle with it, and vue flow only stops drawing the
+  // orphaned edge, it would still save and still route
+  if (node.type === 'condition-switch' && Array.isArray(data.cases)) {
+    const live = new Set((data.cases as string[]).map(caseHandleId));
+    edges.value = edges.value.filter((e) => e.source !== nodeId || !e.sourceHandle?.startsWith('case-') || live.has(e.sourceHandle));
   }
 }
 
