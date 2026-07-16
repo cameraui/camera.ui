@@ -123,6 +123,7 @@ declare global {
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
   const resetCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').resetCamerasSocket
+  const resetCuiBus: typeof import('../composables/useCuiAppBus').resetCuiBus
   const resetMetricsSocket: typeof import('../composables/sockets/useMetricsSocket').resetMetricsSocket
   const resetNotificationsSocket: typeof import('../composables/sockets/useNotificationsSocket').resetNotificationsSocket
   const resetPluginsSocket: typeof import('../composables/sockets/usePluginsSocket').resetPluginsSocket
@@ -614,6 +615,7 @@ declare module 'vue' {
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly resetCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['resetCamerasSocket']>
+    readonly resetCuiBus: UnwrapRef<typeof import('../composables/useCuiAppBus')['resetCuiBus']>
     readonly resetMetricsSocket: UnwrapRef<typeof import('../composables/sockets/useMetricsSocket')['resetMetricsSocket']>
     readonly resetNotificationsSocket: UnwrapRef<typeof import('../composables/sockets/useNotificationsSocket')['resetNotificationsSocket']>
     readonly resetPluginsSocket: UnwrapRef<typeof import('../composables/sockets/usePluginsSocket')['resetPluginsSocket']>

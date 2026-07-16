@@ -181,6 +181,7 @@
     "refThrottled": true,
     "refWithControl": true,
     "resetCamerasSocket": true,
+    "resetCuiBus": true,
     "resetMetricsSocket": true,
     "resetNotificationsSocket": true,
     "resetPluginsSocket": true,
