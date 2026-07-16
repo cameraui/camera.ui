@@ -1,6 +1,6 @@
 {
   "name": "@camera.ui/server",
-  "version": "2.0.14",
+  "version": "2.0.15",
   "description": "camera.ui server",
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "type": "module",
