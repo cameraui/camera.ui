@@ -82,6 +82,7 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { deepToRaw } from '@/common/utils.js';
 import { cameraPatchSchema } from '@/schemas/cameras.schema.js';
 
+import type { ReactiveCameraDevice } from '@camera.ui/browser';
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsEmits, CameraOptionsProps, CameraOptionsSegment } from './types.js';
 
@@ -94,13 +95,17 @@ const emit = defineEmits<CameraOptionsEmits>();
 const log = useLogger();
 const toast = useCuiToast();
 const { t } = useI18n();
-const { cameraName, latestSnapshotSrc } = toRefs(props);
-const { camera: cameraDevice, isLoading: cameraDeviceLoading } = useCameraById(cameraName);
+const { latestSnapshotSrc } = toRefs(props);
+
+const cameraName = ref(props.cameraName);
+
+const { camera: liveCameraDevice, isLoading: cameraDeviceLoading } = useCameraById(cameraName);
 
 const { data: camera, isBusy: cameraLoading } = camerasQuery.getCameraQuery(cameraName);
 const { mutate: patchCamera, isPending: patchLoading } = camerasQuery.patchCameraQuery();
 
 const formRef = useTemplateRef<InstanceType<typeof Form>>('formRef');
+const cameraDevice = shallowRef<ReactiveCameraDevice>();
 const cameraForm = ref<DBCamera>();
 const currentSegment = ref('overview');
 const segments = ref<CameraOptionsSegment[]>([
@@ -129,12 +134,40 @@ const showSaveButton = computed(() => currentSegment.value === 'sources' || curr
 async function onFormSubmit() {
   const result = await formRef.value?.validate();
   if (result?.valid && result.values) {
-    patchCamera({ cameraname: cameraName.value, cameraData: result.values });
+    const newName = result.values.name;
+    patchCamera(
+      { cameraname: cameraName.value, cameraData: result.values },
+      {
+        onSuccess: () => {
+          if (newName && newName !== cameraName.value) {
+            cameraName.value = newName;
+          }
+        },
+      },
+    );
   } else {
     log.error('Validation failed', result);
     toast.add({ severity: 'error', detail: t('components.toast.validation_failed'), life: 3000 });
   }
 }
+
+watch(
+  liveCameraDevice,
+  (device) => {
+    if (device) {
+      cameraDevice.value = device;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.cameraName,
+  (name) => {
+    cameraDevice.value = undefined;
+    cameraName.value = name;
+  },
+);
 
 watch(
   camera,

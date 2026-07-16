@@ -422,13 +422,14 @@ export class CamerasQuery {
   public patchCameraQuery() {
     return useMutation({
       mutationFn: patchCameraFn,
-      onSuccess: async (_data, variables) => {
+      onSuccess: async (data, variables) => {
         const cameraNameChanged = variables.cameraData.name && variables.cameraData.name !== variables.cameraname;
         const roomChanged = variables.cameraData.room !== undefined;
 
         if (cameraNameChanged) {
           const oldCameraName = variables.cameraname;
-          await this._queryClient.invalidateQueries({ queryKey: [oldCameraName] });
+          this._queryClient.setQueryData(['cameras', variables.cameraData.name], data);
+          this._queryClient.removeQueries({ predicate: (query) => query.queryKey.includes(oldCameraName), type: 'inactive' });
           await this._queryClient.refetchQueries({ queryKey: ['camerasList'] });
         } else {
           await this._queryClient.refetchQueries({ queryKey: ['cameras', variables.cameraname], exact: true });
