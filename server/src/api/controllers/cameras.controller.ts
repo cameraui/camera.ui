@@ -486,6 +486,39 @@ export class CamerasController {
     }
   }
 
+  public getRtspUrlsByName(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const camera = this.service.findByName(req.params.cameraname) ?? this.service.findById(req.params.cameraname);
+
+      if (!camera) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Camera not exists',
+        });
+      }
+
+      const rtsp = this.configService.go2rtcConfig.rtsp;
+      const port = parseInt(rtsp.listen.split(':')[1], 10);
+      const auth = rtsp.username && rtsp.password ? `${encodeURIComponent(rtsp.username)}:${encodeURIComponent(rtsp.password)}@` : '';
+
+      const sources = camera.sources
+        .filter((source) => source.role !== 'snapshot')
+        .map((source) => ({
+          name: source.name,
+          role: source.role,
+          // req.hostname: the address the client reached us on is the one it can route to go2rtc
+          url: `rtsp://${auth}${req.hostname}:${port}/${createSourceName(camera.name, source.name)}`,
+        }));
+
+      return reply.code(200).send({ sources });
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
   public async insert(req: FastifyRequest<AuthLoginRequest & CamerasInsertRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const camera = this.service.findByName(req.body.name) ?? this.service.findById(req.body.name);

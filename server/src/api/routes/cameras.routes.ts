@@ -136,6 +136,18 @@ export const CamerasRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
   });
 
   app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:cameraname/rtsp',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: camerasController.getRtspUrlsByName.bind(camerasController),
+    schema: {
+      tags: ['Cameras'],
+      summary: 'Get ready-to-use RTSP URLs for all stream sources of a camera',
+      params: cameraParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/:cameraname/snapshot',
     method: 'GET',
     preValidation: [validJWTNeeded],
