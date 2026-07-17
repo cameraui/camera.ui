@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Notifications from cameras with built-in smart detection carry an image again.** On cameras whose person/vehicle detection comes from the camera itself (like Reolink) without an AI plugin assigned, detection pushes arrived without a picture and only at the end of the detection. The snapshot now attaches to the detection as soon as it arrives, so the push fires promptly with the image.
+
 - **Connecting your own Cloudflare domain works reliably again.** Setting up remote access with a Cloudflare account often failed right away with "Login failed: cloudflared exited with code null" and the browser login never opened: the server restarted its tunnel processes mid-setup and killed the login. The login window is now left alone until it finishes.
 
 ## [2.0.15]

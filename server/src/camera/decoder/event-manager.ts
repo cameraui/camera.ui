@@ -207,6 +207,11 @@ export class DetectionEventManager {
     this.activeEvent.thumbnail = this.eventThumbnail;
     this.publish('update');
     this.activeEvent.thumbnail = undefined;
+
+    if (this.activeSegment && !this.sceneThumbnail) {
+      this.sceneThumbnail = { jpeg: this.eventThumbnail, score: 0, area: 0, onEdge: false, hasAttribute: false };
+      this.publishSegment('segment-update');
+    }
   }
 
   public needsThumbnail(): boolean {
