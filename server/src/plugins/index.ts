@@ -2,14 +2,14 @@ import { API_EVENT, PluginRole, validateContractConsistency } from '@camera.ui/s
 import { outputFile, pathExists, readJson, remove } from 'fs-extra/esm';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
 import { PluginsService } from '../api/services/plugins.service.js';
-import { ELECTRON_ASAR_UNPACKED } from '../services/config/constants.js';
 import { sendIPCMessage } from '../utils/ipc.js';
+import { serverRequirementsPath } from '../utils/path.js';
 import { DEFAULT_PY_VERSION, PythonInstaller } from '../utils/pythonInstaller.js';
 import { checkBundledPlugin, extractBundledPlugin } from './bundle.js';
 import { PluginHealthMonitor } from './healthMonitor.js';
@@ -21,9 +21,6 @@ import type { CameraUiAPI } from '../api.js';
 import type { BackupInfo, IPackageJson } from '../api/types/index.js';
 import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const KEEP_MARKER = '.cameraui-keep';
 
@@ -351,12 +348,11 @@ export class PluginManager {
       const promises: Promise<any>[] = [];
 
       for (const version of pythonVersionsToInstall) {
-        const requirementsPath = resolve(join(__dirname, '..', '..', 'requirements.txt')).replace('app.asar', ELECTRON_ASAR_UNPACKED);
         const py = new PythonInstaller(this.configService.HOME_PATH, this.logger, undefined, version);
 
         promises.push(
           py
-            .install('server', requirementsPath)
+            .install('server', serverRequirementsPath)
             .then(() => this.installedPythonVersions.add(version))
             .catch((error) => this.logger.error(`Error installing Python ${version}:`, error)),
         );

@@ -32,6 +32,8 @@ export class WorkerAgent implements WorkerAgentRPC {
   private managerProxy!: Promisify<WorkerManagerRPC>;
   private handlers = new Map<WorkerCapability, CapabilityHandler>();
 
+  private pluginHostHandler?: PluginHostHandler;
+
   private applied = new Map<string, WorkloadSpec>();
   private syncInterval?: NodeJS.Timeout;
   private syncInFlight = false;
@@ -110,7 +112,8 @@ export class WorkerAgent implements WorkerAgentRPC {
           this.handlers.set(cap, new FrameDecodingHandler(this.natsServer, this.configService, this.logger, (entry) => this.forwardLog(entry)));
           break;
         case WorkerCapability.PluginHost:
-          this.handlers.set(cap, new PluginHostHandler(this.configService, this.logger, (entry) => this.forwardLog(entry)));
+          this.pluginHostHandler = new PluginHostHandler(this.configService, this.logger, (entry) => this.forwardLog(entry));
+          this.handlers.set(cap, this.pluginHostHandler);
           break;
         default:
           this.logger.warn(`No handler for capability: ${cap}`);
@@ -274,6 +277,7 @@ export class WorkerAgent implements WorkerAgentRPC {
       pid: process.pid,
       cpuLoad: this.cpuLoad,
       memLoad: this.memLoad,
+      plugins: this.pluginHostHandler?.getPluginStatuses(),
     };
   }
 

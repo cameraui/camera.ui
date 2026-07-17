@@ -15,7 +15,7 @@ import type { LogEntry, Logger } from '@camera.ui/common/logger';
 import type { IPackageJson } from '../../api/types/index.js';
 import type { BasePluginRuntime, RuntimePlugin } from '../../plugins/runtime/base.js';
 import type { ConfigService } from '../../services/config/index.js';
-import type { RemotePluginConfig } from '../types.js';
+import type { RemotePluginConfig, RemotePluginState, RemotePluginStatus } from '../types.js';
 import type { CapabilityHandler } from './handler.js';
 
 const PROVISION_RETRY_MS = 30_000;
@@ -25,6 +25,7 @@ interface ManagedPlugin {
   spec: RemotePluginConfig;
   runtime?: BasePluginRuntime;
   stopped: boolean;
+  state: RemotePluginState;
   retryTimer?: NodeJS.Timeout;
 }
 
@@ -48,7 +49,7 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
 
     this.logger.log(`Hosting plugin: ${spec.displayName} (${spec.pluginName}@${spec.version})`);
 
-    const managed: ManagedPlugin = { spec, stopped: false };
+    const managed: ManagedPlugin = { spec, stopped: false, state: 'installing' };
     this.plugins.set(id, managed);
 
     this.provisionAndStart(managed);
@@ -99,8 +100,14 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
     return pids;
   }
 
+  public getPluginStatuses(): RemotePluginStatus[] {
+    return Array.from(this.plugins, ([id, managed]) => ({ id, state: managed.state }));
+  }
+
   private async provisionAndStart(managed: ManagedPlugin): Promise<void> {
     const { spec } = managed;
+
+    managed.state = 'installing';
 
     try {
       const installPath = await this.ensureInstalled(spec);
@@ -116,6 +123,7 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
         if (managed.stopped || this.isClosed || isShuttingDown()) {
           return;
         }
+        managed.state = 'retrying';
         this.logger.warn(`Hosted plugin ${spec.displayName} exited — restarting in ${CRASH_RESTART_MS / 1000}s`);
         this.scheduleRetry(managed, CRASH_RESTART_MS);
       });
@@ -123,10 +131,12 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
       managed.runtime = runtime;
       await runtime.start();
 
+      managed.state = 'running';
       this.logger.log(`Hosted plugin started: ${spec.displayName} (${spec.pluginName}@${spec.version})`);
     } catch (error: any) {
       managed.runtime?.cleanup();
       managed.runtime = undefined;
+      managed.state = 'retrying';
 
       if (managed.stopped || this.isClosed) {
         return;

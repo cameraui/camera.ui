@@ -26,6 +26,7 @@ import type { Plugin } from './plugin.js';
 import type { BasePluginRuntime } from './runtime/base.js';
 
 const REMOTE_START_TIMEOUT_MS = 5 * 60_000;
+const REMOTE_START_MAX_MS = 10 * 60_000;
 
 export class PluginWorker {
   private api: CameraUiAPI;
@@ -202,7 +203,7 @@ export class PluginWorker {
     return container.isRegistered('workerManager') ? container.resolve<WorkerManager>('workerManager') : undefined;
   }
 
-  private armRemoteFallback(resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void): void {
+  private armRemoteFallback(resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void, began = Date.now()): void {
     clearTimeout(this.remoteStartTimeout);
 
     this.remoteStartTimeout = setTimeout(async () => {
@@ -210,7 +211,15 @@ export class PluginWorker {
         return;
       }
 
-      this.runtime.logger.warn(`Remote worker did not start plugin ${this.plugin.displayName} within ${REMOTE_START_TIMEOUT_MS / 60_000}min — re-placing locally`);
+      const state = this.workerManagerRef()?.getRemotePluginState(this.plugin.pluginName);
+      const elapsed = Date.now() - began;
+      if (state === 'installing' && elapsed < REMOTE_START_MAX_MS) {
+        this.runtime.logger.log(`Remote worker is still provisioning ${this.plugin.displayName} (${Math.round(elapsed / 60_000)}min) — waiting`);
+        this.armRemoteFallback(resolve, reject, began);
+        return;
+      }
+
+      this.runtime.logger.warn(`Remote worker did not start plugin ${this.plugin.displayName} within ${Math.round(elapsed / 60_000)}min — re-placing locally`);
       this.workerManagerRef()?.clearPluginHost(this.plugin.pluginName);
       this.isRemote = false;
 

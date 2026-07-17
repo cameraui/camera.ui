@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Plugins on two different Python versions no longer wipe each other during install.** When plugins needed both supported Python versions, installing the newer one could delete the older one mid-install, so plugins failed on first start until the next restart. Cleanup now only removes outdated builds of the same version.
+
+- **Slow first-time plugin setup on a worker no longer gets cut off.** Assigning a heavy plugin to a worker could hit the 5 minute limit while Python and dependencies were still downloading, and the master pulled the plugin back to run locally. The master now keeps waiting while the worker reports installation progress, up to 10 minutes.
+
+- **Python plugins start on paired workers now.** Hosting a Python plugin like CoreML on a remote worker failed during provisioning ("No module named virtualenv", then "Cannot read properties of undefined") until the master gave up and ran it locally. The worker now sets up the same Python base environment as the master before starting the plugin, and skips a check that only applies on the master.
+
 - **Notifications from cameras with built-in smart detection carry an image again.** On cameras whose person/vehicle detection comes from the camera itself (like Reolink) without an AI plugin assigned, detection pushes arrived without a picture and only at the end of the detection. The snapshot now attaches to the detection as soon as it arrives, so the push fires promptly with the image.
 
 - **Connecting your own Cloudflare domain works reliably again.** Setting up remote access with a Cloudflare account often failed right away with "Login failed: cloudflared exited with code null" and the browser login never opened: the server restarted its tunnel processes mid-setup and killed the login. The login window is now left alone until it finishes.

@@ -1,8 +1,8 @@
 import { move, pathExists, readJson, remove } from 'fs-extra/esm';
 
+import { uuidv4 } from '@camera.ui/common/utils';
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
-import { uuidv4 } from '@camera.ui/common/utils';
 import { container, delay, registry } from 'tsyringe';
 import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
 
@@ -25,10 +25,6 @@ import type { SocketService } from '../websocket/index.js';
   {
     token: 'dbs',
     useValue: delay(() => Database),
-  },
-  {
-    token: 'pluginManager',
-    useValue: delay(() => PluginManager),
   },
 ])
 export class PluginsService {

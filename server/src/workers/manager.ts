@@ -16,7 +16,16 @@ import type { SocketService } from '../api/websocket/index.js';
 import type { WorkersNamespace } from '../api/websocket/nsp/workers.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { LogManager } from '../services/logger/logManager.js';
-import type { RemoteCameraConfig, RemotePluginConfig, WorkerAgentRPC, WorkerHeartbeat, WorkerInfo, WorkerSyncResponse, WorkloadSpec } from './types.js';
+import type {
+  RemoteCameraConfig,
+  RemotePluginConfig,
+  RemotePluginState,
+  WorkerAgentRPC,
+  WorkerHeartbeat,
+  WorkerInfo,
+  WorkerSyncResponse,
+  WorkloadSpec,
+} from './types.js';
 
 const WORKER_TIMEOUT_MS = 15_000;
 
@@ -267,6 +276,20 @@ export class WorkerManager {
     return new PluginsService().getPluginDbByName(pluginName)?.workerAgentId;
   }
 
+  public getRemotePluginState(pluginName: string): RemotePluginState | undefined {
+    const agentId = this.getPluginAssignment(pluginName);
+    if (!agentId) {
+      return undefined;
+    }
+
+    const worker = this.workers.get(agentId);
+    if (!worker?.online) {
+      return undefined;
+    }
+
+    return worker.plugins?.find((plugin) => plugin.id === pluginName)?.state;
+  }
+
   public async removeWorker(agentId: string): Promise<void> {
     this.logger.log(`Removing worker ${agentId}`);
 
@@ -470,6 +493,7 @@ export class WorkerManager {
       pid: heartbeat.pid,
       cpuLoad: heartbeat.cpuLoad,
       memLoad: heartbeat.memLoad,
+      plugins: heartbeat.plugins,
     };
 
     this.workers.set(heartbeat.agentId, workerInfo);

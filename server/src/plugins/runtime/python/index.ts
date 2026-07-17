@@ -3,11 +3,28 @@ import { existsSync, statSync } from 'node:fs';
 import { platform } from 'node:os';
 import { join } from 'node:path';
 
-import { pythonPath, pythonPluginPath } from '../../../utils/path.js';
+import { pythonPath, pythonPluginPath, serverRequirementsPath } from '../../../utils/path.js';
 import { DEFAULT_PY_VERSION, PythonInstaller } from '../../../utils/pythonInstaller.js';
 import { BasePluginRuntime } from '../base.js';
 
 import type { RuntimePlugin } from '../base.js';
+
+const serverEnvInstalls = new Map<string, Promise<void>>();
+
+function installWorkerServerEnv(py: PythonInstaller): Promise<void> {
+  const key = py.serverPythonPath;
+
+  let install = serverEnvInstalls.get(key);
+  if (!install) {
+    install = py.install('server', serverRequirementsPath).catch((error) => {
+      serverEnvInstalls.delete(key);
+      throw error;
+    });
+    serverEnvInstalls.set(key, install);
+  }
+
+  return install;
+}
 
 export class PythonPluginRuntime extends BasePluginRuntime {
   private py: PythonInstaller;
@@ -59,6 +76,10 @@ export class PythonPluginRuntime extends BasePluginRuntime {
 
   private async updatePython(): Promise<void> {
     if (this.plugin.isPython) {
+      if (!this.pluginManager) {
+        await installWorkerServerEnv(this.py);
+      }
+
       await this.py.installPluginPython();
 
       const requirementsPath = join(this.plugin.installPath, 'requirements.txt');

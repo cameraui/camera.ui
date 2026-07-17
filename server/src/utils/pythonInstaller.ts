@@ -189,6 +189,14 @@ export class PythonInstaller {
     return this.installRequirements(this.serverPythonPath, requirementsPath);
   }
 
+  private async ensureVirtualenv(): Promise<void> {
+    if (existsSync(join(this.serverPackagesPath, 'virtualenv'))) {
+      return;
+    }
+
+    await this.installServerPackages(['virtualenv']);
+  }
+
   private async ensureCertifi(): Promise<void> {
     if (existsSync(join(this.serverPackagesPath, 'certifi', 'cacert.pem'))) {
       return;
@@ -502,6 +510,8 @@ export class PythonInstaller {
 
     this.needsUpdate = true;
 
+    await this.ensureVirtualenv();
+
     const args = [this.quotePath(this.serverPythonPath), '-m', 'virtualenv', this.quotePath(this.venvPath)];
 
     const command = args.join(' ');
@@ -595,15 +605,22 @@ export class PythonInstaller {
         const version = match[1];
         const platformSuffix = match[2];
 
-        if (semver.lt(semver.coerce(version)!, semver.coerce(currentVersion)!)) {
-          const fullPath = join(this.installPath, `python-${version}${platformSuffix}`);
-          const requirementsLockPath = join(this.installPath, `requirements-lock-${version}.txt`);
-
-          this.logger.trace(`Removing old Python version: ${version}`);
-
-          await remove(fullPath);
-          await remove(requirementsLockPath);
+        if (!semver.lt(semver.coerce(version)!, semver.coerce(currentVersion)!)) {
+          continue;
         }
+
+        const minor = this.getMajorMinorVersion(version);
+        if (minor !== this.getMajorMinorVersion(currentVersion) && PythonInstaller.versions.includes(minor as PythonVersion)) {
+          continue;
+        }
+
+        const fullPath = join(this.installPath, `python-${version}${platformSuffix}`);
+        const requirementsLockPath = join(this.installPath, `requirements-lock-${version}.txt`);
+
+        this.logger.trace(`Removing old Python version: ${version}`);
+
+        await remove(fullPath);
+        await remove(requirementsLockPath);
       }
     }
   }

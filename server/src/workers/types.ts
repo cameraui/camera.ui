@@ -35,6 +35,13 @@ export function workloadKey(capability: WorkerCapability, id: string): string {
   return `${capability}:${id}`;
 }
 
+export type RemotePluginState = 'installing' | 'retrying' | 'running';
+
+export interface RemotePluginStatus {
+  id: string;
+  state: RemotePluginState;
+}
+
 export interface WorkerHealthInfo {
   agentId: string;
   name: string;
@@ -63,6 +70,7 @@ export interface WorkerInfo {
   pid?: number;
   cpuLoad?: string;
   memLoad?: string;
+  plugins?: RemotePluginStatus[];
   health?: WorkerHealthInfo;
 }
 
@@ -77,6 +85,7 @@ export interface WorkerHeartbeat {
   pid: number;
   cpuLoad: string;
   memLoad: string;
+  plugins?: RemotePluginStatus[];
 }
 
 export interface WorkerSyncResponse {

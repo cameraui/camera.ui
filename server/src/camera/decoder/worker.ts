@@ -7,7 +7,6 @@ import { PLUGIN_STATUS } from '../../plugins/types.js';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { isShuttingDown } from '../../shutdown-state.js';
 import { nodeDecoderPath } from '../../utils/path.js';
-import { PythonInstaller } from '../../utils/pythonInstaller.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { PrivateChannel, Promisify } from '@camera.ui/rpc';
@@ -40,7 +39,6 @@ export class FrameWorker extends Subscribed {
   private readonly socketService: SocketService;
   private readonly proxyServer: ProxyServer;
   private readonly logManager: LogManager;
-  private readonly py: PythonInstaller;
   private readonly workerManager: WorkerManager;
 
   private isClosed = false;
@@ -85,7 +83,6 @@ export class FrameWorker extends Subscribed {
     });
 
     this.namespaces = NamespaceManager.frameWorkerNamespaces(camera.id);
-    this.py = new PythonInstaller(this.configService.HOME_PATH, this.logger);
 
     this.setupEventListeners();
   }
