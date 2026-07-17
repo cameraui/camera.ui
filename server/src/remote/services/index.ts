@@ -124,6 +124,10 @@ export class RemoteAccessService {
   }
 
   private async doReconcile(): Promise<void> {
+    if (this.cloudflareService.managed.busy) {
+      return;
+    }
+
     this.remoteConfig = this.remoteService.info();
     const cfg = this.remoteConfig;
     const cloudActive = cfg.enabled && this.remoteService.isCloudConnected();

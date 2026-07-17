@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.16]
+
+### Fixed
+
+- **Connecting your own Cloudflare domain works reliably again.** Setting up remote access with a Cloudflare account often failed right away with "Login failed: cloudflared exited with code null" and the browser login never opened: the server restarted its tunnel processes mid-setup and killed the login. The login window is now left alone until it finishes.
+
 ## [2.0.15]
 
 ### Added

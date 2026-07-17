@@ -65,18 +65,23 @@ export class CloudflareService {
   }
 
   public get isRunning(): boolean {
-    return !!this.cloudflaredProcess || this.managed.runningUrl !== null;
+    return !!this.cloudflaredProcess || this.managed.runningUrl !== null || this.managed.busy;
   }
 
   public async start(): Promise<void> {
     try {
       await this.ensureCloudflaredInstalled();
 
+      const config = this.remoteService.info().cloudflare;
+      const mode: DBCloudflareMode = config?.mode ?? 'quick';
+
+      if (mode === 'managed' && this.managed.busy) {
+        return;
+      }
+
       this.stop();
       this.manuallyKilled = false;
 
-      const config = this.remoteService.info().cloudflare;
-      const mode: DBCloudflareMode = config?.mode ?? 'quick';
       switch (mode) {
         case 'quick':
           this.startQuickTunnel();

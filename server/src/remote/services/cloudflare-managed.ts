@@ -49,6 +49,10 @@ export class CloudflareManagedService {
     mkdirSync(this.cloudflarePath, { recursive: true });
   }
 
+  public get busy(): boolean {
+    return this._state !== 'idle' && this._state !== 'running';
+  }
+
   public getStatus(): ManagedTunnelStatus {
     const cf = this.remoteService.info().cloudflare;
     return {
@@ -305,11 +309,13 @@ export class CloudflareManagedService {
         reject(error);
       });
 
-      proc.on('exit', (code) => {
+      proc.on('exit', (code, signal) => {
         clearTimeout(timer);
         if (this.stepProcess === proc) this.stepProcess = undefined;
         if (code === 0) {
           resolve(output);
+        } else if (signal) {
+          reject(new Error(`cloudflared was terminated (signal ${signal})${output ? ': ' + output.slice(-500) : ''}`));
         } else {
           reject(new Error(`cloudflared exited with code ${code}: ${output.slice(-500)}`));
         }
