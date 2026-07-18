@@ -37,6 +37,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
   readonly onAudioRtp = new Subject<RtpPacket>();
 
   #hasEnded = false;
+  #shutdownPromise?: Promise<void>;
   #cameraDevice: CameraDevice;
   #logger: LoggerService;
   #source: CameraDeviceSource;
@@ -69,6 +70,14 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
   }
 
   public async startStream(config?: RtpSessionOptions): Promise<void> {
+    if (this.#hasEnded || this.#shutdownPromise) {
+      throw new Error('RTP session has ended and cannot be restarted.');
+    }
+
+    if (this.#rtpStream) {
+      throw new Error('RTP session already started.');
+    }
+
     this.#options = {
       ...config,
       input: {
@@ -107,19 +116,18 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
         break;
     }
 
-    this.#rtpStream = RTPStream.create(this.#url, {
+    const rtpStream = RTPStream.create(this.#url, {
       onAudioPacket: (packet: RtpPacket) => {
         this.onAudioRtp.next(packet);
       },
       onVideoPacket: (packet: RtpPacket) => {
         this.onVideoRtp.next(packet);
       },
-      onClose: async (err?: Error) => {
-        if (err) {
-          await this.#onError(err);
-        } else {
-          await this.#onEnded();
-        }
+      onClose: (err?: Error) => {
+        const shutdown = err ? this.#onError(err) : this.#onEnded();
+        shutdown.catch((error) => {
+          this.#logger.error('Failed to shut down RTP session:', error);
+        });
       },
       supportedVideoCodecs: supportedVideoCodec,
       supportedAudioCodecs: supportedAudioCodec,
@@ -151,7 +159,18 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       },
     });
 
-    await this.#rtpStream.start();
+    this.#rtpStream = rtpStream;
+
+    try {
+      await rtpStream.start();
+    } catch (error) {
+      try {
+        await this.#onEnded();
+      } catch (stopError) {
+        this.#logger.error('Failed to clean up RTP session after start error:', stopError);
+      }
+      throw error;
+    }
   }
 
   public async startBackchannel(config: RtpSessionBackchannelOptions): Promise<void> {
@@ -387,18 +406,27 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     await this.#onEnded();
   }
 
-  async #onEnded(): Promise<void> {
-    if (this.#hasEnded) {
-      return;
-    }
+  #onEnded(): Promise<void> {
+    this.#shutdownPromise ??= Promise.resolve().then(() => this.#shutdown());
+    return this.#shutdownPromise;
+  }
 
+  async #shutdown(): Promise<void> {
     this.#hasEnded = true;
 
-    this.unsubscribe();
+    try {
+      await this.#cleanupBackchannel();
+      await this.#cleanupStream();
+    } finally {
+      this.onStarted.complete();
+      this.onError.complete();
+      this.onVideoRtp.complete();
+      this.onAudioRtp.complete();
 
-    await this.#cleanupBackchannel();
-    await this.#cleanupStream();
+      this.unsubscribe();
 
-    this.onEnded.next();
+      this.onEnded.next();
+      this.onEnded.complete();
+    }
   }
 }

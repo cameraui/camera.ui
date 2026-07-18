@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Camera streaming sessions release their resources reliably.** When a HomeKit stream or recording ended, failed to start or was stopped twice at once, native video resources could stay behind and slowly drive up CPU and memory on long-running installations. Every shutdown path now waits for the same cleanup, and a failed start releases everything it opened. Thanks @JxnLexn!
+
 - **Discovered cameras from different plugins can no longer hide each other.** When two plugins reported a device under the same internal id, only one of them showed up under Discovered, and adopting it could go through the wrong plugin. Discovery entries are now tracked per plugin.
 
 - **Two cameras can no longer end up with the same name.** Adopting discovered cameras that report identical names (common with ONVIF) or renaming a camera to an existing name created duplicates, which broke streams and blocked adding the cameras to Camview. Adopted cameras now get a free name suggested ("Camera 2"), and saving a taken name is rejected with a clear message. Names that only differ in casing or spaces count as taken too.
