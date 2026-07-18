@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Discovered cameras from different plugins can no longer hide each other.** When two plugins reported a device under the same internal id, only one of them showed up under Discovered, and adopting it could go through the wrong plugin. Discovery entries are now tracked per plugin.
+
+- **Two cameras can no longer end up with the same name.** Adopting discovered cameras that report identical names (common with ONVIF) or renaming a camera to an existing name created duplicates, which broke streams and blocked adding the cameras to Camview. Adopted cameras now get a free name suggested ("Camera 2"), and saving a taken name is rejected with a clear message. Names that only differ in casing or spaces count as taken too.
+
 - **Plugins on two different Python versions no longer wipe each other during install.** When plugins needed both supported Python versions, installing the newer one could delete the older one mid-install, so plugins failed on first start until the next restart. Cleanup now only removes outdated builds of the same version.
 
 - **Slow first-time plugin setup on a worker no longer gets cut off.** Assigning a heavy plugin to a worker could hit the 5 minute limit while Python and dependencies were still downloading, and the master pulled the plugin back to run locally. The master now keeps waiting while the worker reports installation progress, up to 10 minutes.

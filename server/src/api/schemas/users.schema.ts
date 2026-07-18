@@ -1,5 +1,9 @@
 import { uuidv4 } from '@camera.ui/common/utils';
+import { SENSOR_META } from '@camera.ui/sdk';
 import * as zod from 'zod';
+
+import type { SensorMeta } from '@camera.ui/sdk';
+import type { SensorShortcutType } from '../database/types.js';
 
 import { uploadSchema } from '../utils/upload.js';
 import { pointsSchema } from './cameras.schema.js';
@@ -58,22 +62,8 @@ export const userPreferencesCamview = zod.object({
   views: userPreferencesCamviewViewsLayout.array(),
 });
 
-export const sensorShortcutTypeSchema = zod.enum([
-  'contact',
-  'temperature',
-  'humidity',
-  'occupancy',
-  'smoke',
-  'leak',
-  'light',
-  'siren',
-  'switch',
-  'lock',
-  'garage',
-  'doorbell',
-  'securitySystem',
-  'battery',
-]);
+const shortcutTypeValues = (SENSOR_META as readonly SensorMeta[]).filter((meta) => meta.shortcutable).map((meta) => String(meta.type));
+export const sensorShortcutTypeSchema = zod.enum(shortcutTypeValues as [SensorShortcutType, ...SensorShortcutType[]]);
 
 const cameraShortcutSchema = zod.object({
   _id: zod

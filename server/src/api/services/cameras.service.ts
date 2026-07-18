@@ -3,9 +3,9 @@ import { canCreateCameras, isHub, PluginRole, SensorType } from '@camera.ui/sdk'
 import { TTLCache } from '@isaacs/ttlcache';
 import { container, delay, registry } from 'tsyringe';
 
-import { getMultiProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../camera/sensors/types.js';
+import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../camera/sensors/types.js';
 import { ConfigService } from '../../services/config/index.js';
-import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
+import { applySourceUrlFlags, createSourceName, normalizeCameraName } from '../../utils/camera.js';
 import { Database } from '../database/index.js';
 import { PluginsService } from './plugins.service.js';
 import { UsersService } from './users.service.js';
@@ -61,6 +61,10 @@ export class CamerasService {
   }
 
   public async createCamera(cameraData: DBCamera): Promise<DBCamera> {
+    if (this.findByConflictingName(cameraData.name)) {
+      throw new Error(`Camera name "${cameraData.name}" is already in use`);
+    }
+
     const plugin = this.pluginsService.getPluginById(cameraData.pluginInfo?.id ?? '');
     if (plugin) {
       if (!canCreateCameras(plugin.contract)) {
@@ -234,6 +238,23 @@ export class CamerasService {
     return camera ? this.transformCamera(camera) : undefined;
   }
 
+  public findByConflictingName(cameraname: string, excludeId?: string): DBCamera | undefined {
+    const normalized = normalizeCameraName(cameraname);
+    for (const { value } of this.dbs.camerasDB.getRange()) {
+      if (value._id !== excludeId && normalizeCameraName(value.name) === normalized) return value;
+    }
+    return undefined;
+  }
+
+  public availableName(base: string): string {
+    if (!this.findByConflictingName(base)) return base;
+
+    for (let i = 2; ; i++) {
+      const candidate = `${base} ${i}`;
+      if (!this.findByConflictingName(candidate)) return candidate;
+    }
+  }
+
   public findByPluginAndName(cameraname: string, pluginId: string): DBCamera | undefined {
     for (const { value } of this.dbs.camerasDB.getRange()) {
       if (value.name === cameraname && value.pluginInfo?.id === pluginId) return value;
@@ -249,6 +270,10 @@ export class CamerasService {
   public async patchCameraByName(cameraname: string, cameraData: DeepPartial<DBCamera>): Promise<DBCamera | undefined> {
     const camera = this.findByName(cameraname);
     if (!camera) return undefined;
+
+    if (cameraData.name && this.findByConflictingName(cameraData.name, camera._id)) {
+      throw new Error(`Camera name "${cameraData.name}" is already in use`);
+    }
 
     const cameraController = this.api.getCamera(camera._id);
     const cameraOld = structuredClone(camera);
@@ -462,9 +487,9 @@ export class CamerasService {
 
     camera.plugins = camera.plugins.filter((p) => p.name !== plugin.pluginName);
 
-    const singleProviderKeys = ['motion', 'object', 'audio', 'face', 'licensePlate', 'ptz', 'battery', 'cameraController'] as const;
+    const singleProviderKeys = [...getSingleProviderTypes().map((type) => SENSOR_TYPE_CONFIG[type].assignmentKey), 'cameraController'];
     for (const key of singleProviderKeys) {
-      const assignment = camera.assignments[key];
+      const assignment = camera.assignments[key as keyof typeof camera.assignments];
       if (assignment && !Array.isArray(assignment) && assignment.name === plugin.pluginName) {
         (camera.assignments as Record<string, unknown>)[key] = undefined;
       }

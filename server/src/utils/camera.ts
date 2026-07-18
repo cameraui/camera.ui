@@ -104,6 +104,10 @@ export function buildSnapshotUrl(cameraName: string, sourceName: string, snapsho
   return `${baseUrl}?${params.join('&')}`;
 }
 
+export function normalizeCameraName(name: string): string {
+  return name.replace(/ /g, '_').toLowerCase();
+}
+
 export function createSourceName(cameraName: string, sourceName: string): string {
-  return `cui_${cameraName.replace(/ /g, '_').toLowerCase()}_${sourceName.replace(/ /g, '_').toLowerCase()}`;
+  return `cui_${normalizeCameraName(cameraName)}_${normalizeCameraName(sourceName)}`;
 }

@@ -48,6 +48,7 @@ interface DiscoveredCameraInternal extends DiscoveredCamera {
   address?: string;
   _internalAddress?: string;
   _originalUrl?: string;
+  _pluginCameraId?: string;
 }
 
 interface AdoptResult {
@@ -254,7 +255,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       if (!plugin.worker?.isRunning()) {
         throw new Error(`Plugin "${plugin.pluginName}" is not running`);
       }
-      const result = await plugin.worker.pluginProxy.onGetCameraSettings?.(camera);
+      const result = await plugin.worker.pluginProxy.onGetCameraSettings?.(this.toPluginCamera(camera));
       return result ?? [];
     }
 
@@ -274,6 +275,8 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       const draft = discoveredId.startsWith('go2rtc:')
         ? await this.prepareGo2rtcCamera(discoveredId, cameraSettings)
         : await this.preparePluginCamera(discoveredId, cameraSettings);
+
+      draft.name = this.camerasService.availableName(draft.name);
 
       this.setConnectionState(discoveredId, 'idle');
       this.broadcastConnectionStatus(discoveredId);
@@ -371,10 +374,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
 
     const sourceId = `plugin-${pluginId}`;
 
-    const internalCameras: DiscoveredCameraInternal[] = cameras.map((c) => ({
-      ...c,
-      provider: pluginId,
-    }));
+    const internalCameras: DiscoveredCameraInternal[] = cameras.map((c) => this.toInternalPluginCamera(pluginId, c));
 
     this.updateSourceCache(sourceId, internalCameras);
 
@@ -473,7 +473,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
         return [];
       }
 
-      const result = cameras.map((c) => ({ ...c, provider: pluginId }));
+      const result = cameras.map((c) => this.toInternalPluginCamera(pluginId, c));
 
       for (const camera of result) {
         this.discoveredCamerasCache.set(camera.id, camera);
@@ -571,13 +571,21 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     };
   }
 
-  private findDiscoveredCamera(discoveredId: string): { plugin: Plugin | null; camera: DiscoveredCamera | null } {
+  private findDiscoveredCamera(discoveredId: string): { plugin: Plugin | null; camera: DiscoveredCameraInternal | null } {
     const camera = this.discoveredCamerasCache.get(discoveredId);
     if (camera) {
       const plugin = this.pluginsService.getPluginById(camera.provider);
       return { plugin: plugin ?? null, camera };
     }
     return { plugin: null, camera: null };
+  }
+
+  private toInternalPluginCamera(pluginId: string, camera: DiscoveredCamera): DiscoveredCameraInternal {
+    return { ...camera, id: `${pluginId}:${camera.id}`, _pluginCameraId: camera.id, provider: pluginId };
+  }
+
+  private toPluginCamera(camera: DiscoveredCameraInternal): DiscoveredCamera {
+    return { ...camera, id: camera._pluginCameraId ?? camera.id };
   }
 
   private formatPluginName(pluginId: string): string {
@@ -936,7 +944,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
       throw new Error(`Plugin "${plugin.pluginName}" is not running`);
     }
 
-    const cameraConfig = await plugin.worker.pluginProxy.onAdoptCamera?.(camera, cameraSettings);
+    const cameraConfig = await plugin.worker.pluginProxy.onAdoptCamera?.(this.toPluginCamera(camera), cameraSettings);
     if (!cameraConfig) {
       throw new Error(`Plugin "${plugin.pluginName}" does not support camera adoption`);
     }

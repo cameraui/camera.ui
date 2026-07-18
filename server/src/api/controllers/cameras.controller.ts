@@ -3,6 +3,8 @@ import { createReadStream, truncate } from 'node:fs';
 import { Readable } from 'node:stream';
 import { container } from 'tsyringe';
 
+import { resolveSensorSemantics } from '../../camera/sensors/semantics.js';
+import { SENSOR_TYPE_CONFIG } from '../../camera/sensors/types.js';
 import { createSourceName } from '../../utils/camera.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { PluginsService } from '../services/plugins.service.js';
@@ -24,6 +26,8 @@ import type {
   CameraZoneInsertPatchRequest,
   CamerasExtensionsParamsRequest,
   CamerasExtensionsRequest,
+  CameraSensorCommandParamsRequest,
+  CameraSensorCommandRequest,
   CamerasInsertRequest,
   CamerasParamsRequest,
   CamerasPatchRequest,
@@ -519,9 +523,84 @@ export class CamerasController {
     }
   }
 
+  public getSensorsByName(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const camera = this.service.findByName(req.params.cameraname) ?? this.service.findById(req.params.cameraname);
+      const cameraController = this.api.getCamera(camera?._id ?? '');
+
+      if (!camera || !cameraController) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Camera not exists',
+        });
+      }
+
+      const sensors = cameraController.sensorController.getSensors().map((sensor) => ({
+        id: sensor.id,
+        stableId: sensor.stableId,
+        globalId: sensor.globalId,
+        type: sensor.type,
+        displayName: sensor.displayName,
+        properties: sensor.properties,
+        capabilities: sensor.capabilities,
+        semantics: resolveSensorSemantics(sensor),
+      }));
+
+      return reply.code(200).send({ sensors });
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async commandSensorByName(
+    req: FastifyRequest<AuthLoginRequest & CameraSensorCommandParamsRequest & CameraSensorCommandRequest>,
+    reply: FastifyReply,
+  ): Promise<FastifyReply> {
+    try {
+      const camera = this.service.findByName(req.params.cameraname) ?? this.service.findById(req.params.cameraname);
+      const cameraController = this.api.getCamera(camera?._id ?? '');
+
+      if (!camera || !cameraController) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Camera not exists',
+        });
+      }
+
+      // stableId survives restarts, unlike the runtime sensor id: same key MQTT commands use
+      const sensor = cameraController.sensorController.getAllSensors().find((s) => s.data.stableId === req.params.stableId);
+
+      if (!sensor) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Sensor not exists',
+        });
+      }
+
+      if (SENSOR_TYPE_CONFIG[sensor.type]?.isDetectionType) {
+        return reply.code(400).send({
+          statusCode: 400,
+          message: 'Sensor is read-only',
+        });
+      }
+
+      await sensor.updateValue(req.body.property, req.body.value);
+
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
   public async insert(req: FastifyRequest<AuthLoginRequest & CamerasInsertRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const camera = this.service.findByName(req.body.name) ?? this.service.findById(req.body.name);
+      const camera = this.service.findByConflictingName(req.body.name) ?? this.service.findById(req.body.name);
 
       if (camera) {
         return reply.code(409).send({
@@ -649,6 +728,13 @@ export class CamerasController {
         return reply.code(404).send({
           statusCode: 404,
           message: 'Camera not exists',
+        });
+      }
+
+      if (req.body.name && this.service.findByConflictingName(req.body.name, camera._id)) {
+        return reply.code(409).send({
+          statusCode: 409,
+          message: `Camera name "${req.body.name}" is already in use`,
         });
       }
 
