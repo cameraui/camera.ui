@@ -17,6 +17,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
   readonly onEnded = new ReplaySubject<void>(1);
 
   #hasEnded = false;
+  #shutdownPromise?: Promise<void>;
   #cameraDevice: CameraDevice;
   #logger: LoggerService;
   #source: CameraDeviceSource;
@@ -41,6 +42,14 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
   }
 
   public async startStream(config?: Fmp4SessionOptions): Promise<void> {
+    if (this.#hasEnded || this.#shutdownPromise) {
+      throw new Error('FMP4 session has ended and cannot be restarted.');
+    }
+
+    if (this.#fmp4Stream) {
+      throw new Error('FMP4 session already started.');
+    }
+
     this.#options = {
       ...config,
       input: {
@@ -52,14 +61,6 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     };
 
     this.#logger.debug('Starting FMP4 session with options:', this.#options);
-
-    if (this.#boxDataSubject.closed) {
-      this.#boxDataSubject = new ReplaySubject<Buffer>(1);
-    }
-
-    if (this.#initSegmentSubject.closed) {
-      this.#initSegmentSubject = new ReplaySubject<Buffer>(1);
-    }
 
     const supportedVideoCodec = new Set<string>();
     for (const videoCodec of this.#options.supportedVideoCodecs ?? []) {
@@ -97,7 +98,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     let initSegment: Buffer | undefined;
     let initSegmentSent = false;
 
-    this.#fmp4Stream = FMP4Stream.create(this.#url, {
+    const fmp4Stream = FMP4Stream.create(this.#url, {
       onData: (data: Buffer, info: FMP4Data) => {
         for (const box of info.boxes) {
           if (box.type === 'ftyp') {
@@ -125,12 +126,11 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
           this.#boxDataSubject.next(data);
         }
       },
-      onClose: async (err?: Error) => {
-        if (err) {
-          await this.#onError(err);
-        } else {
-          await this.#onEnded();
-        }
+      onClose: (err?: Error) => {
+        const shutdown = err ? this.#onError(err) : this.#onEnded();
+        void shutdown.catch((error) => {
+          this.#logger.error('Failed to shut down FMP4 session:', error);
+        });
       },
       boxMode: this.#options.boxMode,
       fragDuration: this.#options.fragDuration,
@@ -149,7 +149,18 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
       },
     });
 
-    await this.#fmp4Stream.start();
+    this.#fmp4Stream = fmp4Stream;
+
+    try {
+      await fmp4Stream.start();
+    } catch (error) {
+      try {
+        await this.#onEnded();
+      } catch (stopError) {
+        this.#logger.error('Failed to clean up FMP4 session after start error:', stopError);
+      }
+      throw error;
+    }
   }
 
   public async *streamBoxes(signal?: AbortSignal): AsyncGenerator<Buffer, void> {
@@ -213,11 +224,12 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     } finally {
       cleanup();
       endSub.unsubscribe();
+      signal?.removeEventListener('abort', cleanup);
     }
   }
 
   public async stop(): Promise<void> {
-    this.#onEnded();
+    await this.#onEnded();
   }
 
   async #onError(error: Error): Promise<void> {
@@ -225,22 +237,29 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     await this.#onEnded();
   }
 
-  async #onEnded(): Promise<void> {
-    if (this.#hasEnded) {
-      return;
-    }
+  #onEnded(): Promise<void> {
+    this.#shutdownPromise ??= Promise.resolve().then(() => this.#shutdown());
+    return this.#shutdownPromise;
+  }
 
+  async #shutdown(): Promise<void> {
     this.#hasEnded = true;
 
-    await this.#fmp4Stream?.stop();
+    const fmp4Stream = this.#fmp4Stream;
     this.#fmp4Stream = undefined;
 
-    this.#boxDataSubject.complete();
-    this.#initSegmentSubject.complete();
+    try {
+      await fmp4Stream?.stop();
+    } finally {
+      this.#boxDataSubject.complete();
+      this.#initSegmentSubject.complete();
+      this.onStarted.complete();
+      this.onError.complete();
 
-    this.unsubscribe();
+      this.unsubscribe();
 
-    this.onEnded.next();
-    this.onEnded.complete();
+      this.onEnded.next();
+      this.onEnded.complete();
+    }
   }
 }
