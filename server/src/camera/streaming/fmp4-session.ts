@@ -128,7 +128,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
       },
       onClose: (err?: Error) => {
         const shutdown = err ? this.#onError(err) : this.#onEnded();
-        void shutdown.catch((error) => {
+        shutdown.catch((error) => {
           this.#logger.error('Failed to shut down FMP4 session:', error);
         });
       },
