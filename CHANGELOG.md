@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.16]
 
+### Added
+
+- **Your cameras' sensors and detections are now available to other tools.** Every camera's sensors (contact, lock, light, alarm, and more) can be read and controlled over the API and MQTT, and the live event stream reports the objects, faces and license plates it recognizes. Home Assistant and similar integrations can mirror your cameras and use them in automations.
+
 ### Fixed
 
 - **Plugins on two different Python versions no longer wipe each other during install.** When plugins needed both supported Python versions, installing the newer one could delete the older one mid-install, so plugins failed on first start until the next restart. Cleanup now only removes outdated builds of the same version.

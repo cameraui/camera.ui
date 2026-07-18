@@ -1,6 +1,6 @@
 import { Subject } from '@camera.ui/sdk';
 
-import { computeSensorStableId } from '../../../../camera/sensors/stable-id.js';
+import { computeSensorGlobalId, computeSensorStableId } from '../../../../camera/sensors/stable-id.js';
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -23,7 +23,6 @@ export class SensorProxy implements SensorLike {
   private _ownerId: string;
   private _cameraId: string;
   private _proxy: RPCClient;
-  private _ownerNamespace: string;
   private _properties = new Map<string, unknown>();
   private _capabilities: string[] = [];
   private _rpcProxy: Promisify<SensorLike>;
@@ -37,7 +36,6 @@ export class SensorProxy implements SensorLike {
     this._ownerId = data.pluginId;
     this._cameraId = cameraId;
     this._proxy = proxy;
-    this._ownerNamespace = ownerNamespace;
     this._capabilities = data.capabilities ?? [];
 
     this.onPropertyChanged = this.#propertyChangedSubject.asObservable();
@@ -166,9 +164,12 @@ export class SensorProxy implements SensorLike {
   }
 
   toStoredData(): StoredSensorData {
+    const stableId = computeSensorStableId(this._ownerId, this.type, this.name);
+
     return {
       id: this.id,
-      stableId: computeSensorStableId(this._ownerId, this.type, this.name),
+      stableId,
+      globalId: computeSensorGlobalId(this._cameraId, stableId),
       type: this.type,
       name: this.name,
       displayName: this.displayName,

@@ -14,7 +14,6 @@ export class ServerSensor implements SensorLike {
   public readonly name: string;
   public readonly pluginId?: string;
 
-  // Server-side: empty Observables — changes broadcast via RPC, consumers subscribe via SensorProxy.
   public readonly onPropertyChanged = new Observable<{ property: string; value: unknown; timestamp: number }>(() => new Disposable(() => {}));
   public readonly onCapabilitiesChanged = new Observable<string[]>(() => new Disposable(() => {}));
 
@@ -69,9 +68,6 @@ export class ServerSensor implements SensorLike {
     };
   }
 
-  // Forwards to the owning plugin via RPC — same path as UI/SensorProxy. For
-  // Control sensors (Light, PTZ, Switch, Siren, Lock, ...) this triggers the
-  // plugin-side hardware action; state mirrors back via the property-change broadcast.
   public async updateValue(property: string, value: unknown): Promise<void> {
     if (!this.pluginId) {
       this.applyPropertyWrites({ [property]: value });
@@ -89,13 +85,21 @@ export class ServerSensor implements SensorLike {
   public async setDisplayNameAsync(displayName: string): Promise<void> {
     if (!this.pluginId) throw new Error(`Cannot persist display name for sensor ${this.id} without owner plugin`);
 
-    // Persist first — if storage write fails, nothing changes.
     await this.ctx.sensorStorageProxy(this.pluginId, this.id).setInternalValue('_displayName', displayName);
     this.data.displayName = displayName;
 
     this.ctx.publishSensorEvent(this.id, {
       type: 'sensor:displayName:changed',
       data: { cameraId: this.ctx.cameraId, sensorId: this.id, displayName },
+    });
+
+    this.ctx.emitBus('sensor:displayName:changed', {
+      cameraId: this.ctx.cameraId,
+      sensorId: this.id,
+      sensorStableId: this.data.stableId,
+      sensorGlobalId: this.data.globalId,
+      sensorType: String(this.type),
+      displayName,
     });
   }
 
@@ -110,11 +114,17 @@ export class ServerSensor implements SensorLike {
     };
 
     this.ctx.publishSensorEvent(this.id, { type: 'sensor:capabilities:changed', data: event });
+
+    this.ctx.emitBus('sensor:capabilities:changed', {
+      cameraId: this.ctx.cameraId,
+      sensorId: this.id,
+      sensorStableId: this.data.stableId,
+      sensorGlobalId: this.data.globalId,
+      sensorType: String(this.type),
+      capabilities: unique,
+    });
   }
 
-  // Batch property write for non-detection sensors. Detection writes
-  // (Motion/Audio/Object/Face/LPD/Classifier) go direct through the
-  // DetectionCoordinator — drop with a warning if they land here.
   public applyPropertyWrites(properties: Record<string, unknown>): void {
     if (DETECTION_SENSOR_TYPES.has(this.type)) {
       this.ctx.logger.warn(`Detection sensor "${this.name}" (${this.type}) wrote via applyPropertyWrites — expected direct route to DetectionCoordinator. Drop.`);
@@ -126,7 +136,6 @@ export class ServerSensor implements SensorLike {
     for (const [property, value] of Object.entries(properties)) {
       this.validateCapability(property);
 
-      // modelSpec is metadata, not a sensor property
       if (property === 'modelSpec') {
         this.data.modelSpec = value as ModelSpec | undefined;
         continue;
@@ -136,8 +145,6 @@ export class ServerSensor implements SensorLike {
     }
   }
 
-  // Called by the controller when a coordinator-published write batch arrives
-  // on the NATS subscription — mirror update for detection-owned state.
   public applyWriteBatch(properties: Record<string, unknown>): void {
     for (const [property, value] of Object.entries(properties)) {
       this.writeProperty(property, value);
@@ -167,6 +174,7 @@ export class ServerSensor implements SensorLike {
       cameraId: this.ctx.cameraId,
       sensorId: this.id,
       sensorStableId: this.data.stableId,
+      sensorGlobalId: this.data.globalId,
       sensorType: String(this.type),
       property: String(property),
       value,

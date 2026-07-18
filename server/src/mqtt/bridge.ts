@@ -44,10 +44,12 @@ export class MqttBridge {
       this.publishServerState();
       this.publishServerEvent('started');
     });
+
     this.onBus('system:shutdown', () => {
       this.publishServerEvent('shutdown');
       this.manager.publish(this.manager.topics.availability, 'offline', { retain: true, qos: 1 });
     });
+
     this.onBus('system:notification', (payload) => {
       const notification = payload as SystemNotificationPayload;
       this.manager.publish(this.manager.topics.serverNotification, JSON.stringify({ ...notification, timestamp: Date.now() }));
@@ -67,6 +69,7 @@ export class MqttBridge {
       this.subscribeCamera(controller);
       this.publishCameraState(controller);
     });
+
     this.onBus('camera:removed', (payload) => {
       const { cameraId } = payload as CameraEventPayload;
       this.cameraSubscriptions.get(cameraId)?.();
@@ -74,22 +77,27 @@ export class MqttBridge {
       this.activeDetections.delete(cameraId);
       this.clearRetained(cameraId);
     });
+
     this.onBus('camera:connected', (payload) => {
       const { cameraId } = payload as CameraEventPayload;
       this.publishRetained(cameraId, this.manager.topics.cameraStatus(cameraId), 'online');
     });
+
     this.onBus('camera:disconnected', (payload) => {
       const { cameraId } = payload as CameraEventPayload;
       this.publishRetained(cameraId, this.manager.topics.cameraStatus(cameraId), 'offline');
     });
+
     this.onBus('camera:frameworker:started', (payload) => {
       const { cameraId } = payload as CameraEventPayload;
       this.publishRetained(cameraId, this.manager.topics.cameraFrameWorker(cameraId), 'online');
     });
+
     this.onBus('camera:frameworker:stopped', (payload) => {
       const { cameraId } = payload as CameraEventPayload;
       this.publishRetained(cameraId, this.manager.topics.cameraFrameWorker(cameraId), 'offline');
     });
+
     this.onBus('camera:property:changed', (payload) => {
       const { cameraId, property } = payload as CameraEventPayload;
       const controller = this.api.getCamera(cameraId);
@@ -102,18 +110,21 @@ export class MqttBridge {
       }
     });
 
-    this.onBus('sensor:added', (payload) => {
-      const sensor = payload as SensorLifecyclePayload;
-      const controller = this.api.getCamera(sensor.cameraId);
-      const data = controller?.sensorController.getSensor(sensor.sensorId)?.data;
-      if (controller && data) this.publishSensorState(controller, data);
-    });
+    this.onBus('sensor:added', (payload) => this.republishSensor(payload as SensorLifecyclePayload));
+
     this.onBus('sensor:removed', (payload) => {
       const sensor = payload as SensorLifecyclePayload;
       const sensorPrefix = `${this.manager.topics.sensorPrefix(sensor.cameraId, sensor.sensorStableId)}/`;
       const discoveryMarker = `/cameraui_${sensor.cameraId}/${sensor.sensorStableId}/`;
       this.clearRetained(sensor.cameraId, (topic) => topic.startsWith(sensorPrefix) || topic.includes(discoveryMarker));
     });
+
+    // a rename or capability flip changes the discovery config (name, brightness
+    // channel), so republish the whole sensor rather than a single property
+    this.onBus('sensor:displayName:changed', (payload) => this.republishSensor(payload as SensorLifecyclePayload));
+
+    this.onBus('sensor:capabilities:changed', (payload) => this.republishSensor(payload as SensorLifecyclePayload));
+
     this.onBus('sensor:property:changed', (payload) => {
       const change = payload as SensorPropertyChangedPayload;
       this.publishRetained(
@@ -252,6 +263,12 @@ export class MqttBridge {
       info: camera.info,
     };
     this.publishRetained(controller.id, this.manager.topics.cameraMeta(controller.id), JSON.stringify(meta));
+  }
+
+  private republishSensor(sensor: Pick<SensorLifecyclePayload, 'cameraId' | 'sensorId'>): void {
+    const controller = this.api.getCamera(sensor.cameraId);
+    const data = controller?.sensorController.getSensor(sensor.sensorId)?.data;
+    if (controller && data) this.publishSensorState(controller, data);
   }
 
   private publishSensorState(controller: CameraController, data: StoredSensorData): void {

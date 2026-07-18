@@ -1,3 +1,6 @@
+import { SensorCategory } from '@camera.ui/sdk';
+import { getShortcutableTypes, SENSOR_TYPE_CONFIG } from '@shared/types';
+
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { DBSensorShortcut, SensorShortcutType } from '@shared/types';
 
@@ -14,6 +17,18 @@ export interface ResolvedSensorShortcut {
   isOnline: boolean;
 }
 
-export const SENSOR_READONLY_TYPES = new Set<SensorShortcutType>(['contact', 'temperature', 'humidity', 'occupancy', 'smoke', 'leak', 'battery']);
+const shortcutable = getShortcutableTypes();
 
-export const INFO_SENSOR_TYPES = new Set<SensorShortcutType>(['temperature', 'humidity', 'battery']);
+export const SENSOR_SHORTCUTABLE_TYPES = new Set<SensorShortcutType>(shortcutable.map((type) => String(type) as SensorShortcutType));
+
+export const SENSOR_READONLY_TYPES = new Set<SensorShortcutType>(
+  shortcutable
+    .filter((type) => [SensorCategory.Sensor, SensorCategory.Info].includes(SENSOR_TYPE_CONFIG[type].category))
+    .map((type) => String(type) as SensorShortcutType),
+);
+
+export const INFO_SENSOR_TYPES = new Set<SensorShortcutType>(
+  shortcutable
+    .filter((type) => SENSOR_TYPE_CONFIG[type].category === SensorCategory.Info)
+    .map((type) => String(type) as SensorShortcutType),
+);

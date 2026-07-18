@@ -15,6 +15,8 @@ import {
   probeQuerySchema,
   scopedPluginParamsSchema,
   scopedSensorParamsSchema,
+  sensorCommandParamsSchema,
+  sensorCommandSchema,
   sensorParamsSchema,
   snapshotQuerySchema,
   streamParamsSchema,
@@ -144,6 +146,31 @@ export const CamerasRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Cameras'],
       summary: 'Get ready-to-use RTSP URLs for all stream sources of a camera',
       params: cameraParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:cameraname/sensors',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: camerasController.getSensorsByName.bind(camerasController),
+    schema: {
+      tags: ['Cameras'],
+      summary: 'Get the current sensor states for a camera',
+      params: cameraParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:cameraname/sensors/:stableId/command',
+    method: 'POST',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: camerasController.commandSensorByName.bind(camerasController),
+    schema: {
+      tags: ['Cameras'],
+      summary: 'Send a control command to a camera sensor',
+      params: sensorCommandParamsSchema,
+      body: sensorCommandSchema,
     },
   });
 

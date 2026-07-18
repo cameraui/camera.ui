@@ -4,6 +4,7 @@ import type { PropertyChangedEvent, SensorJSON } from '@camera.ui/sdk/internal';
 export interface StoredSensorData {
   id: string;
   stableId: string;
+  globalId: string;
   type: SensorType;
   name: string;
   displayName: string;

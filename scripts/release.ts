@@ -120,6 +120,11 @@ async function main(): Promise<void> {
   console.log(chalk.cyan(`\r\nReleasing ${chalk.bold(name)}: ${current} -> ${chalk.bold(next)} (tag ${tag})\r\n`));
 
   if (!skipChecks) {
+    if (target === 'server') {
+      console.log(chalk.yellow('Checking sensor-type parity...'));
+      execSync('npm run check:sensors', { cwd: ROOT, stdio: 'inherit' });
+    }
+
     console.log(chalk.yellow(`Building ${name}...`));
     execSync(`npm --prefix "${pkgDir}" run build`, { cwd: ROOT, stdio: 'inherit' });
   }

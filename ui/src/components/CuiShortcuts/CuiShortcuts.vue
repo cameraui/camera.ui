@@ -522,7 +522,7 @@ import { CamerasQuery, getCameraFn } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
 
-import { INFO_SENSOR_TYPES, SENSOR_READONLY_TYPES } from './types.js';
+import { INFO_SENSOR_TYPES, SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from './types.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { NvrPlayback } from '@camera.ui/nvr';
@@ -608,7 +608,6 @@ const availableSensorsForShortcuts = computed(() => {
 });
 
 const resolvedSensorShortcuts = computed<ResolvedSensorShortcut[]>(() => {
-  // Direct allSensors.value access so Vue tracks it as dependency.
   const currentSensors = allSensors.value;
   const list = sensorShortcuts.value;
 
@@ -709,7 +708,6 @@ function getSensorIconStyle(sensorType: string, isActive: boolean): Record<strin
     case 'switch':
       return isActive ? { color: 'rgb(34, 197, 94)', filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.7))' } : { color: 'var(--text-secondary-color)' };
     case 'contact':
-      // isActive = open (orange, triggered); !isActive = closed (secondary, normal).
       return isActive ? { color: 'rgb(251, 146, 60)', filter: 'drop-shadow(0 0 8px rgba(251, 146, 60, 0.6))' } : { color: 'var(--text-secondary-color)' };
     case 'lock':
       return isActive ? { color: 'rgb(34, 197, 94)', filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.7))' } : { color: 'var(--text-secondary-color)' };
@@ -726,15 +724,10 @@ function getSensorIconStyle(sensorType: string, isActive: boolean): Record<strin
     case 'garage':
       return isActive ? { color: 'rgb(34, 197, 94)', filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.7))' } : { color: 'var(--text-secondary-color)' };
     case 'doorbell':
-      // isActive = ringing — yellow glow + shake animation handled by CSS class on the icon.
       return isActive ? { color: 'rgb(234, 179, 8)', filter: 'drop-shadow(0 0 8px rgba(234, 179, 8, 0.8))' } : { color: 'var(--text-secondary-color)' };
     case 'securitySystem':
-      // isActive = armed (any non-disarmed state). Armed = purple (distinct
-      // from green family used by switch/lock/garage/occupancy). Template
-      // overrides this with red glow when AlarmTriggered.
       return isActive ? { color: 'rgb(168, 85, 247)', filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.7))' } : { color: 'var(--text-secondary-color)' };
     case 'battery':
-      // isActive = low battery (red warning). Otherwise neutral.
       return isActive ? { color: 'rgb(239, 68, 68)', filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.8))' } : { color: 'var(--text-secondary-color)' };
     default:
       return { color: 'var(--text-secondary-color)' };
@@ -742,38 +735,8 @@ function getSensorIconStyle(sensorType: string, isActive: boolean): Record<strin
 }
 
 function mapSensorTypeToShortcutType(type: SensorType): SensorShortcutType {
-  switch (type) {
-    case SensorType.Contact:
-      return 'contact';
-    case SensorType.Light:
-      return 'light';
-    case SensorType.Switch:
-      return 'switch';
-    case SensorType.Siren:
-      return 'siren';
-    case SensorType.Lock:
-      return 'lock';
-    case SensorType.Temperature:
-      return 'temperature';
-    case SensorType.Humidity:
-      return 'humidity';
-    case SensorType.Occupancy:
-      return 'occupancy';
-    case SensorType.Smoke:
-      return 'smoke';
-    case SensorType.Leak:
-      return 'leak';
-    case SensorType.Garage:
-      return 'garage';
-    case SensorType.Doorbell:
-      return 'doorbell';
-    case SensorType.SecuritySystem:
-      return 'securitySystem';
-    case SensorType.Battery:
-      return 'battery';
-    default:
-      return 'contact';
-  }
+  const shortcut = String(type) as SensorShortcutType;
+  return SENSOR_SHORTCUTABLE_TYPES.has(shortcut) ? shortcut : 'contact';
 }
 
 function findSensorInList(sensors: ReactiveSensor[], sensorType: string, sensorName: string, sensorPluginId: string): ReactiveSensor | undefined {

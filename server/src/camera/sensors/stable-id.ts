@@ -1,8 +1,14 @@
 import { createHash } from 'node:crypto';
 
+const SEPARATOR = '\u0000';
+
 export function computeSensorStableId(pluginId: string, sensorType: string, sensorName: string): string {
-  const hash = createHash('sha1').update(`${pluginId}\u0000${sensorType}\u0000${sensorName}`).digest('hex').slice(0, 6);
+  const hash = createHash('sha1').update([pluginId, sensorType, sensorName].join(SEPARATOR)).digest('hex').slice(0, 6);
   return `${slugify(sensorType)}_${slugify(sensorName)}_${hash}`;
+}
+
+export function computeSensorGlobalId(cameraId: string, stableId: string): string {
+  return `${cameraId}_${stableId}`;
 }
 
 function slugify(value: string): string {

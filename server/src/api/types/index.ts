@@ -361,6 +361,14 @@ export interface CamerasSensorStorageParamsRequest {
   Params: { cameraname: string; pluginname: string; sensorId: string; scope?: string };
 }
 
+export interface CameraSensorCommandParamsRequest {
+  Params: { cameraname: string; stableId: string };
+}
+
+export interface CameraSensorCommandRequest {
+  Body: { property: string; value: unknown };
+}
+
 export interface CamerasExtensionsRequest {
   Querystring: { type: SensorType };
 }

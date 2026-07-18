@@ -7,7 +7,7 @@ export type PluginEvent = 'plugin:started' | 'plugin:stopped' | 'plugin:error' |
 
 export type CameraEvent = 'camera:connected' | 'camera:disconnected' | 'camera:frameworker:started' | 'camera:frameworker:stopped' | 'camera:property:changed';
 
-export type SensorEvent = 'sensor:property:changed' | 'sensor:added' | 'sensor:removed';
+export type SensorEvent = 'sensor:property:changed' | 'sensor:added' | 'sensor:removed' | 'sensor:displayName:changed' | 'sensor:capabilities:changed';
 
 export type InternalEvent = SystemEvent | PluginEvent | CameraEvent | SensorEvent;
 
@@ -40,6 +40,7 @@ export interface SensorPropertyChangedPayload {
   cameraId: string;
   sensorId: string;
   sensorStableId: string;
+  sensorGlobalId: string;
   sensorType: string;
   property: string;
   value: unknown;
@@ -50,12 +51,38 @@ export interface SensorLifecyclePayload {
   cameraId: string;
   sensorId: string;
   sensorStableId: string;
+  sensorGlobalId: string;
   sensorType: string;
   sensorName?: string;
 }
 
+export interface SensorDisplayNameChangedPayload {
+  cameraId: string;
+  sensorId: string;
+  sensorStableId: string;
+  sensorGlobalId: string;
+  sensorType: string;
+  displayName: string;
+}
+
+export interface SensorCapabilitiesChangedPayload {
+  cameraId: string;
+  sensorId: string;
+  sensorStableId: string;
+  sensorGlobalId: string;
+  sensorType: string;
+  capabilities: string[];
+}
+
 export type InternalEventPayload =
-  SystemEventPayload | SystemNotificationPayload | PluginEventPayload | CameraEventPayload | SensorPropertyChangedPayload | SensorLifecyclePayload;
+  | SystemEventPayload
+  | SystemNotificationPayload
+  | PluginEventPayload
+  | CameraEventPayload
+  | SensorPropertyChangedPayload
+  | SensorLifecyclePayload
+  | SensorDisplayNameChangedPayload
+  | SensorCapabilitiesChangedPayload;
 
 export class InternalEventBus extends EventEmitter {
   constructor() {

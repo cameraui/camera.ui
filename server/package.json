@@ -27,9 +27,9 @@
     "copy:files": "cpy package.json dist/server && cpy requirements.txt dist/server && cpy 'src/**/*.py' dist/server/src --parents",
     "format": "prettier --write 'src/' 'bin/' --ignore-unknown --no-error-on-unmatched-pattern && ruff format",
     "install-updates": "npm i --save",
-    "lint": "eslint --fix . && mypy --config-file ./mypy.ini src",
+    "lint": "eslint --fix . && ruff check --fix && mypy --config-file ./mypy.ini src",
     "update": "updates --update ./ && cupdate",
-    "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build && npm --prefix ../ui run lint && npm --prefix ../ui run format && npm --prefix ../ui run build",
+    "prepublishOnly": "npm i --package-lock-only && npm --prefix .. run check:sensors && npm run lint && npm run format && npm run build && npm --prefix ../ui run lint && npm --prefix ../ui run format && npm --prefix ../ui run build",
     "publish:dev": "npm publish --tag dev"
   },
   "dependencies": {

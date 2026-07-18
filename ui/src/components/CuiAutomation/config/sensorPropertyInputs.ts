@@ -71,7 +71,7 @@ const SENSOR_PROPERTY_INPUTS: Partial<Record<SensorType, Record<string, SensorPr
     currentState: { kind: 'enum', options: SECURITY_STATES },
     targetState: { kind: 'enum', options: SECURITY_STATES },
   },
-  [SensorType.PTZ]: { moving: BOOLEAN, targetPreset: { kind: 'text' } },
+  [SensorType.PTZ]: { moving: BOOLEAN, targetPreset: { kind: 'text' }, home: BOOLEAN },
   [SensorType.Temperature]: { current: { kind: 'number' } },
   [SensorType.Humidity]: { current: PERCENT },
   [SensorType.Battery]: { level: PERCENT, low: BOOLEAN, charging: { kind: 'enum', options: CHARGING_STATES } },

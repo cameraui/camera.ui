@@ -13,7 +13,6 @@ export const pythonPath = resolve(join(__dirname, '..')).replace('app.asar', ELE
 
 export const serverRequirementsPath = resolve(join(__dirname, '..', '..', 'requirements.txt')).replace('app.asar', ELECTRON_ASAR_UNPACKED);
 
-export const pythonDecoderPath = resolve(join(__dirname, '..', 'camera', 'decoder', 'python', 'child.py')).replace('app.asar', ELECTRON_ASAR_UNPACKED);
 export const pythonPluginPath = resolve(join(__dirname, '..', 'plugins', 'runtime', 'python', 'child.py')).replace('app.asar', ELECTRON_ASAR_UNPACKED);
 
 export const nodeDecoderPath = resolve(join(__dirname, '..', 'camera', 'decoder', `child.${JS_EXT}`)).replace('app.asar', ELECTRON_ASAR_UNPACKED);

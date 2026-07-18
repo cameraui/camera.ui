@@ -8,7 +8,7 @@ import { PLUGIN_STATUS } from '../../plugins/types.js';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { isShuttingDown } from '../../shutdown-state.js';
 import { ServerSensor } from './sensor.js';
-import { computeSensorStableId } from './stable-id.js';
+import { computeSensorGlobalId, computeSensorStableId } from './stable-id.js';
 import { MULTI_PROVIDER_TYPES, SENSOR_TYPE_CONFIG } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
@@ -160,8 +160,6 @@ export class SensorController {
       }
     }
 
-    // Plugins that recreate sensor instances on reconnect (new UUID each time)
-    // without cleaning up the previous one — dedupe by (pluginId, type, name).
     // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     const existing = Array.from(this.sensors.values()).find((s) => s.pluginId === pluginId && s.type === sensor.type && s.name === sensor.name);
     if (existing && existing.id !== sensor.id) {
@@ -172,9 +170,11 @@ export class SensorController {
     }
 
     const capabilities = sensor.capabilities ? [...new Set(sensor.capabilities)] : [];
+    const stableId = computeSensorStableId(pluginId, sensor.type, sensor.name);
     const storedData: StoredSensorData = {
       id: sensor.id,
-      stableId: computeSensorStableId(pluginId, sensor.type, sensor.name),
+      stableId,
+      globalId: computeSensorGlobalId(this.cameraController.id, stableId),
       type: sensor.type,
       name: sensor.name,
       displayName: sensor.displayName,
@@ -522,6 +522,7 @@ export class SensorController {
       cameraId: this.cameraController.id,
       sensorId: data.id,
       sensorStableId: data.stableId,
+      sensorGlobalId: data.globalId,
       sensorType: String(event.state.type),
       sensorName: data.name,
     });
@@ -536,6 +537,7 @@ export class SensorController {
       cameraId: this.cameraController.id,
       sensorId: sensor.id,
       sensorStableId: sensor.stableId,
+      sensorGlobalId: sensor.globalId,
       sensorType: String(sensor.type),
       sensorName: sensor.name,
     });

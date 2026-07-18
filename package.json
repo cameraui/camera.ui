@@ -13,6 +13,7 @@
     "audit": "npm audit fix && tsx ./scripts/audit.ts",
     "build": "tsx ./scripts/build.ts",
     "bundle": "tsx ./scripts/bundle.ts",
+    "check:sensors": "tsx ./scripts/check-sensor-parity.ts",
     "format": "tsx ./scripts/format.ts",
     "install-updates": "npm i --save && tsx ./scripts/install.ts",
     "lint": "tsx ./scripts/lint.ts",

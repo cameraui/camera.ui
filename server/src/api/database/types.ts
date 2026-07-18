@@ -1,4 +1,4 @@
-import type { BaseCamera, Point, SensorType, Severity } from '@camera.ui/sdk';
+import type { BaseCamera, Point, SENSOR_META, SensorType, Severity } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
@@ -164,8 +164,7 @@ export type DBRoles = 'master' | 'admin' | 'user';
 
 export type ShortcutType = 'camera' | 'sensor';
 
-export type SensorShortcutType =
-  'contact' | 'temperature' | 'humidity' | 'occupancy' | 'smoke' | 'leak' | 'light' | 'siren' | 'switch' | 'lock' | 'garage' | 'doorbell' | 'securitySystem' | 'battery';
+export type SensorShortcutType = `${Extract<(typeof SENSOR_META)[number], { shortcutable: true }>['type']}`;
 
 export interface DBShortcutBase {
   readonly _id: string;

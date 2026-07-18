@@ -2,15 +2,7 @@ import { isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
-import {
-  deleteValueByKey,
-  generateConfigFromSchemas,
-  getValueByKey,
-  isButtonType,
-  isSubmitType,
-  removeCallbacksFromSchemas,
-  setValueByKey,
-} from '../../schema.js';
+import { deleteValueByKey, generateConfigFromSchemas, getValueByKey, isButtonType, isSubmitType, removeCallbacksFromSchemas, setValueByKey } from '../../schema.js';
 import { deleteLocation, readLocation, writeLocation } from '../../store/location.js';
 import { validateStoreValue } from '../../store/validate.js';
 

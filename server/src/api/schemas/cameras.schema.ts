@@ -249,7 +249,6 @@ export const assignmentsSchema = zod
     cameraController: pluginInfo.optional(),
     clip: pluginInfo.optional(),
 
-    // classifiers like bird classifier, dog breed, etc.
     classifier: pluginInfo.array().optional(),
 
     light: pluginInfo.array().optional(),
@@ -531,6 +530,16 @@ export const sensorParamsSchema = zod.object({
   cameraname: zod.string(),
   pluginname: zod.string(),
   sensorId: zod.string(),
+});
+
+export const sensorCommandParamsSchema = zod.object({
+  cameraname: zod.string(),
+  stableId: zod.string(),
+});
+
+export const sensorCommandSchema = zod.object({
+  property: zod.string(),
+  value: zod.unknown(),
 });
 
 export const scopedSensorParamsSchema = zod.object({
