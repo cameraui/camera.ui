@@ -26,6 +26,8 @@ export function useFileDownload() {
 }
 
 export async function download(options: DownloadOptions): Promise<void> {
+  options = { ...options, filename: sanitizeFilename(options.filename) };
+
   if (isCapacitor) {
     await downloadViaCapacitor(options);
     return;
@@ -38,6 +40,10 @@ export async function download(options: DownloadOptions): Promise<void> {
   }
 
   downloadViaAnchor(blob, options.filename);
+}
+
+function sanitizeFilename(filename: string): string {
+  return filename.replace(/[\\/:*?"<>|]/g, '_');
 }
 
 function buildAbsoluteUrl(url: string): string {
