@@ -6,9 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **camera.ui comes to Home Assistant.** Run it as a Home Assistant add-on and add the companion integration to bring your cameras onto your dashboards with live camera and PTZ cards, and open the full interface right in the sidebar.
+
+- **Serve the interface over plain HTTP for reverse proxies.** Setups behind Nginx, Caddy or Traefik that already handle HTTPS can now reach camera.ui over an optional HTTP port, instead of dealing with its self-signed certificate.
+
 - **Your cameras' sensors and detections are now available to other tools.** Every camera's sensors (contact, lock, light, alarm, and more) can be read and controlled over the API and MQTT, and the live event stream reports the objects, faces and license plates it recognizes. Home Assistant and similar integrations can mirror your cameras and use them in automations.
 
 ### Fixed
+
+- **camera.ui starts up quickly again.** With Go-based plugins installed (such as the NVR), the server could hang for minutes while starting.
 
 - **Camera streaming sessions release their resources reliably.** When a HomeKit stream or recording ended, failed to start or was stopped twice at once, native video resources could stay behind and slowly drive up CPU and memory on long-running installations. Every shutdown path now waits for the same cleanup, and a failed start releases everything it opened. Thanks @JxnLexn!
 
