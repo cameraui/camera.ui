@@ -83,43 +83,38 @@ export class GoPluginRuntime extends BasePluginRuntime {
   private platformKey(): string {
     const goos = platform() === 'win32' ? 'windows' : platform();
     const goarch = arch() === 'x64' ? 'amd64' : arch();
-    const suffix = goos === 'linux' && this.isMusl() ? '-musl' : '';
+    const suffix = goos === 'linux' && isMusl() ? '-musl' : '';
     return `${goos}-${goarch}${suffix}`;
   }
+}
 
-  private isMusl(): boolean {
-    if (platform() !== 'linux') {
-      return false;
-    }
+let cachedMusl: boolean | undefined;
 
-    try {
-      const report = (process.report?.getReport?.() ?? undefined) as { header?: { glibcVersionRuntime?: string }; sharedObjects?: string[] } | undefined;
-      if (report?.header?.glibcVersionRuntime) {
-        return false;
-      }
-      if (Array.isArray(report?.sharedObjects) && report.sharedObjects.some((f) => f.includes('libc.musl-') || f.includes('ld-musl-'))) {
-        return true;
-      }
-    } catch {
-      // fall through to the ldd-based checks
-    }
+function isMusl(): boolean {
+  cachedMusl ??= detectMusl();
+  return cachedMusl;
+}
 
-    try {
-      if (readFileSync('/usr/bin/ldd', 'utf-8').includes('musl')) {
-        return true;
-      }
-    } catch {
-      // /usr/bin/ldd may not exist — try invoking ldd directly
-    }
-
-    try {
-      if (execSync('ldd --version 2>&1', { encoding: 'utf-8' }).includes('musl')) {
-        return true;
-      }
-    } catch {
-      // give up — assume glibc
-    }
-
+function detectMusl(): boolean {
+  if (platform() !== 'linux') {
     return false;
   }
+
+  try {
+    if (readFileSync('/usr/bin/ldd', 'utf-8').includes('musl')) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (execSync('ldd --version 2>&1', { encoding: 'utf-8' }).includes('musl')) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+
+  return false;
 }
