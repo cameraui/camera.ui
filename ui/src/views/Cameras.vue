@@ -132,7 +132,7 @@
           <div class="flex flex-wrap items-center gap-2 mt-4">
             <div class="ml-auto"></div>
             <Button
-              v-if="hiddenCount > 0 && discoveredDevices.length"
+              v-if="hiddenCount > 0"
               severity="secondary"
               class="cui-button-medium"
               :label="showHidden ? $t('views.devices.hide_hidden') : `${$t('views.devices.show_hidden')} (${hiddenCount})`"
