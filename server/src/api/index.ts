@@ -396,6 +396,7 @@ export class Server {
     return {
       root: this.configService.INTERFACE_CACHE_PATH,
       prefix: '/',
+      index: false,
     };
   }
 

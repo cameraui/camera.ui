@@ -207,9 +207,9 @@ const stripPwaTagsForMobile = {
   },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: resolve(__dirname),
-  base: IS_MOBILE ? './' : '/',
+  base: command === 'build' || IS_MOBILE ? './' : '/',
   envDir: resolve(__dirname, '..'),
   plugins: [
     ...(IS_MOBILE ? [stripPwaTagsForMobile] : []),
@@ -411,4 +411,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

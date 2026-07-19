@@ -1,5 +1,6 @@
 import { raceFirst } from '@camera.ui/transport';
 
+import { homeOrigin } from '@/common/base.js';
 import { getBootResult } from './bootApp.js';
 import { instanceOverride } from './instance.js';
 import { isTwoFactorPending } from './types.js';
@@ -44,7 +45,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginOutcome
   // login form is authenticating against THAT instance — not the home origin
   // that hosts the SPA bundle. Falling back to window.location.origin would
   // mint home tokens and silently switch the user back to home.
-  const endpointUrl = instanceOverride.value ?? window.location.origin;
+  const endpointUrl = instanceOverride.value ?? homeOrigin();
   return loginDirect(boot.connection, boot.api, endpointUrl, credentials);
 }
 
@@ -59,7 +60,7 @@ export async function verify2FA(tempToken: string, code: string): Promise<LoginR
     endpoint = resolved.endpoint;
     extraTokens = resolved.extraTokens;
   } else {
-    const endpointUrl = instanceOverride.value ?? window.location.origin;
+    const endpointUrl = instanceOverride.value ?? homeOrigin();
     endpoint = { url: endpointUrl, mode: 'direct-lan', priority: 0 };
   }
 

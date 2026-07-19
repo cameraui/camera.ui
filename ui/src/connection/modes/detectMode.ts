@@ -1,3 +1,4 @@
+import { homeOrigin } from '@/common/base.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
 
 import { isCapacitor } from '../runtime.js';
@@ -19,7 +20,7 @@ export async function detectMode(): Promise<DetectedMode> {
   }
   return {
     mode: 'direct',
-    directEndpointUrl: window.location.origin,
+    directEndpointUrl: homeOrigin(),
   };
 }
 

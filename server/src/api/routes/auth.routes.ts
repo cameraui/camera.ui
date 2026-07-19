@@ -33,6 +33,17 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
     },
   });
 
+  app.route({
+    url: '/me',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: authController.me.bind(authController),
+    schema: {
+      tags: ['Auth'],
+      summary: 'Get the current authenticated user',
+    },
+  });
+
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/sessions',
     method: 'GET',

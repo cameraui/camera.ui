@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex flex-col w-full gap-6">
-      <div>
+      <div v-if="!isHomeAssistant()">
         <span class="card-title">{{ $t('views.settings.theme') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -31,7 +31,7 @@
         </Card>
       </div>
 
-      <div>
+      <div v-if="!isHomeAssistant()">
         <span class="card-title">{{ $t('views.settings.locale') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -106,6 +106,8 @@
 
 <script setup lang="ts">
 import { Logger } from '@camera.ui/logger';
+
+import { isHomeAssistant } from '@/common/base.js';
 
 const localeStore = useLocaleStore();
 const { language, languageOptions } = storeToRefs(localeStore);

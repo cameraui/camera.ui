@@ -46,6 +46,8 @@ import AdminpanelIcon from '~icons/solar/graph-outline';
 import PluginsIcon from '~icons/tabler/puzzle';
 import PluginsIconActive from '~icons/tabler/puzzle-filled';
 
+import { runtimeBase } from '@/common/base.js';
+import { attemptChunkReload } from '@/common/chunkReload.js';
 import { isCapacitor, isInCloudSession, useConnection } from '@/connection/index.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
@@ -1045,10 +1047,10 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
 const scrollPositions = new Map<string, number>();
 
 const router = createRouter({
-  history: isCapacitor ? createWebHashHistory() : createWebHistory(import.meta.env.BASE_URL),
+  history: isCapacitor ? createWebHashHistory() : createWebHistory(runtimeBase()),
   routes,
   scrollBehavior: async (to, from, savedPosition) => {
-    // Use browser's saved position if available (back/forward navigation)
+    // Use browser's saved position if available
     if (savedPosition) {
       return savedPosition;
     }
@@ -1166,7 +1168,6 @@ router.beforeResolve(async (to, from) => {
   });
 });
 
-const CHUNK_RELOAD_FLAG = 'cui-chunk-reload';
 function isDynamicImportError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /dynamically imported module|importing a module script failed|failed to (load|fetch) module script|expected a javascript|chunkloaderror|loading( css)? chunk/i.test(
@@ -1177,7 +1178,6 @@ function isDynamicImportError(error: unknown): boolean {
 router.afterEach(() => {
   const routerStore = useRouterStore();
   routerStore.routerLoading = false;
-  sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
 
   const connection = useConnection();
   if (connection.bannerMode.value === null) adoptUpdateIfPending();
@@ -1187,9 +1187,8 @@ router.onError((error, to) => {
   const routerStore = useRouterStore();
   routerStore.routerLoading = false;
 
-  if (isDynamicImportError(error) && !sessionStorage.getItem(CHUNK_RELOAD_FLAG)) {
-    sessionStorage.setItem(CHUNK_RELOAD_FLAG, '1');
-    window.location.assign(to.fullPath);
+  if (isDynamicImportError(error)) {
+    attemptChunkReload(() => window.location.assign(to.fullPath));
   }
 });
 

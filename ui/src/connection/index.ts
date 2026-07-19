@@ -1,4 +1,5 @@
 export { consumeAuthParam } from './authParamHandoff.js';
+export { consumeEmbedSession } from './embedSession.js';
 export { bootApp, getBootResult, useAuthApi, useBootMode, useCloudSession } from './bootApp.js';
 export { bootConnectionInstance, detachConnectionInstance, getConnection, getWorkerBridge, isConnectionBooted, workerRegistry } from './instance.js';
 export { createConnection } from './kernel.js';

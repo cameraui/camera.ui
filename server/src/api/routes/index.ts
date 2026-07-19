@@ -20,7 +20,9 @@ import { UsersRoute } from './users.routes.js';
 import { VirtualSensorsRoute } from './virtualsensors.routes.js';
 import { WorkersRoute } from './workers.routes.js';
 
-import type { FastifyInstance } from 'fastify';
+import { normalizeBase, normalizeEmbed, renderIndexHtml } from '../render-index.js';
+
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 const ASSET_EXT = /\.(?:js|mjs|css|map|json|wasm|webmanifest|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|eot|xml|txt)$/i;
 
@@ -53,6 +55,19 @@ export class FastifyRoutes {
     await this.app.register(NotificationsRoute, { prefix: '/api/notifications' });
     await this.app.register(OAuthCallbackRoute, { prefix: '/oauth' });
 
+    const serveIndex = (req: FastifyRequest, reply: FastifyReply): void => {
+      try {
+        const base = normalizeBase(req.headers['x-cui-base']);
+        const embed = normalizeEmbed(req.headers['x-cui-embed']);
+        reply.type('text/html').header('cache-control', 'no-store').send(renderIndexHtml(base, embed));
+      } catch {
+        reply.sendFile('index.html');
+      }
+    };
+
+    this.app.get('/', serveIndex);
+    this.app.get('/index.html', serveIndex);
+
     this.app.setNotFoundHandler((req, reply) => {
       const path = (req.url ?? '').split('?')[0];
       const isAsset = path.startsWith('/assets/') || ASSET_EXT.test(path);
@@ -63,7 +78,7 @@ export class FastifyRoutes {
         return;
       }
 
-      reply.sendFile('index.html');
+      serveIndex(req, reply);
     });
   }
 

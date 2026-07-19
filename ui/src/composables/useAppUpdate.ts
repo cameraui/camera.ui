@@ -1,3 +1,4 @@
+import { isEmbedded } from '@/common/base.js';
 import { isCapacitor, useConnection } from '@/connection/index.js';
 import { i18n } from '@/i18n/index.js';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
@@ -51,7 +52,7 @@ export function adoptUpdateIfPending(): void {
 export function setupAppUpdate() {
   if (isCapacitor) {
     setupCapacitorUpdates();
-  } else {
+  } else if (!isEmbedded()) {
     setupServiceWorkerUpdates();
   }
 }

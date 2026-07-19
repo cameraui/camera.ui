@@ -16,18 +16,17 @@ import { createApp } from 'vue';
 
 import { bridgeConnectionToQueryOnline, installApiErrorHandling } from '@/api/index.js';
 import AppRoot from '@/App.vue';
-import { bootApp, consumeAuthParam, isCapacitor } from '@/connection/index.js';
+import { isEmbedded } from '@/common/base.js';
+import { attemptChunkReload, markLoadStable } from '@/common/chunkReload.js';
+import { initHostSync } from '@/common/hostSync.js';
+import { bootApp, consumeAuthParam, consumeEmbedSession, isCapacitor } from '@/connection/index.js';
 import { instanceOverride } from '@/connection/instance.js';
 import { registerEcosystemPlugins } from '@/plugins/cameraui.js';
 import { registerCapacitor } from '@/plugins/capacitor/index.js';
 import { registerUiPlugins } from '@/plugins/index.js';
 import Router from '@/router/index.js';
 
-window.addEventListener('vite:preloadError', () => {
-  if (sessionStorage.getItem('cui-chunk-reload')) return;
-  sessionStorage.setItem('cui-chunk-reload', '1');
-  window.location.reload();
-});
+window.addEventListener('vite:preloadError', () => attemptChunkReload(() => window.location.reload()));
 
 const { connection } = await bootApp({
   logger: new Logger('Connection'),
@@ -44,11 +43,14 @@ registerUiPlugins(app);
 bridgeConnectionToQueryOnline(connection);
 registerEcosystemPlugins(app, connection);
 
-app.use(Router);
-
 useInstanceStore().restoreActiveOverride();
+useLocaleStore();
+initHostSync({
+  onTheme: (mode) => useThemeStore().applyHostTheme(mode),
+  onLanguage: (language) => useLocaleStore().applyHostLanguage(language),
+});
 
-const seeded = await consumeAuthParam(connection, {
+let seeded = await consumeAuthParam(connection, {
   onUser: (user) => useAuthStore().setUserFromLogin(user),
   onRedirectInfo: (info) => {
     useInstanceStore().redirectInfo = info;
@@ -59,7 +61,16 @@ const seeded = await consumeAuthParam(connection, {
   },
 });
 
+if (!seeded && isEmbedded()) {
+  seeded = await consumeEmbedSession(connection, {
+    onUser: (user) => useAuthStore().setUserFromLogin(user),
+  });
+}
+
+app.use(Router);
 app.mount('#app');
+
+markLoadStable();
 
 if (isCapacitor) {
   registerCapacitor();

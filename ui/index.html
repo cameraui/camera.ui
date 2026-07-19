@@ -1,6 +1,63 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      window.__CUI_BASE__ = '/';
+      window.__CUI_EMBED__ = '';
+      (function () {
+        try {
+          var forced = new URLSearchParams(window.location.search).get('cui_theme');
+          var mode;
+          if (forced === 'dark' || forced === 'light') {
+            mode = forced;
+          } else {
+            var raw = localStorage.getItem('theme');
+            var obj = raw ? JSON.parse(raw) : { theme: 'dark', autoMode: true };
+            mode = obj.autoMode
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : obj.theme;
+          }
+          var el = document.documentElement;
+          el.setAttribute('data-mode', mode);
+          el.classList.add(mode === 'dark' ? 'dark-mode' : 'light-mode');
+          el.style.background = mode === 'dark' ? '#0d0d0d' : '#f8fafc';
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="color-scheme" content="light dark" />
+    <style>
+      html {
+        background: #0d0d0d;
+      }
+      @media (prefers-color-scheme: light) {
+        html {
+          background: #f8fafc;
+        }
+      }
+      #cui-boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #cui-boot svg {
+        width: 150px;
+        height: 150px;
+        animation: cui-boot-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes cui-boot-pulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+    </style>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
@@ -349,7 +406,11 @@
     />
   </head>
   <body>
-    <div id="app" class="app"></div>
+    <div id="app" class="app">
+      <div id="cui-boot">
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-40 -30 300 300"><defs><style>.cls-3-1 {fill: url(#dark_wine);} .cls-3-2 {fill: url(#light_wine);} .cls-3-4 {fill: #c5c6c8;} .cls-3-5 {fill: #1a1e21;stroke: #3a3a3a;stroke-width: 2px;} .cls-3-6 {fill: #fff;}</style><linearGradient id="dark_wine" x1="220.57" y1="310.8" x2="220.57" y2="211.98" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#730000" /><stop offset="0.49" stop-color="#a51733" /></linearGradient><linearGradient id="light_wine" x1="246.27" y1="349.71" x2="246.27" y2="233" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f44a6b" /><stop offset="0.28" stop-color="#df294c" /></linearGradient></defs><g id="CameraUI_U"><path class="cls-3-1" d="M180.26,271.6s7.57,16,14.11,23.42a45.43,45.43,0,0,0,16.38,11.86,49.46,49.46,0,0,0,21.42,3.87c9.42-.46,20.55-3.87,29.24-11.86-3.9,2.5-9.87,5.1-15.9,4.77a25.66,25.66,0,0,1-18.39-9.09c-9.38-10.31-7.61-28.35-7.74-32.68-.35-11.43.77-21.92-1.76-36.2-.47-2.63-1.79-5.18-4.55-8-1.84-1.86-8.41-5.75-13.43-5.74-7.3,0-12.94,3.71-15.38,7.84-2,3.41-3.06,4.22-4.22,25.08a215.27,215.27,0,0,0,.22,26.76Z" transform="translate(-132.71 -151.63)" /><path class="cls-3-2" d="M277.33,241.73a16.41,16.41,0,0,1,4.05-4.91c4.17-3.39,9-3.66,10.92-3.81a19.67,19.67,0,0,1,12.53,4.58c1.2,1,6.12,5.58,7.13,17.29.74,8.51,3.31,65.93-37,87.13-4.23,2.22-18,9.26-35.67,7.39a62.35,62.35,0,0,1-20.79-6.11,65.68,65.68,0,0,1-18.9-14.24c-20.2-21.66-19.35-57.45-19.35-57.45s7.57,16,14.11,23.42a45.43,45.43,0,0,0,16.38,11.86,49.46,49.46,0,0,0,21.42,3.87c11.66-.57,25.92-5.64,35-18.33C276.73,278.93,271.67,252.64,277.33,241.73Z" transform="translate(-132.71 -151.63)" /></g><g id="CameraUI_Lens"><g id="lens"><circle class="cls-3-4" cx="159.13" cy="58.39" r="18.66" /><path class="cls-3-5" d="M302.85,210.44a11,11,0,1,1-22,0c0-6.08,4.93-11.86,11-11.86S302.85,204.36,302.85,210.44Z" transform="translate(-132.71 -151.63)" /><g id="reflections"><ellipse class="cls-3-6" cx="174.36" cy="53.69" rx="1.84" ry="1.42" /><ellipse class="cls-3-6" cx="174.36" cy="57.08" rx="1.84" ry="1.42" /><ellipse class="cls-3-6" cx="174.36" cy="60.46" rx="1.84" ry="1.42" /><circle class="cls-3-6" cx="164.09" cy="63.77" r="1.66" /><path class="cls-3-6" d="M289.83,201c-1.07-.88-5.52,3.09-6.3,5.43a1.52,1.52,0,0,0,0,1.26c.43.69,1.72.61,2.18.53,2.68-.43,4.72-4.08,4.8-4.36A3.18,3.18,0,0,0,289.83,201Z" transform="translate(-132.71 -151.63)" /></g></g></g></svg>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

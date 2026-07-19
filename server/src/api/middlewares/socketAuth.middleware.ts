@@ -71,7 +71,10 @@ export function authorize(options: AuthorizeOptions): SocketIOMiddleware {
     let encodedToken: string | null = null;
     let token: string | null = null;
 
-    if (socket.handshake.auth) {
+    const queryToken = socket.handshake.query?.token;
+    if (typeof queryToken === 'string' && queryToken) {
+      token = `Bearer ${queryToken}`;
+    } else if (socket.handshake.auth?.token) {
       token = socket.handshake.auth.token;
     } else {
       token = socket.handshake.headers.authorization ?? null;

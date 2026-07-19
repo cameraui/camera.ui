@@ -45,13 +45,15 @@
     >
       <CuiNavbarToggle class="non-draggable-region" />
       <CuiInstanceSwitcher v-if="hasPermission(undefined, 'admin') && isMultiInstance" class="non-draggable-region" />
-      <CuiThemeSwitch class="ml-auto non-draggable-region" />
-      <CuiNotificationMenu class="non-draggable-region" />
+      <CuiThemeSwitch v-if="!isHomeAssistant()" class="ml-auto non-draggable-region" />
+      <CuiNotificationMenu class="non-draggable-region" :class="{ 'ml-auto': isHomeAssistant() }" />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { isHomeAssistant } from '@/common/base.js';
+
 import type { CuiTopbarProps } from './types.js';
 
 const props = defineProps<CuiTopbarProps>();

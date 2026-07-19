@@ -5,6 +5,11 @@ import { PRIMEVUE_LANGUAGE_LIST } from '@/i18n/primevue.js';
 
 import type { SupportedLanguageAbbreviatons, UserLanguage } from '@shared/types';
 
+function readHostLanguage(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('cui_lang') || null;
+}
+
 export const useLocaleStore = defineStore('locale', () => {
   const authStore = useAuthStore();
   const primevue = usePrimeVue();
@@ -38,6 +43,10 @@ export const useLocaleStore = defineStore('locale', () => {
     language.value = l;
   }
 
+  function applyHostLanguage(hostLang: string) {
+    applyServerLanguage(currentLanguage(hostLang));
+  }
+
   watch(language, (l) => {
     if (l === serverLanguage) return;
     serverLanguage = l;
@@ -50,6 +59,11 @@ export const useLocaleStore = defineStore('locale', () => {
     setI18Nlocale(l);
     setPrimeVueLocale(l);
   });
+
+  const hostLanguage = readHostLanguage();
+  if (hostLanguage) {
+    applyHostLanguage(hostLanguage);
+  }
 
   setI18Nlocale(locale.value);
   setPrimeVueLocale(locale.value);
@@ -66,6 +80,7 @@ export const useLocaleStore = defineStore('locale', () => {
     languageOptions,
     locale,
     applyServerLanguage,
+    applyHostLanguage,
     setI18Nlocale,
     setPrimeVueLocale,
   };

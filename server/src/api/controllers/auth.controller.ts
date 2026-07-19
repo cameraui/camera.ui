@@ -74,6 +74,25 @@ export class AuthController {
     }
   }
 
+  public me(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const user = req.locals.user!;
+      return reply.code(200).send({
+        _id: user._id,
+        username: user.username,
+        avatar: user.avatar,
+        role: user.role,
+        firstLogin: user.firstLogin,
+        language: user.preferences.language ?? 'auto',
+      });
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
   public list(req: FastifyRequest<AuthLoginRequest & PaginationRequest>, reply: FastifyReply): FastifyReply | SessionInfo[] {
     try {
       const user = req.locals.user!;

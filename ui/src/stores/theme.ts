@@ -8,6 +8,12 @@ async function syncNativeStatusBar(t: SupportedThemes): Promise<void> {
   await StatusBar.setStyle({ style: t === 'dark' ? Style.Dark : Style.Light });
 }
 
+function readForcedTheme(): SupportedThemes | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('cui_theme');
+  return value === 'dark' || value === 'light' ? value : null;
+}
+
 export const useThemeStore = defineStore('theme', () => {
   const themeObj = localStorage.getItem('theme');
 
@@ -17,6 +23,12 @@ export const useThemeStore = defineStore('theme', () => {
         theme: 'dark',
         autoMode: true,
       };
+
+  const forced = readForcedTheme();
+  if (forced) {
+    localStorageObj.theme = forced;
+    localStorageObj.autoMode = false;
+  }
 
   const theme = refWithControl<SupportedThemes>(localStorageObj.theme, {
     onBeforeChange() {
@@ -73,6 +85,11 @@ export const useThemeStore = defineStore('theme', () => {
     syncNativeStatusBar(t);
   }
 
+  function applyHostTheme(mode: SupportedThemes): void {
+    autoMode.value = false;
+    theme.value = mode;
+  }
+
   function toggleTheme(): void {
     if (autoMode.value) {
       autoMode.value = false;
@@ -122,5 +139,6 @@ export const useThemeStore = defineStore('theme', () => {
     setAppTheme,
     getSystemMode,
     toggleTheme,
+    applyHostTheme,
   };
 });
