@@ -27,8 +27,8 @@ for (const key of ['AUTH_SERVICE_URL', 'BILLING_SERVICE_URL', 'CLOUD_SERVICE_URL
 
 process.chdir(__dirname);
 
-const API_PORT = parseInt(process.env.CAMERA_UI_DEV_PORT!);
-const UI_PORT = parseInt(process.env.CAMERA_UI_DEV_UI_PORT!);
+const API_PORT = parseInt(process.env.CAMERA_UI_PORT!);
+const UI_PORT = parseInt(process.env.CAMERA_UI_UI_PORT!);
 const IS_MOBILE = process.env.CAMERA_UI_MOBILE === '1';
 const DEV_LOCAL_SERVER = process.env.CAMERA_UI_DEV_LOCAL_SERVER ?? '';
 const UI_VERSION: string = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version;

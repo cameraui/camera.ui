@@ -85,7 +85,7 @@ export class ConfigService {
   readonly DEFAULTS_INSTALLED_FILE: string;
   readonly RESTORE_RESET_IDENTITY_FILE: string;
 
-  readonly UI_PORT = parseInt(process.env.CAMERA_UI_DEV_UI_PORT!); // dotenv
+  readonly UI_PORT = parseInt(process.env.CAMERA_UI_UI_PORT!);
 
   private logger: LoggerService;
   private _config!: IConfig;
@@ -518,7 +518,8 @@ export class ConfigService {
   }
 
   private applyEnvOverrides(config: IConfig): IConfig {
-    if (IS_DEV && process.env.CAMERA_UI_DEV_PORT) config.port = parseInt(process.env.CAMERA_UI_DEV_PORT, 10);
+    if (process.env.CAMERA_UI_PORT) config.port = parseInt(process.env.CAMERA_UI_PORT, 10);
+    if (process.env.CAMERA_UI_INSECURE_PORT) config.insecurePort = parseInt(process.env.CAMERA_UI_INSECURE_PORT, 10);
 
     config.workers ??= {};
     if (process.env.CAMERA_UI_WORKERS_ENABLED !== undefined) config.workers.enabled = process.env.CAMERA_UI_WORKERS_ENABLED === 'true';
@@ -557,9 +558,10 @@ export class ConfigService {
   }
 
   private cleanupConfig(config: IConfig, newConfig: IConfig): IConfig {
+    const schemaKeys = new Set(Object.keys(patchConfigSchema.shape));
     for (const key in newConfig) {
       if ((config as any)[key] === undefined) {
-        delete (newConfig as any)[key];
+        if (!schemaKeys.has(key)) delete (newConfig as any)[key];
       } else if (Object.keys((newConfig as any)[key]).length > 0) {
         const keys = Object.keys((newConfig as any)[key]);
         for (const k of keys) {

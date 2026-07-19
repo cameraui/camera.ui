@@ -18,9 +18,9 @@
     "install-updates": "npm i --save",
     "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build",
     "watch": "nodemon src/cameraui.ts -H ../.camera.ui run",
-    "watch:alt": "CAMERA_UI_DEV_PORT=5443 nodemon src/cameraui.ts -H ../.camera.ui.alt run",
-    "watch:alt2": "CAMERA_UI_DEV_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run",
-    "watch:alt3": "CAMERA_UI_DEV_PORT=7443 nodemon src/cameraui.ts -H ../.camera.ui.alt.3 run"
+    "watch:alt": "CAMERA_UI_PORT=5443 nodemon src/cameraui.ts -H ../.camera.ui.alt run",
+    "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run",
+    "watch:alt3": "CAMERA_UI_PORT=7443 nodemon src/cameraui.ts -H ../.camera.ui.alt.3 run"
   },
   "dependencies": {
     "@camera.ui/common": "~0.0.50",

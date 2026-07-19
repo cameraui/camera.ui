@@ -3,6 +3,7 @@ import { API_EVENT } from '@camera.ui/sdk';
 import FastifyCors from '@fastify/cors';
 import FastifyFormbody from '@fastify/formbody';
 import FastifyHelmet from '@fastify/helmet';
+import FastifyHttpProxy from '@fastify/http-proxy';
 import FastifyMultipart from '@fastify/multipart';
 import FastifyStatic from '@fastify/static';
 import FastifySwagger from '@fastify/swagger';
@@ -44,10 +45,18 @@ import type { ServerRuntime } from './websocket/types.js';
 
 const SHARES_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
+function stripCspUpgrade(value: string): string {
+  return value
+    .split(';')
+    .filter((directive) => directive.trim().toLowerCase() !== 'upgrade-insecure-requests')
+    .join(';');
+}
+
 export class Server {
   public isRunning = false;
   public app?: FastifyInstance<Http2SecureServer>;
   public internalApp?: FastifyInstance;
+  public insecureApp?: FastifyInstance;
 
   private api: CameraUiAPI;
   private logger: LoggerService;
@@ -124,6 +133,8 @@ export class Server {
       this.logger.debug(`camera.ui internal listener bound to http://127.0.0.1:${this._internalPort}`);
     }
 
+    await this.startInsecureForwarder();
+
     this.isRunning = true;
 
     this.startSharesCleanup();
@@ -138,7 +149,7 @@ export class Server {
 
     await this.mdnsService.stop();
 
-    const closing = Promise.allSettled([this.app?.close(), this.internalApp?.close()]);
+    const closing = Promise.allSettled([this.app?.close(), this.internalApp?.close(), this.insecureApp?.close()]);
 
     for (const socket of this.connections) {
       socket.destroy();
@@ -149,7 +160,39 @@ export class Server {
 
     this.app = undefined;
     this.internalApp = undefined;
+    this.insecureApp = undefined;
     this._internalPort = 0;
+  }
+
+  private async startInsecureForwarder(): Promise<void> {
+    const port = this.configService.config.insecurePort;
+    if (!port || !Number.isInteger(port) || port <= 0 || port >= 65536) {
+      return;
+    }
+
+    const host = this.configService.config.host ?? '0.0.0.0';
+    const app = Fastify({ bodyLimit: 1e8, disableRequestLogging: true });
+    this.trackConnections(app.server);
+
+    await app.register(FastifyHttpProxy, {
+      upstream: `https://127.0.0.1:${this.configService.config.port}`,
+      websocket: true,
+      undici: { connect: { rejectUnauthorized: false } },
+      replyOptions: {
+        rewriteHeaders: (headers) => {
+          const csp = headers['content-security-policy'];
+          if (typeof csp === 'string') {
+            headers['content-security-policy'] = stripCspUpgrade(csp);
+          }
+          return headers;
+        },
+      },
+      wsClientOptions: { rejectUnauthorized: false },
+    });
+
+    await app.listen({ host, port });
+    this.insecureApp = app;
+    this.logger.log(green(`camera.ui insecure (http) listener on http://${host}:${port}`));
   }
 
   private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }): void {

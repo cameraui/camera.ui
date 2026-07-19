@@ -60,6 +60,7 @@ export const workerSchema = zod
 export const patchConfigSchema = zod
   .object({
     port: zod.number().min(1024, 'Min port range').max(49151, 'Max port range').default(DEFAULT_CONFIG_PORT),
+    insecurePort: zod.number().min(1024, 'Min port range').max(49151, 'Max port range').optional(),
     host: zod.string().trim().optional().default(DEFAULT_CONFIG_HOST),
     ffmpegPath: zod.string().trim().optional(),
     ssl: iConfigSSLSchema,

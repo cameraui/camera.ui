@@ -95,8 +95,9 @@ export class NodePluginRuntime extends BasePluginRuntime {
     delete env.CAMERA_UI_GO2RTC_CONFIG_FILE;
     delete env.CAMERA_UI_GO2RTC_BINARY;
     delete env.CAMERA_UI_CLOUD_BINARY;
-    delete env.CAMERA_UI_DEV_PORT;
-    delete env.CAMERA_UI_DEV_UI_PORT;
+    delete env.CAMERA_UI_PORT;
+    delete env.CAMERA_UI_INSECURE_PORT;
+    delete env.CAMERA_UI_UI_PORT;
 
     return env;
   }
