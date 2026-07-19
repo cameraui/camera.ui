@@ -37,6 +37,10 @@ export class MdnsService {
         },
       });
 
+      this.service.on('name-change', (name: string) => {
+        this.logger.debug(`mDNS: service renamed to "${name}" (name conflict on the network)`);
+      });
+
       await this.service.advertise();
       this.logger.debug('mDNS: advertising _camera-ui._tcp on the local network');
     } catch (error: any) {

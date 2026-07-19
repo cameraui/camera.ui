@@ -229,6 +229,8 @@ function initGrid(): void {
     gridRef.value,
   );
 
+  if (!gsInstance) return;
+
   gsInstance.on('change', onGridChange);
 
   // Enable animation after first paint so items don't slide on initial load
