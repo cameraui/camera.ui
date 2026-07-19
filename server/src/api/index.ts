@@ -24,6 +24,7 @@ import { HeaderPlugin } from './plugins/header.plugin.js';
 import { ProxyPlugin } from './plugins/proxy.plugin.js';
 import { SocketIoPlugin } from './plugins/socket.plugin.js';
 import { SystemPlugin } from './plugins/system.plugin.js';
+import { IngressSession } from './ingress.js';
 import { FastifyRoutes } from './routes/index.js';
 import { SharesService } from './services/shares.service.js';
 
@@ -33,7 +34,7 @@ import type { FastifyMultipartAttachFieldsToBodyOptions } from '@fastify/multipa
 import type { FastifyStaticOptions } from '@fastify/static';
 import type { FastifyDynamicSwaggerOptions } from '@fastify/swagger';
 import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
-import type { FastifyBaseLogger, FastifyHttp2SecureOptions, FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyHttp2SecureOptions, FastifyInstance, FastifyRequest } from 'fastify';
 import type { Http2SecureServer } from 'node:http2';
 import type { AddressInfo, Socket } from 'node:net';
 import type { ServerOptions } from 'socket.io';
@@ -44,6 +45,8 @@ import type { ProxyOptions } from './plugins/proxy.plugin.js';
 import type { ServerRuntime } from './websocket/types.js';
 
 const SHARES_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+
+type IngressRequest = FastifyRequest & { ingressToken?: string };
 
 function stripCspUpgrade(value: string): string {
   return value
@@ -67,10 +70,6 @@ export class Server {
   private sharesCleanupTimer?: NodeJS.Timeout;
   private mdnsService = new MdnsService();
 
-  // http2SecureServer has no closeAllConnections() and Fastify's forceCloseConnections
-  // does not cover upgraded WebSockets / idle HTTP/2 sessions. We track every raw socket
-  // and destroy it on close so the drain-based server close resolves instead of hanging
-  // until the shutdown timeout (e.g. the Electron renderer holding a live connection).
   private readonly connections = new Set<Socket>();
 
   constructor() {
@@ -90,7 +89,7 @@ export class Server {
     await syncInterfaceCache(ConfigService.INTERFACE_SOURCE_PATH, this.configService.INTERFACE_CACHE_PATH, ConfigService.VERSION);
 
     this.app = Fastify(this.serverOptions);
-    this.internalApp = Fastify({ bodyLimit: 1e6, disableRequestLogging: true });
+    this.internalApp = Fastify({ bodyLimit: 1e6, logController: new LogController({ disableRequestLogging: true }) });
 
     this.app.setValidatorCompiler(validatorCompiler);
     this.app.setSerializerCompiler(serializerCompiler);
@@ -171,14 +170,34 @@ export class Server {
     }
 
     const host = this.configService.config.host ?? '0.0.0.0';
-    const app = Fastify({ bodyLimit: 1e8, disableRequestLogging: true });
+    const trustIp = this.configService.INGRESS_TRUST_IP;
+    const ingress = trustIp ? new IngressSession() : undefined;
+    const app = Fastify({ bodyLimit: 1e8, logController: new LogController({ disableRequestLogging: true }) });
     this.trackConnections(app.server);
+
+    if (ingress && trustIp) {
+      app.addHook('onRequest', async (req) => {
+        if (req.ip.replace(/^::ffff:/, '') === trustIp) {
+          (req as IngressRequest).ingressToken = await ingress.getAccessToken();
+        }
+      });
+    }
 
     await app.register(FastifyHttpProxy, {
       upstream: `https://127.0.0.1:${this.configService.config.port}`,
       websocket: true,
       undici: { connect: { rejectUnauthorized: false } },
       replyOptions: {
+        rewriteRequestHeaders: (req, headers) => {
+          const token = (req as IngressRequest).ingressToken;
+          if (token) {
+            headers.authorization = `Bearer ${token}`;
+            headers['x-cui-embed'] = 'homeassistant';
+            const ingressPath = req.headers['x-ingress-path'];
+            if (typeof ingressPath === 'string') headers['x-cui-base'] = ingressPath;
+          }
+          return headers;
+        },
         rewriteHeaders: (headers) => {
           const csp = headers['content-security-policy'];
           if (typeof csp === 'string') {
@@ -187,12 +206,20 @@ export class Server {
           return headers;
         },
       },
-      wsClientOptions: { rejectUnauthorized: false },
+      wsClientOptions: {
+        rejectUnauthorized: false,
+        queryString: (search, _reqUrl, req) => {
+          const params = new URLSearchParams(search);
+          const token = (req as IngressRequest).ingressToken;
+          if (token) params.set('token', token);
+          return params.toString();
+        },
+      },
     });
 
     await app.listen({ host, port });
     this.insecureApp = app;
-    this.logger.log(green(`camera.ui insecure (http) listener on http://${host}:${port}`));
+    this.logger.log(green(`camera.ui insecure (http) listener on http://${host}:${port}${ingress ? ' (ingress-trusted)' : ''}`));
   }
 
   private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }): void {

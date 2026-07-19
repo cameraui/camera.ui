@@ -1,13 +1,29 @@
 import { usePrimeVue } from 'primevue/config';
 
+import { isHomeAssistant } from '@/common/base.js';
 import { currentLanguage, i18n, LANGUAGE_LIST, SUPPORTED_LOCALES } from '@/i18n/index.js';
 import { PRIMEVUE_LANGUAGE_LIST } from '@/i18n/primevue.js';
 
 import type { SupportedLanguageAbbreviatons, UserLanguage } from '@shared/types';
 
+const HA_LANGUAGE_KEY = 'selectedLanguage';
+
+function readHaLanguage(): string | null {
+  const raw = localStorage.getItem(HA_LANGUAGE_KEY);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    return typeof value === 'string' ? value : null;
+  } catch {
+    return raw;
+  }
+}
+
 function readHostLanguage(): string | null {
   if (typeof window === 'undefined') return null;
-  return new URLSearchParams(window.location.search).get('cui_lang') || null;
+  const param = new URLSearchParams(window.location.search).get('cui_lang');
+  if (param) return param;
+  return isHomeAssistant() ? readHaLanguage() : null;
 }
 
 export const useLocaleStore = defineStore('locale', () => {
@@ -63,6 +79,14 @@ export const useLocaleStore = defineStore('locale', () => {
   const hostLanguage = readHostLanguage();
   if (hostLanguage) {
     applyHostLanguage(hostLanguage);
+  }
+
+  if (isHomeAssistant() && typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      if (event.key !== HA_LANGUAGE_KEY) return;
+      const lang = readHaLanguage();
+      if (lang) applyHostLanguage(lang);
+    });
   }
 
   setI18Nlocale(locale.value);

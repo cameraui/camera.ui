@@ -87,6 +87,8 @@ export class ConfigService {
 
   readonly UI_PORT = parseInt(process.env.CAMERA_UI_UI_PORT!);
 
+  readonly INGRESS_TRUST_IP = process.env.CAMERA_UI_INGRESS_TRUST ?? undefined;
+
   private logger: LoggerService;
   private _config!: IConfig;
   private _go2rtcConfig!: Go2RtcConfig;

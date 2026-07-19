@@ -73,6 +73,8 @@ import type {
   DBWorkerState,
 } from './types.js';
 
+const INGRESS_USERNAME = 'homeassistant';
+
 export class Database {
   static readonly VERSION = '2.0.50';
 
@@ -161,6 +163,7 @@ export class Database {
     await this.ensureDatabases();
     await this.resetRestoredIdentity();
     await this.prepareDatabases();
+    await this.ensureIngressUser();
     await this.ensureMaster();
     await this.migrationRunner.migrate();
     await this.backfillSchemaDefaults();
@@ -374,6 +377,40 @@ export class Database {
       password: salt + '$' + hash,
       role: 'master',
       firstLogin: true,
+      preferences: {
+        camview: {
+          views: [],
+        },
+        cameras: {},
+      },
+    };
+  }
+
+  private async ensureIngressUser(): Promise<void> {
+    if (!this.configService.INGRESS_TRUST_IP) {
+      return;
+    }
+
+    for (const { value: user } of this.usersDB.getRange()) {
+      if (user.username === INGRESS_USERNAME) return;
+    }
+
+    this.logger.attention('Ingress mode: provisioning the homeassistant user...');
+    const user = this.generateIngressUser();
+    await this.usersDB.put(user._id, user);
+  }
+
+  private generateIngressUser(): DBUser {
+    const salt = randomBytes(16).toString('base64');
+    const hash = createHmac('sha512', salt).update(randomBytes(32).toString('base64')).digest('base64');
+
+    return {
+      _id: randomUUID(),
+      avatar: 'logo-256.png',
+      username: INGRESS_USERNAME,
+      password: salt + '$' + hash,
+      role: 'master',
+      firstLogin: false,
       preferences: {
         camview: {
           views: [],
