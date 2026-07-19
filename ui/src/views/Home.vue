@@ -192,7 +192,6 @@ import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import VideoOnIcon from '~icons/fluent/video-32-filled';
 import VideoOffIcon from '~icons/fluent/video-off-32-filled';
 import RecordIcon from '~icons/fluent/video-recording-20-filled';
-import SelectIcon from '~icons/gis/arrow';
 import CloseIcon from '~icons/mdi/close';
 import TrashIcon from '~icons/mdi/delete-outline';
 import LockIcon from '~icons/mdi/lock';
@@ -200,6 +199,7 @@ import LockOpenIcon from '~icons/mdi/lock-open';
 import GroupIcon from '~icons/mdi/view-agenda';
 import GridIcon from '~icons/mdi/view-grid';
 import SnoozeIcon from '~icons/solar/moon-sleep-bold';
+import SelectIcon from '~icons/tabler/dots-filled';
 
 import { CamerasQuery, getCameraExtensionConfigFn, patchCameraExtensionConfigFn, patchCameraFn, removeCameraFn } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';

@@ -1,5 +1,5 @@
 import { getUserHomeDir } from '@camera.ui/common/node';
-import { IS_DEV, IS_DOCKER, IS_ELECTRON, IS_HA, isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
+import { IS_DEV, IS_DOCKER, IS_ELECTRON, isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { go2rtcPath } from '@camera.ui/go2rtc';
 import { natsServerPath } from '@camera.ui/nats';
 import { tunnelPath } from '@camera.ui/tunnel';
@@ -48,7 +48,7 @@ export class ConfigService {
       development: IS_DEV,
       docker: IS_DOCKER,
       electron: IS_ELECTRON,
-      homeassistant: IS_HA,
+      // homeassistant: IS_HA,
     };
   }
 

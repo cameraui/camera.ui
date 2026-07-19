@@ -4,7 +4,7 @@ export interface EnvironmentInfo {
   development: boolean;
   docker: boolean;
   electron: boolean;
-  homeassistant: boolean;
+  // homeassistant: boolean;
 }
 
 export interface Secrets {
