@@ -2,6 +2,7 @@ import { useLocalStorage } from '@vueuse/core';
 
 import { UsersQuery } from '@/api/routes/users.js';
 import { login as connectionLogin, verify2FA as connectionVerify2FA, isTwoFactorPending, logoutCurrent, useConnection } from '@/connection/index.js';
+import router from '@/router/index.js';
 
 import type { UserLanguage } from '@shared/types';
 import type { LoginCredentials, LoginUserData } from '@/connection/index.js';
@@ -18,7 +19,6 @@ export interface PersistedUser {
 
 export const useAuthStore = defineStore('auth', () => {
   const usersQuery = new UsersQuery();
-  const router = useRouter();
   const connection = useConnection();
 
   const user = useLocalStorage<PersistedUser | null>('user', null, {

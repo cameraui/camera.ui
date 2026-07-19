@@ -5,6 +5,7 @@ import { createInstanceFn, deleteInstanceFn, getInstancesFn, isRequires2fa, logi
 import InstanceTwoFactorPrompt from '@/components/CuiDialog/templates/InstanceTwoFactorPrompt/InstanceTwoFactorPrompt.vue';
 import { getConnection, instanceOverride } from '@/connection/instance.js';
 import { i18n } from '@/i18n/index.js';
+import router from '@/router/index.js';
 
 import type { CreateInstancePayload, UpdateInstancePayload } from '@/api/routes/instances.js';
 import type { InstanceEntry, InstanceTokens, RedirectInfo } from '@/components/CuiInstanceSwitcher/types.js';
@@ -62,7 +63,6 @@ function serializeUserData(tokens: Tokens, user?: { _id: string; username: strin
 
 export const useInstanceStore = defineStore('instances', () => {
   const authStore = useAuthStore();
-  const router = useRouter();
   const toast = useCuiToast();
   const dialog = useCuiDialog();
   const queryClient = useQueryClient();
