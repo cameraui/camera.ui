@@ -28,7 +28,7 @@
     "fs-extra": "^11.3.6",
     "js-yaml": "^5.2.1",
     "ora": "^9.4.1",
-    "systeminformation": "^5.31.17",
+    "systeminformation": "^5.32.0",
     "tail": "^2.2.6"
   },
   "devDependencies": {
