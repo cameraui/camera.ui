@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
 
 - **Automations can control more camera settings.** The camera control action now also covers recording on/off and mode, PTZ autotracking, face and plate recognition thresholds, stationary-object suppression and HQ snapshots.
 
+- **Bulk-select unknown face images.** The Faces page has a select mode now: pick any number of unknown face images across groups and assign them to a person, remove them from their group or discard them in one go.
+
 - **Tune face and license plate recognition per camera.** The camera's detection settings now let you set a minimum face confidence, a minimum plate reading confidence and a minimum plate length, so you decide how strict recognition is for each camera.
 
 ### Fixed

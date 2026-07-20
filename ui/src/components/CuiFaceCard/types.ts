@@ -8,6 +8,8 @@ export interface CuiFaceCardProps {
   confidence?: number;
   compact?: boolean;
   showRemove?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
   assignValue?: string | null;
   assignOptions?: { label: string; value: string }[];
 }

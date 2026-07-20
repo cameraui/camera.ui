@@ -12,7 +12,7 @@
     </template>
   </Card>
 
-  <div v-else class="relative cursor-default">
+  <div v-else class="relative" :class="selectionMode ? 'cursor-pointer' : 'cursor-default'" @click="selectionMode && $emit('click')">
     <div class="bg-neutral-900 w-full rounded-xl overflow-hidden relative border-[1px] border-color shadow-lg" style="aspect-ratio: 1 / 1">
       <img v-if="thumbnail" :src="thumbnail" class="w-full h-full object-cover" />
       <div v-else class="w-full h-full flex items-center justify-center bg-neutral-800/80">
@@ -26,7 +26,16 @@
         </div>
       </div>
 
-      <div class="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center gap-1 dark-mode">
+      <div v-if="selectionMode" class="absolute bottom-2 left-2 pointer-events-none">
+        <div
+          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
+          :class="selected ? 'bg-primary border-primary' : 'bg-black/40 border-white/80'"
+        >
+          <i-mdi:check v-if="selected" class="w-4 h-4 text-white" />
+        </div>
+      </div>
+
+      <div v-if="!selectionMode" class="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center gap-1 dark-mode">
         <Button
           v-if="showRemove"
           v-tooltip.top="$t('views.faces.remove_from_cluster')"

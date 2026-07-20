@@ -1895,6 +1895,7 @@ export default {
       faces_in_cluster: 'Gesichter in Gruppe',
       assign_cluster: 'Gruppe zuordnen',
       ungrouped: 'Ungruppiert',
+      select: 'Bilder auswählen',
       discard: 'Verwerfen',
       remove_from_cluster: 'Aus Gruppe entfernen',
       show_all: 'Alle anzeigen ({count})',

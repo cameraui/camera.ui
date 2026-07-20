@@ -137,6 +137,9 @@
                         :thumbnail="thumbnailToUrl(face.thumbnail)"
                         :timestamp="face.timestamp"
                         :confidence="face.confidence"
+                        :selection-mode="selectionMode"
+                        :selected="selectedIds.has(face.id)"
+                        @click="toggleSelection(face.id)"
                         @assign-prompt="promptAssignSingle(face)"
                         @remove="removeFromCluster(face)"
                         @skip="discardFace(face)"
@@ -189,6 +192,9 @@
                         :thumbnail="thumbnailToUrl(face.thumbnail)"
                         :timestamp="face.timestamp"
                         :confidence="face.confidence"
+                        :selection-mode="selectionMode"
+                        :selected="selectedIds.has(face.id)"
+                        @click="toggleSelection(face.id)"
                         @assign-prompt="promptAssignSingle(face)"
                         @skip="discardFace(face)"
                       />
@@ -204,23 +210,87 @@
       </template>
     </template>
 
-    <CuiFloatingButton
-      :tooltip-props="{ value: $t('views.faces.add_face') }"
-      :button-props="{ class: 'text-white' }"
-      :icon="PlusIcon"
-      :icon-props="{ width: '30px', height: '30px' }"
-      @click="openUploadDialog"
-    />
+    <CuiFloatingButtonGroup :force-visible="selectionMode">
+      <template v-if="!selectionMode">
+        <CuiFloatingButton
+          v-if="allUnknownFaces.length"
+          grouped
+          :tooltip-props="{ value: $t('views.faces.select') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('views.faces.add_face') }"
+          :button-props="{ class: 'text-white' }"
+          :icon="PlusIcon"
+          :icon-props="{ width: '30px', height: '30px' }"
+          @click="openUploadDialog"
+        />
+      </template>
+
+      <template v-else>
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="CloseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="exitSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
+          :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
+          :icon="SelectAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleSelectAll"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('views.faces.assign') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :icon="AssignIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="promptAssignSelected"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('views.faces.remove_from_cluster') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedClusteredIds.length || bulkBusy }"
+          :icon="RemoveIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkRemoveFromGroup"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('views.faces.discard') }"
+          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
+          :icon="TrashIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkDiscard"
+        />
+      </template>
+    </CuiFloatingButtonGroup>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { thumbnailToUrl, useFaceStore } from '@camera.ui/nvr';
+import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
+import AssignIcon from '~icons/mdi/account-plus';
+import CloseIcon from '~icons/mdi/close';
+import TrashIcon from '~icons/mdi/delete-outline';
+import SelectIcon from '~icons/tabler/dots-filled';
+import RemoveIcon from '~icons/tabler/minus';
 import PlusIcon from '~icons/typcn/plus';
 
 import FaceDetailDialog from '@/components/CuiDialog/templates/FaceDetail/FaceDetail.vue';
 import FaceNewPersonDialog from '@/components/CuiDialog/templates/FaceNewPerson/FaceNewPerson.vue';
 import FaceUploadDialog from '@/components/CuiDialog/templates/FaceUpload/FaceUpload.vue';
+import { useCardSelection } from '@/composables/useCardSelection.js';
 
 import type { FaceProfile, UnknownFace } from '@camera.ui/nvr';
 
@@ -235,6 +305,18 @@ const clustered = faceStore.clusteredUnknowns;
 
 const knownSkeletonRef = useTemplateRef<HTMLElement>('knownSkeletonRef');
 const rescanning = ref(false);
+
+const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
+
+const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
+  allUnknownFaces,
+  (face) => face.id,
+);
+
+const selectedClusteredIds = computed(() => {
+  const clusteredFaceIds = new Set(clustered.value.clusters.flatMap((cluster) => cluster.faces.map((face) => face.id)));
+  return [...selectedIds.value].filter((id) => clusteredFaceIds.has(id));
+});
 
 const knownSkeletonCount = computed(() => {
   void windowWidth.value; // reactive on resize
@@ -397,6 +479,61 @@ function promptAssignSingle(face: UnknownFace) {
       }
     },
   });
+}
+
+function promptAssignSelected() {
+  const faceIds = selectedItems.value.map((face) => face.id);
+  if (!faceIds.length) return;
+
+  dialog.openComponentDialog(FaceNewPersonDialog, {
+    data: {
+      title: t('views.faces.assign'),
+      confirmText: t('views.faces.enroll'),
+      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name) },
+    },
+    onConfirm: async (name: string) => {
+      bulkBusy.value = true;
+      try {
+        await faceStore.enrollCluster(name, faceIds);
+        toast.add({ severity: 'success', detail: t('views.faces.face_assigned'), life: 3000 });
+        exitSelectionMode();
+      } catch (err) {
+        toast.add({ severity: 'error', detail: err, life: 3000 });
+      } finally {
+        bulkBusy.value = false;
+      }
+    },
+  });
+}
+
+async function bulkRemoveFromGroup() {
+  const ids = selectedClusteredIds.value;
+  if (!ids.length) return;
+
+  bulkBusy.value = true;
+  try {
+    await Promise.all(ids.map((id) => faceStore.removeFromCluster(id)));
+    exitSelectionMode();
+  } catch (err) {
+    toast.add({ severity: 'error', detail: err, life: 3000 });
+  } finally {
+    bulkBusy.value = false;
+  }
+}
+
+async function bulkDiscard() {
+  const ids = selectedItems.value.map((face) => face.id);
+  if (!ids.length) return;
+
+  bulkBusy.value = true;
+  try {
+    await Promise.all(ids.map((id) => faceStore.deleteUnknownFace(id)));
+    exitSelectionMode();
+  } catch (err) {
+    toast.add({ severity: 'error', detail: err, life: 3000 });
+  } finally {
+    bulkBusy.value = false;
+  }
 }
 
 async function clearUngrouped() {

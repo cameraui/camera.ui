@@ -1882,6 +1882,7 @@ export default {
       faces_in_cluster: 'faces in group',
       assign_cluster: 'Assign group',
       ungrouped: 'Ungrouped',
+      select: 'Select images',
       discard: 'Discard',
       remove_from_cluster: 'Remove from group',
       show_all: 'Show all ({count})',
