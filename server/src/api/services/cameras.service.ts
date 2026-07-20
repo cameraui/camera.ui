@@ -278,8 +278,10 @@ export class CamerasService {
     const cameraController = this.api.getCamera(camera._id);
     const cameraOld = structuredClone(camera);
 
+    const isInputSourceArray = (value: unknown) => Array.isArray(value) && value.every((item) => item && typeof item === 'object');
+
     mergeWith(camera, cameraData, (source: any[], target: any, key) => {
-      if (key === 'sources') {
+      if (key === 'sources' && isInputSourceArray(source) && isInputSourceArray(target)) {
         return (target as CameraInputSettings[]).map((srcItem) => {
           const objItem: CameraInputSettings | undefined = source.find((o: any) => o.name === srcItem.name);
           const sourceId = objItem?._id ?? srcItem._id;
