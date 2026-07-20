@@ -18,6 +18,12 @@ All notable changes to this project will be documented in this file.
 
 - **Camera streaming sessions release their resources reliably.** When a HomeKit stream or recording ended, failed to start or was stopped twice at once, native video resources could stay behind and slowly drive up CPU and memory on long-running installations. Every shutdown path now waits for the same cleanup, and a failed start releases everything it opened. Thanks @JxnLexn!
 
+- **Cameras with a broken snapshot endpoint show a picture again.** Some cameras return corrupted images on their snapshot URL. Snapshots now fall back to a frame from the video stream instead of showing nothing.
+
+- **Downloading a plugin/camera log from the mobile app works now.** It failed with "Missing parent directory" because the plugin name's slash ended up in the file name. Slashes and other invalid characters are now replaced for every download.
+
+- **The "Show hidden" button no longer disappears.** After hiding some discovered cameras and adopting all the rest, the button vanished and the hidden entries were unreachable. It now stays visible whenever hidden cameras exist.
+
 - **Discovered cameras from different plugins can no longer hide each other.** When two plugins reported a device under the same internal id, only one of them showed up under Discovered, and adopting it could go through the wrong plugin. Discovery entries are now tracked per plugin.
 
 - **Two cameras can no longer end up with the same name.** Adopting discovered cameras that report identical names (common with ONVIF) or renaming a camera to an existing name created duplicates, which broke streams and blocked adding the cameras to Camview. Adopted cameras now get a free name suggested ("Camera 2"), and saving a taken name is rejected with a clear message. Names that only differ in casing or spaces count as taken too.
@@ -31,6 +37,18 @@ All notable changes to this project will be documented in this file.
 - **Notifications from cameras with built-in smart detection carry an image again.** On cameras whose person/vehicle detection comes from the camera itself (like Reolink) without an AI plugin assigned, detection pushes arrived without a picture and only at the end of the detection. The snapshot now attaches to the detection as soon as it arrives, so the push fires promptly with the image.
 
 - **Connecting your own Cloudflare domain works reliably again.** Setting up remote access with a Cloudflare account often failed right away with "Login failed: cloudflared exited with code null" and the browser login never opened: the server restarted its tunnel processes mid-setup and killed the login. The login window is now left alone until it finishes.
+
+- **Automation flows with several triggers or merged branches run now.** Wiring two triggers to the same action, or joining the two sides of an If/Else back together, silently never ran the rest of the flow.
+
+- **PTZ and other complex sensor values are usable in automations.** Values like the PTZ position arrived as one unmatchable JSON blob; their parts are now separate variables (like sensor.value.pan), and pickers no longer offer write-only commands as trigger properties.
+
+- **Sensor automations survive plugin restarts.** After a plugin restarted, flows triggered by its sensors never fired again until they were re-saved.
+
+- **Automation schedules follow real cron rules.** Ranges with steps like 8-18/2 fired at the wrong times, day-of-month steps were shifted and Sunday as 7 was rejected. Schedules now run on a proper cron engine.
+
+- **Editing automations on the phone saves again.** Changing a node's settings in the mobile editor never showed the save button, so the changes were lost when leaving the page.
+
+- **Several smaller automation fixes.** The repeat counter variable was stuck at 0, results after parallel repeats never reached later nodes, HTTP action headers could not be set at all, the first location report after a server restart could swallow an enter/leave event, events with several detection types matched no switch case, and typos in template variables now log a warning instead of silently becoming empty.
 
 ## [2.0.15]
 
