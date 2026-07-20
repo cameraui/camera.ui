@@ -62,8 +62,11 @@ jobs:
       - name: Install node dependencies
         run: |
           npm --prefix "${{ steps.r.outputs.dir }}" install
-          # prepublishOnly for server builds the UI into server/dist/interface
-          if [ "${{ steps.r.outputs.dir }}" = "server" ]; then npm --prefix ui install; fi
+          # prepublishOnly for server runs the root sensor-parity check (tsx) and builds the UI
+          if [ "${{ steps.r.outputs.dir }}" = "server" ]; then
+            npm install
+            npm --prefix ui install
+          fi
 
       - name: Assemble Python tools from externals
         if: steps.r.outputs.dir == 'server'
