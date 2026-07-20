@@ -36,7 +36,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "26.1.1",
     "@types/tail": "^2.2.3",
-    "@typescript-eslint/parser": "^8.64.0",
+    "@typescript-eslint/parser": "^8.65.0",
     "eslint": "9.39.2",
     "globals": "^17.7.0",
     "nodemon": "^3.1.14",
@@ -45,7 +45,7 @@
     "tsx": "^4.23.1",
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.64.0",
+    "typescript-eslint": "^8.65.0",
     "updates": "^17.19.1"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
