@@ -94,7 +94,7 @@ export function getImageUrl(img: string = 'logo-512.png'): string {
 
   if (img === 'avatar') {
     const avatar = authStore.user?.avatar;
-    if (token && avatar) {
+    if (token && avatar && avatar !== 'logo-256.png') {
       return `${origin}/api/files/${avatar}?token=${token}${proxySessionQuery()}`;
     }
     img = 'logo-256.png';
