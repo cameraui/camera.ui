@@ -246,7 +246,12 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     if (source.role === 'snapshot' || source.useForSnapshot) {
       const snapshot = await fetchSnapshotFromSource(source);
-      return snapshot;
+      if (snapshot && snapshot.byteLength > 0) {
+        return snapshot;
+      }
+
+      const fallback = [this.lowResolutionSource, this.midResolutionSource, this.highResolutionSource].find((s) => s && s._id !== source._id);
+      return fallback ? fetchSnapshotFromSource(fallback) : snapshot;
     } else {
       const pluginSnapshot = await fetchSnapshotFromPlugin(source);
       if (pluginSnapshot) {

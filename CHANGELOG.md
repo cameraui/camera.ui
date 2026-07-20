@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
 
 - **Your cameras' sensors and detections are now available to other tools.** Every camera's sensors (contact, lock, light, alarm, and more) can be read and controlled over the API and MQTT, and the live event stream reports the objects, faces and license plates it recognizes. Home Assistant and similar integrations can mirror your cameras and use them in automations.
 
+- **Building automations got much easier.** Every input in the automation editor now suggests what the connected trigger really produces: variables with readable names, one-click values like Locked/Unlocked for a lock or true/false for a switch, PTZ presets from the camera's real preset list, recently seen MQTT topics and known face names. Saving warns about problems directly on the affected nodes, like a missing trigger or a mistyped variable.
+
+- **Automation runs are visible now.** The flow card shows whether the last run succeeded, and a history dialog lists recent runs with the path through the flow: which branch a switch took, how long each step ran, and any warnings. The test run replays the last real trigger event instead of running with empty values.
+
 ### Fixed
 
 - **camera.ui starts up quickly again.** With Go-based plugins installed (such as the NVR), the server could hang for minutes while starting.
