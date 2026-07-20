@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file.
 
 - **Automation runs are visible now.** The flow card shows whether the last run succeeded, and a history dialog lists recent runs with the path through the flow: which branch a switch took, how long each step ran, and any warnings. The test run replays the last real trigger event instead of running with empty values.
 
+- **Recording is now a camera setting.** Enable or disable recording, the recording mode, pre-buffer and recorded streams moved from the NVR plugin's settings into the camera settings, with their own Recording section in the camera drawer. They can be changed even while no NVR plugin is installed, and existing values are carried over automatically.
+
+- **Automations can control more camera settings.** The camera control action now also covers recording on/off and mode, PTZ autotracking, face and plate recognition thresholds, stationary-object suppression and HQ snapshots.
+
 - **Tune face and license plate recognition per camera.** The camera's detection settings now let you set a minimum face confidence, a minimum plate reading confidence and a minimum plate length, so you decide how strict recognition is for each camera.
 
 ### Fixed

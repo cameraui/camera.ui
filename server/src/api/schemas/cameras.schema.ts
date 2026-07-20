@@ -31,11 +31,21 @@ function createDefaultDetectionZone() {
   };
 }
 
-export const recordingsSettingsSchema = zod
+export const recordingSettingsSchema = zod
   .object({
-    enabled: zod.boolean().default(false),
+    enabled: zod.boolean().default(true),
+    mode: zod.enum(['continuous', 'event', 'adhoc']).default('continuous'),
+    preBuffer: zod.number().min(0).max(60).default(10),
+    sources: zod.array(zod.enum(['high', 'mid', 'low'])).default(['high', 'mid', 'low']),
   })
   .strict();
+
+export const DEFAULT_RECORDING_SETTINGS: zod.infer<typeof recordingSettingsSchema> = {
+  enabled: true,
+  mode: 'continuous',
+  preBuffer: 10,
+  sources: ['high', 'mid', 'low'],
+};
 
 export const detectionLabelSchema = zod.string().trim().min(1, 'Detection label is required') as zod.ZodType<DetectionLabel>;
 
@@ -423,6 +433,7 @@ export const createCameraBaseSchema = zod
       snooze: false,
     }),
     ptzAutotrack: ptzAutotrackSettingsSchema.default(DEFAULT_PTZ_AUTOTRACK_SETTINGS),
+    recordingSettings: recordingSettingsSchema.default(DEFAULT_RECORDING_SETTINGS),
     frameWorkerSettings: frameWorkerSettingsSchema.default({
       fps: 10,
       hqSnapshots: false,
@@ -492,6 +503,7 @@ export const patchCameraSchema = zod
     detectionLines: detectionLineSchema.optional(),
     detectionSettings: detectionSettingsSchema.partial().optional(),
     ptzAutotrack: ptzAutotrackSettingsSchema.partial().optional(),
+    recordingSettings: recordingSettingsSchema.partial().optional(),
     frameWorkerSettings: frameWorkerSettingsSchema.partial().optional(),
   })
   .strict()

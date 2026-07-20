@@ -653,16 +653,19 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
         try {
           const bus = container.resolve<InternalEventBus>('internalBus');
+
           const watchedProps = [
             'name',
             'sources',
             'detectionSettings',
             'ptzAutotrack',
+            'recordingSettings',
             'detectionZones',
             'detectionLines',
             'frameWorkerSettings',
             'interfaceSettings',
           ] as const;
+
           for (const prop of watchedProps) {
             if (!isEqual((oldCamera as any)[prop], (newCamera as any)[prop], true)) {
               bus.emitEvent('camera:property:changed', { cameraId: this.id, cameraName: this.name, property: prop });

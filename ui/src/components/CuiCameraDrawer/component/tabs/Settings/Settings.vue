@@ -689,6 +689,131 @@
       </AccordionContent>
     </AccordionPanel>
 
+    <AccordionPanel value="recording">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.recording') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="w-full flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.recording_hint') }}
+          </Message>
+          <Message v-if="!hasNvrPlugin" severity="secondary" variant="simple" size="small" class="cui-banner cui-banner-warn">
+            <i-mdi:information-outline class="w-4 h-4 shrink-0 inline-block mr-1" />
+            {{ $t('components.camera_options.recording_requires') }}
+          </Message>
+
+          <Field
+            v-slot="{ field, errors }"
+            :model-value="cameraForm.recordingSettings?.enabled ?? true"
+            :value="true"
+            :unchecked-value="false"
+            type="checkbox"
+            name="recordingSettings.enabled"
+            as="div"
+            class="flex flex-col field-gap cui-toggle-switch"
+          >
+            <div class="flex items-center gap-4">
+              <div class="flex flex-col field-switch-gap">
+                <label for="recordingSettings.enabled" class="cui-label-switch">{{ $t('components.form.label.recording_enabled') }}</label>
+
+                <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ $t('components.form.hint.recording_enabled') }}</Message>
+
+                <Transition name="fade">
+                  <ErrorMessage name="recordingSettings.enabled" class="cui-input-switch-error" />
+                </Transition>
+              </div>
+              <ToggleSwitch
+                :model-value="cameraForm.recordingSettings?.enabled ?? true"
+                v-bind="field"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                class="ml-auto shrink-0"
+                @value-change="(e) => updateRecordingSettings({ enabled: e })"
+              />
+            </div>
+          </Field>
+
+          <template v-if="cameraForm.recordingSettings?.enabled ?? true">
+            <Field v-slot="{ errors }" :model-value="cameraForm.recordingSettings?.mode" name="recordingSettings.mode" as="div" class="flex flex-col field-gap">
+              <label for="recordingSettings.mode" class="cui-label">{{ $t('components.form.label.recording_mode') }}</label>
+              <InputGroup>
+                <Select
+                  :model-value="cameraForm.recordingSettings?.mode ?? 'continuous'"
+                  :options="recordingModes"
+                  :invalid="errors.length > 0"
+                  :loading="isLoading"
+                  type="text"
+                  @value-change="(e) => updateRecordingSettings({ mode: e })"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage name="recordingSettings.mode" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.recording_mode')
+              }}</Message>
+            </Field>
+
+            <Field
+              v-if="cameraForm.recordingSettings?.mode === 'event'"
+              v-slot="{ errors }"
+              :model-value="cameraForm.recordingSettings?.preBuffer"
+              name="recordingSettings.preBuffer"
+              as="div"
+              class="flex flex-col field-gap"
+            >
+              <label for="recordingSettings.preBuffer" class="cui-label">{{ $t('components.form.label.recording_prebuffer') }}</label>
+              <InputGroup>
+                <InputNumber
+                  :model-value="cameraForm.recordingSettings?.preBuffer ?? 10"
+                  :invalid="errors.length > 0"
+                  :loading="isLoading"
+                  show-buttons
+                  :step="1"
+                  :min="0"
+                  :max="60"
+                  :use-grouping="false"
+                  @value-change="(e) => updateRecordingSettings({ preBuffer: e ?? 10 })"
+                  @input="(e) => updateRecordingSettings({ preBuffer: (e.value as any) ?? 10 })"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage name="recordingSettings.preBuffer" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.recording_prebuffer')
+              }}</Message>
+            </Field>
+
+            <Field v-slot="{ errors }" :model-value="cameraForm.recordingSettings?.sources" name="recordingSettings.sources" as="div" class="flex flex-col field-gap">
+              <label for="recordingSettings.sources" class="cui-label">{{ $t('components.form.label.recording_sources') }}</label>
+              <MultiSelect
+                :model-value="cameraForm.recordingSettings?.sources ?? ['high', 'mid', 'low']"
+                :invalid="errors.length > 0"
+                :options="recordingSources"
+                class="w-full"
+                :show-toggle-all="false"
+                @update:model-value="(e) => updateRecordingSettings({ sources: e })"
+              />
+
+              <Transition name="fade">
+                <ErrorMessage name="recordingSettings.sources" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">
+                {{ $t('components.form.hint.recording_sources') }}
+              </Message>
+            </Field>
+          </template>
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
     <AccordionPanel value="ptzAutotrack">
       <AccordionHeader class="px-0">
         <span class="text-color font-normal">{{ $t('components.camera_options.ptz_autotrack') }}</span>
@@ -1216,7 +1341,7 @@
 
 <script setup lang="ts">
 import { useSensors } from '@camera.ui/browser';
-import { SensorType } from '@camera.ui/sdk';
+import { PluginInterface, SensorType } from '@camera.ui/sdk';
 import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
@@ -1231,7 +1356,16 @@ import type { AspectRatioProps } from '@/components/CuiDialog/templates/AspectRa
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
 import type { ZoneEditorProps } from '@/components/CuiDialog/templates/ZoneEditor/types.js';
 import type { VideoStreamingMode } from '@camera.ui/browser';
-import type { CameraAspectRatio, CameraType, DetectionZone, MotionResolution, StreamingRole } from '@camera.ui/sdk';
+import type {
+  CameraAspectRatio,
+  CameraRecordingSettings,
+  CameraType,
+  DetectionZone,
+  MotionResolution,
+  RecordingMode,
+  RecordingSource,
+  StreamingRole,
+} from '@camera.ui/sdk';
 import type { DBCamera, DBVirtualSensor } from '@shared/types';
 import type { CameraOptionsTabEmits, CameraOptionsTabProps } from '../../types.js';
 
@@ -1269,6 +1403,7 @@ const { camera, cameraDevice, loading: parentLoading } = toRefs(props);
 const { sensors: allSensors } = useSensors(cameraDevice);
 
 const { data: roomsData, isBusy: roomsLoading } = camerasQueryRooms.getRoomsQuery();
+const { data: cameraExtensions } = camerasQuery.getCameraExtensionsQuery(cameraForm.value.name);
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
 const { mutateAsync: patchZones, isPending: zonesPatching } = camerasQuery.patchZonesQuery();
 const { mutateAsync: patchLines, isPending: linesPatching } = camerasQuery.patchLinesQuery();
@@ -1282,9 +1417,13 @@ const streamingModes = ref<VideoStreamingMode[]>(['auto', 'mse', 'webrtc', 'webr
 const streamingSources = ref<StreamingRole[]>(['high-resolution', 'mid-resolution', 'low-resolution']);
 const aspectRatios = ref<CameraAspectRatio[]>(['16:9', '9:16', '8:3', '4:3', '1:1']);
 const motionResolutions = ref<MotionResolution[]>(['low', 'medium', 'high']);
+const recordingModes = ref<RecordingMode[]>(['continuous', 'event', 'adhoc']);
+const recordingSources = ref<RecordingSource[]>(['high', 'mid', 'low']);
 const localRooms = ref<string[]>([]);
 
 const hasPtzCapability = computed(() => allSensors.value.some((s) => s.type === SensorType.PTZ));
+
+const hasNvrPlugin = computed(() => (cameraExtensions.value ?? []).some((p) => p.contract.interfaces?.includes(PluginInterface.NVR)));
 
 const cameraVirtualSensors = computed(() => (virtualSensorsData.value ?? []).filter((sensor) => sensor.cameraId === cameraForm.value._id));
 
@@ -1338,7 +1477,11 @@ const roomOptions = computed(() => {
 
 const isLoading = computed(() => parentLoading.value || removeLoading.value);
 
-// Composite key for stable sensor identification (survives plugin restarts)
+function updateRecordingSettings(patch: Partial<CameraRecordingSettings>) {
+  const current: CameraRecordingSettings = cameraForm.value.recordingSettings ?? { enabled: true, mode: 'continuous', preBuffer: 10, sources: ['high', 'mid', 'low'] };
+  cameraForm.value.recordingSettings = { ...current, ...patch };
+}
+
 function toSensorKey(sensorType: string, sensorName: string, pluginId: string) {
   return `${sensorType}::${sensorName}::${pluginId}`;
 }

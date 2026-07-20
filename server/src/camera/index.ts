@@ -5,6 +5,7 @@ import { TTLCache } from '@isaacs/ttlcache';
 import type {
   Camera,
   CameraDetectionSettings,
+  CameraRecordingSettings,
   PtzAutotrackSettings,
   CameraDevice as CameraDeviceInterface,
   CameraDeviceSource,
@@ -134,6 +135,10 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
 
   get ptzAutotrack(): PtzAutotrackSettings {
     return structuredClone(this.cameraSubject.getValue().ptzAutotrack);
+  }
+
+  get recordingSettings(): CameraRecordingSettings {
+    return structuredClone(this.cameraSubject.getValue().recordingSettings);
   }
 
   get frameWorkerSettings(): CameraFrameWorkerSettings {

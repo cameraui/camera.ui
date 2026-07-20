@@ -161,10 +161,9 @@
           @click="bulkToggleSnooze"
         />
         <CuiFloatingButton
-          v-if="anyNvrCamera"
           grouped
           :tooltip-props="{ value: allSelectedRecording ? $t('components.form.tooltip.recording_off_selected') : $t('components.form.tooltip.recording_on_selected') }"
-          :button-props="{ severity: 'secondary', disabled: !selectedNvrCameras.length || bulkBusy }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="allSelectedRecording ? RecordOffIcon : RecordIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="bulkToggleRecording"
@@ -201,7 +200,7 @@ import GridIcon from '~icons/mdi/view-grid';
 import SnoozeIcon from '~icons/solar/moon-sleep-bold';
 import SelectIcon from '~icons/tabler/dots-filled';
 
-import { CamerasQuery, getCameraExtensionConfigFn, patchCameraExtensionConfigFn, patchCameraFn, removeCameraFn } from '@/api/routes/cameras.js';
+import { CamerasQuery, patchCameraFn, removeCameraFn } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { extractErrorMessage, getImageUrl } from '@/common/utils.js';
 
@@ -341,49 +340,15 @@ function moveGroupCard(room: string, id: string, atIndex: number) {
   uiSettings.value.cameras.groupOrder = groupOrder;
 }
 
-const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
-
 const selectionMode = ref(false);
 const selectedIds = ref(new Set<string>());
 const bulkBusy = ref(false);
-
-// recordingEnabled lives in the NVR plugin's camera storage, not on the
-// camera record — fetched lazily per selected camera to aim the toggle
-const recordingStates = ref(new Map<string, boolean>());
 
 const selectedCameras = computed(() => sortedCameras.value.filter((camera) => selectedIds.value.has(camera._id)));
 const allSelected = computed(() => sortedCameras.value.length > 0 && sortedCameras.value.every((camera) => selectedIds.value.has(camera._id)));
 const allSelectedDisabled = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.disabled));
 const allSelectedSnoozed = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.detectionSettings?.snooze));
-
-const anyNvrCamera = computed(() => sortedCameras.value.some(hasNvr));
-const selectedNvrCameras = computed(() => selectedCameras.value.filter(hasNvr));
-const allSelectedRecording = computed(
-  () => selectedNvrCameras.value.length > 0 && selectedNvrCameras.value.every((camera) => recordingStates.value.get(camera._id) !== false),
-);
-
-watch([selectedIds, selectionMode], () => {
-  if (!selectionMode.value) return;
-  for (const camera of selectedNvrCameras.value) {
-    if (recordingStates.value.has(camera._id)) continue;
-    fetchRecordingState(camera);
-  }
-});
-
-function hasNvr(camera: DBCamera) {
-  return camera.plugins.some((plugin) => plugin.name === NVR_PLUGIN_NAME);
-}
-
-async function fetchRecordingState(camera: DBCamera) {
-  try {
-    const config = await getCameraExtensionConfigFn({ cameraname: camera.name, pluginname: NVR_PLUGIN_NAME, signal: new AbortController().signal });
-    const next = new Map(recordingStates.value);
-    next.set(camera._id, (config.config?.recordingEnabled as boolean | undefined) ?? true);
-    recordingStates.value = next;
-  } catch {
-    // toggle direction falls back to the schema default (recording on)
-  }
-}
+const allSelectedRecording = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.recordingSettings?.enabled !== false));
 
 function enterSelectionMode() {
   selectionMode.value = true;
@@ -392,7 +357,6 @@ function enterSelectionMode() {
 function exitSelectionMode() {
   selectionMode.value = false;
   selectedIds.value = new Set();
-  recordingStates.value = new Map();
 }
 
 function toggleSelectAll() {
@@ -414,8 +378,6 @@ function onCardClick(camera: DBCamera) {
   selectedIds.value = next;
 }
 
-// Sequential on purpose: every patch triggers a server-side reconfigure of the
-// shared config — hammering them in parallel invites write races.
 async function runBulk(operation: (camera: DBCamera) => Promise<unknown>, successDetail: string) {
   if (!selectedCameras.value.length || bulkBusy.value) return;
 
@@ -444,14 +406,8 @@ async function bulkToggleSnooze() {
 }
 
 async function bulkToggleRecording() {
-  const recordingEnabled = !allSelectedRecording.value;
-  await runBulk(async (camera) => {
-    if (!hasNvr(camera)) return;
-    await patchCameraExtensionConfigFn({ cameraname: camera.name, pluginname: NVR_PLUGIN_NAME, configData: { recordingEnabled } });
-    const next = new Map(recordingStates.value);
-    next.set(camera._id, recordingEnabled);
-    recordingStates.value = next;
-  }, t('components.toast.camera_updated'));
+  const enabled = !allSelectedRecording.value;
+  await runBulk((camera) => patchCameraFn({ cameraname: camera.name, cameraData: { recordingSettings: { enabled } } }), t('components.toast.camera_updated'));
 }
 
 function confirmBulkDelete() {

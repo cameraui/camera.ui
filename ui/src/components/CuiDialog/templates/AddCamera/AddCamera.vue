@@ -115,6 +115,12 @@ async function onSave() {
       returnToHome: false,
       homeWaitMs: 10000,
     },
+    recordingSettings: {
+      enabled: true,
+      mode: 'continuous',
+      preBuffer: 10,
+      sources: ['high', 'mid', 'low'],
+    },
     frameWorkerSettings: {
       fps: 10,
       hqSnapshots: false,

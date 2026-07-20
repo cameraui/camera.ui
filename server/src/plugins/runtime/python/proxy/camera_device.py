@@ -20,6 +20,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     CameraPluginInfo,
     CameraPropertyObservableObject,
     CameraPublicProperties,
+    CameraRecordingSettings,
     CameraRole,
     CameraSource,
     CameraType,
@@ -282,6 +283,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
     @property
     def ptzAutotrack(self) -> PtzAutotrackSettings:
         return deepcopy(self._camera_subject.value["ptzAutotrack"])
+
+    @property
+    def recordingSettings(self) -> CameraRecordingSettings:
+        return deepcopy(self._camera_subject.value["recordingSettings"])
 
     @property
     def snooze(self) -> bool:
