@@ -18,6 +18,20 @@
 
     <ToggleSwitch :model-value="flow.enabled" class="shrink-0" @update:model-value="$emit('toggle-enabled')" />
 
+    <Button
+      v-if="showHistory"
+      v-tooltip.bottom="{ value: t('views.automations.run_history') }"
+      severity="secondary"
+      text
+      rounded
+      class="cui-icon-md shrink-0"
+      @click="$emit('show-history')"
+    >
+      <template #icon>
+        <i-mdi:history width="100%" height="100%" />
+      </template>
+    </Button>
+
     <Button severity="secondary" text rounded class="cui-icon-md shrink-0" @click="menuRef?.toggleMenu($event)">
       <template #icon>
         <i-carbon:settings width="100%" height="100%" />

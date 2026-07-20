@@ -1,5 +1,6 @@
 import { container } from 'tsyringe';
 
+import { computeSensorStableId } from '../../camera/sensors/stable-id.js';
 import { createEmptyContext } from '../context.js';
 
 import type { Disposable } from '@camera.ui/sdk';
@@ -11,6 +12,7 @@ export function subscribeSensor(ctx: TriggerContext, flow: DBAutomation, trigger
   const cameraId = triggerNode.data.cameraId as string;
   const sensorName = triggerNode.data.sensorName as string;
   const sensorPluginId = triggerNode.data.sensorPluginId as string;
+  const sensorType = triggerNode.data.sensorType as string | undefined;
   const watchProperties = (triggerNode.data.properties as string[]) ?? [];
 
   if (!cameraId || !sensorName) return;
@@ -22,15 +24,20 @@ export function subscribeSensor(ctx: TriggerContext, flow: DBAutomation, trigger
   }
 
   const sensor = camera.sensorController.getSensors().find((s) => s.name === sensorName && s.pluginId === sensorPluginId);
-  if (!sensor) {
+  // runtime ids change on plugin restart, the stable id keeps matching without re-saving the flow
+  const stableId = sensorType ? computeSensorStableId(sensorPluginId, sensorType, sensorName) : sensor?.stableId;
+  if (!stableId) {
     ctx.logger.warn(`Automation "${flow.name}": Sensor "${sensorName}" not found on camera "${camera.name}"`);
     return;
+  }
+  if (!sensor) {
+    ctx.logger.debug(`Automation "${flow.name}": Sensor "${sensorName}" not registered yet on "${camera.name}", trigger arms when it appears`);
   }
 
   const bus = container.resolve<InternalEventBus>('internalBus');
   const handler = (payload: InternalEventPayload) => {
     const p = payload as SensorPropertyChangedPayload;
-    if (p.cameraId !== cameraId || p.sensorId !== sensor.id) return;
+    if (p.cameraId !== cameraId || p.sensorStableId !== stableId) return;
     if (watchProperties.length > 0 && !watchProperties.includes(p.property)) return;
 
     const context = createEmptyContext();

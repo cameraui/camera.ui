@@ -51,7 +51,6 @@
           :placeholder="param.placeholder"
           @update:model-value="updateParam(param.name, String($event ?? ''))"
         />
-        <VariableSuggestions :variables="availableVars" @select="updateParam(param.name, (data.params[param.name] ?? '') + $event)" />
       </div>
     </template>
 
@@ -76,13 +75,11 @@ import { usePlugin } from '@camera.ui/browser';
 
 import { AutomationsQuery } from '@/api/routes/automations.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
-import { getAvailableVariables } from './availableVariables.js';
 import VariableInput from './VariableInput.vue';
-import VariableSuggestions from './VariableSuggestions.vue';
 
 import type { PluginMethodDef } from '@/api/routes/automations.js';
 import type { JsonSchema } from '@camera.ui/sdk';
-import type { AutomationFlow, ConfigActionPluginProps, ConfigNodeUpdateEmits } from '../types.js';
+import type { ConfigActionPluginProps, ConfigNodeUpdateEmits } from '../types.js';
 
 const pluginsQuery = new PluginsQuery();
 const automationsQuery = new AutomationsQuery();
@@ -94,15 +91,11 @@ const emit = defineEmits<ConfigNodeUpdateEmits>();
 const { t } = useI18n();
 const { plugin: pluginProxy } = usePlugin(computed(() => props.data.pluginName));
 
-const store = useAutomationsStore();
-
 const { data: pluginsData, isBusy: pluginsLoading } = pluginsQuery.getPluginsQuery({ page: 1, pageSize: -1 });
 const { data: methodRegistry } = automationsQuery.getPluginMethodsQuery();
 
 const pluginInterfaceSchema = shallowRef<JsonSchema[] | undefined>();
 const schemaLoading = ref(false);
-
-const availableVars = computed(() => getAvailableVariables(store.draft as AutomationFlow | null, props.nodeId));
 
 const pluginOptions = computed(() => {
   if (!pluginsData.value?.result) return [];

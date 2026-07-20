@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
-      <label class="cui-label">Camera</label>
+      <label class="cui-label">{{ t('components.automation_nodes.camera') }}</label>
       <Select
         :model-value="data.cameraId"
         :options="cameraOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select camera"
+        :placeholder="t('components.automation_nodes.camera_placeholder')"
         class="w-full"
         @update:model-value="onCameraChange"
       />
@@ -20,7 +20,7 @@
         :options="sensorOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor type"
+        :placeholder="t('components.automation_nodes.sensor_type_placeholder')"
         class="w-full"
         :disabled="!data.cameraId"
         @update:model-value="onSensorTypeChange"
@@ -34,7 +34,7 @@
         :options="instanceSelectOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor"
+        :placeholder="t('components.automation_nodes.sensor_instance_placeholder')"
         class="w-full"
         :loading="instancesLoading"
         @update:model-value="onInstanceChange"
@@ -62,7 +62,7 @@
             :options="propertyOptions"
             option-label="label"
             option-value="value"
-            placeholder="Property"
+            :placeholder="t('components.automation_nodes.sensor_property_placeholder')"
             class="flex-1 min-w-0"
             @update:model-value="updateCondition(idx, 'property', $event as string)"
           />
@@ -70,6 +70,7 @@
             v-if="cond.property"
             :model-value="isVariableMode(idx) ? 'variable' : 'fixed'"
             :options="modeOptions"
+            option-label="value"
             option-value="value"
             :allow-empty="false"
             class="cui-select-button-small shrink-0"
@@ -92,6 +93,9 @@
           :variable-mode="isVariableMode(idx)"
           :node-id="nodeId"
           :disabled="!cond.property"
+          :camera-id="data.cameraId"
+          :sensor-name="data.sensorName"
+          :sensor-plugin-id="data.sensorPluginId"
           @update:model-value="(value) => updateCondition(idx, 'expectedValue', value)"
         />
       </div>
@@ -120,8 +124,8 @@ const { t } = useI18n();
 const { cameraOptions, getSensorTypes, useSensorInstances, getPropertiesForSensor } = useCameraOptions();
 
 const logicOptions = [
-  { label: 'AND', value: 'AND' },
-  { label: 'OR', value: 'OR' },
+  { label: t('components.automation_nodes.logic_and'), value: 'AND' },
+  { label: t('components.automation_nodes.logic_or'), value: 'OR' },
 ];
 
 const modeOptions = [

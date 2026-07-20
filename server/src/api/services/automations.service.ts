@@ -4,10 +4,15 @@ import { container } from 'tsyringe';
 import { normalizeSwitchCaseHandles } from '../../automations/switchHandles.js';
 
 import type { AutomationEngine } from '../../automations/engine.js';
+import type { AutomationRun } from '../../automations/trace.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { Database } from '../database/index.js';
 import type { DBAutomation } from '../database/types.js';
 import type { CreateAutomationInput, ImportBlueprintInput, PatchAutomationInput } from '../schemas/automations.schema.js';
+
+const RUN_PREFIX = 'run:';
+const CONTEXT_PREFIX = 'context:';
+const MAX_RUNS_PER_FLOW = 50;
 
 export class AutomationsService {
   private dbs: Database;
@@ -73,11 +78,35 @@ export class AutomationsService {
     if (!automation) return false;
 
     await this.dbs.automationsDB.remove(id);
+    await this.clearRunState(id);
 
     this.logger.log(`Automation deleted: ${automation.name} (${id})`);
     this.notifyEngineDeleted(id);
 
     return true;
+  }
+
+  public async addRun(run: AutomationRun): Promise<void> {
+    const key = `${RUN_PREFIX}${run.flowId}:${String(run.startedAt).padStart(15, '0')}`;
+    await this.dbs.automationStateDB.put(key, run);
+
+    const keys = [...this.dbs.automationStateDB.getRange({ start: `${RUN_PREFIX}${run.flowId}:`, end: `${RUN_PREFIX}${run.flowId}:￿` })].map((e) => e.key);
+    if (keys.length > MAX_RUNS_PER_FLOW) {
+      await Promise.all(keys.slice(0, keys.length - MAX_RUNS_PER_FLOW).map((k) => this.dbs.automationStateDB.remove(k)));
+    }
+  }
+
+  public listRuns(flowId: string, limit = MAX_RUNS_PER_FLOW): AutomationRun[] {
+    const runs = [...this.dbs.automationStateDB.getRange({ start: `${RUN_PREFIX}${flowId}:`, end: `${RUN_PREFIX}${flowId}:￿` })].map((e) => e.value as AutomationRun);
+    return runs.slice(-limit).reverse();
+  }
+
+  public saveLastTriggerContext(flowId: string, payload: Record<string, unknown>): void {
+    this.dbs.automationStateDB.put(`${CONTEXT_PREFIX}${flowId}`, payload);
+  }
+
+  public getLastTriggerContext(flowId: string): Record<string, unknown> | undefined {
+    return this.dbs.automationStateDB.get(`${CONTEXT_PREFIX}${flowId}`) as Record<string, unknown> | undefined;
   }
 
   public async setLastRun(id: string, lastRun: DBAutomation['lastRun']): Promise<void> {
@@ -88,14 +117,12 @@ export class AutomationsService {
     await this.dbs.automationsDB.put(id, automation);
   }
 
-  // Disable any flow whose nodes reference the given camera and flag it for update.
-  // Returns the affected flows so callers (e.g. AutomationEngine) can react.
   public async disableFlowsReferencingCamera(cameraId: string): Promise<DBAutomation[]> {
     const affected: DBAutomation[] = [];
 
     for (const { value: flow } of this.dbs.automationsDB.getRange()) {
       if (flow.requiresUpdate) continue;
-      if (!flow.nodes.some((n) => n.data.cameraId === cameraId)) continue;
+      if (!flow.nodes.some((n) => n.data.cameraId === cameraId || n.data.targetId === cameraId)) continue;
 
       flow.requiresUpdate = true;
       flow.enabled = false;
@@ -171,6 +198,12 @@ export class AutomationsService {
       }
       return node;
     });
+  }
+
+  private async clearRunState(flowId: string): Promise<void> {
+    const keys = [...this.dbs.automationStateDB.getRange({ start: `${RUN_PREFIX}${flowId}:`, end: `${RUN_PREFIX}${flowId}:￿` })].map((e) => e.key);
+    await Promise.all(keys.map((k) => this.dbs.automationStateDB.remove(k)));
+    await this.dbs.automationStateDB.remove(`${CONTEXT_PREFIX}${flowId}`);
   }
 
   private notifyEngine(flowId: string): void {

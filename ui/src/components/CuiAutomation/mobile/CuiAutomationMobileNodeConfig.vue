@@ -29,6 +29,7 @@ function onUpdateData(data: Record<string, unknown>) {
   const node = nodes.find((n) => n.id === props.node.id);
   if (node?.data) {
     Object.assign(node.data, data);
+    store.draftDirty = true;
   }
 }
 

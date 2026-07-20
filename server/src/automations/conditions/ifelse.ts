@@ -1,3 +1,5 @@
+import { looseEquals, toComparableNumber } from '../parseValue.js';
+
 import type { ActionContext } from '../actions/types.js';
 import type { ConditionResult } from './types.js';
 
@@ -9,22 +11,22 @@ export function conditionIfElse(ctx: ActionContext, data: Record<string, unknown
   let result: boolean;
   switch (operator) {
     case '==':
-      result = left === right;
+      result = looseEquals(left, right);
       break;
     case '!=':
-      result = left !== right;
+      result = !looseEquals(left, right);
       break;
     case '>':
-      result = Number(left) > Number(right);
+      result = toComparableNumber(left) > toComparableNumber(right);
       break;
     case '<':
-      result = Number(left) < Number(right);
+      result = toComparableNumber(left) < toComparableNumber(right);
       break;
     case '>=':
-      result = Number(left) >= Number(right);
+      result = toComparableNumber(left) >= toComparableNumber(right);
       break;
     case '<=':
-      result = Number(left) <= Number(right);
+      result = toComparableNumber(left) <= toComparableNumber(right);
       break;
     case 'contains':
       result = left.includes(right);

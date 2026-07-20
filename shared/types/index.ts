@@ -12,6 +12,7 @@ export * from '../../server/src/api/schemas/users.schema.js';
 export * from '../../server/src/api/schemas/virtualsensors.schema.js';
 export type * from '../../server/src/api/types/index.js';
 export type * from '../../server/src/api/websocket/types.js';
+export type { AutomationRun, RunTraceEntry } from '../../server/src/automations/trace.js';
 export * from '../../server/src/camera/sensors/types.js';
 export * from '../../server/src/go2rtc/types.js';
 export type * from '../../server/src/manager/types.js';

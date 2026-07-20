@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
-      <label class="cui-label">Camera</label>
+      <label class="cui-label">{{ t('components.automation_nodes.camera') }}</label>
       <Select
         :model-value="data.cameraId"
         :options="cameraOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select camera"
+        :placeholder="t('components.automation_nodes.camera_placeholder')"
         class="w-full"
         @update:model-value="onCameraChange"
       />
@@ -20,7 +20,7 @@
         :options="sensorOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor type"
+        :placeholder="t('components.automation_nodes.sensor_type_placeholder')"
         class="w-full"
         :disabled="!data.cameraId"
         @update:model-value="onSensorTypeChange"
@@ -34,7 +34,7 @@
         :options="instanceSelectOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor"
+        :placeholder="t('components.automation_nodes.sensor_instance_placeholder')"
         class="w-full"
         :loading="instancesLoading"
         @update:model-value="onInstanceChange"
@@ -104,7 +104,7 @@ const propertyOptions = computed(() => {
 });
 
 function onCameraChange(value: unknown) {
-  emit('update:data', { cameraId: value, sensorType: '', sensorName: '', sensorPluginId: '', property: '' });
+  emit('update:data', { cameraId: value, sensorType: '', sensorName: '', sensorPluginId: '', properties: [] });
 }
 
 function onSensorTypeChange(value: unknown) {

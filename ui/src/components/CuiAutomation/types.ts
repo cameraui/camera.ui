@@ -307,6 +307,7 @@ export const CATEGORY_COLORS: Record<AutomationNodeCategory, string> = {
 
 export interface CuiAutomationToolbarProps {
   flow: AutomationFlow;
+  showHistory?: boolean;
 }
 
 export interface CuiAutomationToolbarEmits {
@@ -314,16 +315,22 @@ export interface CuiAutomationToolbarEmits {
   (e: 'toggle-enabled'): void;
   (e: 'toggle-suppress-duplicates'): void;
   (e: 'toggle-single-execution'): void;
+  (e: 'show-history'): void;
 }
 
 export interface CuiAutomationFlowCardProps {
   flow: DBAutomation;
+  selectionMode?: boolean;
+  selected?: boolean;
 }
 
 export interface CuiAutomationFlowCardEmits {
   (e: 'click'): void;
   (e: 'toggle', value: boolean): void;
-  (e: 'delete'): void;
+}
+
+export interface CuiAutomationRunsDialogProps {
+  flowId: string;
 }
 
 export interface CuiAutomationNodeConfigProps {

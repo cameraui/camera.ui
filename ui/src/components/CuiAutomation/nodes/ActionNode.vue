@@ -6,6 +6,7 @@
       :subtitle="subtitle"
       :color="definition?.color ?? '#3b82f6'"
       :selected="selected"
+    :warning="nodeWarning"
       :show-input="true"
       :show-output="true"
     />
@@ -26,7 +27,10 @@
 </template>
 
 <script setup lang="ts">
+import { useCameraNames } from '../config/useCameraOptions.js';
+import { useNodeIssues } from '../config/flowValidation.js';
 import { getNodeDefinition } from '../nodeDefinitions.js';
+import { getNodeSummary } from '../utils.js';
 import BaseNode from './BaseNode.vue';
 
 import type { NodeProps } from '@vue-flow/core';
@@ -39,17 +43,16 @@ const { t } = useI18n();
 const automationsStore = useAutomationsStore();
 const { lastOutput } = storeToRefs(automationsStore);
 
+const nodeWarning = useNodeIssues(() => props.id);
+
 const definition = computed(() => getNodeDefinition(props.type));
 const label = computed(() => (definition.value ? t(definition.value.labelKey) : props.type));
+const { cameraName } = useCameraNames();
 const subtitle = computed(() => {
   const data = props.data as unknown as Record<string, unknown>;
   const alias = data.alias as string | undefined;
-  let text: string | undefined;
-
-  if (data.type === 'action-delay') text = `${data.duration} ${data.unit}`;
-  else if (data.type === 'action-notification' && data.title) text = data.title as string;
-  else if (data.type === 'action-http' && data.url) text = `${data.method} ${data.url}`;
-  else if (data.type === 'action-plugin' && data.repeat && (data.repeat as number) > 1) text = `${data.repeat}x`;
+  let text = getNodeSummary(props.data, cameraName);
+  if (data.type === 'action-plugin' && data.repeat && (data.repeat as number) > 1) text = text ? `${text} (${data.repeat}x)` : `${data.repeat}x`;
 
   if (alias && text) return `[${alias}] ${text}`;
   if (alias) return `[${alias}]`;

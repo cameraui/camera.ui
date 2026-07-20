@@ -1,9 +1,16 @@
 <template>
   <div
-    class="automation-node card-background rounded-lg border-2 shadow-lg min-w-[180px] max-w-[220px] select-none"
+    class="automation-node relative card-background rounded-lg border-2 shadow-lg min-w-[180px] max-w-[220px] select-none"
     :class="{ 'ring-2 ring-primary': selected }"
     :style="{ borderColor: color }"
   >
+    <div
+      v-if="warning"
+      v-tooltip.top="warning"
+      class="absolute -top-2 -right-2 z-10 flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white"
+    >
+      <i-mdi:exclamation-thick class="w-3.5 h-3.5" />
+    </div>
     <div class="flex items-center gap-2 px-3 py-2.5">
       <div class="flex items-center justify-center w-8 h-8 rounded-md shrink-0" :style="{ backgroundColor: `${color}20`, color }">
         <component :is="icon" class="w-4.5 h-4.5" />

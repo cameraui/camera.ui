@@ -15,7 +15,6 @@
         </Button>
         <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
       </div>
-      <VariableSuggestions :variables="availableVars" @select="update('source', (data.source ?? '') + $event)" />
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.image_source_hint') }}</Message>
     </div>
 
@@ -56,19 +55,15 @@
 </template>
 
 <script setup lang="ts">
-import { getAvailableVariables } from './availableVariables.js';
 import VariableInput from './VariableInput.vue';
-import VariableSuggestions from './VariableSuggestions.vue';
 
-import type { AutomationFlow, ConfigActionImageInputProps, ConfigNodeUpdateEmits } from '../types.js';
+import type { ConfigActionImageInputProps, ConfigNodeUpdateEmits } from '../types.js';
 
 const props = defineProps<ConfigActionImageInputProps>();
 
 const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
-
-const store = useAutomationsStore();
 
 const formatOptions = [
   { label: 'JPEG', value: 'jpeg' },
@@ -78,8 +73,6 @@ const formatOptions = [
 ];
 
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
-
-const availableVars = computed(() => getAvailableVariables(store.draft as AutomationFlow | null, props.nodeId));
 
 const previewUrl = computed(() => {
   const src = props.data.source;

@@ -255,6 +255,7 @@
     "useCameraStream": true,
     "useCameraUi": true,
     "useCamerasSocket": true,
+    "useCardSelection": true,
     "useClipboard": true,
     "useClipboardItems": true,
     "useCloned": true,

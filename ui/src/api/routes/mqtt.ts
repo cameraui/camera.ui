@@ -19,6 +19,11 @@ export async function getMqttStatus({ signal }: { signal?: AbortSignal } = {}): 
   return response.data;
 }
 
+export async function getMqttTopics({ signal }: { signal: AbortSignal }): Promise<string[]> {
+  const response: AxiosResponse<string[]> = await api.get('/mqtt/topics', { signal });
+  return response.data;
+}
+
 export async function testMqttConnection(patch: PatchMqttInput): Promise<MqttTestResult> {
   const response: AxiosResponse<MqttTestResult> = await api.post('/mqtt/test', patch);
   return response.data;
@@ -48,6 +53,14 @@ export class MqttQuery {
         await this._queryClient.refetchQueries({ queryKey: ['mqtt'], exact: true });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.mqtt_updated'), life: 3000 });
       },
+    });
+  }
+
+  public getMqttTopicsQuery() {
+    return useQueryEnhanced({
+      queryKey: ['mqtt', 'topics'],
+      queryFn: ({ signal }) => getMqttTopics({ signal }),
+      staleTime: 10_000,
     });
   }
 

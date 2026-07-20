@@ -9,6 +9,30 @@ import type { CameraController } from '../camera/controller.js';
 import type { LoggerService } from '../services/logger/index.js';
 import type { ActionContext } from './actions/index.js';
 import type { FlowContext } from './context.js';
+import type { RunTrace } from './trace.js';
+
+class AliasedVariables extends Map<string, string> {
+  constructor(
+    private base: Map<string, string>,
+    private prefix: string,
+  ) {
+    super();
+  }
+
+  override get(key: string): string | undefined {
+    return this.base.get(key);
+  }
+
+  override has(key: string): boolean {
+    return this.base.has(key);
+  }
+
+  override set(key: string, value: string): this {
+    this.base.set(key, value);
+    this.base.set(this.prefix + key, value);
+    return this;
+  }
+}
 
 export class FlowRunner {
   private context: FlowContext;
@@ -16,13 +40,15 @@ export class FlowRunner {
 
   private completed = new Set<string>();
   private pending = new Set<string>();
+  private skipped = new Set<string>();
+  private deadEdges = new Set<string>();
 
-  private resolveCache: Map<string, string> | null = null;
   private suppressVariableWrites = false;
 
   constructor(
     private api: CameraUiAPI,
     private logger: LoggerService,
+    private trace?: RunTrace,
   ) {
     this.context = { variables: new Map() };
   }
@@ -32,16 +58,34 @@ export class FlowRunner {
     this.context = context;
     this.completed = new Set();
     this.pending = new Set();
+    this.skipped = new Set();
+    this.deadEdges = new Set();
     seedVariables(this.context);
     this.context.variables.set('flow.startMs', String(Date.now()));
+
+    // only one trigger fires per run, the others count as skipped so fan-in joins resolve
+    const inactiveTriggers = flow.nodes.filter((n) => n.id !== startNode.id && TRIGGER_TYPES.has(n.type));
+    for (const node of inactiveTriggers) this.markSkipped(flow, node.id);
+    for (const node of inactiveTriggers) {
+      await Promise.all(this.getOutgoingEdges(flow, node.id).map((edge) => this.executeNode(flow, edge.target)));
+    }
+
     await this.executeNode(flow, startNode.id);
   }
 
   private async executeNode(flow: DBAutomation, nodeId: string): Promise<void> {
-    if (this.completed.has(nodeId) || this.pending.has(nodeId)) return;
+    if (this.completed.has(nodeId) || this.pending.has(nodeId) || this.skipped.has(nodeId)) return;
 
     const incomingEdges = flow.edges.filter((e) => e.target === nodeId);
-    if (incomingEdges.some((e) => !this.completed.has(e.source))) return;
+    const liveEdges = incomingEdges.filter((e) => !this.deadEdges.has(e.id));
+
+    if (incomingEdges.length > 0 && liveEdges.length === 0) {
+      this.markSkipped(flow, nodeId);
+      await Promise.all(this.getOutgoingEdges(flow, nodeId).map((edge) => this.executeNode(flow, edge.target)));
+      return;
+    }
+
+    if (liveEdges.some((e) => !this.completed.has(e.source))) return;
 
     this.pending.add(nodeId);
 
@@ -51,6 +95,7 @@ export class FlowRunner {
     if (TRIGGER_TYPES.has(node.type)) {
       this.completed.add(nodeId);
       this.pending.delete(nodeId);
+      this.trace?.addEntry({ nodeId, nodeType: node.type, status: 'completed', startedAt: Date.now() });
       const outEdges = this.getOutgoingEdges(flow, nodeId);
       await Promise.all(outEdges.map((edge) => this.executeNode(flow, edge.target)));
       return;
@@ -58,58 +103,81 @@ export class FlowRunner {
 
     const conditionHandler = CONDITION_HANDLERS[node.type];
     if (conditionHandler) {
+      const startedAt = Date.now();
       const result = await conditionHandler(this.createActionContext(), node.data);
       this.completed.add(nodeId);
       this.pending.delete(nodeId);
+      this.trace?.addEntry({
+        nodeId,
+        nodeType: node.type,
+        status: 'completed',
+        ...(result ? { handle: result.handle } : {}),
+        startedAt,
+        durationMs: Date.now() - startedAt,
+      });
 
-      if (result) {
-        const edges = this.getOutgoingEdges(flow, nodeId);
-        const target = edges.find((e) => e.sourceHandle === result.handle);
-        if (target) await this.executeNode(flow, target.target);
+      const edges = this.getOutgoingEdges(flow, nodeId);
+      const taken = result ? edges.filter((e) => e.sourceHandle === result.handle) : [];
+      for (const edge of edges) {
+        if (!taken.includes(edge)) this.deadEdges.add(edge.id);
       }
+      await Promise.all(edges.map((edge) => this.executeNode(flow, edge.target)));
       return;
     }
 
-    const alias = node.data.alias as string | undefined;
-    if (alias) {
-      const originalSet = this.context.variables.set.bind(this.context.variables);
-      const prefix = `${alias}.`;
-      this.context.variables.set = (key: string, value: string) => {
-        originalSet(key, value);
-        originalSet(prefix + key, value);
-        return this.context.variables;
-      };
+    const startedAt = Date.now();
+    try {
       await this.executeAction(node.type, node.data);
-      this.context.variables.set = originalSet;
-    } else {
-      await this.executeAction(node.type, node.data);
+    } catch (error) {
+      this.trace?.addEntry({
+        nodeId,
+        nodeType: node.type,
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+        startedAt,
+        durationMs: Date.now() - startedAt,
+      });
+      throw error;
     }
 
     this.completed.add(nodeId);
     this.pending.delete(nodeId);
+    this.trace?.addEntry({ nodeId, nodeType: node.type, status: 'completed', startedAt, durationMs: Date.now() - startedAt });
 
     const outEdges = this.getOutgoingEdges(flow, nodeId);
     await Promise.all(outEdges.map((edge) => this.executeNode(flow, edge.target)));
+  }
+
+  private markSkipped(flow: DBAutomation, nodeId: string): void {
+    if (this.skipped.has(nodeId)) return;
+    this.skipped.add(nodeId);
+    const node = flow.nodes.find((n) => n.id === nodeId);
+    if (node && !TRIGGER_TYPES.has(node.type)) {
+      this.trace?.addEntry({ nodeId, nodeType: node.type, status: 'skipped', startedAt: Date.now() });
+    }
+    for (const edge of this.getOutgoingEdges(flow, nodeId)) {
+      this.deadEdges.add(edge.id);
+    }
   }
 
   private async executeAction(type: string, data: Record<string, unknown>): Promise<void> {
     const repeat = (data.repeat as number) ?? 1;
     const repeatDelayMs = (data.repeatDelayMs as number) ?? 0;
     const concurrency = (data.repeatConcurrency as number) ?? 1;
+    const alias = data.alias as string | undefined;
 
     if (repeat > 1) {
       const totalCalls = repeat * concurrency;
       this.logger.trace(`[action] ${type} starting ${repeat}x repeat (concurrency=${concurrency}, total=${totalCalls})`);
 
-      this.resolveCache = new Map();
-      this.suppressVariableWrites = true;
-
       const startMs = Date.now();
+      this.context.variables.set('repeat.total', String(repeat));
 
       if (concurrency > 1) {
+        // parallel streams race their writes anyway, the last finisher wins
         const streams = Array.from({ length: concurrency }, async () => {
           for (let i = 0; i < repeat; i++) {
-            await this.runAction(type, data);
+            await this.runAction(type, data, alias);
             if (repeatDelayMs > 0 && i < repeat - 1) {
               await new Promise((r) => setTimeout(r, repeatDelayMs));
             }
@@ -117,20 +185,19 @@ export class FlowRunner {
         });
         await Promise.all(streams);
       } else {
+        this.suppressVariableWrites = true;
         for (let i = 0; i < repeat; i++) {
           if (i === repeat - 1) this.suppressVariableWrites = false;
           this.context.variables.set('repeat.index', String(i));
           this.context.variables.set('repeat.iteration', String(i + 1));
-          this.context.variables.set('repeat.total', String(repeat));
-          await this.runAction(type, data);
+          await this.runAction(type, data, alias);
           if (repeatDelayMs > 0 && i < repeat - 1) {
             await new Promise((r) => setTimeout(r, repeatDelayMs));
           }
         }
+        this.suppressVariableWrites = false;
       }
 
-      this.resolveCache = null;
-      this.suppressVariableWrites = false;
       clearCachedPluginCall();
 
       const elapsedMs = Date.now() - startMs;
@@ -139,19 +206,23 @@ export class FlowRunner {
       this.context.variables.set('repeat.totalCalls', String(totalCalls));
       this.logger.trace(`[action] ${type} repeat done: ${totalCalls} calls in ${elapsedMs}ms`);
     } else {
-      await this.runAction(type, data);
+      await this.runAction(type, data, alias);
     }
   }
 
-  private async runAction(type: string, data: Record<string, unknown>): Promise<void> {
+  private async runAction(type: string, data: Record<string, unknown>, alias?: string): Promise<void> {
     const handler = ACTION_HANDLERS[type] ?? UTILITY_HANDLERS[type];
-    if (!handler) return;
-    await handler(this.createActionContext(), data);
+    if (!handler) {
+      this.logger.warn(`Automation "${this.flow?.name ?? ''}": unknown node type "${type}" skipped`);
+      return;
+    }
+    await handler(this.createActionContext(alias), data);
   }
 
-  private createActionContext(): ActionContext {
+  private createActionContext(alias?: string): ActionContext {
+    const variables = alias ? new AliasedVariables(this.context.variables, `${alias}.`) : this.context.variables;
     return {
-      variables: this.context.variables,
+      variables,
       api: this.api,
       logger: this.logger,
       suppressVariableWrites: this.suppressVariableWrites,
@@ -164,14 +235,10 @@ export class FlowRunner {
 
   private resolve(template: string): string {
     if (!template) return '';
-    if (this.resolveCache) {
-      const cached = this.resolveCache.get(template);
-      if (cached !== undefined) return cached;
-      const result = resolveTemplate(template, this.context.variables);
-      this.resolveCache.set(template, result);
-      return result;
-    }
-    return resolveTemplate(template, this.context.variables);
+    return resolveTemplate(template, this.context.variables, (message) => {
+      this.trace?.addWarning(message);
+      this.logger.debug(`Automation "${this.flow?.name ?? ''}": ${message}`);
+    });
   }
 
   private getCamera(cameraId: string): CameraController {

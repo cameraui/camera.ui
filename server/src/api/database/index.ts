@@ -16,6 +16,7 @@ import { createVirtualSensorSchema } from '../schemas/virtualsensors.schema.js';
 import { REGEX_ESCAPE } from '../utils/regex.js';
 import { backfillDefaults, backfillSingletonDefaults } from './backfill.js';
 import {
+  AUTOMATION_STATE_ID,
   AUTOMATIONS_ID,
   CAMERAS_ID,
   CLOUD_ID,
@@ -93,6 +94,7 @@ export class Database {
   public usersDB!: DB<DBUser, string>;
   public sharesDB!: DB<DBShare, string>;
   public automationsDB!: DB<DBAutomation, string>;
+  public automationStateDB!: DB<unknown, string>;
   public virtualSensorsDB!: DB<DBVirtualSensor, string>;
   public notificationsDB!: DB<DBNotificationSettings, string>;
   public notificationHistoryDB!: DB<DBNotificationHistory, string>;
@@ -116,7 +118,7 @@ export class Database {
     this.lowdb = open({
       path: this.configService.DATABASE_PATH,
       name: DATABASE_ID,
-      maxDbs: 24,
+      maxDbs: 32,
     });
 
     this.workerStateDB = this.lowdb.openDB({ name: WORKER_STATE_ID });
@@ -139,6 +141,7 @@ export class Database {
     this.sharesDB = this.lowdb.openDB({ name: SHARES_ID });
     this.instancesDB = this.lowdb.openDB({ name: INSTANCES_ID });
     this.automationsDB = this.lowdb.openDB({ name: AUTOMATIONS_ID });
+    this.automationStateDB = this.lowdb.openDB({ name: AUTOMATION_STATE_ID });
     this.virtualSensorsDB = this.lowdb.openDB({ name: VIRTUAL_SENSORS_ID });
     this.notificationsDB = this.lowdb.openDB({ name: NOTIFICATIONS_ID });
     this.notificationHistoryDB = this.lowdb.openDB({ name: NOTIFICATION_HISTORY_ID });

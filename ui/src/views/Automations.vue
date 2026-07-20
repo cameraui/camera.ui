@@ -63,9 +63,10 @@
           v-for="flow in filteredFlows"
           :key="flow._id"
           :flow
-          @click="openFlow(flow._id)"
+          :selection-mode="selectionMode"
+          :selected="selectedIds.has(flow._id)"
+          @click="onCardClick(flow._id)"
           @toggle="(val: boolean) => patchFlow({ id: flow._id, data: { enabled: val } })"
-          @delete="confirmDelete(flow._id)"
         />
       </div>
 
@@ -75,21 +76,77 @@
       </div>
     </Transition>
 
-    <CuiFloatingButton
-      :tooltip-props="{ value: t('views.automations.create') }"
-      :button-props="{ class: 'text-white' }"
-      :icon="PlusIcon"
-      :icon-props="{ width: '30px', height: '30px' }"
-      @click="createNewFlow"
-    />
+    <CuiFloatingButtonGroup :force-visible="selectionMode">
+      <template v-if="!selectionMode">
+        <CuiFloatingButton
+          v-if="isAdmin && flows.length > 1"
+          grouped
+          :tooltip-props="{ value: t('views.automations.select') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('views.automations.create') }"
+          :button-props="{ class: 'text-white' }"
+          :icon="PlusIcon"
+          :icon-props="{ width: '30px', height: '30px' }"
+          @click="createNewFlow"
+        />
+      </template>
+
+      <template v-else>
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('components.form.tooltip.cancel_selection') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="CloseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="exitSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelected ? t('views.automations.deselect_all') : t('views.automations.select_all') }"
+          :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
+          :icon="SelectAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleSelectAll"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelectedDisabled ? t('views.automations.enable_selected') : t('views.automations.disable_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :icon="allSelectedDisabled ? PlayIcon : PauseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="bulkToggleEnabled"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('views.automations.delete_selected') }"
+          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
+          :icon="TrashIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="confirmBulkDelete"
+        />
+      </template>
+    </CuiFloatingButtonGroup>
   </div>
 </template>
 
 <script lang="ts" setup>
+import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
+import CloseIcon from '~icons/mdi/close';
+import TrashIcon from '~icons/mdi/delete-outline';
+import PauseIcon from '~icons/mdi/pause';
+import PlayIcon from '~icons/mdi/play';
+import SelectIcon from '~icons/tabler/dots-filled';
 import PlusIcon from '~icons/typcn/plus';
 
 import { AutomationsQuery } from '@/api/routes/automations.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
+import { useCardSelection } from '@/composables/useCardSelection.js';
 
 import type { AutomationStoreBlueprint } from '@/components/CuiAutomation/types.js';
 
@@ -110,7 +167,7 @@ const { mutateAsync: patchFlow } = automationsQuery.patchAutomationQuery();
 const { mutateAsync: removeFlow, isPending: isDeleting } = automationsQuery.deleteAutomationQuery();
 
 const CARD_MIN_WIDTH = 350;
-const CARD_HEIGHT = 114;
+const CARD_HEIGHT = 82;
 
 const searchQuery = ref('');
 const fileInputRef = useTemplateRef<HTMLInputElement>('fileInputRef');
@@ -130,6 +187,54 @@ const filteredFlows = computed(() => {
   if (!query) return flows.value;
   return flows.value.filter((f) => f.name.toLowerCase().includes(query));
 });
+
+const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
+  filteredFlows,
+  (flow) => flow._id,
+);
+
+const allSelectedDisabled = computed(() => selectedItems.value.length > 0 && selectedItems.value.every((flow) => !flow.enabled));
+
+function onCardClick(flowId: string) {
+  if (selectionMode.value) {
+    toggleSelection(flowId);
+  } else {
+    openFlow(flowId);
+  }
+}
+
+async function bulkToggleEnabled() {
+  if (!selectedItems.value.length || bulkBusy.value) return;
+  const enabled = allSelectedDisabled.value;
+  bulkBusy.value = true;
+  try {
+    await Promise.all(selectedItems.value.filter((flow) => flow.enabled !== enabled).map((flow) => patchFlow({ id: flow._id, data: { enabled } })));
+  } finally {
+    bulkBusy.value = false;
+  }
+}
+
+function confirmBulkDelete() {
+  if (!selectedItems.value.length || bulkBusy.value) return;
+  const ids = selectedItems.value.map((flow) => flow._id);
+  dialog.openTextDialog({
+    data: {
+      title: t('views.automations.delete'),
+      contentText: t('views.automations.delete_selected_confirm', { count: ids.length }),
+      confirmText: t('views.automations.delete'),
+      loading: isDeleting,
+    },
+    onConfirm: async () => {
+      bulkBusy.value = true;
+      try {
+        await Promise.all(ids.map((id) => removeFlow({ id })));
+        exitSelectionMode();
+      } finally {
+        bulkBusy.value = false;
+      }
+    },
+  });
+}
 
 function openFlow(flowId: string) {
   router.push(`/automations/${flowId}`);
@@ -178,26 +283,11 @@ async function onFileSelected(event: Event) {
       return;
     }
 
-    // Route file imports through the binding wizard so references get rebound to this install.
     openImportWizard(blueprint);
   } catch {
     toast.add({ severity: 'error', detail: t('views.automations.import_invalid'), life: 3000 });
   }
 
   if (fileInputRef.value) fileInputRef.value.value = '';
-}
-
-function confirmDelete(flowId: string) {
-  dialog.openTextDialog({
-    data: {
-      title: t('views.automations.delete'),
-      contentText: t('views.automations.delete_confirm'),
-      confirmText: t('views.automations.delete'),
-      loading: isDeleting,
-    },
-    onConfirm: async () => {
-      await removeFlow({ id: flowId });
-    },
-  });
 }
 </script>

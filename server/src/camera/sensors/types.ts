@@ -1,6 +1,6 @@
 import { SENSOR_META, SensorCategory } from '@camera.ui/sdk';
 
-import type { SensorMeta, SensorType } from '@camera.ui/sdk';
+import type { SensorMeta, SensorPropertySpec, SensorType } from '@camera.ui/sdk';
 
 export interface SensorTypeMetadata {
   category: SensorCategory;
@@ -87,11 +87,35 @@ export function isSingleProviderType(type: SensorType): boolean {
 }
 
 export const SENSOR_PROPERTY_MAP: Record<SensorType, string[]> = Object.fromEntries(
-  (SENSOR_META as readonly SensorMeta[]).map((meta) => [meta.type, [...meta.properties]]),
+  (SENSOR_META as readonly SensorMeta[]).map((meta) => [meta.type, Object.keys(meta.properties)]),
 ) as Record<SensorType, string[]>;
+
+export const SENSOR_PROPERTY_SPECS: Record<SensorType, Readonly<Record<string, SensorPropertySpec>>> = Object.fromEntries(
+  (SENSOR_META as readonly SensorMeta[]).map((meta) => [meta.type, meta.properties]),
+) as Record<SensorType, Readonly<Record<string, SensorPropertySpec>>>;
 
 export function getSensorProperties(type: SensorType): string[] {
   return SENSOR_PROPERTY_MAP[type] ?? [];
+}
+
+export function getSensorPropertySpec(type: SensorType | string, property: string): SensorPropertySpec | undefined {
+  return SENSOR_PROPERTY_SPECS[type as SensorType]?.[property];
+}
+
+export function getObservableSensorProperties(type: SensorType | string): string[] {
+  const specs = SENSOR_PROPERTY_SPECS[type as SensorType];
+  if (!specs) return [];
+  return Object.entries(specs)
+    .filter(([, spec]) => !spec.internal)
+    .map(([name]) => name);
+}
+
+export function getWritableSensorProperties(type: SensorType | string): string[] {
+  const specs = SENSOR_PROPERTY_SPECS[type as SensorType];
+  if (!specs) return [];
+  return Object.entries(specs)
+    .filter(([, spec]) => spec.writable)
+    .map(([name]) => name);
 }
 
 export const MULTI_PROVIDER_TYPES = new Set<SensorType>(getMultiProviderTypes());

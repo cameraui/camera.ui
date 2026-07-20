@@ -28,7 +28,5 @@ export const SENSOR_READONLY_TYPES = new Set<SensorShortcutType>(
 );
 
 export const INFO_SENSOR_TYPES = new Set<SensorShortcutType>(
-  shortcutable
-    .filter((type) => SENSOR_TYPE_CONFIG[type].category === SensorCategory.Info)
-    .map((type) => String(type) as SensorShortcutType),
+  shortcutable.filter((type) => SENSOR_TYPE_CONFIG[type].category === SensorCategory.Info).map((type) => String(type) as SensorShortcutType),
 );

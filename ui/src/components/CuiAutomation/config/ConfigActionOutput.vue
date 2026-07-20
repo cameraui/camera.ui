@@ -23,7 +23,6 @@
           placeholder="{{plugin.result}}"
           @update:model-value="updateEntry(index, 'value', String($event ?? ''))"
         />
-        <VariableSuggestions :variables="availableVars" @select="updateEntry(index, 'value', (entry.value ?? '') + $event)" />
       </div>
       <Divider v-if="index < data.variables.length - 1" />
     </div>
@@ -34,21 +33,15 @@
 </template>
 
 <script setup lang="ts">
-import { getAvailableVariables } from './availableVariables.js';
 import VariableInput from './VariableInput.vue';
-import VariableSuggestions from './VariableSuggestions.vue';
 
-import type { AutomationFlow, ConfigActionOutputProps, ConfigNodeUpdateEmits } from '../types.js';
+import type { ConfigActionOutputProps, ConfigNodeUpdateEmits } from '../types.js';
 
 const props = defineProps<ConfigActionOutputProps>();
 
 const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
-
-const store = useAutomationsStore();
-
-const availableVars = computed(() => getAvailableVariables(store.draft as AutomationFlow | null, props.nodeId));
 
 function addEntry() {
   emit('update:data', { variables: [...props.data.variables, { label: '', value: '' }] });

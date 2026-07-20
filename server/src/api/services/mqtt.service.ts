@@ -27,6 +27,10 @@ export class MqttService {
     return this.mqttManager.getStatus();
   }
 
+  public topics(): string[] {
+    return this.mqttManager.getRecentTopics();
+  }
+
   public async patch(patch: PatchMqttInput): Promise<MqttInfo> {
     const settings = this.mergeSettings(this.settings(), patch);
 

@@ -2,7 +2,7 @@ import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
 import type { AutomationInputType, AutomationStoreBlueprint } from '@/components/CuiAutomation/types.js';
-import type { DBAutomation, MethodKeys } from '@shared/types';
+import type { AutomationRun, DBAutomation, MethodKeys } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 
 export interface PluginMethodParam {
@@ -46,6 +46,11 @@ export async function getAutomationsFn({ signal }: { signal: AbortSignal }): Pro
 
 export async function getAutomationFn({ id, signal }: { id: string; signal: AbortSignal }): Promise<DBAutomation> {
   const response: AxiosResponse<DBAutomation> = await api.get(`/automations/${id}`, { signal });
+  return response.data;
+}
+
+export async function getAutomationRunsFn({ id, signal }: { id: string; signal: AbortSignal }): Promise<AutomationRun[]> {
+  const response: AxiosResponse<AutomationRun[]> = await api.get(`/automations/${id}/runs`, { signal });
   return response.data;
 }
 
@@ -121,6 +126,14 @@ export class AutomationsQuery {
       queryKey: ['automation', id],
       queryFn: ({ signal }) => getAutomationFn({ id: unref(id), signal }),
       enabled: () => !!unref(id) && unref(id) !== 'new' && this.queryActivator.value.some((q) => q.name === 'getAutomationQuery' && q.enabled),
+    });
+  }
+
+  public getAutomationRunsQuery(id: string | Ref<string>) {
+    return useQueryEnhanced({
+      queryKey: ['automationRuns', id],
+      queryFn: ({ signal }) => getAutomationRunsFn({ id: unref(id), signal }),
+      enabled: () => !!unref(id),
     });
   }
 

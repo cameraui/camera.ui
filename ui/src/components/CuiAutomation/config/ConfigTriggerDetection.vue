@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
-      <label class="cui-label">Camera</label>
+      <label class="cui-label">{{ t('components.automation_nodes.camera') }}</label>
       <Select
         :model-value="data.cameraId"
         :options="cameraOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select camera"
+        :placeholder="t('components.automation_nodes.camera_placeholder')"
         class="w-full"
         @update:model-value="onCameraChange"
       />
@@ -80,6 +80,9 @@
         @update:model-value="update('faceFilter', $event)"
       />
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.face_filter_hint') }}</Message>
+      <div v-if="faceSuggestions.length" class="flex flex-wrap gap-1.5">
+        <Button v-for="name in faceSuggestions" :key="name" severity="secondary" outlined size="small" :label="name" @click="addFace(name)" />
+      </div>
     </div>
 
     <div class="flex flex-col field-gap">
@@ -97,16 +100,19 @@
 </template>
 
 <script setup lang="ts">
+import { useFaceStore } from '@camera.ui/nvr';
+
 import { useCameraOptions } from './useCameraOptions.js';
 
 import type { ConfigNodeUpdateEmits, ConfigTriggerDetectionProps } from '../types.js';
 
-defineProps<ConfigTriggerDetectionProps>();
+const props = defineProps<ConfigTriggerDetectionProps>();
 
 const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
 const { cameraOptions } = useCameraOptions();
+const faceStore = useFaceStore();
 
 const eventPhaseOptions = [
   { label: t('components.automation_nodes.event_phase_start'), value: 'start' },
@@ -140,6 +146,15 @@ const audioLabelOptions = [
   { label: t('components.automation_nodes.audio_speaking'), value: 'speaking' },
   { label: t('components.automation_nodes.audio_cat'), value: 'cat' },
 ];
+
+const faceSuggestions = computed(() => {
+  const selected = new Set(props.data.faceFilter ?? []);
+  return faceStore.knownFaces.value.map((face) => face.name).filter((name) => !selected.has(name));
+});
+
+function addFace(name: string) {
+  update('faceFilter', [...(props.data.faceFilter ?? []), name]);
+}
 
 function onCameraChange(value: unknown) {
   emit('update:data', { cameraId: value, detectionLabels: [], faceFilter: [], licensePlateFilter: [] });

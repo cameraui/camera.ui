@@ -1,8 +1,8 @@
 import { uuidv4 } from '@camera.ui/common/utils';
 
-import type { AutomationNode, AutomationNodeData } from './types.js';
+import type { AutomationNodeData } from './types.js';
 
-const INHERITABLE_FIELDS = ['cameraId', 'sensorType', 'sensorName', 'sensorPluginId', 'property'] as const;
+const INHERITABLE_FIELDS = ['cameraId', 'sensorType', 'sensorName', 'sensorPluginId'] as const;
 
 export function inheritFieldsFromSource(sourceData: AutomationNodeData | undefined, targetData: AutomationNodeData | undefined): Record<string, unknown> | null {
   if (!sourceData || !targetData) return null;
@@ -31,15 +31,16 @@ export function initNodeData(data: AutomationNodeData): AutomationNodeData {
   return data;
 }
 
-export function getNodeSummary(node: AutomationNode): string | undefined {
-  const data = node.data;
+export function getNodeSummary(data: AutomationNodeData | undefined, cameraName?: (id: string) => string | undefined): string | undefined {
   if (!data) return undefined;
+
+  const cam = (id: string | undefined) => (id ? (cameraName?.(id) ?? id) : undefined);
 
   switch (data.type) {
     case 'trigger-detection':
-      return data.cameraId || undefined;
+      return cam(data.cameraId);
     case 'trigger-sensor':
-      return data.sensorType || undefined;
+      return [cam(data.cameraId), data.sensorName || data.sensorType].filter(Boolean).join(' · ') || undefined;
     case 'trigger-schedule':
       return data.cron || undefined;
     case 'trigger-webhook':
@@ -57,15 +58,15 @@ export function getNodeSummary(node: AutomationNode): string | undefined {
     case 'condition-switch':
       return data.variable || undefined;
     case 'condition-sensorstate':
-      return data.sensorType || undefined;
+      return [cam(data.cameraId), data.sensorName || data.sensorType].filter(Boolean).join(' · ') || undefined;
     case 'condition-time':
       return data.startTime && data.endTime ? `${data.startTime} - ${data.endTime}` : undefined;
     case 'action-snapshot':
-      return data.cameraId || undefined;
+      return cam(data.cameraId);
     case 'action-camera-control':
-      return data.cameraId || undefined;
+      return cam(data.cameraId);
     case 'action-sensor':
-      return data.sensorType || undefined;
+      return [cam(data.cameraId), data.sensorName || data.sensorType].filter(Boolean).join(' · ') || undefined;
     case 'action-notification':
       return data.title || undefined;
     case 'action-http':
@@ -76,6 +77,8 @@ export function getNodeSummary(node: AutomationNode): string | undefined {
       return `${data.duration} ${data.unit}`;
     case 'action-variable':
       return data.variableName || undefined;
+    case 'action-plugin':
+      return [data.pluginName, data.method].filter(Boolean).join(': ') || undefined;
     default:
       return undefined;
   }

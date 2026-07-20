@@ -43,6 +43,17 @@ export const MqttRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
     },
   });
 
+  app.route({
+    url: '/topics',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: mqttController.getMqttTopics.bind(mqttController),
+    schema: {
+      tags: ['MQTT'],
+      summary: 'Get recently seen MQTT topics',
+    },
+  });
+
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/test',
     method: 'POST',

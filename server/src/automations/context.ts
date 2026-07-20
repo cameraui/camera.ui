@@ -4,6 +4,7 @@ export interface FlowContext {
   event?: {
     id: string;
     type: string;
+    types: string[];
     confidence: number;
     label: string;
     cameraId: string;
@@ -62,6 +63,7 @@ export function seedVariables(context: FlowContext): void {
   if (context.event) {
     context.variables.set('event.id', context.event.id);
     context.variables.set('event.type', context.event.type);
+    context.variables.set('event.types', context.event.types.join(', '));
     context.variables.set('event.confidence', String(context.event.confidence));
     context.variables.set('event.label', context.event.label);
     context.variables.set('event.cameraId', context.event.cameraId);
@@ -71,11 +73,13 @@ export function seedVariables(context: FlowContext): void {
   }
 
   if (context.sensor) {
-    context.variables.set('sensor.value', context.sensor.value != null ? JSON.stringify(context.sensor.value) : '');
-    context.variables.set('sensor.previousValue', context.sensor.previousValue != null ? JSON.stringify(context.sensor.previousValue) : '');
+    context.variables.set('sensor.value', stringifyValue(context.sensor.value));
+    context.variables.set('sensor.previousValue', stringifyValue(context.sensor.previousValue));
     context.variables.set('sensor.property', context.sensor.property);
     context.variables.set('sensor.sensorType', context.sensor.sensorType);
     context.variables.set('sensor.cameraId', context.sensor.cameraId);
+    seedValuePaths(context.variables, 'sensor.value', context.sensor.value);
+    seedValuePaths(context.variables, 'sensor.previousValue', context.sensor.previousValue);
   }
 
   if (context.webhook) {
@@ -98,16 +102,12 @@ export function seedVariables(context: FlowContext): void {
   }
 
   if (context.system) {
-    context.variables.set('system.eventType', context.system.eventType);
-    if (context.system.cameraId) context.variables.set('system.cameraId', context.system.cameraId);
-    if (context.system.cameraName) context.variables.set('system.cameraName', context.system.cameraName);
-    if (context.system.pluginName) context.variables.set('system.pluginName', context.system.pluginName);
-    if (context.system.pluginId) context.variables.set('system.pluginId', context.system.pluginId);
-    if (context.system.status) context.variables.set('system.status', context.system.status);
-    if (context.system.property) context.variables.set('system.property', context.system.property);
-    if (context.system.sensorId) context.variables.set('system.sensorId', context.system.sensorId);
-    if (context.system.sensorType) context.variables.set('system.sensorType', context.system.sensorType);
-    if (context.system.sensorName) context.variables.set('system.sensorName', context.system.sensorName);
+    // event payloads carry more keys than the typed interface, seed every scalar
+    for (const [key, value] of Object.entries(context.system)) {
+      if (value === undefined || value === null) continue;
+      if (typeof value === 'object') continue;
+      context.variables.set(`system.${key}`, String(value));
+    }
   }
 
   if (context.mqtt) {
@@ -138,15 +138,20 @@ export function seedVariables(context: FlowContext): void {
   }
 }
 
-export function resolveTemplate(template: string, variables: Map<string, string>): string {
+export function resolveTemplate(template: string, variables: Map<string, string>, warn?: (message: string) => void): string {
   let result = template.replace(/\{\{=\s*(.+?)\s*\}\}/g, (_, expr: string) => {
     const resolved = expr.replace(/(\w+(?:\.\w+)*)/g, (varMatch: string) => {
       if (varMatch === 'time.now') return String(Date.now());
       const val = variables.get(varMatch);
       if (val !== undefined) {
-        const num = Number(val);
-        return isNaN(num) ? `"${val}"` : String(num);
+        const num = val.trim() === '' ? NaN : Number(val);
+        if (isNaN(num)) {
+          warn?.(`variable "${varMatch}" is not a number ("${val}") and counts as 0 in "{{= ${expr} }}"`);
+          return `"${val}"`;
+        }
+        return String(num);
       }
+      if (!/^[\d.]+$/.test(varMatch)) warn?.(`unknown variable "${varMatch}" in "{{= ${expr} }}"`);
       return varMatch;
     });
     const num = evaluateExpression(resolved);
@@ -155,10 +160,33 @@ export function resolveTemplate(template: string, variables: Map<string, string>
 
   result = result.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, key: string) => {
     if (key === 'time.now') return String(Date.now());
-    return variables.get(key) ?? '';
+    const val = variables.get(key);
+    if (val === undefined) warn?.(`unknown variable "{{${key}}}" resolved to an empty string`);
+    return val ?? '';
   });
 
   return result;
+}
+
+function stringifyValue(value: unknown): string {
+  if (value == null) return '';
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function seedValuePaths(variables: Map<string, string>, prefix: string, value: unknown): void {
+  if (value === null || typeof value !== 'object') return;
+
+  if (Array.isArray(value)) {
+    variables.set(`${prefix}.length`, String(value.length));
+    for (const [index, entry] of value.entries()) {
+      if (entry === null || typeof entry !== 'object') variables.set(`${prefix}.${index}`, stringifyValue(entry));
+    }
+    return;
+  }
+
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (entry === null || typeof entry !== 'object') variables.set(`${prefix}.${key}`, stringifyValue(entry));
+  }
 }
 
 function evaluateExpression(expr: string): number {

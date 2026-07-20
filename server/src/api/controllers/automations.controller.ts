@@ -162,6 +162,18 @@ export class AutomationsController {
     return reply.code(200).send(getPluginMethodsForClient());
   }
 
+  public listRuns(req: FastifyRequest<AuthLoginRequest & AutomationsParamsRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const automation = this.service.getById(req.params.id);
+      if (!automation) {
+        return reply.code(404).send({ statusCode: 404, message: 'Automation not found' });
+      }
+      return reply.code(200).send(this.service.listRuns(req.params.id));
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async webhook(req: FastifyRequest<AuthLoginRequest & AutomationsParamsRequest & AutomationsParamsWebhookRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const engine = container.resolve<AutomationEngine>('automationEngine');

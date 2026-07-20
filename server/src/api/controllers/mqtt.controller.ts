@@ -26,6 +26,14 @@ export class MqttController {
     }
   }
 
+  public async getMqttTopics(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      return reply.code(200).send(this.service.topics());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async patchMqttInfo(req: FastifyRequest<AuthLoginRequest & MqttPatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const info = await this.service.patch(req.body);

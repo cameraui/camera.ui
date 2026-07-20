@@ -11,6 +11,8 @@
     <template v-if="draft">
       <CuiAutomationToolbar
         :flow="draft"
+        :show-history="!isNew && isAdmin"
+        @show-history="openRunHistory"
         @update:name="onUpdateName"
         @toggle-enabled="
           draft.enabled = !draft.enabled;
@@ -153,16 +155,20 @@ import UndoIcon from '~icons/carbon/undo';
 import PlusIcon from '~icons/typcn/plus';
 
 import { AutomationsQuery } from '@/api/routes/automations.js';
+import { asyncComponent } from '@/common/asyncComponent.js';
 import { stripBlueprintSecrets } from '@/common/automationBlueprint.js';
 import { randomLetter } from '@/common/utils.js';
 import CuiAutomationCanvas from '@/components/CuiAutomation/CuiAutomationCanvas.vue';
 import CuiAutomationNodeConfig from '@/components/CuiAutomation/CuiAutomationNodeConfig.vue';
 import CuiAutomationNodePalette from '@/components/CuiAutomation/CuiAutomationNodePalette.vue';
 import CuiAutomationToolbar from '@/components/CuiAutomation/CuiAutomationToolbar.vue';
+import { validateDraft } from '@/components/CuiAutomation/config/flowValidation.js';
 import CuiAutomationMobileNodeConfig from '@/components/CuiAutomation/mobile/CuiAutomationMobileNodeConfig.vue';
 import { getNodeDefinition } from '@/components/CuiAutomation/nodeDefinitions.js';
 
-import type { AutomationNode, AutomationNodeType, CuiAutomationMobileNodeConfigProps } from '@/components/CuiAutomation/types.js';
+import type { AutomationFlow, AutomationNode, AutomationNodeType, CuiAutomationMobileNodeConfigProps } from '@/components/CuiAutomation/types.js';
+
+const CuiAutomationRunsDialog = asyncComponent(() => import('@/components/CuiAutomation/CuiAutomationRunsDialog.vue'));
 
 const automationsQuery = new AutomationsQuery();
 
@@ -176,14 +182,9 @@ const toast = useCuiToast();
 
 const store = useAutomationsStore();
 
-const canvasRef = useTemplateRef<InstanceType<typeof CuiAutomationCanvas>>('canvasRef');
-const showMobilePalette = ref(false);
-const hasChanges = ref(false);
-const canUndo = ref(false);
-const canRedo = ref(false);
-
 const flowId = computed(() => route.params.id as string);
 const isNew = computed(() => flowId.value === 'new');
+const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 
 const { data: flowData, isBusy: isFlowLoading } = automationsQuery.getAutomationQuery(flowId);
 const { mutateAsync: createFlow } = automationsQuery.createAutomationQuery();
@@ -191,68 +192,21 @@ const { mutateAsync: patchFlow } = automationsQuery.patchAutomationQuery();
 const { mutateAsync: removeFlow } = automationsQuery.deleteAutomationQuery();
 const { mutateAsync: triggerFlow } = automationsQuery.triggerAutomationQuery();
 
-const syncHistoryState = () => {
-  canUndo.value = canvasRef.value?.canUndo ?? false;
-  canRedo.value = canvasRef.value?.canRedo ?? false;
-};
+const canvasRef = useTemplateRef<InstanceType<typeof CuiAutomationCanvas>>('canvasRef');
+const showMobilePalette = ref(false);
+const hasChanges = ref(false);
+const canUndo = ref(false);
+const canRedo = ref(false);
 
-// Draft lives in store so it's accessible from dialogs (DynamicDialog is a portal outside this component tree)
-const draft = computed({
-  get: () => store.draft,
+let leaveConfirmed = false;
+let validateTimer: ReturnType<typeof setTimeout> | undefined;
+
+const draft = computed<AutomationFlow | null>({
+  get: () => store.draft as AutomationFlow | null,
   set: (v) => {
-    store.draft = v;
+    store.draft = v as unknown as typeof store.draft;
   },
 });
-
-const loadNewDraft = () => {
-  draft.value = {
-    _id: randomLetter(12),
-    name: t('views.automation.untitled'),
-    enabled: false,
-    nodes: [],
-    edges: [],
-    suppressDuplicates: false,
-    singleExecution: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  store.selectedNodeId = null;
-};
-
-// When flowId changes — reset draft and wait for fresh data
-watch(
-  flowId,
-  (id) => {
-    store.activeFlowId = id === 'new' ? null : (id ?? null);
-    store.selectedNodeId = null;
-    store.lastOutput = null;
-    hasChanges.value = false;
-
-    if (id === 'new') {
-      loadNewDraft();
-    } else {
-      // Reset draft so flowData watch fires when data arrives
-      draft.value = null;
-    }
-  },
-  { immediate: true },
-);
-
-// When flow data arrives/updates from API
-watch(
-  flowData,
-  (data) => {
-    if (data && !hasChanges.value) {
-      draft.value = JSON.parse(JSON.stringify(data));
-    }
-  },
-  { immediate: true },
-);
-
-const markDirty = () => {
-  hasChanges.value = true;
-  syncHistoryState();
-};
 
 const selectedNode = computed((): AutomationNode | undefined => {
   if (!draft.value || !store.selectedNodeId) return undefined;
@@ -317,33 +271,76 @@ const speedDialItems = computed(() => {
   return items;
 });
 
-const onCanvasChange = () => {
+function syncHistoryState() {
+  canUndo.value = canvasRef.value?.canUndo ?? false;
+  canRedo.value = canvasRef.value?.canRedo ?? false;
+}
+
+function loadNewDraft() {
+  draft.value = {
+    _id: randomLetter(12),
+    name: t('views.automation.untitled'),
+    enabled: false,
+    nodes: [],
+    edges: [],
+    suppressDuplicates: false,
+    singleExecution: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  store.selectedNodeId = null;
+}
+
+function scheduleValidation() {
+  clearTimeout(validateTimer);
+  validateTimer = setTimeout(() => {
+    syncDraftFromCanvas();
+    store.validationIssues = validateDraft(draft.value);
+  }, 300);
+}
+
+function markDirty() {
+  hasChanges.value = true;
+  syncHistoryState();
+  scheduleValidation();
+}
+
+function openRunHistory() {
+  dialog.openComponentDialog(CuiAutomationRunsDialog, {
+    data: {
+      title: t('views.automations.run_history'),
+      contentProps: { flowId: flowId.value },
+      hideConfirmButton: true,
+    },
+  });
+}
+
+function onCanvasChange() {
   syncDraftFromCanvas();
   markDirty();
-};
+}
 
-const onUpdateName = (name: string) => {
+function onUpdateName(name: string) {
   if (draft.value) {
     draft.value.name = name;
     markDirty();
   }
-};
+}
 
-const onUpdateNodeData = (nodeId: string, data: Record<string, unknown>) => {
+function onUpdateNodeData(nodeId: string, data: Record<string, unknown>) {
   if (!draft.value) return;
   const node = draft.value.nodes.find((n) => n.id === nodeId);
-  if (node && node.data) {
-    const changed = Object.entries(data).some(([key, value]) => (node.data as Record<string, unknown>)[key] !== value);
+  if (node?.data) {
+    const changed = Object.entries(data).some(([key, value]) => (node.data as unknown as Record<string, unknown>)[key] !== value);
     if (!changed) return;
 
     Object.assign(node.data, data);
     canvasRef.value?.updateNodeData(nodeId, { ...node.data });
     markDirty();
   }
-};
+}
 
-// Strip Vue Flow nodes to DB format (only id, type, position, data)
-const toDbPayload = () => {
+function toDbPayload() {
   if (!draft.value) return {};
   const canvasNodes = canvasRef.value?.getNodes?.() ?? draft.value.nodes;
   const canvasEdges = canvasRef.value?.getEdges?.() ?? draft.value.edges;
@@ -367,10 +364,11 @@ const toDbPayload = () => {
       targetHandle: e.targetHandle ?? undefined,
     })),
   };
-};
+}
 
-const onSave = async () => {
+async function onSave() {
   if (!draft.value) return;
+  syncDraftFromCanvas();
   const payload = toDbPayload();
 
   try {
@@ -381,7 +379,7 @@ const onSave = async () => {
     } else {
       const updated = await patchFlow({ id: draft.value._id, data: payload });
       hasChanges.value = false;
-      // Merge server-generated fields (e.g. webhook/geofence secrets) back into draft
+      // merge server-generated fields (webhook/geofence secrets) back into the draft
       if (updated?.nodes && draft.value) {
         for (const serverNode of updated.nodes) {
           const draftNode = draft.value.nodes.find((n) => n.id === serverNode.id);
@@ -395,21 +393,21 @@ const onSave = async () => {
   } catch {
     toast.add({ severity: 'error', detail: t('views.automation.save_failed'), life: 3000 });
   }
-};
+}
 
-const syncDraftFromCanvas = () => {
+function syncDraftFromCanvas() {
   if (!draft.value) return;
   const canvasNodes = canvasRef.value?.getNodes();
   const canvasEdges = canvasRef.value?.getEdges();
   if (canvasNodes) draft.value.nodes = canvasNodes;
   if (canvasEdges) draft.value.edges = canvasEdges;
-};
+}
 
-const onNodeSelect = (nodeId: string | null) => {
+function onNodeSelect(nodeId: string | null) {
   store.selectedNodeId = nodeId;
 
   if (smBreakpoint.value && nodeId) {
-    // Sync draft with canvas before opening dialog so edges/nodes are current
+    // sync draft with canvas before opening the dialog so edges/nodes are current
     syncDraftFromCanvas();
 
     const node = draft.value?.nodes.find((n) => n.id === nodeId);
@@ -434,15 +432,15 @@ const onNodeSelect = (nodeId: string | null) => {
       },
     });
   }
-};
+}
 
-const onMobileAddNode = (nodeType: AutomationNodeType) => {
+function onMobileAddNode(nodeType: AutomationNodeType) {
   showMobilePalette.value = false;
   canvasRef.value?.addNodeAtCenter(nodeType);
   markDirty();
-};
+}
 
-const onDeleteNode = () => {
+function onDeleteNode() {
   if (store.selectedNodeId) {
     canvasRef.value?.removeNode(store.selectedNodeId);
     if (draft.value) {
@@ -453,9 +451,9 @@ const onDeleteNode = () => {
     store.lastOutput = null;
     markDirty();
   }
-};
+}
 
-const onRun = async () => {
+async function onRun() {
   if (!draft.value || isNew.value) return;
   try {
     store.lastOutput = null;
@@ -467,11 +465,11 @@ const onRun = async () => {
   } catch {
     toast.add({ severity: 'error', detail: t('views.automation.trigger_failed'), life: 3000 });
   }
-};
+}
 
-const onExportBlueprint = () => {
+function onExportBlueprint() {
   if (!draft.value) return;
-  // Save first so blueprint is up to date
+  // save first so the blueprint is up to date
   onSave();
   const blueprint = {
     version: 1,
@@ -487,9 +485,9 @@ const onExportBlueprint = () => {
   a.download = `${draft.value.name.replace(/\s+/g, '_').toLowerCase()}.blueprint.json`;
   a.click();
   URL.revokeObjectURL(url);
-};
+}
 
-const confirmClearFlow = () => {
+function confirmClearFlow() {
   dialog.openTextDialog({
     data: {
       title: t('views.automation.clear'),
@@ -506,9 +504,9 @@ const confirmClearFlow = () => {
       markDirty();
     },
   });
-};
+}
 
-const confirmDeleteFlow = () => {
+function confirmDeleteFlow() {
   if (!draft.value) return;
   const id = draft.value._id;
   dialog.openTextDialog({
@@ -522,22 +520,64 @@ const confirmDeleteFlow = () => {
       router.push('/automations');
     },
   });
-};
+}
 
-const onBack = () => {
-  if (hasChanges.value) {
-    dialog.openTextDialog({
-      data: {
-        title: t('views.automation.unsaved_title'),
-        contentText: t('views.automation.unsaved_message'),
-        confirmText: t('views.automation.discard'),
-      },
-      onConfirm: async () => {
-        router.push('/automations');
-      },
-    });
-  } else {
-    router.push('/automations');
-  }
-};
+function onBack() {
+  router.push('/automations');
+}
+
+watch(
+  flowId,
+  (id) => {
+    store.activeFlowId = id === 'new' ? null : (id ?? null);
+    store.selectedNodeId = null;
+    store.lastOutput = null;
+    hasChanges.value = false;
+
+    if (id === 'new') {
+      loadNewDraft();
+    } else {
+      // reset draft so the flowData watch fires when data arrives
+      draft.value = null;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  flowData,
+  (data) => {
+    if (data && !hasChanges.value) {
+      draft.value = JSON.parse(JSON.stringify(data));
+      store.validationIssues = validateDraft(draft.value);
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => store.draftDirty,
+  (dirty) => {
+    if (dirty) {
+      store.draftDirty = false;
+      markDirty();
+    }
+  },
+);
+
+onBeforeRouteLeave((to) => {
+  if (!hasChanges.value || leaveConfirmed) return true;
+  dialog.openTextDialog({
+    data: {
+      title: t('views.automation.unsaved_title'),
+      contentText: t('views.automation.unsaved_message'),
+      confirmText: t('views.automation.discard'),
+    },
+    onConfirm: async () => {
+      leaveConfirmed = true;
+      router.push(to.fullPath);
+    },
+  });
+  return false;
+});
 </script>

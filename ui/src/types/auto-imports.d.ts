@@ -197,6 +197,7 @@ declare global {
   const useCameraStream: typeof import('@camera.ui/browser').useCameraStream
   const useCameraUi: typeof import('@camera.ui/browser').useCameraUi
   const useCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').useCamerasSocket
+  const useCardSelection: typeof import('../composables/useCardSelection').useCardSelection
   const useClipboard: typeof import('@vueuse/core').useClipboard
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
   const useCloned: typeof import('@vueuse/core').useCloned
@@ -689,6 +690,7 @@ declare module 'vue' {
     readonly useCameraStream: UnwrapRef<typeof import('@camera.ui/browser')['useCameraStream']>
     readonly useCameraUi: UnwrapRef<typeof import('@camera.ui/browser')['useCameraUi']>
     readonly useCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['useCamerasSocket']>
+    readonly useCardSelection: UnwrapRef<typeof import('../composables/useCardSelection')['useCardSelection']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>

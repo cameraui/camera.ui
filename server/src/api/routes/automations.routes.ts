@@ -140,6 +140,18 @@ export const AutomationsRoute: FastifyPluginAsync = async (app: FastifyInstance)
   });
 
   app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:id/runs',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.listRuns.bind(controller),
+    schema: {
+      tags: ['Automations'],
+      summary: 'List recent runs of an automation with per-node trace',
+      params: automationParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/:id/trigger',
     method: 'POST',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],

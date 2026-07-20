@@ -96,7 +96,8 @@ export function subscribeDetection(ctx: TriggerContext, flow: DBAutomation, trig
     const context = createEmptyContext();
     context.event = {
       id: event.id,
-      type: event.types.join(','),
+      type: event.types[0] ?? '',
+      types: [...event.types],
       confidence: bestScore,
       label: bestLabel,
       cameraId: event.cameraId,

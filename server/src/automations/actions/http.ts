@@ -4,7 +4,7 @@ export async function actionHttp(ctx: ActionContext, data: Record<string, unknow
   const url = ctx.resolve(data.url as string);
   const method = data.method as string;
   const body = ctx.resolve(data.body as string);
-  const headers = data.headers as Record<string, string>;
+  const headers = Object.fromEntries(Object.entries((data.headers as Record<string, string>) ?? {}).map(([key, value]) => [key, ctx.resolve(value)]));
 
   const response = await fetch(url, {
     method,

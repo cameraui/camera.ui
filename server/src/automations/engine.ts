@@ -6,10 +6,12 @@ import { UsersService } from '../api/services/users.service.js';
 import { createEmptyContext } from './context.js';
 import { haversineDistance } from './haversine.js';
 import { FlowRunner } from './runner.js';
+import { RunTrace } from './trace.js';
 import { registerGeofence, registerWebhook, scheduleTimer, subscribeDetection, subscribeMqtt, subscribeSensor, subscribeSystem } from './triggers/index.js';
 
 import type { Disposable } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
+import type { Database } from '../api/database/index.js';
 import type { DBAutomation, DBAutomationNode } from '../api/database/types.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { LoggerService } from '../services/logger/index.js';
@@ -17,12 +19,14 @@ import type { FlowContext } from './context.js';
 import type { GeofenceMapping, GeofenceState, TriggerContext, WebhookMapping } from './triggers/index.js';
 
 const DUPLICATE_WINDOW_MS = 5000;
+const GEOFENCE_STATE_PREFIX = 'geofence:';
 
 export class AutomationEngine {
   private api: CameraUiAPI;
   private logger: LoggerService;
   private userService: UsersService;
   private automationsService: AutomationsService;
+  private dbs: Database;
 
   private subscriptions = new Map<string, Disposable[]>();
   private schedules = new Map<string, NodeJS.Timeout[]>();
@@ -37,11 +41,14 @@ export class AutomationEngine {
 
     this.api = container.resolve<CameraUiAPI>('api');
     this.logger = container.resolve<LoggerService>('logger');
+    this.dbs = container.resolve<Database>('dbs');
     this.userService = new UsersService();
     this.automationsService = new AutomationsService();
   }
 
   public async start(): Promise<void> {
+    this.loadGeofenceStates();
+
     const enabledFlows = this.automationsService.list().filter((a) => a.enabled);
 
     for (const flow of enabledFlows) {
@@ -78,7 +85,10 @@ export class AutomationEngine {
       if (mapping.flowId === flowId) {
         this.geofenceMap.delete(geofenceId);
         for (const key of this.geofenceStates.keys()) {
-          if (key.startsWith(`${geofenceId}:`)) this.geofenceStates.delete(key);
+          if (key.startsWith(`${geofenceId}:`)) {
+            this.geofenceStates.delete(key);
+            this.dbs.automationStateDB.remove(GEOFENCE_STATE_PREFIX + key);
+          }
         }
       }
     }
@@ -105,10 +115,16 @@ export class AutomationEngine {
     const flow = this.automationsService.getById(flowId);
     if (!flow) throw new Error('Automation not found');
 
-    const triggerNode = flow.nodes.find((n) => n.type === 'trigger-manual') ?? flow.nodes[0];
-    if (!triggerNode) throw new Error('No nodes in automation');
+    // without a manual trigger any trigger node works as entry, an action node never does
+    const triggerNode = flow.nodes.find((n) => n.type === 'trigger-manual') ?? flow.nodes.find((n) => n.type?.startsWith('trigger-'));
+    if (!triggerNode) throw new Error('Automation has no trigger node');
 
     const context = createEmptyContext();
+    // replay the last real trigger payload so test runs exercise trigger variables
+    if (triggerNode.type !== 'trigger-manual') {
+      const stored = this.automationsService.getLastTriggerContext(flowId);
+      if (stored) Object.assign(context, stored);
+    }
     await this.executeFlow(flow, triggerNode, context);
 
     const outputStr = context.variables.get('output');
@@ -216,6 +232,9 @@ export class AutomationEngine {
 
     this.geofenceStates.set(stateKey, { lat: parsed.lat, lon: parsed.lon, state: currentState, updatedAt: Date.now() });
 
+    // persisted so a restart does not swallow the next enter/leave transition
+    this.dbs.automationStateDB.put(GEOFENCE_STATE_PREFIX + stateKey, this.geofenceStates.get(stateKey));
+
     // First report: no trigger (initialization)
     if (!lastEntry) return { triggered: false };
 
@@ -307,7 +326,10 @@ export class AutomationEngine {
       if (mapping.flowId === flowId) {
         this.geofenceMap.delete(geofenceId);
         for (const key of this.geofenceStates.keys()) {
-          if (key.startsWith(`${geofenceId}:`)) this.geofenceStates.delete(key);
+          if (key.startsWith(`${geofenceId}:`)) {
+            this.geofenceStates.delete(key);
+            this.dbs.automationStateDB.remove(GEOFENCE_STATE_PREFIX + key);
+          }
         }
       }
     }
@@ -317,12 +339,14 @@ export class AutomationEngine {
   }
 
   private async executeFlow(flow: DBAutomation, triggerNode: DBAutomationNode, context: FlowContext): Promise<void> {
-    if (flow.singleExecution && this.runningFlows.has(flow._id)) return;
+    if (flow.singleExecution && this.runningFlows.has(flow._id)) {
+      this.logger.debug(`Automation "${flow.name}": trigger dropped, single execution active and a run is still in progress`);
+      return;
+    }
 
     if (flow.suppressDuplicates) {
-      const { variables, ...payload } = context;
-      if (Object.keys(payload).length > 0) {
-        const eventKey = JSON.stringify(payload);
+      const eventKey = buildDuplicateKey(context);
+      if (eventKey) {
         const last = this.lastEventData.get(flow._id);
         const now = Date.now();
         // sliding: detection keep-alives republish every second, a fixed window would expire mid-event
@@ -338,18 +362,43 @@ export class AutomationEngine {
 
     this.runningFlows.add(flow._id);
     await this.updateLastRun(flow._id, 'running');
+    this.saveTriggerContext(flow._id, triggerNode.type, context);
+
+    const trace = new RunTrace();
+    const startedAt = Date.now();
+    let status: 'success' | 'error' = 'success';
+    let errorMessage: string | undefined;
 
     try {
-      const runner = new FlowRunner(this.api, this.logger);
+      const runner = new FlowRunner(this.api, this.logger, trace);
       await runner.run(flow, triggerNode, context);
       await this.updateLastRun(flow._id, 'success');
       this.logger.trace(`Automation "${flow.name}" completed successfully`);
     } catch (error: any) {
+      status = 'error';
+      errorMessage = error.message;
       await this.updateLastRun(flow._id, 'error', error.message);
       this.logger.debug(`Automation "${flow.name}" failed: ${error.message}`);
     } finally {
       this.runningFlows.delete(flow._id);
+      await this.automationsService.addRun({
+        flowId: flow._id,
+        startedAt,
+        finishedAt: Date.now(),
+        status,
+        ...(errorMessage ? { error: errorMessage } : {}),
+        triggerType: triggerNode.type,
+        entries: trace.entries,
+        warnings: trace.warnings,
+      });
     }
+  }
+
+  private saveTriggerContext(flowId: string, triggerType: string, context: FlowContext): void {
+    if (triggerType === 'trigger-manual') return;
+    const { variables, ...payload } = context;
+    if (Object.keys(payload).length === 0) return;
+    this.automationsService.saveLastTriggerContext(flowId, payload);
   }
 
   private subscribeCameraDeletion(): void {
@@ -369,6 +418,12 @@ export class AutomationEngine {
     }
   }
 
+  private loadGeofenceStates(): void {
+    for (const { key, value } of this.dbs.automationStateDB.getRange({ start: GEOFENCE_STATE_PREFIX, end: GEOFENCE_STATE_PREFIX + '￿' })) {
+      this.geofenceStates.set(key.slice(GEOFENCE_STATE_PREFIX.length), value as GeofenceState);
+    }
+  }
+
   private addSubscription(flowId: string, sub: Disposable): void {
     if (!this.subscriptions.has(flowId)) this.subscriptions.set(flowId, []);
     this.subscriptions.get(flowId)!.push(sub);
@@ -381,4 +436,11 @@ export class AutomationEngine {
       error,
     });
   }
+}
+
+function buildDuplicateKey(context: FlowContext): string | null {
+  if (context.event) return `event:${context.event.id}:${context.event.state}`;
+  if (context.sensor) return `sensor:${context.sensor.property}:${JSON.stringify(context.sensor.value)}`;
+  const { variables, ...payload } = context;
+  return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
 }

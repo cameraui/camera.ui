@@ -5,6 +5,22 @@
       <VariableInput :model-value="data.topic" :node-id="nodeId" placeholder="home/notify/doorbell" @update:model-value="update('topic', $event)" />
     </div>
 
+    <div v-if="recentTopics.length" class="flex flex-col field-gap">
+      <label class="cui-label">{{ t('components.automation_nodes.mqtt_recent_topics') }}</label>
+      <div class="flex flex-wrap gap-1.5">
+        <Button
+          v-for="topic in recentTopics"
+          :key="topic"
+          severity="secondary"
+          outlined
+          size="small"
+          :label="topic"
+          class="font-mono"
+          @click="update('topic', topic)"
+        />
+      </div>
+    </div>
+
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.mqtt_payload') }}</label>
       <Textarea
@@ -28,11 +44,14 @@
 </template>
 
 <script setup lang="ts">
-import { getAvailableVariables } from './availableVariables.js';
+import { MqttQuery } from '@/api/routes/mqtt.js';
+import { useFlowVariables } from './flowSchema.js';
 import VariableInput from './VariableInput.vue';
 import VariableSuggestions from './VariableSuggestions.vue';
 
-import type { AutomationFlow, ConfigActionMqttProps, ConfigNodeUpdateEmits } from '../types.js';
+import type { ConfigActionMqttProps, ConfigNodeUpdateEmits } from '../types.js';
+
+const mqttQuery = new MqttQuery();
 
 const props = defineProps<ConfigActionMqttProps>();
 
@@ -40,9 +59,11 @@ const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
 
-const store = useAutomationsStore();
+const { options: availableVars } = useFlowVariables(() => props.nodeId);
 
-const availableVars = computed(() => getAvailableVariables(store.draft as AutomationFlow | null, props.nodeId));
+const { data: recentTopicsData } = mqttQuery.getMqttTopicsQuery();
+
+const recentTopics = computed(() => (recentTopicsData.value ?? []).slice(0, 15));
 
 function insertVariable(variable: string) {
   const current = props.data.payload ?? '';

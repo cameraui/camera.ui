@@ -3,17 +3,18 @@ import { parseValue } from '../parseValue.js';
 
 import type { ActionContext } from './types.js';
 
-// Lazy singleton — DI container isn't fully populated when this module is
-// first imported (boot-time import chain), so eager construction would crash.
 let _camerasService: CamerasService | undefined;
 const camerasService = (): CamerasService => (_camerasService ??= new CamerasService());
+
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function buildPatch(properties: { property: string; value: string }[], resolve: (s: string) => string): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
 
   for (const { property, value } of properties) {
-    const resolved = resolve(value);
     const parts = property.split('.');
+    if (parts.some((p) => UNSAFE_KEYS.has(p))) continue;
+    const resolved = resolve(value);
     let current: any = patch;
 
     for (let i = 0; i < parts.length - 1; i++) {

@@ -87,6 +87,18 @@
   border-bottom-right-radius: 0 !important;
 }
 
+.p-autocomplete:has(> .p-autocomplete-dropdown) > .p-autocomplete-input {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.p-autocomplete > .p-autocomplete-dropdown {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+
 .p-inputtext.p-invalid,
 .p-select.p-invalid,
 .p-checkbox.p-invalid > .p-checkbox-box,

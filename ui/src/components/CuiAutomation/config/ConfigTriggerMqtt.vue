@@ -11,6 +11,22 @@
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.mqtt_topic_hint') }}</Message>
     </div>
 
+    <div v-if="recentTopics.length" class="flex flex-col field-gap">
+      <label class="cui-label">{{ t('components.automation_nodes.mqtt_recent_topics') }}</label>
+      <div class="flex flex-wrap gap-1.5">
+        <Button
+          v-for="topic in recentTopics"
+          :key="topic"
+          severity="secondary"
+          outlined
+          size="small"
+          :label="topic"
+          class="font-mono"
+          @click="update('topic', topic)"
+        />
+      </div>
+    </div>
+
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.mqtt_match_mode') }}</label>
       <Select
@@ -46,13 +62,21 @@
 </template>
 
 <script setup lang="ts">
+import { MqttQuery } from '@/api/routes/mqtt.js';
+
 import type { ConfigNodeUpdateEmits, ConfigTriggerMqttProps } from '../types.js';
+
+const mqttQuery = new MqttQuery();
 
 const props = defineProps<ConfigTriggerMqttProps>();
 
 const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
+
+const { data: recentTopicsData } = mqttQuery.getMqttTopicsQuery();
+
+const recentTopics = computed(() => (recentTopicsData.value ?? []).slice(0, 15));
 
 const matchModeOptions = computed(() => [
   { label: t('components.automation_nodes.mqtt_match_any'), value: 'any' },

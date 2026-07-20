@@ -7,6 +7,7 @@ export interface BaseNodeProps {
   showInput?: boolean;
   showOutput?: boolean;
   maxInputs?: number;
+  warning?: string;
 }
 
 export const BASE_NODE_DEFAULTS = {

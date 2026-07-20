@@ -26,6 +26,8 @@ export interface InstanceInfo {
 export interface CuiInstanceCardProps {
   instance: InstanceInfo;
   menuOpen?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
 }
 
 export interface CuiInstanceCardEmits {

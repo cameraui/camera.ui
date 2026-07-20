@@ -2,7 +2,7 @@ import { useSensorsByType } from '@camera.ui/browser';
 import { SensorType } from '@camera.ui/sdk';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
-import { getAssignmentKey, getSensorProperties, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '@shared/types';
+import { getAssignmentKey, getObservableSensorProperties, getWritableSensorProperties, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '@shared/types';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { PluginAssignments } from '@camera.ui/sdk';
@@ -19,6 +19,17 @@ export interface SensorInstanceOption {
   label: string;
   sensorName: string;
   pluginId: string;
+}
+
+export function useCameraNames() {
+  const camerasQuery = new CamerasQuery();
+  const { data } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
+
+  function cameraName(id: string): string | undefined {
+    return data.value?.result?.find((c) => c._id === id)?.name;
+  }
+
+  return { cameraName };
 }
 
 export function useCameraOptions() {
@@ -73,8 +84,9 @@ export function useCameraOptions() {
     return { instanceOptions, isLoading };
   }
 
-  function getPropertiesForSensor(sensorType: string) {
-    return getSensorProperties(sensorType as SensorType).map((prop) => ({
+  function getPropertiesForSensor(sensorType: string, mode: 'observable' | 'writable' = 'observable') {
+    const names = mode === 'writable' ? getWritableSensorProperties(sensorType) : getObservableSensorProperties(sensorType);
+    return names.map((prop) => ({
       label: t(`components.automation_nodes.sensor_property_${prop}`),
       value: prop,
     }));

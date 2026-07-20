@@ -13,6 +13,8 @@ import type { SocketService } from '../api/websocket/index.js';
 import type { LoggerService } from '../services/logger/index.js';
 import type { MqttStatus, MqttTestResult } from './types.js';
 
+const MAX_RECENT_TOPICS = 200;
+
 export class MqttManager {
   public topics: MqttTopics;
 
@@ -23,6 +25,7 @@ export class MqttManager {
   private stopping = false;
   private activeSettings?: DBMqtt;
   private triggerSubscriptions = new Map<symbol, { filter: string; handler: (topic: string, payload: string) => void }>();
+  private recentTopics = new Map<string, number>();
 
   private logger: LoggerService;
   private dbs: Database;
@@ -133,6 +136,10 @@ export class MqttManager {
     };
   }
 
+  public getRecentTopics(): string[] {
+    return Array.from(this.recentTopics.keys()).reverse();
+  }
+
   public publish(topic: string, payload: string | Buffer, opts: { retain?: boolean; qos?: 0 | 1 } = {}): void {
     const client = this.client;
     if (!client?.connected) return;
@@ -229,6 +236,7 @@ export class MqttManager {
     });
 
     client.on('message', (topic, payload) => {
+      this.trackTopic(topic);
       this.bridge.handleCommand(topic, payload);
 
       if (this.triggerSubscriptions.size === 0) return;
@@ -260,6 +268,15 @@ export class MqttManager {
       this.logger.debug(`MQTT error: ${error.message}`);
       this.setStatus({ ...this.status, state: 'error', lastError: error.message });
     });
+  }
+
+  private trackTopic(topic: string): void {
+    this.recentTopics.delete(topic);
+    this.recentTopics.set(topic, Date.now());
+    if (this.recentTopics.size > MAX_RECENT_TOPICS) {
+      const oldest = this.recentTopics.keys().next().value;
+      if (oldest !== undefined) this.recentTopics.delete(oldest);
+    }
   }
 
   private setStatus(status: MqttStatus): void {

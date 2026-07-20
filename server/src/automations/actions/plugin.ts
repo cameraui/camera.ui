@@ -30,8 +30,10 @@ export async function actionPlugin(ctx: ActionContext, data: Record<string, unkn
   const worker = pluginsService().getPluginProcessByName(pluginName);
   if (!worker) throw new Error(`Plugin "${pluginName}" not found`);
 
+  // only registry-declared methods are callable, the proxy would forward anything
   const methodDef = getMethodDef(method);
-  const binaryParams = new Set(methodDef?.params.filter((p) => p.binary).map((p) => p.name) ?? []);
+  if (!methodDef) throw new Error(`Method "${method}" is not an allowed automation action`);
+  const binaryParams = new Set(methodDef.params.filter((p) => p.binary).map((p) => p.name));
 
   const resolvedParams: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {

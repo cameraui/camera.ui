@@ -5,6 +5,7 @@
     :subtitle="subtitle"
     :color="definition?.color ?? '#f59e0b'"
     :selected="selected"
+    :warning="nodeWarning"
     :show-input="true"
     :show-output="false"
     :max-inputs="1"
@@ -29,6 +30,7 @@
 import { Handle, Position } from '@vue-flow/core';
 
 import { caseHandleId } from '../caseHandle.js';
+import { useNodeIssues } from '../config/flowValidation.js';
 import { getNodeDefinition } from '../nodeDefinitions.js';
 import BaseNode from './BaseNode.vue';
 
@@ -43,6 +45,8 @@ const handleStyle = {
   backgroundColor: '#f59e0b',
   borderColor: 'var(--card-background)',
 };
+
+const nodeWarning = useNodeIssues(() => props.id);
 
 const definition = computed(() => getNodeDefinition(props.type));
 const label = computed(() => (definition.value ? t(definition.value.labelKey) : props.type));

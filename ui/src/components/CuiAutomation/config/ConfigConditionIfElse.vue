@@ -17,7 +17,6 @@
         :placeholder="t('components.automation_nodes.condition_variable_placeholder')"
         @update:model-value="update('leftOperand', $event)"
       />
-      <VariableSuggestions :variables="availableVars" @select="update('leftOperand', $event)" />
     </div>
 
     <div class="flex flex-col field-gap">
@@ -40,16 +39,28 @@
         :placeholder="t('components.automation_nodes.condition_value_placeholder')"
         @update:model-value="update('rightOperand', $event)"
       />
-      <VariableSuggestions :variables="availableVars" @select="update('rightOperand', $event)" />
+      <div v-if="suggestedValues.length" class="flex flex-col gap-2 mt-1">
+        <span class="text-muted text-xs">{{ t('components.automation_nodes.switch_cases_suggested') }}</span>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="option in suggestedValues"
+            :key="option.value"
+            severity="secondary"
+            outlined
+            size="small"
+            :label="option.label"
+            @click="update('rightOperand', option.value)"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { getNodeDefinition } from '../nodeDefinitions.js';
-import { getAvailableVariables } from './availableVariables.js';
+import { findFlowVariable, flowValueOptions } from './flowSchema.js';
 import VariableInput from './VariableInput.vue';
-import VariableSuggestions from './VariableSuggestions.vue';
 
 import type { AutomationFlow, ConfigConditionIfElseProps, ConfigNodeUpdateEmits } from '../types.js';
 
@@ -62,15 +73,15 @@ const { t } = useI18n();
 const store = useAutomationsStore();
 
 const operators = [
-  { label: '== (equals)', value: '==' },
-  { label: '!= (not equals)', value: '!=' },
-  { label: '> (greater than)', value: '>' },
-  { label: '< (less than)', value: '<' },
-  { label: '>= (greater or equal)', value: '>=' },
-  { label: '<= (less or equal)', value: '<=' },
-  { label: 'contains', value: 'contains' },
-  { label: 'starts with', value: 'startsWith' },
-  { label: 'ends with', value: 'endsWith' },
+  { label: `== (${t('components.automation_nodes.operator_equals')})`, value: '==' },
+  { label: `!= (${t('components.automation_nodes.operator_not_equals')})`, value: '!=' },
+  { label: `> (${t('components.automation_nodes.operator_greater')})`, value: '>' },
+  { label: `< (${t('components.automation_nodes.operator_less')})`, value: '<' },
+  { label: `>= (${t('components.automation_nodes.operator_greater_equal')})`, value: '>=' },
+  { label: `<= (${t('components.automation_nodes.operator_less_equal')})`, value: '<=' },
+  { label: t('components.automation_nodes.operator_contains'), value: 'contains' },
+  { label: t('components.automation_nodes.operator_starts_with'), value: 'startsWith' },
+  { label: t('components.automation_nodes.operator_ends_with'), value: 'endsWith' },
 ];
 
 const sourceNode = computed(() => store.getDraftSourceNode(props.nodeId));
@@ -81,7 +92,11 @@ const sourceLabel = computed(() => {
   return def ? t(def.labelKey) : sourceNode.value.type;
 });
 
-const availableVars = computed(() => getAvailableVariables(store.draft as AutomationFlow | null, props.nodeId));
+// values the left operand's variable is known to produce
+const suggestedValues = computed(() => {
+  const variable = findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.leftOperand);
+  return flowValueOptions(variable, t).filter((option) => option.value !== props.data.rightOperand);
+});
 
 function update(key: string, value: unknown) {
   emit('update:data', { [key]: value });

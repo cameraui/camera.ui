@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
-      <label class="cui-label">Camera</label>
+      <label class="cui-label">{{ t('components.automation_nodes.camera') }}</label>
       <Select
         :model-value="data.cameraId"
         :options="cameraOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select camera"
+        :placeholder="t('components.automation_nodes.camera_placeholder')"
         class="w-full"
         @update:model-value="onCameraChange"
       />
@@ -20,7 +20,7 @@
         :options="sensorOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor type"
+        :placeholder="t('components.automation_nodes.sensor_type_placeholder')"
         class="w-full"
         :disabled="!data.cameraId"
         @update:model-value="onSensorTypeChange"
@@ -34,7 +34,7 @@
         :options="instanceSelectOptions"
         option-label="label"
         option-value="value"
-        placeholder="Select sensor"
+        :placeholder="t('components.automation_nodes.sensor_instance_placeholder')"
         class="w-full"
         :loading="instancesLoading"
         @update:model-value="onInstanceChange"
@@ -53,6 +53,7 @@
             v-if="isPropertyEnabled(prop.value)"
             :model-value="isVariableMode(prop.value) ? 'variable' : 'fixed'"
             :options="modeOptions"
+            option-label="value"
             option-value="value"
             :allow-empty="false"
             class="cui-select-button-small shrink-0"
@@ -70,6 +71,9 @@
           :model-value="getPropertyValue(prop.value)"
           :variable-mode="isVariableMode(prop.value)"
           :node-id="nodeId"
+          :camera-id="data.cameraId"
+          :sensor-name="data.sensorName"
+          :sensor-plugin-id="data.sensorPluginId"
           @update:model-value="(value) => setPropertyValue(prop.value, value)"
         />
       </div>
@@ -105,16 +109,12 @@ const modeOptions = [
 
 const sensorOptions = computed(() => {
   if (!props.data.cameraId) return [];
-  return (
-    getSensorTypes(props.data.cameraId)
-      // Trigger sensors (doorbell) dispatch updateValue to trigger(); read-only sensor
-      // categories are only writable when a virtual instance backs them
-      .filter((s) => s.meta.category === SensorCategory.Control || s.meta.category === SensorCategory.Trigger || (s.hasVirtual && !s.meta.isDetectionType))
-      .map((s) => ({
-        label: t(`components.camera_options.sensor_type_${s.value}`),
-        value: s.value,
-      }))
-  );
+  return getSensorTypes(props.data.cameraId)
+    .filter((s) => s.meta.category === SensorCategory.Control || s.meta.category === SensorCategory.Trigger || (s.hasVirtual && !s.meta.isDetectionType))
+    .map((s) => ({
+      label: t(`components.camera_options.sensor_type_${s.value}`),
+      value: s.value,
+    }));
 });
 
 const cameraIdRef = computed(() => props.data.cameraId || undefined);
@@ -138,7 +138,7 @@ const instanceSelectOptions = computed(() => {
 
 const propertyOptions = computed(() => {
   if (!props.data.sensorType) return [];
-  return getPropertiesForSensor(props.data.sensorType);
+  return getPropertiesForSensor(props.data.sensorType, 'writable');
 });
 
 const propertiesMap = computed(() => {
