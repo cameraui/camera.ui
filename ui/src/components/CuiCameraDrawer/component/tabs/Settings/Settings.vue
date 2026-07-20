@@ -728,7 +728,6 @@
                 v-bind="field"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                :disabled="!hasPtzCapability"
                 class="ml-auto shrink-0"
                 @value-change="
                   (e) => {
@@ -739,7 +738,7 @@
             </div>
           </Field>
 
-          <template v-if="cameraForm.ptzAutotrack?.enabled && hasPtzCapability">
+          <template v-if="cameraForm.ptzAutotrack?.enabled">
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.targetLabels" name="ptzAutotrack.targetLabels" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_target_labels') }}</label>
               <MultiSelect
