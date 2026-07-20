@@ -44,6 +44,8 @@
           :key="instance.id"
           :instance="instance"
           :menu-open="menuRef?.isOpen && menuRef?.data?.id === instance.id"
+          :selection-mode="selectionMode"
+          :selected="selectedIds.has(instance.id)"
           @click="onCardClick(instance)"
           @toggle-favorite="toggleFavorite(instance.id)"
           @open-menu="menuRef?.toggleMenu($event, undefined, instance)"
@@ -56,13 +58,54 @@
       </div>
     </Transition>
 
-    <CuiFloatingButton
-      :tooltip-props="{ value: $t('views.instances.add') }"
-      :button-props="{ class: 'text-white' }"
-      :icon="PlusIcon"
-      :icon-props="{ width: '30px', height: '30px' }"
-      @click="openAddDialog"
-    />
+    <CuiFloatingButtonGroup :force-visible="selectionMode">
+      <template v-if="!selectionMode">
+        <CuiFloatingButton
+          v-if="allInstances.length > 1"
+          grouped
+          :tooltip-props="{ value: t('views.instances.select') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('views.instances.add') }"
+          :button-props="{ class: 'text-white' }"
+          :icon="PlusIcon"
+          :icon-props="{ width: '30px', height: '30px' }"
+          @click="openAddDialog"
+        />
+      </template>
+
+      <template v-else>
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('components.form.tooltip.cancel_selection') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="CloseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="exitSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: allSelected ? t('views.instances.deselect_all') : t('views.instances.select_all') }"
+          :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
+          :icon="SelectAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleSelectAll"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('views.instances.remove_selected') }"
+          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
+          :icon="TrashOutlineIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="confirmBulkRemove"
+        />
+      </template>
+    </CuiFloatingButtonGroup>
 
     <CuiMenu
       ref="menuRef"
@@ -80,12 +123,17 @@
 
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
+import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import TrashIcon from '~icons/iconamoon/trash-fill';
+import CloseIcon from '~icons/mdi/close';
+import TrashOutlineIcon from '~icons/mdi/delete-outline';
 import EditIcon from '~icons/mdi/pencil-outline';
 import TwoFactorIcon from '~icons/mdi/two-factor-authentication';
+import SelectIcon from '~icons/tabler/dots-filled';
 import PlusIcon from '~icons/typcn/plus';
 
 import { InstancesQuery } from '@/api/routes/instances.js';
+import { useCardSelection } from '@/composables/useCardSelection.js';
 import EditInstanceDialog from '@/components/CuiDialog/templates/EditInstanceDialog/EditInstanceDialog.vue';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
@@ -248,7 +296,40 @@ function toInstanceEntry(info: InstanceInfo): InstanceEntry | undefined {
   };
 }
 
+const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } =
+  useCardSelection(filteredInstances, (instance) => instance.id);
+
+function confirmBulkRemove() {
+  if (!selectedItems.value.length || bulkBusy.value) return;
+  const ids = selectedItems.value.map((instance) => instance.id);
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('views.instances.remove_selected_confirm', { count: ids.length }),
+      confirmText: t('views.settings.instances.remove'),
+      loading: isLoading,
+    },
+    onConfirm: async () => {
+      bulkBusy.value = true;
+      isLoading.value = true;
+      try {
+        await Promise.all(ids.map((id) => deleteInstance(id)));
+        exitSelectionMode();
+      } catch (error: any) {
+        toast.add({ severity: 'error', detail: error, life: 3000 });
+      } finally {
+        bulkBusy.value = false;
+        isLoading.value = false;
+      }
+    },
+  });
+}
+
 function onCardClick(instance: InstanceInfo) {
+  if (selectionMode.value) {
+    toggleSelection(instance.id);
+    return;
+  }
   if (instance.active || instance.status === 'offline') return;
   if (instance.pending2fa) {
     // The instance has no completed session yet — finish the 2FA challenge
