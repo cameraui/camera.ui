@@ -56,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 - **License plate readings settle on one plate instead of a wall of guesses.** A car passing the camera used to produce dozens of conflicting plate strings, and the event kept several of them ("C2443", "3J77", "5544" for the same car). Readings of the same plate are now grouped and the one seen most consistently across frames wins, unreadable and too-short readings are dropped, and the number of plate crops kept per event is capped so long clips no longer pile up memory.
 
+- **Restoring a large backup works now.** Uploading a backup over 100 MB failed with "request file too large". The size limit is gone and the upload is streamed to disk instead of being held in memory. Restoring from the setup wizard on a fresh installation could also lose part of the settings while the server was still starting up in the background; restoring now asks you to wait until startup is finished.
+
 - **Several smaller automation fixes.** The repeat counter variable was stuck at 0, results after parallel repeats never reached later nodes, HTTP action headers could not be set at all, the first location report after a server restart could swallow an enter/leave event, events with several detection types matched no switch case, and typos in template variables now log a warning instead of silently becoming empty.
 
 ## [2.0.15]

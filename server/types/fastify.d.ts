@@ -12,4 +12,7 @@ declare module 'fastify' {
   interface FastifyRequest {
     locals: CustomLocals;
   }
+  interface FastifyContextConfig {
+    uploadToDisk?: boolean;
+  }
 }

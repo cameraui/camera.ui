@@ -26,6 +26,10 @@ export const BackupRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
     method: 'POST',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
     handler: backupController.restore.bind(backupController),
+    config: {
+      uploadToDisk: true,
+      multipartOptions: { limits: { fileSize: Infinity } },
+    },
     schema: {
       tags: ['Backup'],
       summary: 'Restore a backup from an uploaded archive',

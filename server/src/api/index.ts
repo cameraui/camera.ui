@@ -11,6 +11,11 @@ import FastifySwaggerUI from '@fastify/swagger-ui';
 import { green } from 'ansicolor';
 import Fastify, { LogController } from 'fastify';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { createWriteStream } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import qs from 'qs';
 import { networkInterfaceDefault, networkInterfaces } from 'systeminformation';
 import { container } from 'tsyringe';
@@ -20,17 +25,17 @@ import { ConfigService } from '../services/config/index.js';
 import { RUNTIME_STATUS } from '../services/config/types.js';
 import { MdnsService } from '../services/mdns/index.js';
 import { syncInterfaceCache } from '../utils/interface-cache.js';
+import { IngressSession } from './ingress.js';
 import { HeaderPlugin } from './plugins/header.plugin.js';
 import { ProxyPlugin } from './plugins/proxy.plugin.js';
 import { SocketIoPlugin } from './plugins/socket.plugin.js';
 import { SystemPlugin } from './plugins/system.plugin.js';
-import { IngressSession } from './ingress.js';
 import { FastifyRoutes } from './routes/index.js';
 import { SharesService } from './services/shares.service.js';
 
 import type { FastifyCorsOptions } from '@fastify/cors';
 import type { FastifyHelmetOptions } from '@fastify/helmet';
-import type { FastifyMultipartAttachFieldsToBodyOptions } from '@fastify/multipart';
+import type { FastifyMultipartAttachFieldsToBodyOptions, MultipartFile } from '@fastify/multipart';
 import type { FastifyStaticOptions } from '@fastify/static';
 import type { FastifyDynamicSwaggerOptions } from '@fastify/swagger';
 import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
@@ -459,6 +464,21 @@ export class Server {
   private get multipartOptions(): FastifyMultipartAttachFieldsToBodyOptions {
     return {
       attachFieldsToBody: true,
+      async onFile(part) {
+        if (this.routeOptions.config.uploadToDisk) {
+          const directory = await mkdtemp(join(tmpdir(), 'cameraui-upload-'));
+          const filepath = join(directory, 'upload.bin');
+          try {
+            await pipeline(part.file, createWriteStream(filepath));
+          } catch (error) {
+            await rm(directory, { recursive: true, force: true }).catch(() => {});
+            throw error;
+          }
+          (part as MultipartFile & { filepath?: string }).filepath = filepath;
+        } else {
+          await part.toBuffer();
+        }
+      },
     };
   }
 

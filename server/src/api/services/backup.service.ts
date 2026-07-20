@@ -1,7 +1,7 @@
-import { copy, pathExists, readJson, remove, writeJson } from 'fs-extra/esm';
+import { copy, move, pathExists, readJson, remove, writeJson } from 'fs-extra/esm';
 import { lstat, mkdtemp, writeFile } from 'node:fs/promises';
 import { platform, tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { c, x } from 'tar';
 import { container } from 'tsyringe';
 
@@ -11,8 +11,11 @@ import { moveFiles } from '../utils/moveFiles.js';
 import { PluginsService } from './plugins.service.js';
 
 import type { MultipartFile } from '@fastify/multipart';
+import type { CameraUi } from '../../main.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { BackupInfo, BackupStorage, PluginBackupInfo, UiLocalStorage } from '../types/index.js';
+
+export type UploadedBackupFile = MultipartFile & { filepath?: string };
 
 export class BackupService {
   private static activeOperation: 'backup' | 'restore' | null = null;
@@ -38,13 +41,19 @@ export class BackupService {
     }
   }
 
-  public async restoreBackup(file: MultipartFile): Promise<any> {
-    this.acquireLock('restore');
+  public async restoreBackup(file: UploadedBackupFile): Promise<any> {
+    try {
+      this.acquireLock('restore');
+    } catch (error) {
+      await this.removeUploadedFile(file);
+      throw error;
+    }
 
     try {
       return await this.runRestoreBackup(file);
     } finally {
       BackupService.activeOperation = null;
+      await this.removeUploadedFile(file);
     }
   }
 
@@ -144,12 +153,30 @@ export class BackupService {
     };
   }
 
-  private async runRestoreBackup(file: MultipartFile): Promise<any> {
+  private ensureStartupComplete(): void {
+    const cameraui = container.resolve<CameraUi>('cameraui');
+    if (cameraui.status !== 'ready') {
+      throw new Error('The server is still starting up. Please wait a moment and try again.');
+    }
+  }
+
+  private async removeUploadedFile(file: UploadedBackupFile): Promise<void> {
+    if (file.filepath) {
+      await remove(dirname(file.filepath)).catch(() => {});
+    }
+  }
+
+  private async runRestoreBackup(file: UploadedBackupFile): Promise<any> {
+    this.ensureStartupComplete();
+
     const backupDirectory = await mkdtemp(join(tmpdir(), 'cameraui-restore-'));
     const backupFile = join(backupDirectory, 'upload.tar.gz');
-    const fileBuffer = await file.toBuffer();
 
-    await writeFile(backupFile, fileBuffer);
+    if (file.filepath) {
+      await move(file.filepath, backupFile, { overwrite: true });
+    } else {
+      await writeFile(backupFile, await file.toBuffer());
+    }
 
     await x({
       cwd: backupDirectory,
