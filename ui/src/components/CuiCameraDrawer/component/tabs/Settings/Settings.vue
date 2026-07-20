@@ -324,6 +324,8 @@
             </Field>
           </div>
 
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensor_type_motion') }}</span>
+
           <Field
             v-slot="{ errors }"
             :model-value="cameraForm.detectionSettings.motion.resolution"
@@ -381,6 +383,8 @@
               $t('components.form.hint.motion_timeout')
             }}</Message>
           </Field>
+
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensor_type_object') }}</span>
 
           <Field
             v-slot="{ errors }"
@@ -444,6 +448,8 @@
             </div>
           </Field>
 
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensor_type_audio') }}</span>
+
           <Field
             v-slot="{ errors }"
             :model-value="cameraForm.detectionSettings.audio.minDecibels"
@@ -506,6 +512,110 @@
               $t('components.form.hint.audio_timeout')
             }}</Message>
           </Field>
+
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensor_type_face') }}</span>
+
+          <Field
+            v-slot="{ errors }"
+            :model-value="cameraForm.detectionSettings.face?.confidence"
+            name="detectionSettings.face.confidence"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label for="detectionSettings.face.confidence" class="cui-label">{{ $t('components.form.label.face_confidence') }}</label>
+            <InputGroup>
+              <InputNumber
+                :model-value="cameraForm.detectionSettings.face?.confidence"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                show-buttons
+                :step="0.01"
+                :min="0"
+                :max="1"
+                mode="decimal"
+                :use-grouping="false"
+                @value-change="(e) => (cameraForm.detectionSettings.face = { confidence: e ?? undefined })"
+                @input="(e) => (cameraForm.detectionSettings.face = { confidence: (e.value as any) ?? undefined })"
+              />
+            </InputGroup>
+
+            <Transition name="fade">
+              <ErrorMessage name="detectionSettings.face.confidence" class="cui-input-error" />
+            </Transition>
+
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.face_confidence')
+            }}</Message>
+          </Field>
+
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensor_type_licensePlate') }}</span>
+
+          <Field
+            v-slot="{ errors }"
+            :model-value="cameraForm.detectionSettings.licensePlate?.confidence"
+            name="detectionSettings.licensePlate.confidence"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label for="detectionSettings.licensePlate.confidence" class="cui-label">{{ $t('components.form.label.plate_confidence') }}</label>
+            <InputGroup>
+              <InputNumber
+                :model-value="cameraForm.detectionSettings.licensePlate?.confidence"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                show-buttons
+                :step="0.01"
+                :min="0"
+                :max="1"
+                mode="decimal"
+                :use-grouping="false"
+                @value-change="(e) => (cameraForm.detectionSettings.licensePlate = { ...cameraForm.detectionSettings.licensePlate, confidence: e ?? undefined })"
+                @input="(e) => (cameraForm.detectionSettings.licensePlate = { ...cameraForm.detectionSettings.licensePlate, confidence: (e.value as any) ?? undefined })"
+              />
+            </InputGroup>
+
+            <Transition name="fade">
+              <ErrorMessage name="detectionSettings.licensePlate.confidence" class="cui-input-error" />
+            </Transition>
+
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.plate_confidence')
+            }}</Message>
+          </Field>
+
+          <Field
+            v-slot="{ errors }"
+            :model-value="cameraForm.detectionSettings.licensePlate?.minLength"
+            name="detectionSettings.licensePlate.minLength"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label for="detectionSettings.licensePlate.minLength" class="cui-label">{{ $t('components.form.label.plate_min_length') }}</label>
+            <InputGroup>
+              <InputNumber
+                :model-value="cameraForm.detectionSettings.licensePlate?.minLength"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                show-buttons
+                :step="1"
+                :min="1"
+                :max="10"
+                :use-grouping="false"
+                @value-change="(e) => (cameraForm.detectionSettings.licensePlate = { ...cameraForm.detectionSettings.licensePlate, minLength: e ?? undefined })"
+                @input="(e) => (cameraForm.detectionSettings.licensePlate = { ...cameraForm.detectionSettings.licensePlate, minLength: (e.value as any) ?? undefined })"
+              />
+            </InputGroup>
+
+            <Transition name="fade">
+              <ErrorMessage name="detectionSettings.licensePlate.minLength" class="cui-input-error" />
+            </Transition>
+
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.plate_min_length')
+            }}</Message>
+          </Field>
+
+          <span class="section-title mt-2">{{ $t('components.camera_options.sensors') }}</span>
 
           <Field
             v-slot="{ errors }"
@@ -575,113 +685,6 @@
               {{ $t('components.form.hint.sensor_triggers') }}
             </Message>
           </Field>
-        </div>
-      </AccordionContent>
-    </AccordionPanel>
-
-    <AccordionPanel value="sensors">
-      <AccordionHeader class="px-0">
-        <span class="text-color font-normal">{{ $t('components.camera_options.virtual_sensors') }}</span>
-      </AccordionHeader>
-      <AccordionContent :pt="{ content: { class: 'px-0' } }">
-        <div class="flex flex-col gap-4">
-          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
-            {{ $t('components.camera_options.virtual_sensors_hint') }}
-          </Message>
-
-          <div v-if="cameraVirtualSensors.length" class="flex flex-col gap-2">
-            <div v-for="virtualSensor in cameraVirtualSensors" :key="virtualSensor._id" class="flex items-center gap-2 p-2 rounded-md border-color">
-              <div class="flex flex-col flex-1 min-w-0">
-                <span class="text-sm font-medium truncate">{{ virtualSensor.displayName || virtualSensor.name }}</span>
-                <span class="text-xs text-muted">{{ $t(`components.camera_options.sensor_type_${virtualSensor.type}`) }}</span>
-              </div>
-              <Button
-                v-tooltip.top="$t('components.camera_options.sensor_display_name')"
-                text
-                rounded
-                severity="secondary"
-                class="cui-icon-sm shrink-0"
-                @click="openRenameVirtualSensorDialog(virtualSensor)"
-              >
-                <template #icon>
-                  <i-mdi:pencil width="100%" height="100%" />
-                </template>
-              </Button>
-              <Button
-                v-tooltip.top="$t('components.camera_options.virtual_sensor_delete')"
-                text
-                rounded
-                severity="danger"
-                class="cui-icon-sm shrink-0"
-                @click="confirmDeleteVirtualSensor(virtualSensor)"
-              >
-                <template #icon>
-                  <i-mdi:trash-can-outline width="100%" height="100%" />
-                </template>
-              </Button>
-            </div>
-          </div>
-
-          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.virtual_sensors_empty') }}</span>
-
-          <Button fluid class="cui-button-medium" :label="$t('components.camera_options.virtual_sensor_create')" @click="openCreateVirtualSensorDialog" />
-        </div>
-      </AccordionContent>
-    </AccordionPanel>
-
-    <AccordionPanel value="zones">
-      <AccordionHeader class="px-0">
-        <span class="text-color font-normal">{{ $t('components.camera_options.zones') }}</span>
-      </AccordionHeader>
-      <AccordionContent :pt="{ content: { class: 'px-0' } }">
-        <div class="flex flex-col gap-4">
-          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
-            {{ $t('components.camera_options.zones_hint') }}
-          </Message>
-
-          <div v-if="zoneEntries.length" class="flex flex-col gap-2">
-            <div v-for="entry in zoneEntries" :key="`${entry.kind}-${entry.index}`" class="flex items-center gap-2 p-2 rounded-md border-color">
-              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: entry.color }" />
-              <div class="flex flex-col flex-1 min-w-0">
-                <span class="text-sm font-medium truncate">{{ entry.name }}</span>
-                <span class="text-xs text-muted">{{ entry.typeLabel }}</span>
-              </div>
-              <Button
-                v-tooltip.top="$t('components.zone_editor.edit_zones')"
-                text
-                rounded
-                severity="secondary"
-                class="cui-icon-sm shrink-0"
-                @click="openEditZoneEntry(entry)"
-              >
-                <template #icon>
-                  <i-mdi:pencil width="100%" height="100%" />
-                </template>
-              </Button>
-              <Button
-                v-tooltip.top="$t('components.camera_options.zone_entry_delete')"
-                text
-                rounded
-                severity="danger"
-                class="cui-icon-sm shrink-0"
-                @click="confirmDeleteZoneEntry(entry)"
-              >
-                <template #icon>
-                  <i-mdi:trash-can-outline width="100%" height="100%" />
-                </template>
-              </Button>
-            </div>
-          </div>
-
-          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.zones_empty') }}</span>
-
-          <Button
-            fluid
-            class="cui-button-medium"
-            :loading="isLoading"
-            :label="$t('components.form.button.edit_zones')"
-            @click="openEditZoneDialog(camera.detectionZones)"
-          ></Button>
         </div>
       </AccordionContent>
     </AccordionPanel>
@@ -1030,6 +1033,113 @@
               $t('components.form.hint.refresh_interval')
             }}</Message>
           </Field>
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
+    <AccordionPanel value="zones">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.zones') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="flex flex-col gap-4">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.zones_hint') }}
+          </Message>
+
+          <div v-if="zoneEntries.length" class="flex flex-col gap-2">
+            <div v-for="entry in zoneEntries" :key="`${entry.kind}-${entry.index}`" class="flex items-center gap-2 p-2 rounded-md border-color">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: entry.color }" />
+              <div class="flex flex-col flex-1 min-w-0">
+                <span class="text-sm font-medium truncate">{{ entry.name }}</span>
+                <span class="text-xs text-muted">{{ entry.typeLabel }}</span>
+              </div>
+              <Button
+                v-tooltip.top="$t('components.zone_editor.edit_zones')"
+                text
+                rounded
+                severity="secondary"
+                class="cui-icon-sm shrink-0"
+                @click="openEditZoneEntry(entry)"
+              >
+                <template #icon>
+                  <i-mdi:pencil width="100%" height="100%" />
+                </template>
+              </Button>
+              <Button
+                v-tooltip.top="$t('components.camera_options.zone_entry_delete')"
+                text
+                rounded
+                severity="danger"
+                class="cui-icon-sm shrink-0"
+                @click="confirmDeleteZoneEntry(entry)"
+              >
+                <template #icon>
+                  <i-mdi:trash-can-outline width="100%" height="100%" />
+                </template>
+              </Button>
+            </div>
+          </div>
+
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.zones_empty') }}</span>
+
+          <Button
+            fluid
+            class="cui-button-medium"
+            :loading="isLoading"
+            :label="$t('components.form.button.edit_zones')"
+            @click="openEditZoneDialog(camera.detectionZones)"
+          ></Button>
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
+    <AccordionPanel value="sensors">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.virtual_sensors') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="flex flex-col gap-4">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.virtual_sensors_hint') }}
+          </Message>
+
+          <div v-if="cameraVirtualSensors.length" class="flex flex-col gap-2">
+            <div v-for="virtualSensor in cameraVirtualSensors" :key="virtualSensor._id" class="flex items-center gap-2 p-2 rounded-md border-color">
+              <div class="flex flex-col flex-1 min-w-0">
+                <span class="text-sm font-medium truncate">{{ virtualSensor.displayName || virtualSensor.name }}</span>
+                <span class="text-xs text-muted">{{ $t(`components.camera_options.sensor_type_${virtualSensor.type}`) }}</span>
+              </div>
+              <Button
+                v-tooltip.top="$t('components.camera_options.sensor_display_name')"
+                text
+                rounded
+                severity="secondary"
+                class="cui-icon-sm shrink-0"
+                @click="openRenameVirtualSensorDialog(virtualSensor)"
+              >
+                <template #icon>
+                  <i-mdi:pencil width="100%" height="100%" />
+                </template>
+              </Button>
+              <Button
+                v-tooltip.top="$t('components.camera_options.virtual_sensor_delete')"
+                text
+                rounded
+                severity="danger"
+                class="cui-icon-sm shrink-0"
+                @click="confirmDeleteVirtualSensor(virtualSensor)"
+              >
+                <template #icon>
+                  <i-mdi:trash-can-outline width="100%" height="100%" />
+                </template>
+              </Button>
+            </div>
+          </div>
+
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.virtual_sensors_empty') }}</span>
+
+          <Button fluid class="cui-button-medium" :label="$t('components.camera_options.virtual_sensor_create')" @click="openCreateVirtualSensorDialog" />
         </div>
       </AccordionContent>
     </AccordionPanel>

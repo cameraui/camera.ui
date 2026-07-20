@@ -84,6 +84,17 @@ export const detectionSettingsSchema = zod.object({
     minDecibels: zod.number().min(-100, 'Minimum -100 dBFS').max(0, 'Maximum 0 dBFS'),
     timeout: zod.number().min(10, 'Minimum 10 seconds'),
   }),
+  face: zod
+    .object({
+      confidence: zod.number().min(0, 'Minimum 0').max(1, 'Maximum 1').default(0.5),
+    })
+    .default({ confidence: 0.5 }),
+  licensePlate: zod
+    .object({
+      confidence: zod.number().min(0, 'Minimum 0').max(1, 'Maximum 1').default(0.9),
+      minLength: zod.number().int().min(1, 'Minimum 1').max(10, 'Maximum 10').default(4),
+    })
+    .default({ confidence: 0.9, minLength: 4 }),
   sensor: zod.object({
     timeout: zod.number().min(10, 'Minimum 10 seconds'),
     triggers: zod
@@ -395,6 +406,13 @@ export const createCameraBaseSchema = zod
       audio: {
         minDecibels: -40,
         timeout: 30,
+      },
+      face: {
+        confidence: 0.5,
+      },
+      licensePlate: {
+        confidence: 0.9,
+        minLength: 4,
       },
       sensor: {
         timeout: 30,

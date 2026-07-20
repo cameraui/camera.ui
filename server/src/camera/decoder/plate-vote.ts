@@ -1,4 +1,4 @@
-export const MIN_PLATE_LENGTH = 3;
+export const MIN_PLATE_LENGTH = 4;
 export const MIN_PLATE_SUPPORT = 3;
 export const MAX_UNTRACKED_PLATES = 3;
 
@@ -44,9 +44,9 @@ export class PlateVoteTracker {
   private clusters: PlateCluster[] = [];
   private nextId = 0;
 
-  public add(text: string, confidence: number): void {
+  public add(text: string, confidence: number, minLength: number = MIN_PLATE_LENGTH): void {
     const normalized = normalizePlateText(text);
-    if (normalized.length < MIN_PLATE_LENGTH) return;
+    if (normalized.length < minLength) return;
 
     const cluster = this.clusters.find((c) => isSamePlate(c.best, normalized));
     if (!cluster) {

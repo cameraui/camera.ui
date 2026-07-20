@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 - **Automation runs are visible now.** The flow card shows whether the last run succeeded, and a history dialog lists recent runs with the path through the flow: which branch a switch took, how long each step ran, and any warnings. The test run replays the last real trigger event instead of running with empty values.
 
+- **Tune face and license plate recognition per camera.** The camera's detection settings now let you set a minimum face confidence, a minimum plate reading confidence and a minimum plate length, so you decide how strict recognition is for each camera.
+
 ### Fixed
 
 - **camera.ui starts up quickly again.** With Go-based plugins installed (such as the NVR), the server could hang for minutes while starting.
@@ -52,7 +54,7 @@ All notable changes to this project will be documented in this file.
 
 - **Editing automations on the phone saves again.** Changing a node's settings in the mobile editor never showed the save button, so the changes were lost when leaving the page.
 
-- **License plate readings settle on one plate instead of a wall of guesses.** A car passing the camera used to produce dozens of conflicting plate strings, and the event kept several of them ("C2443", "3J77", "5544" for the same car). Readings of the same plate are now grouped and the one seen most consistently across frames wins, one-off misreads and one or two character fragments are dropped, and the number of plate crops kept per event is capped so long clips no longer pile up memory.
+- **License plate readings settle on one plate instead of a wall of guesses.** A car passing the camera used to produce dozens of conflicting plate strings, and the event kept several of them ("C2443", "3J77", "5544" for the same car). Readings of the same plate are now grouped and the one seen most consistently across frames wins, unreadable and too-short readings are dropped, and the number of plate crops kept per event is capped so long clips no longer pile up memory.
 
 - **Several smaller automation fixes.** The repeat counter variable was stuck at 0, results after parallel repeats never reached later nodes, HTTP action headers could not be set at all, the first location report after a server restart could swallow an enter/leave event, events with several detection types matched no switch case, and typos in template variables now log a warning instead of silently becoming empty.
 

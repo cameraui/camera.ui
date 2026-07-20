@@ -27,6 +27,11 @@
   color: var(--text-muted-color);
 }
 
+.section-title {
+  @apply text-[0.7rem] font-semibold block uppercase tracking-wider select-none;
+  color: var(--text-muted-color);
+}
+
 /* ===== UTILITIES ===== */
 
 .flipped-h {

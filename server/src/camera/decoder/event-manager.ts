@@ -55,6 +55,9 @@ export interface ProcessedDetectionData {
   faceEmbeddingModel?: string;
   plates: TrackedLicensePlateDetection[];
   plateVoting?: boolean;
+  plateMinConfidence?: number;
+  plateMinLength?: number;
+  faceMinConfidence?: number;
   classifiers: TrackedClassifierDetection[];
   clips: TrackedClipEmbedding[];
   clipEmbeddingModel?: string;
@@ -452,6 +455,7 @@ export class DetectionEventManager {
     }
 
     for (const face of data.faces) {
+      if (face.confidence < (data.faceMinConfidence ?? 0)) continue;
       if (face.identity) {
         if (!this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity)) {
           this.activeSegment.attributes.push({ type: 'face', label: face.identity, parentTrackId: face.parentTrackId });
@@ -500,6 +504,9 @@ export class DetectionEventManager {
         continue;
       }
 
+      // illegible reads never become candidates; old plugins without ocrConfidence pass
+      if (plate.ocrConfidence !== undefined && plate.ocrConfidence < (data.plateMinConfidence ?? 0)) continue;
+
       // vote per vehicle so flickering OCR reads converge on one plate instead of
       // surfacing every misread; untracked reads share one bucket but may yield
       // several winners (multiple untracked vehicles)
@@ -509,7 +516,7 @@ export class DetectionEventManager {
         votes = new PlateVoteTracker();
         this.eventPlateVotes.set(bucketKey, votes);
       }
-      votes.add(plate.plateText, plate.confidence);
+      votes.add(plate.plateText, plate.ocrConfidence ?? plate.confidence, data.plateMinLength);
       this.segmentPlateReads.add(bucketKey);
 
       if (bucketKey === 'untracked') {

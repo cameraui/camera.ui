@@ -89,6 +89,13 @@ async function onSave() {
         minDecibels: -40,
         timeout: 30,
       },
+      face: {
+        confidence: 0.5,
+      },
+      licensePlate: {
+        confidence: 0.9,
+        minLength: 4,
+      },
       sensor: {
         timeout: 30,
         triggers: [],
