@@ -504,6 +504,7 @@ const { camera, cameraDevice, loading } = toRefs(props);
 
 const { data: plugins, isBusy: pluginsLoading } = pluginsQuery.getPluginsQuery({ page: 1, pageSize: -1 });
 const { data: cameraExtensions, isBusy: cameraExtensionsLoading, suspense: cameraExtensionsSuspense } = camerasQuery.getCameraExtensionsQuery(camera.value.name);
+const { data: registeredSensors, isBusy: registeredSensorsLoading } = camerasQuery.getCameraRegisteredSensorsQuery(camera.value.name);
 const { data: extensionsList, isBusy: extensionsListLoading } = pluginsQuery.getPluginsExtensionsQuery({ page: 1, pageSize: -1 });
 const { mutateAsync: enableExtension, isPending: enableExtensionPending } = camerasQuery.enableCameraExtensionQuery();
 const { mutateAsync: disableExtension, isPending: disableExtensionPending } = camerasQuery.disableCameraExtensionQuery();
@@ -602,7 +603,7 @@ const sensorStorage = useSensorStorage(cameraDevice, selectedAccessorySensorId, 
 const sensorConfig = sensorStorage.config;
 const sensorConfigLoading = sensorStorage.isLoading;
 
-const categoriesLoading = computed(() => pluginsLoading.value || extensionsListLoading.value || cameraExtensionsLoading.value);
+const categoriesLoading = computed(() => pluginsLoading.value || extensionsListLoading.value || cameraExtensionsLoading.value || registeredSensorsLoading.value);
 
 const isExtensionsLoading = computed(
   () =>
@@ -779,11 +780,12 @@ const filteredExtensions = computed<PluginExtension[]>(() => {
 
 function pluginProvidesTypeHere(p: PluginExtension, type: SensorType): boolean {
   if (p.pluginName !== camera.value.pluginInfo?.name) return true;
-  return allSensors.value.some((s) => s.type === type && getPluginNameFromId(s.pluginId || '') === p.pluginName);
+  return (registeredSensors.value ?? []).some((s) => s.type === type && getPluginNameFromId(s.pluginId || '') === p.pluginName);
 }
 
 function typeHasContent(type: SensorType): boolean {
   if (allSensors.value.some((s) => s.type === type)) return true;
+  if ((registeredSensors.value ?? []).some((s) => s.type === type)) return true;
   return (cameraExtensions.value ?? []).some((p) => p.contract.provides.includes(type) && p.pluginName !== camera.value.pluginInfo?.name);
 }
 

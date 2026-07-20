@@ -21,13 +21,13 @@ import type {
   AuthLoginRequest,
   CameraLineInsertPatchRequest,
   CameraProbeSourceQueryRequest,
+  CameraSensorCommandParamsRequest,
+  CameraSensorCommandRequest,
   CameraSnapshotQueryRequest,
   CameraSourceParamsRequest,
   CameraZoneInsertPatchRequest,
   CamerasExtensionsParamsRequest,
   CamerasExtensionsRequest,
-  CameraSensorCommandParamsRequest,
-  CameraSensorCommandRequest,
   CamerasInsertRequest,
   CamerasParamsRequest,
   CamerasPatchRequest,
@@ -544,6 +544,32 @@ export class CamerasController {
         properties: sensor.properties,
         capabilities: sensor.capabilities,
         semantics: resolveSensorSemantics(sensor),
+      }));
+
+      return reply.code(200).send({ sensors });
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public getRegisteredSensorsByName(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const camera = this.service.findByName(req.params.cameraname) ?? this.service.findById(req.params.cameraname);
+      const cameraController = this.api.getCamera(camera?._id ?? '');
+
+      if (!camera || !cameraController) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Camera not exists',
+        });
+      }
+
+      const sensors = cameraController.sensorController.getAllSensors({ activatedOnly: false }).map((sensor) => ({
+        type: sensor.type,
+        pluginId: sensor.pluginId,
       }));
 
       return reply.code(200).send({ sensors });

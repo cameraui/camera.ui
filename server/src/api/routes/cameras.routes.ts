@@ -162,6 +162,18 @@ export const CamerasRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
   });
 
   app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:cameraname/sensors/registered',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: camerasController.getRegisteredSensorsByName.bind(camerasController),
+    schema: {
+      tags: ['Cameras'],
+      summary: 'Get all registered sensor types for a camera, including currently unassigned providers',
+      params: cameraParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/:cameraname/sensors/:stableId/command',
     method: 'POST',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
