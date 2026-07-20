@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { boxIntersectsPolygon } from '../utils/filter.js';
+import { MAX_UNTRACKED_PLATES, normalizePlateText, PlateVoteTracker } from './plate-vote.js';
 import { STATIONARY_SPEED_THRESHOLD } from './stationary-suppressor.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
@@ -53,6 +54,7 @@ export interface ProcessedDetectionData {
   faces: TrackedFaceDetection[];
   faceEmbeddingModel?: string;
   plates: TrackedLicensePlateDetection[];
+  plateVoting?: boolean;
   classifiers: TrackedClassifierDetection[];
   clips: TrackedClipEmbedding[];
   clipEmbeddingModel?: string;
@@ -102,6 +104,8 @@ interface ThumbnailCandidate {
 }
 
 export class DetectionEventManager {
+  private static readonly MAX_PLATE_THUMBNAILS = 16;
+
   private activeEvent: DetectionEvent | null = null;
   private activeSegment: EventSegment | null = null;
   private segmentTimer: NodeJS.Timeout | null = null;
@@ -117,9 +121,12 @@ export class DetectionEventManager {
   private needsEventThumbnail = false;
 
   private segmentFaceTrackIds = new Map<number, number>();
-  private segmentPlateTrackIds = new Map<number, number>();
-  private segmentClassifierTrackIds = new Map<string, number>(); // "trackId:attribute" → index
-  private segmentClipTrackIds = new Set<string>(); // "trackId:label"
+  private segmentPlateAttrIndex = new Map<string, number>();
+  private segmentPlateReads = new Set<string>();
+  private eventPlateVotes = new Map<string, PlateVoteTracker>();
+  private plateVotingActive = true;
+  private segmentClassifierTrackIds = new Map<string, number>();
+  private segmentClipTrackIds = new Set<string>();
 
   private readonly eventSubject: string;
   private onEventEndCallback?: () => void;
@@ -279,6 +286,7 @@ export class DetectionEventManager {
 
     this.activeEvent = null;
     this.activeSegment = null;
+    this.eventPlateVotes.clear();
 
     if (this.segmentTimer) {
       clearTimeout(this.segmentTimer);
@@ -310,11 +318,48 @@ export class DetectionEventManager {
     this.publishSegment('segment-start');
   }
 
+  private upsertPlateAttribute(attrKey: string, label: string, confidence: number, parentTrackId: number | undefined): void {
+    if (!this.activeSegment) return;
+
+    const existingIdx = this.segmentPlateAttrIndex.get(attrKey);
+    if (existingIdx !== undefined) {
+      const existing = this.activeSegment.attributes[existingIdx];
+      if (existing) {
+        existing.label = label;
+        existing.confidence = confidence;
+      }
+      return;
+    }
+
+    this.segmentPlateAttrIndex.set(attrKey, this.activeSegment.attributes.length);
+    this.activeSegment.attributes.push({ type: 'license_plate', label, confidence, parentTrackId });
+  }
+
+  private flushPlateFallbacks(): void {
+    if (!this.activeSegment || !this.plateVotingActive) return;
+
+    for (const bucketKey of this.segmentPlateReads) {
+      const votes = this.eventPlateVotes.get(bucketKey);
+      if (!votes) continue;
+
+      const hasAttribute =
+        bucketKey === 'untracked' ? [...this.segmentPlateAttrIndex.keys()].some((k) => k.startsWith('u')) : this.segmentPlateAttrIndex.has(bucketKey);
+      if (hasAttribute) continue;
+
+      const best = votes.bestEffort();
+      if (!best) continue;
+
+      const parentTrackId = bucketKey === 'untracked' ? undefined : Number(bucketKey.slice(1));
+      this.upsertPlateAttribute(bucketKey === 'untracked' ? `u${best.id}` : bucketKey, best.best, best.bestConfidence, parentTrackId);
+    }
+  }
+
   private closeSegment(): void {
     if (!this.activeSegment || !this.activeEvent) return;
 
     this.activeSegment.lastSeen = Date.now();
 
+    this.flushPlateFallbacks();
     this.publishSegment('segment-end');
     this.clearSegmentThumbnails();
 
@@ -438,25 +483,43 @@ export class DetectionEventManager {
       }
     }
 
+    this.plateVotingActive = data.plateVoting !== false;
+
     for (const plate of data.plates) {
       if (!plate.plateText) continue;
 
-      if (plate.parentTrackId !== undefined) {
-        const existingIdx = this.segmentPlateTrackIds.get(plate.parentTrackId);
-        if (existingIdx !== undefined) {
-          const existing = this.activeSegment.attributes[existingIdx];
-          if (existing && plate.confidence > (existing.confidence ?? 0)) {
-            existing.label = plate.plateText;
-            existing.confidence = plate.confidence;
-          }
-          continue;
+      if (!this.plateVotingActive) {
+        // external provider: the camera already vetted the read, keep it as-is
+        const label = normalizePlateText(plate.plateText) || plate.plateText;
+        const existing = this.activeSegment.attributes.find((a) => a.type === 'license_plate' && a.label === label);
+        if (existing) {
+          if (plate.confidence > (existing.confidence ?? 0)) existing.confidence = plate.confidence;
+        } else {
+          this.activeSegment.attributes.push({ type: 'license_plate', label, confidence: plate.confidence, parentTrackId: plate.parentTrackId });
         }
-        this.segmentPlateTrackIds.set(plate.parentTrackId, this.activeSegment.attributes.length);
-      } else if (this.activeSegment.attributes.some((a) => a.type === 'license_plate' && a.label === plate.plateText)) {
         continue;
       }
 
-      this.activeSegment.attributes.push({ type: 'license_plate', label: plate.plateText, confidence: plate.confidence, parentTrackId: plate.parentTrackId });
+      // vote per vehicle so flickering OCR reads converge on one plate instead of
+      // surfacing every misread; untracked reads share one bucket but may yield
+      // several winners (multiple untracked vehicles)
+      const bucketKey = plate.parentTrackId !== undefined ? `t${plate.parentTrackId}` : 'untracked';
+      let votes = this.eventPlateVotes.get(bucketKey);
+      if (!votes) {
+        votes = new PlateVoteTracker();
+        this.eventPlateVotes.set(bucketKey, votes);
+      }
+      votes.add(plate.plateText, plate.confidence);
+      this.segmentPlateReads.add(bucketKey);
+
+      if (bucketKey === 'untracked') {
+        for (const cluster of votes.winners().slice(0, MAX_UNTRACKED_PLATES)) {
+          this.upsertPlateAttribute(`u${cluster.id}`, cluster.best, cluster.bestConfidence, undefined);
+        }
+      } else {
+        const winner = votes.winners()[0];
+        if (winner) this.upsertPlateAttribute(bucketKey, winner.best, winner.bestConfidence, plate.parentTrackId);
+      }
     }
 
     for (const cls of data.classifiers) {
@@ -576,6 +639,8 @@ export class DetectionEventManager {
 
       if (label.startsWith('face:') || label.startsWith('plate:') || label.startsWith('class:')) {
         this.updateBestCandidate(this.attributeThumbnails, label, thumb);
+        // a moving vehicle produces a distinct plate crop almost every frame, cap retention
+        if (label.startsWith('plate:')) this.prunePlateThumbnails();
       } else {
         const hasAttr = thumbnails.some((t) => t.label.startsWith('face:') || t.label.startsWith('plate:') || t.label.startsWith('class:'));
         const candidate: ThumbnailCandidate = {
@@ -594,6 +659,15 @@ export class DetectionEventManager {
 
         this.updateBestCandidate(this.detectionLabelThumbnails, label, thumb);
       }
+    }
+  }
+
+  private prunePlateThumbnails(): void {
+    const plates = [...this.attributeThumbnails].filter(([key]) => key.startsWith('plate:'));
+    if (plates.length <= DetectionEventManager.MAX_PLATE_THUMBNAILS) return;
+    plates.sort((a, b) => (a[1].score ?? 0) - (b[1].score ?? 0));
+    for (let i = 0; i < plates.length - DetectionEventManager.MAX_PLATE_THUMBNAILS; i++) {
+      this.attributeThumbnails.delete(plates[i][0]);
     }
   }
 
@@ -694,7 +768,8 @@ export class DetectionEventManager {
     this.detectionLabelThumbnails.clear();
     this.attributeThumbnails.clear();
     this.segmentFaceTrackIds.clear();
-    this.segmentPlateTrackIds.clear();
+    this.segmentPlateAttrIndex.clear();
+    this.segmentPlateReads.clear();
     this.segmentClassifierTrackIds.clear();
     this.segmentClipTrackIds.clear();
   }

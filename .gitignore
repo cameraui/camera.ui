@@ -98,5 +98,5 @@ rpcv2
 /plugins
 release-local.ts
 /.log
-/tests
+tests
 **/tests/**/*.py

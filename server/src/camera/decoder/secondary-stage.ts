@@ -4,6 +4,7 @@ import { SensorType } from '@camera.ui/sdk';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { EVENT_THUMB_MAX_WIDTH } from './event-thumbnailer.js';
+import { normalizePlateText } from './plate-vote.js';
 import { hasSecondaryModelSpec, isVideoInputSpec } from './plugin-registry.js';
 import { DETECT_TIMEOUT_MS } from './types.js';
 
@@ -138,7 +139,7 @@ export class SecondaryStage {
         const detection = results.licensePlate.detections[crop.index];
         if (detection) {
           thumbnails.push({
-            label: `plate:${detection.plateText ?? 'unknown'}`,
+            label: `plate:${detection.plateText ? normalizePlateText(detection.plateText) : 'unknown'}`,
             score: detection.confidence,
             jpeg: crop.jpeg,
             area: detection.box.width * detection.box.height,
