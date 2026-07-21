@@ -3,6 +3,7 @@ import { firstValueFrom, ReplaySubject, Subject } from '@camera.ui/sdk';
 import { FMP4_CODECS, FMP4Stream } from 'node-av/api';
 
 import { setupNodeAvLog } from './node-av-log.js';
+import { Fmp4FragmentAssembler } from './fmp4-fragment-assembler.js';
 
 import type { CameraDeviceSource, CameraInput, Fmp4Session as Fmp4SessionInterface, Fmp4SessionOptions, LoggerService, RTSPUrlOptions } from '@camera.ui/sdk';
 import type { FMP4Data } from 'node-av/api';
@@ -97,6 +98,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
 
     let initSegment: Buffer | undefined;
     let initSegmentSent = false;
+    const fragmentAssembler = new Fmp4FragmentAssembler();
 
     const fmp4Stream = FMP4Stream.create(this.#url, {
       onData: (data: Buffer, info: FMP4Data) => {
@@ -120,10 +122,16 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
           this.onStarted.next();
         }
 
-        // Only send fragments (moof+mdat), not init boxes (ftyp/moov)
-        const isFragment = initSegment && info.boxes.some((box) => box.type === 'moof');
-        if (isFragment) {
-          this.#boxDataSubject.next(data);
+        // node-av may deliver moof and mdat either together or in consecutive callbacks.
+        // Consumers must always receive a complete media fragment containing both boxes.
+        const fragment = initSegment
+          ? fragmentAssembler.push(
+              data,
+              info.boxes.map((box) => box.type),
+            )
+          : undefined;
+        if (fragment) {
+          this.#boxDataSubject.next(fragment);
         }
       },
       onClose: (err?: Error) => {
