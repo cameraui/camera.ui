@@ -738,6 +738,10 @@ export class CamerasService {
       if (this.configService.go2rtcConfig.streams?.[sourceName]) {
         sourcesToRemove.push(sourceName);
       }
+      const homekitSourceName = `${sourceName}_homekit`;
+      if (this.configService.go2rtcConfig.streams?.[homekitSourceName]) {
+        sourcesToRemove.push(homekitSourceName);
+      }
 
       if (this.configService.go2rtcConfig.preload?.[sourceName]) {
         preloadsToRemove.push(sourceName);
