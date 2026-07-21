@@ -647,6 +647,11 @@ export class CamerasService {
           rtsp: this.generateRTSPUrls(camera, source),
           snapshot: this.generateSnapshotUrls(camera, source),
         },
+        ...(source.role !== 'snapshot' ? { homekitUrls: {
+          ws: this.generateWsUrls(camera, { ...source, name: `${source.name}_homekit` }),
+          rtsp: this.generateRTSPUrls(camera, { ...source, name: `${source.name}_homekit` }),
+          snapshot: this.generateSnapshotUrls(camera, { ...source, name: `${source.name}_homekit` }),
+        } } : {}),
       })),
     };
 
@@ -687,6 +692,8 @@ export class CamerasService {
 
       const sourceName = createSourceName(cameraname, source.name);
       const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
+      const homekitSourceName = `${sourceName}_homekit`;
+      const homekitUrl = `ffmpeg:${sourceName}#cameraui#video=h264#hardware#audio=pcma#audio=opus#audio=aac#noBackchannel#requirePrevAudio`;
       let baseUrls = [...source.urls];
 
       const isCompanionUrl = (url: string): boolean => url.startsWith('ffmpeg:') && url.includes('#cameraui');
@@ -713,6 +720,11 @@ export class CamerasService {
         });
 
         this.configService.go2rtcConfig.streams[cameraSource.name] = cameraSource.src;
+      }
+      if (source.role !== 'snapshot') {
+        this.configService.go2rtcConfig.streams[homekitSourceName] = [homekitUrl];
+      } else if (this.configService.go2rtcConfig.streams?.[homekitSourceName]) {
+        delete this.configService.go2rtcConfig.streams[homekitSourceName];
       }
     }
   }

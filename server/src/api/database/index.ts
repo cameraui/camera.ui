@@ -231,6 +231,10 @@ export class Database {
         });
 
         const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
+        const homekitSourceName = `${sourceName}_homekit`;
+        const homekitUrl = source.role === 'snapshot'
+          ? undefined
+          : `ffmpeg:${sourceName}#cameraui#video=h264#hardware#audio=pcma#audio=opus#audio=aac#noBackchannel#requirePrevAudio`;
 
         const existing = streams[sourceName];
         if (!existing) {
@@ -258,6 +262,9 @@ export class Database {
         } else {
           delete preload[sourceName];
         }
+        if (homekitUrl) streams[homekitSourceName] = [homekitUrl];
+        else delete streams[homekitSourceName];
+        validSourceNames.add(homekitSourceName);
       }
     }
 
