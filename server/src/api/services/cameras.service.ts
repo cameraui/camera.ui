@@ -722,7 +722,11 @@ export class CamerasService {
         this.configService.go2rtcConfig.streams[cameraSource.name] = cameraSource.src;
       }
       if (source.role !== 'snapshot') {
-        this.configService.go2rtcConfig.streams[homekitSourceName] = [homekitUrl];
+        const homekitSource = [homekitUrl];
+        if (!this.sourcesAreEqual(homekitSourceName, homekitSource)) {
+          await this.go2rtcApi.streamsRoute.createStream({ name: homekitSourceName, src: homekitSource });
+          this.configService.go2rtcConfig.streams[homekitSourceName] = homekitSource;
+        }
       } else if (this.configService.go2rtcConfig.streams?.[homekitSourceName]) {
         delete this.configService.go2rtcConfig.streams[homekitSourceName];
       }
@@ -745,6 +749,9 @@ export class CamerasService {
 
       if (this.configService.go2rtcConfig.preload?.[sourceName]) {
         preloadsToRemove.push(sourceName);
+      }
+      if (this.configService.go2rtcConfig.preload?.[homekitSourceName]) {
+        preloadsToRemove.push(homekitSourceName);
       }
 
       this.configService.go2rtcConfig.streams ??= {};

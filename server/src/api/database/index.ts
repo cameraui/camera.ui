@@ -259,8 +259,12 @@ export class Database {
         // a disabled camera must not be preloaded by go2rtc at its own startup
         if (source.hotMode && !camera.disabled) {
           preload[sourceName] = source.muted ? 'video&microphone' : 'video&audio&microphone';
+          if (homekitUrl) {
+            preload[homekitSourceName] = source.muted ? 'video&microphone' : 'video&audio&microphone';
+          }
         } else {
           delete preload[sourceName];
+          delete preload[homekitSourceName];
         }
         if (homekitUrl) streams[homekitSourceName] = [homekitUrl];
         else delete streams[homekitSourceName];
