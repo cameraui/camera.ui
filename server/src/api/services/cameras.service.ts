@@ -693,8 +693,7 @@ export class CamerasService {
       const sourceName = createSourceName(cameraname, source.name);
       const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
       const homekitSourceName = `${sourceName}_homekit`;
-      const homekitUrl = `ffmpeg:${sourceName}#video=h264#hardware#noAudio#noBackchannel`;
-      const homekitAudioUrl = `rtsp://127.0.0.1:${this.configService.go2rtcConfig.rtsp.listen.split(':').pop()}/${sourceName}?audio`;
+      const homekitUrl = `ffmpeg:${sourceName}#cameraui#video=h264#hardware#audio=pcma#audio=opus#audio=aac#noBackchannel#requirePrevAudio`;
       let baseUrls = [...source.urls];
 
       const isCompanionUrl = (url: string): boolean => url.startsWith('ffmpeg:') && url.includes('#cameraui');
@@ -723,7 +722,7 @@ export class CamerasService {
         this.configService.go2rtcConfig.streams[cameraSource.name] = cameraSource.src;
       }
       if (source.role !== 'snapshot') {
-        const homekitSource = [homekitUrl, homekitAudioUrl];
+        const homekitSource = [homekitUrl];
         if (!this.sourcesAreEqual(homekitSourceName, homekitSource)) {
           await this.go2rtcApi.streamsRoute.createStream({ name: homekitSourceName, src: homekitSource });
           this.configService.go2rtcConfig.streams[homekitSourceName] = homekitSource;
