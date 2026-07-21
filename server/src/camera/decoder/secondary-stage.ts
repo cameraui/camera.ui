@@ -4,7 +4,7 @@ import { SensorType } from '@camera.ui/sdk';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { EVENT_THUMB_MAX_WIDTH } from './event-thumbnailer.js';
-import { normalizePlateText } from './plate-vote.js';
+import { MIN_PLATE_LENGTH, normalizePlateText } from './plate-vote.js';
 import { hasSecondaryModelSpec, isVideoInputSpec } from './plugin-registry.js';
 import { DETECT_TIMEOUT_MS } from './types.js';
 
@@ -15,6 +15,7 @@ import type { Frame } from 'node-av/lib';
 import type { CoreManagerInterface } from '../../rpc/interfaces/core.js';
 import type { CroppedRegion, DetectionResults, DetectionThumbnail } from '../../rpc/interfaces/detection.js';
 import type { TrackedClassifierDetection, TrackedClipEmbedding, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
+import type { DetectionCoordinator } from './detection-coordinator.js';
 import type { DetectionPipeline } from './detection-pipeline.js';
 import type { ConsumerSpec, ScaleTarget } from './frame-scaler.js';
 import type { FrameScaler } from './frame-scaler.js';
@@ -43,12 +44,12 @@ export class SecondaryStage {
   private nvrProxyPromise?: Promise<Promisify<NvrFaceMatcher> | undefined>;
 
   constructor(
+    private readonly coordinator: DetectionCoordinator,
     private readonly plugins: PluginRegistry,
     private readonly pipeline: DetectionPipeline,
     private readonly frameScaler: FrameScaler,
     private readonly proxy: RPCClient,
     private readonly logger: Logger,
-    private readonly isCancelled: () => boolean,
   ) {}
 
   public async detect(rawFrame: Frame, objectDetections: Detection[], results: DetectionResults): Promise<void> {
@@ -107,14 +108,18 @@ export class SecondaryStage {
       }
     }
 
+    const settings = this.coordinator.detectionSettings;
+
     if (results.face?.detections) {
-      const faceCrops = await scaler.cropToJPEG(sourceFrame, results.face.detections, {
+      const faceMinConfidence = settings.face?.confidence ?? 0;
+      const faces = results.face.detections.filter((d) => d.confidence >= faceMinConfidence);
+      const faceCrops = await scaler.cropToJPEG(sourceFrame, faces, {
         maxWidth: ATTRIBUTE_THUMB_MAX_WIDTH,
         padding: attributePadding,
         minCrop: ATTRIBUTE_THUMB_MIN_CROP,
       });
       for (const crop of faceCrops) {
-        const detection = results.face.detections[crop.index];
+        const detection = faces[crop.index];
         if (detection) {
           // enrichSegment persists unknown faces to the face store from this
           detection.thumbnail ??= crop.jpeg;
@@ -130,16 +135,22 @@ export class SecondaryStage {
     }
 
     if (results.licensePlate?.detections) {
-      const plateCrops = await scaler.cropToJPEG(sourceFrame, results.licensePlate.detections, {
+      const plateMinConfidence = settings.licensePlate?.confidence ?? 0;
+      const plateMinLength = settings.licensePlate?.minLength ?? MIN_PLATE_LENGTH;
+      const plates = results.licensePlate.detections.filter((d) => {
+        if (!d.plateText || normalizePlateText(d.plateText).length < plateMinLength) return false;
+        return d.ocrConfidence === undefined || d.ocrConfidence >= plateMinConfidence;
+      });
+      const plateCrops = await scaler.cropToJPEG(sourceFrame, plates, {
         maxWidth: ATTRIBUTE_THUMB_MAX_WIDTH,
         padding: attributePadding,
         minCrop: ATTRIBUTE_THUMB_MIN_CROP,
       });
       for (const crop of plateCrops) {
-        const detection = results.licensePlate.detections[crop.index];
+        const detection = plates[crop.index];
         if (detection) {
           thumbnails.push({
-            label: `plate:${detection.plateText ? normalizePlateText(detection.plateText) : 'unknown'}`,
+            label: `plate:${normalizePlateText(detection.plateText)}`,
             score: detection.confidence,
             jpeg: crop.jpeg,
             area: detection.box.width * detection.box.height,
@@ -151,17 +162,19 @@ export class SecondaryStage {
 
     if (results.classifiers) {
       for (const classifierResult of Object.values(results.classifiers)) {
-        const clsCrops = await scaler.cropToJPEG(sourceFrame, classifierResult.detections, {
+        const classifications = classifierResult.detections.filter((d) => d.subAttribute);
+        const clsCrops = await scaler.cropToJPEG(sourceFrame, classifications, {
           maxWidth: detectionMaxWidth,
           padding: 0.3,
           minCrop: detectionMinCrop,
           quality: detectionQuality,
         });
         for (const crop of clsCrops) {
-          const detection = classifierResult.detections[crop.index];
+          const detection = classifications[crop.index];
           if (detection) {
+            // keyed by subAttribute, the attribute label injectSegmentThumbnails looks up
             thumbnails.push({
-              label: `class:${detection.label}`,
+              label: `class:${detection.subAttribute}`,
               score: detection.confidence,
               jpeg: crop.jpeg,
               area: detection.box.width * detection.box.height,
@@ -300,7 +313,7 @@ export class SecondaryStage {
     try {
       detections = await fn();
     } catch (error) {
-      if (this.isCancelled() || isNoRespondersError(error)) return;
+      if (!this.coordinator.running || isNoRespondersError(error)) return;
       const logType = type === SensorType.Face ? 'Face' : type === SensorType.LicensePlate ? 'License plate' : type === SensorType.Clip ? 'CLIP' : 'Classifier';
       this.logger.error(`${logType} detection error:`, error);
     }
@@ -467,7 +480,7 @@ export class SecondaryStage {
         }
       }
     } catch (error) {
-      if (this.isCancelled() || isNoRespondersError(error)) return;
+      if (!this.coordinator.running || isNoRespondersError(error)) return;
       this.logger.error('Could not resolve face identities:', error);
     }
   }

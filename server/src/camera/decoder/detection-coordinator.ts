@@ -140,7 +140,7 @@ export class DetectionCoordinator {
     this.frameScaler = new FrameScaler(null, logger);
     this.pipeline = new DetectionPipeline(config.zones, config.detectionSettings);
     this.stationary = new StationarySuppressor(logger);
-    this.secondaries = new SecondaryStage(this.plugins, this.pipeline, this.frameScaler, this.proxy, logger, () => !this.loopRunning);
+    this.secondaries = new SecondaryStage(this, this.plugins, this.pipeline, this.frameScaler, this.proxy, logger);
 
     if (config.lines.length > 0) {
       this.pipeline.updateLines(config.lines, this.videoAspectRatio);
@@ -208,6 +208,14 @@ export class DetectionCoordinator {
         }
       }
     });
+  }
+
+  public get running(): boolean {
+    return this.loopRunning;
+  }
+
+  public get detectionSettings(): CameraDetectionSettings {
+    return this.config.detectionSettings;
   }
 
   public updateZones(zones: DetectionZone[]): void {

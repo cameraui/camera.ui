@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.17]
+
+### Fixed
+
+- **Parked vehicles stay quiet when something passes in front of them.** Someone walking past a parked car could fire a vehicle event and a burst of unreadable plate readings for a car that never moved. The detection now tells a blocked view apart from the car actually driving off, and a car that re-parks in a new spot goes quiet there too.
+
+- **Detection snapshots respect your thresholds.** Face, plate and classifier readings below the configured confidence or plate length settings no longer produce image crops, they were created and thrown away on every frame before.
+
 ## [2.0.16]
 
 ### Added
