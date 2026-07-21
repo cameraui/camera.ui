@@ -234,7 +234,7 @@ export class Database {
         const homekitSourceName = `${sourceName}_homekit`;
         const homekitUrl = source.role === 'snapshot'
           ? undefined
-          : `ffmpeg:${sourceName}#cameraui#video=h264#hardware#audio=pcma#audio=opus#audio=aac#noBackchannel#requirePrevAudio`;
+          : `ffmpeg:${sourceName}#video=h264#hardware#noAudio#noBackchannel`;
 
         const existing = streams[sourceName];
         if (!existing) {
@@ -266,7 +266,7 @@ export class Database {
           delete preload[sourceName];
           delete preload[homekitSourceName];
         }
-        if (homekitUrl) streams[homekitSourceName] = [homekitUrl];
+        if (homekitUrl) streams[homekitSourceName] = [homekitUrl, `rtsp://127.0.0.1:${this.configService.go2rtcConfig.rtsp.listen.split(':').pop()}/${sourceName}?audio`];
         else delete streams[homekitSourceName];
         validSourceNames.add(homekitSourceName);
       }
