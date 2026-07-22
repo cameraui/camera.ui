@@ -17,6 +17,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
   readonly onEnded = new ReplaySubject<void>(1);
 
   #hasEnded = false;
+  #abort = new AbortController();
   #shutdownPromise?: Promise<void>;
   #cameraDevice: CameraDevice;
   #logger: LoggerService;
@@ -99,6 +100,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     let initSegmentSent = false;
 
     const fmp4Stream = FMP4Stream.create(this.#url, {
+      signal: this.#abort.signal,
       onData: (data: Buffer, info: FMP4Data) => {
         for (const box of info.boxes) {
           if (box.type === 'ftyp') {
@@ -244,6 +246,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
 
   async #shutdown(): Promise<void> {
     this.#hasEnded = true;
+    this.#abort.abort();
 
     const fmp4Stream = this.#fmp4Stream;
     this.#fmp4Stream = undefined;

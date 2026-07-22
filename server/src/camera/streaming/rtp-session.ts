@@ -37,6 +37,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
   readonly onAudioRtp = new Subject<RtpPacket>();
 
   #hasEnded = false;
+  #abort = new AbortController();
   #shutdownPromise?: Promise<void>;
   #cameraDevice: CameraDevice;
   #logger: LoggerService;
@@ -117,6 +118,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     }
 
     const rtpStream = RTPStream.create(this.#url, {
+      signal: this.#abort.signal,
       onAudioPacket: (packet: RtpPacket) => {
         this.onAudioRtp.next(packet);
       },
@@ -222,6 +224,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
 
     this.#backchannelDecoder = await Decoder.create(audioStream, {
       exitOnError: false,
+      signal: this.#abort.signal,
     });
 
     const filterChain = FilterPreset.chain();
@@ -229,7 +232,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     filterChain.aformat(sampleFormatName, cameraSampleRate, cameraChannels === 1 ? 'mono' : 'stereo');
     const filterString = filterChain.build();
 
-    this.#backchannelFilter = FilterAPI.create(filterString);
+    this.#backchannelFilter = FilterAPI.create(filterString, { signal: this.#abort.signal });
 
     const cameraCodec = Codec.findEncoder(cameraCodecId);
     if (!cameraCodec) {
@@ -239,6 +242,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     this.#backchannelEncoder = await Encoder.create(cameraCodec, {
       decoder: this.#backchannelDecoder,
       filter: this.#backchannelFilter,
+      signal: this.#abort.signal,
       options: {
         sample_rate: cameraSampleRate,
         channels: cameraChannels,
@@ -271,6 +275,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
         useSyncQueue: false,
         useAsyncWrite: false,
         maxPacketSize: 1200,
+        signal: this.#abort.signal,
       },
     );
 
@@ -331,7 +336,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
         await this.#backchannelOutput.writePacket(encodedPacket, this.#backchannelStreamIndex);
       }
     } catch (error: any) {
-      if (!this.#backchannelActive) {
+      if (!this.#backchannelActive || this.#abort.signal.aborted) {
         return;
       }
 
@@ -414,6 +419,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
 
   async #shutdown(): Promise<void> {
     this.#hasEnded = true;
+    this.#abort.abort();
 
     try {
       await this.#cleanupBackchannel();
