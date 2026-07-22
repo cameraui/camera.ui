@@ -345,8 +345,7 @@ export class DetectionEventManager {
       const votes = this.eventPlateVotes.get(bucketKey);
       if (!votes) continue;
 
-      const hasAttribute =
-        bucketKey === 'untracked' ? [...this.segmentPlateAttrIndex.keys()].some((k) => k.startsWith('u')) : this.segmentPlateAttrIndex.has(bucketKey);
+      const hasAttribute = bucketKey === 'untracked' ? [...this.segmentPlateAttrIndex.keys()].some((k) => k.startsWith('u')) : this.segmentPlateAttrIndex.has(bucketKey);
       if (hasAttribute) continue;
 
       const best = votes.bestEffort();

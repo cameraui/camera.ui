@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.18]
+
+### Fixed
+
+- **The same stationary object no longer shows up as a new event every few minutes.** Short motion events restarted the stationary detection each time, so a parked car or other unmoved object kept producing identical-looking events. It now settles across events and goes quiet after the first one or two.
+
 ## [2.0.17]
 
 ### Fixed
