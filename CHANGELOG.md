@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 - **Detection snapshots respect your thresholds.** Face, plate and classifier readings below the configured confidence or plate length settings no longer produce image crops, they were created and thrown away on every frame before.
 
+- **Some actions in the mobile app failed with a Capacitor error.** When connected through a remote domain, actions like switching a camera's plugins showed "The operation couldn't be completed" and did not apply. Affected every request the app sent without a body.
+
 ## [2.0.16]
 
 ### Added
