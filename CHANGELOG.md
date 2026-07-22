@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **Some actions in the mobile app failed with a Capacitor error.** When connected through a remote domain, actions like switching a camera's plugins showed "The operation couldn't be completed" and did not apply. Affected every request the app sent without a body.
 
+- **Camera shortcuts no longer disappear after jumping between cameras.** Opening a camera through a shortcut while the recording timeline was active could leave that camera's own shortcuts invisible until a new one was added. Data loaded right after such a jump could silently fail to arrive at all.
+
 ## [2.0.16]
 
 ### Added

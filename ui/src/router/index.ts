@@ -1107,7 +1107,9 @@ router.beforeEach(async (to, from) => {
   scrollPositions.set(from.path, window.scrollY);
 
   if (authStore.user) {
-    queryClient.cancelQueries(undefined, { revert: false });
+    if (to.path !== from.path) {
+      queryClient.cancelQueries(undefined, { revert: false });
+    }
 
     if (authStore.user.firstLogin && to.path !== '/first-steps') {
       return '/first-steps';
