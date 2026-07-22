@@ -9,7 +9,7 @@
       >
         <div class="flex gap-2 items-center w-full">
           <span class="text-color font-normal">{{ $t('components.camera_options.source') + ': ' + getSourceName(source) }}</span>
-          <Button text rounded :loading :disabled="cameraForm.sources.length < 2" severity="danger" class="cui-icon-md ml-auto mr-2" @click="removeSource(i)">
+          <Button text rounded :loading :disabled="cameraForm.sources.length < 2" severity="danger" class="cui-icon-md ml-auto mr-2" @click.stop="confirmRemoveSource(i)">
             <template #icon>
               <i-mdi:close width="100%" height="100%" />
             </template>
@@ -285,6 +285,7 @@ const cameraForm = defineModel<DBCamera>({
 });
 
 const { t } = useI18n();
+const dialog = useCuiDialog();
 const { camera, loading } = toRefs(props);
 
 const sourceRoles = ref<CameraRole[]>(['high-resolution', 'mid-resolution', 'low-resolution', 'snapshot']);
@@ -329,8 +330,21 @@ function addSource(i: number): void {
   cameraForm.value.sources[i].urls.push('');
 }
 
-function removeSource(i: number): void {
-  cameraForm.value.sources.splice(i, 1);
+function confirmRemoveSource(i: number): void {
+  const source = cameraForm.value.sources[i];
+  dialog.openTextDialog({
+    data: {
+      title: t('components.camera_options.source_delete'),
+      contentText: t('components.camera_options.source_delete_confirm', { name: getSourceName(source) }),
+      confirmText: t('components.form.button.remove'),
+      confirmButtonProps: {
+        severity: 'danger',
+      },
+    },
+    onConfirm: () => {
+      cameraForm.value.sources.splice(i, 1);
+    },
+  });
 }
 
 function deleteSource(i: number, i2: number): void {

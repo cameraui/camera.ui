@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - **The same stationary object no longer shows up as a new event every few minutes.** Short motion events restarted the stationary detection each time, so a parked car or other unmoved object kept producing identical-looking events. It now settles across events and goes quiet after the first one or two.
 
+- **Removing a camera source now asks for confirmation.** The remove button sits right next to the expand arrow in the source list, a stray tap could silently drop a source and the next save made that permanent.
+
 ## [2.0.17]
 
 ### Fixed

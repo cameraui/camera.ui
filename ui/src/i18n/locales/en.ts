@@ -587,6 +587,8 @@ export default {
       virtual_sensor_created: 'Virtual sensor created',
       virtual_sensor_delete: 'Delete Virtual Sensor',
       virtual_sensor_delete_confirm: 'Are you sure you want to delete this virtual sensor? Automations referencing it will stop working.',
+      source_delete: 'Remove Source',
+      source_delete_confirm: 'Remove the source "{name}"? The change applies when you save.',
       virtual_sensor_name_placeholder: 'e.g. Front Door',
       general_hint: 'Changes here only affect how the camera appears in camera.ui. Disabling a camera stops all streams and detections until it is enabled again.',
       branding_hint: 'Purely informational and has no effect on functionality. Useful to keep track of your hardware.',

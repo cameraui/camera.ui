@@ -591,6 +591,8 @@ export default {
       virtual_sensor_delete: 'Virtuellen Sensor löschen',
       virtual_sensor_delete_confirm:
         'Sind Sie sicher, dass Sie diesen virtuellen Sensor löschen möchten? Automatisierungen, die ihn verwenden, funktionieren dann nicht mehr.',
+      source_delete: 'Source entfernen',
+      source_delete_confirm: 'Source "{name}" entfernen? Die Änderung greift erst beim Speichern.',
       virtual_sensor_name_placeholder: 'z. B. Haustür',
       general_hint:
         'Änderungen hier betreffen nur die Darstellung der Kamera in camera.ui. Wird die Kamera deaktiviert, stoppen alle Streams und Erkennungen, bis sie wieder aktiviert wird.',
