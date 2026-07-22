@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 - **Removing a camera source now asks for confirmation.** The remove button sits right next to the expand arrow in the source list, a stray tap could silently drop a source and the next save made that permanent.
 
+- **HomeKit live streams failed.** The negotiated stream bitrate clashed with the encoder's default and the stream ended right after starting. Stopping a stream also logged a misleading pipeline error, shutdowns are quiet now.
+
 ## [2.0.17]
 
 ### Fixed
