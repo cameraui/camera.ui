@@ -458,6 +458,7 @@ export class Server {
       maxHttpBufferSize: 1e7,
       pingInterval: 25000,
       pingTimeout: 20000,
+      destroyUpgrade: false,
     };
   }
 
