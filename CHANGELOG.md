@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **HomeKit live streams failed.** The negotiated stream bitrate clashed with the encoder's default and the stream ended right after starting. Stopping a stream also logged a misleading pipeline error, shutdowns are quiet now.
 
+- **"cameraui logs" works from any user account.** On bare-metal installs the service runs as its own user, but commands like logs, status and update-server looked in the calling user's home and failed with "Log file does not exist". They now use the location recorded at install time, -H still overrides.
+
 ## [2.0.17]
 
 ### Fixed

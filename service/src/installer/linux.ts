@@ -158,6 +158,15 @@ export class LinuxInstaller extends BasePlatform {
     process.exit(0);
   }
 
+  public getPersistedHomePath(): string | undefined {
+    try {
+      const env = readFileSync(this.systemdEnvPath, 'utf8');
+      return /^CAMERA_UI_HOME_PATH="?([^"\n]+)"?$/m.exec(env)?.[1];
+    } catch {
+      return undefined;
+    }
+  }
+
   public async getId(): Promise<{ uid: number; gid: number }> {
     if (process.getuid?.() === 0 && this.cli.asUser) {
       const uid = execSync(`id -u ${this.cli.asUser}`).toString('utf8');

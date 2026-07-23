@@ -1,6 +1,6 @@
 import { sleep } from '@camera.ui/common/utils';
 import { execSync } from 'node:child_process';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { resolve } from 'node:path';
@@ -93,6 +93,15 @@ export class DarwinInstaller extends BasePlatform {
     await this.stop();
     await sleep(2000);
     await this.start(true);
+  }
+
+  public getPersistedHomePath(): string | undefined {
+    try {
+      const plist = readFileSync(this.plistPath, 'utf8');
+      return /<key>CAMERA_UI_HOME_PATH<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1];
+    } catch {
+      return undefined;
+    }
   }
 
   public async getId(): Promise<{ uid: number; gid: number }> {

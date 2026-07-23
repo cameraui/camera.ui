@@ -49,4 +49,8 @@ export class BasePlatform {
   public getPidOfPort(port: number): string | null {
     return null;
   }
+
+  public getPersistedHomePath(): string | undefined {
+    return undefined;
+  }
 }

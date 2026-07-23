@@ -96,6 +96,17 @@ export class Win32Installer extends BasePlatform {
     await this.start(true);
   }
 
+  public getPersistedHomePath(): string | undefined {
+    try {
+      const output = execSync(`reg query "HKLM\\SYSTEM\\CurrentControlSet\\Services\\${this.cli.serviceName}\\Parameters" /v AppParameters`, {
+        encoding: 'utf8',
+      });
+      return / -H "([^"]+)"/.exec(output)?.[1];
+    } catch {
+      return undefined;
+    }
+  }
+
   private async waitForApiAndPrintInstructions(type: 'start' | 'restart'): Promise<void> {
     const apiReady = await this.cli.waitForApiHealth();
 

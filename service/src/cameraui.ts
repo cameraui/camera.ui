@@ -375,7 +375,12 @@ export class CameraUiCLI {
       if (IS_DEV) {
         this.homePath = join(__dirname, '..', '..', '..', '..', '.camera.ui');
       } else {
-        this.homePath = join(this.getUserHomeDir(), '.camera.ui');
+        // the service often runs as a dedicated user; without -H, commands that
+        // target the existing install must use the home path the installer
+        // recorded, not the invoking user's home
+        const targetsExistingInstall = ['logs', 'status', 'start', 'stop', 'restart', 'update-server', 'uninstall'].includes(this.action);
+        const persistedHomePath = targetsExistingInstall ? this.installer.getPersistedHomePath() : undefined;
+        this.homePath = persistedHomePath ?? join(this.getUserHomeDir(), '.camera.ui');
       }
     } else {
       this.homePath = resolve(this.homePath);

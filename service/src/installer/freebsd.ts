@@ -1,7 +1,7 @@
 import { sleep } from '@camera.ui/common/utils';
 import { outputFile } from 'fs-extra/esm';
 import { execSync } from 'node:child_process';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { chmod } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { resolve } from 'node:path';
@@ -95,6 +95,15 @@ export class FreeBSDInstaller extends BasePlatform {
       await this.waitForApiAndPrintInstructions('restart');
     } catch (error) {
       this.cli.logger(`Failed to restart ${this.rcServiceName}: ${error.message}`, 'fail');
+    }
+  }
+
+  public getPersistedHomePath(): string | undefined {
+    try {
+      const rcScript = readFileSync(this.rcServicePath, 'utf8');
+      return /_home_path:="([^"]+)"/.exec(rcScript)?.[1];
+    } catch {
+      return undefined;
     }
   }
 
