@@ -29,7 +29,11 @@ export function bootConnectionInstance(options: ConnectionOptions): Connection {
   // heartbeats its own socket; this propagates the liveness check across the
   // worker boundary so a worker that went half-open on a 5G handoff recovers
   // without a user action. Generic — the worker decides what "revalidate" means.
-  _wakeUnsub = _connection.onWake(() => bridge.revalidateWorkers());
+  _wakeUnsub = _connection.onWake(() => {
+    _connection?.journal.record('worker-bridge', `revalidate (${workerRegistry.size} workers)`);
+    bridge.revalidateWorkers();
+  });
+  (globalThis as Record<string, unknown>).__cameraui_journal = _connection.journal;
   return _connection;
 }
 
@@ -41,6 +45,7 @@ export async function detachConnectionInstance(): Promise<void> {
   _wakeUnsub = null;
   _workerBridge = null;
   _connection = null;
+  delete (globalThis as Record<string, unknown>).__cameraui_journal;
   workerRegistry.clear();
 }
 

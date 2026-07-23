@@ -24,7 +24,8 @@
       </template>
 
       <template v-if="!mobileSearchActive" #left>
-        <CuiTopNavbarItem :label="$t('views.console.levels')" :menu-open="levelMenuRef?.isOpen" @click="(e) => levelMenuRef?.toggleMenu(e)" />
+        <CuiTopNavbarItem :label="$t(source === 'logs' ? 'views.console.source_logs' : 'views.console.source_connection')" @click="toggleSource" />
+        <CuiTopNavbarItem v-if="source === 'logs'" :label="$t('views.console.levels')" :menu-open="levelMenuRef?.isOpen" @click="(e) => levelMenuRef?.toggleMenu(e)" />
       </template>
 
       <template v-if="!mobileSearchActive" #right>
@@ -46,7 +47,7 @@
             <i-lucide:copy class="text-sm" />
           </template>
         </CuiTopNavbarItem>
-        <CuiTopNavbarItem v-tooltip="{ value: $t('views.console.export') }" @click="exportLogs">
+        <CuiTopNavbarItem v-tooltip="{ value: $t('views.console.export') }" @click="exportEntries">
           <template #icon>
             <i-lucide:download class="text-sm" />
           </template>
@@ -63,11 +64,13 @@
       <div ref="scrollEl" class="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] leading-snug">
         <div v-if="!filtered.length" class="h-full flex flex-col items-center justify-center gap-4">
           <i-mdi:bug class="w-12 h-12 text-muted" />
-          <span class="text-muted text-sm px-4 text-center">{{ recording ? $t('views.console.empty') : $t('views.console.recording_off') }}</span>
+          <span class="text-muted text-sm px-4 text-center">{{
+            source === 'connection' || recording ? $t('views.console.empty') : $t('views.console.recording_off')
+          }}</span>
         </div>
         <div v-for="(e, i) in filtered" :key="i" class="whitespace-pre-wrap break-words py-0.5 border-b border-white/5" :class="levelClass(e.level)">
           <span class="text-muted">{{ time(e.t) }}</span>
-          <span class="opacity-70"> [{{ e.level.toUpperCase() }}] [{{ e.scope }}]</span>
+          <span class="opacity-70"> <template v-if="e.level">[{{ e.level.toUpperCase() }}] </template>[{{ e.scope }}]</span>
           {{ e.msg }}
         </div>
       </div>
@@ -106,10 +109,21 @@ import { Capacitor } from '@capacitor/core';
 
 import { copyToClipboard } from '@/common/utils.js';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
+import { getConnection, isConnectionBooted } from '@/connection/instance.js';
 
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { LogEntry, LogLevel } from '@camera.ui/logger';
+import type { JournalEntry } from '@camera.ui/transport';
+
+type ConsoleSource = 'logs' | 'connection';
+
+interface ConsoleRow {
+  t: number;
+  level?: LogLevel;
+  scope: string;
+  msg: string;
+}
 
 const props = withDefaults(
   defineProps<{
@@ -131,7 +145,9 @@ const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
 
 const logLevels: LogLevel[] = ['debug', 'log', 'info', 'warn', 'error'];
 
+const source = ref<ConsoleSource>('logs');
 const entries = ref<LogEntry[]>([]);
+const journalEntries = shallowRef<JournalEntry[]>([]);
 const filter = ref('');
 const selectedLevels = ref<LogLevel[]>([...logLevels]);
 const scrollEl = ref<HTMLElement | null>(null);
@@ -143,6 +159,7 @@ const recording = ref(Logger.isRecording());
 
 let offEntries: (() => void) | undefined;
 let offFlags: (() => void) | undefined;
+let offJournal: (() => void) | undefined;
 
 const levelMenuItems = computed<MenuItem[]>(() =>
   logLevels.map((level) => ({
@@ -154,8 +171,13 @@ const levelMenuItems = computed<MenuItem[]>(() =>
   })),
 );
 
-const filtered = computed(() => {
+const filtered = computed<ConsoleRow[]>(() => {
   const q = filter.value.trim().toLowerCase();
+  if (source.value === 'connection') {
+    return journalEntries.value
+      .map((e) => ({ t: e.t, scope: e.scope, msg: e.detail ? `${e.msg} — ${e.detail}` : e.msg }))
+      .filter((e) => !q || e.msg.toLowerCase().includes(q) || e.scope.toLowerCase().includes(q));
+  }
   const active = new Set(selectedLevels.value);
   return entries.value.filter((e) => {
     if (!active.has(e.level)) return false;
@@ -170,11 +192,16 @@ function time(t: number): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
 }
 
-function levelClass(level: LogLevel): string {
+function levelClass(level?: LogLevel): string {
   if (level === 'error') return 'text-red-400';
   if (level === 'warn') return 'text-amber-400';
   if (level === 'debug') return 'text-sky-400';
   return 'text-color';
+}
+
+function toggleSource(): void {
+  source.value = source.value === 'logs' ? 'connection' : 'logs';
+  refresh();
 }
 
 function toggleLevel(level: LogLevel): void {
@@ -204,6 +231,7 @@ registerScrollToTop(scrollToTop);
 
 function refresh(): void {
   entries.value = Logger.entries();
+  if (isConnectionBooted()) journalEntries.value = getConnection().journal.list();
   scrollToBottom();
 }
 
@@ -217,7 +245,10 @@ function diagnosticContext(): Record<string, unknown> {
 }
 
 function buildText(): string {
-  return buildExport({ entries: filtered.value, context: diagnosticContext() });
+  if (source.value === 'connection') {
+    return isConnectionBooted() ? getConnection().journal.exportText() : '';
+  }
+  return buildExport({ entries: entries.value, context: diagnosticContext() });
 }
 
 async function copy(): Promise<void> {
@@ -229,29 +260,41 @@ async function copy(): Promise<void> {
   }
 }
 
-async function exportLogs(): Promise<void> {
+async function exportEntries(): Promise<void> {
+  const name = source.value === 'connection' ? 'connection' : 'logs';
   const blob = new Blob([buildText()], { type: 'text/plain' });
-  await download({ blob, filename: `camera-ui-logs-${Date.now()}.txt`, mimeType: 'text/plain' });
+  await download({ blob, filename: `camera-ui-${name}-${Date.now()}.txt`, mimeType: 'text/plain' });
 }
 
 function clear(): void {
-  Logger.clear();
+  if (source.value === 'connection') {
+    if (isConnectionBooted()) getConnection().journal.clear();
+  } else {
+    Logger.clear();
+  }
+  refresh();
   toast.add({ severity: 'success', summary: t('views.console.cleared') });
 }
 
 onMounted(() => {
-  entries.value = Logger.entries();
-  scrollToBottom();
+  refresh();
   offEntries = Logger.onEntries((list) => {
     entries.value = list.slice();
   });
   offFlags = Logger.onChange(() => {
     recording.value = Logger.isRecording();
   });
+  if (isConnectionBooted()) {
+    const journal = getConnection().journal;
+    offJournal = journal.subscribe(() => {
+      journalEntries.value = journal.list();
+    });
+  }
 });
 
 onUnmounted(() => {
   offEntries?.();
   offFlags?.();
+  offJournal?.();
 });
 </script>

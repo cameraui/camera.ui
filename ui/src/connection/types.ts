@@ -1,5 +1,16 @@
 import type { Logger } from '@camera.ui/logger';
-import type { ConnectionPhase, ConnectionTarget, Endpoint, Kernel, ProbeContext, RefreshReason, StorageAdapter, Tokens } from '@camera.ui/transport';
+import type {
+  ConnectionJournal,
+  ConnectionPhase,
+  ConnectionSignal,
+  ConnectionTarget,
+  Endpoint,
+  Kernel,
+  ProbeContext,
+  RefreshReason,
+  StorageAdapter,
+  Tokens,
+} from '@camera.ui/transport';
 import type { HttpTransport } from '@camera.ui/transport/transports/http';
 import type { NatsTransport } from '@camera.ui/transport/transports/nats';
 import type { SocketioTransport } from '@camera.ui/transport/transports/socketio';
@@ -43,7 +54,9 @@ export interface ConnectionOptions {
 
 export interface Connection {
   readonly kernel: Kernel;
+  readonly journal: ConnectionJournal;
   readonly phase: ShallowRef<ConnectionPhase>;
+  readonly signal: ShallowRef<ConnectionSignal>;
   readonly target: Ref<ConnectionTarget | null>;
 
   readonly http: HttpTransport;

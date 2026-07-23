@@ -35,6 +35,7 @@ const visible = computed(() => isLoggedIn.value && (bannerMode.value !== null ||
 
 const statusText = computed(() => {
   if (bannerMode.value === 'connecting') return t('connection.connecting_remote');
+  if (bannerMode.value === 'degraded') return t('connection.degraded');
   if (bannerMode.value !== null) return t('connection.reconnecting');
   return t('connection.restarting');
 });

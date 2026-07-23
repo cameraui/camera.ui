@@ -1,21 +1,23 @@
 import {
   attachBackoff,
   attachCrossTab,
+  attachDegradedRecovery,
   attachNetworkChange,
   attachPersistence,
   attachPresence,
   attachProbeLoop,
-  attachReconnectWatchdog,
   attachTokenLifecycle,
   attachTransportSync,
-  attachTransportWatchdog,
+  createBackgroundProbe,
+  createConnectionJournal,
+  createConnectionSignal,
   createKernel,
 } from '@camera.ui/transport';
 import axios from 'axios';
 
-import { createTransports, TRANSPORT_SPECS } from './transports.js';
+import { createTransports } from './transports.js';
 
-import type { ConnectionPhase, ConnectionTarget, Persistence, ReducerContext, TokenLifecycle } from '@camera.ui/transport';
+import type { ConnectionPhase, ConnectionSignal, ConnectionTarget, Persistence, ReducerContext, TokenLifecycle } from '@camera.ui/transport';
 import type { Connection, ConnectionOptions } from './types.js';
 
 const DEFAULT_API_PREFIX = '/api';
@@ -28,12 +30,28 @@ export function createConnection(options: ConnectionOptions): Connection {
   const persistKey = options.storageNamespace ? `${PERSIST_STORAGE_KEY}:${options.storageNamespace}` : PERSIST_STORAGE_KEY;
   const refreshLockKey = options.storageNamespace ? `${REFRESH_LOCK_KEY}:${options.storageNamespace}` : REFRESH_LOCK_KEY;
 
-  const ctx: ReducerContext = { specs: TRANSPORT_SPECS, now: () => Date.now() };
-  const kernel = createKernel({ context: ctx });
+  const journal = createConnectionJournal();
+
+  function diag(scope: string, msg: string, detail?: unknown, level: 'debug' | 'warn' | 'error' = 'debug'): void {
+    journal.record(scope, msg, detail);
+    if (detail === undefined) logger?.[level](scope, msg);
+    else logger?.[level](scope, msg, detail);
+  }
+
+  const ctx: ReducerContext = { now: () => Date.now() };
+  const kernel = createKernel({
+    context: ctx,
+    onAction: (action, prev, next) => {
+      if (next === prev) journal.record('kernel', `${action.type} dropped`, `phase=${prev.kind}`);
+    },
+  });
   const { http, socketio, nats, ws } = createTransports(apiPrefix);
 
   const phase = shallowRef<ConnectionPhase>(kernel.phase);
   const target = shallowRef<ConnectionTarget | null>(null);
+
+  const signalHandle = createConnectionSignal({ kernel, transports: [socketio, nats] });
+  const signal = shallowRef<ConnectionSignal>(signalHandle.current);
 
   const lastReachableEndpoint = ref<string | null>(null);
   const cleanups: Array<() => void> = [];
@@ -46,9 +64,32 @@ export function createConnection(options: ConnectionOptions): Connection {
   const hasBeenOnline = ref(false);
 
   let restoredTarget: ConnectionTarget | null = null;
-  let natsRecovering = false;
   let lastWakeAt = 0;
+  let pendingBackoffHintMs: number | null = null;
+
+  function captureRetryAfter(err: unknown): void {
+    const candidate = axios.isAxiosError(err) ? err : err instanceof Error && axios.isAxiosError(err.cause) ? err.cause : null;
+    if (!candidate || candidate.response?.status !== 503) return;
+    const raw = candidate.response.headers?.['retry-after'];
+    const seconds = Number.parseInt(String(raw ?? ''), 10);
+    if (Number.isFinite(seconds) && seconds > 0) pendingBackoffHintMs = seconds * 1000;
+  }
   const wakeListeners = new Set<() => void>();
+
+  for (const transport of [http, socketio, nats, ws]) {
+    const id = transport.spec.id;
+    cleanups.push(transport.on('up', () => journal.record(id, 'up')));
+    cleanups.push(transport.on('down', ({ reason }) => journal.record(id, 'down', reason)));
+    cleanups.push(transport.on('auth-error', (payload) => journal.record(id, 'auth-error', payload?.message ?? payload?.status)));
+  }
+
+  cleanups.push(
+    signalHandle.subscribe((next) => {
+      signal.value = next;
+      journal.record('signal', next.kind, next.kind === 'degraded' ? next.channels.join(',') : undefined);
+    }),
+  );
+  cleanups.push(() => signalHandle.dispose());
 
   const acquireRefreshLock =
     typeof navigator !== 'undefined' && 'locks' in navigator
@@ -61,11 +102,11 @@ export function createConnection(options: ConnectionOptions): Connection {
     key: persistKey,
     onRestore: (restored) => {
       restoredTarget = restored;
-      logger?.debug('persistence', restored ? `restored — ${restored.endpoint.url}` : 'no stored target');
+      diag('persistence', restored ? `restored — ${restored.endpoint.url}` : 'no stored target');
     },
-    onPersist: (t) => logger?.debug('persistence', `persisted — ${t.endpoint.url}`),
-    onClear: () => logger?.debug('persistence', 'cleared'),
-    onError: (op, err) => logger?.warn('persistence', `${op} error`, err),
+    onPersist: (t) => diag('persistence', `persisted — ${t.endpoint.url}`),
+    onClear: () => diag('persistence', 'cleared'),
+    onError: (op, err) => diag('persistence', `${op} error`, err, 'warn'),
   });
   cleanups.push(persistence.detach);
 
@@ -83,7 +124,7 @@ export function createConnection(options: ConnectionOptions): Connection {
       key: persistKey,
       absorb: (t) => persistence.absorb(t),
       onTokensReceived: () => {
-        logger?.debug('cross-tab', 'tokens received from another tab');
+        diag('cross-tab', 'tokens received from another tab');
         // Another tab just logged in / switched instance while we sit in a
         // dead-end phase — the fresh tokens are in persistence (absorb), so
         // a retry gets this tab back online without a manual reload.
@@ -94,15 +135,15 @@ export function createConnection(options: ConnectionOptions): Connection {
           kernel.dispatch({ type: 'BOOT', instanceId: 'default' });
         }
       },
-      onResetReceived: () => logger?.debug('cross-tab', 'logout received from another tab'),
-      onError: (op, err) => logger?.warn('cross-tab', `${op} error`, err),
+      onResetReceived: () => diag('cross-tab', 'logout received from another tab'),
+      onError: (op, err) => diag('cross-tab', `${op} error`, err, 'warn'),
     }),
   );
 
   cleanups.push(
     kernel.subscribe((next, prev, action) => {
       phase.value = next;
-      logger?.debug('kernel', `${prev.kind} → ${next.kind}`, { action: action.type });
+      diag('kernel', `${prev.kind} → ${next.kind}`, action.type);
 
       if (next.kind === 'idle' && prev.kind !== 'idle') {
         options.callbacks.onConnectionReset?.();
@@ -111,7 +152,14 @@ export function createConnection(options: ConnectionOptions): Connection {
       if (next.kind === 'online') hasBeenOnline.value = true;
       else if (next.kind === 'idle') hasBeenOnline.value = false;
 
-      if (next.kind === 'online') recoverNatsIfStale();
+      if (next.kind === 'offline' && pendingBackoffHintMs !== null) {
+        const ms = pendingBackoffHintMs;
+        pendingBackoffHintMs = null;
+        diag('backoff', `server hint: retry after ${Math.round(ms / 1000)}s`);
+        queueMicrotask(() => kernel.dispatch({ type: 'BACKOFF_HINT', retryAfterMs: ms, source: 'retry-after' }));
+      } else if (next.kind === 'online') {
+        pendingBackoffHintMs = null;
+      }
 
       if (next.kind === 'online' || next.kind === 'idle' || next.kind === 'needs-auth') {
         troubleSince.value = null;
@@ -144,24 +192,7 @@ export function createConnection(options: ConnectionOptions): Connection {
         if (t) restoredTarget = null;
         else if (kernel.phase.kind === 'idle' || kernel.phase.kind === 'needs-auth') restoredTarget = null;
       },
-      onError: (transport, _t, err) => logger?.error(transport.spec.id, 'apply failed', err),
-    }),
-  );
-
-  cleanups.push(
-    attachTransportWatchdog({
-      kernel,
-      transports: [socketio, nats],
-      onGraceStarted: (id, ms) => logger?.debug('watchdog', `${id}: grace ${ms}ms`),
-      onGraceCleared: (id, reason) => logger?.debug('watchdog', `${id}: grace cleared (${reason})`),
-      onConfirmed: (id) => logger?.debug('watchdog', `${id}: DOWN CONFIRMED`),
-    }),
-  );
-
-  cleanups.push(
-    attachReconnectWatchdog({
-      kernel,
-      onEscalate: (attempt) => logger?.debug('reconnect-watchdog', `still reconnecting — escalating to re-discover (#${attempt})`),
+      onError: (transport, _t, err) => diag(transport.spec.id, 'apply failed', err, 'error'),
     }),
   );
 
@@ -170,9 +201,9 @@ export function createConnection(options: ConnectionOptions): Connection {
       kernel,
       schedule: [5_000],
       firstAttemptDelayMs: () => (Date.now() - lastWakeAt < 15_000 ? 1_500 : null),
-      onScheduled: (attempt, delayMs) => logger?.debug('backoff', `attempt #${attempt} in ${Math.round(delayMs / 1000)}s`),
-      onFire: (attempt) => logger?.debug('backoff', `firing #${attempt}`),
-      onCancelled: (reason) => logger?.debug('backoff', `cancelled (${reason})`),
+      onScheduled: (attempt, delayMs) => diag('backoff', `attempt #${attempt} in ${Math.round(delayMs / 1000)}s`),
+      onFire: (attempt) => diag('backoff', `firing #${attempt}`),
+      onCancelled: (reason) => diag('backoff', `cancelled (${reason})`),
     }),
   );
 
@@ -180,7 +211,7 @@ export function createConnection(options: ConnectionOptions): Connection {
     lastWakeAt = Date.now();
     lifecycle?.wake();
     options.callbacks.onWake?.();
-    natsHeartbeat();
+    ensureTransportsAlive();
     for (const listener of wakeListeners) {
       try {
         listener();
@@ -190,49 +221,44 @@ export function createConnection(options: ConnectionOptions): Connection {
     }
   }
 
-  async function natsHeartbeat(): Promise<void> {
-    if (!nats.health().up) return;
-    try {
-      await nats.probeAlive(3_000);
-    } catch {
-      try {
-        await nats.forceReconnect();
-      } catch {
-        // forceReconnect failures surface via the status iterator's down event
-      }
+  function ensureTransportsAlive(): void {
+    for (const transport of [nats, socketio] as const) {
+      const before = transport.health();
+      transport
+        .ensureAlive()
+        .then((after) => {
+          if (before.up !== after.up || !after.up) {
+            journal.record(transport.spec.id, `ensureAlive → ${after.up ? 'up' : 'down'}`, after.lastError ?? before.lastError);
+          }
+        })
+        .catch(() => {});
     }
   }
 
-  function recoverNatsIfStale(): void {
-    if (natsRecovering) return;
-    natsRecovering = true;
-    queueMicrotask(() => {
-      if (kernel.phase.kind !== 'online') {
-        natsRecovering = false;
-        return;
-      }
-      if (!nats.health().up) {
-        logger?.debug('nats', 'main-thread nats down at online — forcing reconnect');
-        nats.forceReconnect().catch(() => {});
-        return;
-      }
-      nats.probeAlive(3_000).then(
-        () => (natsRecovering = false),
-        () => {
-          logger?.debug('nats', 'main-thread nats stale at online — forcing reconnect');
-          nats.forceReconnect().catch(() => {});
-        },
-      );
-    });
-  }
-
   function shouldRetryOnWake(): boolean {
-    const phase = kernel.phase.kind;
-    if (phase === 'offline' || phase === 'reconnecting') return true;
-    return phase === 'online' && !nats.health().up;
+    return kernel.phase.kind === 'offline';
   }
 
-  cleanups.push(nats.on('up', () => (natsRecovering = false)));
+  const backgroundProbe = createBackgroundProbe({
+    kernel,
+    discover: options.callbacks.discover,
+    probe: options.callbacks.probe,
+    lastTarget: () => target.value ?? restoredTarget ?? persistence.peek(),
+    prefer: (ep) => ep.mode === 'direct-lan',
+    onResult: (outcome, detail) => diag('probe', `background ${outcome}`, detail),
+  });
+  cleanups.push(() => backgroundProbe.dispose());
+
+  cleanups.push(
+    attachDegradedRecovery({
+      kernel,
+      signal: signalHandle,
+      ensureAll: ensureTransportsAlive,
+      probe: () => backgroundProbe.run(),
+      onEscalate: (round) => diag('degraded-recovery', `round #${round}`),
+      onOffline: (reason) => diag('degraded-recovery', reason, undefined, 'warn'),
+    }),
+  );
 
   cleanups.push(
     attachPresence({
@@ -240,18 +266,18 @@ export function createConnection(options: ConnectionOptions): Connection {
       visibilitySource: options.adapters.visibilitySource,
       networkSource: options.adapters.networkSource,
       onOnline: (k) => {
-        logger?.debug('presence', 'network online');
+        diag('presence', 'network online');
         wakeTokens();
         if (shouldRetryOnWake()) k.dispatch({ type: 'USER_RETRY' });
+        else if (k.phase.kind === 'online') void backgroundProbe.run();
       },
-      onOffline: () => logger?.debug('presence', 'network offline'),
+      onOffline: () => diag('presence', 'network offline'),
       onVisibilityVisible: (k) => {
-        logger?.debug('presence', 'tab visible');
+        diag('presence', 'tab visible');
         wakeTokens();
-        socketio.reviveDeadSockets();
         if (shouldRetryOnWake()) k.dispatch({ type: 'USER_RETRY' });
       },
-      onVisibilityHidden: () => logger?.debug('presence', 'tab hidden'),
+      onVisibilityHidden: () => diag('presence', 'tab hidden'),
     }),
   );
 
@@ -261,11 +287,14 @@ export function createConnection(options: ConnectionOptions): Connection {
         kernel,
         source: options.adapters.networkChangeSource,
         onChange: (k) => {
-          logger?.debug('network-change', 'connection type changed');
+          diag('network-change', 'connection type changed');
           wakeTokens();
-          // Re-discover unconditionally on every network-type change when we're in any active phase.
-          if (k.phase.kind === 'online' || k.phase.kind === 'reconnecting' || k.phase.kind === 'offline') {
-            logger?.debug('network-change', 're-discovering');
+          // healthy connections stay online: probe silently and swap the
+          // endpoint in place if the new network opened a better path
+          if (k.phase.kind === 'online') {
+            void backgroundProbe.run();
+          } else if (k.phase.kind === 'offline') {
+            diag('network-change', 're-discovering');
             k.dispatch({ type: 'USER_RETRY' });
           }
         },
@@ -289,30 +318,30 @@ export function createConnection(options: ConnectionOptions): Connection {
     refresh: options.callbacks.refresh,
     acquireRefreshLock,
     getLatestTokens: () => persistence.peek()?.tokens ?? null,
-    onRefreshStart: (reason) => logger?.debug('token-lifecycle', `refresh START (${reason})`),
+    onRefreshStart: (reason) => diag('token-lifecycle', `refresh START (${reason})`),
     onRefreshSuccess: (reason, tokens) => {
       const exp = tokens.accessExpiresAt;
       const expIn = typeof exp === 'number' ? Math.round((exp - Date.now()) / 1000) : '?';
-      logger?.debug('token-lifecycle', `refresh OK (${reason}) — new exp in ${expIn}s`);
+      diag('token-lifecycle', `refresh OK (${reason}) — new exp in ${expIn}s`);
     },
-    onRefreshSkipped: (reason) => logger?.debug('token-lifecycle', `refresh SKIPPED (${reason}) — another tab won`),
+    onRefreshSkipped: (reason) => diag('token-lifecycle', `refresh SKIPPED (${reason}) — another tab won`),
     onRefreshError: (reason, err, info) => {
       const msg = err instanceof Error ? err.message : String(err);
-      if (info.willRetry) logger?.warn('token-lifecycle', `refresh transient (${reason}) — ${msg}`);
-      else if (info.transient) logger?.error('token-lifecycle', `refresh transient exhausted (${reason}) — ${msg}`);
-      else logger?.error('token-lifecycle', `refresh permanent (${reason}) — ${msg}`);
+      if (info.willRetry) diag('token-lifecycle', `refresh transient (${reason}) — ${msg}`, undefined, 'warn');
+      else if (info.transient) diag('token-lifecycle', `refresh transient exhausted (${reason}) — ${msg}`, undefined, 'error');
+      else diag('token-lifecycle', `refresh permanent (${reason}) — ${msg}`, undefined, 'error');
     },
     onScheduled: (delayMs, expiresAt) => {
       const inSec = Math.round(delayMs / 1000);
       const expSec = Math.round((expiresAt - Date.now()) / 1000);
-      logger?.debug('token-lifecycle', `scheduled refresh in ${inSec}s (exp in ${expSec}s)`);
+      diag('token-lifecycle', `scheduled refresh in ${inSec}s (exp in ${expSec}s)`);
     },
     onWakeChecked: (info) => {
       const remaining = typeof info.remainingMs === 'number' ? `${Math.round(info.remainingMs / 1000)}s` : 'n/a';
-      logger?.debug('token-lifecycle', `wake() → ${info.decision} (phase=${info.phase}, remaining=${remaining})`);
+      diag('token-lifecycle', `wake() → ${info.decision} (phase=${info.phase}, remaining=${remaining})`);
     },
     onTriggerSkipped: (reason, why, phase) => {
-      logger?.debug('token-lifecycle', `trigger SKIP (${reason}) — ${why} (phase=${phase})`);
+      diag('token-lifecycle', `trigger SKIP (${reason}) — ${why} (phase=${phase})`);
     },
   });
   cleanups.push(() => lifecycle.detach());
@@ -322,16 +351,21 @@ export function createConnection(options: ConnectionOptions): Connection {
       kernel,
       discover: options.callbacks.discover,
       probe: options.callbacks.probe,
+      prefer: (ep) => ep.mode === 'direct-lan',
       lastTarget: () => target.value ?? restoredTarget ?? persistence.peek(),
-      onDiscoverStart: () => logger?.debug('probe', 'discover start'),
-      onDiscoverSuccess: (pool) => logger?.debug('probe', `discover OK — pool=${pool.length}`),
-      onDiscoverError: (err) => logger?.error('probe', 'discover FAILED', err),
-      onProbeStart: (ep) => logger?.debug('probe', `probe ${ep.url}`),
+      onDiscoverStart: () => diag('probe', 'discover start'),
+      onDiscoverSuccess: (pool) => diag('probe', `discover OK — pool=${pool.length}`),
+      onDiscoverError: (err) => {
+        captureRetryAfter(err);
+        diag('probe', 'discover FAILED', err, 'error');
+      },
+      onProbeStart: (ep) => diag('probe', `probe ${ep.url}`),
       onProbeSuccess: (ep) => {
         lastReachableEndpoint.value = ep.url;
-        logger?.debug('probe', `probe OK — ${ep.url}`);
+        diag('probe', `probe OK — ${ep.url}`);
       },
       onProbeError: (ep, err) => {
+        captureRetryAfter(err);
         const msg = err instanceof Error ? err.message : String(err);
         const kind = err instanceof Error && 'kind' in err ? (err as { kind: string }).kind : 'unknown';
         // `needs-auth` from probe.ts now means the host actually answered
@@ -342,9 +376,9 @@ export function createConnection(options: ConnectionOptions): Connection {
         if (kind === 'needs-auth' || kind === 'fatal') {
           lastReachableEndpoint.value = ep.url;
         }
-        logger?.warn('probe', `probe FAIL ${ep.url} — [${kind}] ${msg}`);
+        diag('probe', `probe FAIL ${ep.url} — [${kind}] ${msg}`, undefined, 'warn');
       },
-      onAllFailed: (reason) => logger?.error('probe', `all probes failed — ${reason}`),
+      onAllFailed: (reason) => diag('probe', `all probes failed — ${reason}`, undefined, 'error'),
     }),
   );
 
@@ -374,7 +408,7 @@ export function createConnection(options: ConnectionOptions): Connection {
       } else {
         kernel.dispatch({ type: 'USER_RETRY' });
       }
-    } else if (kind === 'online' || kind === 'reconnecting') {
+    } else if (kind === 'online') {
       // Without this the seeded tokens only reach persistence — the live
       // target and transports keep the old ones until the next refresh.
       kernel.dispatch({ type: 'TOKENS_REFRESHED', tokens: seedTarget.tokens });
@@ -420,7 +454,9 @@ export function createConnection(options: ConnectionOptions): Connection {
 
   return {
     kernel,
+    journal,
     phase,
+    signal,
     target,
     http,
     socketio,

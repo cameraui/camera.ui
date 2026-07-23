@@ -19,8 +19,8 @@ function createSecureStorageAdapter(): StorageAdapter {
       return typeof value === 'string' ? value : null;
     },
     async set(key, value) {
-      const { SecureStorage } = await import('@aparajita/capacitor-secure-storage');
-      await SecureStorage.set(key, value);
+      const { KeychainAccess, SecureStorage } = await import('@aparajita/capacitor-secure-storage');
+      await SecureStorage.set(key, value, undefined, false, KeychainAccess.afterFirstUnlock);
     },
     async del(key) {
       const { SecureStorage } = await import('@aparajita/capacitor-secure-storage');

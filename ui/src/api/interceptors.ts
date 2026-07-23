@@ -71,7 +71,7 @@ async function doRemintProxy(): Promise<string | null> {
   // still carry the stale session and 401 again.
   const kernel = boot.connection.kernel;
   const phase = kernel.phase;
-  const live = phase.kind === 'online' ? phase.target : phase.kind === 'reconnecting' ? phase.lastTarget : null;
+  const live = phase.kind === 'online' ? phase.target : null;
   if (live) {
     kernel.dispatch({
       type: 'TOKENS_REFRESHED',

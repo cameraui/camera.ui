@@ -13,8 +13,8 @@ import type { SocketioTransport } from '@camera.ui/transport/transports/socketio
 import type { WsTransport } from '@camera.ui/transport/transports/ws';
 
 export const HTTP_SPEC: TransportSpec = { id: 'http', kind: 'request', phaseGating: false };
-export const SOCKETIO_SPEC: TransportSpec = { id: 'socketio', kind: 'persistent', phaseGating: true, graceMs: 2_000 };
-export const NATS_SPEC: TransportSpec = { id: 'nats', kind: 'persistent', phaseGating: true, graceMs: 2_000 };
+export const SOCKETIO_SPEC: TransportSpec = { id: 'socketio', kind: 'persistent', phaseGating: true };
+export const NATS_SPEC: TransportSpec = { id: 'nats', kind: 'persistent', phaseGating: true };
 export const WS_SPEC: TransportSpec = { id: 'ws', kind: 'per-resource', phaseGating: false };
 
 export const TRANSPORT_SPECS: ReadonlyMap<string, TransportSpec> = new Map([

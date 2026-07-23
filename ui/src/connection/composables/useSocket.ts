@@ -26,7 +26,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 export function useSocket(namespace: string): SocketChannel {
   const connection = getConnection();
   const connected = shallowRef(false);
-  const ready = computed(() => connected.value && connection.phase.value.kind === 'online');
+  const ready = computed(() => connected.value);
 
   let socket: Socket | null = null;
   const handlers = new Map<string, Set<SocketEventHandler>>();
@@ -65,14 +65,11 @@ export function useSocket(namespace: string): SocketChannel {
     connected.value = false;
   }
 
-  // Rebuild the socket binding when either the kernel phase enters/leaves
-  // online OR the endpoint URL changes (target swap). Token-only changes
-  // don't trigger here — the transport rebinds auth in place.
   const stop = watch(
-    [() => connection.phase.value.kind, () => connection.target.value?.endpoint.url],
-    ([kind]) => {
+    () => connection.target.value?.endpoint.url,
+    (url) => {
       detach();
-      if (kind === 'online') {
+      if (url) {
         const s = connection.socketio.ensureSocket(namespace);
         if (s) attach(s);
       }

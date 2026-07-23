@@ -1,12 +1,13 @@
 import { getConnection } from '../instance.js';
 
-import type { ConnectionPhase, ConnectionTarget } from '@camera.ui/transport';
+import type { ConnectionPhase, ConnectionSignal, ConnectionTarget } from '@camera.ui/transport';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 
-export type BannerMode = 'connecting' | 'reconnecting' | null;
+export type BannerMode = 'connecting' | 'reconnecting' | 'degraded' | null;
 
 export interface UseConnectionReturn {
   readonly phase: ShallowRef<ConnectionPhase>;
+  readonly signal: ShallowRef<ConnectionSignal>;
   readonly target: Ref<ConnectionTarget | null>;
 
   readonly endpoint: ComputedRef<string | undefined>;
@@ -17,7 +18,6 @@ export interface UseConnectionReturn {
   readonly isIdle: ComputedRef<boolean>;
   readonly isDiscovering: ComputedRef<boolean>;
   readonly isOnline: ComputedRef<boolean>;
-  readonly isReconnecting: ComputedRef<boolean>;
   readonly isNeedsAuth: ComputedRef<boolean>;
   readonly isOffline: ComputedRef<boolean>;
   readonly bannerMode: ComputedRef<BannerMode>;
@@ -48,14 +48,15 @@ export function useConnection(): UseConnectionReturn {
   const isIdle = computed(() => connection.phase.value.kind === 'idle');
   const isDiscovering = computed(() => connection.phase.value.kind === 'discovering');
   const isOnline = computed(() => connection.phase.value.kind === 'online');
-  const isReconnecting = computed(() => connection.phase.value.kind === 'reconnecting');
   const isNeedsAuth = computed(() => connection.phase.value.kind === 'needs-auth');
   const isOffline = computed(() => connection.phase.value.kind === 'offline');
 
   const bannerMode = computed<BannerMode>(() => {
-    const kind = connection.phase.value.kind;
-    if (kind === 'online' || kind === 'idle' || kind === 'needs-auth') return null;
-    return connection.hasBeenOnline.value ? 'reconnecting' : 'connecting';
+    const s = connection.signal.value;
+    if (s.kind === 'connecting') return connection.hasBeenOnline.value ? 'reconnecting' : 'connecting';
+    if (s.kind === 'offline') return 'reconnecting';
+    if (s.kind === 'degraded') return 'degraded';
+    return null;
   });
 
   const inTrouble = computed(() => connection.troubleElapsedMs.value >= IN_TROUBLE_MS);
@@ -72,6 +73,7 @@ export function useConnection(): UseConnectionReturn {
 
   return {
     phase: connection.phase,
+    signal: connection.signal,
     target: connection.target,
     endpoint,
     accessToken,
@@ -80,7 +82,6 @@ export function useConnection(): UseConnectionReturn {
     isIdle,
     isDiscovering,
     isOnline,
-    isReconnecting,
     isNeedsAuth,
     isOffline,
     bannerMode,
