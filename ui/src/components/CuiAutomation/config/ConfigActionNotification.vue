@@ -40,20 +40,12 @@
           class="flex-1"
           @update:model-value="update('image', $event)"
         />
-        <Button
-          v-tooltip.top="t('components.automation_nodes.image_upload')"
-          severity="secondary"
-          outlined
-          class="shrink-0 h-[42px] w-[42px] p-0"
-          @click="triggerUpload"
-        >
+        <Button v-tooltip.top="t('components.automation_nodes.image_upload')" severity="secondary" outlined class="shrink-0 h-[42px] w-[42px] p-0" @click="triggerUpload">
           <template #icon><i-mdi:upload class="w-4 h-4" /></template>
         </Button>
         <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
       </div>
-      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-        t('components.automation_nodes.notification_image_hint')
-      }}</Message>
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.notification_image_hint') }}</Message>
       <div v-if="previewUrl" class="rounded-lg overflow-hidden border-[1px] border-color bg-black">
         <img :src="previewUrl" class="w-full max-h-32 object-cover" />
       </div>

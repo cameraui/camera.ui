@@ -296,8 +296,10 @@ function toInstanceEntry(info: InstanceInfo): InstanceEntry | undefined {
   };
 }
 
-const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } =
-  useCardSelection(filteredInstances, (instance) => instance.id);
+const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
+  filteredInstances,
+  (instance) => instance.id,
+);
 
 function confirmBulkRemove() {
   if (!selectedItems.value.length || bulkBusy.value) return;

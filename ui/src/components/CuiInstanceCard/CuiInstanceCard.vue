@@ -9,10 +9,7 @@
   >
     <template #content>
       <div v-if="selectionMode" class="absolute top-3 right-3 z-2 pointer-events-none">
-        <div
-          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
-          :class="selected ? 'bg-primary border-primary' : 'border-color'"
-        >
+        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors" :class="selected ? 'bg-primary border-primary' : 'border-color'">
           <i-mdi:check v-if="selected" class="w-4 h-4 text-white" />
         </div>
       </div>

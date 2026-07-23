@@ -40,11 +40,9 @@ export class IngressSession {
     }
 
     const deviceId = randomUUID();
-    const accessToken = jwt.sign(
-      { _id: user._id, username: user.username, device_id: deviceId },
-      this.configService.SECRETS.jwtAccessKey,
-      { expiresIn: TOKEN_LIFETIME.ACCESS_SECONDS },
-    );
+    const accessToken = jwt.sign({ _id: user._id, username: user.username, device_id: deviceId }, this.configService.SECRETS.jwtAccessKey, {
+      expiresIn: TOKEN_LIFETIME.ACCESS_SECONDS,
+    });
 
     const token = this.authService.createToken({
       userId: user._id,

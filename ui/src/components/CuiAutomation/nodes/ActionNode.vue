@@ -6,7 +6,7 @@
       :subtitle="subtitle"
       :color="definition?.color ?? '#3b82f6'"
       :selected="selected"
-    :warning="nodeWarning"
+      :warning="nodeWarning"
       :show-input="true"
       :show-output="true"
     />

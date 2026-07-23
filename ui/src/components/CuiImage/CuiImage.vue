@@ -19,14 +19,7 @@
           :class="imageClass"
         />
 
-        <img
-          v-if="error || !src"
-          :src="fallbackUrl"
-          :alt="alt"
-          decoding="async"
-          :style="{ width: formatWidth, height: formatHeight }"
-          class="object-contain"
-        />
+        <img v-if="error || !src" :src="fallbackUrl" :alt="alt" decoding="async" :style="{ width: formatWidth, height: formatHeight }" class="object-contain" />
       </div>
     </template>
   </Image>

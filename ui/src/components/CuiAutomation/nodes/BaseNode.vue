@@ -4,11 +4,7 @@
     :class="{ 'ring-2 ring-primary': selected }"
     :style="{ borderColor: color }"
   >
-    <div
-      v-if="warning"
-      v-tooltip.top="warning"
-      class="absolute -top-2 -right-2 z-10 flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white"
-    >
+    <div v-if="warning" v-tooltip.top="warning" class="absolute -top-2 -right-2 z-10 flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white">
       <i-mdi:exclamation-thick class="w-3.5 h-3.5" />
     </div>
     <div class="flex items-center gap-2 px-3 py-2.5">

@@ -8,16 +8,7 @@
     <div v-if="recentTopics.length" class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.mqtt_recent_topics') }}</label>
       <div class="flex flex-wrap gap-1.5">
-        <Button
-          v-for="topic in recentTopics"
-          :key="topic"
-          severity="secondary"
-          outlined
-          size="small"
-          :label="topic"
-          class="font-mono"
-          @click="update('topic', topic)"
-        />
+        <Button v-for="topic in recentTopics" :key="topic" severity="secondary" outlined size="small" :label="topic" class="font-mono" @click="update('topic', topic)" />
       </div>
     </div>
 

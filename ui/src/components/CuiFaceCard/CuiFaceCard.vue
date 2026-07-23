@@ -35,7 +35,10 @@
         </div>
       </div>
 
-      <div v-if="!selectionMode" class="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center gap-1 dark-mode">
+      <div
+        v-if="!selectionMode"
+        class="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center gap-1 dark-mode"
+      >
         <Button
           v-if="showRemove"
           v-tooltip.top="$t('views.faces.remove_from_cluster')"
