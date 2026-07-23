@@ -78,11 +78,15 @@ class WebSocketProxy {
       const url = new URL(request.url!, `http://${request.headers.host}`);
       const token = url.searchParams.get('token') ?? '';
 
-      const dbToken = this.authService.findByAccessToken(token);
-      if (!dbToken) {
-        this.wss.handleUpgrade(request, socket, head, (clientWs) => {
-          clientWs.close(4401, 'unauthorized: token expired');
-        });
+      const resolved = this.authService.resolveAccessToken(token);
+      if (!resolved) {
+        this.reject(request, socket, head, 4401, 'unauthorized: unknown token', token);
+        return;
+      }
+
+      const dbToken = resolved.token;
+      if (resolved.via === 'current' && dbToken.type !== 'api' && dbToken.access_token_expires_at !== undefined && dbToken.access_token_expires_at < Date.now()) {
+        this.reject(request, socket, head, 4401, 'unauthorized: token expired', token);
         return;
       }
 
@@ -93,9 +97,7 @@ class WebSocketProxy {
       if (this.target === 'go2rtc') {
         const src = url.searchParams.get('src') ?? '';
         if (dbToken.stream_scope && src !== dbToken.stream_scope) {
-          this.wss.handleUpgrade(request, socket, head, (clientWs) => {
-            clientWs.close(4403, 'forbidden: src out of scope');
-          });
+          this.reject(request, socket, head, 4403, 'forbidden: src out of scope', token);
           return;
         }
         targetUrl += `?src=${src}`;
@@ -105,9 +107,7 @@ class WebSocketProxy {
         }
       } else if (this.target === 'nats') {
         if (dbToken.stream_scope || dbToken.user_id.startsWith('share_')) {
-          this.wss.handleUpgrade(request, socket, head, (clientWs) => {
-            clientWs.close(4403, 'forbidden: token not allowed on rpc bus');
-          });
+          this.reject(request, socket, head, 4403, 'forbidden: token not allowed on rpc bus', token);
           return;
         }
 
@@ -118,9 +118,7 @@ class WebSocketProxy {
         if (!isAdmin) {
           const connId = url.searchParams.get('connId') ?? '';
           if (!/^[A-Za-z0-9_-]{8,128}$/.test(connId)) {
-            this.wss.handleUpgrade(request, socket, head, (clientWs) => {
-              clientWs.close(4400, 'bad request: missing or invalid connId');
-            });
+            this.reject(request, socket, head, 4400, 'bad request: missing or invalid connId', token);
             return;
           }
           firewallConnId = connId;
@@ -146,7 +144,8 @@ class WebSocketProxy {
       this.wss.handleUpgrade(request, socket, head, (clientWs) => {
         this.proxyWebSockets(clientWs, serverWs, natsCreds, firewallConnId);
       });
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Proxy upgrade failed (500) target=${this.target}: ${(err as Error)?.message ?? err}`);
       socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
       socket.destroy();
     }
@@ -217,12 +216,21 @@ class WebSocketProxy {
 
     server.on('close', (code, reason) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.close(isValidCloseCode(code) ? code : 1000, reason);
+        // abnormal upstream death (1006/no code) must not read as a clean
+        // close — 4500 tells the client to retry with backoff
+        client.close(isValidCloseCode(code) ? code : 4500, isValidCloseCode(code) ? reason : reason?.length ? reason : 'upstream lost');
       }
     });
 
     server.on('error', () => {
       if (client.readyState === WebSocket.OPEN) client.close(1011);
+    });
+  }
+
+  private reject(request: IncomingMessage, socket: Duplex, head: Buffer, code: number, reason: string, token: string): void {
+    this.logger.warn(`Proxy rejected (${code}) target=${this.target} token=${token.slice(0, 8)}… — ${reason}`);
+    this.wss.handleUpgrade(request, socket, head, (clientWs) => {
+      clientWs.close(code, reason);
     });
   }
 

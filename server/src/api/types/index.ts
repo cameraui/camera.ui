@@ -1,3 +1,5 @@
+import { numberFromEnv } from '../utils/utils.js';
+
 import type { UsableNetworkAddress } from '@camera.ui/common/network';
 import type { AssignedPlugin, DetectionLine, DetectionZone, PluginAssignments, PluginContract, ProbeConfig, SchemaConfig, SensorType } from '@camera.ui/sdk';
 import type { Readable } from 'node:stream';
@@ -67,6 +69,7 @@ export interface DBToken {
   readonly id: string;
   user_id: string;
   access_token: string;
+  access_token_expires_at?: number;
   refresh_token: string;
   refresh_token_expires_at: number;
   persistent: boolean;
@@ -75,6 +78,9 @@ export interface DBToken {
   stream_scope?: string;
   type?: DBTokenType;
   name?: string;
+  previous_access_token?: string;
+  previous_refresh_token?: string;
+  rotated_at?: number;
 }
 
 export const API_TOKEN_PREFIX = 'cui_';
@@ -134,9 +140,10 @@ export interface SessionInfo {
 }
 
 export const TOKEN_LIFETIME = {
-  ACCESS_SECONDS: 15 * 60,
-  REFRESH_PERSISTENT_MS: 90 * 24 * 60 * 60 * 1000,
-  REFRESH_NON_PERSISTENT_MS: 24 * 60 * 60 * 1000,
+  ACCESS_SECONDS: numberFromEnv('JWT_ACCESS_TTL_SECONDS', 15 * 60),
+  REFRESH_PERSISTENT_MS: numberFromEnv('JWT_REFRESH_PERSISTENT_TTL_MS', 90 * 24 * 60 * 60 * 1000),
+  REFRESH_NON_PERSISTENT_MS: numberFromEnv('JWT_REFRESH_NON_PERSISTENT_TTL_MS', 24 * 60 * 60 * 1000),
+  ROTATION_GRACE_MS: numberFromEnv('JWT_ROTATION_GRACE_MS', 30_000),
 } as const;
 
 export interface CameraCamviewSettings {

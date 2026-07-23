@@ -260,11 +260,12 @@ export class AuthController {
     }
 
     try {
-      const oldToken = this.service.findByRefreshToken(req.body.refresh_token);
+      const resolved = this.service.resolveRefreshToken(req.body.refresh_token);
 
-      if (!oldToken) {
+      if (!resolved) {
         return reply.code(401).send({ statusCode: 401, message: 'Invalid refresh token' });
       }
+      const oldToken = resolved.token;
 
       if (oldToken.refresh_token_expires_at < Date.now()) {
         await this.service.invalidateById(oldToken.id);
@@ -277,13 +278,23 @@ export class AuthController {
         return reply.code(401).send({ statusCode: 401, message: 'User not found' });
       }
 
+      if (resolved.via === 'previous') {
+        const response: JwtTokenResponse = {
+          access_token: oldToken.access_token,
+          refresh_token: oldToken.refresh_token,
+          access_token_expires_at: oldToken.access_token_expires_at ?? Date.now() + TOKEN_LIFETIME.ACCESS_SECONDS * 1000,
+          refresh_token_expires_at: oldToken.refresh_token_expires_at,
+        };
+        return reply.code(200).send(response);
+      }
+
       const newAccessToken = this.signAccessToken(user, oldToken.device.id);
       const rotated = await this.service.rotate(oldToken, newAccessToken);
 
       const response: JwtTokenResponse = {
         access_token: rotated.access_token,
         refresh_token: rotated.refresh_token,
-        access_token_expires_at: Date.now() + TOKEN_LIFETIME.ACCESS_SECONDS * 1000,
+        access_token_expires_at: rotated.access_token_expires_at ?? Date.now() + TOKEN_LIFETIME.ACCESS_SECONDS * 1000,
         refresh_token_expires_at: rotated.refresh_token_expires_at,
       };
 

@@ -112,7 +112,7 @@ export class SocketService {
         return next(new UnauthorizedError('insufficient_role', { message: `Not authorized to connect to ${nsp}` }));
       }
 
-      const dbToken = this.authService.findByAccessToken(socket.encodedToken!);
+      const dbToken = this.authService.resolveAccessToken(socket.encodedToken!)?.token;
       if (!dbToken) {
         return next(new UnauthorizedError('unauthenticated', { message: 'Unauthenticated' }));
       }
@@ -125,7 +125,7 @@ export class SocketService {
     const decodedToken = socket.decodedToken as JwtTokenDecoded | undefined;
     const user = this.usersService.findByName(decodedToken?.username ?? '');
     const address = socket.conn.remoteAddress;
-    const dbToken = this.authService.findByAccessToken(socket.encodedToken!);
+    const dbToken = this.authService.resolveAccessToken(socket.encodedToken!)?.token;
     const device = dbToken?.device.name;
 
     this.logger.trace(`${user?.username} | ${address} | ${device} | authenticated and connected to ${nsp} | id: ${socket.id}`);

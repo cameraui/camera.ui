@@ -16,11 +16,9 @@ import type { ClientKind, DBToken, DBTokenDevice } from '../types/index.js';
 ])
 export class AuthService {
   private dbs: Database;
-  private socketService: SocketService;
 
   constructor() {
     this.dbs = container.resolve<Database>('dbs');
-    this.socketService = container.resolve<SocketService>('socketService');
   }
 
   public listTokens(): DBToken[] {
@@ -57,6 +55,26 @@ export class AuthService {
     return undefined;
   }
 
+  public resolveAccessToken(access_token: string): { token: DBToken; via: 'current' | 'previous' } | undefined {
+    for (const { value } of this.dbs.tokensDB.getRange()) {
+      if (value.access_token === access_token) return { token: value, via: 'current' };
+      if (value.previous_access_token === access_token && this.withinRotationGrace(value)) {
+        return { token: value, via: 'previous' };
+      }
+    }
+    return undefined;
+  }
+
+  public resolveRefreshToken(refresh_token: string): { token: DBToken; via: 'current' | 'previous' } | undefined {
+    for (const { value } of this.dbs.tokensDB.getRange()) {
+      if (value.refresh_token === refresh_token) return { token: value, via: 'current' };
+      if (value.previous_refresh_token === refresh_token && this.withinRotationGrace(value)) {
+        return { token: value, via: 'previous' };
+      }
+    }
+    return undefined;
+  }
+
   public findByDeviceId(userId: string, deviceId: string): DBToken | undefined {
     for (const { value } of this.dbs.tokensDB.getRange()) {
       if (value.user_id === userId && value.device.id === deviceId) return value;
@@ -69,10 +87,7 @@ export class AuthService {
   }
 
   public async invalidateById(id: string): Promise<void> {
-    const token = this.dbs.tokensDB.get(id);
-    if (!token) return;
     await this.dbs.tokensDB.remove(id);
-    this.unauthenticateToken(token.access_token);
   }
 
   public async invalidateByAccessToken(access_token: string): Promise<void> {
@@ -91,9 +106,7 @@ export class AuthService {
   }
 
   public async invalidateAll(): Promise<void> {
-    const tokens = this.listTokens();
     await this.dbs.tokensDB.clearAsync();
-    for (const token of tokens) this.unauthenticateToken(token.access_token);
   }
 
   public async invalidateAllSessions(): Promise<void> {
@@ -147,6 +160,7 @@ export class AuthService {
       id: randomUUID(),
       user_id: params.userId,
       access_token: params.accessToken,
+      access_token_expires_at: now + TOKEN_LIFETIME.ACCESS_SECONDS * 1000,
       refresh_token: this.generateRefreshToken(),
       refresh_token_expires_at: now + window,
       persistent: params.persistent,
@@ -187,10 +201,14 @@ export class AuthService {
     const rotated: DBToken = {
       ...oldToken,
       access_token: newAccessToken,
+      access_token_expires_at: now + TOKEN_LIFETIME.ACCESS_SECONDS * 1000,
       refresh_token: this.generateRefreshToken(),
       refresh_token_expires_at: oldToken.persistent ? now + window : oldToken.refresh_token_expires_at,
       device: { ...oldToken.device, last_seen_at: now },
       parent_token_id: oldToken.parent_token_id ?? oldToken.id,
+      previous_access_token: oldToken.access_token,
+      previous_refresh_token: oldToken.refresh_token,
+      rotated_at: now,
     };
 
     await this.dbs.tokensDB.put(rotated.id, rotated);
@@ -205,11 +223,11 @@ export class AuthService {
     return token;
   }
 
-  private generateRefreshToken(): string {
-    return randomBytes(48).toString('base64url');
+  private withinRotationGrace(token: DBToken): boolean {
+    return token.rotated_at !== undefined && Date.now() - token.rotated_at <= TOKEN_LIFETIME.ROTATION_GRACE_MS;
   }
 
-  private unauthenticateToken(token: string): void {
-    this.socketService?.io?.of('/camera.ui').emit('invalidToken', token);
+  private generateRefreshToken(): string {
+    return randomBytes(48).toString('base64url');
   }
 }

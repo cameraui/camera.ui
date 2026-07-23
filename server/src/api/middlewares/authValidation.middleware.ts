@@ -118,7 +118,7 @@ export async function validJWTNeeded(req: FastifyRequest<AuthLoginRequest>, repl
     return reply.code(401).send({ statusCode: 401, message: expired ? 'Token expired' : 'Unauthorized' });
   }
 
-  const dbToken = authService.findByAccessToken(accessToken);
+  const dbToken = authService.resolveAccessToken(accessToken)?.token;
   if (!dbToken) {
     return reply.code(401).send({ statusCode: 401, message: 'Token revoked' });
   }
