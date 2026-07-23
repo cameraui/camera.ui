@@ -297,6 +297,9 @@ export class NATS {
       port: this._leafAcceptorPort,
       server_name: 'camera.ui-leaf-acceptor',
       authorization: this.config.authorization,
+      max_payload: this.config.max_payload,
+      max_control_line: this.config.max_control_line,
+      write_deadline: this.config.write_deadline,
       cluster: {
         name: 'camera.ui-cluster',
         host: 'localhost',

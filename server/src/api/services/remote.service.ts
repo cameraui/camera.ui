@@ -2,6 +2,8 @@ import { mergeWith } from '@camera.ui/common/utils';
 import { hostname } from 'node:os';
 import { container } from 'tsyringe';
 
+import { dbRemoteSchema } from '../database/record-schemas.js';
+
 import type { CloudApi } from '../../remote/api/index.js';
 import type { RemoteAccessManager } from '../../remote/index.js';
 import type { TunnelClient } from '../../remote/tunnel/client.js';
@@ -27,7 +29,7 @@ export class RemoteService {
   }
 
   public info(): DBRemote {
-    return this.dbs.remoteDB.get('remote')!;
+    return this.dbs.remoteDB.get('remote') ?? dbRemoteSchema.parse({});
   }
 
   public async patch(infoData: DeepPartial<DBRemote> = {}): Promise<DBRemote> {
