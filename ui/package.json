@@ -37,7 +37,7 @@
     "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@camera.ui/browser": "~0.0.142",
     "@camera.ui/common": "~0.0.51",
-    "@camera.ui/nvr": "~0.0.52",
+    "@camera.ui/nvr": "~0.0.53",
     "@camera.ui/sdk": "~0.0.29",
     "@camera.ui/transport": "~0.0.22",
     "@capacitor-firebase/messaging": "^8.3.0",
