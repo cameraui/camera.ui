@@ -48,11 +48,7 @@ export interface UpdateFailedMessage {
   error: string;
 }
 
-export interface RestartRequiredMessage {
-  type: 'RESTART_REQUIRED';
-}
-
-export type CLIMessage = UpdateStartedMessage | UpdateOutputMessage | UpdateErrorMessage | UpdateCompleteMessage | UpdateFailedMessage | RestartRequiredMessage;
+export type CLIMessage = UpdateStartedMessage | UpdateOutputMessage | UpdateErrorMessage | UpdateCompleteMessage | UpdateFailedMessage;
 
 export interface AppUpdateAvailableMessage {
   type: 'APP_UPDATE_AVAILABLE';

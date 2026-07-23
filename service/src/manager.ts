@@ -46,11 +46,7 @@ interface UpdateFailedMessage {
   error: string;
 }
 
-interface RestartRequiredMessage {
-  type: 'RESTART_REQUIRED';
-}
-
-type CLIMessage = UpdateStartedMessage | UpdateOutputMessage | UpdateErrorMessage | UpdateCompleteMessage | UpdateFailedMessage | RestartRequiredMessage;
+type CLIMessage = UpdateStartedMessage | UpdateOutputMessage | UpdateErrorMessage | UpdateCompleteMessage | UpdateFailedMessage;
 
 function isNetworkError(error: unknown): boolean {
   const err = error as { message?: string; stderr?: string };
@@ -297,7 +293,6 @@ export class ServerManager {
           this.cli.logger('Received update request from server', 'info');
           const version = message.version ?? 'latest';
           await this.update(version);
-          this.send({ type: 'RESTART_REQUIRED' });
           break;
         }
         case 'START_ERROR': {
