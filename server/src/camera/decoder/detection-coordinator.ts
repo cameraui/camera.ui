@@ -130,7 +130,9 @@ export class DetectionCoordinator {
       const sourceId = config.controllerSnapshotSourceId;
       const controllerProxy = this.proxy.createProxy<CameraDeviceInterface>(NamespaceManager.cameraNamespaces(config.cameraId).cameraControllerRpc);
       frameSourceConfig.snapshotProvider = async () => {
-        const jpeg = await controllerProxy.snapshot(sourceId, true);
+        // fresh + plugin-native, a sub-stream snapshot source must not cap the
+        // detection image
+        const jpeg = await controllerProxy.snapshot(sourceId, true, true);
         if (!jpeg || jpeg.byteLength === 0) return null;
         return Buffer.from(jpeg);
       };
@@ -312,14 +314,13 @@ export class DetectionCoordinator {
       this.ingestDetectionResult(SensorType.Object, sensorId, filtered);
       this.eventManager.processResults(this.buildSnapshot());
 
-      if (!this.plugins.hasFrameBasedSecondary()) {
-        // re-shoot the event thumbnail: smart-camera reports arrive after the
-        // motion-start shot, often before the subject fully entered the frame
-        if (filtered.detected === true && this.eventManager.hasActiveEvent()) {
-          this.thumbnailer.fetchEventThumbnailAsync();
-        }
-        return;
+      // re-shoot the event thumbnail: smart-camera reports arrive after the
+      // motion-start shot, often before the subject fully entered the frame
+      if (filtered.detected === true && this.eventManager.hasActiveEvent()) {
+        this.thumbnailer.fetchEventThumbnailAsync();
       }
+
+      if (!this.plugins.hasFrameBasedSecondary()) return;
       if (this.processingExternalSecondary) return; // previous RPC still running
 
       this.processingExternalSecondary = true;
@@ -350,8 +351,18 @@ export class DetectionCoordinator {
         try {
           const results: DetectionResults = { timestamp: Date.now() };
           const sceneJpeg = await this.secondaries.detectFullFrame(fetched.frame, results);
+          try {
+            // face/plate crops feed the segment attributes, without them the
+            // NVR drops unknown faces (no thumbnail, no faces page entry)
+            results.thumbnails = await this.secondaries.generateThumbnails(fetched.frame, this.frameScaler, false, objectDetections, results);
+          } catch (error) {
+            this.logger.error('Thumbnail generation error:', error);
+          }
           this.ingestResultsForAllSecondaries(results);
           const snapshot = this.buildSnapshot();
+          if (results.thumbnails && results.thumbnails.length > 0) {
+            snapshot.thumbnails = results.thumbnails;
+          }
           if (sceneJpeg) snapshot.eventThumbnail = sceneJpeg;
           const wantsEventThumb = this.eventManager.needsThumbnail() || this.snapshotWillStartEvent(snapshot);
           this.eventManager.processResults(snapshot);

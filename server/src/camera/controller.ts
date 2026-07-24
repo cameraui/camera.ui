@@ -201,7 +201,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   @RPCMethod
-  public async snapshot(sourceId: string, forceNew?: boolean): Promise<ArrayBuffer | undefined> {
+  public async snapshot(sourceId: string, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined> {
     this.snapshotCache.purgeStale();
 
     const fromCache = this.snapshotCache.get(sourceId);
@@ -244,23 +244,26 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       }
     };
 
-    if (source.role === 'snapshot' || source.useForSnapshot) {
-      const snapshot = await fetchSnapshotFromSource(source);
-      if (snapshot && snapshot.byteLength > 0) {
-        return snapshot;
-      }
+    const designatedSnapshotSource = source.role === 'snapshot' || source.useForSnapshot;
 
-      const fallback = [this.lowResolutionSource, this.midResolutionSource, this.highResolutionSource].find((s) => s && s._id !== source._id);
-      return fallback ? fetchSnapshotFromSource(fallback) : snapshot;
-    } else {
+    if (preferNative || !designatedSnapshotSource) {
       const pluginSnapshot = await fetchSnapshotFromPlugin(source);
       if (pluginSnapshot) {
         return pluginSnapshot;
-      } else {
-        const snapshot = await fetchSnapshotFromSource(source);
-        return snapshot;
       }
     }
+
+    const snapshot = await fetchSnapshotFromSource(source);
+    if (snapshot && snapshot.byteLength > 0) {
+      return snapshot;
+    }
+
+    if (designatedSnapshotSource) {
+      const fallback = [this.lowResolutionSource, this.midResolutionSource, this.highResolutionSource].find((s) => s && s._id !== source._id);
+      return fallback ? fetchSnapshotFromSource(fallback) : snapshot;
+    }
+
+    return snapshot;
   }
 
   @RPCMethod

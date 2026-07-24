@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.19]
+
+### Fixed
+
+- **Detections from cameras with built-in smart detection show a picture again.** On cameras that detect people themselves with a face or classifier plugin assigned, the event kept the image taken at the start of the motion, usually before anyone was in frame, and the detection itself had none at all. A new image is now taken the moment the camera reports the person.
+
+- **Faces from those cameras appear on the Faces page.** The recording was tagged as containing a face, but the person never showed up under unknown faces.
+
+- **Event images are no longer capped by the snapshot source.** Picking a low-resolution stream as a camera's snapshot source also shrank every event image. Event images now come from the camera's own picture where it offers one, the dashboard and auto-refresh keep using the source you picked.
+
 ## [2.0.18]
 
 ### Fixed
