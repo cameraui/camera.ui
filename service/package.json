@@ -25,8 +25,8 @@
   "dependencies": {
     "@camera.ui/common": "~0.0.51",
     "commander": "^15.0.0",
-    "fs-extra": "^11.3.6",
-    "js-yaml": "^5.2.1",
+    "fs-extra": "^11.4.0",
+    "js-yaml": "^5.2.2",
     "ora": "^9.4.1",
     "systeminformation": "^5.33.1",
     "tail": "^2.2.6"
