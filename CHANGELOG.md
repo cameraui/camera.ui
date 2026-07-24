@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 - **A failed start says what went wrong.** The desktop app showed only "camera.ui keeps exiting" after five attempts. It now names the actual error, and a problem that restarting cannot fix (like a damaged database) is reported right away instead of after five tries.
 
+- **The recording timeline follows every time you pick.** Choosing a time in the date picker worked once. Every jump after that moved the playback but left the timeline sitting where it was, so it looked like nothing happened.
+
 ## [2.0.18]
 
 ### Fixed
