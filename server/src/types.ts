@@ -67,6 +67,7 @@ export interface AppStoppingMessage {
 export interface AppStartFailedMessage {
   type: 'START_ERROR';
   error: string;
+  fatal?: boolean;
 }
 
 export interface AppStartProgressMessage {

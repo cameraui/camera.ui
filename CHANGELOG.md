@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - **Event images are no longer capped by the snapshot source.** Picking a low-resolution stream as a camera's snapshot source also shrank every event image. Event images now come from the camera's own picture where it offers one, the dashboard and auto-refresh keep using the source you picked.
 
+- **A failed start says what went wrong.** The desktop app showed only "camera.ui keeps exiting" after five attempts. It now names the actual error, and a problem that restarting cannot fix (like a damaged database) is reported right away instead of after five tries.
+
 ## [2.0.18]
 
 ### Fixed

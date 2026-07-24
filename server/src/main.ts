@@ -30,7 +30,7 @@ import { ProxyServer } from './rpc/index.js';
 import { ConfigService } from './services/config/index.js';
 import { LoggerService } from './services/logger/index.js';
 import { markShuttingDown, resetShuttingDown } from './shutdown-state.js';
-import { sendIPCMessage } from './utils/ipc.js';
+import { reportStartError, sendIPCMessage } from './utils/ipc.js';
 import { WorkerAgent } from './workers/agent.js';
 import { WorkerManager } from './workers/manager.js';
 import { ensureWorkerPaired } from './workers/pairing.js';
@@ -464,7 +464,7 @@ async function launch(): Promise<void> {
       sendIPCMessage({ type: 'STARTED', port: 0 });
     } catch (error) {
       logger.error('Failed to start camera.ui worker', error);
-      sendIPCMessage({ type: 'START_ERROR', error: error.message });
+      await reportStartError(error);
       await worker.close();
       process.exit(1);
     }
@@ -481,10 +481,7 @@ async function launch(): Promise<void> {
   } catch (error) {
     logger.error('Failed to start camera.ui', error);
 
-    if (error.message === 'SELF_CHECK_FAILED') {
-      sendIPCMessage({ type: 'START_ERROR', error: 'SELF_CHECK_FAILED' });
-    }
-
+    await reportStartError(error);
     await cameraui.close();
 
     process.exit(1);

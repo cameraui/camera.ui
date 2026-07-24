@@ -16,6 +16,8 @@ interface UpdateMessage {
 
 interface ErrorMessage {
   type: 'START_ERROR';
+  error?: string;
+  fatal?: boolean;
 }
 
 type ServerMessage = UpdateMessage | ErrorMessage;
@@ -296,7 +298,9 @@ export class ServerManager {
           break;
         }
         case 'START_ERROR': {
-          this.serverCrashed = true;
+          if (message.fatal) {
+            this.serverCrashed = true;
+          }
           break;
         }
       }
