@@ -5,8 +5,7 @@
 <script setup lang="ts">
 import { usePlugin } from '@camera.ui/browser';
 
-import type { NVRInterface } from '@camera.ui/nvr';
-import type { CuiHeatmapProps } from './types.js';
+import type { CuiHeatmapProps, HeatmapProxy } from './types.js';
 
 const props = defineProps<CuiHeatmapProps>();
 
@@ -16,7 +15,7 @@ const canvasRef = useTemplateRef<HTMLCanvasElement>('canvasRef');
 
 async function load() {
   const canvas = canvasRef.value;
-  const nvrPlugin = nvrPluginRef.value as NVRInterface | undefined;
+  const nvrPlugin = nvrPluginRef.value as HeatmapProxy | undefined;
   if (!canvas || !nvrPlugin?.getDetectionHeatmap) return;
 
   try {
