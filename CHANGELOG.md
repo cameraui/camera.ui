@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 - **The recording timeline follows every time you pick.** Choosing a time in the date picker worked once. Every jump after that moved the playback but left the timeline sitting where it was, so it looked like nothing happened.
 
+- **A failed backup restore tells you why.** The reason vanished with a short toast and was never written to the log, so a restore that dropped you back to the setup screen left nothing to go on. The message now stays on screen and lands in the log.
+
 ## [2.0.18]
 
 ### Fixed

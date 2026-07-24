@@ -61,6 +61,10 @@
                       </div>
 
                       <input ref="backupFileInputRef" type="file" accept="application/gzip, .tar, .tar.gz" class="hidden" @change="handleBackupFileSelect" />
+
+                      <Message v-if="restoreError" severity="error" variant="simple" size="small" class="max-w-[375px] text-center select-text">
+                        {{ restoreError }}
+                      </Message>
                     </div>
 
                     <Button v-else class="cui-button-medium" :loading="isLoading" :label="$t('views.firststeps.start')" @click="nextStep" />
@@ -136,6 +140,9 @@ const accountFormRef = useTemplateRef<InstanceType<typeof SettingsAccount>>('acc
 const backupFileInputRef = useTemplateRef('backupFileInputRef');
 const file = shallowRef<File>();
 const uploadedFile = shallowRef<File>();
+
+const backupRestore = useBackupRestore();
+const restoreError = backupRestore.lastError;
 const currentCategoryIndex = ref(0);
 const loading = ref(false);
 const lastFormValues = ref<Record<string, any>>();
@@ -222,7 +229,7 @@ async function restoreBackup(): Promise<void> {
   if (!uploadedFile.value) return;
 
   loading.value = true;
-  await useBackupRestore().run(uploadedFile.value);
+  await backupRestore.run(uploadedFile.value);
   loading.value = false;
 }
 

@@ -9,6 +9,7 @@ export type BackupRestorePhase = 'idle' | 'uploading' | 'restoring' | 'restartin
 const active = ref(false);
 const phase = ref<BackupRestorePhase>('idle');
 const uploadPercent = ref(0);
+const lastError = ref('');
 
 export const isRestoreActive = active;
 
@@ -33,6 +34,7 @@ export function useBackupRestore() {
     active.value = true;
     phase.value = 'uploading';
     uploadPercent.value = 0;
+    lastError.value = '';
 
     try {
       const fd = new FormData();
@@ -47,7 +49,8 @@ export function useBackupRestore() {
     } catch (error) {
       active.value = false;
       phase.value = 'idle';
-      toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 3000 });
+      lastError.value = extractErrorMessage(error);
+      toast.add({ severity: 'error', detail: lastError.value, life: 10000 });
       return false;
     }
 
@@ -65,5 +68,5 @@ export function useBackupRestore() {
     return true;
   }
 
-  return { active, phase, uploadPercent, restoreLocalStorage, run };
+  return { active, phase, uploadPercent, lastError, restoreLocalStorage, run };
 }

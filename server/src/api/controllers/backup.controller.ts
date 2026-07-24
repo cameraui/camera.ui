@@ -7,8 +7,8 @@ import { BackupService } from '../services/backup.service.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { LoggerService } from '../../services/logger/index.js';
-import type { AuthLoginRequest, BackupCreateRequest, BackupRestoreRequest, BackupSchedulerPatchRequest, ScheduledBackupParamsRequest } from '../types/index.js';
 import type { BackupSchedulerService } from '../services/backupScheduler.service.js';
+import type { AuthLoginRequest, BackupCreateRequest, BackupRestoreRequest, BackupSchedulerPatchRequest, ScheduledBackupParamsRequest } from '../types/index.js';
 
 export class BackupController {
   private logger: LoggerService;
@@ -66,6 +66,8 @@ export class BackupController {
 
       return reply.code(201).send(localStorage);
     } catch (error: any) {
+      this.logger.error('Backup restore failed:', error);
+
       return reply.code(500).send({
         statusCode: 500,
         message: error.message,
