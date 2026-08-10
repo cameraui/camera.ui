@@ -1,4 +1,4 @@
-camera-ui-sdk==1.2.6
+camera-ui-sdk==1.2.8
 camera-ui-common==1.0.22
 camera-ui-rpc==1.0.7
 certifi==2026.7.22
