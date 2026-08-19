@@ -51,6 +51,7 @@ export interface UpdatesPendingWorker {
 
 export interface UpdatesPendingPlugin {
   pluginName: string;
+  displayName: string;
   installedVersion?: string;
   latestVersion?: string;
   updateAvailable: boolean;
@@ -218,6 +219,7 @@ export class UpdatesService {
       const update = pluginUpdates.get(plugin.info.pluginName);
       pending.plugins.push({
         pluginName: plugin.info.pluginName,
+        displayName: plugin.info.displayName,
         installedVersion: plugin.info.installedVersion,
         latestVersion: update?.latestVersion ?? plugin.info.installedVersion,
         updateAvailable: update !== undefined,

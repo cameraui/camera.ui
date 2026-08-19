@@ -13,6 +13,7 @@ export interface UpdateItem {
   id: string;
   kind: UpdateKind;
   name: string;
+  packageName?: string;
   installedVersion?: string;
   latestVersion?: string;
   status: UpdateItemStatus;
@@ -69,7 +70,8 @@ export const useUpdatesStore = defineStore('updates', () => {
         applyActivity({
           id: `plugin:${plugin.pluginName}`,
           kind: 'plugin',
-          name: plugin.pluginName,
+          name: plugin.displayName || plugin.pluginName,
+          packageName: plugin.pluginName,
           installedVersion: plugin.installedVersion,
           latestVersion: plugin.latestVersion ?? plugin.installedVersion,
           status: plugin.updateAvailable ? 'pending' : 'uptodate',
@@ -167,7 +169,7 @@ export const useUpdatesStore = defineStore('updates', () => {
 
     try {
       if (item.kind === 'plugin') {
-        await installPluginFn({ pluginData: { pluginname: item.name, pluginversion: item.latestVersion ?? 'latest' } });
+        await installPluginFn({ pluginData: { pluginname: item.packageName ?? item.name, pluginversion: item.latestVersion ?? 'latest' } });
       } else if (item.kind === 'worker') {
         await updateWorker({ agentId: id.slice('worker:'.length), version: targetServerVersion.value });
       } else {

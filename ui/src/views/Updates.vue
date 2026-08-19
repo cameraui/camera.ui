@@ -106,6 +106,7 @@
 
                 <div class="flex flex-col field-switch-gap min-w-0 flex-1">
                   <span class="text-sm font-bold text-color truncate">{{ item.name }}</span>
+                  <span v-if="item.packageName" class="text-xs text-muted truncate">{{ item.packageName }}</span>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint truncate">
                     <template v-if="item.status === 'error'">{{ item.error }}</template>
                     <template v-else-if="item.status === 'restarting'">{{ $t('connection.restarting') }}</template>
@@ -201,7 +202,7 @@ function openChangelog(item: UpdateItem): void {
       confirmText: t('components.form.button.update'),
       contentProps: {
         kind: item.kind,
-        name: item.name,
+        name: item.packageName ?? item.name,
         version: item.latestVersion,
       },
     },
