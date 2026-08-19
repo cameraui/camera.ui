@@ -45,7 +45,7 @@
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.67.0",
-    "updates": "^18.0.3"
+    "updates": "^18.0.4"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "bugs": {
