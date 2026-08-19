@@ -29,7 +29,7 @@
                         :data-zone-index="coord.zoneIndex"
                         @dblclick.prevent="removeHandler(coord)"
                       >
-                        <div class="delete-point"></div>
+                        <div class="delete-point" @click.stop="removeHandler(coord)" @pointerdown.stop @mousedown.stop @touchstart.stop></div>
                       </div>
 
                       <div class="clipboard">
@@ -305,7 +305,7 @@
                 </Button>
 
                 <Button
-                  v-tooltip.top="{ value: $t('components.form.tooltip.delete') }"
+                  v-tooltip.top="{ value: $t('components.form.tooltip.delete_line') }"
                   :loading="isLoading"
                   :disabled="!detectionLines.length || selectedLine < 0"
                   severity="secondary"
@@ -538,7 +538,7 @@
                 </Button>
 
                 <Button
-                  v-tooltip.top="{ value: $t('components.form.tooltip.delete') }"
+                  v-tooltip.top="{ value: $t('components.form.tooltip.delete_zone') }"
                   :loading="isLoading"
                   :disabled="!polygons.length || selectedZone < 0"
                   severity="secondary"
@@ -643,6 +643,8 @@ if (props.initialSelection !== undefined) {
 const dragStart = { x: 0, y: 0 };
 
 let isDragging = false;
+let handleDragging = false;
+let activeHandle: { zoneIndex: number; pointIndex: number } | null = null;
 let draggingLine: { lineIndex: number; pointIndex: number } | null = null;
 
 const containerSize = useElementSize(containerRef);
@@ -890,13 +892,11 @@ function getEventPosition(e: MouseEvent | TouchEvent): { x: number; y: number } 
 }
 
 function startDragPolygon(e: MouseEvent | TouchEvent, zoneIndex: number) {
-  e.stopPropagation();
-
-  if (!playgroundContainerRef.value) {
+  if (customizing.value || !playgroundContainerRef.value) {
     return;
   }
 
-  finishCustomizing(customizing.value);
+  e.stopPropagation();
 
   isDragging = true;
   selectedZone.value = zoneIndex;
@@ -966,13 +966,6 @@ function endDragPolygon(): void {
   }, 100);
 }
 
-const WHOLE_IMAGE: [number, number][] = [
-  [0, 0],
-  [100, 0],
-  [100, 100],
-  [0, 100],
-];
-
 function addZone(points: [number, number][]): void {
   const color = getRandomHexColor();
   const stamp = Date.now();
@@ -989,13 +982,22 @@ function addZone(points: [number, number][]): void {
 }
 
 function addHandle(e: MouseEvent): void {
-  if (!customizing.value || isDragging) {
+  if (!customizing.value || isDragging || handleDragging) {
+    return;
+  }
+
+  if ((e.target as Element | null)?.closest('.handle')) {
+    return;
+  }
+
+  if (!playgroundContainerRef.value) {
     return;
   }
 
   const zoneIndex = currentZone.value !== undefined ? currentZone.value : polygons.value.length;
-  const x = Math.min(Math.max(Math.round(((e.offsetX - 10) / contentWidth.value) * 100), 0), 100);
-  const y = Math.min(Math.max(Math.round(((e.offsetY - 10) / contentHeight.value) * 100), 0), 100);
+  const rect = playgroundContainerRef.value.getBoundingClientRect();
+  const x = Math.min(Math.max(Math.round(((e.clientX - rect.left - 10) / contentWidth.value) * 100), 0), 100);
+  const y = Math.min(Math.max(Math.round(((e.clientY - rect.top - 10) / contentHeight.value) * 100), 0), 100);
 
   if (currentZone.value === undefined) {
     addZone([]);
@@ -1007,34 +1009,15 @@ function addHandle(e: MouseEvent): void {
     return;
   }
 
-  polygons.value[zoneIndex].points.push([x, y]);
+  const points = polygons.value[zoneIndex].points;
+  const anchor = activeHandle?.zoneIndex === zoneIndex ? activeHandle.pointIndex : points.length - 1;
+  const insertAt = anchor + 1;
 
-  // Refresh coords to ensure draggies are correctly displayed
+  points.splice(insertAt, 0, [x, y]);
+  activeHandle = { zoneIndex, pointIndex: insertAt };
+
   updateCoordinatesFromZones();
-
-  nextTick(() => {
-    const pointIndex = polygons.value[zoneIndex].points.length - 1;
-    handleAdded({
-      _id: `z${zoneIndex}-p${pointIndex}`,
-      zoneIndex,
-      pointIndex,
-      point: [x, y],
-    });
-  });
-}
-
-function handleAdded(payload: CoordsPosition): void {
-  if (payload.zoneIndex === undefined || payload.pointIndex === undefined) {
-    return;
-  }
-
-  const draggable = draggablesRef.value?.filter((el) => el.dataset.pointIndex === payload.pointIndex.toString() && el.dataset.zoneIndex === payload.zoneIndex.toString());
-
-  if (!draggable || draggable.length === 0) {
-    return;
-  }
-
-  styleHandle(draggable[0], payload.point);
+  nextTick(() => resetHandles());
 }
 
 function updateHandle(payload: CoordsPosition): void {
@@ -1049,20 +1032,10 @@ function updateHandle(payload: CoordsPosition): void {
 }
 
 function startCustomizing(): void {
-  // privacy is the one kind where a full-image default would be destructive
-  if (activeTab.value === 'privacy') {
-    customizing.value = true;
-    currentZone.value = undefined;
-    return;
-  }
-
-  addZone(WHOLE_IMAGE);
-  const zoneIndex = polygons.value.length - 1;
-  selectedZone.value = zoneIndex;
-  currentZone.value = zoneIndex;
   customizing.value = true;
-  updateCoordinatesFromZones();
-  nextTick(() => draggablesRef.value?.forEach((el) => makeDraggable(el)));
+  currentZone.value = undefined;
+  activeHandle = null;
+  paintActiveHandle();
 }
 
 function finishCustomizing(inEdit: boolean, tab: ZoneEditorTab = activeTab.value): void {
@@ -1084,7 +1057,7 @@ function finishCustomizing(inEdit: boolean, tab: ZoneEditorTab = activeTab.value
     zones.splice(zoneIndex, 1);
     updateCoordinatesFromZones();
   } else if (tab === activeTab.value) {
-    draggablesRef.value?.forEach((el) => makeDraggable(el));
+    resetHandles();
     selectedZone.value = zoneIndex;
   }
 }
@@ -1092,6 +1065,10 @@ function finishCustomizing(inEdit: boolean, tab: ZoneEditorTab = activeTab.value
 function editZone(): void {
   customizing.value = true;
   currentZone.value = selectedZone.value;
+
+  const points = polygons.value[selectedZone.value]?.points;
+  activeHandle = points?.length ? { zoneIndex: selectedZone.value, pointIndex: points.length - 1 } : null;
+  paintActiveHandle();
 }
 
 function removeZone(): void {
@@ -1106,6 +1083,7 @@ function removeZone(): void {
 
   polygons.value.splice(selectedZone.value, 1);
   selectedZone.value = Math.max(-1, selectedZone.value - 1);
+  activeHandle = null;
 
   updateCoordinatesFromZones();
   nextTick(() => {
@@ -1194,6 +1172,12 @@ function selectZone(index: number): void {
   }
 
   selectedZone.value = index;
+
+  if (activeHandle?.zoneIndex !== index) {
+    const points = polygons.value[index]?.points;
+    activeHandle = points?.length ? { zoneIndex: index, pointIndex: points.length - 1 } : null;
+    paintActiveHandle();
+  }
 }
 
 function resetHandles(): void {
@@ -1218,6 +1202,23 @@ function resetHandles(): void {
       makeDraggable(el);
     }
   });
+
+  paintActiveHandle();
+}
+
+function paintActiveHandle(): void {
+  const zone = activeHandle ? polygons.value[activeHandle.zoneIndex] : undefined;
+  if (!zone?.points.length) {
+    activeHandle = null;
+  } else if (activeHandle && activeHandle.pointIndex >= zone.points.length) {
+    activeHandle = { zoneIndex: activeHandle.zoneIndex, pointIndex: zone.points.length - 1 };
+  }
+
+  draggablesRef.value?.forEach((el: HTMLElement) => {
+    const isActive = !!activeHandle && el.dataset.zoneIndex === String(activeHandle.zoneIndex) && el.dataset.pointIndex === String(activeHandle.pointIndex);
+    el.classList.toggle('active', isActive);
+    el.classList.toggle('show-delete', isActive);
+  });
 }
 
 function clearDraggies(): void {
@@ -1226,11 +1227,29 @@ function clearDraggies(): void {
 }
 
 function removeHandler(coord: CoordsPosition): void {
-  if (!polygons.value.length || !polygons.value[coord.zoneIndex] || polygons.value[coord.zoneIndex].points.length < 4) {
+  if (!polygons.value.length || !polygons.value[coord.zoneIndex]) {
     return;
   }
 
-  polygons.value[coord.zoneIndex].points.splice(coord.pointIndex, 1);
+  const zone = polygons.value[coord.zoneIndex];
+  zone.points.splice(coord.pointIndex, 1);
+
+  if (zone.points.length === 0) {
+    polygons.value.splice(coord.zoneIndex, 1);
+    activeHandle = null;
+
+    if (currentZone.value === coord.zoneIndex) {
+      currentZone.value = undefined;
+    } else if (currentZone.value !== undefined && currentZone.value > coord.zoneIndex) {
+      currentZone.value -= 1;
+    }
+
+    if (selectedZone.value >= coord.zoneIndex) {
+      selectedZone.value = Math.max(-1, selectedZone.value - 1);
+    }
+  } else if (activeHandle?.zoneIndex === coord.zoneIndex && activeHandle.pointIndex >= coord.pointIndex) {
+    activeHandle = { zoneIndex: coord.zoneIndex, pointIndex: Math.max(0, activeHandle.pointIndex - 1) };
+  }
 
   updateCoordinatesFromZones();
   nextTick(() => {
@@ -1257,6 +1276,13 @@ function makeDraggable(el: HTMLElement): void {
     grid: [0, 0],
   })
     .on('pointerDown', () => {
+      handleDragging = true;
+      if (el.dataset.zoneIndex && el.dataset.pointIndex) {
+        const zoneIndex = parseInt(el.dataset.zoneIndex);
+        selectZone(zoneIndex);
+        activeHandle = { zoneIndex, pointIndex: parseInt(el.dataset.pointIndex) };
+        paintActiveHandle();
+      }
       document.querySelectorAll(`[data-point="${el.dataset.zoneIndex}-${el.dataset.pointIndex}"]`)[0]?.classList.add('changing');
     })
     .on('dragMove', () => {
@@ -1275,6 +1301,9 @@ function makeDraggable(el: HTMLElement): void {
       });
     })
     .on('pointerUp', () => {
+      setTimeout(() => {
+        handleDragging = false;
+      }, 100);
       document.querySelectorAll('.point').forEach((point) => point.classList.remove('changing'));
     });
 
@@ -1406,6 +1435,13 @@ function lineSvgEditor(line: DetectionLine) {
 }
 
 async function onConfirm(): Promise<void | null> {
+  const incomplete = [...motionZones.value, ...objectZones.value, ...privacyZones.value, ...alertZones.value].filter((zone) => zone.points.length < 3);
+
+  if (incomplete.length) {
+    toast.add({ severity: 'error', detail: t('components.toast.zone_incomplete', { zones: incomplete.map((zone) => zone.name).join(', ') }), life: 5000 });
+    return null;
+  }
+
   try {
     await patchZoneConfig({
       cameraname: cameraName.value,
@@ -1610,9 +1646,6 @@ defineExpose({
     }
   }
 
-  .playground.customizing .handle {
-    pointer-events: none;
-  }
 }
 
 .handles {
@@ -1670,6 +1703,12 @@ defineExpose({
         0 0 0 2px rgba(0, 0, 0, 0.65);
       cursor: none;
       transition: box-shadow 0s;
+    }
+
+    &.active {
+      opacity: 1;
+      outline: 2px solid var(--primary-500);
+      outline-offset: 2px;
     }
 
     &.draggable {
