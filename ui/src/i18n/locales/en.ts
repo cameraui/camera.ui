@@ -299,6 +299,7 @@ export default {
       sensor_property_placeholder: 'Property',
       sensor_property_detected: 'Detected',
       sensor_property_detections: 'Detections',
+      sensor_property_staticDetections: 'Settled detections',
       sensor_property_blocked: 'Blocked',
       sensor_property_lastTriggered: 'Last triggered',
       sensor_property_labels: 'Labels',

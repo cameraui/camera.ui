@@ -300,6 +300,7 @@ export default {
       sensor_property_placeholder: 'Eigenschaft',
       sensor_property_detected: 'Erkannt',
       sensor_property_detections: 'Erkennungen',
+      sensor_property_staticDetections: 'Ruhende Erkennungen',
       sensor_property_blocked: 'Blockiert',
       sensor_property_lastTriggered: 'Zuletzt ausgelöst',
       sensor_property_labels: 'Labels',
