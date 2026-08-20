@@ -38,7 +38,7 @@
     </div>
 
     <div v-if="noEvents && !isLoading && !needsMoreEvents" class="absolute top-[50px] left-[50%] translate-x-[-50%] z-2 px-3 py-2 text-shadow-md">
-      <span class="text-sm text-color font-medium">{{ $t('components.camera_events.no_events') }}</span>
+      <span class="text-sm text-color font-medium">{{ eventsUnavailable ? $t('components.camera_events.events_unavailable') : $t('components.camera_events.no_events') }}</span>
     </div>
 
     <div v-if="!isAtStart && bleedOffsets.left > 0" class="absolute pointer-events-none z-1" :style="eventsStyle" />
@@ -121,7 +121,7 @@ const pageSize = computed(() => {
   return Math.ceil(w / EVENT_CARD_WIDTH) + 10;
 });
 
-const { segmentItems, isLoading, hasMore, loadMore, loadThumbnails } = useDetectionEvents({
+const { segmentItems, isLoading, hasMore, loadMore, loadThumbnails, pluginUnavailable: eventsUnavailable } = useDetectionEvents({
   availableCameraIds,
   realtime: true,
   pageSize: pageSize.value,

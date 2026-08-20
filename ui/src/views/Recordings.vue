@@ -126,7 +126,7 @@
 
           <div v-if="!displayEvents.length && !isLoading && !semanticSearching" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
             <i-mingcute:photo-album-fill class="w-12 h-12 text-muted" />
-            <span class="text-muted text-sm">{{ $t('views.recordings.no_recordings') }}</span>
+            <span class="text-muted text-sm">{{ eventsUnavailable ? $t('views.recordings.recordings_unavailable') : $t('views.recordings.no_recordings') }}</span>
           </div>
         </div>
       </div>
@@ -379,7 +379,7 @@ const allCameraIds = computed(() => {
 
 registerScrollToTop(() => gridRef.value?.scrollToTop());
 
-const { events, isLoading, hasMore, loadMore, loadThumbnails, deleteEvents } = useDetectionEvents({
+const { events, isLoading, hasMore, loadMore, loadThumbnails, deleteEvents, pluginUnavailable: eventsUnavailable } = useDetectionEvents({
   availableCameraIds: allCameraIds,
   cameraIds,
   realtime: true,

@@ -245,7 +245,7 @@
 
       <div v-if="!displayEvents.length && !isLoading" class="flex flex-col items-center justify-center py-10 gap-3">
         <i-tabler:video-off class="w-12 h-12 text-muted opacity-30" />
-        <p class="text-muted text-sm">{{ $t('views.recordings.no_recordings') }}</p>
+        <p class="text-muted text-sm">{{ eventsUnavailable ? $t('views.recordings.recordings_unavailable') : $t('views.recordings.no_recordings') }}</p>
       </div>
     </div>
   </div>
@@ -326,7 +326,7 @@ const serverFilter = computed<GetEventsOptions>(() => {
   };
 });
 
-const { events, isLoading, hasMore, loadMore, loadThumbnails } = useDetectionEvents({
+const { events, isLoading, hasMore, loadMore, loadThumbnails, pluginUnavailable: eventsUnavailable } = useDetectionEvents({
   availableCameraIds: cameraIds,
   cameraIds,
   realtime: true,
