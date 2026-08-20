@@ -412,6 +412,8 @@ export class PluginWorker {
     this.socketService.io.of('/status').emit('plugin-process-status', runtimeInfo);
     this.socketService.io.of('/plugins').emit(`plugin-status-${this.plugin.pluginName}`, runtimeInfo[this.plugin.pluginName]);
 
+    this.proxyServer.coreManager?.publishCoreManagerEvent('pluginStatusChanged', { pluginName: this.plugin.pluginName, running: this.isRunning() });
+
     const eventMap: Partial<Record<PLUGIN_STATUS, 'plugin:started' | 'plugin:stopped' | 'plugin:error'>> = {
       [PLUGIN_STATUS.STARTED]: 'plugin:started',
       [PLUGIN_STATUS.STOPPED]: 'plugin:stopped',

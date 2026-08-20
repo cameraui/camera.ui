@@ -6,9 +6,9 @@ import { RemoteService } from '../api/services/remote.service.js';
 import { ServerService } from '../api/services/server.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
-import type { PluginInfo, PluginInterface } from '@camera.ui/sdk';
+import type { PluginInterface } from '@camera.ui/sdk';
 import type { ProxyServer } from '../rpc/index.js';
-import type { CoreManagerInterface, CoreManagerProxyEvents, CoreManagerProxyGenericEvent } from '../rpc/interfaces/core.js';
+import type { CoreManagerInterface, CoreManagerProxyEvents, CoreManagerProxyGenericEvent, HostPluginInfo } from '../rpc/interfaces/core.js';
 import type { ConfigService } from '../services/config/index.js';
 
 @RPCClass
@@ -49,21 +49,24 @@ export class CoreManager implements CoreManagerInterface {
   }
 
   @RPCMethod
-  public async getPlugin(pluginName: string): Promise<PluginInfo | undefined> {
+  public async getPlugin(pluginName: string): Promise<HostPluginInfo | undefined> {
     const plugin = this.pluginService.getPluginByName(pluginName);
     if (plugin) {
       return {
         id: plugin.id,
         name: plugin.pluginName,
         contract: plugin.contract,
+        running: plugin.worker?.isRunning() === true,
       };
     }
   }
 
   @RPCMethod
-  public async getPluginsByInterface(interfaceName: PluginInterface): Promise<PluginInfo[]> {
+  public async getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]> {
     const allPlugins = this.pluginService.listPlugins();
-    return allPlugins.filter((p) => p.contract.interfaces?.includes(interfaceName) && !p.disabled).map((p) => ({ id: p.id, name: p.pluginName, contract: p.contract }));
+    return allPlugins
+      .filter((p) => p.contract.interfaces?.includes(interfaceName) && !p.disabled)
+      .map((p) => ({ id: p.id, name: p.pluginName, contract: p.contract, running: p.worker?.isRunning() === true }));
   }
 
   @RPCMethod
