@@ -190,6 +190,7 @@ import {
   runBackupSchedulerFn,
 } from '@/api/routes/backup.js';
 import { extractErrorMessage } from '@/common/utils.js';
+import { readThemeStorage } from '@/stores/theme.js';
 
 import type CuiUploadFiles from '@/components/CuiUploadFIles/CuiUploadFiles.vue';
 import type { DBBackupSchedulerLastRun, DBBackupSchedulerSettings, ScheduledBackupEntry, UiLocalStorage, UserLanguage } from '@shared/types';
@@ -242,19 +243,23 @@ async function downloadBackup(): Promise<void> {
   try {
     const uiLocalStorage: Partial<UiLocalStorage> = {};
 
-    if (localStorage.getItem('ui')) {
-      const ui = localStorage.getItem('ui');
-      uiLocalStorage.ui = JSON.parse(ui!);
+    // a value left over from an older release must not fail the whole download
+    const ui = localStorage.getItem('ui');
+    if (ui) {
+      try {
+        uiLocalStorage.ui = JSON.parse(ui);
+      } catch {
+        // unreadable, back up the rest
+      }
     }
 
-    if (localStorage.getItem('language')) {
-      const language = localStorage.getItem('language');
+    const language = localStorage.getItem('language');
+    if (language) {
       uiLocalStorage.language = language as UserLanguage;
     }
 
     if (localStorage.getItem('theme')) {
-      const theme = localStorage.getItem('theme');
-      uiLocalStorage.theme = JSON.parse(theme!);
+      uiLocalStorage.theme = readThemeStorage();
     }
 
     const timestamp = Date.now();

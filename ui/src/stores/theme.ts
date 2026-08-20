@@ -14,15 +14,24 @@ function readForcedTheme(): SupportedThemes | null {
   return value === 'dark' || value === 'light' ? value : null;
 }
 
-export const useThemeStore = defineStore('theme', () => {
-  const themeObj = localStorage.getItem('theme');
+export function readThemeStorage(): ThemeLocalStorage {
+  const fallback: ThemeLocalStorage = { theme: 'dark', autoMode: true };
+  const raw = localStorage.getItem('theme');
+  if (!raw) return fallback;
 
-  const localStorageObj: ThemeLocalStorage = themeObj
-    ? JSON.parse(themeObj)
-    : {
-        theme: 'dark',
-        autoMode: true,
-      };
+  if (raw === 'dark' || raw === 'light') return { theme: raw, autoMode: false };
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<ThemeLocalStorage>;
+    if (parsed?.theme !== 'dark' && parsed?.theme !== 'light') return fallback;
+    return { theme: parsed.theme, autoMode: parsed.autoMode !== false };
+  } catch {
+    return fallback;
+  }
+}
+
+export const useThemeStore = defineStore('theme', () => {
+  const localStorageObj: ThemeLocalStorage = readThemeStorage();
 
   const forced = readForcedTheme();
   if (forced) {
