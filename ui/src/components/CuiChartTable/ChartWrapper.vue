@@ -39,7 +39,7 @@ const { data: chartData, options: chartOptions, width, height } = toRefs(props);
 
 const barRef = useTemplateRef<{ chart: ChartJS<'bar'> | null }>('barRef');
 
-const dataset = computed(() => chartData.value.datasets?.[0].data ?? []);
+const dataset = computed(() => chartData.value.datasets?.[0]?.data ?? []);
 
 function enableTooltip() {
   const chart = barRef.value?.chart;
