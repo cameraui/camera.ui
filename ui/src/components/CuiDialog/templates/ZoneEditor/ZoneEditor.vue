@@ -258,7 +258,12 @@
               </div>
 
               <div class="flex flex-col field-gap w-full">
-                <label :for="`line[${selectedLine}].direction`" class="cui-label">{{ $t('components.zone_editor.line_direction') }}</label>
+                <label :for="`line[${selectedLine}].direction`" class="cui-label inline-flex items-center gap-1">
+                  {{ $t('components.zone_editor.line_direction') }}
+                  <span v-tooltip="{ value: $t('components.zone_editor.line_direction_info') }" class="inline-flex shrink-0">
+                    <i-mdi:information-outline class="w-3.5 h-3.5 text-muted-color" />
+                  </span>
+                </label>
                 <InputGroup>
                   <Select
                     :model-value="detectionLines[selectedLine]?.direction ?? 'both'"
@@ -386,7 +391,12 @@
               </div>
 
               <div v-if="activeTab === 'alert' && alertZones[selectedZone]?.faces" class="flex flex-col field-gap w-full">
-                <label :for="`zone[${selectedZone}].faces`" class="cui-label">{{ $t('components.zone_editor.alert_faces') }}</label>
+                <label :for="`zone[${selectedZone}].faces`" class="cui-label inline-flex items-center gap-1">
+                  {{ $t('components.zone_editor.alert_faces') }}
+                  <span v-tooltip="{ value: $t('components.zone_editor.alert_faces_info') }" class="inline-flex shrink-0">
+                    <i-mdi:information-outline class="w-3.5 h-3.5 text-muted-color" />
+                  </span>
+                </label>
                 <InputGroup>
                   <MultiSelect
                     :model-value="alertZones[selectedZone]?.faces ?? []"
@@ -407,11 +417,15 @@
                     "
                   />
                 </InputGroup>
-                <p class="cui-input-hint text-pretty">{{ $t('components.zone_editor.alert_faces_info') }}</p>
               </div>
 
               <div v-if="activeTab === 'alert' && alertZones[selectedZone]?.plates" class="flex flex-col field-gap w-full">
-                <label :for="`zone[${selectedZone}].plates`" class="cui-label">{{ $t('components.zone_editor.alert_plates') }}</label>
+                <label :for="`zone[${selectedZone}].plates`" class="cui-label inline-flex items-center gap-1">
+                  {{ $t('components.zone_editor.alert_plates') }}
+                  <span v-tooltip="{ value: $t('components.zone_editor.alert_plates_info') }" class="inline-flex shrink-0">
+                    <i-mdi:information-outline class="w-3.5 h-3.5 text-muted-color" />
+                  </span>
+                </label>
                 <InputGroup>
                   <AutoComplete
                     :model-value="alertZones[selectedZone]?.plates ?? []"
@@ -427,11 +441,15 @@
                     "
                   />
                 </InputGroup>
-                <p class="cui-input-hint text-pretty">{{ $t('components.zone_editor.alert_plates_info') }}</p>
               </div>
 
               <div v-if="activeTab === 'privacy'" class="flex flex-col field-gap w-full">
-                <label :for="`zone[${selectedZone}].dropDetections`" class="cui-label">{{ $t('components.zone_editor.privacy_drop') }}</label>
+                <label :for="`zone[${selectedZone}].dropDetections`" class="cui-label inline-flex items-center gap-1">
+                  {{ $t('components.zone_editor.privacy_drop') }}
+                  <span v-tooltip="{ value: $t('components.zone_editor.privacy_drop_info') }" class="inline-flex shrink-0">
+                    <i-mdi:information-outline class="w-3.5 h-3.5 text-muted-color" />
+                  </span>
+                </label>
                 <InputGroup>
                   <Select
                     :model-value="privacyZones[selectedZone]?.dropDetections ?? true"
@@ -462,7 +480,12 @@
               </div>
 
               <div v-if="activeTab === 'object' || activeTab === 'alert'" class="flex flex-col field-gap w-full">
-                <label :for="`zone[${selectedZone}].match`" class="cui-label">{{ $t('components.zone_editor.zone_match') }}</label>
+                <label :for="`zone[${selectedZone}].match`" class="cui-label inline-flex items-center gap-1">
+                  {{ $t('components.zone_editor.zone_match') }}
+                  <span v-tooltip="{ value: $t(`components.zone_editor.${activeTab}_match_info`) }" class="inline-flex shrink-0">
+                    <i-mdi:information-outline class="w-3.5 h-3.5 text-muted-color" />
+                  </span>
+                </label>
                 <InputGroup>
                   <Select
                     :model-value="activeTab === 'alert' ? (alertZones[selectedZone]?.match ?? 'contain') : (objectZones[selectedZone]?.type ?? 'intersect')"
@@ -1645,7 +1668,6 @@ defineExpose({
       }
     }
   }
-
 }
 
 .handles {
