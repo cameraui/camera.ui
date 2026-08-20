@@ -188,6 +188,7 @@
     "reactiveComputed": true,
     "reactiveOmit": true,
     "reactivePick": true,
+    "readThemeStorage": true,
     "readonly": true,
     "ref": true,
     "refAutoReset": true,
