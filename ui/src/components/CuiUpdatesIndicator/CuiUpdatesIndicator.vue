@@ -46,13 +46,13 @@ const text = computed(() => {
     return failedCount.value > 0 ? t('views.updates.indicator_failed', { count: failedCount.value }) : t('views.updates.indicator_done');
   }
   if (runActive.value && updatingItems.value[0]) {
-    return t('views.updates.indicator_running', { name: updatingItems.value[0].name, done: runDone.value + 1, total: runTotal.value });
+    return t('views.updates.indicator_running', { name: itemLabel(updatingItems.value[0]), done: runDone.value + 1, total: runTotal.value });
   }
   if (updatingItems.value.length > 1) {
     return t('views.updates.indicator_running_many', { count: updatingItems.value.length });
   }
   if (updatingItems.value[0]) {
-    return t('views.updates.run_updating', { name: updatingItems.value[0].name });
+    return t('views.updates.run_updating', { name: itemLabel(updatingItems.value[0]) });
   }
   return t('views.updates.indicator_preparing');
 });
@@ -71,6 +71,10 @@ function clearFinished(): void {
     finishedTimer = undefined;
   }
   finishedText.value = false;
+}
+
+function itemLabel(item: { name: string; displayName?: string }): string {
+  return item.displayName || item.name;
 }
 
 watch(

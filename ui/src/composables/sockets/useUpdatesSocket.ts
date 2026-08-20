@@ -4,7 +4,7 @@ import type { UpdatesItemKind, UpdatesItemStatus } from '@shared/types';
 export interface PublicUpdatesStatus {
   updating: boolean;
   runActive: boolean;
-  items: { kind: UpdatesItemKind; name: string; status: UpdatesItemStatus }[];
+  items: { kind: UpdatesItemKind; name: string; displayName?: string; status: UpdatesItemStatus }[];
 }
 
 const state = reactive<{ status: PublicUpdatesStatus | null }>({ status: null });

@@ -24,6 +24,7 @@ export interface UpdatesActivityItem {
   id: string;
   kind: UpdatesItemKind;
   name: string;
+  displayName?: string;
   status: UpdatesItemStatus;
   source: 'run' | 'manual';
   installedVersion?: string;
@@ -141,7 +142,7 @@ export class UpdatesService {
   }
 
   public notifyPluginManage(pluginName: string, phase: 'start' | 'success' | 'error', detail?: { version?: string; error?: string; source?: 'run' | 'manual' }): void {
-    this.notifyActivity('plugin', `plugin:${pluginName}`, pluginName, phase, detail);
+    this.notifyActivity('plugin', `plugin:${pluginName}`, pluginName, phase, detail, this.pluginDisplayName(pluginName));
   }
 
   public notifyServerInstall(phase: 'start' | 'success' | 'error', detail?: { version?: string; error?: string; source?: 'run' | 'manual' }): void {
@@ -276,6 +277,7 @@ export class UpdatesService {
           id: `plugin:${plugin.pluginName}`,
           kind: 'plugin',
           name: plugin.pluginName,
+          displayName: plugin.displayName,
           status: 'pending',
           source: 'run',
           installedVersion: plugin.installedVersion,
@@ -429,6 +431,7 @@ export class UpdatesService {
     name: string,
     phase: 'start' | 'success' | 'error' | 'restarting',
     detail?: { version?: string; error?: string; source?: 'run' | 'manual' },
+    displayName?: string,
   ): void {
     // run items are driven by the orchestrator itself
     if (detail?.source === 'run' || this.runItem(id)) {
@@ -442,9 +445,9 @@ export class UpdatesService {
     }
 
     if (phase === 'start') {
-      this.manual.set(id, { id, kind, name, status: 'updating', source: 'manual', targetVersion: detail?.version });
+      this.manual.set(id, { id, kind, name, displayName, status: 'updating', source: 'manual', targetVersion: detail?.version });
     } else {
-      const item = this.manual.get(id) ?? { id, kind, name, status: 'updating', source: 'manual' as const };
+      const item = this.manual.get(id) ?? { id, kind, name, displayName, status: 'updating', source: 'manual' as const };
       item.status = phase === 'restarting' ? 'restarting' : phase;
       item.error = detail?.error;
       this.manual.set(id, item);
@@ -504,10 +507,14 @@ export class UpdatesService {
     const socketService = this.socketService();
     if (!socketService) return;
 
-    const items: { kind: UpdatesItemKind; name: string; status: UpdatesItemStatus }[] = [
-      ...(this.run?.active ? this.run.items : (this.lastRun?.items ?? [])).map((item) => ({ kind: item.kind, name: item.name, status: item.status })),
-      ...[...this.manual.values()].map((item) => ({ kind: item.kind, name: item.name, status: item.status })),
-    ];
+    const publicItem = (item: UpdatesActivityItem): { kind: UpdatesItemKind; name: string; displayName?: string; status: UpdatesItemStatus } => ({
+      kind: item.kind,
+      name: item.name,
+      displayName: item.displayName,
+      status: item.status,
+    });
+
+    const items = [...(this.run?.active ? this.run.items : (this.lastRun?.items ?? [])).map(publicItem), ...[...this.manual.values()].map(publicItem)];
 
     const updating = items.some((item) => item.status === 'updating' || item.status === 'restarting');
 
@@ -516,6 +523,15 @@ export class UpdatesService {
       runActive: this.run?.active === true,
       items,
     });
+  }
+
+  private pluginDisplayName(pluginName: string): string | undefined {
+    try {
+      return new PluginsService().listPlugins().find((plugin) => plugin.info.pluginName === pluginName)?.info.displayName;
+    } catch {
+      // a plugin being installed for the first time is not in the registry yet
+      return undefined;
+    }
   }
 
   private async refreshUpdateStates(): Promise<void> {
