@@ -30,9 +30,6 @@ function resolveHqSourceUrl(sources?: CoordinatorSourceUrl[]): string | undefine
 
   const order: CoordinatorSourceUrl['role'][] = ['high-resolution', 'mid-resolution', 'low-resolution'];
   const byRole = new Map(sources.map((s) => [s.role, s]));
-
-  // detection consumes the lowest role, the HQ companion is only worth a
-  // session when a strictly higher-resolution role exists
   const detectionRole = [...order].reverse().find((role) => byRole.has(role));
   const hqRole = order.find((role) => byRole.has(role));
   if (!detectionRole || !hqRole || hqRole === detectionRole) return undefined;

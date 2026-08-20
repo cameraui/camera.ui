@@ -741,6 +741,19 @@ export class DetectionCoordinator {
     return w / h;
   }
 
+  private get mainStreamAvailable(): boolean {
+    if (!this.thumbnailer.hasMainStream) return false;
+    return this.mainStreamWanted;
+  }
+
+  private get mainStreamWanted(): boolean {
+    return this.config.frameWorkerSettings.mainStreamAnalysis === true || hardwareDecodingAvailable(this.config.frameWorkerSettings.decoder, this.logger);
+  }
+
+  private get mainStreamSourceWanted(): boolean {
+    return this.mainStreamWanted && (this.config.streamHot === true || this.loopRunning);
+  }
+
   private externalObjectSpanActive(): boolean {
     // the registry holds frame-based providers only; a smart-camera object
     // sensor (Reolink AI, ONVIF) lives in the feeding set, and its dwell is
@@ -1324,19 +1337,6 @@ export class DetectionCoordinator {
     await this.frameSource.detach();
     this.frameScaler.clearCache();
     this.logger.debug('Detection loop ended');
-  }
-
-  private get mainStreamAvailable(): boolean {
-    if (!this.thumbnailer.hasMainStream) return false;
-    return this.mainStreamWanted;
-  }
-
-  private get mainStreamWanted(): boolean {
-    return this.config.frameWorkerSettings.mainStreamAnalysis === true || hardwareDecodingAvailable(this.config.frameWorkerSettings.decoder, this.logger);
-  }
-
-  private get mainStreamSourceWanted(): boolean {
-    return this.mainStreamWanted && (this.config.streamHot === true || this.loopRunning);
   }
 
   private async acquireAnalysisFrame(lowFrame: Frame): Promise<AnalysisFrame> {

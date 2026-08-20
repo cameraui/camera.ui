@@ -29,7 +29,6 @@ export class AudioSource {
 
   private shouldRun = false;
 
-  // single-slot mailbox with monotonic id
   private latest?: AudioFrameSnap;
   private nextId = 0;
   private waiter?: Waiter;
