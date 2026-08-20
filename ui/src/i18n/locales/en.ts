@@ -532,6 +532,7 @@ export default {
     },
     camera_events: {
       no_events: 'No recent events',
+      events_unavailable: 'Events unavailable, the NVR plugin is not running',
       title: 'Recent Events',
     },
     camera_options: {
@@ -2215,6 +2216,7 @@ export default {
       search: 'Search plugins...',
       search_plugins: 'Search plugins',
       update_all: 'Update all ({count})',
+      updates_run_active: 'An update run is in progress. Plugins are stopped until it finishes and start again on their own.',
       update_all_hint: 'Update every plugin with a newer version, one after another',
       update_all_done: '{count} plugins updated',
       update_all_failed: '{count} updates failed',
@@ -2418,6 +2420,7 @@ export default {
       date: 'Date',
       download: 'Download recording',
       no_recordings: 'No recordings found',
+      recordings_unavailable: 'Recordings are unavailable, the NVR plugin is not running.',
       select: 'Select events',
       delete_selected_confirm: 'Delete {count} selected event(s)? Recorded video stays on disk until the normal cleanup removes it.',
       delete_selected_done: '{count} event(s) deleted',

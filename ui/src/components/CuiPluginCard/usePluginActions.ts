@@ -32,6 +32,7 @@ export function usePluginActions(plugin: Ref<CameraUiPlugin>) {
 
   const pluginsSocket = usePluginsSocket(plugin.value.pluginName);
   const { isUpdating: isPluginUpdating, runOf, startUpdate } = usePluginUpdates();
+  const updatesSocket = useUpdatesSocket();
 
   const { data: pluginUpdate } = pluginsQuery.getPluginUpdateQuery(plugin.value.pluginName);
   const { mutateAsync: installPlugin } = pluginsQuery.installPluginQuery();
@@ -43,6 +44,8 @@ export function usePluginActions(plugin: Ref<CameraUiPlugin>) {
 
   const state = ref(!plugin.value.disabled);
 
+  const updatesRunActive = computed(() => updatesSocket.status.value?.runActive === true);
+
   const queued = computed(() => pluginsSocket.manageEntry.value?.status === 'queued');
 
   const updating = computed(() => {
@@ -53,6 +56,7 @@ export function usePluginActions(plugin: Ref<CameraUiPlugin>) {
 
   const isLoading = computed(
     () =>
+      updatesRunActive.value ||
       enableLoading.value ||
       disableLoading.value ||
       restartLoading.value ||

@@ -4,6 +4,10 @@
       {{ $t(`views.${String($route.name).toLowerCase()}.title`) }}
     </h1>
 
+    <Message v-if="updatesRunActive" severity="warn" class="mb-4" :closable="false">
+      {{ t('views.plugins.updates_run_active') }}
+    </Message>
+
     <CuiTopbarSlot position="left">
       <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
         <template #icon>
@@ -32,6 +36,7 @@
           v-tooltip.left="{ value: t('views.plugins.update_all_hint') }"
           class="cui-button shrink-0 whitespace-nowrap"
           :loading="updateAllRunning"
+          :disabled="updatesRunActive"
           :label="smBreakpoint ? String(updatablePlugins.length) : t('views.plugins.update_all', { count: updatablePlugins.length })"
           @click="handleUpdateAll"
         >
@@ -192,7 +197,7 @@
         <CuiFloatingButton
           grouped
           :tooltip-props="{ value: t('views.plugins.update_selected') }"
-          :button-props="{ severity: 'secondary', disabled: !selectedWithUpdates.length || bulkBusy }"
+          :button-props="{ severity: 'secondary', disabled: !selectedWithUpdates.length || bulkBusy || updatesRunActive }"
           :icon="UpdateIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="bulkUpdateSelected"
@@ -200,7 +205,7 @@
         <CuiFloatingButton
           grouped
           :tooltip-props="{ value: t('views.plugins.enable_selected') }"
-          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="PlayIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="bulkEnableSelected"
@@ -208,7 +213,7 @@
         <CuiFloatingButton
           grouped
           :tooltip-props="{ value: t('views.plugins.disable_selected') }"
-          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
+          :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="StopIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="bulkDisableSelected"
@@ -216,7 +221,7 @@
         <CuiFloatingButton
           grouped
           :tooltip-props="{ value: t('views.plugins.uninstall_selected') }"
-          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
+          :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="TrashIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="bulkUninstallSelected"
@@ -256,6 +261,7 @@ const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 const { startUpdate } = usePluginUpdates();
+const updatesSocket = useUpdatesSocket();
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
@@ -274,6 +280,8 @@ const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterS
   () => filteredPlugins.value,
   (plugin) => plugin.pluginName,
 );
+
+const updatesRunActive = computed(() => updatesSocket.status.value?.runActive === true);
 
 const menuItems = computed(() => [
   {

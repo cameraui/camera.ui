@@ -535,6 +535,7 @@ export default {
     },
     camera_events: {
       no_events: 'Keine aktuellen Ereignisse',
+      events_unavailable: 'Ereignisse nicht verfügbar, das NVR-Plugin läuft nicht',
       title: 'Letzte Ereignisse',
     },
     camera_options: {
@@ -2231,6 +2232,7 @@ export default {
       search: 'Plugins suchen...',
       search_plugins: 'Plugins suchen',
       update_all: 'Alle aktualisieren ({count})',
+      updates_run_active: 'Ein Update-Lauf läuft. Plugins bleiben bis zum Ende gestoppt und starten danach von selbst.',
       update_all_hint: 'Aktualisiert alle Plugins mit neuerer Version, eines nach dem anderen',
       update_all_done: '{count} Plugins aktualisiert',
       update_all_failed: '{count} Updates fehlgeschlagen',
@@ -2434,6 +2436,7 @@ export default {
       date: 'Datum',
       download: 'Aufnahme herunterladen',
       no_recordings: 'Keine Aufnahmen gefunden',
+      recordings_unavailable: 'Aufnahmen nicht verfügbar, das NVR-Plugin läuft nicht.',
       select: 'Ereignisse auswählen',
       delete_selected_confirm: '{count} ausgewählte(s) Ereignis(se) löschen? Aufgenommenes Video bleibt bis zur normalen Bereinigung auf der Festplatte.',
       delete_selected_done: '{count} Ereignis(se) gelöscht',
