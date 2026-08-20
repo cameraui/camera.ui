@@ -18,3 +18,17 @@ export function createHardwareContext(decoder: FrameWorkerDecoderSettings | unde
 
   return HardwareContext.auto();
 }
+
+let probe: { key: string; available: boolean } | undefined;
+
+export function hardwareDecodingAvailable(decoder: FrameWorkerDecoderSettings | undefined, logger: Logger): boolean {
+  const key = `${decoder?.hardware ?? 'auto'}|${decoder?.device?.trim() ?? ''}`;
+  if (probe?.key === key) return probe.available;
+
+  const context = createHardwareContext(decoder, logger);
+  const available = context !== null;
+  context?.[Symbol.dispose]();
+
+  probe = { key, available };
+  return available;
+}

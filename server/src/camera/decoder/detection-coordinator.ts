@@ -15,6 +15,7 @@ import { DwellManager } from './dwell-manager.js';
 import { DetectionEventManager, MOMENT_RANK_ATTRIBUTE, MOMENT_RANK_OBJECT } from './event-manager.js';
 import { EventThumbnailer } from './event-thumbnailer.js';
 import { FrameScaler } from './frame-scaler.js';
+import { hardwareDecodingAvailable } from './hardware.js';
 import { directionBetween, directionOf, MOMENT_FORMATS, MOMENT_QUALITY, momentWindow, unionBox } from './moment-crop.js';
 import { MotionLocalizer } from './motion-localizer.js';
 import { PerfTracker } from './perf-tracker.js';
@@ -251,7 +252,7 @@ export class DetectionCoordinator {
       },
       config.availableSources,
     );
-    this.thumbnailer.sync(this.mainStreamAnalysisWanted);
+    this.thumbnailer.sync(this.mainStreamSourceWanted);
 
     // debugging
     detectionRecord.sources({
@@ -441,7 +442,7 @@ export class DetectionCoordinator {
 
   public updateFrameWorkerSettings(settings: CameraFrameWorkerSettings): void {
     this.config.frameWorkerSettings = settings;
-    this.thumbnailer.sync(this.mainStreamAnalysisWanted);
+    this.thumbnailer.sync(this.mainStreamSourceWanted);
   }
 
   public updateNvrRpc(namespace?: string): void {
@@ -1182,6 +1183,7 @@ export class DetectionCoordinator {
 
     this.logger.debug('Starting video detection loop');
     this.loopRunning = true;
+    this.thumbnailer.sync(this.mainStreamSourceWanted);
     this.loopPromise = this.runDetectionLoop();
   }
 
@@ -1196,6 +1198,7 @@ export class DetectionCoordinator {
     this.worldSpans.clear();
     this.mainStreamActive = false;
     this.idleSince = 0;
+    this.thumbnailer.sync(this.mainStreamSourceWanted);
 
     const doStop = async () => {
       await this.frameSource.detach();
@@ -1268,7 +1271,7 @@ export class DetectionCoordinator {
           // a fresh connection brings its own hardware context and resolution
           this.frameScaler.updateHardwareContext(this.frameSource.hardwareContext);
           this.frameScaler.clearCache();
-          this.thumbnailer.sync(this.mainStreamAnalysisWanted);
+          this.thumbnailer.sync(this.mainStreamSourceWanted);
           this.localizer.reset();
           this.detectionWindow.reset();
         }
@@ -1325,11 +1328,15 @@ export class DetectionCoordinator {
 
   private get mainStreamAvailable(): boolean {
     if (!this.thumbnailer.hasMainStream) return false;
-    return this.mainStreamAnalysisWanted;
+    return this.mainStreamWanted;
   }
 
-  private get mainStreamAnalysisWanted(): boolean {
-    return this.config.frameWorkerSettings.mainStreamAnalysis === true || this.frameSource.hardwareContext !== null;
+  private get mainStreamWanted(): boolean {
+    return this.config.frameWorkerSettings.mainStreamAnalysis === true || hardwareDecodingAvailable(this.config.frameWorkerSettings.decoder, this.logger);
+  }
+
+  private get mainStreamSourceWanted(): boolean {
+    return this.mainStreamWanted && (this.config.streamHot === true || this.loopRunning);
   }
 
   private async acquireAnalysisFrame(lowFrame: Frame): Promise<AnalysisFrame> {
