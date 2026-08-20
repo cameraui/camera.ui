@@ -135,7 +135,7 @@
     <div
       v-if="isAdmin && availableCameras.length"
       class="fixed z-10"
-      :class="(gridRef?.scrollY ?? 0) > 10 && !reindexStatus?.running ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
+      :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
       :style="{
         left: `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem + env(safe-area-inset-left, 0px))`,
         bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))`,
@@ -340,6 +340,11 @@ const sidebarOpen = computed(() => {
 });
 
 const sidebarIsOverlay = computed(() => mdBreakpoint.value);
+
+const reindexHidden = computed(() => {
+  if (sidebarOpen.value && sidebarIsOverlay.value) return true;
+  return (gridRef.value?.scrollY ?? 0) > 10 && !reindexStatus.value?.running;
+});
 
 const mainPaddingLeft = computed(() => {
   if (mdBreakpoint.value) return '0px';
