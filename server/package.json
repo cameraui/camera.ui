@@ -69,7 +69,7 @@
     "lmdb": "^3.5.6",
     "mqtt": "^5.15.2",
     "msgpackr": "^2.0.5",
-    "node-av": "^6.2.0-beta.18",
+    "node-av": "^6.2.0-beta.19",
     "node-forge": "^1.4.0",
     "npm-registry-fetch": "^20.0.1",
     "otplib": "^13.4.1",
