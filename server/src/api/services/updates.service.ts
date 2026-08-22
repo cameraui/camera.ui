@@ -538,8 +538,10 @@ export class UpdatesService {
     const serverNsp = this.serverNamespace();
     if (!serverNsp) return;
     try {
-      await serverNsp.checkPlugins();
-      await serverNsp.checkServer();
+      // force the push: after a run the clients must see the fresh state even
+      // when the pending count happens to land on the same number
+      await serverNsp.checkPlugins(true);
+      await serverNsp.checkServer(true);
       serverNsp.refreshWorkerUpdateAvailable();
     } catch {
       // best-effort

@@ -303,15 +303,16 @@ export class PluginsService {
           break;
       }
     } finally {
-      // restart:false leaves the plugin stopped, a following server restart starts it
-      if (wasRunning && action !== 'uninstall' && opts.restart !== false && (await pathExists(targetDir))) {
+      if (action !== 'uninstall' && (await pathExists(targetDir))) {
         await this.getPluginByName(pluginName)
           ?.reparsePackageJson()
           .catch(() => {});
 
-        log.step('Starting plugin');
-        await this.pluginManager.startPluginChild(pluginName);
-        log.done();
+        if (wasRunning && opts.restart !== false) {
+          log.step('Starting plugin');
+          await this.pluginManager.startPluginChild(pluginName);
+          log.done();
+        }
       }
     }
 
