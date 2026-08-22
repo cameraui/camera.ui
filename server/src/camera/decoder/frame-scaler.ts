@@ -224,8 +224,8 @@ export class FrameScaler {
       return await this.encodeJpeg(frame, { crop, resize: { width, height }, quality });
     } catch (error) {
       this.logger?.debug(
-        `Moment crop failed: ${error} (frame=${frame.width}x${frame.height} pts=${frame.pts} hw=${frame.isHwFrame()} ` +
-        `crop=${crop.x},${crop.y},${crop.width}x${crop.height} out=${width}x${height})`,
+        // eslint-disable-next-line @stylistic/max-len
+        `Moment crop failed: ${error} (frame=${frame.width}x${frame.height} pts=${frame.pts} hw=${frame.isHwFrame()} crop=${crop.x},${crop.y},${crop.width}x${crop.height} out=${width}x${height})`,
       );
       return null;
     }

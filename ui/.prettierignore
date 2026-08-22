@@ -1,2 +1,14 @@
+coverage/
+dist/
+demo/
+__snapshots__/
+media/
+package-lock.json
+*.md
+interface/
+node_modules/
+bundle/
+build/
+externals/
 auto-imports.d.ts
 components.d.ts

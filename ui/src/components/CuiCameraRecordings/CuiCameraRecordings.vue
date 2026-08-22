@@ -326,7 +326,14 @@ const serverFilter = computed<GetEventsOptions>(() => {
   };
 });
 
-const { events, isLoading, hasMore, loadMore, loadThumbnails, pluginUnavailable: eventsUnavailable } = useDetectionEvents({
+const {
+  events,
+  isLoading,
+  hasMore,
+  loadMore,
+  loadThumbnails,
+  pluginUnavailable: eventsUnavailable,
+} = useDetectionEvents({
   availableCameraIds: cameraIds,
   cameraIds,
   realtime: true,
