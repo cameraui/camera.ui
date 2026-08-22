@@ -1,10 +1,12 @@
 export type * from '../../server/src/api/database/types.js';
 export * from '../../server/src/api/schemas/auth.schema.js';
 export * from '../../server/src/api/schemas/cameras.schema.js';
+export * from '../../server/src/api/schemas/floorplan.schema.js';
 export * from '../../server/src/api/schemas/instances.schema.js';
 export * from '../../server/src/api/schemas/mqtt.schema.js';
 export * from '../../server/src/api/schemas/plugins.schema.js';
 export * from '../../server/src/api/schemas/remote.schema.js';
+export * from '../../server/src/api/schemas/rooms.schema.js';
 export * from '../../server/src/api/schemas/sensors.schema.js';
 export * from '../../server/src/api/schemas/server.schema.js';
 export * from '../../server/src/api/schemas/storage.schema.js';

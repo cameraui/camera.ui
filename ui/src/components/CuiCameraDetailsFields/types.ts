@@ -4,6 +4,7 @@ export interface CameraDetailsForm {
   name: string;
   type: CameraType;
   room: string;
+  roomId: string | null;
   info: CameraInformation;
 }
 

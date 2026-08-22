@@ -130,6 +130,7 @@ declare global {
   const refWithControl: typeof import('@vueuse/core').refWithControl
   const resetCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').resetCamerasSocket
   const resetCuiBus: typeof import('../composables/useCuiAppBus').resetCuiBus
+  const resetFloorplanSocket: typeof import('../composables/sockets/useFloorplanSocket').resetFloorplanSocket
   const resetMetricsSocket: typeof import('../composables/sockets/useMetricsSocket').resetMetricsSocket
   const resetNotificationsSocket: typeof import('../composables/sockets/useNotificationsSocket').resetNotificationsSocket
   const resetPluginsSocket: typeof import('../composables/sockets/usePluginsSocket').resetPluginsSocket
@@ -267,6 +268,7 @@ declare global {
   const useFileDialog: typeof import('@vueuse/core').useFileDialog
   const useFileDownload: typeof import('../composables/useFileDownload').useFileDownload
   const useFileSystemAccess: typeof import('@vueuse/core').useFileSystemAccess
+  const useFloorplanSocket: typeof import('../composables/sockets/useFloorplanSocket').useFloorplanSocket
   const useFocus: typeof import('@vueuse/core').useFocus
   const useFocusWithin: typeof import('@vueuse/core').useFocusWithin
   const useFps: typeof import('@vueuse/core').useFps
@@ -659,6 +661,7 @@ declare module 'vue' {
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly resetCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['resetCamerasSocket']>
     readonly resetCuiBus: UnwrapRef<typeof import('../composables/useCuiAppBus')['resetCuiBus']>
+    readonly resetFloorplanSocket: UnwrapRef<typeof import('../composables/sockets/useFloorplanSocket')['resetFloorplanSocket']>
     readonly resetMetricsSocket: UnwrapRef<typeof import('../composables/sockets/useMetricsSocket')['resetMetricsSocket']>
     readonly resetNotificationsSocket: UnwrapRef<typeof import('../composables/sockets/useNotificationsSocket')['resetNotificationsSocket']>
     readonly resetPluginsSocket: UnwrapRef<typeof import('../composables/sockets/usePluginsSocket')['resetPluginsSocket']>
@@ -796,6 +799,7 @@ declare module 'vue' {
     readonly useFileDialog: UnwrapRef<typeof import('@vueuse/core')['useFileDialog']>
     readonly useFileDownload: UnwrapRef<typeof import('../composables/useFileDownload')['useFileDownload']>
     readonly useFileSystemAccess: UnwrapRef<typeof import('@vueuse/core')['useFileSystemAccess']>
+    readonly useFloorplanSocket: UnwrapRef<typeof import('../composables/sockets/useFloorplanSocket')['useFloorplanSocket']>
     readonly useFocus: UnwrapRef<typeof import('@vueuse/core')['useFocus']>
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
     readonly useFps: UnwrapRef<typeof import('@vueuse/core')['useFps']>

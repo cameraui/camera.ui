@@ -150,6 +150,82 @@ export const dbRemoteSchema = zod.object({
     .default({ mode: 'quick', hostname: null, token: null, tunnelId: null }),
 });
 
+export const dbRoomCatalogSchema = zod.object({
+  version: zod.number().default(0),
+  updatedAt: zod.number().default(0),
+  levels: zod
+    .object({ id: zod.string(), name: zod.string(), order: zod.number().default(0) })
+    .array()
+    .default([]),
+  rooms: zod
+    .object({
+      id: zod.string(),
+      name: zod.string(),
+      levelId: zod.string().nullable().default(null),
+      outdoor: zod.boolean().default(false),
+      publicSpace: zod.boolean().default(false),
+      note: zod.string().default(''),
+    })
+    .array()
+    .default([]),
+});
+
+export const dbFloorPlanSchema = zod.object({
+  version: zod.number().default(0),
+  updatedAt: zod.number().default(0),
+  north: zod.number().nullable().default(null),
+  rooms: zod
+    .object({
+      id: zod.string(),
+      roomId: zod.string(),
+      x: zod.number(),
+      y: zod.number(),
+      width: zod.number(),
+      height: zod.number(),
+    })
+    .array()
+    .default([]),
+  connections: zod
+    .object({
+      id: zod.string(),
+      fromRoomId: zod.string(),
+      toRoomId: zod.string(),
+      fromShapeId: zod.string().nullable().default(null),
+      toShapeId: zod.string().nullable().default(null),
+      offset: zod.number().nullable().default(null),
+      width: zod.number().default(90),
+      note: zod.string().default(''),
+      type: zod.enum(['door', 'opening', 'stairs']).default('door'),
+    })
+    .array()
+    .default([]),
+  cameras: zod
+    .object({
+      cameraId: zod.string(),
+      roomId: zod.string(),
+      note: zod.string().default(''),
+      x: zod.number(),
+      y: zod.number(),
+      rotation: zod.number(),
+      fov: zod.number(),
+      range: zod.number(),
+    })
+    .array()
+    .default([]),
+  sensors: zod
+    .object({
+      sensorId: zod.string(),
+      sensorType: zod.string(),
+      roomId: zod.string(),
+      connectionId: zod.string().nullable().default(null),
+      note: zod.string().default(''),
+      x: zod.number(),
+      y: zod.number(),
+    })
+    .array()
+    .default([]),
+});
+
 export const dbMqttSchema = zod.object({
   enabled: zod.boolean().default(false),
   mode: zod.enum(['external', 'embedded']).default('external'),

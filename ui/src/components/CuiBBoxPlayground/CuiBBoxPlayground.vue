@@ -66,16 +66,11 @@
 </template>
 
 <script setup lang="ts">
-import PersonIcon from '~icons/bi/person-fill';
-import AnimalIcon from '~icons/fluent/animal-paw-print-24-filled';
-import VehicleIcon from '~icons/fluent/vehicle-car-16-filled';
-import MotionIcon from '~icons/healthicons/running-24px';
-import BoxesIcon from '~icons/lucide/boxes';
-import LicensePlateIcon from '~icons/mdi/card-text-outline';
-import FaceIcon from '~icons/mdi/face-recognition';
-import ClassifierIcon from '~icons/mdi/tag-multiple';
 import TimerIcon from '~icons/mdi/timer-outline';
 
+import { detectionStyle } from '@/common/detectionLabels.js';
+
+import type { DetectionStyle } from '@/common/detectionLabels.js';
 import type { ClassifierDetection, FaceDetection, LicensePlateDetection, TrackedDetection } from '@camera.ui/sdk';
 import type { AnyDetection, CuiBBoxPlaygroundProps } from './types.js';
 
@@ -94,67 +89,9 @@ const props = withDefaults(defineProps<CuiBBoxPlaygroundProps>(), {
 
 const { detections, classes } = toRefs(props);
 
-const typeStyles: Record<string, { color: string; icon: any }> = {
-  motion: {
-    color: '#A855F7',
-    icon: MotionIcon,
-  },
-  animal: {
-    color: '#22C55E',
-    icon: AnimalIcon,
-  },
-  person: {
-    color: '#3B82F6',
-    icon: PersonIcon,
-  },
-  vehicle: {
-    color: '#EF4444',
-    icon: VehicleIcon,
-  },
-  face: {
-    color: '#F59E0B',
-    icon: FaceIcon,
-  },
-  license_plate: {
-    color: '#06B6D4',
-    icon: LicensePlateIcon,
-  },
-  classifier: {
-    color: '#8B5CF6',
-    icon: ClassifierIcon,
-  },
-  other: {
-    color: '#CAC443',
-    icon: BoxesIcon,
-  },
-};
+const typeStyles = new Proxy({} as Record<string, DetectionStyle>, { get: (_target, label: string) => detectionStyle(label) });
 
-const highlightStyles: Record<string, { color: string }> = {
-  motion: {
-    color: 'rgba(168, 85, 247, 0.1)',
-  },
-  animal: {
-    color: 'rgba(34, 197, 94, 0.1)',
-  },
-  person: {
-    color: 'rgba(59, 130, 246, 0.1)',
-  },
-  vehicle: {
-    color: 'rgba(239, 68, 68, 0.1)',
-  },
-  face: {
-    color: 'rgba(245, 158, 11, 0.1)',
-  },
-  license_plate: {
-    color: 'rgba(6, 182, 212, 0.1)',
-  },
-  classifier: {
-    color: 'rgba(139, 92, 246, 0.1)',
-  },
-  other: {
-    color: 'rgba(202, 196, 67, 0.1)',
-  },
-};
+const highlightStyles = new Proxy({} as Record<string, { color: string }>, { get: (_target, label: string) => ({ color: detectionStyle(label).highlight }) });
 
 const sources = new Map<string, AnyDetection[]>();
 
@@ -173,7 +110,6 @@ const labelScaleFactor = computed(() => {
   return 1;
 });
 
-// Box coordinates are relative (0-1), so we just multiply by container dimensions.
 const getScaledX = computed(() => (x: number): number => {
   if (!containerWidth.value) return 0;
   return Math.round(x * containerWidth.value);

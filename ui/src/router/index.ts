@@ -14,6 +14,7 @@ import TerminalIcon from '~icons/icon-park-outline/terminal';
 import WorkersIconActive from '~icons/icon-park-solid/circular-connection';
 import LogsIconActive from '~icons/icon-park-solid/log';
 import TerminalIconActive from '~icons/icon-park-solid/terminal';
+import FloorplanIcon from '~icons/lucide-lab/floor-plan';
 import AutomationsIconActive from '~icons/material-symbols/automation';
 import AutomationsIcon from '~icons/material-symbols/automation-outline';
 import SettingsRemoteIconActive from '~icons/material-symbols/cloud';
@@ -65,6 +66,7 @@ const Sensors = () => import('@/views/Sensors.vue');
 const Camera = () => import('@/views/Camera.vue');
 const Camview = () => import('@/views/Camview.vue');
 const Recordings = () => import('@/views/Recordings.vue');
+const Floorplan = () => import('@/views/Floorplan.vue');
 const Faces = () => import('@/views/Faces.vue');
 const Plugins = () => import('@/views/Plugins.vue');
 const Plugin = () => import('@/views/Plugin.vue');
@@ -338,6 +340,44 @@ export const routes: RouteRecordRaw[] = [
         icon: {
           default: RecordingsIcon,
           active: RecordingsIconActive,
+        },
+      },
+    },
+  },
+  {
+    name: 'Floorplan',
+    path: '/floorplan',
+    component: Floorplan,
+    meta: {
+      name: 'floorplan',
+      auth: {
+        requiresAuth: true,
+        role: 'user',
+      },
+      ui: {
+        containerSettings: {
+          showTitle: false,
+          padding: false,
+          paddingBottom: false,
+          disableScroll: true,
+        },
+        showNavbar: true,
+        showTopbar: true,
+        showBottombar: true,
+        showRouterLoading: true,
+      },
+      navbar: {
+        position: 'bottom',
+        group: 'manage',
+        icon: {
+          default: FloorplanIcon,
+          active: FloorplanIcon,
+        },
+      },
+      menu: {
+        icon: {
+          default: FloorplanIcon,
+          active: FloorplanIcon,
         },
       },
     },

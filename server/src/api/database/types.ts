@@ -8,6 +8,7 @@ import type { NavLayoutSettings } from '../types/index.js';
 export interface DBCamera extends BaseCamera {
   sources: CameraInputSettings[];
   workerAgentId?: string;
+  roomId: string | null;
 }
 
 export interface DBPlugin {
@@ -114,6 +115,82 @@ export interface DBRemote {
 
 export type DBMqttProtocol = 'mqtt' | 'mqtts';
 export type DBMqttMode = 'external' | 'embedded';
+
+export interface DBLevel {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface DBRoom {
+  id: string;
+  name: string;
+  levelId: string | null;
+  outdoor: boolean;
+  publicSpace: boolean;
+  note: string;
+}
+
+export interface DBRoomCatalog {
+  version: number;
+  updatedAt: number;
+  levels: DBLevel[];
+  rooms: DBRoom[];
+}
+
+export interface DBFloorPlanRoom {
+  id: string;
+  roomId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface DBFloorPlanCamera {
+  cameraId: string;
+  roomId: string;
+  note: string;
+  x: number;
+  y: number;
+  rotation: number;
+  fov: number;
+  range: number;
+}
+
+export type DBFloorPlanConnectionType = 'door' | 'opening' | 'stairs';
+
+export interface DBFloorPlanConnection {
+  id: string;
+  fromRoomId: string;
+  toRoomId: string;
+  fromShapeId: string | null;
+  toShapeId: string | null;
+  offset: number | null;
+  width: number;
+  note: string;
+  type: DBFloorPlanConnectionType;
+}
+
+export interface DBFloorPlanSensor {
+  sensorId: string;
+  sensorType: string;
+  roomId: string;
+  connectionId: string | null;
+  note: string;
+  x: number;
+  y: number;
+}
+
+export interface DBFloorPlan {
+  version: number;
+  updatedAt: number;
+  north: number | null;
+  rooms: DBFloorPlanRoom[];
+  connections: DBFloorPlanConnection[];
+  cameras: DBFloorPlanCamera[];
+  sensors: DBFloorPlanSensor[];
+}
 
 export interface DBMqtt {
   enabled: boolean;

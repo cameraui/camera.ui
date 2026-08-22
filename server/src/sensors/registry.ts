@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { container } from 'tsyringe';
 
 import { CamerasService } from '../api/services/cameras.service.js';
+import { FloorPlanService } from '../api/services/floorplan.service.js';
 import { PluginsService } from '../api/services/plugins.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { ServerSensor } from '../sensors/sensor.js';
@@ -24,6 +25,7 @@ import type { ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
 import type { SensorJSON } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Database } from '../api/database/index.js';
+import type { DBSensorHistoryEntry } from '../api/database/types.js';
 import type { DBSensor } from '../api/database/types.js';
 import type { InternalEvent, InternalEventBus, InternalEventPayload } from '../internal-bus.js';
 import type { CoordinatorSensorInfo, DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
@@ -31,6 +33,10 @@ import type { RegisterSensorOptions, SensorRefreshedState, SensorRegistration, S
 import type { SensorContext } from '../sensors/sensor.js';
 
 const HISTORY_MAX_ENTRIES = 500;
+
+function stamp(timestamp: number): string {
+  return String(Math.max(timestamp, 0)).padStart(15, '0');
+}
 const HISTORY_COALESCE_MS = 1000;
 
 export interface GetSensorsOptions {
@@ -277,6 +283,7 @@ export class SensorRegistry {
     this.records.delete(sensorId);
     await this.dbs.sensorsDB.remove(sensorId);
     this.pruneHistory(sensorId, 0);
+    await new FloorPlanService().dropSensors([sensorId]);
 
     this.logger.debug(`Sensor deleted: "${record.displayName ?? record.name}" (${record.type})`);
   }
@@ -409,11 +416,18 @@ export class SensorRegistry {
   }
 
   public onCameraRemoved(cameraId: string): void {
+    const orphaned: string[] = [];
+
     for (const record of this.records.values()) {
+      if (record.boundCameraId === cameraId) orphaned.push(record._id);
       if (record.assignedCameraIds.includes(cameraId)) {
         record.assignedCameraIds = record.assignedCameraIds.filter((id) => id !== cameraId);
         this.persistRecord(record._id, () => {});
       }
+    }
+
+    if (orphaned.length > 0) {
+      new FloorPlanService().dropSensors(orphaned).catch((error: unknown) => this.logger.warn('Failed to remove sensors from the floor plan:', error));
     }
   }
 
@@ -871,6 +885,29 @@ export class SensorRegistry {
       entries.push({ property: value.property, value: value.value, timestamp: value.timestamp });
     }
     return entries;
+  }
+
+  public getSensorHistory(sensorIds: string[], from: number, to: number): DBSensorHistoryEntry[] {
+    const entries: DBSensorHistoryEntry[] = [];
+
+    for (const sensorId of sensorIds) {
+      const seeded = new Set<string>();
+
+      for (const { value } of this.dbs.sensorHistoryDB.getRange({ start: `${sensorId}:${stamp(from)}`, end: `${sensorId}:${stamp(to)};`, limit: 500 })) {
+        seeded.add(value.property);
+        entries.push(value);
+      }
+
+      const before: DBSensorHistoryEntry[] = [];
+      for (const { value } of this.dbs.sensorHistoryDB.getRange({ start: `${sensorId}:${stamp(from)}`, end: `${sensorId}:`, reverse: true, limit: 200 })) {
+        if (seeded.has(value.property) || before.some((entry) => entry.property === value.property)) continue;
+        before.push(value);
+      }
+
+      entries.push(...before);
+    }
+
+    return entries.sort((a, b) => a.timestamp - b.timestamp);
   }
 
   private pruneHistory(sensorId: string, keep: number): void {

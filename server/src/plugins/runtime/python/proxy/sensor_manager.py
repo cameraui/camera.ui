@@ -4,7 +4,7 @@ import contextlib
 from typing import TYPE_CHECKING, Any, cast
 
 from _camera_ui_tools.camera_ui_common import TaskSet
-from _camera_ui_tools.camera_ui_sdk import BasePlugin, Sensor, SensorLike, SensorType
+from _camera_ui_tools.camera_ui_sdk import BasePlugin, Sensor, SensorHistoryEntry, SensorLike, SensorType
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.proxy.sensor import (
     DetectionCoordinatorRPC,
@@ -175,6 +175,9 @@ class SensorManagerProxy:
 
     def getSensors(self) -> list[Sensor[Any, Any, Any]]:
         return list(self._owned.values())
+
+    async def getSensorHistory(self, sensorIds: list[str], start: int, end: int) -> list[SensorHistoryEntry]:
+        return await self._registry_proxy.getSensorHistory(sensorIds, start, end)
 
     # keeps a camera-registered sensor's assignedCameraIds in sync with the global stream
     async def track_camera_sensor(self, sensor: Sensor[Any, Any, Any]) -> None:

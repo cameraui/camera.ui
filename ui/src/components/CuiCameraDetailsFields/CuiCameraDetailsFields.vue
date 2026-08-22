@@ -25,13 +25,15 @@
       <label for="room" class="cui-label">{{ $t('components.form.label.room') }}</label>
       <div class="flex gap-2">
         <Select
-          :model-value="form.room"
+          :model-value="form.roomId"
           :options="roomOptions"
           option-label="label"
           option-value="value"
+          :option-group-label="grouped ? 'label' : undefined"
+          :option-group-children="grouped ? 'items' : undefined"
           :loading="roomsLoading"
           class="w-full"
-          @update:model-value="(e) => (form.room = e)"
+          @update:model-value="(e) => onPickRoom(e)"
         />
         <Button
           v-tooltip.top="$t('components.form.button.create_room')"
@@ -130,33 +132,33 @@
 <script setup lang="ts">
 import { ErrorMessage, Field } from 'vee-validate';
 
-import { CamerasQuery } from '@/api/routes/cameras.js';
+import { RoomsQuery } from '@/api/routes/rooms.js';
 import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
+import { buildRoomOptions } from './rooms.js';
 
 import type { CameraType } from '@camera.ui/sdk';
 import type { CuiCameraDetailsFieldsProps } from './types.js';
 
-const camerasQuery = new CamerasQuery();
+const roomsQuery = new RoomsQuery();
 
 const props = defineProps<CuiCameraDetailsFieldsProps>();
 
 const dialog = useCuiDialog();
 const { t } = useI18n();
 
-const { data: roomsData, isBusy: roomsLoading } = camerasQuery.getRoomsQuery();
+const { data: catalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
+const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
 
 const cameraTypes = ref<CameraType[]>(['camera', 'doorbell']);
-const localRooms = ref<string[]>([]);
 
-const roomOptions = computed(() => {
-  const apiRooms = roomsData.value ?? ['Default'];
-  const seen = new Set(apiRooms.map((r) => r.toLowerCase()));
-  const merged = [...apiRooms, ...localRooms.value.filter((r) => !seen.has(r.toLowerCase()))];
-  return merged.map((r) => ({
-    label: r === 'Default' ? t('components.form.label.room_default') : r,
-    value: r,
-  }));
-});
+const grouped = computed(() => (catalog.value?.levels.length ?? 0) > 0);
+
+const roomOptions = computed(() => buildRoomOptions(catalog.value, t));
+
+function onPickRoom(roomId: string | null): void {
+  // eslint-disable-next-line vue/no-mutating-props
+  props.form.roomId = roomId;
+}
 
 function openCreateRoomDialog() {
   dialog.openComponentDialog<Record<string, never>>(CreateRoomDialog, {
@@ -165,13 +167,10 @@ function openCreateRoomDialog() {
       confirmText: t('components.form.button.add'),
       contentProps: {},
     },
-    onConfirm: (name: string | null) => {
+    onConfirm: async (name: string | null) => {
       if (!name) return;
-      const existing = roomOptions.value.find((r) => r.value.toLowerCase() === name.toLowerCase());
-      const roomValue = existing?.value ?? name;
-      if (!existing) localRooms.value.push(roomValue);
-      // eslint-disable-next-line vue/no-mutating-props -- form is a shared reactive object owned by the parent dialog
-      props.form.room = roomValue;
+      const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
+      onPickRoom(room.id);
     },
   });
 }

@@ -58,6 +58,7 @@ const cameraForm = ref<ConfirmCameraForm>({
   name: originalDraft.value.name,
   type: originalDraft.value.type,
   room: originalDraft.value.room,
+  roomId: originalDraft.value.roomId,
   info: originalDraft.value.info,
   sources: originalDraft.value.sources.map((source) => ({
     ...source,
@@ -91,6 +92,7 @@ async function onSave(): Promise<void | null> {
       name: cameraForm.value.name,
       type: cameraForm.value.type,
       room: cameraForm.value.room,
+      roomId: cameraForm.value.roomId,
       info: cameraForm.value.info,
       sources: cameraForm.value.sources.map((source) => ({
         ...source,

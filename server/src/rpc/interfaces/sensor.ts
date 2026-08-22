@@ -36,6 +36,13 @@ export interface RegisterSensorOptions {
   assignCameraId?: string;
 }
 
+export interface SensorHistoryEntry {
+  sensorId: string;
+  property: string;
+  value: string | number | boolean | null;
+  timestamp: number;
+}
+
 export interface SensorRegistryInterface {
   resolveSensor(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): string;
   registerSensor(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): SensorRegistration;
@@ -50,6 +57,7 @@ export interface SensorRegistryInterface {
   getSensors(pluginId?: string): StoredSensorData[];
   getSensorRpc(sensorId: string, pluginId?: string): StoredSensorData | undefined;
   setDisplayName(sensorId: string, displayName: string): void;
+  getSensorHistory(sensorIds: string[], from: number, to: number): SensorHistoryEntry[];
 }
 
 export interface SensorWriteMessage {

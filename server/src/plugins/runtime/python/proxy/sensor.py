@@ -4,6 +4,7 @@ from typing import Any, Protocol
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
     Observable,
+    SensorHistoryEntry,
     SensorLike,
     SensorPropertyChangeData,
     SensorType,
@@ -229,6 +230,7 @@ class SensorRegistryInterface(Protocol):
     async def getSensors(self, plugin_id: str | None = None) -> list[StoredSensorData]: ...
     async def getSensorRpc(self, sensor_id: str, plugin_id: str | None = None) -> StoredSensorData | None: ...
     async def setDisplayName(self, sensor_id: str, display_name: str) -> None: ...
+    async def getSensorHistory(self, sensor_ids: list[str], start: int, end: int) -> list[SensorHistoryEntry]: ...
 
 
 class DetectionCoordinatorRPC(Protocol):

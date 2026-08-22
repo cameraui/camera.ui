@@ -451,6 +451,7 @@ export const createCameraBaseSchema = zod
     disabled: zod.boolean().default(false),
     name: zod.string().trim().min(1, 'Camera name is required'),
     room: zod.string().trim().min(1, 'Room is required').default('Default'),
+    roomId: zod.string().trim().min(1).nullable().default(null),
     type: cameraTypeSchema.default('camera'),
     isCloud: zod.boolean().default(false),
     snapshotSettings: snapshotSettingsSchema.default({
@@ -577,6 +578,7 @@ export const patchCameraSchema = zod
     type: cameraTypeSchema.optional(),
     name: zod.string().trim().min(1, 'Camera name is required').optional(),
     room: zod.string().trim().min(1, 'Room is required').optional(),
+    roomId: zod.string().trim().min(1).nullable().optional(),
     isCloud: zod.boolean().optional(),
     snapshotSettings: snapshotSettingsSchema.partial().optional(),
     info: cameraInfoSchema.partial().optional(),

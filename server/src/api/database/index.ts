@@ -21,6 +21,7 @@ import {
   CLOUD_ID,
   DATABASE_ID,
   DOWNLOADS_ID,
+  FLOORPLAN_ID,
   INSTANCES_CONFIG_ID,
   INSTANCES_ID,
   MQTT_ID,
@@ -28,6 +29,7 @@ import {
   NOTIFICATIONS_ID,
   PLUGINS_ID,
   REMOTE_ID,
+  ROOMS_ID,
   SENSOR_HISTORY_ID,
   SENSORS_ID,
   SERVER_ID,
@@ -40,10 +42,12 @@ import {
 import { MigrationRunner } from './migration.js';
 import {
   dbCloudSchema,
+  dbFloorPlanSchema,
   dbInstanceSchema,
   dbInstancesConfigSchema,
   dbMqttSchema,
   dbRemoteSchema,
+  dbRoomCatalogSchema,
   dbServerSchema,
   dbSettingsSchema,
   dbUserSchema,
@@ -59,6 +63,7 @@ import type {
   DBCamera,
   DBCloud,
   DBDownloadEntry,
+  DBFloorPlan,
   DBInstance,
   DBInstancesConfig,
   DBMqtt,
@@ -66,6 +71,7 @@ import type {
   DBNotificationSettings,
   DBPlugin,
   DBRemote,
+  DBRoomCatalog,
   DBSensor,
   DBSensorHistoryEntry,
   DBServer,
@@ -78,7 +84,7 @@ import type {
 const INGRESS_USERNAME = 'homeassistant';
 
 export class Database {
-  static readonly VERSION = '2.1.14';
+  static readonly VERSION = '2.1.16';
 
   public workerStateDB!: DB<DBWorkerState, 'state'>;
 
@@ -88,6 +94,8 @@ export class Database {
   public remoteDB!: DB<DBRemote, 'remote'>;
   public mqttDB!: DB<DBMqtt, 'mqtt'>;
   public cloudDB!: DB<DBCloud, 'cloud'>;
+  public roomsDB!: DB<DBRoomCatalog, 'rooms'>;
+  public floorPlanDB!: DB<DBFloorPlan, 'floorplan'>;
   public instancesConfigDB!: DB<DBInstancesConfig, 'instancesConfig'>;
 
   public camerasDB!: DB<DBCamera, string>;
@@ -139,6 +147,8 @@ export class Database {
     this.remoteDB = this.lowdb.openDB({ name: REMOTE_ID });
     this.mqttDB = this.lowdb.openDB({ name: MQTT_ID });
     this.cloudDB = this.lowdb.openDB({ name: CLOUD_ID });
+    this.roomsDB = this.lowdb.openDB({ name: ROOMS_ID });
+    this.floorPlanDB = this.lowdb.openDB({ name: FLOORPLAN_ID });
     this.instancesConfigDB = this.lowdb.openDB({ name: INSTANCES_CONFIG_ID });
     this.sharesDB = this.lowdb.openDB({ name: SHARES_ID });
     this.instancesDB = this.lowdb.openDB({ name: INSTANCES_ID });
@@ -303,6 +313,8 @@ export class Database {
     await backfillSingletonDefaults(this.remoteDB, 'remote', dbRemoteSchema, this.logger, REMOTE_ID);
     await backfillSingletonDefaults(this.mqttDB, 'mqtt', dbMqttSchema, this.logger, MQTT_ID);
     await backfillSingletonDefaults(this.cloudDB, 'cloud', dbCloudSchema, this.logger, CLOUD_ID);
+    await backfillSingletonDefaults(this.roomsDB, 'rooms', dbRoomCatalogSchema, this.logger, ROOMS_ID);
+    await backfillSingletonDefaults(this.floorPlanDB, 'floorplan', dbFloorPlanSchema, this.logger, FLOORPLAN_ID);
     await backfillSingletonDefaults(this.instancesConfigDB, 'instancesConfig', dbInstancesConfigSchema, this.logger, INSTANCES_CONFIG_ID);
   }
 
@@ -340,6 +352,12 @@ export class Database {
     }
     if (!this.cloudDB.get('cloud')) {
       await this.cloudDB.put('cloud', {});
+    }
+    if (!this.roomsDB.get('rooms')) {
+      await this.roomsDB.put('rooms', dbRoomCatalogSchema.parse({}));
+    }
+    if (!this.floorPlanDB.get('floorplan')) {
+      await this.floorPlanDB.put('floorplan', dbFloorPlanSchema.parse({}));
     }
     if (!this.instancesConfigDB.get('instancesConfig')) {
       await this.instancesConfigDB.put('instancesConfig', { homeId: randomUUID() });

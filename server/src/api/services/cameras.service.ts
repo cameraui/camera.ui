@@ -8,7 +8,9 @@ import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SEN
 import { ConfigService } from '../../services/config/index.js';
 import { applySourceUrlFlags, createSourceName, normalizeCameraName } from '../../utils/camera.js';
 import { Database } from '../database/index.js';
+import { FloorPlanService } from './floorplan.service.js';
 import { PluginsService } from './plugins.service.js';
+import { RoomsService } from './rooms.service.js';
 import { UsersService } from './users.service.js';
 
 import type {
@@ -50,6 +52,8 @@ export class CamerasService {
   private go2rtcApi: Go2RtcApi;
   private usersService: UsersService;
   private pluginsService: PluginsService;
+  private floorPlanService: FloorPlanService;
+  private roomsService: RoomsService;
 
   constructor() {
     this.configService = container.resolve<ConfigService>('configService');
@@ -59,9 +63,13 @@ export class CamerasService {
 
     this.usersService = new UsersService();
     this.pluginsService = new PluginsService();
+    this.floorPlanService = new FloorPlanService();
+    this.roomsService = new RoomsService();
   }
 
   public async createCamera(cameraData: DBCamera): Promise<DBCamera> {
+    await this.resolveRoom(cameraData);
+
     if (this.findByConflictingName(cameraData.name)) {
       throw new Error(`Camera name "${cameraData.name}" is already in use`);
     }
@@ -204,15 +212,7 @@ export class CamerasService {
   }
 
   public getRooms(): string[] {
-    const seen = new Map<string, string>();
-    for (const { value: camera } of this.dbs.camerasDB.getRange()) {
-      const room = camera.room as string | undefined;
-      if (room) {
-        const key = room.toLowerCase();
-        if (!seen.has(key)) seen.set(key, room);
-      }
-    }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    return [...this.roomsService.labels().values()].sort((a, b) => a.localeCompare(b));
   }
 
   public findById(id: string): DBCamera | undefined {
@@ -268,6 +268,11 @@ export class CamerasService {
   public async patchCameraByName(cameraname: string, cameraData: DeepPartial<DBCamera>): Promise<DBCamera | undefined> {
     const existing = this.findByName(cameraname);
     if (!existing) return undefined;
+
+    const roomPatch = cameraData as { room?: string; roomId?: string | null };
+    if (roomPatch.room !== undefined || roomPatch.roomId !== undefined) {
+      await this.resolveRoom(roomPatch);
+    }
 
     if (cameraData.name && this.findByConflictingName(cameraData.name, existing._id)) {
       throw new Error(`Camera name "${cameraData.name}" is already in use`);
@@ -641,6 +646,7 @@ export class CamerasService {
     cameraSourceProbeCache.clear();
     clearSourceCodecInfos();
     await this.usersService.resetAllPreferences();
+    await this.floorPlanService.dropCameras(camerasToRemove.map((camera) => camera._id));
     await this.dbs.camerasDB.clearAsync();
     await Promise.all(camerasToRemove.map((camera) => this.removeCameraSourcesFromConfig(camera.name, camera.sources)));
     await Promise.all(camerasToRemove.map((camera) => this.api.removeCamera(this.transformCamera(camera), camera.assignments)));
@@ -688,9 +694,12 @@ export class CamerasService {
   }
 
   public transformCamera(camera: DBCamera): Camera {
+    const { roomId, ...rest } = camera;
+
     const transformedCamera: Camera = {
-      ...camera,
-      sources: camera.sources.map((source) => ({
+      ...rest,
+      room: this.roomsService.label(roomId) ?? camera.room,
+      sources: rest.sources.map((source) => ({
         _id: source._id,
         name: source.name,
         role: source.role,
@@ -709,6 +718,32 @@ export class CamerasService {
     };
 
     return transformedCamera;
+  }
+
+  public async assignRoom(cameraId: string, roomId: string): Promise<void> {
+    const label = this.roomsService.label(roomId);
+    if (!label) return;
+
+    const camera = await this.dbs.commit(this.dbs.camerasDB, cameraId, (current) => {
+      if (!current || (current.roomId === roomId && current.room === label)) return undefined;
+
+      current.roomId = roomId;
+      current.room = label;
+
+      return current;
+    });
+    if (!camera) return;
+
+    this.api.updateCamera(this.transformCamera(camera));
+  }
+
+  public async resolveRoom(camera: { room?: string; roomId?: string | null }): Promise<void> {
+    if (camera.roomId === undefined && camera.room === undefined) return;
+
+    const room = this.roomsService.byId(camera.roomId) ?? (camera.room ? await this.roomsService.resolveByName(camera.room) : await this.roomsService.fallback());
+
+    camera.roomId = room.id;
+    camera.room = this.roomsService.label(room.id) ?? room.name;
   }
 
   private async activateDefaultExtensions(camera: DBCamera): Promise<DBCamera | undefined> {
@@ -730,6 +765,7 @@ export class CamerasService {
     }
 
     await this.usersService.removeCameraFromPreferences(camera._id);
+    await this.floorPlanService.dropCameras([camera._id]);
     await this.dbs.camerasDB.remove(camera._id);
     await this.removeCameraSourcesFromConfig(camera.name, camera.sources);
     await this.api.removeCamera(this.transformCamera(camera), camera.assignments);

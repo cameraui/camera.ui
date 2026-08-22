@@ -1,7 +1,7 @@
 import { randomLetter } from '@/common/utils.js';
 
-import type { AssignedPlugin, CameraInformation, CameraType, CameraUiSettings, PluginAssignments } from '@camera.ui/sdk';
 import type { Go2RtcModel } from '@/common/cameraSources.js';
+import type { AssignedPlugin, CameraInformation, CameraType, CameraUiSettings, PluginAssignments } from '@camera.ui/sdk';
 
 export type { Go2RtcModel } from '@/common/cameraSources.js';
 
@@ -10,6 +10,7 @@ export interface CameraFormModel {
   name: string;
   type: CameraType;
   room: string;
+  roomId: string | null;
   info: CameraInformation;
   sources: Go2RtcModel[];
   interfaceSettings: CameraUiSettings;
@@ -30,6 +31,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
   name: '',
   type: 'camera',
   room: 'Default',
+  roomId: null,
   info: {
     manufacturer: '',
     model: '',

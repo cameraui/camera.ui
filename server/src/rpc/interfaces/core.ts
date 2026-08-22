@@ -1,7 +1,13 @@
 import type { PluginInfo, PluginInterface } from '@camera.ui/sdk';
+import type { DBFloorPlan, DBRoomCatalog } from '../../api/database/types.js';
 
 export interface HostPluginInfo extends PluginInfo {
   running: boolean;
+}
+
+export interface FloorPlan {
+  rooms: DBRoomCatalog;
+  plan: DBFloorPlan;
 }
 
 export interface CoreManagerInterface {
@@ -10,6 +16,7 @@ export interface CoreManagerInterface {
   getCloudServerId(): Promise<string>;
   getPlugin(pluginName: string): Promise<HostPluginInfo | undefined>;
   getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]>;
+  getFloorPlan(): Promise<FloorPlan>;
 }
 
 export interface CoreManagerProxyEvents {

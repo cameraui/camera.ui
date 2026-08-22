@@ -5,7 +5,7 @@ import { SensorProxy } from './sensor.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { BasePlugin, ModelSpec, PluginInfo, Sensor, SensorManager, SensorType } from '@camera.ui/sdk';
+import type { BasePlugin, ModelSpec, PluginInfo, Sensor, SensorHistoryEntry, SensorManager, SensorType } from '@camera.ui/sdk';
 import type { DetectionCoordinatorInterface } from '../../../../rpc/interfaces/detection.js';
 import type {
   SensorAddedEvent,
@@ -164,6 +164,10 @@ export class SensorManagerProxy implements SensorManager {
 
   public getSensors(): Sensor<any, any, any>[] {
     return Array.from(this.#owned.values());
+  }
+
+  public async getSensorHistory(sensorIds: string[], from: number, to: number): Promise<SensorHistoryEntry[]> {
+    return await this.#registryProxy.getSensorHistory(sensorIds, from, to);
   }
 
   /** @internal Keeps a camera-registered sensor's assignedCameraIds in sync with the global stream. */

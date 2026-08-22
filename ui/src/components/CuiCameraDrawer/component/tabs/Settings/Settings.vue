@@ -24,14 +24,16 @@
             <label for="room" class="cui-label">{{ $t('components.form.label.room') }}</label>
             <div class="flex gap-2">
               <Select
-                :model-value="cameraForm.room"
+                :model-value="cameraForm.roomId"
                 :options="roomOptions"
                 option-label="label"
                 option-value="value"
+                :option-group-label="roomsGrouped ? 'label' : undefined"
+                :option-group-children="roomsGrouped ? 'items' : undefined"
                 :invalid="errors.length > 0"
                 :loading="roomsLoading"
                 class="w-full"
-                @update:model-value="(e) => (cameraForm.room = e)"
+                @update:model-value="(e) => (cameraForm.roomId = e)"
               />
               <Button
                 v-tooltip.top="$t('components.form.button.create_room')"
@@ -1799,7 +1801,9 @@ import { BASE_AUDIO_LABELS, OBJECT_DETECTION_LABELS, PluginInterface, SensorType
 import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
+import { RoomsQuery } from '@/api/routes/rooms.js';
 import { audioLabelKey, NOTIFY_SENSOR_TYPES, sensorLabelKey } from '@/common/eventLabels.js';
+import { buildRoomOptions } from '@/components/CuiCameraDetailsFields/rooms.js';
 import AspectRatioDialog from '@/components/CuiDialog/templates/AspectRatio/AspectRatio.vue';
 import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
 import ZoneEditorDialog from '@/components/CuiDialog/templates/ZoneEditor/ZoneEditor.vue';
@@ -1833,7 +1837,7 @@ const TRIGGERABLE_TYPES = new Set(
 );
 
 const camerasQuery = new CamerasQuery();
-const camerasQueryRooms = new CamerasQuery();
+const roomsQuery = new RoomsQuery();
 
 const props = defineProps<CameraOptionsTabProps>();
 
@@ -1850,7 +1854,8 @@ const { t } = useI18n();
 const { camera, cameraDevice, loading: parentLoading } = toRefs(props);
 const { sensors: allSensors } = useSensors(cameraDevice);
 
-const { data: roomsData, isBusy: roomsLoading } = camerasQueryRooms.getRoomsQuery();
+const { data: roomCatalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
+const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
 const { data: cameraExtensions } = camerasQuery.getCameraExtensionsQuery(cameraForm.value.name);
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
 const { mutateAsync: patchZoneConfig, isPending: zoneConfigPatching } = camerasQuery.patchZoneConfigQuery();
@@ -1890,8 +1895,6 @@ const decoderHardwareOptions: { label: string; value: FrameWorkerDecoderHardware
 ];
 
 const ZONE_EDITOR_DIALOG_SIZE = { desktop: { maxWidth: '1280px', width: '85vw' } };
-
-const localRooms = ref<string[]>([]);
 
 const hasPtzCapability = computed(() => allSensors.value.some((s) => s.type === SensorType.PTZ));
 
@@ -1991,15 +1994,9 @@ const onlineSensorIds = computed(() => new Set(triggerableSensors.value.map((s) 
 
 const visibleSensorTriggerKeys = computed(() => (cameraForm.value.detectionSettings.sensor?.triggers ?? []).filter((sensorId) => onlineSensorIds.value.has(sensorId)));
 
-const roomOptions = computed(() => {
-  const apiRooms = roomsData.value ?? ['Default'];
-  const seen = new Set(apiRooms.map((r) => r.toLowerCase()));
-  const merged = [...apiRooms, ...localRooms.value.filter((r) => !seen.has(r.toLowerCase()))];
-  return merged.map((r) => ({
-    label: r === 'Default' ? t('components.form.label.room_default') : r,
-    value: r,
-  }));
-});
+const roomsGrouped = computed(() => (roomCatalog.value?.levels.length ?? 0) > 0);
+
+const roomOptions = computed(() => buildRoomOptions(roomCatalog.value, t));
 
 const isLoading = computed(() => parentLoading.value || removeLoading.value);
 
@@ -2057,12 +2054,10 @@ function openCreateRoomDialog() {
       confirmText: t('components.form.button.add'),
       contentProps: {},
     },
-    onConfirm: (name: string | null) => {
+    onConfirm: async (name: string | null) => {
       if (!name) return;
-      const existing = roomOptions.value.find((r) => r.value.toLowerCase() === name.toLowerCase());
-      const roomValue = existing?.value ?? name;
-      if (!existing) localRooms.value.push(roomValue);
-      cameraForm.value.room = roomValue;
+      const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
+      cameraForm.value.roomId = room.id;
     },
   });
 }
