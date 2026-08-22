@@ -2283,6 +2283,7 @@ export default {
       delete_person: 'Delete Person',
       name: 'Name',
       enter_name: 'Enter name',
+      enter_or_pick_name: 'Pick or enter a name',
       face_plugin: 'Face Detection Plugin',
       select_plugin: 'Select plugin',
       drop_image: 'Drop image here or click to browse',

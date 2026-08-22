@@ -2300,6 +2300,7 @@ export default {
       delete_person: 'Person löschen',
       name: 'Name',
       enter_name: 'Name eingeben',
+      enter_or_pick_name: 'Name wählen oder eingeben',
       face_plugin: 'Gesichtserkennungs-Plugin',
       select_plugin: 'Plugin wählen',
       drop_image: 'Bild hierher ziehen oder klicken',

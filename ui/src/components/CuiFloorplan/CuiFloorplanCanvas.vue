@@ -719,6 +719,9 @@ function labelsOfSensor(sensor: ReactiveSensor, type: string): string[] {
     case 'motion':
     case 'audio':
       return ['motion'];
+    case 'clip':
+    case 'objectAssist':
+      return [];
     default:
       return ['other'];
   }

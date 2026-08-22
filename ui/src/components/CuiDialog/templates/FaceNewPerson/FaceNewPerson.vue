@@ -1,7 +1,19 @@
 <template>
   <div class="flex flex-col gap-2 w-full">
     <label for="personName" class="cui-label">{{ $t('views.faces.name') }}</label>
-    <AutoComplete id="personName" v-model="name" :suggestions="filtered" class="w-full" fluid :placeholder="$t('views.faces.enter_name')" autofocus @complete="search" />
+    <AutoComplete
+      id="personName"
+      v-model="name"
+      :suggestions="filtered"
+      class="w-full"
+      fluid
+      dropdown
+      dropdown-mode="blank"
+      complete-on-focus
+      :placeholder="$t('views.faces.enter_or_pick_name')"
+      autofocus
+      @complete="search"
+    />
   </div>
 </template>
 
@@ -16,8 +28,9 @@ const name = ref('');
 const filtered = ref<string[]>([]);
 
 function search(event: AutoCompleteCompleteEvent) {
-  const query = event.query.toLowerCase();
-  filtered.value = (props.knownNames ?? []).filter((n) => n.toLowerCase().includes(query));
+  const query = event.query.trim().toLowerCase();
+  const names = props.knownNames ?? [];
+  filtered.value = query ? names.filter((n) => n.toLowerCase().includes(query)) : [...names];
 }
 
 defineExpose<CustomDialogComponent>({
