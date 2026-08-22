@@ -22,7 +22,7 @@
     "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run"
   },
   "dependencies": {
-    "@camera.ui/common": "~0.0.53",
+    "@camera.ui/common": "~0.0.54",
     "commander": "^15.0.0",
     "fs-extra": "^11.4.0",
     "js-yaml": "^5.3.0",
