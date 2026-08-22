@@ -10,62 +10,80 @@
   >
     <div class="flex flex-col gap-4 p-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">
       <div class="flex flex-col gap-2">
-        <label class="sidebar-section-title">{{ $t('views.recordings.search') }}</label>
-        <span class="p-input-icon-left w-full">
-          <InputText
-            :model-value="filters.search"
-            :placeholder="$t('views.recordings.search_placeholder')"
-            class="w-full text-sm"
-            @update:model-value="updateSearchDebounced($event as string)"
-          />
-        </span>
-        <span class="text-xs text-muted">{{ $t('views.recordings.result_count', { count: resultCount }) }}</span>
+        <label class="sidebar-section-title">{{ $t('views.recordings.content_kind') }}</label>
+        <SelectButton
+          :model-value="filters.contentKind"
+          :options="contentKindOptions"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          class="content-kind-toggle"
+          @update:model-value="updateFilter('contentKind', $event)"
+        />
+        <span v-if="episodesOnly" class="text-xs text-muted">{{ $t('views.recordings.content_kind_episodes_hint') }}</span>
       </div>
 
       <div class="sidebar-divider" />
-      <div class="flex flex-col gap-2">
-        <label class="sidebar-section-title flex items-center gap-1.5">
-          <i-tabler:sparkles class="w-3.5 h-3.5" />
-          {{ $t('views.recordings.semantic_search') }}
-        </label>
-        <Textarea
-          v-model="semanticInput"
-          :placeholder="$t('views.recordings.semantic_search_placeholder')"
-          class="w-full text-sm semantic-textarea"
-          rows="3"
-          :disabled="!semanticSearchAvailable"
-        />
-        <Button
-          :label="$t('views.recordings.semantic_search_button')"
-          severity="secondary"
-          outlined
-          size="small"
-          class="w-full text-xs"
-          :loading="semanticSearchLoading"
-          :disabled="!semanticSearchAvailable || !semanticInput?.trim()"
-          @click="submitSemanticSearch"
-        />
-        <span v-if="semanticCount != null" class="inline-flex items-center gap-1 text-xs text-muted">
-          <i-tabler:sparkles class="w-3 h-3" />
-          {{ $t('views.recordings.semantic_results', { count: semanticCount }) }}
-        </span>
-        <div v-if="filters.semanticQuery" class="flex flex-col gap-1.5 mt-1">
-          <label class="text-xs text-muted">{{ $t('views.recordings.min_match_score') }}</label>
-          <div class="flex items-center gap-3">
-            <Slider
-              :model-value="filters.minSemanticScore"
-              :min="0"
-              :max="1"
-              :step="0.05"
-              class="flex-1"
-              @update:model-value="updateFilter('minSemanticScore', $event as number)"
+
+      <template v-if="!episodesOnly">
+        <div class="flex flex-col gap-2">
+          <label class="sidebar-section-title">{{ $t('views.recordings.search') }}</label>
+          <span class="p-input-icon-left w-full">
+            <InputText
+              :model-value="filters.search"
+              :placeholder="$t('views.recordings.search_placeholder')"
+              class="w-full text-sm"
+              @update:model-value="updateSearchDebounced($event as string)"
             />
-            <span class="text-xs font-mono w-8 text-right shrink-0">{{ Math.round(filters.minSemanticScore * 100) }}%</span>
+          </span>
+          <span class="text-xs text-muted">{{ $t('views.recordings.result_count', { count: resultCount }) }}</span>
+        </div>
+
+        <div class="sidebar-divider" />
+        <div class="flex flex-col gap-2">
+          <label class="sidebar-section-title flex items-center gap-1.5">
+            <i-tabler:sparkles class="w-3.5 h-3.5" />
+            {{ $t('views.recordings.semantic_search') }}
+          </label>
+          <Textarea
+            v-model="semanticInput"
+            :placeholder="$t('views.recordings.semantic_search_placeholder')"
+            class="w-full text-sm semantic-textarea"
+            rows="3"
+            :disabled="!semanticSearchAvailable"
+          />
+          <Button
+            :label="$t('views.recordings.semantic_search_button')"
+            severity="secondary"
+            outlined
+            size="small"
+            class="w-full text-xs"
+            :loading="semanticSearchLoading"
+            :disabled="!semanticSearchAvailable || !semanticInput?.trim()"
+            @click="submitSemanticSearch"
+          />
+          <span v-if="semanticCount != null" class="inline-flex items-center gap-1 text-xs text-muted">
+            <i-tabler:sparkles class="w-3 h-3" />
+            {{ $t('views.recordings.semantic_results', { count: semanticCount }) }}
+          </span>
+          <div v-if="filters.semanticQuery" class="flex flex-col gap-1.5 mt-1">
+            <label class="text-xs text-muted">{{ $t('views.recordings.min_match_score') }}</label>
+            <div class="flex items-center gap-3">
+              <Slider
+                :model-value="filters.minSemanticScore"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                class="flex-1"
+                @update:model-value="updateFilter('minSemanticScore', $event as number)"
+              />
+              <span class="text-xs font-mono w-8 text-right shrink-0">{{ Math.round(filters.minSemanticScore * 100) }}%</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="sidebar-divider" />
+        <div class="sidebar-divider" />
+      </template>
 
       <div class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.cameras') }}</label>
@@ -83,7 +101,7 @@
         />
       </div>
 
-      <template v-if="selectedCameraName">
+      <template v-if="selectedCameraName && !episodesOnly">
         <div class="sidebar-divider" />
         <div class="flex flex-col gap-2">
           <label class="sidebar-section-title">{{ $t('views.recordings.grid_search') }}</label>
@@ -103,9 +121,9 @@
         </div>
       </template>
 
-      <div class="sidebar-divider" />
+      <div v-if="!episodesOnly" class="sidebar-divider" />
 
-      <div class="flex flex-col gap-2">
+      <div v-if="!episodesOnly" class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.confidence') }}</label>
         <div class="flex items-center gap-3">
           <Slider
@@ -138,91 +156,93 @@
         </div>
       </div>
 
-      <div class="sidebar-divider" />
+      <template v-if="!episodesOnly">
+        <div class="sidebar-divider" />
 
-      <div class="flex flex-col gap-2">
-        <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('sensorEvents')">
-          <span>{{ $t('views.recordings.sensor_events') }}</span>
-          <component :is="sections.sensorEvents ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
-        </button>
-        <div v-if="sections.sensorEvents" class="flex flex-col gap-2">
-          <template v-for="sensor in sensorEventOptions" :key="sensor.value">
-            <label class="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox :model-value="filters.sensorEvents.includes(sensor.value)" :binary="true" @update:model-value="toggleSensorEvent(sensor.value)" />
-              <component :is="sensor.icon" class="w-4 h-4 text-muted" />
-              <span>{{ sensor.label }}</span>
-            </label>
-            <div v-if="sensor.value === 'audio' && filters.sensorEvents.includes('audio')" class="flex flex-col gap-2 ml-6">
-              <label v-for="al in audioLabelOptions" :key="al.value" class="flex items-center gap-2 cursor-pointer text-sm">
-                <Checkbox :model-value="filters.audioLabels.includes(al.value)" :binary="true" @update:model-value="toggleAudioLabel(al.value)" />
-                <component :is="al.icon" class="w-4 h-4 text-muted" />
-                <span>{{ al.label }}</span>
+        <div class="flex flex-col gap-2">
+          <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('sensorEvents')">
+            <span>{{ $t('views.recordings.sensor_events') }}</span>
+            <component :is="sections.sensorEvents ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
+          </button>
+          <div v-if="sections.sensorEvents" class="flex flex-col gap-2">
+            <template v-for="sensor in sensorEventOptions" :key="sensor.value">
+              <label class="flex items-center gap-2 cursor-pointer text-sm">
+                <Checkbox :model-value="filters.sensorEvents.includes(sensor.value)" :binary="true" @update:model-value="toggleSensorEvent(sensor.value)" />
+                <component :is="sensor.icon" class="w-4 h-4 text-muted" />
+                <span>{{ sensor.label }}</span>
               </label>
-            </div>
-          </template>
+              <div v-if="sensor.value === 'audio' && filters.sensorEvents.includes('audio')" class="flex flex-col gap-2 ml-6">
+                <label v-for="al in audioLabelOptions" :key="al.value" class="flex items-center gap-2 cursor-pointer text-sm">
+                  <Checkbox :model-value="filters.audioLabels.includes(al.value)" :binary="true" @update:model-value="toggleAudioLabel(al.value)" />
+                  <component :is="al.icon" class="w-4 h-4 text-muted" />
+                  <span>{{ al.label }}</span>
+                </label>
+              </div>
+            </template>
+          </div>
         </div>
-      </div>
 
-      <div class="filter-logic-divider">
-        <div class="filter-logic-line" />
-        <SelectButton
-          :model-value="filters.filterLogicTriggers"
-          :options="filterLogicOptions"
-          option-label="label"
-          option-value="value"
-          :allow-empty="false"
-          class="filter-logic-toggle"
-          @update:model-value="updateFilter('filterLogicTriggers', $event)"
-        />
-        <div class="filter-logic-line" />
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('eventTypes')">
-          <span>{{ $t('views.recordings.event_type') }}</span>
-          <component :is="sections.eventTypes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
-        </button>
-        <div v-if="sections.eventTypes" class="flex flex-col gap-2">
-          <label v-for="type in eventTypeOptions" :key="type.value" class="flex items-center gap-2 cursor-pointer text-sm">
-            <Checkbox :model-value="filters.eventTypes.includes(type.value)" :binary="true" @update:model-value="toggleEventType(type.value)" />
-            <component :is="type.icon" class="w-4 h-4 text-muted" />
-            <span>{{ type.label }}</span>
-          </label>
+        <div class="filter-logic-divider">
+          <div class="filter-logic-line" />
+          <SelectButton
+            :model-value="filters.filterLogicTriggers"
+            :options="filterLogicOptions"
+            option-label="label"
+            option-value="value"
+            :allow-empty="false"
+            class="filter-logic-toggle"
+            @update:model-value="updateFilter('filterLogicTriggers', $event)"
+          />
+          <div class="filter-logic-line" />
         </div>
-      </div>
 
-      <div class="filter-logic-divider">
-        <div class="filter-logic-line" />
-        <SelectButton
-          :model-value="filters.filterLogicAttributes"
-          :options="filterLogicOptions"
-          option-label="label"
-          option-value="value"
-          :allow-empty="false"
-          class="filter-logic-toggle"
-          @update:model-value="updateFilter('filterLogicAttributes', $event)"
-        />
-        <div class="filter-logic-line" />
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('attributes')">
-          <span>{{ $t('views.recordings.attributes') }}</span>
-          <component :is="sections.attributes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
-        </button>
-        <div v-if="sections.attributes" class="flex flex-col gap-2">
-          <label v-for="attr in attributeOptions" :key="attr.value" class="flex items-center gap-2 cursor-pointer text-sm">
-            <Checkbox :model-value="filters.hasAttributes.includes(attr.value)" :binary="true" @update:model-value="toggleAttribute(attr.value)" />
-            <component :is="attr.icon" class="w-4 h-4 text-muted" />
-            <span>{{ attr.label }}</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer text-sm">
-            <Checkbox :model-value="filters.eventTypes.includes(otherOption.value)" :binary="true" @update:model-value="toggleEventType(otherOption.value)" />
-            <component :is="otherOption.icon" class="w-4 h-4 text-muted" />
-            <span>{{ otherOption.label }}</span>
-          </label>
+        <div class="flex flex-col gap-2">
+          <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('eventTypes')">
+            <span>{{ $t('views.recordings.event_type') }}</span>
+            <component :is="sections.eventTypes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
+          </button>
+          <div v-if="sections.eventTypes" class="flex flex-col gap-2">
+            <label v-for="type in eventTypeOptions" :key="type.value" class="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox :model-value="filters.eventTypes.includes(type.value)" :binary="true" @update:model-value="toggleEventType(type.value)" />
+              <component :is="type.icon" class="w-4 h-4 text-muted" />
+              <span>{{ type.label }}</span>
+            </label>
+          </div>
         </div>
-      </div>
+
+        <div class="filter-logic-divider">
+          <div class="filter-logic-line" />
+          <SelectButton
+            :model-value="filters.filterLogicAttributes"
+            :options="filterLogicOptions"
+            option-label="label"
+            option-value="value"
+            :allow-empty="false"
+            class="filter-logic-toggle"
+            @update:model-value="updateFilter('filterLogicAttributes', $event)"
+          />
+          <div class="filter-logic-line" />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('attributes')">
+            <span>{{ $t('views.recordings.attributes') }}</span>
+            <component :is="sections.attributes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
+          </button>
+          <div v-if="sections.attributes" class="flex flex-col gap-2">
+            <label v-for="attr in attributeOptions" :key="attr.value" class="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox :model-value="filters.hasAttributes.includes(attr.value)" :binary="true" @update:model-value="toggleAttribute(attr.value)" />
+              <component :is="attr.icon" class="w-4 h-4 text-muted" />
+              <span>{{ attr.label }}</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox :model-value="filters.eventTypes.includes(otherOption.value)" :binary="true" @update:model-value="toggleEventType(otherOption.value)" />
+              <component :is="otherOption.icon" class="w-4 h-4 text-muted" />
+              <span>{{ otherOption.label }}</span>
+            </label>
+          </div>
+        </div>
+      </template>
     </div>
   </nav>
 </template>
@@ -277,6 +297,14 @@ const selectedCameraName = computed<string | undefined>(() => {
   const cam = props.cameras.find((c) => c.id === props.filters.cameraIds[0]);
   return cam?.name;
 });
+
+const episodesOnly = computed(() => props.filters.contentKind === 'episodes');
+
+const contentKindOptions = computed(() => [
+  { label: t('views.recordings.content_kind_all'), value: 'all' as const },
+  { label: t('views.recordings.content_kind_events'), value: 'events' as const },
+  { label: t('views.recordings.content_kind_episodes'), value: 'episodes' as const },
+]);
 
 const filterLogicOptions = computed(() => [
   { label: t('views.recordings.filter_and'), value: 'and' as const },
@@ -456,6 +484,17 @@ defineExpose({
     letter-spacing: 0.05em;
     text-transform: uppercase;
     min-width: 0;
+  }
+}
+
+:deep(.content-kind-toggle) {
+  display: flex;
+
+  .p-togglebutton {
+    flex: 1;
+    min-width: 0;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
   }
 }
 

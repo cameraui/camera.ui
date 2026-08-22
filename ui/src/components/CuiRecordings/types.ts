@@ -2,7 +2,10 @@ import type { GridRegion } from '@/components/CuiGridSearch/types.js';
 import type { EventThumbnails, RecordedEvent } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
 
+export type RecordingsContentKind = 'all' | 'events' | 'episodes';
+
 export interface RecordingsFilterState {
+  contentKind: RecordingsContentKind;
   search: string;
   semanticQuery: string;
   filterLogicTriggers: 'and' | 'or';

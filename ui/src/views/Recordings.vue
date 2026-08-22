@@ -307,6 +307,7 @@ const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
 const sidebarState = ref<'opened' | 'closed'>('closed');
 const layoutReady = ref(false);
 const filters = ref<RecordingsFilterState>({
+  contentKind: 'all',
   search: '',
   semanticQuery: '',
   filterLogicTriggers: 'or',
@@ -379,7 +380,15 @@ const allCameraIds = computed(() => {
 
 registerScrollToTop(() => gridRef.value?.scrollToTop());
 
-const { events, isLoading, hasMore, loadMore, loadThumbnails, deleteEvents, pluginUnavailable: eventsUnavailable } = useDetectionEvents({
+const {
+  events,
+  isLoading,
+  hasMore,
+  loadMore,
+  loadThumbnails,
+  deleteEvents,
+  pluginUnavailable: eventsUnavailable,
+} = useDetectionEvents({
   availableCameraIds: allCameraIds,
   cameraIds,
   realtime: true,
@@ -425,15 +434,21 @@ const displayEvents = computed(() => {
   return result;
 });
 
+const episodesOnly = computed(() => filters.value.contentKind === 'episodes');
+
 const episodeGridItems = computed<UngroupedItem[]>(() => {
-  if (ungrouped.value || isSemanticActive.value) return [];
+  if (filters.value.contentKind === 'events') return [];
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   eventStore.storeVersion.value;
   const f = filters.value;
-  if (f.gridRegions.length > 0) return [];
-  const contentFiltered =
-    f.search.trim() !== '' || f.eventTypes.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0 || f.sensorEvents.length > 0 || f.minConfidence !== 0.5;
-  if (contentFiltered) return [];
+
+  if (!episodesOnly.value) {
+    if (ungrouped.value || isSemanticActive.value) return [];
+    if (f.gridRegions.length > 0) return [];
+    const contentFiltered =
+      f.search.trim() !== '' || f.eventTypes.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0 || f.sensorEvents.length > 0 || f.minConfidence !== 0.5;
+    if (contentFiltered) return [];
+  }
 
   const scope = cameraIds.value.length > 0 ? cameraIds.value : allCameraIds.value;
   let cutoff = f.timeRange && TIME_RANGE_MS[f.timeRange] ? Date.now() - TIME_RANGE_MS[f.timeRange] : 0;
@@ -443,7 +458,7 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
     rangeEndMs = f.customDateRange[1].getTime();
   }
 
-  if (hasMore.value) {
+  if (hasMore.value && !episodesOnly.value) {
     let oldest = Infinity;
     for (const event of events.value) {
       oldest = Math.min(oldest, event.thumbnailAt ?? event.startTime);
@@ -468,6 +483,7 @@ function gridItemTime(item: UngroupedItem): number {
 }
 
 const gridItems = computed<UngroupedItem[]>(() => {
+  if (episodesOnly.value) return [...episodeGridItems.value].sort((a, b) => gridItemTime(b) - gridItemTime(a));
   if (ungrouped.value && ungroupedItems.value.length) return ungroupedItems.value;
   const items: UngroupedItem[] = displayEvents.value.map((event) => ({ event, key: event.id }));
   if (episodeGridItems.value.length) {
