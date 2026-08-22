@@ -29,16 +29,16 @@
     "preview": "vite preview",
     "pwa": "pwa-assets-generator",
     "type-check": "vue-tsc --build",
-    "update": "updates -u -e primevue,@primevue/auto-import-resolver,@primeuix/themes"
+    "update": "updates -u -e primevue,@primevue/auto-import-resolver,@primeuix/themes,eslint,typescript,@eslint/js"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
     "@aparajita/capacitor-secure-storage": "^8.0.0",
-    "@camera.ui/browser": "~0.0.173",
+    "@camera.ui/browser": "~0.0.174",
     "@camera.ui/common": "~0.0.54",
-    "@camera.ui/nvr": "~0.0.101",
+    "@camera.ui/nvr": "~0.0.102",
     "@camera.ui/rpc": "~1.0.11",
-    "@camera.ui/sdk": "~1.2.30",
+    "@camera.ui/sdk": "~1.2.31",
     "@camera.ui/transport": "~0.0.26",
     "@capacitor-firebase/messaging": "^8.4.0",
     "@capacitor/app": "^8.1.1",

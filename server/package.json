@@ -40,7 +40,7 @@
     "@camera.ui/rpc": "^1.0.11",
     "@camera.ui/rust-detector": "~0.0.12",
     "@camera.ui/rust-postprocessor": "~0.1.2",
-    "@camera.ui/sdk": "~1.2.30",
+    "@camera.ui/sdk": "~1.2.31",
     "@camera.ui/tunnel": "^1.0.4",
     "@eneris/push-receiver": "^4.3.1",
     "@fastify/cors": "^11.3.0",
@@ -117,16 +117,7 @@
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2",
-    "node-av": {
-      "werift": "$werift"
-    },
-    "werift": {
-      "ip": "npm:neoip@2.1.0"
-    },
-    "werift-ice": {
-      "ip": "npm:neoip@2.1.0"
-    }
+    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2"
   },
   "bugs": {
     "url": "https://github.com/cameraui/camera.ui/issues"
