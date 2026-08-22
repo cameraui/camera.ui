@@ -45,8 +45,8 @@ export class NodePluginRuntime extends BasePluginRuntime {
       });
 
       this.worker.once('spawn', this.onSpawn.bind(this, this.worker.pid!, command, args, processNames, resolve));
-      this.worker.once('error', this.onError.bind(this, reject));
-      this.worker.once('exit', this.onExit.bind(this));
+      this.worker.on('error', this.onError.bind(this, reject));
+      this.worker.on('exit', this.onExit.bind(this));
 
       this.worker.stdout?.on('data', this.onData.bind(this));
       this.worker.stderr?.on('data', this.onData.bind(this));

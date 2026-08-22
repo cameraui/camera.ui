@@ -31,6 +31,7 @@ import { SensorRegistry } from './sensors/registry.js';
 import { ConfigService } from './services/config/index.js';
 import { LoggerService } from './services/logger/index.js';
 import { markShuttingDown, resetShuttingDown } from './shutdown-state.js';
+import { REPORT_DIR, WITH_REPORTS } from './utils/crash.js';
 import { initAppUpdateListener, reportStartError, requestServerUpdate, sendIPCMessage } from './utils/ipc.js';
 import { WorkerAgent } from './workers/agent.js';
 import { WorkerManager } from './workers/manager.js';
@@ -76,6 +77,8 @@ class CameraUi {
       displayName: '[Signal]',
       timeoutDuration: 5000,
       logger: this.logger,
+      reportErrors: WITH_REPORTS,
+      reportDirectory: REPORT_DIR,
       closeFunction: this.close.bind(this),
     });
 
@@ -283,10 +286,13 @@ class CameraUiWorker {
       displayName: '[Signal]',
       timeoutDuration: 5000,
       logger: this.logger,
+      reportErrors: WITH_REPORTS,
+      reportDirectory: REPORT_DIR,
       closeFunction: this.close.bind(this),
     });
 
     const homePath = process.argv.find((arg) => !arg.startsWith('--') && arg !== process.argv[0] && arg !== process.argv[1]);
+
     this.configService = new ConfigService(homePath);
     reapTrackedProcessesOnExit(this.configService);
 

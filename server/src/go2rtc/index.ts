@@ -7,6 +7,7 @@ import { container } from 'tsyringe';
 
 import { RUNTIME_STATUS } from '../services/config/types.js';
 import { isShuttingDown } from '../shutdown-state.js';
+import { exitInfo } from '../utils/process-exit.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { ChildProcess } from 'node:child_process';
@@ -108,15 +109,23 @@ export class Go2Rtc {
       this.go2rtcProcess.on('error', (error: Error) => {
         this.started = false;
 
-        this.logger.error('The go2rtc process failed to start/stop!', error);
+        this.logger.error('go2rtc reported an error!', error);
 
         this.setStatus(RUNTIME_STATUS.ERROR);
 
         reject(error);
       });
 
-      this.go2rtcProcess.on('exit', async () => {
+      this.go2rtcProcess.on('exit', async (code, signal) => {
         this.configService.removeProcessByPID(go2rtcPID);
+
+        const details = exitInfo(code, signal, { pid: go2rtcPID });
+
+        if (this.shuttingDown || this.manuallyKilled || isShuttingDown()) {
+          this.logger.log(`go2rtc exited (${details})`);
+        } else {
+          this.logger.error(`go2rtc exited unexpectedly (${details})`);
+        }
 
         setTimeout(() => {
           this.started = false;

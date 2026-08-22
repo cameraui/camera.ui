@@ -8,6 +8,7 @@ import { PLUGIN_STATUS } from '../../plugins/types.js';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { isShuttingDown } from '../../shutdown-state.js';
 import { nodeDecoderPath } from '../../utils/path.js';
+import { exitInfo } from '../../utils/process-exit.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { PrivateChannel, Promisify } from '@camera.ui/rpc';
@@ -391,7 +392,7 @@ export class FrameWorker extends Subscribed {
       this.process.once('exit', (code, signal) => {
         clearTimeout(timeout);
         this.setStatus(PLUGIN_STATUS.STOPPED);
-        this.logger.log(`Frame Worker closed. Code: ${code}, Signal: ${signal}`);
+        this.logger.log(`Frame Worker closed (${exitInfo(code, signal)})`);
         resolve();
       });
 
@@ -419,18 +420,20 @@ export class FrameWorker extends Subscribed {
       }
     });
 
-    this.process.once('error', (error) => {
+    this.process.on('error', (error) => {
       this.setStatus(PLUGIN_STATUS.ERROR);
-      this.logger.error('Process error:', error);
+      this.logger.error('Frame Worker reported an error!', error);
     });
 
     this.process.once('exit', (code, signal) => {
       const intentional = this.isClosed || isShuttingDown() || this.status === PLUGIN_STATUS.STOPPING || this.status === PLUGIN_STATUS.STOPPED;
 
+      const details = exitInfo(code, signal, { pid: this.process?.pid });
+
       if (intentional) {
-        this.logger.log('Frame Worker exited');
+        this.logger.log(`Frame Worker exited (${details})`);
       } else {
-        this.logger.warn(`Frame Worker exited unexpectedly. Code: ${code}, Signal: ${signal}`);
+        this.logger.error(`Frame Worker exited unexpectedly (${details})`);
       }
 
       this.setStatus(PLUGIN_STATUS.STOPPED);

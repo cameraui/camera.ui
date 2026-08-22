@@ -7,6 +7,7 @@ import { container } from 'tsyringe';
 import { WorkersService } from '../api/services/workers.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { ConfigService } from '../services/config/index.js';
+import { REPORT_DIR, WITH_REPORTS } from '../utils/crash.js';
 import { announceUpdateChannel, canRequestServerUpdate, requestServerUpdate } from '../utils/ipc.js';
 import { collectSystemInfo } from '../utils/system-info.js';
 import { FrameDecodingHandler } from './capabilities/frame-decoding.js';
@@ -91,6 +92,8 @@ export class WorkerAgent implements WorkerAgentRPC {
       displayName: '[WorkerAgent]',
       timeoutDuration: 5000,
       logger: this.logger,
+      reportErrors: WITH_REPORTS,
+      reportDirectory: REPORT_DIR,
       closeFunction: this.close.bind(this),
     });
   }

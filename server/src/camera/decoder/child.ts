@@ -9,6 +9,7 @@ import { Log } from 'node-av/lib';
 import { fileURLToPath } from 'node:url';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
+import { REPORT_DIR, WITH_REPORTS } from '../../utils/crash.js';
 import { DetectionCoordinator } from './detection-coordinator.js';
 
 import type { LoggerOptions } from '@camera.ui/common';
@@ -87,6 +88,8 @@ export class FrameWorkerChild {
       displayName: '[Signal]',
       timeoutDuration: 1000,
       logger: this.logger,
+      reportErrors: WITH_REPORTS,
+      reportDirectory: REPORT_DIR,
       closeFunction: this.close.bind(this),
     });
   }

@@ -482,9 +482,13 @@ export class CameraUiCLI {
       process.exit(1);
     }
 
+    const debugDir = process.env.CAMERA_UI_DEBUG_DIR;
+
     this.signalHandler = new SignalHandler({
       displayName: '[Signal]',
       timeoutDuration: 10000,
+      reportErrors: debugDir !== undefined,
+      reportDirectory: debugDir ? join(debugDir, 'reports') : undefined,
       logger: {
         log: (...args) => this.logger(args.join(' '), 'info'),
         warn: (...args) => this.logger(args.join(' '), 'warn'),

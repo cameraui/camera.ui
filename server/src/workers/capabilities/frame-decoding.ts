@@ -3,6 +3,7 @@ import { sleep } from '@camera.ui/common/utils';
 import { fork } from 'node:child_process';
 
 import { nodeDecoderPath } from '../../utils/path.js';
+import { exitInfo } from '../../utils/process-exit.js';
 import { WorkerCapability } from '../types.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
@@ -143,8 +144,20 @@ export class FrameDecodingHandler implements CapabilityHandler<WorkerCapability.
       }
     });
 
+    child.on('error', (error) => {
+      this.logger.error(`FrameWorker for ${config.cameraName} reported an error!`, error);
+    });
+
     child.once('exit', (code, signal) => {
-      this.logger.warn(`FrameWorker for ${config.cameraName} exited (code: ${code}, signal: ${signal})`);
+      const details = exitInfo(code, signal, { pid: child.pid });
+      const intentional = this.isClosed || !this.cameras.has(config.cameraId);
+
+      if (intentional) {
+        this.logger.log(`FrameWorker for ${config.cameraName} exited (${details})`);
+      } else {
+        this.logger.error(`FrameWorker for ${config.cameraName} exited unexpectedly (${details})`);
+      }
+
       this.configService.removeProcessByPID(child.pid);
 
       const managed = this.cameras.get(config.cameraId);

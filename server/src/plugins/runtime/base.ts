@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { container } from 'tsyringe';
 
 import { CLOUD_SERVICE_URL } from '../../services/config/constants.js';
+import { exitInfo } from '../../utils/process-exit.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { ChildProcess } from 'node:child_process';
@@ -59,6 +60,7 @@ export abstract class BasePluginRuntime extends EventEmitter {
   private logManager: LogManager;
   private logBuffer = '';
   private isShuttingDown = false;
+  private stopRequested = false;
 
   constructor(protected plugin: RuntimePlugin) {
     super();
@@ -89,6 +91,8 @@ export abstract class BasePluginRuntime extends EventEmitter {
 
   public stop(): Promise<void> {
     return new Promise<void>((resolve) => {
+      this.stopRequested = true;
+
       if (!this.worker || this.worker.killed || this.worker.exitCode !== null || this.worker.signalCode !== null) {
         resolve();
         return;
@@ -102,7 +106,7 @@ export abstract class BasePluginRuntime extends EventEmitter {
 
       this.worker.once('exit', (code, signal) => {
         clearTimeout(killTimeout);
-        this.logger.log(`Plugin ${this.plugin.displayName} closed. Code: ${code}, Signal: ${signal}`);
+        this.logger.log(`Plugin ${this.plugin.displayName} closed (${exitInfo(code, signal)})`);
         this.worker = undefined;
         resolve();
       });
@@ -121,6 +125,7 @@ export abstract class BasePluginRuntime extends EventEmitter {
   }
 
   private forceKill(): void {
+    this.stopRequested = true;
     const pid = this.worker?.pid;
     // the win32 venv python.exe is a launcher stub whose child is the real
     // interpreter; terminating only the stub leaves a hidden process behind
@@ -160,12 +165,21 @@ export abstract class BasePluginRuntime extends EventEmitter {
   }
 
   protected onError(reject: (reason?: any) => void, error: Error): void {
-    this.logger.error(`The plugin process for "${this.plugin.pluginName}" failed to start/stop!`, error);
+    this.logger.error(`The plugin process for "${this.plugin.pluginName}" reported an error!`, error);
     reject(error);
   }
 
-  protected onExit(): void {
-    this.logger.log(`Plugin ${this.plugin.displayName} exited`);
+  protected onExit(code: number | null, signal: NodeJS.Signals | null): void {
+    const expected = this.stopRequested || this.isShuttingDown;
+    this.stopRequested = false;
+
+    const details = exitInfo(code, signal, { pid: this.processInfo?.pid ?? this.worker?.pid, startTime: this.processInfo?.startTime });
+
+    if (expected) {
+      this.logger.log(`Plugin ${this.plugin.displayName} exited (${details})`);
+    } else {
+      this.logger.error(`Plugin ${this.plugin.displayName} exited unexpectedly (${details})`);
+    }
 
     // Disconnect the plugin's sensors so clients receive sensor:removed —
     // entities and their assignments stay, re-registration rebinds them.

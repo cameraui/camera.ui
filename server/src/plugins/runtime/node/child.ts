@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isPromise } from 'node:util/types';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
+import { REPORT_DIR, WITH_REPORTS } from '../../../utils/crash.js';
 import { PluginStoreFile } from '../../store/pluginStoreFile.js';
 import { PLUGIN_COMMAND, PLUGIN_STATUS } from '../../types.js';
 import { LocalPluginConfigDb, RemotePluginConfigDb } from './configDb.js';
@@ -88,6 +89,8 @@ export class PluginChild {
       displayName: '[Signal]',
       timeoutDuration: 2000,
       logger: this.logger,
+      reportErrors: WITH_REPORTS,
+      reportDirectory: REPORT_DIR,
       closeFunction: this.stopPlugin.bind(this),
     });
   }
