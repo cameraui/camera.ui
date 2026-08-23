@@ -58,7 +58,6 @@ export interface IConfig {
   insecurePort?: number;
   host?: string;
   ffmpegPath?: string;
-  ssl: IConfigSSL;
   logger: Logger;
   betaUpdates?: boolean;
   plugins: PluginsSettings;
@@ -72,13 +71,6 @@ export type LoggingLevel = 'info' | 'debug' | 'warn' | 'error' | 'trace';
 
 export interface Logger {
   level: LoggingLevel;
-}
-
-export interface IConfigSSL {
-  certFile: string;
-  keyFile: string;
-  caFile: string;
-  addresses?: string[];
 }
 
 // go2rtc config

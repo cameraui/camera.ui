@@ -32,6 +32,8 @@ import { SocketIoPlugin } from './plugins/socket.plugin.js';
 import { SystemPlugin } from './plugins/system.plugin.js';
 import { FastifyRoutes } from './routes/index.js';
 import { SharesService } from './services/shares.service.js';
+import { CertificateGeneration } from './utils/cert.js';
+import { customSecureContext, logCustomCertificate } from './utils/custom-cert.js';
 
 import type { FastifyCorsOptions } from '@fastify/cors';
 import type { FastifyHelmetOptions } from '@fastify/helmet';
@@ -139,6 +141,8 @@ export class Server {
       this._internalPort = addr?.port ?? 0;
       this.logger.debug(`camera.ui internal listener bound to http://127.0.0.1:${this._internalPort}`);
     }
+
+    logCustomCertificate(CertificateGeneration.requiredAddresses());
 
     await this.startInsecureForwarder();
 
@@ -444,6 +448,7 @@ export class Server {
         cert: this.configService.ssl.cert,
         key: this.configService.ssl.key,
         ca: this.configService.ssl.ca,
+        SNICallback: (servername, callback) => callback(null, customSecureContext(servername)),
       },
       logController: new LogController({ disableRequestLogging: true }),
       routerOptions: {

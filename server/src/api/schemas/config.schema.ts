@@ -1,6 +1,6 @@
 import * as zod from 'zod';
 
-import { DEFAULT_CONFIG_HOST, DEFAULT_CONFIG_LOGGER, DEFAULT_CONFIG_PLUGINS, DEFAULT_CONFIG_PORT, DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
+import { DEFAULT_CONFIG_HOST, DEFAULT_CONFIG_LOGGER, DEFAULT_CONFIG_PLUGINS, DEFAULT_CONFIG_PORT } from '../../services/config/defaults.js';
 import { WorkerCapability } from '../../workers/types.js';
 
 export const logLevelSchema = zod.union([zod.literal('info'), zod.literal('debug'), zod.literal('warn'), zod.literal('error'), zod.literal('trace')]);
@@ -8,15 +8,6 @@ export const logLevelSchema = zod.union([zod.literal('info'), zod.literal('debug
 export const loggerSchema = zod
   .object({
     level: logLevelSchema.optional().default(DEFAULT_CONFIG_LOGGER.level),
-  })
-  .strict();
-
-export const iConfigSSLSchema = zod
-  .object({
-    certFile: zod.string().trim(),
-    keyFile: zod.string().trim(),
-    caFile: zod.string().trim(),
-    addresses: zod.string().trim().array().optional().default(DEFAULT_CONFIG_SSL.addresses!),
   })
   .strict();
 
@@ -63,7 +54,6 @@ export const patchConfigSchema = zod
     insecurePort: zod.number().min(1024, 'Min port range').max(49151, 'Max port range').optional(),
     host: zod.string().trim().optional().default(DEFAULT_CONFIG_HOST),
     ffmpegPath: zod.string().trim().optional(),
-    ssl: iConfigSSLSchema,
     logger: loggerSchema,
     betaUpdates: zod.boolean().default(false),
     plugins: pluginsSchema,

@@ -9,7 +9,9 @@ import { ConfigService } from '../../services/config/index.js';
 import { getVersionsAndDistTags } from '../../utils/npm/index.js';
 import { ServerService } from '../services/server.service.js';
 import { updatesService } from '../services/updates.service.js';
+import { customCertificateState, removeCustomCertificate, storeCustomCertificate } from '../utils/custom-cert.js';
 
+import type { MultipartFile } from '@fastify/multipart';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { ProxyServer } from '../../rpc/index.js';
@@ -30,6 +32,12 @@ import type { ServerNamespace } from '../websocket/nsp/server.js';
 
 const SYSTEM_LOG_SOURCES = new Set(['server', 'go2rtc', 'nats', 'tunnel']);
 const GITHUB_RELEASE_REPO = 'cameraui/camera.ui';
+
+async function readUpload(file: MultipartFile | undefined): Promise<string | undefined> {
+  if (!file?.toBuffer) return undefined;
+  const text = (await file.toBuffer()).toString('utf8').trim();
+  return text || undefined;
+}
 
 export class ServerController {
   private configService: ConfigService;
@@ -104,6 +112,55 @@ export class ServerController {
     }
   }
 
+  public getCertificate(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      return reply.code(200).send(customCertificateState());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async uploadCertificate(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      if (!req.isMultipart()) {
+        return reply.code(400).send({ statusCode: 400, message: 'No multipart request' });
+      }
+
+      const body = req.body as Record<string, MultipartFile | undefined>;
+      const cert = await readUpload(body.cert);
+      const key = await readUpload(body.key);
+      const chain = await readUpload(body.chain);
+
+      if (!cert || !key) {
+        return reply.code(400).send({ statusCode: 400, message: 'Certificate and key are required' });
+      }
+
+      const result = await storeCustomCertificate(cert, key, chain);
+      if ('problem' in result) {
+        return reply.code(400).send({ statusCode: 400, message: result.problem.code, detail: result.problem.detail });
+      }
+
+      await this.configService.refreshGo2RtcCertificate();
+      this.logger.log(`Custom certificate stored for ${result.info.names.join(', ')}`);
+
+      return reply.code(201).send(customCertificateState());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async removeCertificate(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await removeCustomCertificate();
+      await this.configService.refreshGo2RtcCertificate();
+      this.logger.log('Custom certificate removed, the instance certificate is served again');
+
+      return reply.code(200).send(customCertificateState());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async patchServerInfo(req: FastifyRequest<AuthLoginRequest & ServerPatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const oldServer = JSON.parse(JSON.stringify(this.service.info())) as DBServer;
@@ -112,6 +169,12 @@ export class ServerController {
       const serverAddressesChanged = isEqual(oldServer.serverAddresses, serverInfo.serverAddresses, true) !== true;
       if (serverAddressesChanged) {
         await this.configService.updateGo2RtcWebRtcFilter(serverInfo.serverAddresses, oldServer.serverAddresses, true);
+      }
+
+      // the host certificate has to cover every address a client may dial,
+      // so a changed list re-issues it for the next start
+      if (serverAddressesChanged || oldServer.localUrl !== serverInfo.localUrl) {
+        this.configService.refreshHostCertificate();
       }
 
       return reply.code(200).send(serverInfo);
@@ -264,7 +327,7 @@ export class ServerController {
 
   public async downloadCert(_req: FastifyRequest<AuthLoginRequest & FilesParamsRequest>, reply: FastifyReply): Promise<FastifyReply | void> {
     try {
-      readFile(this.configService.config.ssl.caFile, (error, fileBuffer) => {
+      readFile(this.configService.ROOT_CERT_FILE, (error, fileBuffer) => {
         if (error) {
           this.logger.error(error);
         }

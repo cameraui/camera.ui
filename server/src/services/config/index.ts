@@ -1,9 +1,9 @@
 import { getUserHomeDir } from '@camera.ui/common/node';
-import { IS_DEV, IS_DOCKER, IS_ELECTRON, isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
+import { IS_DEV, IS_DOCKER, IS_ELECTRON, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { go2rtcPath } from '@camera.ui/go2rtc';
 import { natsServerPath } from '@camera.ui/nats';
 import { tunnelPath } from '@camera.ui/tunnel';
-import { emptyDirSync, ensureDirSync, ensureFileSync, moveSync, pathExistsSync, readJsonSync, removeSync, writeJsonSync } from 'fs-extra/esm';
+import { copySync, emptyDirSync, ensureDirSync, ensureFileSync, moveSync, pathExistsSync, readJsonSync, removeSync, writeJsonSync } from 'fs-extra/esm';
 import { dump, load } from 'js-yaml';
 import { ffmpegPath, isFfmpegAvailable } from 'node-av';
 import { createHash, randomBytes } from 'node:crypto';
@@ -18,7 +18,8 @@ import { ZodError } from 'zod';
 import { patchConfigSchema } from '../../api/schemas/config.schema.js';
 import { patchGo2RtcSchema } from '../../api/schemas/go2rtc.schema.js';
 import { CertificateGeneration } from '../../api/utils/cert.js';
-import { HOST_CERT_FILENAME, HOST_KEY_FILENAME, OLD_ROOT_CERT_FILENAME, OLD_ROOT_KEY_FILENAME, ROOT_CERT_FILENAME } from '../../api/utils/constants.js';
+import { CUSTOM_CERT_FILENAME, CUSTOM_KEY_FILENAME, HOST_CERT_FILENAME, HOST_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from '../../api/utils/constants.js';
+import { customCertificatePaths } from '../../api/utils/custom-cert.js';
 import { announceUpdateChannel } from '../../utils/ipc.js';
 import { execSafePath } from '../../utils/path.js';
 import { DEFAULT_CONFIG, DEFAULT_GO2RTC_CONFIG, ELECTRON_ASAR_UNPACKED } from './constants.js';
@@ -71,6 +72,13 @@ export class ConfigService {
   readonly USERS_STORAGE_PATH: string;
   readonly INTERFACE_CACHE_PATH: string;
   readonly TMP_PATH: string;
+
+  readonly CERTS_PATH: string;
+  readonly CUSTOM_CERTS_PATH: string;
+  readonly HOST_CERT_FILE: string;
+  readonly HOST_KEY_FILE: string;
+  readonly ROOT_CERT_FILE: string;
+  readonly ROOT_KEY_FILE: string;
 
   readonly PLUGINS_STORAGE_PATH: string;
   readonly PLUGINS_INSTALL_PATH: string;
@@ -187,6 +195,13 @@ export class ConfigService {
     this.USERS_STORAGE_PATH = join(this.STORAGE_PATH, 'users');
     this.INTERFACE_CACHE_PATH = join(this.STORAGE_PATH, 'interface');
 
+    this.CERTS_PATH = join(this.STORAGE_PATH, 'certs');
+    this.CUSTOM_CERTS_PATH = join(this.CERTS_PATH, 'custom');
+    this.HOST_CERT_FILE = join(this.CERTS_PATH, HOST_CERT_FILENAME);
+    this.HOST_KEY_FILE = join(this.CERTS_PATH, HOST_KEY_FILENAME);
+    this.ROOT_CERT_FILE = join(this.CERTS_PATH, ROOT_CERT_FILENAME);
+    this.ROOT_KEY_FILE = join(this.CERTS_PATH, ROOT_KEY_FILENAME);
+
     this.PLUGINS_STORAGE_PATH = join(this.STORAGE_PATH, 'plugins', 'storage');
     this.PLUGINS_INSTALL_PATH = join(this.HOME_PATH, 'plugins');
     this.RESTORE_STAGING_PATH = join(this.HOME_PATH, 'restore');
@@ -206,6 +221,7 @@ export class ConfigService {
     this.SECRETS = this.updateSecrets();
 
     this.createDirs();
+    this.migrateCertificates();
     this.read();
     this.logStart();
   }
@@ -225,22 +241,15 @@ export class ConfigService {
     this._ssl = this.readSSL();
   }
 
-  public writeConfig(newConfig?: DeepPartial<IConfig>): void {
-    const oldSSL = structuredClone(this._config.ssl);
+  public refreshHostCertificate(): void {
+    removeSync(this.HOST_CERT_FILE);
+    removeSync(this.HOST_KEY_FILE);
+    this._ssl = this.readSSL();
+  }
 
+  public writeConfig(newConfig?: DeepPartial<IConfig>): void {
     if (newConfig) {
       this.mergeAndValidate(this._config, newConfig);
-    }
-
-    const newSSL = structuredClone(this._config.ssl);
-    const sslChanged = isEqual(oldSSL, newSSL, true) === false;
-    const certFile = join(this.STORAGE_PATH, HOST_CERT_FILENAME);
-    const keyFile = join(this.STORAGE_PATH, HOST_KEY_FILENAME);
-
-    if (sslChanged) {
-      removeSync(certFile);
-      removeSync(keyFile);
-      this._ssl = this.readSSL();
     }
 
     writeFileSync(this.CONFIG_FILE, dump(this._config, { lineWidth: -1, noRefs: true }));
@@ -267,6 +276,11 @@ export class ConfigService {
     } else {
       writeFileSync(this.GO2RTC_CONFIG_FILE, dump(this._go2rtcConfig, { lineWidth: -1, noRefs: true }));
     }
+  }
+
+  public async refreshGo2RtcCertificate(): Promise<void> {
+    this.validateAndSetGo2RtcConfig(this._go2rtcConfig);
+    await this.writeGo2RtcConfigFile();
   }
 
   public async writeGo2RtcConfigFile(newConfig?: DeepPartial<Go2RtcConfig>): Promise<void> {
@@ -514,18 +528,14 @@ export class ConfigService {
   }
 
   private defaultConfig(): IConfig {
-    const defaultConfig = structuredClone(DEFAULT_CONFIG);
-    defaultConfig.ssl.certFile = join(this.STORAGE_PATH, HOST_CERT_FILENAME);
-    defaultConfig.ssl.keyFile = join(this.STORAGE_PATH, HOST_KEY_FILENAME);
-    defaultConfig.ssl.caFile = join(this.STORAGE_PATH, ROOT_CERT_FILENAME);
-    return patchConfigSchema.parse(defaultConfig);
+    return patchConfigSchema.parse(structuredClone(DEFAULT_CONFIG));
   }
 
   private defaultGo2RtcConfig(): Go2RtcConfig {
     const defaultConfig = structuredClone(DEFAULT_GO2RTC_CONFIG);
-    defaultConfig.api.tls_cert = join(this.STORAGE_PATH, HOST_CERT_FILENAME);
-    defaultConfig.api.tls_key = join(this.STORAGE_PATH, HOST_KEY_FILENAME);
-    defaultConfig.api.tls_ca = join(this.STORAGE_PATH, ROOT_CERT_FILENAME);
+    defaultConfig.api.tls_cert = this.HOST_CERT_FILE;
+    defaultConfig.api.tls_key = this.HOST_KEY_FILE;
+    defaultConfig.api.tls_ca = this.ROOT_CERT_FILE;
     return patchGo2RtcSchema.parse(defaultConfig);
   }
 
@@ -547,14 +557,6 @@ export class ConfigService {
             return target;
           }
         });
-
-        if (config.ssl.certFile === join(this.STORAGE_PATH, OLD_ROOT_CERT_FILENAME)) {
-          config.ssl.certFile = join(this.STORAGE_PATH, HOST_CERT_FILENAME);
-        }
-
-        if (config.ssl.keyFile === join(this.STORAGE_PATH, OLD_ROOT_KEY_FILENAME)) {
-          config.ssl.keyFile = join(this.STORAGE_PATH, HOST_KEY_FILENAME);
-        }
       }
     }
 
@@ -635,9 +637,11 @@ export class ConfigService {
 
     config.api.listen = '';
     config.api.origin = '*';
-    config.api.tls_cert = this.config.ssl.certFile;
-    config.api.tls_key = this.config.ssl.keyFile;
-    config.api.tls_ca = this.config.ssl.caFile;
+
+    const custom = customCertificatePaths(this);
+    config.api.tls_cert = custom?.certFile ?? this.HOST_CERT_FILE;
+    config.api.tls_key = custom?.keyFile ?? this.HOST_KEY_FILE;
+    config.api.tls_ca = custom ? '' : this.ROOT_CERT_FILE;
 
     const customFfmpeg = this.config.ffmpegPath?.trim();
     const bundledFfmpeg = isFfmpegAvailable() ? ffmpegPath().replace('app.asar', ELECTRON_ASAR_UNPACKED) : undefined;
@@ -734,12 +738,66 @@ export class ConfigService {
     this.safetyEnsureDir(this.PLUGINS_INSTALL_PATH);
     this.safetyEnsureDir(this.DATABASE_PATH);
     this.safetyEnsureDir(this.INTERFACE_CACHE_PATH);
+    this.safetyEnsureDir(this.CERTS_PATH);
+    this.safetyEnsureDir(this.CUSTOM_CERTS_PATH);
     this.safetyEnsureFile(this.CONFIG_FILE);
     this.safetyEnsureFile(this.GO2RTC_CONFIG_FILE);
     this.safetyEnsureFile(this.SECRETS_FILE);
     this.safetyEnsureFile(this.LOG_FILE);
     this.safetyEnsureFile(this.REPORTS_FILE);
     this.safetyEnsureFile(this.PIDS_FILE);
+  }
+
+  private migrateCertificates(): void {
+    const disposable: [string, string][] = [
+      [join(this.STORAGE_PATH, HOST_CERT_FILENAME), this.HOST_CERT_FILE],
+      [join(this.STORAGE_PATH, HOST_KEY_FILENAME), this.HOST_KEY_FILE],
+    ];
+
+    const identity: [string, string][] = [
+      [join(this.STORAGE_PATH, ROOT_CERT_FILENAME), this.ROOT_CERT_FILE],
+      [join(this.STORAGE_PATH, ROOT_KEY_FILENAME), this.ROOT_KEY_FILE],
+    ];
+
+    for (const [from, to] of identity) {
+      if (!existsSync(from) || existsSync(to)) continue;
+      try {
+        moveSync(from, to);
+      } catch (error: any) {
+        throw new Error(`Could not move the instance CA to ${this.CERTS_PATH}: ${error.message}`);
+      }
+    }
+
+    for (const [from, to] of disposable) {
+      if (!existsSync(from) || existsSync(to)) continue;
+      try {
+        moveSync(from, to);
+      } catch {
+        // re-issued from the CA on the next read
+      }
+    }
+
+    this.adoptConfiguredCertificate();
+  }
+
+  private adoptConfiguredCertificate(): void {
+    if (!pathExistsSync(this.CONFIG_FILE)) return;
+
+    const raw = this.parseYaml<{ ssl?: { certFile?: string; keyFile?: string } }>(readFileSync(this.CONFIG_FILE, 'utf-8'));
+    const certFile = raw?.ssl?.certFile;
+    const keyFile = raw?.ssl?.keyFile;
+
+    if (!certFile || !keyFile) return;
+    if (certFile.startsWith(this.STORAGE_PATH) || !existsSync(certFile) || !existsSync(keyFile)) return;
+    if (existsSync(join(this.CUSTOM_CERTS_PATH, CUSTOM_CERT_FILENAME))) return;
+
+    try {
+      copySync(certFile, join(this.CUSTOM_CERTS_PATH, CUSTOM_CERT_FILENAME));
+      copySync(keyFile, join(this.CUSTOM_CERTS_PATH, CUSTOM_KEY_FILENAME));
+      this.logger.log(`Moved the certificate from the old ssl config into ${this.CUSTOM_CERTS_PATH}, it is served for the names it covers`);
+    } catch (error: any) {
+      this.logger.warn(`Could not adopt the certificate from the old ssl config: ${error.message}`);
+    }
   }
 
   private safetyEnsureDir(dir: string): void {

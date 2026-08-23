@@ -1,6 +1,6 @@
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 
-import type { API, Ffmpeg, IConfigSSL, Log, Logger, PluginsSettings, RTMP, RTSP, SRTP, Webrtc } from './types.js';
+import type { API, Ffmpeg, Log, Logger, PluginsSettings, RTMP, RTSP, SRTP, Webrtc } from './types.js';
 
 export const ELECTRON_PORT_OFFSET = IS_ELECTRON ? 100 : 0;
 
@@ -10,12 +10,6 @@ const listenWithOffset = (host: string, base: number): string => `${host}:${with
 // server
 export const DEFAULT_CONFIG_PORT = withOffset(3443);
 export const DEFAULT_CONFIG_HOST = '0.0.0.0';
-export const DEFAULT_CONFIG_SSL: IConfigSSL = {
-  certFile: '',
-  keyFile: '',
-  caFile: '',
-  addresses: ['127.0.0.1'],
-};
 export const DEFAULT_CONFIG_LOGGER: Logger = {
   level: 'trace',
 };

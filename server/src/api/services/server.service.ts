@@ -53,7 +53,7 @@ export class ServerService {
   }
 
   private caCertificate(): string | undefined {
-    const caFile = container.resolve<ConfigService>('configService').config.ssl.caFile;
+    const caFile = container.resolve<ConfigService>('configService').ROOT_CERT_FILE;
     if (!caFile) return undefined;
     try {
       const pem = readFileSync(caFile, 'utf8');

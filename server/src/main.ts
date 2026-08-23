@@ -121,6 +121,8 @@ class CameraUi {
 
     await this.database.initialize();
 
+    this.configService.reissueSslCertificate();
+
     sendIPCMessage({
       type: 'START_OUTPUT',
       message: 'Initializing camera engine...',

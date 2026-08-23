@@ -2,11 +2,10 @@ import { ffmpegPath, isFfmpegAvailable } from 'node-av/ffmpeg';
 import { platform } from 'node:os';
 
 import {
-  DEFAULT_CONFIG_LOGGER,
   DEFAULT_CONFIG_HOST,
+  DEFAULT_CONFIG_LOGGER,
   DEFAULT_CONFIG_PLUGINS,
   DEFAULT_CONFIG_PORT,
-  DEFAULT_CONFIG_SSL,
   DEFAULT_GO2RTC_CONFIG_API,
   DEFAULT_GO2RTC_CONFIG_FFMPEG,
   DEFAULT_GO2RTC_CONFIG_LOGGER,
@@ -35,7 +34,6 @@ export const DEFAULT_ICE_SERVERS: IceServer[] = [
 export const DEFAULT_CONFIG: IConfig = {
   port: DEFAULT_CONFIG_PORT,
   host: DEFAULT_CONFIG_HOST,
-  ssl: DEFAULT_CONFIG_SSL,
   logger: DEFAULT_CONFIG_LOGGER,
   betaUpdates: false,
   plugins: DEFAULT_CONFIG_PLUGINS,

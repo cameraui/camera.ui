@@ -3,6 +3,10 @@ export const HOST_KEY_FILENAME = 'camera.ui.key.pem';
 export const ROOT_CERT_FILENAME = 'camera.ui.ca.cert.pem';
 export const ROOT_KEY_FILENAME = 'camera.ui.ca.key.pem';
 
+export const CUSTOM_CERT_FILENAME = 'cert.pem';
+export const CUSTOM_KEY_FILENAME = 'key.pem';
+export const CUSTOM_CHAIN_FILENAME = 'chain.pem';
+
 export const OLD_ROOT_CERT_FILENAME = 'camera.ui.root.cert.pem';
 export const OLD_ROOT_KEY_FILENAME = 'camera.ui.root.key.pem';
 

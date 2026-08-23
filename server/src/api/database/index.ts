@@ -6,7 +6,6 @@ import { unlink } from 'node:fs/promises';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
-import { DEFAULT_CONFIG_SSL } from '../../services/config/defaults.js';
 import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
 import { createAutomationSchema } from '../schemas/automations.schema.js';
 import { createCameraBaseSchema } from '../schemas/cameras.schema.js';
@@ -381,7 +380,7 @@ export class Database {
       cloudflare: { mode: 'quick', hostname: null, token: null, tunnelId: null },
     });
 
-    this.configService.writeConfig({ ssl: { addresses: [...DEFAULT_CONFIG_SSL.addresses!] } });
+    this.configService.refreshHostCertificate();
 
     await unlink(markerFile);
   }

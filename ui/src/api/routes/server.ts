@@ -2,7 +2,7 @@ import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
 import type { UpdateServerInput } from '@/schemas/server.schema.js';
-import type { DBServer, Go2RtcInfo, MethodKeys, ServerInfo } from '@shared/types';
+import type { CustomCertificateState, DBServer, Go2RtcInfo, MethodKeys, ServerInfo } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
@@ -13,6 +13,26 @@ export async function getServerInfo(): Promise<ServerInfo> {
 
 export async function patchServerInfo(systemData: Partial<DBServer>): Promise<DBServer> {
   const response: AxiosResponse<DBServer> = await api.patch('/server', systemData);
+  return response.data;
+}
+
+export async function getCertificate(): Promise<CustomCertificateState> {
+  const response: AxiosResponse<CustomCertificateState> = await api.get('/server/certificate');
+  return response.data;
+}
+
+export async function uploadCertificate(files: { cert: File; key: File; chain?: File }): Promise<CustomCertificateState> {
+  const form = new FormData();
+  form.append('cert', files.cert);
+  form.append('key', files.key);
+  if (files.chain) form.append('chain', files.chain);
+
+  const response: AxiosResponse<CustomCertificateState> = await api.post('/server/certificate', form);
+  return response.data;
+}
+
+export async function removeCertificate(): Promise<CustomCertificateState> {
+  const response: AxiosResponse<CustomCertificateState> = await api.delete('/server/certificate');
   return response.data;
 }
 

@@ -76,13 +76,62 @@
           <template #content>
             <div class="flex flex-col gap-6">
               <span class="text-sm">{{ $t('views.settings.certificate_info') }}</span>
-              <Button
-                :loading="loadingCert || isLoading"
-                :disabled="actionsDisabled"
-                class="cui-button-medium ml-auto"
-                :label="$t('components.form.button.download')"
-                @click="downloadCert"
-              />
+
+              <div v-if="canManageCertificate" class="flex flex-col gap-2">
+                <span class="cui-label">{{ $t('views.settings.custom_certificate') }}</span>
+
+                <Message v-if="certificateState?.problem" severity="error" :closable="false">
+                  {{ $t(`views.settings.certificate_problem_${certificateState.problem.code.replace('-', '_')}`) }}
+                </Message>
+
+                <template v-else-if="certificateState?.info">
+                  <div class="flex justify-between gap-4 text-sm">
+                    <span class="text-muted shrink-0">{{ $t('views.settings.certificate_names') }}</span>
+                    <span class="text-right break-all">{{ certificateState.info.names.join(', ') }}</span>
+                  </div>
+                  <div class="flex justify-between gap-4 text-sm">
+                    <span class="text-muted shrink-0">{{ $t('views.settings.certificate_issuer') }}</span>
+                    <span class="text-right break-all">{{ certificateState.info.issuer }}</span>
+                  </div>
+                  <div class="flex justify-between gap-4 text-sm">
+                    <span class="text-muted shrink-0">{{ $t('views.settings.certificate_valid_to') }}</span>
+                    <span class="text-right">{{ certificateState.info.validTo }}</span>
+                  </div>
+                  <Message v-if="chainMissing" severity="warn" class="mt-2" :closable="false">
+                    {{ $t('views.settings.certificate_chain_missing') }}
+                  </Message>
+                </template>
+
+                <span v-else class="text-sm text-muted">{{ $t('views.settings.certificate_none') }}</span>
+              </div>
+
+              <div class="flex flex-wrap gap-2 ml-auto">
+                <Button
+                  v-if="canManageCertificate && certificateState?.present"
+                  severity="danger"
+                  outlined
+                  :loading="certificateBusy"
+                  class="cui-button-medium"
+                  :label="$t('components.form.button.remove')"
+                  @click="confirmDropCertificate"
+                />
+                <Button
+                  :loading="loadingCert || isLoading"
+                  :disabled="actionsDisabled"
+                  severity="secondary"
+                  outlined
+                  class="cui-button-medium"
+                  :label="$t('components.form.button.download')"
+                  @click="downloadCert"
+                />
+                <Button
+                  v-if="canManageCertificate"
+                  :loading="certificateBusy"
+                  class="cui-button-medium"
+                  :label="$t('components.form.button.upload')"
+                  @click="openCertificateUpload"
+                />
+              </div>
             </div>
           </template>
         </Card>
@@ -129,19 +178,23 @@
 
 <script setup lang="ts">
 import { ApiQuery, apiInfo as fetchApiInfo } from '@/api/routes/api.js';
-import { downloadCertFn, ServerQuery } from '@/api/routes/server.js';
+import { downloadCertFn, getCertificate, removeCertificate, restartGo2RtcFn, ServerQuery, uploadCertificate } from '@/api/routes/server.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { isCapacitor } from '@/connection/index.js';
 
+import type { CertificateUploadResult } from '@/components/CuiDialog/templates/CertificateUpload/types.js';
 import type { VersionsHandlerProps } from '@/components/CuiDialog/templates/VersionsHandler/types.js';
+import type { CustomCertificateState } from '@shared/types';
 
 const VersionsHandlerDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VersionsHandler/VersionsHandler.vue'));
+const CertificateUploadDialog = asyncComponent(() => import('@/components/CuiDialog/templates/CertificateUpload/CertificateUpload.vue'));
 
 const apiQuery = new ApiQuery();
 const serverQuery = new ServerQuery();
 
 const log = useLogger();
 const dialog = useCuiDialog();
+const toast = useCuiToast();
 const { t } = useI18n();
 const { isElectronApp, electron } = useElectron();
 const { isOnline } = useConnection();
@@ -158,8 +211,17 @@ const { mutateAsync: resetServer, isPending: resetServerLoading } = serverQuery.
 const currentVersion = ref(t('views.settings.unknown'));
 const currentElectronVersion = ref(t('views.settings.unknown'));
 const loadingCert = ref(false);
+const certificateState = shallowRef<CustomCertificateState | null>(null);
+const certificateBusy = ref(false);
 
 let refreshRun = 0;
+
+const canManageCertificate = computed(() => !isElectronApp && hasPermission(undefined, 'master'));
+
+const chainMissing = computed(() => {
+  const info = certificateState.value?.info;
+  return Boolean(info && info.chainLength <= 1 && !info.selfSigned);
+});
 
 const isElectronBuild = computed(() => apiInfo.value?.electron ?? false);
 
@@ -275,6 +337,81 @@ async function refreshAfterReconnect(): Promise<void> {
   }
 }
 
+function askGo2RtcRestart(): void {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.certificate_restart_title'),
+      confirmText: t('components.form.button.restart'),
+      contentText: t('views.settings.certificate_restart_info'),
+    },
+    onConfirm: async () => {
+      try {
+        await restartGo2RtcFn();
+        toast.add({ severity: 'success', detail: t('views.settings.certificate_restart_done'), life: 5000 });
+      } catch (error: any) {
+        toast.add({ severity: 'error', detail: error?.response?.data?.message ?? error?.message, life: 5000 });
+      }
+    },
+  });
+}
+
+async function loadCertificateState(): Promise<void> {
+  try {
+    certificateState.value = await getCertificate();
+  } catch (error) {
+    log.error('Certificate state failed:', error);
+  }
+}
+
+function openCertificateUpload(): void {
+  dialog.openComponentDialog(CertificateUploadDialog, {
+    data: {
+      title: t('views.settings.certificate_upload_title'),
+      confirmText: t('components.form.button.upload'),
+      contentProps: { hasCertificate: certificateState.value?.present === true },
+    },
+    onConfirm: (files: CertificateUploadResult) => sendCertificate(files),
+  });
+}
+
+async function sendCertificate(files: CertificateUploadResult): Promise<void> {
+  certificateBusy.value = true;
+  try {
+    certificateState.value = await uploadCertificate(files);
+    toast.add({ severity: 'success', detail: t('views.settings.certificate_stored'), life: 5000 });
+    askGo2RtcRestart();
+  } catch (error: any) {
+    toast.add({ severity: 'error', detail: error?.response?.data?.message ?? error?.message, life: 5000 });
+  } finally {
+    certificateBusy.value = false;
+  }
+}
+
+function confirmDropCertificate(): void {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.certificate_remove_title'),
+      confirmText: t('components.form.button.remove'),
+      contentText: t('views.settings.certificate_remove_confirm'),
+      loading: certificateBusy,
+    },
+    onConfirm: dropCertificate,
+  });
+}
+
+async function dropCertificate(): Promise<void> {
+  certificateBusy.value = true;
+  try {
+    certificateState.value = await removeCertificate();
+    toast.add({ severity: 'success', detail: t('views.settings.certificate_removed'), life: 5000 });
+    askGo2RtcRestart();
+  } catch (error: any) {
+    toast.add({ severity: 'error', detail: error?.response?.data?.message ?? error?.message, life: 5000 });
+  } finally {
+    certificateBusy.value = false;
+  }
+}
+
 watch(
   apiInfo,
   () => {
@@ -304,6 +441,9 @@ onMounted(() => {
   }
   if (isElectronApp) {
     checkElectronVersion();
+  }
+  if (canManageCertificate.value) {
+    loadCertificateState();
   }
 });
 </script>

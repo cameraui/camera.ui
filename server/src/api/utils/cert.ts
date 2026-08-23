@@ -5,10 +5,11 @@ import { isIPv4, isIPv6 } from 'node:net';
 import { join } from 'node:path';
 import { container } from 'tsyringe';
 
-import { DEFAULTS, HOST_CERT_FILENAME, HOST_KEY_FILENAME, OLD_ROOT_CERT_FILENAME, OLD_ROOT_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from './constants.js';
+import { ServerService } from '../services/server.service.js';
+import { DEFAULTS, HOST_CERT_FILENAME, HOST_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from './constants.js';
 
 import type { ConfigService } from '../../services/config/index.js';
-import type { LoggerService } from '../../services/logger/index.js';
+import type { DBServer } from '../database/types.js';
 
 export interface Certificate {
   cert: string;
@@ -47,6 +48,24 @@ const getCANotAfter = (notBefore: Date): Date => {
   const hundredYearsLater = new Date(notBefore);
   hundredYearsLater.setFullYear(hundredYearsLater.getFullYear() + 100);
   return new Date(hundredYearsLater.toISOString().split('T')[0] + 'T23:59:59Z');
+};
+
+const storedServerInfo = (): DBServer | undefined => {
+  try {
+    return new ServerService().info();
+  } catch {
+    return undefined;
+  }
+};
+
+const hostOfUrl = (value: string | undefined): string | undefined => {
+  if (!value?.trim()) return undefined;
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+  } catch {
+    return undefined;
+  }
 };
 
 const isCertificateValid = (certPath: string): boolean => {
@@ -232,43 +251,47 @@ export class CertificateGeneration {
     return { cert: pemCert, certPath: certFilePath, key: pemPrivateKey, keyPath: privateKeyFilePath };
   }
 
+  static requiredAddresses(): string[] {
+    const configService = container.resolve<ConfigService>('configService');
+    const addresses = new Set<string>(['127.0.0.1']);
+
+    for (const { address } of fetchViableNetworkAddresses()) {
+      addresses.add(address);
+    }
+
+    const serverInfo = storedServerInfo();
+    if (serverInfo) {
+      for (const address of serverInfo.serverAddresses ?? []) {
+        addresses.add(address);
+      }
+
+      const localHost = hostOfUrl(serverInfo.localUrl);
+      if (localHost) {
+        addresses.add(localHost);
+      }
+    }
+
+    const workersConfig = configService.config.workers;
+    if (workersConfig?.enabled && workersConfig.address) {
+      addresses.add(workersConfig.address);
+    }
+
+    return [...addresses];
+  }
+
   static generateCert(forceNew?: boolean): Certificates {
     const configService = container.resolve<ConfigService>('configService');
-    const sslConfig = configService.config.ssl;
+    const certFile = configService.HOST_CERT_FILE;
+    const keyFile = configService.HOST_KEY_FILE;
+    const caFile = configService.ROOT_CERT_FILE;
 
-    // Workers verify the leaf TLS connection against this cert — the master
-    // address they dial must be covered by a SAN.
-    const requiredAddresses = [...(sslConfig.addresses ?? [])];
-    const workersConfig = configService.config.workers;
-    if (workersConfig?.enabled && workersConfig.address && !requiredAddresses.includes(workersConfig.address)) {
-      requiredAddresses.push(workersConfig.address);
-    }
+    const requiredAddresses = CertificateGeneration.requiredAddresses();
 
-    // apps dial the advertised interface addresses directly (LAN IPv4, ULA/GUA
-    // IPv6) and pin only the CA, so the leaf must cover every one of them
-    for (const { address } of fetchViableNetworkAddresses()) {
-      if (!requiredAddresses.includes(address)) {
-        requiredAddresses.push(address);
-      }
-    }
-
-    // a certificate outside the storage path was put there by hand; camera.ui
-    // still owns the one it serves, so say so instead of silently replacing it
-    const logger = container.resolve<LoggerService>('logger');
-    const managed = sslConfig.certFile === join(configService.STORAGE_PATH, HOST_CERT_FILENAME);
-
-    const certExists = existsSync(sslConfig.certFile) && existsSync(sslConfig.keyFile) && existsSync(sslConfig.caFile);
-    const certIsValid = certExists && isCertificateValid(sslConfig.certFile) && isCertificateValid(sslConfig.caFile);
-    const isLegacy =
-      (certExists && isLegacyCertificate(sslConfig.certFile)) ||
-      sslConfig.certFile.endsWith(OLD_ROOT_CERT_FILENAME) ||
-      sslConfig.certFile.endsWith(OLD_ROOT_KEY_FILENAME);
+    const certExists = existsSync(certFile) && existsSync(keyFile) && existsSync(caFile);
+    const certIsValid = certExists && isCertificateValid(certFile) && isCertificateValid(caFile);
+    const isLegacy = certExists && isLegacyCertificate(certFile) && getCertAltNames(certFile).length === 0;
 
     if (!certExists || !certIsValid || isLegacy || forceNew) {
-      if (!managed && !forceNew) {
-        logger.warn(`The configured certificate (${sslConfig.certFile}) is ${certExists ? 'not valid' : 'incomplete'}, camera.ui issued its own instead.`);
-      }
-
       const CA = CertificateGeneration.createRootCA(requiredAddresses);
       const hostCert = CertificateGeneration.createHostCert(requiredAddresses, CA);
 
@@ -281,19 +304,14 @@ export class CertificateGeneration {
 
     // Keep the root CA (paired workers pin it) but re-issue the host cert
     // when a required address is missing from its SANs.
-    const rootKeyPath = join(configService.STORAGE_PATH, ROOT_KEY_FILENAME);
-    const altNames = getCertAltNames(sslConfig.certFile);
+    const rootKeyPath = configService.ROOT_KEY_FILE;
+    const altNames = getCertAltNames(certFile);
     const missingSans = requiredAddresses.filter((address) => !altNames.includes(address));
 
     if (missingSans.length > 0 && existsSync(rootKeyPath)) {
-      if (!managed) {
-        const hint = 'Apps and workers verify those addresses against the instance CA; put a reverse proxy in front to serve your own certificate.';
-        logger.warn(`The configured certificate (${sslConfig.certFile}) does not cover ${missingSans.join(', ')}, camera.ui issued its own instead. ${hint}`);
-      }
-
       const CA: Certificate = {
-        cert: readFileSync(sslConfig.caFile, 'utf8'),
-        certPath: sslConfig.caFile,
+        cert: readFileSync(caFile, 'utf8'),
+        certPath: caFile,
         key: readFileSync(rootKeyPath, 'utf8'),
         keyPath: rootKeyPath,
       };
@@ -308,12 +326,12 @@ export class CertificateGeneration {
     }
 
     return {
-      cert: readFileSync(sslConfig.certFile, 'utf8'),
-      certPath: sslConfig.certFile,
-      key: readFileSync(sslConfig.keyFile, 'utf8'),
-      keyPath: sslConfig.keyFile,
-      ca: readFileSync(sslConfig.caFile, 'utf8'),
-      caPath: sslConfig.caFile,
+      cert: readFileSync(certFile, 'utf8'),
+      certPath: certFile,
+      key: readFileSync(keyFile, 'utf8'),
+      keyPath: keyFile,
+      ca: readFileSync(caFile, 'utf8'),
+      caPath: caFile,
     };
   }
 }

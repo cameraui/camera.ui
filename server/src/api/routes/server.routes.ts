@@ -33,6 +33,42 @@ export const ServerRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
   });
 
   app.route({
+    url: '/certificate',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: serverController.getCertificate.bind(serverController),
+    schema: {
+      tags: ['Server'],
+      summary: 'State of the custom TLS certificate',
+    },
+  });
+
+  app.route({
+    url: '/certificate',
+    method: 'POST',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlyMasterCanDoThisAction],
+    handler: serverController.uploadCertificate.bind(serverController),
+    config: {
+      multipartOptions: { limits: { fileSize: 512 * 1024, files: 3 } },
+    },
+    schema: {
+      tags: ['Server'],
+      summary: 'Upload a custom TLS certificate, key and optional chain',
+    },
+  });
+
+  app.route({
+    url: '/certificate',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlyMasterCanDoThisAction],
+    handler: serverController.removeCertificate.bind(serverController),
+    schema: {
+      tags: ['Server'],
+      summary: 'Remove the custom TLS certificate',
+    },
+  });
+
+  app.route({
     url: '/endpoints',
     method: 'GET',
     preValidation: [validJWTNeeded],

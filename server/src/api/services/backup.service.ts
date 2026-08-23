@@ -6,7 +6,6 @@ import { c, x } from 'tar';
 import { container } from 'tsyringe';
 
 import { ConfigService } from '../../services/config/index.js';
-import { ROOT_KEY_FILENAME } from '../utils/constants.js';
 import { PluginsService } from './plugins.service.js';
 
 import type { MultipartFile } from '@fastify/multipart';
@@ -89,10 +88,10 @@ export class BackupService {
       this.configService.PIDS_FILE,
       this.configService.REPORTS_FILE,
       this.configService.BACKUP_INFO_FILE,
-      this.configService.config.ssl.caFile,
-      this.configService.config.ssl.certFile,
-      this.configService.config.ssl.keyFile,
-      join(this.configService.STORAGE_PATH, ROOT_KEY_FILENAME),
+      this.configService.ROOT_CERT_FILE,
+      this.configService.HOST_CERT_FILE,
+      this.configService.HOST_KEY_FILE,
+      this.configService.ROOT_KEY_FILE,
       ...extraExcludePaths,
     ].map((path) => resolve(path));
 

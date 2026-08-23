@@ -86,8 +86,8 @@ export class NATS {
     this.tmpDir = mkdtempSync(join(this.configService.TMP_PATH, 'nats-'));
 
     // const tlsConfig: NatsTLSConfig = {
-    //   cert_file: this.configService.config.ssl.certFile,
-    //   key_file: this.configService.config.ssl.keyFile,
+    //   cert_file: this.configService.HOST_CERT_FILE,
+    //   key_file: this.configService.HOST_KEY_FILE,
     //   ca_file: this.configService.config.ssl.caFile,
     //   timeout: 5,
     // };
@@ -251,8 +251,8 @@ export class NATS {
         port: this.wsPort,
         no_tls: false,
         tls: {
-          cert_file: this.configService.config.ssl.certFile,
-          key_file: this.configService.config.ssl.keyFile,
+          cert_file: this.configService.HOST_CERT_FILE,
+          key_file: this.configService.HOST_KEY_FILE,
         },
       },
     };
