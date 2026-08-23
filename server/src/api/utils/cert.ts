@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { DEFAULTS, HOST_CERT_FILENAME, HOST_KEY_FILENAME, OLD_ROOT_CERT_FILENAME, OLD_ROOT_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from './constants.js';
 
 import type { ConfigService } from '../../services/config/index.js';
+import type { LoggerService } from '../../services/logger/index.js';
 
 export interface Certificate {
   cert: string;
@@ -251,6 +252,11 @@ export class CertificateGeneration {
       }
     }
 
+    // a certificate outside the storage path was put there by hand; camera.ui
+    // still owns the one it serves, so say so instead of silently replacing it
+    const logger = container.resolve<LoggerService>('logger');
+    const managed = sslConfig.certFile === join(configService.STORAGE_PATH, HOST_CERT_FILENAME);
+
     const certExists = existsSync(sslConfig.certFile) && existsSync(sslConfig.keyFile) && existsSync(sslConfig.caFile);
     const certIsValid = certExists && isCertificateValid(sslConfig.certFile) && isCertificateValid(sslConfig.caFile);
     const isLegacy =
@@ -259,6 +265,10 @@ export class CertificateGeneration {
       sslConfig.certFile.endsWith(OLD_ROOT_KEY_FILENAME);
 
     if (!certExists || !certIsValid || isLegacy || forceNew) {
+      if (!managed && !forceNew) {
+        logger.warn(`The configured certificate (${sslConfig.certFile}) is ${certExists ? 'not valid' : 'incomplete'}, camera.ui issued its own instead.`);
+      }
+
       const CA = CertificateGeneration.createRootCA(requiredAddresses);
       const hostCert = CertificateGeneration.createHostCert(requiredAddresses, CA);
 
@@ -276,6 +286,11 @@ export class CertificateGeneration {
     const missingSans = requiredAddresses.filter((address) => !altNames.includes(address));
 
     if (missingSans.length > 0 && existsSync(rootKeyPath)) {
+      if (!managed) {
+        const hint = 'Apps and workers verify those addresses against the instance CA; put a reverse proxy in front to serve your own certificate.';
+        logger.warn(`The configured certificate (${sslConfig.certFile}) does not cover ${missingSans.join(', ')}, camera.ui issued its own instead. ${hint}`);
+      }
+
       const CA: Certificate = {
         cert: readFileSync(sslConfig.caFile, 'utf8'),
         certPath: sslConfig.caFile,
