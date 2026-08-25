@@ -312,6 +312,7 @@ const filters = ref<RecordingsFilterState>({
   semanticQuery: '',
   filterLogicTriggers: 'or',
   filterLogicAttributes: 'or',
+  rooms: [],
   cameraIds: [],
   timeRange: null,
   customDateRange: null,
@@ -353,7 +354,7 @@ const mainPaddingLeft = computed(() => {
 });
 
 const availableCameras = computed(() => {
-  return (camerasData.value?.result ?? []).map((c) => ({ id: c._id, name: c.name }));
+  return (camerasData.value?.result ?? []).map((c) => ({ id: c._id, name: c.name, room: c.room }));
 });
 
 const cameraMap = computed(() => {
@@ -372,11 +373,15 @@ const cameraById = computed(() => {
   return map;
 });
 
-const cameraIds = computed(() => filters.value.cameraIds);
-
-const allCameraIds = computed(() => {
-  return availableCameras.value.map((c) => c.id);
+const roomCameraIds = computed(() => {
+  const rooms = filters.value.rooms;
+  const cameras = rooms.length > 0 ? availableCameras.value.filter((c) => rooms.includes(c.room ?? '')) : availableCameras.value;
+  return cameras.map((c) => c.id);
 });
+
+const cameraIds = computed(() => filters.value.cameraIds.filter((id) => roomCameraIds.value.includes(id)));
+
+const allCameraIds = computed(() => roomCameraIds.value);
 
 registerScrollToTop(() => gridRef.value?.scrollToTop());
 

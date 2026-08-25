@@ -85,6 +85,22 @@
         <div class="sidebar-divider" />
       </template>
 
+      <div v-if="roomOptions.length > 1" class="flex flex-col gap-2">
+        <label class="sidebar-section-title">{{ $t('views.recordings.rooms') }}</label>
+        <MultiSelect
+          :model-value="filters.rooms"
+          :options="roomOptions"
+          option-label="name"
+          option-value="id"
+          :placeholder="$t('views.recordings.all_rooms')"
+          class="w-full text-sm"
+          :max-selected-labels="2"
+          :show-toggle-all="false"
+          :pt="{ overlay: { style: 'position: fixed' } }"
+          @update:model-value="updateRooms($event)"
+        />
+      </div>
+
       <div class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.cameras') }}</label>
         <MultiSelect
@@ -290,7 +306,17 @@ const sections = reactive({
 
 const sidebarWidth = computed(() => (props.isOpen ? SIDEBAR_WIDTH : 0));
 
-const cameraOptions = computed(() => props.cameras.map((c) => ({ id: c.id, name: c.name })));
+const roomOptions = computed(() => {
+  const names = [...new Set(props.cameras.map((c) => c.room).filter((room): room is string => !!room))];
+  names.sort((a, b) => a.localeCompare(b));
+  return names.map((room) => ({ id: room, name: room === 'Default' ? t('components.form.label.room_default') : room }));
+});
+
+const cameraOptions = computed(() => {
+  const rooms = props.filters.rooms;
+  const cameras = rooms.length > 0 ? props.cameras.filter((c) => rooms.includes(c.room ?? '')) : props.cameras;
+  return cameras.map((c) => ({ id: c.id, name: c.name }));
+});
 
 const selectedCameraName = computed<string | undefined>(() => {
   if (props.filters.cameraIds.length !== 1) return undefined;
@@ -363,6 +389,11 @@ function updateFilter<K extends keyof RecordingsFilterState>(key: K, value: Reco
 const updateSearchDebounced = useDebounceFn((value: string) => {
   updateFilter('search', value);
 }, 300);
+
+function updateRooms(rooms: string[]): void {
+  const within = new Set(props.cameras.filter((c) => rooms.length === 0 || rooms.includes(c.room ?? '')).map((c) => c.id));
+  emit('update:filters', { ...props.filters, rooms, cameraIds: props.filters.cameraIds.filter((id) => within.has(id)) });
+}
 
 function submitSemanticSearch(): void {
   const query = semanticInput.value.trim();

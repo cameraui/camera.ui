@@ -10,6 +10,7 @@ export interface RecordingsFilterState {
   semanticQuery: string;
   filterLogicTriggers: 'and' | 'or';
   filterLogicAttributes: 'and' | 'or';
+  rooms: string[];
   cameraIds: string[];
   timeRange: '1h' | '1d' | '1w' | '1m' | 'custom' | null;
   customDateRange: [Date, Date] | null;
@@ -43,7 +44,7 @@ export interface RecordingCardEmits {
 
 export interface RecordingsFilterSidebarProps {
   filters: RecordingsFilterState;
-  cameras: { id: string; name: string }[];
+  cameras: { id: string; name: string; room?: string }[];
   isOpen: boolean;
   isOverlay: boolean;
   resultCount: number;
