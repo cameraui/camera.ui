@@ -24,14 +24,14 @@
     "update": "updates --update ./ && cupdate && tsx ./scripts/update.ts"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "chalk": "^6.0.0",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "prettier": "^3.9.6",
     "tsx": "^4.23.12",
     "typescript": "5.9.3",
-    "updates": "^18.0.5"
+    "updates": "^18.0.6"
   },
   "dependencies": {
     "commander": "^15.0.0",
