@@ -382,7 +382,19 @@
             </Field>
           </div>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensor_type_motion') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensor_type_motion') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('motion')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-slot="{ errors }"
@@ -442,7 +454,19 @@
             }}</Message>
           </Field>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensor_type_object') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensor_type_object') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('object')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-for="objectLabel in OBJECT_DETECTION_LABELS"
@@ -541,7 +565,19 @@
             </div>
           </Field>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensor_type_audio') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensor_type_audio') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('audio')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-slot="{ errors }"
@@ -640,7 +676,19 @@
             }}</Message>
           </Field>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensor_type_face') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensor_type_face') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('face')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-slot="{ errors }"
@@ -710,7 +758,19 @@
             }}</Message>
           </Field>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensor_type_licensePlate') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensor_type_licensePlate') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('licensePlate')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-slot="{ errors }"
@@ -814,7 +874,19 @@
             }}</Message>
           </Field>
 
-          <span class="section-chip mt-2">{{ $t('components.camera_options.sensors') }}</span>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="section-chip">{{ $t('components.camera_options.sensors') }}</span>
+            <Button
+              v-tooltip.left="$t('components.form.button.reset_defaults')"
+              text
+              rounded
+              severity="secondary"
+              class="cui-icon-md shrink-0"
+              @click="resetDetectionSection('sensor')"
+            >
+              <template #icon><i-mdi:restore class="w-4 h-4" /></template>
+            </Button>
+          </div>
 
           <Field
             v-slot="{ errors }"
@@ -1825,7 +1897,7 @@ import type {
   RecordingSource,
   StreamingRole,
 } from '@camera.ui/sdk';
-import { SENSOR_TYPE_CONFIG } from '@shared/types';
+import { defaultCameraSettings, SENSOR_TYPE_CONFIG } from '@shared/types';
 
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabEmits, CameraOptionsTabProps, ZoneEntry } from '../../types.js';
@@ -1846,6 +1918,12 @@ const emit = defineEmits<CameraOptionsTabEmits>();
 const cameraForm = defineModel<DBCamera>({
   required: true,
 });
+
+const defaultDetectionSettings = defaultCameraSettings().detectionSettings;
+
+function resetDetectionSection<K extends keyof typeof defaultDetectionSettings>(section: K): void {
+  cameraForm.value.detectionSettings[section] = structuredClone(defaultDetectionSettings[section]);
+}
 
 const route = useRoute();
 const router = useRouter();

@@ -31,6 +31,7 @@ export interface RecordingCardProps {
   loadThumbnails: (eventId: string, startMs: number) => Promise<EventThumbnails | null>;
   semanticScore?: number;
   segIndex?: number;
+  hideSegmentBadge?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
   siblingActive?: boolean;

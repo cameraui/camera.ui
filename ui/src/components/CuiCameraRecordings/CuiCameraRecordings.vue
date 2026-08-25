@@ -219,18 +219,20 @@
 
     <div class="flex-1 min-h-0 flex flex-col mt-3">
       <CuiRecordingsGrid
-        v-if="displayEvents.length"
-        :items="displayEvents"
+        v-if="displayItems.length"
+        :items="displayItems"
         :min-item-width="150"
         :gap="8"
         :has-more="hasMore"
         :load-more="loadMore"
-        :item-key="(e: RecordedEvent) => e.id"
+        :item-key="(item: UngroupedItem) => item.key"
         class="flex-1 min-h-0"
       >
         <template #item="{ item }">
           <RecordingCard
-            :event="item"
+            :event="item.event"
+            :seg-index="item.segIndex"
+            hide-segment-badge
             :camera-name="cameraName"
             :camera="camera"
             :load-thumbnails="loadThumbnails"
@@ -258,9 +260,10 @@ import { DETECTION_ATTRIBUTES, DETECTION_LABELS } from '@camera.ui/sdk';
 import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiRecordingsGrid from '@/components/CuiRecordings/CuiRecordingsGrid.vue';
+import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
-import type { RecordedEvent } from '@camera.ui/nvr';
+import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
 import type { GetEventsOptions } from '@camera.ui/nvr';
 import type { CuiCameraRecordingsEmits, CuiCameraRecordingsProps } from './types.js';
 
@@ -368,6 +371,8 @@ const displayEvents = computed(() => {
 
   return result;
 });
+
+const displayItems = computed(() => buildUngroupedItems(displayEvents.value));
 
 function toggleGridSearch() {
   if (!gridSearch) return;

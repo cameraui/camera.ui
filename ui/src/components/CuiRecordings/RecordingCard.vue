@@ -244,6 +244,7 @@ const primaryLabel = computed(() => primary.value?.label);
 const primaryType = computed(() => primary.value?.type ?? props.event.types[0] ?? 'motion');
 
 const segPosition = computed(() => {
+  if (props.hideSegmentBadge) return undefined;
   const count = props.event.segments?.length ?? 0;
   return props.segIndex !== undefined && count > 1 ? `${props.segIndex + 1}/${count}` : undefined;
 });

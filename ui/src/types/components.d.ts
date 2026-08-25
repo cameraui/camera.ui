@@ -411,6 +411,7 @@ declare module 'vue' {
     'IMdi:radar': typeof import('~icons/mdi/radar')['default']
     'IMdi:recordCircleOutline': typeof import('~icons/mdi/record-circle-outline')['default']
     'IMdi:refresh': typeof import('~icons/mdi/refresh')['default']
+    'IMdi:restore': typeof import('~icons/mdi/restore')['default']
     'IMdi:rewind30': typeof import('~icons/mdi/rewind30')['default']
     'IMdi:scaleBalance': typeof import('~icons/mdi/scale-balance')['default']
     'IMdi:shieldAlert': typeof import('~icons/mdi/shield-alert')['default']

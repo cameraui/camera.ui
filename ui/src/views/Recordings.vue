@@ -247,19 +247,14 @@ import ExportRecordings from '@/components/CuiDialog/templates/ExportRecordings/
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import RecordingsFilterSidebar from '@/components/CuiRecordings/RecordingsFilterSidebar.vue';
+import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { RecordingsFilterState } from '@/components/CuiRecordings/types.js';
-import type { GetEventsOptions, RecordedEpisode, RecordedEvent } from '@camera.ui/nvr';
+import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
+import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
-
-interface UngroupedItem {
-  event: RecordedEvent;
-  key: string;
-  segIndex?: number;
-  episode?: RecordedEpisode;
-}
 
 const camerasQuery = new CamerasQuery();
 const usersQuery = new UsersQuery();
@@ -588,21 +583,6 @@ function toggleSidebar() {
 
 function closeSidebar() {
   sidebarState.value = 'closed';
-}
-
-function buildUngroupedItems(events: RecordedEvent[]): UngroupedItem[] {
-  const items: UngroupedItem[] = [];
-  for (const event of events) {
-    const segments = event.segments ?? [];
-    if (segments.length <= 1) {
-      items.push({ event, key: event.id });
-      continue;
-    }
-    segments.forEach((segment, index) => {
-      if (segment) items.push({ event, key: `${event.id}:seg:${index}`, segIndex: index });
-    });
-  }
-  return items;
 }
 
 function onFilterUpdate(newFilters: RecordingsFilterState): void {
