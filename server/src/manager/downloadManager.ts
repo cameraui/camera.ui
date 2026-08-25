@@ -41,6 +41,7 @@ const DEFAULT_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const CLEANUP_INTERVAL_MS = 60 * 1000; // 1 minute
 const STREAM_POLL_MS = 50;
 const STREAM_FILE_WAIT_MS = 5000;
+const STREAM_MARKER_WAIT_POLL_MS = 250;
 
 @RPCClass
 export class DownloadManager implements DownloadManagerInterface {
@@ -354,10 +355,20 @@ export class DownloadManager implements DownloadManagerInterface {
 
     const serve = this.fileServeProxy(entry.remotePluginId!);
 
-    const deadline = Date.now() + STREAM_FILE_WAIT_MS;
+    // With a marker the writer may work for a while before the output file
+    // appears (episode exports extract per-camera clips first) — wait as long
+    // as the writer is alive and the token valid, not a fixed few seconds.
+    const deadline = entry.markerPath ? entry.expiresAt : Date.now() + STREAM_FILE_WAIT_MS;
     let initial = await serve.statFile(entry.filePath).catch(() => ({ exists: false, size: 0 }));
-    while (!initial.exists && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, STREAM_POLL_MS));
+    while (!initial.exists && Date.now() < deadline && !req.raw.destroyed) {
+      if (entry.markerPath) {
+        const marker = await serve.statFile(entry.markerPath).catch(() => ({ exists: false, size: 0 }));
+        if (!marker.exists) {
+          initial = await serve.statFile(entry.filePath).catch(() => ({ exists: false, size: 0 }));
+          break;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, entry.markerPath ? STREAM_MARKER_WAIT_POLL_MS : STREAM_POLL_MS));
       initial = await serve.statFile(entry.filePath).catch(() => ({ exists: false, size: 0 }));
     }
 
@@ -430,7 +441,7 @@ export class DownloadManager implements DownloadManagerInterface {
       return this.handleRemoteStreamDownload(req, reply, token, entry);
     }
 
-    const fileReady = await this.waitForFile(entry.filePath, STREAM_FILE_WAIT_MS);
+    const fileReady = await this.waitForStreamFile(req, entry);
     if (!fileReady) {
       this.registry.delete(token);
       this.removePersistedEntry(token);
@@ -524,6 +535,20 @@ export class DownloadManager implements DownloadManagerInterface {
       res.end();
       cleanup();
     }
+  }
+
+  private async waitForStreamFile(req: FastifyRequest<DownloadParamsRequest>, entry: DownloadEntry): Promise<boolean> {
+    // The marker says the writer is still working: an episode export extracts
+    // per-camera clips for a while before the concat creates the output file,
+    // so a fixed few-second wait 404s every larger export.
+    if (!entry.markerPath) return this.waitForFile(entry.filePath, STREAM_FILE_WAIT_MS);
+
+    while (Date.now() < entry.expiresAt && !req.raw.destroyed) {
+      if (existsSync(entry.filePath)) return true;
+      if (!existsSync(entry.markerPath)) break;
+      await new Promise<void>((resolve) => setTimeout(resolve, STREAM_MARKER_WAIT_POLL_MS));
+    }
+    return existsSync(entry.filePath);
   }
 
   private waitForFile(filePath: string, timeoutMs: number): Promise<boolean> {
