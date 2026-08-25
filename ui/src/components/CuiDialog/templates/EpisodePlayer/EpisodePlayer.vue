@@ -30,17 +30,6 @@
         <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
       </div>
 
-      <Transition
-        enter-active-class="transition-opacity duration-150"
-        enter-from-class="opacity-0"
-        leave-active-class="transition-opacity duration-300"
-        leave-to-class="opacity-0"
-      >
-        <div v-if="skipNoticeSec > 0" class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
-          <span class="px-3 py-1.5 rounded-full bg-black/70 text-white text-sm font-medium tabular-nums">+{{ skipNoticeSec }}s</span>
-        </div>
-      </Transition>
-
       <Transition name="fade-2">
         <div v-if="zoomMinimapStyle" class="zoom-minimap" :class="{ 'zoom-minimap-raised': showControl }">
           <div class="zoom-minimap-viewport" :style="zoomMinimapStyle" />
@@ -77,6 +66,21 @@
 
             <div class="flex-1" />
 
+            <Button
+              v-if="availableAngle || angleCameraId"
+              v-tooltip.top="{ value: t('views.recordings.second_angle') }"
+              fluid
+              text
+              severity="contrast"
+              class="control-bar-btn"
+              :class="{ 'angle-active': angleCameraId }"
+              @click="toggleAngle"
+            >
+              <template #icon>
+                <i-mdi:camera-flip-outline class="w-[18px] h-[18px]" />
+              </template>
+            </Button>
+
             <Button fluid text severity="contrast" class="control-bar-btn" @click="muted = !muted">
               <template #icon>
                 <i-heroicons:speaker-wave-16-solid v-if="!muted" class="w-[18px] h-[18px]" />
@@ -98,19 +102,19 @@
         @pointercancel="onStripPointerUp"
       >
         <div
-          v-for="(block, i) in cameraBlocks"
+          v-for="(block, i) in blocks"
           :key="i"
           class="absolute top-[3px] bottom-[3px] rounded-[4px] flex items-center justify-center overflow-hidden pointer-events-none"
-          :class="isActiveBlock(block) ? 'bg-primary-500/60' : 'bg-primary-500/25'"
-          :style="blockStyle(block)"
+          :class="i === blockIndex ? 'bg-primary-500/60' : 'bg-primary-500/25'"
+          :style="{ left: `${chips[i].left + 1}px`, width: `${Math.max(chips[i].width - 2, 2)}px` }"
         >
-          <span class="text-[10px] font-medium text-white/90 truncate px-1.5">{{ cameraName(block.cameraId) }}</span>
+          <span v-if="chips[i].width > 26" class="text-[10px] font-medium text-white/90 truncate px-1.5">{{ cameraName(block.cameraId) }}</span>
         </div>
-        <div class="absolute top-0 bottom-0 w-[2px] bg-white z-[2] pointer-events-none rounded-full" :style="{ left: playheadPct }" />
+        <div class="absolute top-0 bottom-0 w-[2px] bg-white z-[2] pointer-events-none rounded-full" :style="{ left: `${playheadPx}px` }" />
       </div>
       <div class="flex justify-between mt-1 text-[10px] text-muted tabular-nums">
-        <span>{{ boundLabel(rangeStartMs) }}</span>
-        <span>{{ boundLabel(rangeEndMs) }}</span>
+        <span>{{ boundLabel(firstBlockMs) }}</span>
+        <span>{{ boundLabel(lastBlockMs) }}</span>
       </div>
     </div>
 
@@ -129,13 +133,13 @@ import DownloadIcon from '~icons/tabler/download';
 import { extractErrorMessage, randomLetter } from '@/common/utils.js';
 
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
-import type { EpisodeMember } from '@camera.ui/nvr';
 import type { EpisodePlayerProps } from './types.js';
 
-interface StripBlock {
+interface TimelineBlock {
   cameraId: string;
   startMs: number;
   endMs: number;
+  offsetMs: number;
 }
 
 const props = defineProps<EpisodePlayerProps>();
@@ -146,49 +150,34 @@ const { t } = useI18n();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 
-const PREROLL_MS = 2000;
-const GAP_SKIP_MIN_MS = 2000;
 const BLOCK_TAIL_MS = 2000;
 const BLOCK_HEAD_MS = 1500;
+const BLOCK_GAP_MS = 10000;
+const SLICE_MIN_MS = 4000;
 const PRELOAD_AHEAD_MS = 4000;
 const HANDOFF_WAIT_MS = 1200;
 const TRANSITION_MAX_MS = 1500;
-const OVERLAP_LEAD_MS = 1000;
 const PRELOAD_RESYNC_MS = 3000;
 
-const rangeStartMs = props.episode.startTime - PREROLL_MS;
-const rangeEndMs = props.episode.endTime;
-const rangeMs = Math.max(rangeEndMs - rangeStartMs, 1);
+const memberCameraIds = [...new Set(props.episode.members.map((m) => m.cameraId))];
+const angleBlocks = (props.episode.blocks ?? []).filter((block) => block.secondAngle);
+const blocks = buildBlocks();
+const totalMs = Math.max(
+  blocks.reduce((sum, block) => sum + (block.endMs - block.startMs), 0),
+  1,
+);
+const firstBlockMs = blocks[0]?.startMs ?? props.episode.startTime;
+const lastBlockMs = blocks[blocks.length - 1]?.endMs ?? props.episode.endTime;
 
-const members: EpisodeMember[] = [...props.episode.members].sort((a, b) => a.firstSeen - b.firstSeen);
-const memberCameraIds = [...new Set(members.map((m) => m.cameraId))];
-const cameraSpans = members
-  .flatMap((m) =>
-    m.segmentSpans?.length
-      ? m.segmentSpans.map((s) => ({ cameraId: m.cameraId, firstSeen: s.firstSeen, lastSeen: s.lastSeen }))
-      : [{ cameraId: m.cameraId, firstSeen: m.firstSeen, lastSeen: m.lastSeen }],
-  )
-  .sort((a, b) => a.firstSeen - b.firstSeen);
-
-for (const span of cameraSpans) {
-  for (const other of cameraSpans) {
-    if (other === span || other.cameraId === span.cameraId) continue;
-    const crossing = other.firstSeen < span.firstSeen && other.lastSeen > span.firstSeen && other.lastSeen < span.lastSeen;
-    if (crossing) span.firstSeen = Math.max(span.firstSeen, Math.min(other.lastSeen - OVERLAP_LEAD_MS, span.lastSeen));
-  }
-}
-cameraSpans.sort((a, b) => a.firstSeen - b.firstSeen);
-
-const cameraBlocks = buildCameraBlocks();
 const stageRef = useTemplateRef('stageRef');
 const stripRef = useTemplateRef('stripRef');
-const playheadMs = ref(rangeStartMs);
-const activeCameraId = ref(cameraAt(rangeStartMs));
-const visibleCameraId = ref(activeCameraId.value);
+const blockIndex = ref(0);
+const playheadMs = ref(firstBlockMs);
+const angleCameraId = ref<string | null>(null);
+
 const muted = ref(true);
 const ended = ref(false);
 const scrubbing = ref(false);
-const skipNoticeSec = ref(0);
 const panValue = ref({ x: 0, y: 0 });
 const zoomValue = ref(1);
 const lastZoom = ref(1);
@@ -197,24 +186,35 @@ const isConstraining = ref(false);
 const isDownloading = ref(false);
 const initialHover = ref(true);
 const transitioning = ref(false);
+const dragging = ref(false);
 
 const stageSize = useElementSize(stageRef);
 const isHovered = useElementHover(stageRef, { delayLeave: 1000 });
+const stripWidth = useElementSize(stripRef).width;
 
 const stageEls = new Map<string, HTMLElement>();
 const claimReleases: (() => void)[] = [];
 let playbackStarted = false;
 let wasPlayingBeforeScrub = false;
 let lastScrubSent = 0;
-let lastSkipAt = 0;
-let lastSkipTargetMs = 0;
 let handoffStartedAt = 0;
 let transitionStartedAt = 0;
-let skipNoticeTimer: ReturnType<typeof setTimeout> | undefined;
 const preloadResynced = new Set<string>();
 const MAX_ZOOM = 5;
 const zoomId = randomLetter();
-const dragging = ref(false);
+
+const currentBlock = computed(() => blocks[blockIndex.value]);
+const activeCameraId = computed(() => currentBlock.value?.cameraId ?? memberCameraIds[0] ?? '');
+const visibleCameraId = ref(activeCameraId.value);
+
+const positionMs = computed(() => (currentBlock.value ? currentBlock.value.offsetMs + (playheadMs.value - currentBlock.value.startMs) : 0));
+
+const availableAngle = computed(() => {
+  const block = currentBlock.value;
+  if (!block) return undefined;
+  const t = playheadMs.value;
+  return angleBlocks.find((angle) => angle.cameraId !== block.cameraId && angle.startMs <= t && t <= angle.endMs)?.cameraId;
+});
 
 const zoomMinimapStyle = computed(() => {
   const zoom = zoomValue.value;
@@ -235,17 +235,16 @@ const zoomMinimapStyle = computed(() => {
 });
 
 const preloadCameraId = computed(() => {
-  const t = playheadMs.value;
-  const next = cameraBlocks.find((b) => b.startMs > t && b.cameraId !== activeCameraId.value);
-  if (!next) return undefined;
-  const current = cameraBlocks.find((b) => b.startMs <= t && t < b.endMs);
-  const waitMs = current ? Math.min(next.startMs - t, current.endMs - t + GAP_SKIP_MIN_MS) : next.startMs - t;
-  return waitMs <= PRELOAD_AHEAD_MS ? next.cameraId : undefined;
+  const block = currentBlock.value;
+  const next = blocks[blockIndex.value + 1];
+  if (!block || !next || next.cameraId === activeCameraId.value) return undefined;
+  return block.endMs - playheadMs.value <= PRELOAD_AHEAD_MS ? next.cameraId : undefined;
 });
 
 const activeIds = computed(() => {
   const ids = new Set([activeCameraId.value, visibleCameraId.value]);
   if (preloadCameraId.value) ids.add(preloadCameraId.value);
+  if (angleCameraId.value) ids.add(angleCameraId.value);
   return [...ids];
 });
 
@@ -265,7 +264,47 @@ const clockLabel = computed(() => {
   return new Date(playheadMs.value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 });
 
-const playheadPct = computed(() => `${((playheadMs.value - rangeStartMs) / rangeMs) * 100}%`);
+const chips = computed(() => {
+  const width = stripWidth.value;
+  const durations = blocks.map((block) => block.endMs - block.startMs);
+  const px = new Array<number>(blocks.length).fill(0);
+
+  if (width > 0 && blocks.length > 0) {
+    const floor = Math.min(14, width / blocks.length);
+    let flexible = blocks.map((_, i) => i);
+    for (;;) {
+      const room = width - floor * (blocks.length - flexible.length);
+      const total = flexible.reduce((sum, i) => sum + durations[i], 0);
+      const under = flexible.filter((i) => (durations[i] / total) * room < floor);
+      if (total <= 0 || flexible.length === 0) {
+        for (const i of flexible) px[i] = room / Math.max(flexible.length, 1);
+        break;
+      }
+      if (under.length === 0) {
+        for (const i of flexible) px[i] = (durations[i] / total) * room;
+        break;
+      }
+      for (const i of under) px[i] = floor;
+      flexible = flexible.filter((i) => !under.includes(i));
+    }
+    for (let i = 0; i < px.length; i++) if (px[i] === 0) px[i] = floor;
+  }
+
+  let left = 0;
+  return px.map((w) => {
+    const chip = { left, width: w };
+    left += w;
+    return chip;
+  });
+});
+
+const playheadPx = computed(() => {
+  const block = currentBlock.value;
+  const chip = chips.value[blockIndex.value];
+  if (!block || !chip) return 0;
+  const frac = (playheadMs.value - block.startMs) / Math.max(block.endMs - block.startMs, 1);
+  return chip.left + clamp(frac, 0, 1) * chip.width;
+});
 
 function resetZoom(): void {
   lastZoom.value = 1;
@@ -345,73 +384,101 @@ function cameraName(id: string): string {
   return props.cameraById.get(id)?.name ?? id;
 }
 
-function coveringSpanAt(tMs: number): { cameraId: string; firstSeen: number; lastSeen: number } | undefined {
-  let best: { cameraId: string; firstSeen: number; lastSeen: number } | undefined;
-  for (const s of cameraSpans) {
-    if (s.firstSeen <= tMs && tMs <= s.lastSeen && (!best || s.firstSeen >= best.firstSeen)) best = s;
-  }
-  return best;
+function buildBlocks(): TimelineBlock[] {
+  const told = props.episode.blocks?.filter((block) => !block.secondAngle && block.endMs > block.startMs) ?? [];
+  const source = told.length ? told.map((block) => ({ cameraId: block.cameraId, startMs: block.startMs, endMs: block.endMs })) : blocksFromMembers();
+
+  let offsetMs = 0;
+  return source.map((block, i) => {
+    const before = i > 0 ? block.startMs - source[i - 1].endMs : Number.POSITIVE_INFINITY;
+    const after = i + 1 < source.length ? source[i + 1].startMs - block.endMs : Number.POSITIVE_INFINITY;
+    const startMs = block.startMs - Math.min(BLOCK_HEAD_MS, Math.max(before / 2, 0));
+    const endMs = block.endMs + Math.min(BLOCK_TAIL_MS, Math.max(after / 2, 0));
+    const entry = { cameraId: block.cameraId, startMs, endMs, offsetMs };
+    offsetMs += endMs - startMs;
+    return entry;
+  });
 }
 
-function cameraAt(tMs: number): string {
-  for (const block of cameraBlocks) {
-    if (tMs < block.endMs) return block.cameraId;
+function blocksFromMembers(): { cameraId: string; startMs: number; endMs: number }[] {
+  const byCamera = new Map<string, [number, number][]>();
+  for (const member of props.episode.members) {
+    const spans: [number, number][] = member.segmentSpans?.length
+      ? member.segmentSpans.map((span) => [span.firstSeen, span.lastSeen])
+      : [[member.firstSeen, member.lastSeen]];
+    byCamera.set(member.cameraId, [...(byCamera.get(member.cameraId) ?? []), ...spans]);
   }
-  return cameraBlocks[cameraBlocks.length - 1]?.cameraId ?? '';
+
+  const built: { cameraId: string; startMs: number; endMs: number }[] = [];
+  for (const [cameraId, spans] of byCamera) {
+    spans.sort((a, b) => a[0] - b[0]);
+    let current = { cameraId, startMs: spans[0][0], endMs: spans[0][1] };
+    for (const [firstSeen, lastSeen] of spans.slice(1)) {
+      if (firstSeen - current.endMs <= BLOCK_GAP_MS) {
+        current.endMs = Math.max(current.endMs, lastSeen);
+        continue;
+      }
+      built.push(current);
+      current = { cameraId, startMs: firstSeen, endMs: lastSeen };
+    }
+    built.push(current);
+  }
+  built.sort((a, b) => a.startMs - b.startMs || a.cameraId.localeCompare(b.cameraId));
+  return interleave(built);
 }
 
-function grayUntil(tMs: number): number | undefined {
-  for (let i = 0; i < cameraBlocks.length - 1; i++) {
-    if (tMs >= cameraBlocks[i].endMs && tMs < cameraBlocks[i + 1].startMs) return cameraBlocks[i + 1].startMs;
+function interleave(source: { cameraId: string; startMs: number; endMs: number }[]): { cameraId: string; startMs: number; endMs: number }[] {
+  if (source.length < 2) return source;
+
+  const cuts = [...new Set(source.flatMap((block) => [block.startMs, block.endMs]))].sort((a, b) => a - b);
+  const told: { cameraId: string; startMs: number; endMs: number }[] = [];
+  for (let i = 0; i + 1 < cuts.length; i++) {
+    const startMs = cuts[i];
+    const endMs = cuts[i + 1];
+    const at = (startMs + endMs) / 2;
+    const holder = source.reduce<{ cameraId: string; startMs: number; endMs: number } | undefined>(
+      (best, block) => (block.startMs <= at && at <= block.endMs && (!best || block.startMs > best.startMs) ? block : best),
+      undefined,
+    );
+    if (!holder) continue;
+    const last = told[told.length - 1];
+    if (last && last.cameraId === holder.cameraId && last.endMs === startMs) {
+      last.endMs = endMs;
+      continue;
+    }
+    told.push({ cameraId: holder.cameraId, startMs, endMs });
   }
-  return undefined;
+  return mergeShortSlices(told);
 }
 
-function buildCameraBlocks(): StripBlock[] {
-  const cuts = new Set<number>([rangeStartMs, rangeEndMs]);
-  for (const s of cameraSpans) {
-    cuts.add(clamp(s.firstSeen, rangeStartMs, rangeEndMs));
-    cuts.add(clamp(s.lastSeen, rangeStartMs, rangeEndMs));
-  }
-  const sorted = [...cuts].sort((a, b) => a - b);
-  const blocks: StripBlock[] = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const startMs = sorted[i];
-    const endMs = sorted[i + 1];
-    if (endMs - startMs < 1) continue;
-    const covering = coveringSpanAt((startMs + endMs) / 2);
-    if (!covering) continue;
-    const prev = blocks[blocks.length - 1];
-    if (prev && prev.cameraId === covering.cameraId && prev.endMs >= startMs) prev.endMs = endMs;
-    else blocks.push({ cameraId: covering.cameraId, startMs, endMs });
+function mergeShortSlices(told: { cameraId: string; startMs: number; endMs: number }[]): { cameraId: string; startMs: number; endMs: number }[] {
+  for (;;) {
+    const counts = new Map<string, number>();
+    for (const block of told) counts.set(block.cameraId, (counts.get(block.cameraId) ?? 0) + 1);
+
+    const short = told.findIndex((block) => block.endMs - block.startMs < SLICE_MIN_MS && (counts.get(block.cameraId) ?? 0) > 1);
+    if (short < 0) break;
+    if (short > 0 && told[short - 1].endMs === told[short].startMs) told[short - 1].endMs = told[short].endMs;
+    told.splice(short, 1);
   }
 
-  for (let i = 0; i < blocks.length - 1; i++) {
-    const cur = blocks[i];
-    const next = blocks[i + 1];
-    const gap = next.startMs - cur.endMs;
-    if (gap <= 0) continue;
-    const tail = Math.min(BLOCK_TAIL_MS, Math.floor(gap / 2));
-    cur.endMs += tail;
-    next.startMs -= Math.min(BLOCK_HEAD_MS, gap - tail);
+  const joined: { cameraId: string; startMs: number; endMs: number }[] = [];
+  for (const block of told) {
+    const last = joined[joined.length - 1];
+    if (last && last.cameraId === block.cameraId && last.endMs === block.startMs) {
+      last.endMs = block.endMs;
+      continue;
+    }
+    joined.push(block);
   }
-  if (blocks.length > 0) {
-    blocks[0].startMs = rangeStartMs;
-    blocks[blocks.length - 1].endMs = rangeEndMs;
-  }
-  return blocks;
+  return joined;
 }
 
-function isActiveBlock(block: StripBlock): boolean {
-  return block.startMs <= playheadMs.value && playheadMs.value < block.endMs;
-}
-
-function blockStyle(block: StripBlock): Record<string, string> {
-  const left = ((block.startMs - rangeStartMs) / rangeMs) * 100;
-  const width = ((block.endMs - block.startMs) / rangeMs) * 100;
-  // short spans stay a visible chip instead of a hairline; the chip minimum
-  // must not push a right-edge block out of the strip
-  return { left: `min(calc(${left}% + 1px), calc(100% - 15px))`, width: `max(calc(${width}% - 2px), 14px)` };
+function blockAt(posMs: number): number {
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (posMs >= blocks[i].offsetMs) return i;
+  }
+  return 0;
 }
 
 function boundLabel(tMs: number): string {
@@ -423,15 +490,18 @@ function setStageEl(id: string, el: HTMLElement | null): void {
   else stageEls.delete(id);
 }
 
-function setPlayhead(tMs: number): void {
-  playheadMs.value = clamp(tMs, rangeStartMs, rangeEndMs);
-  activeCameraId.value = cameraAt(playheadMs.value);
+function setPosition(posMs: number): void {
+  const bounded = clamp(posMs, 0, totalMs);
+  const index = blockAt(bounded);
+  const block = blocks[index];
+  if (!block) return;
+  blockIndex.value = index;
+  playheadMs.value = clamp(block.startMs + (bounded - block.offsetMs), block.startMs, block.endMs);
 }
 
 function ctrlReady(id: string): boolean {
   const ctrl = controllers.value.get(id);
   if (!ctrl) return true;
-  // interpolated: the raw currentTimestamp freezes between worker drift reports
   const tsMs = playheadUs(ctrl) / 1000;
   return !ctrl.loading.value && tsMs > 0 && Math.abs(tsMs - playheadMs.value) < 6000;
 }
@@ -442,7 +512,7 @@ function beginHandoffTransition(): void {
 }
 
 function trySyncVisibleCamera(): void {
-  const target = activeCameraId.value;
+  const target = angleCameraId.value ?? activeCameraId.value;
   if (visibleCameraId.value !== target) {
     if (!ctrlReady(target) && performance.now() - handoffStartedAt <= HANDOFF_WAIT_MS) return;
     visibleCameraId.value = target;
@@ -452,9 +522,23 @@ function trySyncVisibleCamera(): void {
   }
 }
 
-function seekTo(tMs: number, forcePlay = false): void {
-  setPlayhead(tMs);
-  lastSkipTargetMs = 0;
+function toggleAngle(): void {
+  if (angleCameraId.value) {
+    angleCameraId.value = null;
+  } else {
+    const angle = availableAngle.value;
+    if (!angle) return;
+    angleCameraId.value = angle;
+    const ctrl = controllers.value.get(angle);
+    if (ctrl && master.mode.value === 'play') ctrl.play(playheadMs.value * 1000);
+  }
+  handoffStartedAt = performance.now();
+  beginHandoffTransition();
+  trySyncVisibleCamera();
+}
+
+function seekTo(posMs: number, forcePlay = false): void {
+  setPosition(posMs);
   ended.value = false;
   if (forcePlay || master.mode.value === 'play') {
     master.play(playheadMs.value * 1000);
@@ -470,40 +554,39 @@ function togglePlay(): void {
     return;
   }
   if (ended.value) {
-    seekTo(rangeStartMs, true);
+    seekTo(0, true);
     return;
   }
   if (mode === 'pause') {
     master.resume();
     return;
   }
-  seekTo(playheadMs.value, true);
+  seekTo(positionMs.value, true);
 }
 
 function jumpBlock(dir: 1 | -1): void {
-  const t = playheadMs.value;
+  const block = currentBlock.value;
+  if (!block) return;
   beginHandoffTransition();
-  if (dir === 1) {
-    const next = cameraBlocks.find((b) => b.startMs > t + 500);
-    if (next) seekTo(next.startMs);
+
+  if (dir === -1 && playheadMs.value - block.startMs > 1500) {
+    seekTo(block.offsetMs);
     return;
   }
-  const prev = [...cameraBlocks].reverse().find((b) => b.startMs < t - 1500);
-  seekTo(prev?.startMs ?? rangeStartMs);
+  const target = blocks[blockIndex.value + dir];
+  if (target) seekTo(target.offsetMs);
 }
 
-function showSkipNotice(seconds: number): void {
-  skipNoticeSec.value = seconds;
-  if (skipNoticeTimer) clearTimeout(skipNoticeTimer);
-  skipNoticeTimer = setTimeout(() => {
-    skipNoticeSec.value = 0;
-  }, 1400);
-}
-
-function stripTimeFromEvent(e: PointerEvent): number {
+function stripPositionFromEvent(e: PointerEvent): number {
   const rect = stripRef.value!.getBoundingClientRect();
-  const frac = clamp((e.clientX - rect.left) / rect.width, 0, 1);
-  return rangeStartMs + frac * rangeMs;
+  const x = clamp(e.clientX - rect.left, 0, rect.width);
+  for (let i = chips.value.length - 1; i >= 0; i--) {
+    const chip = chips.value[i];
+    if (x < chip.left && i > 0) continue;
+    const frac = clamp((x - chip.left) / Math.max(chip.width, 1), 0, 1);
+    return blocks[i].offsetMs + frac * (blocks[i].endMs - blocks[i].startMs);
+  }
+  return 0;
 }
 
 function onStripPointerDown(e: PointerEvent): void {
@@ -511,26 +594,25 @@ function onStripPointerDown(e: PointerEvent): void {
   stripRef.value.setPointerCapture(e.pointerId);
   scrubbing.value = true;
   wasPlayingBeforeScrub = master.mode.value === 'play';
-  applyScrub(stripTimeFromEvent(e), true);
+  applyScrub(stripPositionFromEvent(e), true);
 }
 
 function onStripPointerMove(e: PointerEvent): void {
   if (!scrubbing.value) return;
-  applyScrub(stripTimeFromEvent(e));
+  applyScrub(stripPositionFromEvent(e));
 }
 
 function onStripPointerUp(e: PointerEvent): void {
   if (!scrubbing.value) return;
   scrubbing.value = false;
-  setPlayhead(stripTimeFromEvent(e));
-  lastSkipTargetMs = 0;
+  setPosition(stripPositionFromEvent(e));
   ended.value = false;
   if (wasPlayingBeforeScrub) master.play(playheadMs.value * 1000);
   else master.scrub(playheadMs.value * 1000, true);
 }
 
-function applyScrub(tMs: number, force = false): void {
-  setPlayhead(tMs);
+function applyScrub(posMs: number, force = false): void {
+  setPosition(posMs);
   const now = performance.now();
   if (!force && now - lastScrubSent < 120) return;
   lastScrubSent = now;
@@ -582,7 +664,15 @@ watchEffect(() => {
   }
 });
 
+watch(availableAngle, (next) => {
+  if (angleCameraId.value && next !== angleCameraId.value) {
+    angleCameraId.value = null;
+    trySyncVisibleCamera();
+  }
+});
+
 watch(activeCameraId, (next) => {
+  angleCameraId.value = null;
   handoffStartedAt = performance.now();
   const ctrl = controllers.value.get(next);
   if (ctrl?.isActive.value) {
@@ -600,7 +690,7 @@ watch(
   (proxy) => {
     if (!proxy || playbackStarted) return;
     playbackStarted = true;
-    master.play(rangeStartMs * 1000);
+    master.play(playheadMs.value * 1000);
   },
   { immediate: true },
 );
@@ -624,33 +714,25 @@ useIntervalFn(() => {
   if (scrubbing.value || master.mode.value === 'idle') return;
   const us = playheadUs(master);
   if (us <= 0) return;
-  let tMs = us / 1000;
+  const tMs = us / 1000;
+  const block = currentBlock.value;
+  if (!block) return;
 
-  if (master.mode.value === 'play') {
-    if (tMs >= rangeEndMs) {
+  if (master.mode.value === 'play' && tMs >= block.endMs) {
+    const next = blocks[blockIndex.value + 1];
+    beginHandoffTransition();
+    if (!next) {
       ended.value = true;
-      beginHandoffTransition();
-      setPlayhead(rangeStartMs);
-      master.scrub(rangeStartMs * 1000, true);
+      setPosition(0);
+      master.scrub(playheadMs.value * 1000, true);
       return;
     }
-    const now = performance.now();
-    // a gap seek lands on the previous keyframe, up to a few seconds before
-    // the target; while playback catches up through that stretch a second
-    // skip toward the same target would loop the seek forever
-    if (now - lastSkipAt > 1500 && tMs >= lastSkipTargetMs) {
-      const targetMs = grayUntil(tMs);
-      if (targetMs !== undefined && targetMs - tMs > GAP_SKIP_MIN_MS) {
-        lastSkipAt = now;
-        lastSkipTargetMs = targetMs;
-        showSkipNotice(Math.round((targetMs - tMs) / 1000));
-        beginHandoffTransition();
-        master.seek(targetMs * 1000);
-        tMs = targetMs;
-      }
-    }
+    blockIndex.value += 1;
+    playheadMs.value = next.startMs;
+    master.seek(next.startMs * 1000);
+    return;
   }
-  setPlayhead(tMs);
+  playheadMs.value = clamp(tMs, block.startMs, block.endMs);
 }, 250);
 
 onMounted(() => {
@@ -662,7 +744,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (skipNoticeTimer) clearTimeout(skipNoticeTimer);
   master.stop();
   for (const release of claimReleases) release();
 });
@@ -693,6 +774,10 @@ defineExpose({
 
 .control-bar-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.angle-active {
+  background: rgba(255, 255, 255, 0.18) !important;
 }
 
 .zoom-constraining :deep(> *) {

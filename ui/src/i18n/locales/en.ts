@@ -2362,6 +2362,7 @@ export default {
       search_placeholder: 'Search faces, plates, labels...',
       download_failed: 'Download failed',
       open_episode: 'Open episode',
+      second_angle: 'Second angle',
       no_preview: 'No preview',
       prev_image: 'Previous image',
       next_image: 'Next image',

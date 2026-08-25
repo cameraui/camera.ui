@@ -511,7 +511,7 @@ export class DetectionEventManager {
     this.activeSegment.lastSeen = now;
 
     if (data.objects.length > 0) {
-      const labelCounts = new Map<string, { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean }>();
+      const labelCounts = new Map<string, { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean; anyMoving: boolean }>();
       for (const obj of data.objects) {
         const t = obj as { trackId?: number; trackSpeed?: number; label: string; confidence: number; box: BoundingBox };
         if (t.trackId !== undefined && obj.box) {
@@ -525,14 +525,16 @@ export class DetectionEventManager {
             this.segmentTrackPaths.set(t.trackId, { enterX: cx, enterY: cy, exitX: cx, exitY: cy });
           }
         }
+        const moving = t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD : undefined;
         const entry = labelCounts.get(obj.label);
         if (entry) {
           entry.count++;
+          if (moving === true) entry.anyMoving = true;
           if (obj.confidence > entry.bestScore) {
             entry.bestScore = obj.confidence;
             entry.bestBox = obj.box;
             entry.bestTrackId = t.trackId;
-            entry.moving = t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD : undefined;
+            entry.moving = moving;
           }
         } else {
           labelCounts.set(obj.label, {
@@ -540,12 +542,13 @@ export class DetectionEventManager {
             bestScore: obj.confidence,
             bestBox: obj.box,
             bestTrackId: t.trackId,
-            moving: t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD : undefined,
+            moving,
+            anyMoving: moving === true,
           });
         }
       }
 
-      for (const [label, { count, bestScore, bestBox, bestTrackId, moving }] of labelCounts) {
+      for (const [label, { count, bestScore, bestBox, bestTrackId, moving, anyMoving }] of labelCounts) {
         const existing = this.activeSegment.detections.find((d) => d.label === label);
         if (existing) {
           if (bestScore > existing.score) {
@@ -555,8 +558,24 @@ export class DetectionEventManager {
             existing.moving = moving;
           }
           if (count > existing.maxCount) existing.maxCount = count;
+          existing.lastSeen = now;
+          if (anyMoving) {
+            existing.firstMovingSeen ??= now;
+            existing.lastMovingSeen = now;
+          }
         } else {
-          this.activeSegment.detections.push({ label, score: bestScore, maxCount: count, box: bestBox, trackId: bestTrackId, moving });
+          this.activeSegment.detections.push({
+            label,
+            score: bestScore,
+            maxCount: count,
+            box: bestBox,
+            trackId: bestTrackId,
+            moving,
+            firstSeen: now,
+            lastSeen: now,
+            firstMovingSeen: anyMoving ? now : undefined,
+            lastMovingSeen: anyMoving ? now : undefined,
+          });
         }
       }
 

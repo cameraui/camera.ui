@@ -2379,6 +2379,7 @@ export default {
       search_placeholder: 'Gesichter, Kennzeichen, Labels suchen...',
       download_failed: 'Download fehlgeschlagen',
       open_episode: 'Episode öffnen',
+      second_angle: 'Zweiter Winkel',
       no_preview: 'Keine Vorschau',
       prev_image: 'Vorheriges Bild',
       next_image: 'Nächstes Bild',

@@ -4,6 +4,10 @@ import type { BoundingBox, DetectionEvent, DetectionEventType, EventAttribute, E
 export interface RecordedDetection extends EventDetection {
   box?: BoundingBox;
   trackId?: number;
+  firstSeen?: number;
+  lastSeen?: number;
+  firstMovingSeen?: number;
+  lastMovingSeen?: number;
 }
 
 export interface RecordedAttribute extends EventAttribute {
@@ -39,7 +43,9 @@ export function leanEvent(event: RecordedEvent): DetectionEvent {
     ...rest,
     segments: segments.map(({ thumbnailAt: _segAt, detections, attributes, ...segment }) => ({
       ...segment,
-      detections: detections.map(({ box: _box, trackId: _trackId, zones: _zones, ...detection }) => detection),
+      detections: detections.map(
+        ({ box: _box, trackId: _trackId, zones: _zones, firstSeen: _f, lastSeen: _l, firstMovingSeen: _fm, lastMovingSeen: _lm, ...detection }) => detection,
+      ),
       attributes: attributes
         .filter((attribute) => attribute.type !== 'clip')
         .map(({ parentTrackId: _parent, embedding: _e, embeddingModel: _em, clipEmbedding: _c, clipEmbeddingModel: _cm, ...attribute }) => attribute),
