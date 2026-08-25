@@ -200,7 +200,13 @@ export class LinuxInstaller extends BasePlatform {
     if (apiReady) {
       await this.cli.printPostInstallInstructions(type);
     } else {
-      this.cli.logger('WARNING: There might be errors, or the setup might still be in progress.\n' + '  You can check the logs using the command: cameraui logs', 'warn');
+      // prettier-ignore
+      this.cli.logger(
+        'WARNING: There might be errors, or the setup might still be in progress.\n' +
+        '  You can check the logs using the command: cameraui logs\n' +
+        `  If that log does not exist, the service never started. Check: journalctl -u ${this.systemdServiceName} -n 50`,
+        'warn',
+      );
     }
   }
 
@@ -421,13 +427,17 @@ export class LinuxInstaller extends BasePlatform {
   }
 
   private async createSystemdEnvFile(): Promise<void> {
+    const nodeDir = dirname(process.execPath);
+    const basePath = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebridge/bin';
+    const servicePath = basePath.split(':').includes(nodeDir) ? basePath : `${nodeDir}:${basePath}`;
+
     const envFile = [
       `CAMERA_UI_OPTS=-H "${this.cli.homePath}"${this.cli.worker ? ' --worker' : ''}`,
       `CAMERA_UI_HOME_PATH="${this.cli.homePath}"`,
       `CAMERA_UI_STORAGE_PATH="${this.cli.storagePath}"`,
       '',
       'DISABLE_OPENCOLLECTIVE=true',
-      'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebridge/bin',
+      `PATH=${servicePath}`,
     ]
       .filter((x) => x !== null)
       .join('\n');

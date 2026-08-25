@@ -531,6 +531,10 @@ export class CameraUiCLI {
   private async tailLogs(): Promise<void> {
     if (!existsSync(this.logPath)) {
       this.logger(`ERROR: Log file does not exist at expected location: ${this.logPath}`, 'fail');
+      this.logger('The log is written by the running service. If it never appeared, the service did not start.', 'fail');
+      if (platform() === 'linux') {
+        this.logger(`Check the service state with: journalctl -u ${this.serviceName.toLowerCase()} -n 50`, 'fail');
+      }
       process.exit(1);
     }
 
