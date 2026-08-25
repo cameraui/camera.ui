@@ -2392,6 +2392,8 @@ export default {
       semantic_search_hint: 'z.B. "Person mit roter Jacke" oder "Lieferwagen"',
       cameras: 'Kameras',
       all_cameras: 'Alle Kameras',
+      rooms: 'Räume',
+      all_rooms: 'Alle Räume',
       only_with_recordings: 'Nur mit Aufnahme',
       time_range: 'Zeitraum',
       time_1h: '1H',
@@ -2884,6 +2886,8 @@ export default {
     },
     floorplan: {
       title: 'Grundriss',
+      open_camera: 'Kamera öffnen',
+      blind_spots: 'Blinde Bereiche',
       no_levels: 'Noch keine Ebenen',
       all_cameras_placed: 'Alle Kameras sind platziert',
       level: 'Ebene',

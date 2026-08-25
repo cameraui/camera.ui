@@ -400,6 +400,7 @@ declare module 'vue' {
     'IMdi:motionSensor': typeof import('~icons/mdi/motion-sensor')['default']
     'IMdi:motionSensorOff': typeof import('~icons/mdi/motion-sensor-off')['default']
     'IMdi:movieOff': typeof import('~icons/mdi/movie-off')['default']
+    'IMdi:openInNew': typeof import('~icons/mdi/open-in-new')['default']
     'IMdi:packageVariantPlus': typeof import('~icons/mdi/package-variant-plus')['default']
     'IMdi:pencil': typeof import('~icons/mdi/pencil')['default']
     'IMdi:pencilOutline': typeof import('~icons/mdi/pencil-outline')['default']

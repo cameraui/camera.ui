@@ -2375,6 +2375,8 @@ export default {
       semantic_search_hint: 'e.g. "person with red jacket" or "delivery truck"',
       cameras: 'Cameras',
       all_cameras: 'All Cameras',
+      rooms: 'Rooms',
+      all_rooms: 'All rooms',
       only_with_recordings: 'Only with recording',
       time_range: 'Time Range',
       time_1h: '1H',
@@ -2860,6 +2862,8 @@ export default {
     },
     floorplan: {
       title: 'Floor Plan',
+      open_camera: 'Open camera',
+      blind_spots: 'Blind spots',
       no_levels: 'No levels yet',
       all_cameras_placed: 'All cameras are placed',
       level: 'Level',

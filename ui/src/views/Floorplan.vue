@@ -328,19 +328,35 @@
     </Popover>
 
     <Popover ref="previewRef" class="shadow-lg cui-rounded-corner overflow-hidden" :pt="{ content: { class: 'p-0' } }">
-      <div class="w-[280px] flex items-center justify-center">
-        <CuiCameraCard
-          v-if="previewCamera"
-          :camera-info="previewCamera"
-          source-role="low-resolution"
-          :toolbar="false"
-          :control="false"
-          :subcontrol="false"
-          :isolated-stream="true"
-          live-indicator-overlay
-          class="w-full"
-          flat-card
-        />
+      <div class="w-[280px] flex flex-col" @pointerenter="keepPreview" @pointerleave="hidePreview">
+        <div class="flex items-center justify-center">
+          <CuiCameraCard
+            v-if="previewCamera"
+            :camera-info="previewCamera"
+            source-role="low-resolution"
+            :toolbar="false"
+            :control="false"
+            :subcontrol="false"
+            :isolated-stream="true"
+            live-indicator-overlay
+            class="w-full"
+            flat-card
+          />
+        </div>
+        <div v-if="previewCamera" class="flex items-center gap-2 pl-3 pr-2 py-1.5">
+          <span class="flex-1 min-w-0 text-sm font-semibold truncate text-color">{{ previewCamera.name }}</span>
+          <Button
+            v-tooltip.top="{ value: $t('views.floorplan.open_camera') }"
+            severity="secondary"
+            text
+            class="cui-button p-1.5"
+            @click="$router.push(`/cameras/${previewCamera.name}`)"
+          >
+            <template #icon>
+              <i-mdi:open-in-new class="w-4 h-4" />
+            </template>
+          </Button>
+        </div>
       </div>
     </Popover>
 
@@ -948,10 +964,7 @@ function onHoverCamera(hover: { cameraId: string; x: number; y: number } | null)
   clearTimeout(previewTimer);
 
   if (!hover) {
-    previewTimer = setTimeout(() => {
-      previewRef.value?.hide();
-      previewCameraId.value = null;
-    }, 200);
+    hidePreview();
     return;
   }
 
@@ -960,6 +973,17 @@ function onHoverCamera(hover: { cameraId: string; x: number; y: number } | null)
   previewTimer = setTimeout(() => {
     if (previewAnchorRef.value) previewRef.value?.show({ currentTarget: previewAnchorRef.value } as unknown as Event);
   }, 350);
+}
+
+function keepPreview(): void {
+  clearTimeout(previewTimer);
+}
+
+function hidePreview(): void {
+  previewTimer = setTimeout(() => {
+    previewRef.value?.hide();
+    previewCameraId.value = null;
+  }, 200);
 }
 
 function onRequestStairs({ roomId, event }: { roomId: string; event: PointerEvent }): void {

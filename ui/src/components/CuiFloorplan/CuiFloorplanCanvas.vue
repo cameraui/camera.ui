@@ -35,6 +35,24 @@
             <clipPath v-for="area in sightAreas" :id="`floorplan-sight-${area.roomId}`" :key="area.roomId">
               <path :d="area.path" />
             </clipPath>
+
+            <pattern id="floorplan-gaps-hatch" :width="10 / zoom" :height="10 / zoom" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+              <line x1="0" y1="0" x2="0" :y2="10 / zoom" class="gaps-hatch" :stroke-width="1.5 / zoom" />
+            </pattern>
+            <mask v-if="showGaps" id="floorplan-gaps" maskUnits="userSpaceOnUse" :x="sceneBox.x" :y="sceneBox.y" :width="sceneBox.width" :height="sceneBox.height">
+              <template v-for="group in roomShapes" :key="`gap-room-${group.roomId}`">
+                <path v-if="!group.publicSpace" :d="group.fill" fill="white" />
+              </template>
+              <g v-for="area in sightAreas" :key="`gap-sight-${area.roomId}`" :clip-path="`url(#floorplan-sight-${area.roomId})`">
+                <path
+                  v-for="camera in camerasOf(area.roomId)"
+                  :key="`gap-cone-${camera.id}`"
+                  :d="conePath(camera)"
+                  fill="black"
+                  :transform="`translate(${camera.x} ${camera.y}) rotate(${camera.rotation})`"
+                />
+              </g>
+            </mask>
           </defs>
 
           <g :transform="`translate(${-sceneBox.x} ${-sceneBox.y})`">
@@ -66,6 +84,17 @@
                 :transform="`translate(${camera.x} ${camera.y}) rotate(${camera.rotation})`"
               />
             </g>
+
+            <rect
+              v-if="showGaps"
+              :x="sceneBox.x"
+              :y="sceneBox.y"
+              :width="sceneBox.width"
+              :height="sceneBox.height"
+              fill="url(#floorplan-gaps-hatch)"
+              mask="url(#floorplan-gaps)"
+              class="gaps-layer"
+            />
 
             <g v-for="group in roomShapes" :key="`hits-${group.roomId}`">
               <rect
@@ -317,6 +346,16 @@
           <i-mdi:lock v-if="locked" class="w-4 h-4" />
           <i-mdi:lock-open-variant-outline v-else class="w-4 h-4" />
         </button>
+        <button
+          v-tooltip.right="{ value: $t('views.floorplan.blind_spots') }"
+          type="button"
+          class="control-button"
+          :class="{ 'control-active': showGaps }"
+          @pointerdown.stop
+          @click.stop="showGaps = !showGaps"
+        >
+          <i-mdi:eye-off-outline class="w-4 h-4" />
+        </button>
       </div>
 
       <div class="floorplan-scale flex items-center gap-2 px-2 py-1">
@@ -397,9 +436,7 @@ const emit = defineEmits<CuiFloorplanCanvasEmits>();
 
 const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
 const locked = ref(false);
-
-const { viewport, zoomIn, zoomOut, fitBounds } = useVueFlow();
-
+const showGaps = ref(false);
 const compassRef = useTemplateRef<HTMLElement>('compassRef');
 const guides = ref<{ x: number | null; y: number | null }>({ x: null, y: null });
 const hoveredCameraId = ref<string | null>(null);
@@ -415,6 +452,7 @@ let drag: Drag | null = null;
 let dragCommitted = false;
 let tap: { target: FloorplanSelection; x: number; y: number } | null = null;
 
+const { viewport, zoomIn, zoomOut, fitBounds } = useVueFlow();
 const { sensors: liveSensors } = useAllSensors();
 
 const levelSensors = computed(() => props.sensors.filter((sensor) => sensor.levelId === props.levelId));
@@ -1298,6 +1336,15 @@ defineExpose({ fit });
 .public-hatch {
   stroke: var(--text-muted-color);
   stroke-opacity: 0.35;
+}
+
+.gaps-hatch {
+  stroke: var(--p-red-500);
+  stroke-opacity: 0.45;
+}
+
+.gaps-layer {
+  pointer-events: none;
 }
 
 .room-public-wall {
