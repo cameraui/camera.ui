@@ -332,6 +332,7 @@ declare module 'vue' {
     'IMdi:brain': typeof import('~icons/mdi/brain')['default']
     'IMdi:brightness6': typeof import('~icons/mdi/brightness6')['default']
     'IMdi:bug': typeof import('~icons/mdi/bug')['default']
+    'IMdi:cameraFlipOutline': typeof import('~icons/mdi/camera-flip-outline')['default']
     'IMdi:cancel': typeof import('~icons/mdi/cancel')['default']
     'IMdi:car': typeof import('~icons/mdi/car')['default']
     'IMdi:cast': typeof import('~icons/mdi/cast')['default']

@@ -80,8 +80,6 @@ export interface DetectionCoordinatorConfig {
   frameWorkerSettings: CameraFrameWorkerSettings;
   interfaceSettings: CameraUiSettings;
   nvrRpc?: string;
-  // the analysis source is allowed to stay connected, so it holds packets while
-  // nothing is happening instead of waiting for a keyframe on every trigger
   streamHot?: boolean;
 }
 
@@ -117,6 +115,9 @@ const MOMENT_ATTRIBUTE_MIN_AREA = 600;
 const DEFAULT_CASCADE_TIMEOUT = 10;
 const OBJECT_DWELL_SECONDS = 2;
 const SECONDARY_BBOX_TTL_MS = 2000;
+// generous vs. the cascade window (default 10s): fresh motion re-arms the
+// cascade and lets the tracker close its spans properly well before this
+const WORLD_TICK_STARVATION_MS = 60_000;
 const CADENCE_MIN_SAMPLES = 5;
 const CADENCE_OUTLIER_BAND = 2.5;
 const CADENCE_OUTLIER_RESEED = 5;
@@ -141,6 +142,7 @@ export class DetectionCoordinator {
   private readonly eventManager: DetectionEventManager;
   private readonly cascade = new CascadeManager();
   private readonly worldSpans = new Set<number>();
+  private lastWorldTickAt = 0;
 
   private readonly activeSensorTriggerTypes = new Map<string, string>();
   private readonly secondaryBboxSeen = new Map<string, number>();
@@ -1177,7 +1179,9 @@ export class DetectionCoordinator {
   }
 
   private clearSecondaryBboxes(sensorId: string): void {
-    this.writeSensorProperties(sensorId, { detections: [] });
+    // detected must fall with the boxes: secondaries only run while objects
+    // are tracked, so nothing else ever writes the false edge
+    this.writeSensorProperties(sensorId, { detected: false, detections: [] });
     this.secondaryBboxSeen.delete(sensorId);
   }
 
@@ -1497,6 +1501,7 @@ export class DetectionCoordinator {
           const postStart = Date.now();
           const pipelineResult = this.pipeline.process(detected, poseDelta);
           this.perf.postMs += Date.now() - postStart;
+          this.lastWorldTickAt = t0;
           // the tick that opens a span analysed the low stream (the switch lands
           // next tick), its picture work is worth a one-off HQ decode
           if (this.updateWorldSpans(pipelineResult) && !analysis.isMainStream) {
@@ -1626,6 +1631,14 @@ export class DetectionCoordinator {
 
     this.eventManager.processResults(snapshot);
 
+    // a span can only close while the tracker receives ticks; if the cascade
+    // re-arm chain broke (object plugin outage, camera drop mid-event) the
+    // stale spans would pin the event open and the cascade armed forever
+    if (this.worldSpans.size > 0 && this.lastWorldTickAt > 0 && t0 - this.lastWorldTickAt > WORLD_TICK_STARVATION_MS) {
+      this.logger.warn(`Dropping ${this.worldSpans.size} open object span(s): no tracker tick for ${Math.round((t0 - this.lastWorldTickAt) / 1000)}s`);
+      this.worldSpans.clear();
+    }
+
     // spans can outlive every trigger dwell (gate case); once spans, dwells
     // and the segment linger are all quiet the event ends here
     if (this.worldSpans.size === 0 && !this.dwell.hasActive() && !this.eventManager.hasActiveSegment()) {
@@ -1753,6 +1766,11 @@ export class DetectionCoordinator {
       } else if (event.eventType === 'objectDeparted' || event.eventType === 'objectLost' || (event.eventType === 'objectSettled' && suppressStatic)) {
         this.worldSpans.delete(obj.trackId);
       }
+    }
+
+    // a track that died without a paired close event must not leak its span
+    for (const id of result.removed) {
+      this.worldSpans.delete(id);
     }
 
     return opened;

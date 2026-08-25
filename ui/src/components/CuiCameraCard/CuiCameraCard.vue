@@ -307,10 +307,10 @@
           </div>
 
           <Transition name="fade-2">
-            <div v-if="showControl && !timelineState" class="absolute bottom-0 inset-x-0 z-6 dark-mode" :class="{ 'control-bar-tiny': isTinyPlayer }">
-              <div class="control-bar-gradient pointer-events-none" />
+            <div v-if="showControl && !timelineState" class="absolute bottom-0 inset-x-0 z-6 dark-mode pointer-events-none" :class="{ 'control-bar-tiny': isTinyPlayer }">
+              <div class="control-bar-gradient" />
               <div class="relative flex items-center gap-1 px-3 pb-3 pt-8">
-                <div class="flex items-center gap-0.5">
+                <div class="flex items-center gap-0.5 pointer-events-auto">
                   <Button
                     v-if="controlRewindButton && controlBarLayout.rewind.inline"
                     :disabled="!nvr"
@@ -364,7 +364,7 @@
 
                 <div class="flex-1" />
 
-                <div class="flex items-center gap-0.5">
+                <div class="flex items-center gap-0.5 pointer-events-auto">
                   <Button
                     v-if="controlSpeakerButton && controlBarLayout.speaker.inline"
                     :disabled="!streamHasSound || isLoading"
