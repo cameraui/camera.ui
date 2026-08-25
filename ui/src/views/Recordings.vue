@@ -247,7 +247,7 @@ import ExportRecordings from '@/components/CuiDialog/templates/ExportRecordings/
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import RecordingsFilterSidebar from '@/components/CuiRecordings/RecordingsFilterSidebar.vue';
-import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
+import { buildUngroupedItems, ungroupedItemTime } from '@/components/CuiRecordings/ungrouped.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
@@ -477,18 +477,13 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   return items;
 });
 
-function gridItemTime(item: UngroupedItem): number {
-  if (item.episode) return item.episode.endTime;
-  return item.event.thumbnailAt ?? item.event.startTime;
-}
-
 const gridItems = computed<UngroupedItem[]>(() => {
-  if (episodesOnly.value) return [...episodeGridItems.value].sort((a, b) => gridItemTime(b) - gridItemTime(a));
+  if (episodesOnly.value) return [...episodeGridItems.value].sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
   if (ungrouped.value && ungroupedItems.value.length) return ungroupedItems.value;
   const items: UngroupedItem[] = displayEvents.value.map((event) => ({ event, key: event.id }));
   if (episodeGridItems.value.length) {
     items.push(...episodeGridItems.value);
-    items.sort((a, b) => gridItemTime(b) - gridItemTime(a));
+    items.sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
   }
   return items;
 });

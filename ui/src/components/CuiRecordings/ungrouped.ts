@@ -7,6 +7,15 @@ export interface UngroupedItem {
   episode?: RecordedEpisode;
 }
 
+export function ungroupedItemTime(item: UngroupedItem): number {
+  if (item.episode) return item.episode.endTime;
+  if (item.segIndex !== undefined) {
+    const segment = item.event.segments?.[item.segIndex];
+    if (segment) return segment.firstSeen;
+  }
+  return item.event.thumbnailAt ?? item.event.startTime;
+}
+
 export function buildUngroupedItems(events: RecordedEvent[]): UngroupedItem[] {
   const items: UngroupedItem[] = [];
   for (const event of events) {
@@ -19,5 +28,6 @@ export function buildUngroupedItems(events: RecordedEvent[]): UngroupedItem[] {
       if (segment) items.push({ event, key: `${event.id}:seg:${index}`, segIndex: index });
     });
   }
+  items.sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
   return items;
 }
