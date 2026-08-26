@@ -370,8 +370,6 @@ function reapTrackedProcessesOnExit(configService: ConfigService): void {
     for (const proc of configService.processes) {
       try {
         if (process.platform === 'win32') {
-          // TerminateProcess doesn't touch children — go2rtc's own ffmpeg
-          // processes would survive. taskkill /T takes the whole tree.
           execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
         } else {
           process.kill(proc.pid, 'SIGKILL');
@@ -389,38 +387,39 @@ async function launch(): Promise<void> {
   if (isWorkerMode) {
     process.title = 'camera.ui-worker';
 
-    const worker = new CameraUiWorker();
-    const logger = worker.logger;
-
+    let worker: CameraUiWorker | undefined;
     try {
+      worker = new CameraUiWorker();
       await worker.start();
       sendIPCMessage({ type: 'STARTED', port: 0 });
     } catch (error) {
-      logger.error('Failed to start camera.ui worker', error);
+      (worker?.logger ?? console).error('Failed to start camera.ui worker', error);
       await reportStartError(error);
-      await worker.close();
+      await worker?.close();
       process.exit(1);
     }
 
     return;
   }
 
-  const cameraui = new CameraUi();
-  const logger = cameraui.logger;
-
+  let cameraui: CameraUi | undefined;
   try {
+    cameraui = new CameraUi();
     await cameraui.start();
     sendIPCMessage({ type: 'STARTED', port: cameraui.port });
   } catch (error) {
-    logger.error('Failed to start camera.ui', error);
+    (cameraui?.logger ?? console).error('Failed to start camera.ui', error);
 
     await reportStartError(error);
-    await cameraui.close();
+    await cameraui?.close();
 
     process.exit(1);
   }
 }
 
-launch();
+launch().catch((error) => {
+  console.error('Failed to start camera.ui:', error);
+  process.exit(1);
+});
 
 export type { CameraUi };
