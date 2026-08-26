@@ -2184,10 +2184,10 @@ watch(resizable, () => {
 });
 
 watch(
-  () => [isHoveredZoom.value, timelineState.value, showPtz.value, inStandby.value, isDisabled.value],
-  ([hovered, timeline, ptz, standby, disabled]) => {
+  () => [timelineState.value, showPtz.value, inStandby.value, isDisabled.value],
+  ([timeline, ptz, standby, disabled]) => {
     if (isPanning.value || isResizing.value || isMousePressed.value) return;
-    const shouldDisable = resizable.value ? timeline || ptz || standby || disabled : !hovered || timeline || ptz || standby || disabled;
+    const shouldDisable = timeline || ptz || standby || disabled;
     if (shouldDisable && (zoomValue.value !== 1 || panValue.value.x !== 0 || panValue.value.y !== 0)) {
       isConstraining.value = true;
       zoomValue.value = 1;
