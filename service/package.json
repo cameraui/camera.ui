@@ -25,9 +25,9 @@
     "@camera.ui/common": "~0.0.54",
     "commander": "^15.0.0",
     "fs-extra": "^11.4.0",
-    "js-yaml": "^5.4.0",
+    "js-yaml": "^5.4.1",
     "ora": "^9.4.1",
-    "systeminformation": "^5.33.3",
+    "systeminformation": "^5.33.4",
     "tail": "^2.2.6"
   },
   "devDependencies": {
@@ -45,7 +45,7 @@
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.68.0",
-    "updates": "^18.0.6"
+    "updates": "^18.0.7"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "bugs": {
