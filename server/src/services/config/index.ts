@@ -181,7 +181,8 @@ export class ConfigService {
       this.HOME_PATH = resolve(homePath);
     }
 
-    this.TMP_PATH = join(tmpdir(), '.camera.ui', createHash('sha256').update(this.HOME_PATH).digest('hex').slice(0, 8));
+    const tmpBase = process.getuid ? `.camera.ui-${process.getuid()}` : '.camera.ui';
+    this.TMP_PATH = join(tmpdir(), tmpBase, createHash('sha256').update(this.HOME_PATH).digest('hex').slice(0, 8));
     this.STORAGE_PATH = join(this.HOME_PATH, 'volume');
     this.LOGS_PATH = join(this.STORAGE_PATH, 'logs');
     this.PIDS_FILE = join(this.STORAGE_PATH, 'camera.ui.pids');
@@ -728,7 +729,7 @@ export class ConfigService {
     }
   }
 
-  private async createDirs(): Promise<void> {
+  private createDirs(): void {
     this.safetyEmptyDir(this.TMP_PATH);
     this.safetyEnsureDir(this.HOME_PATH);
     this.safetyEnsureDir(this.LOGS_PATH);
@@ -804,7 +805,7 @@ export class ConfigService {
     try {
       ensureDirSync(dir);
     } catch (error: any) {
-      if (error.code !== 'EACCES') {
+      if (error.code === 'EACCES') {
         this.logger.warn(`Failed to create directory: ${dir}`);
         this.logger.warn(`Please make sure the user "${process.env.USER}" has the correct permissions`);
         this.logger.warn(`EXAMPLE: sudo chown -R ${process.env.USER}:${process.env.USER} ${dir}`);
@@ -818,7 +819,7 @@ export class ConfigService {
     try {
       emptyDirSync(dir);
     } catch (error: any) {
-      if (error.code !== 'EACCES') {
+      if (error.code === 'EACCES') {
         this.logger.warn(`Failed to empty directory: ${dir}`);
         this.logger.warn(`Please make sure the user "${process.env.USER}" has the correct permissions`);
         this.logger.warn(`EXAMPLE: sudo chown -R ${process.env.USER}:${process.env.USER} ${dir}`);
@@ -832,7 +833,7 @@ export class ConfigService {
     try {
       ensureFileSync(file);
     } catch (error: any) {
-      if (error.code !== 'EACCES') {
+      if (error.code === 'EACCES') {
         this.logger.warn(`Failed to create file: ${file}`);
         this.logger.warn(`Please make sure the user "${process.env.USER}" has the correct permissions`);
         this.logger.warn(`EXAMPLE: sudo chown ${process.env.USER}:${process.env.USER} ${file}`);
