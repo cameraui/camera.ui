@@ -1,11 +1,12 @@
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 import { getDetectionTypes } from '../../../../sensors/types.js';
+import { limitRegistration } from './limiter.js';
 import { watchReconnect } from './reconnect.js';
 import { SensorProxy } from './sensor.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { BasePlugin, ModelSpec, PluginInfo, Sensor, SensorHistoryEntry, SensorManager, SensorType } from '@camera.ui/sdk';
+import type { BasePlugin, ModelSpec, PluginInfo, RegisteredSensorInfo, Sensor, SensorHistoryEntry, SensorManager, SensorType } from '@camera.ui/sdk';
 import type { DetectionCoordinatorInterface } from '../../../../rpc/interfaces/detection.js';
 import type {
   SensorAddedEvent,
@@ -74,78 +75,8 @@ export class SensorManagerProxy implements SensorManager {
     await this.#pluginInstance?.configureSensors?.(Array.from(this.#consumed.values()));
   }
 
-  public async addSensor(sensor: Sensor<any, any, any>): Promise<void> {
-    // producers need the global stream too: assignment changes must reach
-    // owned sensors, their detection fan-out reads assignedCameraIds
-    await this.#ensureGlobalSubscription();
-
-    sensor._setPluginId(this.#plugin.id);
-
-    const sensorJSON = sensor.toJSON();
-    sensorJSON.requiresFrames = sensor._requiresFrames === true;
-
-    // resolve the durable id first and wire storage with it, so registration
-    // data (modelSpec) can read sensor storage
-    const sensorId = await this.#registryProxy.resolveSensor(sensorJSON, this.#plugin.id);
-    sensor._setId(sensorId);
-    sensorJSON.id = sensorId;
-
-    const storage = this.#storageController.createSensorStorage(this.#plugin.id, sensor.id, sensor.storageSchema ?? []);
-    await storage.registerStorage();
-    sensor._setStorage(storage);
-
-    const modelSpec: ModelSpec | undefined = (sensor as { modelSpec?: ModelSpec }).modelSpec;
-    if (modelSpec) {
-      sensorJSON.modelSpec = modelSpec;
-    }
-
-    const registration = await this.#registryProxy.registerSensor(sensorJSON, this.#plugin.id);
-    sensor._setAssignedCameras(registration.assignedCameraIds);
-
-    const sensorNamespace = NamespaceManager.sensorProviderNamespaces(this.#plugin.id, sensor.id).sensorRpc;
-
-    sensor._init(async (properties: Record<string, unknown>) => {
-      if (DETECTION_SENSOR_TYPES.has(sensor.type)) {
-        // the spec belongs to the registry, it reaches the coordinators from there
-        const { modelSpec, ...rest } = properties;
-        if (modelSpec) {
-          await this.#registryProxy.updateModelSpec(sensor.id, modelSpec as ModelSpec);
-          if (Object.keys(rest).length === 0) return;
-          properties = rest;
-        }
-
-        // external detection provider: fan the write into every assigned camera's coordinator
-        for (const cameraId of sensor.assignedCameraIds) {
-          const detectionNs = NamespaceManager.frameWorkerDetectionNamespaces(cameraId);
-          const coordinator = this.#proxy.createProxy<DetectionCoordinatorInterface>(detectionNs.detectionRpc);
-          coordinator.reportSensorWrite(sensor.id, sensor.type, properties).catch(() => {});
-        }
-        return;
-      }
-      await this.#registryProxy.updatePropertyValues(sensor.id, properties);
-    });
-
-    sensor._initCapabilities(async (capabilities: string[]) => {
-      await this.#registryProxy.updateCapabilities(sensor.id, capabilities);
-    });
-
-    const rpcCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, { withoutDecorators: true });
-
-    const eventNs = NamespaceManager.sensorEventNamespaces(sensor.id);
-    const unsubscribeEvents = await this.#proxy.subscribe<{ type: string; data: unknown }>(eventNs.sensorSubject, (event) => {
-      if (event.type === 'property:changed') {
-        const changeEvent = event.data as { property: string; value: unknown; timestamp?: number };
-        sensor._onBackendPropertyChanged(changeEvent.property, changeEvent.value, changeEvent.timestamp);
-      }
-    });
-
-    this.#owned.set(sensor.id, sensor);
-    this.#cleanups.set(sensor.id, async () => {
-      unsubscribeEvents();
-      await rpcCleanup();
-    });
-
-    sensor._setActive(true);
+  public addSensor(sensor: Sensor<any, any, any>): Promise<void> {
+    return limitRegistration(() => this.#addSensor(sensor));
   }
 
   public async removeSensor(sensor: Sensor<any, any, any>): Promise<void> {
@@ -164,6 +95,11 @@ export class SensorManagerProxy implements SensorManager {
 
   public getSensors(): Sensor<any, any, any>[] {
     return Array.from(this.#owned.values());
+  }
+
+  public async getRegisteredSensors(): Promise<RegisteredSensorInfo[]> {
+    const stored = await this.#registryProxy.getSensors(this.#plugin.id);
+    return stored.filter((s) => s.pluginId === this.#plugin.id).map((s) => ({ id: s.id, nativeId: s.nativeId, type: s.type, name: s.name, connected: s.connected }));
   }
 
   public async getSensorHistory(sensorIds: string[], from: number, to: number): Promise<SensorHistoryEntry[]> {
@@ -203,6 +139,85 @@ export class SensorManagerProxy implements SensorManager {
       sensor._cleanup();
     }
     this.#owned.clear();
+  }
+
+  async #addSensor(sensor: Sensor<any, any, any>): Promise<void> {
+    // producers need the global stream too: assignment changes must reach
+    // owned sensors, their detection fan-out reads assignedCameraIds
+    await this.#ensureGlobalSubscription();
+
+    sensor._setPluginId(this.#plugin.id);
+
+    const sensorJSON = sensor.toJSON();
+    sensorJSON.requiresFrames = sensor._requiresFrames === true;
+
+    // resolve the durable id first and wire storage with it, so registration
+    // data (modelSpec) can read sensor storage
+    const sensorId = await this.#registryProxy.resolveSensor(sensorJSON, this.#plugin.id);
+    sensor._setId(sensorId);
+    sensorJSON.id = sensorId;
+
+    const storage = this.#storageController.createSensorStorage(this.#plugin.id, sensor.id, sensor.storageSchema ?? []);
+    await storage.registerStorage();
+    sensor._setStorage(storage);
+
+    const modelSpec: ModelSpec | undefined = (sensor as { modelSpec?: ModelSpec }).modelSpec;
+    if (modelSpec) {
+      sensorJSON.modelSpec = modelSpec;
+    }
+
+    const registration = await this.#registryProxy.registerSensor(sensorJSON, this.#plugin.id);
+    sensor._setAssignedCameras(registration.assignedCameraIds);
+
+    const sensorNamespace = NamespaceManager.sensorProviderNamespaces(this.#plugin.id, sensor.id).sensorRpc;
+
+    const pushProperties = async (properties: Record<string, unknown>): Promise<void> => {
+      if (DETECTION_SENSOR_TYPES.has(sensor.type)) {
+        // the spec belongs to the registry, it reaches the coordinators from there
+        const { modelSpec, ...rest } = properties;
+        if (modelSpec) {
+          await this.#registryProxy.updateModelSpec(sensor.id, modelSpec as ModelSpec);
+          if (Object.keys(rest).length === 0) return;
+          properties = rest;
+        }
+
+        // external detection provider: fan the write into every assigned camera's coordinator
+        for (const cameraId of sensor.assignedCameraIds) {
+          const detectionNs = NamespaceManager.frameWorkerDetectionNamespaces(cameraId);
+          const coordinator = this.#proxy.createProxy<DetectionCoordinatorInterface>(detectionNs.detectionRpc);
+          coordinator.reportSensorWrite(sensor.id, sensor.type, properties).catch(() => {});
+        }
+        return;
+      }
+      await this.#registryProxy.updatePropertyValues(sensor.id, properties);
+    };
+    // writes are fire-and-forget for the sensor author, a failed RPC must not
+    // surface as an unhandled rejection
+    sensor._init((properties) => {
+      pushProperties(properties).catch((error) => this.#logger.debug(`Property write for sensor ${sensor.id} failed:`, error));
+    });
+
+    sensor._initCapabilities((capabilities) => {
+      this.#registryProxy.updateCapabilities(sensor.id, capabilities).catch((error) => this.#logger.debug(`Capability write for sensor ${sensor.id} failed:`, error));
+    });
+
+    const rpcCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, { withoutDecorators: true });
+
+    const eventNs = NamespaceManager.sensorEventNamespaces(sensor.id);
+    const unsubscribeEvents = await this.#proxy.subscribe<{ type: string; data: unknown }>(eventNs.sensorSubject, (event) => {
+      if (event.type === 'property:changed') {
+        const changeEvent = event.data as { property: string; value: unknown; timestamp?: number };
+        sensor._onBackendPropertyChanged(changeEvent.property, changeEvent.value, changeEvent.timestamp);
+      }
+    });
+
+    this.#owned.set(sensor.id, sensor);
+    this.#cleanups.set(sensor.id, async () => {
+      unsubscribeEvents();
+      await rpcCleanup();
+    });
+
+    sensor._setActive(true);
   }
 
   async #ensureGlobalSubscription(): Promise<void> {

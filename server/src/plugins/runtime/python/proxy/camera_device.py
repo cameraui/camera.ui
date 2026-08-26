@@ -57,6 +57,7 @@ from plugins.runtime.python.namespaces import (
     PluginCameraNamespaces,
     SensorRegistryNamespaces,
 )
+from plugins.runtime.python.proxy.limiter import registration_slot
 from plugins.runtime.python.proxy.sensor import (
     DetectionCoordinatorRPC,
     SensorRegistryInterface,
@@ -405,6 +406,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         return self._storage_controller.createCameraStorage(self.id, schemas)
 
     async def addSensor(self, sensor: Sensor[Any, Any, Any]) -> None:
+        async with registration_slot():
+            await self._addSensorInner(sensor)
+
+    async def _addSensorInner(self, sensor: Sensor[Any, Any, Any]) -> None:
         plugin_id = self._plugin["id"]
         sensor._setPluginId(plugin_id)  # pyright: ignore[reportPrivateUsage]
 

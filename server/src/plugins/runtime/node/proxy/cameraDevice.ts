@@ -8,6 +8,7 @@ import { NamespaceManager } from '../../../../rpc/namespaces.js';
 import { getDetectionTypes } from '../../../../sensors/types.js';
 import { buildSnapshotUrl, buildTargetUrl } from '../../../../utils/camera.js';
 import { rewriteSourceUrlsForRemote } from '../remoteUrls.js';
+import { limitRegistration } from './limiter.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -216,7 +217,40 @@ export class CameraDeviceProxy extends CameraDevice {
     return this.#cameraControllerProxy.probeStream(sourceId, probeConfig, refresh);
   }
 
-  public async addSensor<T extends object>(sensor: Sensor<T>): Promise<void> {
+  public addSensor<T extends object>(sensor: Sensor<T>): Promise<void> {
+    return limitRegistration(() => this.#addSensor(sensor));
+  }
+
+  public async removeSensor(sensorId: string): Promise<void> {
+    this.#sensorManager._untrackCameraSensor(sensorId);
+    await this.#sensorRegistryProxy.unregisterSensor(sensorId);
+
+    await this.#sensorCleanupFunctions.get(sensorId)?.();
+    this.#sensorCleanupFunctions.delete(sensorId);
+
+    const ownedSensor = this.#ownedSensors.get(sensorId);
+    if (ownedSensor) {
+      ownedSensor.sensor._cleanup?.();
+      this.#ownedSensors.delete(sensorId);
+    }
+  }
+
+  public async _refreshStates(): Promise<void> {
+    const response: RefreshedStates = await this.#cameraControllerProxy.refreshStates();
+
+    // a resync must not wake subscribers for state they already hold
+    if (!isEqual(this.cameraSubject.getValue(), response.camera)) {
+      super.updateCamera(response.camera);
+    }
+    if (this.cameraState.getValue() !== response.cameraState) {
+      super.updateCameraState(response.cameraState);
+    }
+    if (this.frameWorkerState.getValue() !== response.frameWorkerState) {
+      super.updateFrameWorkerState(response.frameWorkerState);
+    }
+  }
+
+  async #addSensor<T extends object>(sensor: Sensor<T>): Promise<void> {
     sensor._setPluginId(this.#plugin.id);
 
     const sensorJSON = sensor.toJSON();
@@ -248,7 +282,7 @@ export class CameraDeviceProxy extends CameraDevice {
 
     const sensorNamespace = NamespaceManager.sensorProviderNamespaces(this.#plugin.id, sensor.id).sensorRpc;
 
-    sensor._init(async (properties: Record<string, unknown>) => {
+    const pushProperties = async (properties: Record<string, unknown>): Promise<void> => {
       const sensorType = sensor.type;
       if (DETECTION_SENSOR_TYPES.has(sensorType)) {
         // the spec belongs to the registry: it survives a frame worker that is
@@ -269,10 +303,18 @@ export class CameraDeviceProxy extends CameraDevice {
         return;
       }
       await this.#sensorRegistryProxy.updatePropertyValues(sensor.id, properties);
+    };
+
+    // writes are fire-and-forget for the sensor author, a failed RPC must not
+    // surface as an unhandled rejection
+    sensor._init((properties) => {
+      pushProperties(properties).catch((error) => this.logger.debug(`Property write for sensor ${sensor.id} failed:`, error));
     });
 
-    sensor._initCapabilities(async (capabilities: string[]) => {
-      await this.#sensorRegistryProxy.updateCapabilities(sensor.id, capabilities);
+    sensor._initCapabilities((capabilities) => {
+      this.#sensorRegistryProxy
+        .updateCapabilities(sensor.id, capabilities)
+        .catch((error) => this.logger.debug(`Capability write for sensor ${sensor.id} failed:`, error));
     });
 
     const sensorCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, { withoutDecorators: true });
@@ -297,35 +339,6 @@ export class CameraDeviceProxy extends CameraDevice {
     });
 
     sensor._setActive(true);
-  }
-
-  public async removeSensor(sensorId: string): Promise<void> {
-    this.#sensorManager._untrackCameraSensor(sensorId);
-    await this.#sensorRegistryProxy.unregisterSensor(sensorId);
-
-    await this.#sensorCleanupFunctions.get(sensorId)?.();
-    this.#sensorCleanupFunctions.delete(sensorId);
-
-    const ownedSensor = this.#ownedSensors.get(sensorId);
-    if (ownedSensor) {
-      ownedSensor.sensor._cleanup?.();
-      this.#ownedSensors.delete(sensorId);
-    }
-  }
-
-  public async _refreshStates(): Promise<void> {
-    const response: RefreshedStates = await this.#cameraControllerProxy.refreshStates();
-
-    // a resync must not wake subscribers for state they already hold
-    if (!isEqual(this.cameraSubject.getValue(), response.camera)) {
-      super.updateCamera(response.camera);
-    }
-    if (this.cameraState.getValue() !== response.cameraState) {
-      super.updateCameraState(response.cameraState);
-    }
-    if (this.frameWorkerState.getValue() !== response.frameWorkerState) {
-      super.updateFrameWorkerState(response.frameWorkerState);
-    }
   }
 
   #ensureDetectionWire(): void {

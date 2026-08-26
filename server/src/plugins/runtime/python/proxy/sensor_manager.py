@@ -4,8 +4,16 @@ import contextlib
 from typing import TYPE_CHECKING, Any, cast
 
 from _camera_ui_tools.camera_ui_common import TaskSet
-from _camera_ui_tools.camera_ui_sdk import BasePlugin, Sensor, SensorHistoryEntry, SensorLike, SensorType
+from _camera_ui_tools.camera_ui_sdk import (
+    BasePlugin,
+    RegisteredSensorInfo,
+    Sensor,
+    SensorHistoryEntry,
+    SensorLike,
+    SensorType,
+)
 from plugins.runtime.python.namespaces import NamespaceManager
+from plugins.runtime.python.proxy.limiter import registration_slot
 from plugins.runtime.python.proxy.sensor import (
     DetectionCoordinatorRPC,
     SensorProxy,
@@ -101,6 +109,10 @@ class SensorManagerProxy:
             )
 
     async def addSensor(self, sensor: Sensor[Any, Any, Any]) -> None:
+        async with registration_slot():
+            await self._addSensorInner(sensor)
+
+    async def _addSensorInner(self, sensor: Sensor[Any, Any, Any]) -> None:
         # producers need the global stream too: assignment changes must reach
         # owned sensors, their detection fan-out reads assignedCameraIds
         await self._ensure_global_subscription()
@@ -175,6 +187,25 @@ class SensorManagerProxy:
 
     def getSensors(self) -> list[Sensor[Any, Any, Any]]:
         return list(self._owned.values())
+
+    async def getRegisteredSensors(self) -> list[RegisteredSensorInfo]:
+        plugin_id = self._plugin["id"]
+        stored = await self._registry_proxy.getSensors(plugin_id)
+        result: list[RegisteredSensorInfo] = []
+        for data in stored:
+            if data.get("pluginId") != plugin_id:
+                continue
+            info: RegisteredSensorInfo = {
+                "id": data["id"],
+                "type": data["type"],
+                "name": data["name"],
+                "connected": data["connected"],
+            }
+            native_id = data.get("nativeId")
+            if native_id is not None:
+                info["nativeId"] = native_id
+            result.append(info)
+        return result
 
     async def getSensorHistory(self, sensorIds: list[str], start: int, end: int) -> list[SensorHistoryEntry]:
         return await self._registry_proxy.getSensorHistory(sensorIds, start, end)

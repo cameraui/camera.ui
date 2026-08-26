@@ -357,6 +357,7 @@ declare global {
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
   const useScroll: typeof import('@vueuse/core').useScroll
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
+  const useSensorsSocket: typeof import('../composables/sockets/useSensorsSocket').useSensorsSocket
   const useServerRestart: typeof import('../composables/useServerRestart').useServerRestart
   const useServerSocket: typeof import('../composables/sockets/useServerSocket').useServerSocket
   const useSessionStorage: typeof import('@vueuse/core').useSessionStorage
@@ -508,6 +509,9 @@ declare global {
   // @ts-ignore
   export type { PluginsSocketState } from '../composables/sockets/usePluginsSocket'
   import('../composables/sockets/usePluginsSocket')
+  // @ts-ignore
+  export type { SensorsSocketState } from '../composables/sockets/useSensorsSocket'
+  import('../composables/sockets/useSensorsSocket')
   // @ts-ignore
   export type { ServerSocketState } from '../composables/sockets/useServerSocket'
   import('../composables/sockets/useServerSocket')
@@ -888,6 +892,7 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
+    readonly useSensorsSocket: UnwrapRef<typeof import('../composables/sockets/useSensorsSocket')['useSensorsSocket']>
     readonly useServerRestart: UnwrapRef<typeof import('../composables/useServerRestart')['useServerRestart']>
     readonly useServerSocket: UnwrapRef<typeof import('../composables/sockets/useServerSocket')['useServerSocket']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
