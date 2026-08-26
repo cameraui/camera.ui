@@ -47,7 +47,7 @@ import type {
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput } from '../schemas/remote.schema.js';
-import type { BulkPatchSensorsInput, CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
+import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
 import type {
@@ -684,7 +684,6 @@ export interface InterfaceSettinges {
 
 export interface SensorsSettings {
   hideCameraBound: boolean;
-  view: 'cards' | 'table';
 }
 
 export interface PluginsViewSettings {
@@ -1117,10 +1116,6 @@ export interface SensorsBulkDeleteRequest {
   Body: {
     ids: string[];
   };
-}
-
-export interface SensorsBulkPatchRequest {
-  Body: BulkPatchSensorsInput;
 }
 
 export interface SensorsCommandRequest {

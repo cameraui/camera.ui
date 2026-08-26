@@ -1,15 +1,13 @@
 import { SensorsService } from '../services/sensors.service.js';
-import { collectBulk } from '../utils/bulk.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type {
   AuthLoginRequest,
+  SensorsBulkDeleteRequest,
   SensorsCommandRequest,
   SensorsCreateVirtualRequest,
   SensorsHistoryRequest,
   SensorsListRequest,
-  SensorsBulkDeleteRequest,
-  SensorsBulkPatchRequest,
   SensorsParamsRequest,
   SensorsPatchRequest,
 } from '../types/index.js';
@@ -84,18 +82,6 @@ export class SensorsController {
         return reply.code(409).send({ statusCode: 409, message: 'Sensor is still provided by its plugin' });
       }
       return reply.code(204).send();
-    } catch (error: any) {
-      return reply.code(500).send({ statusCode: 500, message: error.message });
-    }
-  }
-
-  public async updateBulk(req: FastifyRequest<AuthLoginRequest & SensorsBulkPatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
-    try {
-      const result = await collectBulk(req.body.ids, async (id) => {
-        const sensor = await this.service.patch(id, req.body.data);
-        if (!sensor) throw new Error('Sensor not found');
-      });
-      return reply.code(200).send(result);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }

@@ -47,6 +47,7 @@ export type {
   RefreshedStates,
 } from '../../server/src/rpc/interfaces/device.js';
 export type { DeviceListItem, DeviceStatus, DiscoveryManagerProxyEvents } from '../../server/src/rpc/interfaces/discovery.js';
+export type { DiscoveredSensorListItem, SensorDiscoveryEvents } from '../../server/src/rpc/interfaces/sensor.js';
 export * from '../../server/src/rpc/namespaces.js';
 export * from '../../server/src/sensors/types.js';
 export * from '../../server/src/services/config/types.js';

@@ -3,7 +3,7 @@ import type { Namespace } from 'socket.io';
 import type { PLUGIN_STATUS } from '../../plugins/types.js';
 import type { RuntimeInfo } from '../../services/config/types.js';
 
-export type SocketNsp = '/camera.ui' | '/events' | '/metrics' | '/logs' | '/status' | '/notifications' | '/plugins' | '/server' | '/cameras' | '/workers';
+export type SocketNsp = '/camera.ui' | '/events' | '/metrics' | '/logs' | '/status' | '/notifications' | '/plugins' | '/server' | '/cameras' | '/sensors' | '/workers';
 
 export interface SocketNspMap {
   nsp: Namespace;

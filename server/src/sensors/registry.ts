@@ -25,8 +25,7 @@ import type { ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
 import type { SensorJSON } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Database } from '../api/database/index.js';
-import type { DBSensorHistoryEntry } from '../api/database/types.js';
-import type { DBSensor } from '../api/database/types.js';
+import type { DBSensor, DBSensorHistoryEntry } from '../api/database/types.js';
 import type { InternalEvent, InternalEventBus, InternalEventPayload } from '../internal-bus.js';
 import type { CoordinatorSensorInfo, DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
 import type { RegisterSensorOptions, SensorRefreshedState, SensorRegistration, StoredSensorData } from '../rpc/interfaces/sensor.js';
@@ -373,15 +372,6 @@ export class SensorRegistry {
     for (const cameraId of target) {
       if (!current.has(cameraId)) await this.assignCamera(sensorId, cameraId);
     }
-  }
-
-  public async setHidden(sensorId: string, hidden: boolean): Promise<void> {
-    const record = this.records.get(sensorId);
-    if (!record) throw new Error(`Sensor ${sensorId} not found`);
-    if ((record.hidden ?? false) === hidden) return;
-
-    record.hidden = hidden;
-    this.persistRecord(sensorId, () => {});
   }
 
   public async setExposed(sensorId: string, exposed: boolean): Promise<void> {

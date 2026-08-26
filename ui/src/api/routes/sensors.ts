@@ -1,8 +1,14 @@
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
-import type { BulkResult, CreateVirtualSensorInput, MethodKeys, PatchSensorInput, TransformedSensor } from '@shared/types';
+import type { CreateVirtualSensorInput, MethodKeys, PatchSensorInput, TransformedSensor } from '@shared/types';
 import type { AxiosResponse } from 'axios';
+
+export interface SensorHistoryEntry {
+  property: string;
+  value: unknown;
+  timestamp: number;
+}
 
 export async function getSensorsFn({ signal, cameraId }: { signal: AbortSignal; cameraId?: string }): Promise<TransformedSensor[]> {
   const response: AxiosResponse<{ sensors: TransformedSensor[] }> = await api.get('/sensors', { signal, params: cameraId ? { camera: cameraId } : undefined });
@@ -26,17 +32,6 @@ export async function deleteSensorFn({ id }: { id: string }): Promise<void> {
 export async function bulkDeleteSensorsFn({ ids }: { ids: string[] }): Promise<{ deleted: number; skipped: string[] }> {
   const response: AxiosResponse<{ deleted: number; skipped: string[] }> = await api.delete('/sensors', { data: { ids } });
   return response.data;
-}
-
-export async function bulkPatchSensorsFn({ ids, data }: { ids: string[]; data: { hidden: boolean } }): Promise<BulkResult> {
-  const response: AxiosResponse<BulkResult> = await api.patch('/sensors', { ids, data });
-  return response.data;
-}
-
-export interface SensorHistoryEntry {
-  property: string;
-  value: unknown;
-  timestamp: number;
 }
 
 export async function getSensorHistoryFn({ id, signal }: { id: string; signal?: AbortSignal }): Promise<SensorHistoryEntry[]> {
@@ -103,15 +98,6 @@ export class SensorsQuery {
   public bulkDeleteSensorsQuery() {
     return useMutation({
       mutationFn: bulkDeleteSensorsFn,
-      onSuccess: async () => {
-        await this._queryClient.refetchQueries({ queryKey: ['sensorsList'] });
-      },
-    });
-  }
-
-  public bulkPatchSensorsQuery() {
-    return useMutation({
-      mutationFn: bulkPatchSensorsFn,
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['sensorsList'] });
       },

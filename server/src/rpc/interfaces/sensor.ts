@@ -1,5 +1,21 @@
-import type { Camera, ModelSpec, SensorType } from '@camera.ui/sdk';
+import type { Camera, DiscoveredSensor, ModelSpec, SensorType } from '@camera.ui/sdk';
 import type { PropertyChangedEvent, SensorJSON } from '@camera.ui/sdk/internal';
+
+export interface DiscoveredSensorListItem extends DiscoveredSensor {
+  pluginId: string;
+  pluginName: string;
+}
+
+export interface SensorDiscoveryEvents {
+  'sensors:discovered': { sensors: DiscoveredSensorListItem[]; source: string };
+  'sensors:scanning': { isScanning: boolean };
+  'sensors:adopted': { pluginId: string; id: string };
+}
+
+export interface SensorDiscoveryGenericEvent<K extends keyof SensorDiscoveryEvents> {
+  type: K;
+  data: SensorDiscoveryEvents[K];
+}
 
 export interface StoredSensorData {
   id: string;

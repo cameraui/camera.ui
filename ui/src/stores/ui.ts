@@ -33,7 +33,6 @@ const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
   },
   sensors: {
     hideCameraBound: true,
-    view: 'table',
   },
   plugins: {
     view: 'cards',
@@ -49,7 +48,6 @@ export const useUiStore = defineStore('ui', () => {
 
   uiSettings.value.interface.landingPage ??= '/home';
   uiSettings.value.interface.tableRows ??= 15;
-  uiSettings.value.sensors.view ??= 'table';
 
   return {
     uiSettings,

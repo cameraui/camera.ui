@@ -3,14 +3,7 @@ import * as zod from 'zod';
 import { SensorsController } from '../controllers/sensors.controller.js';
 import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import {
-  bulkDeleteSensorsSchema,
-  bulkPatchSensorsSchema,
-  createVirtualSensorSchema,
-  patchSensorSchema,
-  sensorCommandSchema,
-  sensorParamsSchema,
-} from '../schemas/sensors.schema.js';
+import { bulkDeleteSensorsSchema, createVirtualSensorSchema, patchSensorSchema, sensorCommandSchema, sensorParamsSchema } from '../schemas/sensors.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -64,18 +57,6 @@ export const SensorsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       summary: 'Update a sensor (display name, camera assignments, export)',
       params: sensorParamsSchema,
       body: patchSensorSchema,
-    },
-  });
-
-  app.withTypeProvider<ZodTypeProvider>().route({
-    url: '/',
-    method: 'PATCH',
-    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
-    handler: controller.updateBulk.bind(controller),
-    schema: {
-      tags: ['Sensors'],
-      summary: 'Update multiple sensors at once',
-      body: bulkPatchSensorsSchema,
     },
   });
 

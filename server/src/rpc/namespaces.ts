@@ -66,6 +66,10 @@ export interface TerminalManagerNamespaces {
   terminalManagerRpc: string;
 }
 
+export interface SensorDiscoveryNamespaces {
+  sensorDiscoverySubject: string;
+}
+
 export interface DiscoveryManagerNamespaces {
   discoveryManagerSubject: string;
   discoveryManagerRpc: string;
@@ -91,6 +95,12 @@ export class NamespaceManager {
     return {
       deviceManagerSubject: 'deviceManager.subscriber',
       deviceManagerRpc: 'deviceManager.rpc',
+    };
+  }
+
+  static sensorDiscoveryNamespaces(): SensorDiscoveryNamespaces {
+    return {
+      sensorDiscoverySubject: 'sensorDiscovery.subscriber',
     };
   }
 
