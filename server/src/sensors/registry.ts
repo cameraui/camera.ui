@@ -283,6 +283,7 @@ export class SensorRegistry {
     await this.dbs.sensorsDB.remove(sensorId);
     this.pruneHistory(sensorId, 0);
     await new FloorPlanService().dropSensors([sensorId]);
+    this.announceDeleted(record);
 
     this.logger.debug(`Sensor deleted: "${record.displayName ?? record.name}" (${record.type})`);
   }
@@ -406,18 +407,18 @@ export class SensorRegistry {
   }
 
   public onCameraRemoved(cameraId: string): void {
-    const orphaned: string[] = [];
-
-    for (const record of this.records.values()) {
-      if (record.boundCameraId === cameraId) orphaned.push(record._id);
+    for (const record of Array.from(this.records.values())) {
+      if (record.boundCameraId === cameraId) {
+        if (this.runtime.has(record._id)) this.disconnectSensor(record._id);
+        this.deleteSensor(record._id).catch((error: unknown) =>
+          this.logger.warn(`Failed to delete sensor "${record.displayName ?? record.name}" of the removed camera:`, error),
+        );
+        continue;
+      }
       if (record.assignedCameraIds.includes(cameraId)) {
         record.assignedCameraIds = record.assignedCameraIds.filter((id) => id !== cameraId);
         this.persistRecord(record._id, () => {});
       }
-    }
-
-    if (orphaned.length > 0) {
-      new FloorPlanService().dropSensors(orphaned).catch((error: unknown) => this.logger.warn('Failed to remove sensors from the floor plan:', error));
     }
   }
 
