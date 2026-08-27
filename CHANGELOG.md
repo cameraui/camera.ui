@@ -2,6 +2,80 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.11]
+
+### Added
+
+- **Two-way audio can be switched off per source.** Next to "Mute audio" each source now has "Disable two-way audio". The microphone button disappears for that source and the talk channel is no longer offered to any client.
+
+- **Sensors are found first, added by choice.** A plugin facing a large outside inventory, like Home Assistant with hundreds of entities, no longer imports everything it understands. The sensors page gets a Discovered section listing what was found with name, type and room; a click and a confirmation add a sensor, deleting it tells the plugin to stop importing it. Needs the matching plugin update.
+
+- **Draw your home: the floor plan.** The new view under Manage maps levels, rooms, doors and stairs, with cameras, their view cones and sensors placed where they stand. Activity lights up the cones, hovering a camera shows its live picture, sensors show state and controls right on the plan, and a toggle hatches the ground no camera sees. What you draw becomes knowledge: walking times decide what belongs to one episode, unrelated things at the same time become separate episodes, titles name the places, and descriptions know how your rooms connect. Two cameras on the same room give the episode player a second angle to flip to, and the recordings filter gains a room select. The camera groups setting is gone, every camera takes part. Needs the camera-ui-nvr update.
+
+- **Your own certificate, without a reverse proxy.** Settings → System takes a certificate and key and serves them for the names they cover, so the browser stops complaining on your domain; the apps keep verifying camera.ui's own certificate. All certificates now live in a `certs` folder instead of paths in the config file. Renewals apply as soon as the files change, only the streaming service asks for a quick restart.
+
+- **Recordings show all cards, only events or only episodes.** The new switch at the top of the filter sidebar picks one of the three. Episodes have no detections of their own, so in that view only camera and time range narrow them down.
+
+- **Detection settings can go back to their defaults.** Every section in the camera's detection settings (motion, object, audio, face, license plate, sensors) has a reset button next to its heading.
+
+- **The zone settings say what they mean.** Info icons explain when something counts as inside, what the face options do, how "detections inside" is counted and which crossing direction a line watches.
+
+### Fixed
+
+- **The apps use the local address from Settings → Remote.** With the server in Docker the apps only tried the container's own addresses and then went out through the tunnel, the address entered under Network never got a try. It is now the first local candidate on every path the apps discover the server on.
+
+- **Saving a source change reconnects everyone to the new source.** Open players, the recorder and the detection stayed on the old stream until they reconnected on their own. Now they are reconnected right away, a saved change is live within seconds. Needs the go2rtc build that ships with this release.
+
+- **A new camera source can be renamed after picking a name that is already taken.** Typing an existing name locked the field, so the only way out was deleting the source. Saved sources keep their name locked, and a duplicate name now shows an error under the field.
+
+- **A zoomed picture stays zoomed while you scrub.** Zooming into the live view or a recording and then moving the mouse to the timeline reset the zoom. The crop now holds until you double-click the picture or zoom back out.
+
+- **Importing hundreds of sensors no longer floods the log with timeouts.** On a large Home Assistant setup the first sync fired every registration at once, and on a server still starting up most of them timed out before the next sync repaired it. Registrations are now paced, and a failed value update logs one quiet line.
+
+- **Long outages stay visible on the timeline.** A camera offline for hours showed no disruption band near live; the band appeared and disappeared while scrolling. It now shows wherever it covers, including the running outage up to the live edge. Needs the matching NVR plugin update.
+
+- **Detection events can no longer run forever.** A hiccup at the wrong moment could leave an event open for days: the timeline showed motion up to the live edge while every detector sat idle. A stuck event now clears itself within a minute, and leftovers from crashes are closed on restart.
+
+- **The timeline no longer stalls and jumps while watching close behind live.** Playing a recording a minute or two behind the live edge froze the timeline for up to a minute while the clock kept counting, then it caught up in one jump, roughly every quarter hour.
+
+- **Auto streaming mode actually falls back.** Auto only ever tried WebRTC, so on networks that block it the live view stayed black even though MSE worked fine. It now races both, skips WebRTC when the codec cannot travel through it and switches to MSE when a connection carries no video.
+
+- **Auto streaming mode no longer keeps a second stream running.** Once WebRTC played, the MSE stream it raced against kept flowing in the background for the whole session, doubling the bandwidth of every live view on auto. It is now stopped the moment WebRTC wins. Needs the go2rtc build that ships with this release.
+
+- **Episodes end when the action ends.** A parked car or a sitting cat kept an episode and its clip running minutes after everyone left. Story, player and push clip now stop with the last real activity. Needs the camera-ui-nvr update.
+
+- **Deleting a camera takes its sensors with it.** Sensors a plugin provides for a camera (battery, doorbell or motion of an imported Eufy camera, for example) stayed behind greyed out in the sensors view after the camera was removed. They are deleted with the camera now; standalone sensors that were merely assigned to it only lose the assignment. Open sensor views also drop a deleted sensor right away instead of after a reload.
+
+- **Snapshots are current again after the app was in the background.** The home view showed pictures that were hours old until the camera's refresh interval came around. It now fetches a fresh one right after reconnecting.
+
+- **License plates are read again.** Every plate was thrown away as unreadable, whatever the camera saw; no read ever cleared the confidence set in the camera's detection settings. Needs the matching ML plugin update.
+
+- **A stopped plugin no longer looks like an empty archive.** While the NVR plugin restarts or updates, recordings and events claimed there was nothing recorded. They now say the plugin is not running and fill themselves as soon as it answers again.
+
+- **Picking a name for a face shows the names you already have.** The field opens the full list instead of waiting for you to type enough of a name; a new name still just gets typed in.
+
+- **Shortcuts near the bottom edge are clickable again.** The player control bar swallowed every click in the bottom strip, even where it has no buttons, so a shortcut placed there could not be pressed. The bar now only catches clicks on its actual controls.
+
+- **The update dot disappears after an update run.** It kept sitting on the Updates entry in the navigation although the page already said everything was up to date. A plugin that was not running while it got updated still reported its old version.
+
+- **The Plugins page holds still during an update run.** Plugins are stopped while the run goes on, so start, stop, restart and "Update all" are disabled with a note instead of failing.
+
+- **The update banner names the plugin**, not its package name.
+
+- **Episode downloads no longer fail while the export is still being prepared.** An episode export assembles clips from several cameras before the file appears; the download gave up after 5 seconds and answered "not found", and a retry was rejected too. It now waits as long as the export is actually running.
+
+- **Bare-metal installs no longer hang silently.** Two causes could leave the install waiting until it timed out: a leftover temp folder owned by another user, and a Node installed via snap, nvm or a custom prefix that the service could not find. Both are fixed, a failed start exits with a clear message, and the install output points at `journalctl` for logs.
+
+- **Downloading a backup works again after an upgrade from v1.** The old theme setting made the export fail with "dark is not valid JSON".
+
+- **Detection uses the second stream when hardware decoding is on.** Event pictures and full-resolution detection could stay on the low stream although the machine decodes in hardware, and the second stream stayed open while the camera was idle.
+
+- **The recordings card on the camera page shows every activity on its own.** An event with several activity phases got one collapsed card there; now each phase gets its own card, like on the Recordings page. Every card also carries the time of the moment it pictures instead of the event's start.
+
+- **The action button comes back as soon as you scroll up.** On Home, Recordings, Faces and the other lists the round button in the corner disappeared while scrolling and only returned at the very top. It now hides on the way down and shows again after a short scroll up, like a browser toolbar.
+
+- **The reindex button stays out of the recordings sidebar.** It sat on top of the sidebar while that was open over the list.
+
 ## [2.1.10]
 
 ### Added
