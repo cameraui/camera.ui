@@ -33,7 +33,7 @@
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "26.3.0",
+    "@types/node": "26.4.0",
     "@types/tail": "^2.2.3",
     "@typescript-eslint/parser": "^8.68.0",
     "eslint": "9.39.2",

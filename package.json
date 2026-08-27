@@ -24,7 +24,7 @@
     "update": "updates --update ./ && cupdate && tsx ./scripts/update.ts"
   },
   "devDependencies": {
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.4.0",
     "chalk": "^6.0.0",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
