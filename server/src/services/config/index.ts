@@ -310,11 +310,9 @@ export class ConfigService {
 
     webRtcConfig.filters ??= {};
     webRtcConfig.filters.candidates ??= [];
-    webRtcConfig.filters.ips ??= [];
 
     if (oldAddresses.length) {
       webRtcConfig.filters.candidates = webRtcConfig.filters.candidates.filter((address) => !oldAddresses.includes(address));
-      webRtcConfig.filters.ips = webRtcConfig.filters.ips.filter((address) => !oldAddresses.includes(address));
     }
 
     if (serverAddresses.length) {
@@ -322,14 +320,14 @@ export class ConfigService {
         if (!webRtcConfig.filters.candidates.includes(address)) {
           webRtcConfig.filters.candidates.push(address);
         }
-
-        if (!webRtcConfig.filters.ips.includes(address)) {
-          webRtcConfig.filters.ips.push(address);
-        }
       }
     } else {
       webRtcConfig.filters.candidates = [];
-      webRtcConfig.filters.ips = [];
+    }
+
+    if (webRtcConfig.filters.ips?.length) {
+      const ours = new Set([...serverAddresses, ...oldAddresses]);
+      webRtcConfig.filters.ips = webRtcConfig.filters.ips.filter((address: string) => !ours.has(address));
     }
 
     this.cleanupWebRtcFilters(webRtcConfig);
