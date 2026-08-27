@@ -2,11 +2,10 @@ import { fetchViableNetworkAddresses } from '@camera.ui/common/network';
 import forge from 'node-forge';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { isIPv4, isIPv6 } from 'node:net';
-import { join } from 'node:path';
 import { container } from 'tsyringe';
 
 import { ServerService } from '../services/server.service.js';
-import { DEFAULTS, HOST_CERT_FILENAME, HOST_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from './constants.js';
+import { DEFAULTS } from './constants.js';
 
 import type { ConfigService } from '../../services/config/index.js';
 import type { DBServer } from '../database/types.js';
@@ -168,8 +167,8 @@ export class CertificateGeneration {
     const pemCert = forge.pki.certificateToPem(cert);
     const pemPrivateKey = forge.pki.privateKeyToPem(privateKey);
 
-    const rootCertFilePath = join(configService.STORAGE_PATH, ROOT_CERT_FILENAME);
-    const rootPrivateKeyFilePath = join(configService.STORAGE_PATH, ROOT_KEY_FILENAME);
+    const rootCertFilePath = configService.ROOT_CERT_FILE;
+    const rootPrivateKeyFilePath = configService.ROOT_KEY_FILE;
 
     writeFileSync(rootCertFilePath, pemCert);
     writeFileSync(rootPrivateKeyFilePath, pemPrivateKey);
@@ -242,8 +241,8 @@ export class CertificateGeneration {
     const pemCert = forge.pki.certificateToPem(cert);
     const pemPrivateKey = forge.pki.privateKeyToPem(keyPairs.privateKey);
 
-    const certFilePath = join(configService.STORAGE_PATH, HOST_CERT_FILENAME);
-    const privateKeyFilePath = join(configService.STORAGE_PATH, HOST_KEY_FILENAME);
+    const certFilePath = configService.HOST_CERT_FILE;
+    const privateKeyFilePath = configService.HOST_KEY_FILE;
 
     writeFileSync(certFilePath, pemCert);
     writeFileSync(privateKeyFilePath, pemPrivateKey);
