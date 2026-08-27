@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { container } from 'tsyringe';
 
-import { buildHttpsUrl, fetchViableNetworkAddresses } from '@camera.ui/common/network';
-
 import { verifyUserPassword } from '../middlewares/authValidation.middleware.js';
 import { AuthService } from '../services/auth.service.js';
 import { ServerService } from '../services/server.service.js';
@@ -11,7 +9,6 @@ import { UsersService } from '../services/users.service.js';
 import { TOKEN_LIFETIME } from '../types/index.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RemoteAccessManager } from '../../remote/index.js';
 import type { ConfigService } from '../../services/config/index.js';
 import type { DBUser } from '../database/types.js';
 import type { LoginUserInput } from '../schemas/users.schema.js';
@@ -47,7 +44,6 @@ export class AuthController {
   private userService: UsersService;
   private twoFactorService: TwoFactorService;
   private serverService: ServerService;
-  private remoteAccessManager: RemoteAccessManager;
 
   constructor(_app: FastifyInstance) {
     this.configService = container.resolve<ConfigService>('configService');
@@ -55,7 +51,6 @@ export class AuthController {
     this.userService = new UsersService();
     this.twoFactorService = new TwoFactorService();
     this.serverService = new ServerService();
-    this.remoteAccessManager = container.resolve<RemoteAccessManager>('remoteAccessManager');
   }
 
   public check(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
@@ -720,24 +715,7 @@ export class AuthController {
   }
 
   private getAddresses(): { internalAddresses: string[]; externalAddresses: string[] } {
-    const allAddresses = fetchViableNetworkAddresses();
-    const selectedAddresses = this.serverService.info().serverAddresses ?? [];
-
-    const port = this.configService.config.port;
-
-    const internalAddresses: string[] = allAddresses
-      .filter((addr) => selectedAddresses.length === 0 || selectedAddresses.includes(addr.address))
-      .map((addr) => buildHttpsUrl(addr.address, port));
-
-    // one more local candidate, never a go2rtc filter entry: those compare against
-    // IP literals, a hostname there would gather no candidate at all
-    const localUrl = this.serverService.info().localUrl?.trim();
-    if (localUrl) internalAddresses.unshift(localUrl);
-
-    const remoteStatus = this.remoteAccessManager.getStatus();
-    const externalAddresses: string[] = [];
-    if (remoteStatus.externalUrl) externalAddresses.push(remoteStatus.externalUrl);
-
+    const { internalAddresses, externalAddresses } = this.serverService.networkEndpoints();
     return { internalAddresses, externalAddresses };
   }
 }

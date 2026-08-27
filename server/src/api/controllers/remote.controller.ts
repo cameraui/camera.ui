@@ -1,4 +1,4 @@
-import { buildHttpsUrl, fetchViableNetworkAddresses, isLanClientAddress, isLoopbackAddress, isLoopbackHost } from '@camera.ui/common/network';
+import { isLanClientAddress, isLoopbackAddress, isLoopbackHost } from '@camera.ui/common/network';
 import { container } from 'tsyringe';
 
 import { RemoteService } from '../services/remote.service.js';
@@ -7,7 +7,6 @@ import { ServerService } from '../services/server.service.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { RemoteAccessManager } from '../../remote/index.js';
 import type { ConnectionInfo, RemoteTestResult } from '../../remote/types.js';
-import type { ConfigService } from '../../services/config/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type {
   AuthLoginRequest,
@@ -22,7 +21,6 @@ import type {
 
 export class RemoteController {
   private remoteAccessManager: RemoteAccessManager;
-  private configService: ConfigService;
   private logger: LoggerService;
 
   private service: RemoteService;
@@ -30,7 +28,6 @@ export class RemoteController {
 
   constructor(_app: FastifyInstance) {
     this.remoteAccessManager = container.resolve<RemoteAccessManager>('remoteAccessManager');
-    this.configService = container.resolve<ConfigService>('configService');
     this.logger = container.resolve<LoggerService>('logger');
 
     this.service = new RemoteService();
@@ -166,17 +163,8 @@ export class RemoteController {
     try {
       const accessStatus = this.remoteAccessManager.getStatus();
 
-      const port = this.configService.config.port;
-      const selected = this.serverService.info().serverAddresses ?? [];
-      const internalAddresses = fetchViableNetworkAddresses()
-        .filter((addr) => selected.length === 0 || selected.includes(addr.address))
-        .map((addr) => buildHttpsUrl(addr.address, port));
-
-      const localUrl = this.serverService.info().localUrl?.trim();
-      if (localUrl) internalAddresses.unshift(localUrl);
-
       const info: ConnectionInfo = {
-        internalAddresses,
+        internalAddresses: this.serverService.networkEndpoints().internalAddresses,
         externalUrl: accessStatus.externalUrl,
         currentConnection: this.inferCurrentConnection(req, accessStatus.externalUrl),
       };
