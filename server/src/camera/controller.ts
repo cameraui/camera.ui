@@ -39,7 +39,6 @@ import type {
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
-import type { Go2RTCPreload } from '../go2rtc/types.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent, SnapshotWithMeta } from '../rpc/interfaces/device.js';
@@ -48,6 +47,8 @@ import type { CameraNamespaces, FrameWorkerDetectionNamespaces } from '../rpc/na
 import type { SensorRegistry } from '../sensors/registry.js';
 import type { LoggerService } from '../services/logger/index.js';
 import type { SourceCodecInfo } from './codecCache.js';
+
+const PRELOAD_KINDS: ProbeConfig = { video: true, audio: true, microphone: true };
 
 @RPCClass
 export class CameraController extends CameraDevice implements CameraDeviceInterface {
@@ -472,7 +473,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       if (!source.hotMode) continue;
       try {
         const sourceName = createSourceName(this.name, source.name);
-        await this.go2rtcApi.streamsRoute.addPreloadStream({ src: sourceName }, preloadOptions(source));
+        await this.go2rtcApi.streamsRoute.addPreloadStream({ src: sourceName }, PRELOAD_KINDS);
       } catch {
         // Non-fatal: go2rtc might not be ready yet, 30s loop will retry
       }
@@ -499,10 +500,9 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       try {
         const src = createSourceName(this.name, source.name);
         const preloadInfo = await this.go2rtcApi.streamsRoute.getPreloadStream({ src });
-        const options = preloadOptions(source);
-        if (source.hotMode && (preloadInfo.status === 'stopped' || preloadIsStale(preloadInfo, options))) {
+        if (source.hotMode && preloadInfo.status === 'stopped') {
           this.logger.debug(`Preloading source "${source.name}" for camera "${this.name}"`);
-          await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, options);
+          await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, PRELOAD_KINDS);
         } else if (!source.hotMode && preloadInfo.status === 'started') {
           this.logger.debug(`Stopping preload for source "${source.name}" for camera "${this.name}"`);
           await this.go2rtcApi.streamsRoute.deletePreloadStream({ src });
@@ -714,17 +714,4 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   private triggerProxyEvent(stateName: CameraDeviceListenerMessagePayload['type'], data?: Camera | boolean | SnapshotUpdatedEvent): void {
     this.proxy.publish(this.namespaces.cameraSubject, { type: stateName, data });
   }
-}
-
-function preloadOptions(source: CameraInput): ProbeConfig {
-  return { video: true, audio: !source.muted, microphone: !source.backchannelDisabled };
-}
-
-function preloadIsStale(preload: Go2RTCPreload, options: ProbeConfig): boolean {
-  if (preload.query === undefined) return false;
-  const current = new Set(new URLSearchParams(preload.query).keys());
-  const wanted = Object.entries(options)
-    .filter(([, on]) => on)
-    .map(([kind]) => kind);
-  return wanted.length !== current.size || wanted.some((kind) => !current.has(kind));
 }

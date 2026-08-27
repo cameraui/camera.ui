@@ -197,8 +197,6 @@ export interface Go2RTCProbe {
 export interface Go2RTCPreload {
   src: string;
   status: 'started' | 'stopped';
-  attached?: boolean;
-  query?: string;
 }
 
 export type StreamStatus = 'connected' | 'connecting' | 'error' | 'idle';

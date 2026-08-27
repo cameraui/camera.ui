@@ -279,7 +279,7 @@ export class Database {
 
         // a disabled camera must not be preloaded by go2rtc at its own startup
         if (source.hotMode && !camera.disabled) {
-          preload[sourceName] = ['video', ...(source.muted ? [] : ['audio']), ...(source.backchannelDisabled ? [] : ['microphone'])].join('&');
+          preload[sourceName] = 'video&audio&microphone';
         } else {
           delete preload[sourceName];
         }
