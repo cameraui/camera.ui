@@ -265,6 +265,17 @@ const urlSchema = zod.string().refine(
   },
 );
 
+export function refineUniqueSourceNames(sources: { name: string }[], ctx: zod.RefinementCtx): void {
+  const seen = new Set<string>();
+  sources.forEach((source, index) => {
+    const key = source.name.replace(/ /g, '_').toLowerCase();
+    if (seen.has(key)) {
+      ctx.addIssue({ code: 'custom', message: 'Source name is already used by another source', path: [index, 'name'] });
+    }
+    seen.add(key);
+  });
+}
+
 export const inputSchema = zod
   .object({
     _id: zod
@@ -492,7 +503,8 @@ export const createCameraBaseSchema = zod
           message: 'Each source role can be assigned to only one source',
           path: ['sources'],
         },
-      ),
+      )
+      .superRefine(refineUniqueSourceNames),
     plugins: pluginInfo.array().default([]),
     assignments: assignmentsSchema.default({}),
     interfaceSettings: interfaceSettingsSchema.default({
@@ -608,6 +620,7 @@ export const patchCameraSchema = zod
           path: ['sources'],
         },
       )
+      .superRefine(refineUniqueSourceNames)
       .optional(),
     plugins: pluginInfo.array().optional(),
     assignments: assignmentsSchema.partial().optional(),

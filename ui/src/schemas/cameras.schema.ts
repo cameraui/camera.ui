@@ -9,6 +9,7 @@ import {
   objectZoneSchema,
   patchCameraSchema,
   privacyZoneSchema,
+  refineUniqueSourceNames,
 } from '@shared/types';
 import * as zod from 'zod';
 
@@ -64,7 +65,8 @@ export const createCameraSchema = zod
           message: 'Each source role can be assigned to only one source',
           path: ['sources'],
         },
-      ),
+      )
+      .superRefine(refineUniqueSourceNames),
   })
   .strict();
 

@@ -21,7 +21,7 @@
           <Field v-slot="{ field, errors }" v-model.trim="source.name" :name="`sources[${i}].name`" as="div" class="flex flex-col field-gap">
             <label :for="`sources[${i}].name`" class="cui-label">{{ $t('components.form.label.source_name') }}</label>
             <InputGroup>
-              <InputText v-bind="field" :invalid="errors.length > 0" :loading :readonly="camera.sources.some((s) => s.name === source.name)" type="text" />
+              <InputText v-bind="field" :invalid="errors.length > 0" :loading :readonly="isSavedSource(source)" type="text" />
             </InputGroup>
 
             <Transition name="fade">
@@ -289,6 +289,10 @@ const dialog = useCuiDialog();
 const { camera, loading } = toRefs(props);
 
 const sourceRoles = ref<CameraRole[]>(['high-resolution', 'mid-resolution', 'low-resolution', 'snapshot']);
+
+function isSavedSource(source: CameraInputSettings): boolean {
+  return Boolean(source._id) && camera.value.sources.some((s) => s._id === source._id);
+}
 
 function getSourceName(source: CameraInputSettings): string {
   return source.name.replace(/ /g, '_').toLowerCase();
