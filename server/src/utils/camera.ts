@@ -3,8 +3,9 @@ import { GOP_REGEX } from '../api/utils/regex.js';
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
 
 const NO_AUDIO_FLAG = '#noAudio';
+const NO_BACKCHANNEL_FLAG = '#noBackchannel';
 
-export function applySourceUrlFlags(url: string, source: { preload: boolean; muted?: boolean }): string {
+export function applySourceUrlFlags(url: string, source: { preload: boolean; muted?: boolean; backchannelDisabled?: boolean }): string {
   if (source.preload && !GOP_REGEX.test(url)) {
     url += '#gop=1';
   } else if (!source.preload && GOP_REGEX.test(url)) {
@@ -15,6 +16,12 @@ export function applySourceUrlFlags(url: string, source: { preload: boolean; mut
     url += NO_AUDIO_FLAG;
   } else if (!source.muted && url.includes(NO_AUDIO_FLAG)) {
     url = url.replace(NO_AUDIO_FLAG, '');
+  }
+
+  if (source.backchannelDisabled && !url.includes(NO_BACKCHANNEL_FLAG)) {
+    url += NO_BACKCHANNEL_FLAG;
+  } else if (!source.backchannelDisabled && url.includes(NO_BACKCHANNEL_FLAG)) {
+    url = url.replace(NO_BACKCHANNEL_FLAG, '');
   }
 
   return url;

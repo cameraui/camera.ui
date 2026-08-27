@@ -32,6 +32,7 @@ export const inputSchema = zod
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
+    backchannelDisabled: zod.boolean().default(false),
     childSourceId: zod.string().trim().nullish(),
   })
   .strict()

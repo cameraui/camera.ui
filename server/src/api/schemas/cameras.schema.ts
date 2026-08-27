@@ -292,6 +292,7 @@ export const inputSchema = zod
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
+    backchannelDisabled: zod.boolean().default(false),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod
       .string()
@@ -320,6 +321,7 @@ export const patchInputSchema = zod
     hotMode: zod.boolean().default(true),
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
+    backchannelDisabled: zod.boolean().default(false),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
     childSourceId: zod
       .string()

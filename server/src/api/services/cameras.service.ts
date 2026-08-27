@@ -707,6 +707,7 @@ export class CamerasService {
         hotMode: source.hotMode,
         preload: source.preload,
         muted: source.muted,
+        backchannelDisabled: source.backchannelDisabled,
         ...getSourceCodecInfo(source._id),
         childSourceId: source.childSourceId,
         urls: {

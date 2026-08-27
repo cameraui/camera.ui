@@ -77,6 +77,7 @@ async function onSave() {
     sources: cameraData.sources.map((input) => ({
       ...input,
       muted: input.muted ?? false,
+      backchannelDisabled: input.backchannelDisabled ?? false,
       urls: input.urls.map(normalizeSource).filter(Boolean),
     })),
   };

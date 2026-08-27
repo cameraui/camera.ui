@@ -50,6 +50,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
       hotMode: true,
       preload: true,
       muted: false,
+      backchannelDisabled: false,
     },
   ],
   interfaceSettings: {

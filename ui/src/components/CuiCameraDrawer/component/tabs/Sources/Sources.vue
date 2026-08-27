@@ -189,6 +189,40 @@
                 />
               </div>
             </Field>
+            <Field
+              v-if="source.role !== 'snapshot'"
+              v-slot="{ field, errors }"
+              :model-value="source.backchannelDisabled"
+              :value="true"
+              :unchecked-value="false"
+              type="checkbox"
+              :name="`sources[${i}].backchannelDisabled`"
+              as="div"
+              class="flex flex-col field-gap cui-toggle-switch"
+            >
+              <div class="flex items-center gap-4">
+                <div class="flex flex-col field-switch-gap">
+                  <label :for="`sources[${i}].backchannelDisabled`" class="cui-label-switch">{{ $t('components.form.label.two_way_audio_disabled') }}</label>
+
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{
+                    $t('components.form.hint.two_way_audio_disabled')
+                  }}</Message>
+
+                  <Transition name="fade">
+                    <ErrorMessage :name="`sources[${i}].backchannelDisabled`" class="cui-input-switch-error" />
+                  </Transition>
+                </div>
+
+                <ToggleSwitch
+                  :model-value="source.backchannelDisabled"
+                  v-bind="field"
+                  :invalid="errors.length > 0"
+                  :loading
+                  class="ml-auto shrink-0"
+                  @value-change="(e) => (source.backchannelDisabled = e)"
+                />
+              </div>
+            </Field>
           </div>
 
           <Field
@@ -375,6 +409,7 @@ function newSource(): void {
       hotMode: true,
       preload: true,
       muted: false,
+      backchannelDisabled: false,
     });
   }
 }
