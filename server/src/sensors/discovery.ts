@@ -44,7 +44,7 @@ export class SensorDiscoveryManager {
 
     const cacheIsFresh = this.lastScanCompletedAt > 0 && Date.now() - this.lastScanCompletedAt < MIN_SCAN_INTERVAL_MS;
     if (!this.isScanning && !cacheIsFresh) {
-      void this.scan();
+      this.scan();
     }
 
     return this.list();
@@ -162,7 +162,7 @@ export class SensorDiscoveryManager {
     this.stopAutoRescanTimer();
     this.autoRescanTimer = setInterval(() => {
       if (!this.isScanning) {
-        void this.scan();
+        this.scan();
       }
     }, AUTO_RESCAN_INTERVAL_MS);
   }
