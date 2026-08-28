@@ -42,7 +42,7 @@ export class ServerService {
     const port = configService.config.port;
 
     const internalAddresses = allAddresses
-      .filter((addr) => selectedAddresses.length === 0 || selectedAddresses.includes(addr.address))
+      .filter((addr) => (selectedAddresses.length === 0 ? addr.isPrivate : selectedAddresses.includes(addr.address)))
       .map((addr) => buildHttpsUrl(addr.address, port));
 
     // one more local candidate, never a go2rtc filter entry: those compare against
