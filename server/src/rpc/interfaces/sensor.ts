@@ -1,5 +1,5 @@
-import type { Camera, DiscoveredSensor, ModelSpec, SensorType } from '@camera.ui/sdk';
-import type { PropertyChangedEvent, SensorJSON } from '@camera.ui/sdk/internal';
+import type { Camera, DiscoveredSensor, ModelSpec, SensorSourceState, SensorType } from '@camera.ui/sdk';
+import type { PropertyChangedEvent, SensorJSON, SensorSourcePatch } from '@camera.ui/sdk/internal';
 
 export interface DiscoveredSensorListItem extends DiscoveredSensor {
   pluginId: string;
@@ -17,6 +17,10 @@ export interface SensorDiscoveryGenericEvent<K extends keyof SensorDiscoveryEven
   data: SensorDiscoveryEvents[K];
 }
 
+export interface SensorsNamespaceEvents extends SensorDiscoveryEvents {
+  'sensor:source:changed': SensorSourceChangedEvent;
+}
+
 export interface StoredSensorData {
   id: string;
   type: SensorType;
@@ -28,6 +32,8 @@ export interface StoredSensorData {
   boundCameraId?: string;
   exposed: boolean;
   origin?: string;
+  address?: string;
+  sourceState?: SensorSourceState;
   connected: boolean;
   properties: Record<string, unknown>;
   capabilities: string[];
@@ -66,6 +72,7 @@ export interface SensorRegistryInterface {
   updatePropertyValues(sensorId: string, properties: Record<string, unknown>): void;
   updateCapabilities(sensorId: string, capabilities: string[]): void;
   updateModelSpec(sensorId: string, modelSpec: ModelSpec): void;
+  updateSource(sensorId: string, patch: SensorSourcePatch): void;
   getPropertyValue(sensorId: string, property: string): unknown;
   getAllPropertyValues(sensorId: string): Record<string, unknown>;
   getSensorState(sensorId: string): SensorRefreshedState | undefined;
@@ -89,6 +96,17 @@ export interface SensorEventHandlerInterface {
 export interface SensorAddedEvent {
   sensor: StoredSensorData;
   state: SensorRefreshedState;
+}
+
+export interface SensorAdoptedEvent {
+  sensor: StoredSensorData;
+}
+
+export interface SensorSourceChangedEvent {
+  sensorId: string;
+  sensorType: SensorType;
+  sourceState?: SensorSourceState;
+  address?: string;
 }
 
 export interface SensorDeletedEvent {
@@ -130,6 +148,8 @@ export interface SensorEventMessage {
   type:
     | 'property:changed'
     | 'sensor:added'
+    | 'sensor:adopted'
+    | 'sensor:source:changed'
     | 'sensor:deleted'
     | 'sensor:connected:changed'
     | 'sensor:displayName:changed'
@@ -139,6 +159,8 @@ export interface SensorEventMessage {
   data:
     | PropertyChangedEvent
     | SensorAddedEvent
+    | SensorAdoptedEvent
+    | SensorSourceChangedEvent
     | SensorDeletedEvent
     | SensorConnectedChangedEvent
     | SensorDisplayNameChangedEvent

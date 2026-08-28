@@ -217,6 +217,7 @@ class PluginChild:
             await self.api.core_manager.init()
             await self.configure_cameras(self.api, plugin_info, cameras)
             await self.api.sensor_manager.init()
+            await self.api.sensor_manager.configure_adopted_sensors()
 
             await self.send_message({"type": PLUGIN_STATUS.STARTED.value})
 

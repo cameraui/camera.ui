@@ -147,6 +147,7 @@ export class PluginChild {
       await this.api.coreManager.init();
       await this.configureCameras(this.api, pluginInfo, cameras);
       await this.api.sensorManager.init();
+      await this.api.sensorManager.configureAdoptedSensors();
 
       this.sendMessage({ type: PLUGIN_STATUS.STARTED });
 

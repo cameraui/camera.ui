@@ -1,11 +1,9 @@
-import { PluginInterface } from '@camera.ui/sdk';
 import { container } from 'tsyringe';
 
 import { resolveSensorSemantics } from '../../sensors/semantics.js';
 import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
-import { PluginsService } from './plugins.service.js';
 
-import type { SensorSemantics, SensorType } from '@camera.ui/sdk';
+import type { SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
 import type { Database } from '../database/index.js';
 import type { CreateVirtualSensorInput, PatchSensorInput } from '../schemas/sensors.schema.js';
@@ -26,6 +24,8 @@ export interface TransformedSensor {
   assignedCameraIds: string[];
   exposed: boolean;
   origin?: string;
+  address?: string;
+  sourceState?: SensorSourceState;
   properties: Record<string, unknown>;
   capabilities: string[];
   semantics?: SensorSemantics;
@@ -35,7 +35,6 @@ export interface TransformedSensor {
 
 export class SensorsService {
   private registry: SensorRegistry;
-  private plugins = new PluginsService();
 
   constructor() {
     this.registry = container.resolve<SensorRegistry>('sensorRegistry');
@@ -90,15 +89,7 @@ export class SensorsService {
   public async delete(id: string): Promise<'ok' | 'not-found' | 'connected'> {
     const record = this.registry.getRecord(id);
     if (!record) return 'not-found';
-    if (this.registry.isConnected(id) && record.pluginInfo.id !== VIRTUAL_SENSOR_OWNER_ID) {
-      // an adopted discovery sensor releases through its plugin, so the
-      // plugin forgets the adoption instead of re-importing it on next sync
-      if (record.nativeId && (await this.releaseFromPlugin(record.pluginInfo.id, record.nativeId))) {
-        if (this.registry.getRecord(id)) await this.registry.deleteSensor(id);
-        return 'ok';
-      }
-      return 'connected';
-    }
+    if (record.boundCameraId && record.pluginInfo.id !== VIRTUAL_SENSOR_OWNER_ID && this.registry.isConnected(id)) return 'connected';
     await this.registry.deleteSensor(id);
     return 'ok';
   }
@@ -136,23 +127,14 @@ export class SensorsService {
       assignedCameraIds: data.assignedCameraIds,
       exposed: record.exposed,
       origin: record.origin,
+      address: record.address,
+      sourceState: record.sourceState,
       properties: data.properties,
       capabilities: data.capabilities,
       semantics: resolveSensorSemantics(data),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };
-  }
-
-  private async releaseFromPlugin(pluginId: string, nativeId: string): Promise<boolean> {
-    const plugin = this.plugins.getPluginById(pluginId);
-    if (!plugin?.worker?.isRunning() || !plugin.contract.interfaces.includes(PluginInterface.SensorDiscovery)) return false;
-    try {
-      await plugin.worker.pluginProxy.onReleaseSensor?.(nativeId);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private assertCameraExists(cameraId: string): void {

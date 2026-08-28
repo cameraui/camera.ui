@@ -5,6 +5,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     Camera,
     ModelSpec,
     PluginInfo,
+    SensorSourceState,
     SensorType,
 )
 from _camera_ui_tools.camera_ui_sdk.internal import PropertyChangedEvent
@@ -57,6 +58,9 @@ class StoredSensorData(TypedDict):
     assignedCameraIds: list[str]
     boundCameraId: NotRequired[str]
     exposed: bool
+    origin: NotRequired[str]
+    address: NotRequired[str]
+    sourceState: NotRequired[SensorSourceState]
     connected: bool
     properties: dict[str, Any]
     capabilities: NotRequired[list[str]]
@@ -80,6 +84,16 @@ class SensorRefreshedState(TypedDict):
 class SensorAddedEvent(TypedDict):
     sensor: StoredSensorData
     state: SensorRefreshedState
+
+
+class SensorAdoptedEvent(TypedDict):
+    sensor: StoredSensorData
+
+
+class SensorSourceChangedEvent(TypedDict):
+    sensorId: str
+    sourceState: NotRequired[SensorSourceState]
+    address: NotRequired[str]
 
 
 class SensorDeletedEvent(TypedDict):
@@ -120,6 +134,8 @@ class SensorEventMessage(TypedDict):
     type: Literal[
         "property:changed",
         "sensor:added",
+        "sensor:adopted",
+        "sensor:source:changed",
         "sensor:deleted",
         "sensor:connected:changed",
         "sensor:displayName:changed",
@@ -130,6 +146,8 @@ class SensorEventMessage(TypedDict):
     data: (
         PropertyChangedEvent
         | SensorAddedEvent
+        | SensorAdoptedEvent
+        | SensorSourceChangedEvent
         | SensorDeletedEvent
         | SensorConnectedChangedEvent
         | SensorDisplayNameChangedEvent

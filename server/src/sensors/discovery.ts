@@ -74,7 +74,7 @@ export class SensorDiscoveryManager {
       throw new Error('Plugin not found or not running');
     }
 
-    await plugin.worker.pluginProxy.onAdoptSensor?.(sensor);
+    this.registry.createAdoptedSensor(pluginId, sensor);
 
     const items = this.cache.get(pluginId);
     if (items) {
@@ -99,8 +99,10 @@ export class SensorDiscoveryManager {
         providers.map(async (plugin) => {
           try {
             const sensors = (await plugin.worker.pluginProxy.onDiscoverSensors?.()) ?? [];
-            await this.dropStaleRecords(plugin.id, sensors);
-            const items = sensors.map((sensor): DiscoveredSensorListItem => ({ ...sensor, pluginId: plugin.id, pluginName: plugin.contract.name }));
+            const adopted = this.adoptedNativeIds(plugin.id);
+            const items = sensors
+              .filter((sensor) => !adopted.has(sensor.id))
+              .map((sensor): DiscoveredSensorListItem => ({ ...sensor, pluginId: plugin.id, pluginName: plugin.contract.name }));
             this.cache.set(plugin.id, items);
             // per plugin as each answers, an empty list clears its entries
             this.publish('sensors:discovered', { sensors: items, source: plugin.id });
@@ -138,19 +140,12 @@ export class SensorDiscoveryManager {
     return plugin.contract.interfaces.includes(PluginInterface.SensorDiscovery);
   }
 
-  private async dropStaleRecords(pluginId: string, sensors: DiscoveredSensor[]): Promise<void> {
-    if (sensors.length === 0) return;
-    const offered = new Set(sensors.map((sensor) => sensor.id));
+  private adoptedNativeIds(pluginId: string): Set<string> {
+    const ids = new Set<string>();
     for (const record of this.registry.getRecords()) {
-      if (record.pluginInfo.id !== pluginId) continue;
-      if (!record.nativeId || !offered.has(record.nativeId)) continue;
-      if (this.registry.isConnected(record._id)) continue;
-      try {
-        await this.registry.deleteSensor(record._id);
-      } catch {
-        // raced a re-registration, the record is live again and stays
-      }
+      if (record.pluginInfo.id === pluginId && record.nativeId) ids.add(record.nativeId);
     }
+    return ids;
   }
 
   private publish<K extends keyof SensorDiscoveryEvents>(type: K, data: SensorDiscoveryEvents[K]): void {

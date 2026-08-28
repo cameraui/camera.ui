@@ -1,3 +1,5 @@
+import { PluginInterface } from '@camera.ui/sdk';
+
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 import { getDetectionTypes } from '../../../../sensors/types.js';
 import { limitRegistration } from './limiter.js';
@@ -6,10 +8,11 @@ import { SensorProxy } from './sensor.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { BasePlugin, ModelSpec, PluginInfo, RegisteredSensorInfo, Sensor, SensorHistoryEntry, SensorManager, SensorType } from '@camera.ui/sdk';
+import type { AdoptedSensor, BasePlugin, ModelSpec, PluginInfo, Sensor, SensorDiscoveryProvider, SensorHistoryEntry, SensorManager, SensorType } from '@camera.ui/sdk';
 import type { DetectionCoordinatorInterface } from '../../../../rpc/interfaces/detection.js';
 import type {
   SensorAddedEvent,
+  SensorAdoptedEvent,
   SensorAssignmentChangedEvent,
   SensorConnectedChangedEvent,
   SensorDeletedEvent,
@@ -22,12 +25,16 @@ import type { StorageController } from '../storageController.js';
 
 const DETECTION_SENSOR_TYPES: ReadonlySet<SensorType> = new Set(getDetectionTypes());
 
+function toAdopted(data: StoredSensorData): AdoptedSensor {
+  return { id: data.id, nativeId: data.nativeId!, address: data.address, name: data.name, type: data.type };
+}
+
 export class SensorManagerProxy implements SensorManager {
   #proxy: RPCClient;
   #storageController: StorageController;
   #plugin: PluginInfo;
   #logger: Logger;
-  #pluginInstance?: BasePlugin;
+  #pluginInstance?: BasePlugin & Partial<SensorDiscoveryProvider>;
 
   #owned = new Map<string, Sensor<any>>();
   #cleanups = new Map<string, () => Promise<void>>();
@@ -57,10 +64,15 @@ export class SensorManagerProxy implements SensorManager {
     return (this.#plugin.contract.consumes?.length ?? 0) > 0;
   }
 
+  get #providesAdopted(): boolean {
+    return this.#plugin.contract.interfaces.includes(PluginInterface.SensorDiscovery);
+  }
+
   public async init(): Promise<void> {
-    if (!this.#consumesSomething) return;
+    if (!this.#consumesSomething && !this.#providesAdopted) return;
 
     await this.#ensureGlobalSubscription();
+    if (!this.#consumesSomething) return;
 
     try {
       const sensors = await this.#registryProxy.getSensors(this.#plugin.id);
@@ -75,31 +87,43 @@ export class SensorManagerProxy implements SensorManager {
     await this.#pluginInstance?.configureSensors?.(Array.from(this.#consumed.values()));
   }
 
-  public addSensor(sensor: Sensor<any, any, any>): Promise<void> {
-    return limitRegistration(() => this.#addSensor(sensor));
-  }
+  public async configureAdoptedSensors(): Promise<void> {
+    const plugin = this.#pluginInstance;
+    if (!this.#providesAdopted || !plugin?.configureAdoptedSensors) return;
 
-  public async removeSensor(sensor: Sensor<any, any, any>): Promise<void> {
+    let records: AdoptedSensor[];
     try {
-      await this.#registryProxy.unregisterSensor(sensor.id);
+      records = (await this.#registryProxy.getSensors(this.#plugin.id)).filter((data) => this.#isOwnAdopted(data)).map(toAdopted);
     } catch (error) {
-      this.#logger.warn(`Failed to unregister sensor ${sensor.id}:`, error);
+      this.#logger.warn('Could not load the adopted sensors:', error);
+      return;
     }
 
-    await this.#cleanups.get(sensor.id)?.();
-    this.#cleanups.delete(sensor.id);
+    let sensors: Sensor<any, any, any>[];
+    try {
+      sensors = await plugin.configureAdoptedSensors(records);
+    } catch (error) {
+      this.#logger.warn('configureAdoptedSensors failed:', error);
+      return;
+    }
 
-    this.#owned.delete(sensor.id);
-    sensor._cleanup();
-  }
+    const byNativeId = new Map(records.map((record) => [record.nativeId, record]));
+    const bound = new Set<string>();
+    await Promise.all(
+      sensors.map(async (sensor) => {
+        const record = sensor.nativeId ? byNativeId.get(sensor.nativeId) : undefined;
+        if (!record) {
+          this.#logger.warn(`Sensor "${sensor.name}" returned by configureAdoptedSensors has no adopted record (nativeId ${sensor.nativeId ?? 'missing'}), ignored`);
+          return;
+        }
+        if (bound.has(record.nativeId) || this.#owned.has(record.id)) return;
+        bound.add(record.nativeId);
+        await this.#bindAdopted(sensor, record);
+      }),
+    );
 
-  public getSensors(): Sensor<any, any, any>[] {
-    return Array.from(this.#owned.values());
-  }
-
-  public async getRegisteredSensors(): Promise<RegisteredSensorInfo[]> {
-    const stored = await this.#registryProxy.getSensors(this.#plugin.id);
-    return stored.filter((s) => s.pluginId === this.#plugin.id).map((s) => ({ id: s.id, nativeId: s.nativeId, type: s.type, name: s.name, connected: s.connected }));
+    const missing = records.length - bound.size;
+    if (missing > 0) this.#logger.warn(`${missing} adopted sensor(s) got no runtime sensor from the plugin, they stay disconnected`);
   }
 
   public async getSensorHistory(sensorIds: string[], from: number, to: number): Promise<SensorHistoryEntry[]> {
@@ -141,21 +165,36 @@ export class SensorManagerProxy implements SensorManager {
     this.#owned.clear();
   }
 
-  async #addSensor(sensor: Sensor<any, any, any>): Promise<void> {
+  async #bindAdopted(sensor: Sensor<any, any, any>, record: AdoptedSensor): Promise<void> {
+    try {
+      await limitRegistration(() => this.#bind(sensor, record.id));
+    } catch (error) {
+      this.#logger.warn(`Binding adopted sensor "${record.name}" failed:`, error);
+    }
+  }
+
+  #unbind(sensorId: string): Sensor<any, any, any> | undefined {
+    const sensor = this.#owned.get(sensorId);
+    if (!sensor) return undefined;
+    this.#cleanups
+      .get(sensorId)?.()
+      .catch(() => {});
+    this.#cleanups.delete(sensorId);
+    this.#owned.delete(sensorId);
+    sensor._cleanup();
+    return sensor;
+  }
+
+  async #bind(sensor: Sensor<any, any, any>, recordId: string): Promise<void> {
     // producers need the global stream too: assignment changes must reach
     // owned sensors, their detection fan-out reads assignedCameraIds
     await this.#ensureGlobalSubscription();
 
     sensor._setPluginId(this.#plugin.id);
+    sensor._setId(recordId);
 
     const sensorJSON = sensor.toJSON();
     sensorJSON.requiresFrames = sensor._requiresFrames === true;
-
-    // resolve the durable id first and wire storage with it, so registration
-    // data (modelSpec) can read sensor storage
-    const sensorId = await this.#registryProxy.resolveSensor(sensorJSON, this.#plugin.id);
-    sensor._setId(sensorId);
-    sensorJSON.id = sensorId;
 
     const storage = this.#storageController.createSensorStorage(this.#plugin.id, sensor.id, sensor.storageSchema ?? []);
     await storage.registerStorage();
@@ -199,6 +238,10 @@ export class SensorManagerProxy implements SensorManager {
 
     sensor._initCapabilities((capabilities) => {
       this.#registryProxy.updateCapabilities(sensor.id, capabilities).catch((error) => this.#logger.debug(`Capability write for sensor ${sensor.id} failed:`, error));
+    });
+
+    sensor._initSource((patch) => {
+      this.#registryProxy.updateSource(sensor.id, patch).catch((error) => this.#logger.debug(`Source write for sensor ${sensor.id} failed:`, error));
     });
 
     const rpcCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, { withoutDecorators: true });
@@ -255,6 +298,10 @@ export class SensorManagerProxy implements SensorManager {
     }
   }
 
+  #isOwnAdopted(data: StoredSensorData): boolean {
+    return data.pluginId === this.#plugin.id && !data.boundCameraId && !!data.nativeId;
+  }
+
   #isConsumable(data: StoredSensorData): boolean {
     if (this.#owned.has(data.id) || data.pluginId === this.#plugin.id) return false;
     if (!data.exposed) return false;
@@ -295,8 +342,31 @@ export class SensorManagerProxy implements SensorManager {
         await this.#pluginInstance?.onSensorAdded?.(proxySensor);
         break;
       }
+      case 'sensor:adopted': {
+        const event = message.data as SensorAdoptedEvent;
+        const plugin = this.#pluginInstance;
+        if (!this.#isOwnAdopted(event.sensor) || !plugin?.onSensorAdopted || this.#owned.has(event.sensor.id)) break;
+        const record = toAdopted(event.sensor);
+        let sensor: Sensor<any, any, any>;
+        try {
+          sensor = await plugin.onSensorAdopted(record);
+        } catch (error) {
+          this.#logger.warn(`onSensorAdopted failed for "${record.name}":`, error);
+          break;
+        }
+        if (sensor.nativeId !== record.nativeId) {
+          this.#logger.warn(`Sensor "${sensor.name}" returned by onSensorAdopted carries nativeId ${sensor.nativeId ?? 'missing'}, expected ${record.nativeId}, ignored`);
+          break;
+        }
+        await this.#bindAdopted(sensor, record);
+        break;
+      }
       case 'sensor:deleted': {
         const event = message.data as SensorDeletedEvent;
+        const unbound = this.#unbind(event.sensorId);
+        if (unbound?.nativeId && this.#providesAdopted) {
+          this.#pluginInstance?.onSensorUnadopted?.(unbound.nativeId).catch((error) => this.#logger.warn(`onSensorUnadopted failed for ${unbound.nativeId}:`, error));
+        }
         this.#releaseConsumed(event.sensorId);
         break;
       }

@@ -7,7 +7,14 @@ import { UsersService } from '../../services/users.service.js';
 import type { DiscoveredSensor } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { ProxyServer } from '../../../rpc/index.js';
-import type { DiscoveredSensorListItem, SensorDiscoveryEvents, SensorDiscoveryGenericEvent } from '../../../rpc/interfaces/sensor.js';
+import type {
+  DiscoveredSensorListItem,
+  SensorDiscoveryEvents,
+  SensorDiscoveryGenericEvent,
+  SensorEventMessage,
+  SensorSourceChangedEvent,
+  SensorsNamespaceEvents,
+} from '../../../rpc/interfaces/sensor.js';
 import type { JwtTokenDecoded } from '../../types/index.js';
 import type { SocketNsp } from '../types.js';
 
@@ -17,7 +24,8 @@ export class SensorsNamespace {
 
   private proxyServer: ProxyServer;
   private usersService: UsersService;
-  private closeSubscription?: () => void;
+  private closeDiscoverySubscription?: () => void;
+  private closeRegistrySubscription?: () => void;
 
   constructor(io: Server) {
     this.proxyServer = container.resolve<ProxyServer>('proxy');
@@ -27,10 +35,12 @@ export class SensorsNamespace {
     this.nsp.on('connection', this.onConnection.bind(this));
 
     this.subscribeToDiscoveryEvents();
+    this.subscribeToRegistryEvents();
   }
 
   public destroy(): void {
-    this.closeSubscription?.();
+    this.closeDiscoverySubscription?.();
+    this.closeRegistrySubscription?.();
   }
 
   private onConnection(socket: Socket): void {
@@ -79,7 +89,7 @@ export class SensorsNamespace {
   private async subscribeToDiscoveryEvents(): Promise<void> {
     const namespaces = NamespaceManager.sensorDiscoveryNamespaces();
 
-    this.closeSubscription = await this.proxyServer.proxy.subscribe<SensorDiscoveryGenericEvent<keyof SensorDiscoveryEvents>>(
+    this.closeDiscoverySubscription = await this.proxyServer.proxy.subscribe<SensorDiscoveryGenericEvent<keyof SensorDiscoveryEvents>>(
       namespaces.sensorDiscoverySubject,
       (event) => {
         this.broadcastEvent(event.type, event.data);
@@ -87,7 +97,15 @@ export class SensorsNamespace {
     );
   }
 
-  private broadcastEvent<K extends keyof SensorDiscoveryEvents>(eventType: K, data: SensorDiscoveryEvents[K]): void {
+  private async subscribeToRegistryEvents(): Promise<void> {
+    const namespaces = NamespaceManager.sensorRegistryNamespaces();
+
+    this.closeRegistrySubscription = await this.proxyServer.proxy.subscribe<SensorEventMessage>(namespaces.sensorsSubject, (event) => {
+      if (event.type === 'sensor:source:changed') this.broadcastEvent('sensor:source:changed', event.data as SensorSourceChangedEvent);
+    });
+  }
+
+  private broadcastEvent<K extends keyof SensorsNamespaceEvents>(eventType: K, data: SensorsNamespaceEvents[K]): void {
     for (const [, socket] of this.nsp.sockets) {
       const decodedToken = socket.decodedToken as JwtTokenDecoded | undefined;
       if (!decodedToken) continue;

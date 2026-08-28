@@ -69,6 +69,7 @@ from plugins.runtime.python.typings import (
 )
 
 if TYPE_CHECKING:
+    from _camera_ui_tools.camera_ui_sdk.internal import SensorSourcePatch
     from plugins.runtime.python.proxy.sensor_manager import SensorManagerProxy
     from plugins.runtime.python.storage_controller import StorageController
 
@@ -453,6 +454,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
             lambda properties: self._on_sensor_state_write(sensor.id, sensor_type, properties)
         )
         sensor._initCapabilities(lambda caps: self._on_sensor_capabilities_changed(sensor.id, caps))  # pyright: ignore[reportPrivateUsage]
+        sensor._initSource(lambda patch: self._on_sensor_source_changed(sensor.id, patch))  # pyright: ignore[reportPrivateUsage]
 
         rpc_cleanup = await self._proxy.register_handler(sensor_namespace, sensor, without_decorators=True)
 
@@ -682,6 +684,13 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         async def notify() -> None:
             with contextlib.suppress(Exception):
                 await self._sensor_registry_proxy.updateCapabilities(sensor_id, capabilities)
+
+        self._tasks.add(notify())
+
+    def _on_sensor_source_changed(self, sensor_id: str, patch: SensorSourcePatch) -> None:
+        async def notify() -> None:
+            with contextlib.suppress(Exception):
+                await self._sensor_registry_proxy.updateSource(sensor_id, patch)
 
         self._tasks.add(notify())
 

@@ -63,10 +63,7 @@
             <Column header="" header-class="p-2 pl-4 w-5 max-w-5" class="p-2 pl-4 w-5 max-w-5">
               <template #body="{ data }">
                 <div class="flex items-center justify-center">
-                  <Badge
-                    v-tooltip="{ value: data.sensor.connected ? t('views.sensors.connected') : t('views.sensors.disconnected') }"
-                    :style="{ background: data.sensor.connected ? 'green' : 'gray' }"
-                  />
+                  <Badge v-tooltip="{ value: data.stateLabel }" :style="{ background: data.stateColor }" />
                 </div>
               </template>
             </Column>
@@ -86,6 +83,7 @@
                     </div>
                     <span v-if="smBreakpoint" class="text-xs text-muted truncate">{{ data.typeLabel }} · {{ data.pluginLabel }}</span>
                     <span v-if="smBreakpoint && data.nativeLabel" v-tooltip="data.nativeLabel" class="text-xs text-muted truncate font-mono">{{ data.nativeLabel }}</span>
+                    <span v-if="smBreakpoint && data.state !== 'connected'" class="text-xs truncate" :style="{ color: data.stateColor }">{{ data.stateLabel }}</span>
                   </div>
                 </div>
               </template>
@@ -165,7 +163,7 @@
                     </template>
                   </Button>
 
-                  <span v-if="isAdmin" v-tooltip.left="canDelete(data.sensor) ? t('views.sensors.delete') : t('views.sensors.delete_connected')" class="shrink-0">
+                  <span v-if="isAdmin" v-tooltip.left="canDelete(data.sensor) ? t('views.sensors.delete') : t('views.sensors.delete_camera_bound')" class="shrink-0">
                     <Button text rounded severity="danger" class="cui-icon-sm" :disabled="!canDelete(data.sensor)" @click.stop="confirmDelete(data.sensor)">
                       <template #icon>
                         <i-mdi:trash-can-outline width="100%" height="100%" />
@@ -190,9 +188,20 @@
             striped-rows
             :pt="tablePtOptions"
             class="w-full"
-            :class="{ 'opacity-60 pointer-events-none': isAdopting }"
-            @row-click="(e: DataTableRowClickEvent) => confirmAdopt(e.data)"
+            :class="{ 'opacity-60 pointer-events-none': isAdopting || discoveredBulkBusy }"
+            @row-click="(e: DataTableRowClickEvent) => handleDiscoveredRowClick(e.data)"
           >
+            <Column v-if="discoveredSelectionMode" header="" header-class="p-2 pl-4 w-8 max-w-8" class="p-2 pl-4 w-8 max-w-8">
+              <template #body="{ data }">
+                <Checkbox
+                  :model-value="discoveredSelectedIds.has(discoveredKey(data))"
+                  binary
+                  size="small"
+                  @click.stop
+                  @update:model-value="toggleDiscoveredSelection(discoveredKey(data))"
+                />
+              </template>
+            </Column>
             <Column header="" header-class="p-2 pl-4 w-5 max-w-5" class="p-2 pl-4 w-5 max-w-5">
               <template #body>
                 <div class="flex items-center justify-center">
@@ -206,7 +215,7 @@
                   <component :is="sensorTypeIcon(data.type)" class="w-5 h-5 shrink-0 text-muted" />
                   <div class="flex flex-col min-w-0">
                     <span v-tooltip="data.name" class="font-bold text-color truncate">{{ data.name }}</span>
-                    <span v-tooltip="data.id" class="text-xs text-muted truncate font-mono">{{ data.id }}</span>
+                    <span v-tooltip="data.address ?? data.id" class="text-xs text-muted truncate font-mono">{{ data.address ?? data.id }}</span>
                   </div>
                 </div>
               </template>
@@ -247,8 +256,8 @@
       </Card>
     </div>
 
-    <CuiFloatingButtonGroup v-if="isAdmin" :force-visible="selectionMode">
-      <template v-if="!selectionMode">
+    <CuiFloatingButtonGroup v-if="isAdmin" :force-visible="selectionMode || discoveredSelectionMode">
+      <template v-if="!selectionMode && !discoveredSelectionMode">
         <CuiFloatingButton
           v-if="rows.length"
           grouped
@@ -256,7 +265,16 @@
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
           :icon-props="{ width: '100%', height: '100%' }"
-          @click="enterSelectionMode"
+          @click="startAdoptedSelection"
+        />
+        <CuiFloatingButton
+          v-if="discoveredRows.length"
+          grouped
+          :tooltip-props="{ value: t('views.sensors.select_discovered') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectDiscoveredIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="startDiscoveredSelection"
         />
         <CuiFloatingButton
           grouped
@@ -268,7 +286,7 @@
         />
       </template>
 
-      <template v-else>
+      <template v-else-if="selectionMode">
         <CuiFloatingButton
           grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
@@ -294,6 +312,33 @@
           @click="confirmBulkDelete"
         />
       </template>
+
+      <template v-else>
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="CloseIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="exitDiscoveredSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: $t('components.form.tooltip.select_all') }"
+          :button-props="{ severity: discoveredAllSelected ? 'primary' : 'secondary' }"
+          :icon="SelectAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="toggleDiscoveredSelectAll"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: t('views.sensors.adopt_selected') }"
+          :button-props="{ class: 'text-white', disabled: !discoveredSelectedItems.length || discoveredBulkBusy }"
+          :icon="AdoptIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="confirmBulkAdopt"
+        />
+      </template>
     </CuiFloatingButtonGroup>
   </div>
 </template>
@@ -303,6 +348,8 @@ import { useAllSensors } from '@camera.ui/browser';
 import { SensorType } from '@camera.ui/sdk';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
+import SelectDiscoveredIcon from '~icons/mdi/playlist-check';
+import AdoptIcon from '~icons/mdi/playlist-plus';
 import TrashIcon from '~icons/mdi/trash-can-outline';
 import SelectIcon from '~icons/tabler/dots-filled';
 import PlusIcon from '~icons/typcn/plus';
@@ -316,8 +363,10 @@ import { useCardSelection } from '@/composables/useCardSelection.js';
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
 import type { PassThrough } from '@primevue/core';
-import type { DiscoveredSensorListItem, TransformedSensor } from '@shared/types';
+import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor } from '@shared/types';
 import type { DataTablePassThroughOptions, DataTableRowClickEvent } from 'primevue';
+
+type SensorState = 'connected' | 'disconnected' | 'unavailable' | 'removed';
 
 interface SensorRow {
   sensor: TransformedSensor;
@@ -326,11 +375,21 @@ interface SensorRow {
   nativeLabel: string;
   pluginLabel: string;
   assignedLabel: string;
+  state: SensorState;
+  stateLabel: string;
+  stateColor: string;
 }
 
 const SensorEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorEdit/SensorEdit.vue'));
 const SensorHistoryDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorHistory/SensorHistory.vue'));
 const VirtualSensorCreateDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue'));
+
+const STATE_COLORS: Record<SensorState, string> = {
+  connected: 'green',
+  disconnected: 'gray',
+  unavailable: 'orange',
+  removed: 'red',
+};
 
 const ACTIVE_ICON_STYLE: Record<string, string> = {
   color: 'rgb(251, 146, 60)',
@@ -373,7 +432,7 @@ const { uiSettings } = storeToRefs(uiStore);
 
 const { sensors: liveSensors } = useAllSensors();
 
-const { data: sensorsData, isBusy: isLoading } = sensorsQuery.getSensorsQuery();
+const { data: sensorsData, isBusy: isFetchingSensors } = sensorsQuery.getSensorsQuery();
 const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
 const { mutateAsync: createVirtualSensor, isPending: isCreating } = sensorsQuery.createVirtualSensorQuery();
 const { mutateAsync: patchSensor } = sensorsQuery.patchSensorQuery();
@@ -399,6 +458,10 @@ const menuRef = useTemplateRef('menuRef');
 const searchQuery = ref('');
 const isAdopting = ref(false);
 
+let stopSourceChanged: (() => void) | undefined;
+
+const isLoading = computed(() => sensorsData.value === undefined && isFetchingSensors.value);
+
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 
 const sensors = computed(() => sensorsData.value ?? []);
@@ -419,21 +482,29 @@ const menuItems = computed(() => [
 
 const cameraOptions = computed(() => (camerasData.value?.result ?? []).map((camera) => ({ label: camera.name, value: camera._id })));
 
+const liveSensorById = computed(() => new Map(liveSensors.value.map((sensor) => [sensor.id, sensor])));
+
 const rows = computed<SensorRow[]>(() => {
   const query = searchQuery.value.toLowerCase().trim();
 
   return sensors.value
-    .map((sensor) => ({
-      sensor,
-      label: sensor.displayName || sensor.name,
-      typeLabel: t(`components.camera_options.sensor_type_${sensor.type}`),
-      nativeLabel: sensor.nativeId ?? '',
-      pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
-      assignedLabel: sensor.assignedCameraIds
-        .map((id) => cameraOptions.value.find((camera) => camera.value === id)?.label)
-        .filter(Boolean)
-        .join(', '),
-    }))
+    .map((sensor) => {
+      const state = sensorState(sensor);
+      return {
+        sensor,
+        label: sensor.displayName || sensor.name,
+        typeLabel: t(`components.camera_options.sensor_type_${sensor.type}`),
+        nativeLabel: sensor.address ?? sensor.nativeId ?? '',
+        pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
+        assignedLabel: sensor.assignedCameraIds
+          .map((id) => cameraOptions.value.find((camera) => camera.value === id)?.label)
+          .filter(Boolean)
+          .join(', '),
+        state,
+        stateLabel: stateLabel(state, sensor),
+        stateColor: STATE_COLORS[state],
+      };
+    })
     .filter((row) => !uiSettings.value.sensors.hideCameraBound || !row.sensor.assignmentLocked)
     .filter((row) => !query || [row.label, row.typeLabel, row.nativeLabel, row.pluginLabel, row.assignedLabel].some((value) => value.toLowerCase().includes(query)))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -448,14 +519,70 @@ const discoveredRows = computed(() => {
   );
 });
 
-const liveSensorById = computed(() => new Map(liveSensors.value.map((sensor) => [sensor.id, sensor])));
-
 const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
   () => rows.value,
   (row) => row.sensor.id,
 );
 
+const {
+  selectionMode: discoveredSelectionMode,
+  selectedIds: discoveredSelectedIds,
+  selectedItems: discoveredSelectedItems,
+  allSelected: discoveredAllSelected,
+  bulkBusy: discoveredBulkBusy,
+  enterSelectionMode: enterDiscoveredSelectionMode,
+  exitSelectionMode: exitDiscoveredSelectionMode,
+  toggleSelectAll: toggleDiscoveredSelectAll,
+  toggleSelection: toggleDiscoveredSelection,
+} = useCardSelection(() => discoveredRows.value, discoveredKey);
+
 const deletableSelected = computed(() => selectedItems.value.filter((row) => canDelete(row.sensor)));
+
+function discoveredKey(item: DiscoveredSensorListItem): string {
+  return `${item.pluginId}:${item.id}`;
+}
+
+function isConnected(sensor: TransformedSensor): boolean {
+  return liveSensorById.value.get(sensor.id)?.connected.value ?? sensor.connected;
+}
+
+function sensorState(sensor: TransformedSensor): SensorState {
+  if (!isConnected(sensor)) return 'disconnected';
+  if (sensor.sourceState === 'removed') return 'removed';
+  if (sensor.sourceState === 'unavailable') return 'unavailable';
+  return 'connected';
+}
+
+function stateLabel(state: SensorState, sensor: TransformedSensor): string {
+  switch (state) {
+    case 'disconnected':
+      return t('views.sensors.disconnected');
+    case 'unavailable':
+      return t('views.sensors.state_unavailable');
+    case 'removed':
+      return t('views.sensors.state_removed', { plugin: sensor.pluginName });
+    default:
+      return t('views.sensors.connected');
+  }
+}
+
+function startAdoptedSelection() {
+  exitDiscoveredSelectionMode();
+  enterSelectionMode();
+}
+
+function startDiscoveredSelection() {
+  exitSelectionMode();
+  enterDiscoveredSelectionMode();
+}
+
+function handleDiscoveredRowClick(item: DiscoveredSensorListItem) {
+  if (discoveredSelectionMode.value) {
+    toggleDiscoveredSelection(discoveredKey(item));
+    return;
+  }
+  confirmAdopt(item);
+}
 
 function confirmAdopt(item: DiscoveredSensorListItem) {
   dialog.openTextDialog({
@@ -514,7 +641,7 @@ function isSensorActive(sensor: TransformedSensor): boolean {
 }
 
 function canDelete(sensor: TransformedSensor): boolean {
-  return sensor.virtual || !sensor.connected;
+  return sensor.virtual || !sensor.assignmentLocked || !isConnected(sensor);
 }
 
 function handleRowClick(row: SensorRow) {
@@ -587,6 +714,38 @@ function confirmBulkDelete() {
   });
 }
 
+function confirmBulkAdopt() {
+  const targets = [...discoveredSelectedItems.value];
+  dialog.openTextDialog({
+    data: {
+      title: t('views.sensors.adopt_title'),
+      contentText: t('views.sensors.adopt_selected_confirm', { count: targets.length }),
+      confirmText: t('components.form.button.add'),
+    },
+    onConfirm: async () => {
+      discoveredBulkBusy.value = true;
+      try {
+        const failed: string[] = [];
+        for (const item of targets) {
+          const result = await sensorsSocket.adoptSensor(item);
+          if (!result.success) failed.push(item.name);
+        }
+        await queryClient.refetchQueries({ queryKey: ['sensorsList'] });
+        exitDiscoveredSelectionMode();
+        reportBulk(targets.length - failed.length, failed, 'views.sensors.adopt_selected_done');
+      } finally {
+        discoveredBulkBusy.value = false;
+      }
+    },
+  });
+}
+
+function applySourceChange(event: SensorsNamespaceEvents['sensor:source:changed']) {
+  queryClient.setQueryData<TransformedSensor[]>(['sensorsList'], (list) =>
+    list?.map((sensor) => (sensor.id === event.sensorId ? { ...sensor, sourceState: event.sourceState, address: event.address } : sensor)),
+  );
+}
+
 function openCreateDialog() {
   dialog.openComponentDialog(VirtualSensorCreateDialog, {
     data: {
@@ -618,17 +777,15 @@ function confirmDelete(sensor: TransformedSensor) {
     },
   });
 }
-watch(isScanning, (scanning, wasScanning) => {
-  if (wasScanning && !scanning) {
-    queryClient.refetchQueries({ queryKey: ['sensorsList'] });
-  }
-});
 
 onMounted(() => {
-  if (isAdmin.value) sensorsSocket.connect();
+  if (!isAdmin.value) return;
+  sensorsSocket.connect();
+  stopSourceChanged = sensorsSocket.onSourceChanged(applySourceChange);
 });
 
 onUnmounted(() => {
+  stopSourceChanged?.();
   if (isAdmin.value) sensorsSocket.unsubscribe();
 });
 </script>

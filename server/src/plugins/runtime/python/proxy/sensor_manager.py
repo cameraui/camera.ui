@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Any, cast
 
 from _camera_ui_tools.camera_ui_common import TaskSet
 from _camera_ui_tools.camera_ui_sdk import (
+    AdoptedSensor,
     BasePlugin,
-    RegisteredSensorInfo,
+    PluginInterface,
     Sensor,
+    SensorDiscoveryProvider,
     SensorHistoryEntry,
     SensorLike,
     SensorType,
@@ -23,10 +26,12 @@ from plugins.runtime.python.proxy.sensor import (
 if TYPE_CHECKING:
     from _camera_ui_tools.camera_ui_common import LoggerService
     from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
+    from _camera_ui_tools.camera_ui_sdk.internal import SensorSourcePatch
     from plugins.runtime.python.storage_controller import StorageController
     from plugins.runtime.python.typings import (
         PluginInfo,
         SensorAddedEvent,
+        SensorAdoptedEvent,
         SensorAssignmentChangedEvent,
         SensorConnectedChangedEvent,
         SensorDeletedEvent,
@@ -47,6 +52,19 @@ DETECTION_SENSOR_TYPES: frozenset[SensorType] = frozenset(
         SensorType.Clip,
     }
 )
+
+
+def to_adopted(data: StoredSensorData) -> AdoptedSensor:
+    record: AdoptedSensor = {
+        "id": data["id"],
+        "nativeId": data["nativeId"],
+        "name": data["name"],
+        "type": data["type"],
+    }
+    address = data.get("address")
+    if address is not None:
+        record["address"] = address
+    return record
 
 
 class SensorManagerProxy:
@@ -84,11 +102,25 @@ class SensorManagerProxy:
     def _consumes_something(self) -> bool:
         return len(self._plugin["contract"].get("consumes", [])) > 0
 
+    @property
+    def _provides_adopted(self) -> bool:
+        return PluginInterface.SensorDiscovery in self._plugin["contract"].get("interfaces", [])
+
+    @property
+    def _discovery_plugin(self) -> SensorDiscoveryProvider | None:
+        # typed as object: mypy cannot intersect BasePlugin with a Protocol
+        plugin: object = self._plugin_instance
+        if not self._provides_adopted or not isinstance(plugin, SensorDiscoveryProvider):
+            return None
+        return plugin
+
     async def init(self) -> None:
-        if not self._consumes_something:
+        if not self._consumes_something and not self._provides_adopted:
             return
 
         await self._ensure_global_subscription()
+        if not self._consumes_something:
+            return
 
         try:
             sensors = await self._registry_proxy.getSensors(self._plugin["id"])
@@ -108,104 +140,47 @@ class SensorManagerProxy:
                 cast("list[SensorLike]", list(self._consumed.values()))
             )
 
-    async def addSensor(self, sensor: Sensor[Any, Any, Any]) -> None:
-        async with registration_slot():
-            await self._addSensorInner(sensor)
+    async def configure_adopted_sensors(self) -> None:
+        plugin = self._discovery_plugin
+        if plugin is None:
+            return
 
-    async def _addSensorInner(self, sensor: Sensor[Any, Any, Any]) -> None:
-        # producers need the global stream too: assignment changes must reach
-        # owned sensors, their detection fan-out reads assignedCameraIds
-        await self._ensure_global_subscription()
-
-        plugin_id = self._plugin["id"]
-        sensor._setPluginId(plugin_id)  # pyright: ignore[reportPrivateUsage]
-
-        sensor_json = sensor.toJSON()
-        sensor_json["requiresFrames"] = getattr(sensor, "_requires_frames", False) is True
-
-        # resolve the durable id first and wire storage with it, so registration
-        # data (modelSpec) can read sensor storage
-        sensor_id = await self._registry_proxy.resolveSensor(sensor_json, plugin_id)
-        sensor._setId(sensor_id)  # pyright: ignore[reportPrivateUsage]
-        sensor_json["id"] = sensor_id
-
-        storage = self._storage_controller.createSensorStorage(plugin_id, sensor.id, sensor.storage_schema)
-        await storage.register_storage()
-        sensor._setStorage(storage)  # pyright: ignore[reportPrivateUsage]
-
-        model_spec = getattr(sensor, "modelSpec", None)
-        if model_spec:
-            sensor_json["modelSpec"] = model_spec
-
-        registration = await self._registry_proxy.registerSensor(sensor_json, plugin_id)
-        sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
-
-        sensor_namespace = NamespaceManager.sensor_provider_namespaces(plugin_id, sensor.id).sensor_rpc
-
-        sensor_type = sensor.type
-        sensor._init(  # pyright: ignore[reportPrivateUsage]
-            lambda properties: self._on_sensor_state_write(sensor, sensor_type, properties)
-        )
-        sensor._initCapabilities(lambda caps: self._on_sensor_capabilities_changed(sensor.id, caps))  # pyright: ignore[reportPrivateUsage]
-
-        rpc_cleanup = await self._proxy.register_handler(sensor_namespace, sensor, without_decorators=True)
-
-        event_ns = NamespaceManager.sensor_event_namespaces(sensor.id)
-
-        async def handle_backend_event(event: dict[str, Any]) -> None:
-            if event.get("type") == "property:changed":
-                change_data = event.get("data", {})
-                prop = change_data.get("property")
-                if prop is not None:
-                    sensor._onBackendPropertyChanged(  # pyright: ignore[reportPrivateUsage]
-                        prop, change_data.get("value"), change_data.get("timestamp")
-                    )
-
-        unsubscribe_events = await self._proxy.subscribe(event_ns.sensor_subject, handle_backend_event)
-
-        async def cleanup() -> None:
-            await unsubscribe_events()
-            await rpc_cleanup()
-
-        self._owned[sensor.id] = sensor
-        self._cleanups[sensor.id] = cleanup
-
-        sensor._setActive(True)  # pyright: ignore[reportPrivateUsage]
-
-    async def removeSensor(self, sensor: Sensor[Any, Any, Any]) -> None:
         try:
-            await self._registry_proxy.unregisterSensor(sensor.id)
+            stored = await self._registry_proxy.getSensors(self._plugin["id"])
+            records = [to_adopted(data) for data in stored if self._is_own_adopted(data)]
         except Exception as e:
-            self._logger.warn(f"Failed to unregister sensor {sensor.id}: {e}")
+            self._logger.warn(f"Could not load the adopted sensors: {e}")
+            return
 
-        cleanup = self._cleanups.pop(sensor.id, None)
-        if cleanup:
-            await cleanup()
+        try:
+            sensors = await plugin.configureAdoptedSensors(records)
+        except Exception as e:
+            self._logger.warn(f"configureAdoptedSensors failed: {e}")
+            return
 
-        self._owned.pop(sensor.id, None)
-        sensor._cleanup()  # pyright: ignore[reportPrivateUsage]
+        by_native_id = {record["nativeId"]: record for record in records}
+        bound: set[str] = set()
 
-    def getSensors(self) -> list[Sensor[Any, Any, Any]]:
-        return list(self._owned.values())
+        async def bind(sensor: Sensor[Any, Any, Any]) -> None:
+            record = by_native_id.get(sensor.nativeId) if sensor.nativeId else None
+            if record is None:
+                self._logger.warn(
+                    f'Sensor "{sensor.name}" returned by configureAdoptedSensors has no adopted record '
+                    f"(nativeId {sensor.nativeId or 'missing'}), ignored"
+                )
+                return
+            if record["nativeId"] in bound or record["id"] in self._owned:
+                return
+            bound.add(record["nativeId"])
+            await self._bind_adopted(sensor, record)
 
-    async def getRegisteredSensors(self) -> list[RegisteredSensorInfo]:
-        plugin_id = self._plugin["id"]
-        stored = await self._registry_proxy.getSensors(plugin_id)
-        result: list[RegisteredSensorInfo] = []
-        for data in stored:
-            if data.get("pluginId") != plugin_id:
-                continue
-            info: RegisteredSensorInfo = {
-                "id": data["id"],
-                "type": data["type"],
-                "name": data["name"],
-                "connected": data["connected"],
-            }
-            native_id = data.get("nativeId")
-            if native_id is not None:
-                info["nativeId"] = native_id
-            result.append(info)
-        return result
+        await asyncio.gather(*(bind(sensor) for sensor in sensors))
+
+        missing = len(records) - len(bound)
+        if missing > 0:
+            self._logger.warn(
+                f"{missing} adopted sensor(s) got no runtime sensor from the plugin, they stay disconnected"
+            )
 
     async def getSensorHistory(self, sensorIds: list[str], start: int, end: int) -> list[SensorHistoryEntry]:
         return await self._registry_proxy.getSensorHistory(sensorIds, start, end)
@@ -248,6 +223,84 @@ class SensorManagerProxy:
 
         self._tasks.remove_all()
 
+    async def _bind_adopted(self, sensor: Sensor[Any, Any, Any], record: AdoptedSensor) -> None:
+        try:
+            async with registration_slot():
+                await self._bind(sensor, record["id"])
+        except Exception as e:
+            self._logger.warn(f'Binding adopted sensor "{record["name"]}" failed: {e}')
+
+    def _unbind(self, sensor_id: str) -> Sensor[Any, Any, Any] | None:
+        sensor = self._owned.pop(sensor_id, None)
+        if sensor is None:
+            return None
+        cleanup = self._cleanups.pop(sensor_id, None)
+        if cleanup:
+
+            async def run_cleanup() -> None:
+                with contextlib.suppress(Exception):
+                    await cleanup()
+
+            self._tasks.add(run_cleanup())
+        sensor._cleanup()  # pyright: ignore[reportPrivateUsage]
+        return sensor
+
+    async def _bind(self, sensor: Sensor[Any, Any, Any], record_id: str) -> None:
+        # producers need the global stream too: assignment changes must reach
+        # owned sensors, their detection fan-out reads assignedCameraIds
+        await self._ensure_global_subscription()
+
+        plugin_id = self._plugin["id"]
+        sensor._setPluginId(plugin_id)  # pyright: ignore[reportPrivateUsage]
+        sensor._setId(record_id)  # pyright: ignore[reportPrivateUsage]
+
+        sensor_json = sensor.toJSON()
+        sensor_json["requiresFrames"] = getattr(sensor, "_requires_frames", False) is True
+
+        storage = self._storage_controller.createSensorStorage(plugin_id, sensor.id, sensor.storage_schema)
+        await storage.register_storage()
+        sensor._setStorage(storage)  # pyright: ignore[reportPrivateUsage]
+
+        model_spec = getattr(sensor, "modelSpec", None)
+        if model_spec:
+            sensor_json["modelSpec"] = model_spec
+
+        registration = await self._registry_proxy.registerSensor(sensor_json, plugin_id)
+        sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
+
+        sensor_namespace = NamespaceManager.sensor_provider_namespaces(plugin_id, sensor.id).sensor_rpc
+
+        sensor_type = sensor.type
+        sensor._init(  # pyright: ignore[reportPrivateUsage]
+            lambda properties: self._on_sensor_state_write(sensor, sensor_type, properties)
+        )
+        sensor._initCapabilities(lambda caps: self._on_sensor_capabilities_changed(sensor.id, caps))  # pyright: ignore[reportPrivateUsage]
+        sensor._initSource(lambda patch: self._on_sensor_source_changed(sensor.id, patch))  # pyright: ignore[reportPrivateUsage]
+
+        rpc_cleanup = await self._proxy.register_handler(sensor_namespace, sensor, without_decorators=True)
+
+        event_ns = NamespaceManager.sensor_event_namespaces(sensor.id)
+
+        async def handle_backend_event(event: dict[str, Any]) -> None:
+            if event.get("type") == "property:changed":
+                change_data = event.get("data", {})
+                prop = change_data.get("property")
+                if prop is not None:
+                    sensor._onBackendPropertyChanged(  # pyright: ignore[reportPrivateUsage]
+                        prop, change_data.get("value"), change_data.get("timestamp")
+                    )
+
+        unsubscribe_events = await self._proxy.subscribe(event_ns.sensor_subject, handle_backend_event)
+
+        async def cleanup() -> None:
+            await unsubscribe_events()
+            await rpc_cleanup()
+
+        self._owned[sensor.id] = sensor
+        self._cleanups[sensor.id] = cleanup
+
+        sensor._setActive(True)  # pyright: ignore[reportPrivateUsage]
+
     async def _ensure_global_subscription(self) -> None:
         if self._global_unsubscribe is not None:
             return
@@ -274,6 +327,13 @@ class SensorManagerProxy:
 
         if state:
             sensor_proxy._apply_refreshed_state(state)  # pyright: ignore[reportPrivateUsage]
+
+    def _is_own_adopted(self, data: StoredSensorData) -> bool:
+        return (
+            data["pluginId"] == self._plugin["id"]
+            and not data.get("boundCameraId")
+            and bool(data.get("nativeId"))
+        )
 
     def _is_consumable(self, data: StoredSensorData) -> bool:
         if data["id"] in self._owned or data["pluginId"] == self._plugin["id"]:
@@ -330,8 +390,38 @@ class SensorManagerProxy:
             if self._plugin_instance:
                 await self._plugin_instance.onSensorAdded(sensor_proxy)
 
+        elif event_type == "sensor:adopted":
+            adopted = cast("SensorAdoptedEvent", message.get("data"))
+            plugin = self._discovery_plugin
+            if (
+                plugin is None
+                or not self._is_own_adopted(adopted["sensor"])
+                or adopted["sensor"]["id"] in self._owned
+            ):
+                return
+            record = to_adopted(adopted["sensor"])
+            try:
+                sensor = await plugin.onSensorAdopted(record)
+            except Exception as e:
+                self._logger.warn(f'onSensorAdopted failed for "{record["name"]}": {e}')
+                return
+            if sensor.nativeId != record["nativeId"]:
+                self._logger.warn(
+                    f'Sensor "{sensor.name}" returned by onSensorAdopted carries nativeId '
+                    f"{sensor.nativeId or 'missing'}, expected {record['nativeId']}, ignored"
+                )
+                return
+            await self._bind_adopted(sensor, record)
+
         elif event_type == "sensor:deleted":
             deleted = cast("SensorDeletedEvent", message.get("data"))
+            unbound = self._unbind(deleted["sensorId"])
+            plugin = self._discovery_plugin
+            if unbound is not None and unbound.nativeId and plugin is not None:
+                try:
+                    await plugin.onSensorUnadopted(unbound.nativeId)
+                except Exception as e:
+                    self._logger.warn(f"onSensorUnadopted failed for {unbound.nativeId}: {e}")
             await self._release_consumed(deleted["sensorId"])
 
         elif event_type == "sensor:connected:changed":
@@ -422,5 +512,12 @@ class SensorManagerProxy:
         async def notify() -> None:
             with contextlib.suppress(Exception):
                 await self._registry_proxy.updateCapabilities(sensor_id, capabilities)
+
+        self._tasks.add(notify())
+
+    def _on_sensor_source_changed(self, sensor_id: str, patch: SensorSourcePatch) -> None:
+        async def notify() -> None:
+            with contextlib.suppress(Exception):
+                await self._registry_proxy.updateSource(sensor_id, patch)
 
         self._tasks.add(notify())

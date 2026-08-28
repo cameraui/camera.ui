@@ -311,6 +311,10 @@ export class CameraDeviceProxy extends CameraDevice {
       pushProperties(properties).catch((error) => this.logger.debug(`Property write for sensor ${sensor.id} failed:`, error));
     });
 
+    sensor._initSource((patch) => {
+      this.#sensorRegistryProxy.updateSource(sensor.id, patch).catch((error) => this.logger.debug(`Source write for sensor ${sensor.id} failed:`, error));
+    });
+
     sensor._initCapabilities((capabilities) => {
       this.#sensorRegistryProxy
         .updateCapabilities(sensor.id, capabilities)

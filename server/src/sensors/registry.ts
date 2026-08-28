@@ -21,8 +21,8 @@ import { disposeVirtualSensorHost, registerVirtualSensorHost } from './virtual.j
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
-import type { SensorJSON } from '@camera.ui/sdk/internal';
+import type { DiscoveredSensor, ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
+import type { SensorJSON, SensorSourcePatch } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Database } from '../api/database/index.js';
 import type { DBSensor, DBSensorHistoryEntry } from '../api/database/types.js';
@@ -149,6 +149,7 @@ export class SensorRegistry {
     const created = !record;
 
     if (!record) {
+      this.assertMayCreate(sensor, pluginId, options);
       record = {
         _id: randomUUID(),
         nativeId: sensor.nativeId,
@@ -157,8 +158,7 @@ export class SensorRegistry {
         name: sensor.name,
         assignedCameraIds: options?.assignCameraId ? [options.assignCameraId] : [],
         boundCameraId: options?.assignCameraId,
-        exposed: sensor.exposed ?? true,
-        hidden: sensor.hidden,
+        exposed: true,
         origin: sensor.origin,
         state: {},
         createdAt: Date.now(),
@@ -172,6 +172,8 @@ export class SensorRegistry {
 
     record.name = sensor.name;
     record.origin ??= sensor.origin;
+    if (sensor.address !== undefined) record.address = sensor.address;
+    if (sensor.sourceState !== undefined) record.sourceState = sensor.sourceState;
 
     // camera.addSensor re-registration re-binds (also backfills migrated records)
     if (options?.assignCameraId) {
@@ -223,6 +225,7 @@ export class SensorRegistry {
 
     let record = this.reconcile(sensor, pluginId);
     if (!record) {
+      this.assertMayCreate(sensor, pluginId, options);
       record = {
         _id: randomUUID(),
         nativeId: sensor.nativeId,
@@ -231,8 +234,7 @@ export class SensorRegistry {
         name: sensor.name,
         assignedCameraIds: options?.assignCameraId ? [options.assignCameraId] : [],
         boundCameraId: options?.assignCameraId,
-        exposed: sensor.exposed ?? true,
-        hidden: sensor.hidden,
+        exposed: true,
         origin: sensor.origin,
         state: {},
         createdAt: Date.now(),
@@ -268,12 +270,59 @@ export class SensorRegistry {
     }
   }
 
+  public createAdoptedSensor(pluginId: string, sensor: DiscoveredSensor): DBSensor {
+    const existing = this.findByNativeId(pluginId, sensor.id);
+    if (existing) return existing;
+
+    const record: DBSensor = {
+      _id: randomUUID(),
+      nativeId: sensor.id,
+      pluginInfo: { id: pluginId, name: this.getPluginContract(pluginId)?.name ?? pluginId },
+      type: sensor.type,
+      name: sensor.name,
+      address: sensor.address,
+      assignedCameraIds: [],
+      exposed: false,
+      state: {},
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    this.records.set(record._id, record);
+    this.persistRecord(record._id, () => {});
+    this.announceAdded(record);
+
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    this.safePublish(ns.sensorsSubject, { type: 'sensor:adopted', data: { sensor: this.toStoredData(record) } });
+    this.logger.debug(`Sensor adopted: "${record.name}" (${record.type}) from plugin "${pluginId}"`);
+    return record;
+  }
+
+  @RPCMethod
+  public updateSource(sensorId: string, patch: SensorSourcePatch): void {
+    const record = this.records.get(sensorId);
+    if (!record) return;
+    const stateChanged = patch.sourceState !== undefined && patch.sourceState !== record.sourceState;
+    const addressChanged = patch.address !== undefined && patch.address !== record.address;
+    if (!stateChanged && !addressChanged) return;
+
+    this.persistRecord(sensorId, (r) => {
+      if (stateChanged) r.sourceState = patch.sourceState;
+      if (addressChanged) r.address = patch.address;
+    });
+
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    this.safePublish(ns.sensorsSubject, {
+      type: 'sensor:source:changed',
+      data: { sensorId, sensorType: record.type, sourceState: record.sourceState, address: record.address },
+    });
+  }
+
   public async deleteSensor(sensorId: string): Promise<void> {
     const record = this.records.get(sensorId);
     if (!record) return;
 
-    // a connected plugin sensor re-registers with a fresh id, delete is for leftovers
-    if (this.runtime.has(sensorId) && record.pluginInfo.id !== VIRTUAL_SENSOR_OWNER_ID) {
+    // a camera's own sensor re-registers with its camera; adopted and virtual ones are the user's to delete
+    if (this.runtime.has(sensorId) && record.boundCameraId && record.pluginInfo.id !== VIRTUAL_SENSOR_OWNER_ID) {
       throw new Error(`Sensor "${record.displayName ?? record.name}" is still provided by plugin "${record.pluginInfo.name}"`);
     }
 
@@ -553,6 +602,8 @@ export class SensorRegistry {
       assignedCameraIds: [...record.assignedCameraIds],
       boundCameraId: record.boundCameraId,
       exposed: record.exposed,
+      address: record.address,
+      sourceState: record.sourceState,
       connected: this.runtime.has(record._id),
       properties: this.getAllPropertyValues(record._id),
       capabilities: runtime?.capabilities ?? [],
@@ -595,6 +646,18 @@ export class SensorRegistry {
     if (!options?.assignCameraId && (sensor.type === SensorType.PTZ || sensor.type === SensorType.Battery)) {
       throw new Error(`Sensor type "${sensor.type}" requires a camera, register it via camera.addSensor()`);
     }
+  }
+
+  private findByNativeId(pluginId: string, nativeId: string): DBSensor | undefined {
+    for (const record of this.records.values()) {
+      if (record.pluginInfo.id === pluginId && record.nativeId === nativeId) return record;
+    }
+    return undefined;
+  }
+
+  private assertMayCreate(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): void {
+    if (options?.assignCameraId || pluginId === VIRTUAL_SENSOR_OWNER_ID) return;
+    throw new Error(`Standalone sensor "${sensor.name}" of plugin "${pluginId}" has no record, it has to be adopted first`);
   }
 
   private reconcile(sensor: SensorJSON, pluginId: string): DBSensor | undefined {

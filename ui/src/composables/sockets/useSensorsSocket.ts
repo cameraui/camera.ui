@@ -1,5 +1,5 @@
 import type { SocketChannel } from '@/connection/index.js';
-import type { DiscoveredSensorListItem, SensorDiscoveryEvents } from '@shared/types';
+import type { DiscoveredSensorListItem, SensorsNamespaceEvents } from '@shared/types';
 
 export interface SensorsSocketState {
   isLoading: boolean;
@@ -24,6 +24,8 @@ interface AdoptResult {
   error?: string;
 }
 
+type SourceChangedHandler = (event: SensorsNamespaceEvents['sensor:source:changed']) => void;
+
 const DISPOSAL_GRACE_MS = 5_000;
 
 const state = reactive<SensorsSocketState>({
@@ -38,6 +40,7 @@ let channel: SocketChannel | null = null;
 let isSubscribed = false;
 let refCount = 0;
 let disposalTimer: ReturnType<typeof setTimeout> | null = null;
+const sourceChangedHandlers = new Set<SourceChangedHandler>();
 
 function resetState(): void {
   state.isLoading = true;
@@ -61,16 +64,20 @@ function ensureChannel(): SocketChannel {
       if (!connected && was) isSubscribed = false;
     });
 
-    ch.on<SensorDiscoveryEvents['sensors:discovered']>('sensors:discovered', (data) => {
+    ch.on<SensorsNamespaceEvents['sensors:discovered']>('sensors:discovered', (data) => {
       state.sensors = [...state.sensors.filter((s) => s.pluginId !== data.source), ...data.sensors];
     });
 
-    ch.on<SensorDiscoveryEvents['sensors:scanning']>('sensors:scanning', (data) => {
+    ch.on<SensorsNamespaceEvents['sensors:scanning']>('sensors:scanning', (data) => {
       state.isScanning = data.isScanning;
     });
 
-    ch.on<SensorDiscoveryEvents['sensors:adopted']>('sensors:adopted', (data) => {
+    ch.on<SensorsNamespaceEvents['sensors:adopted']>('sensors:adopted', (data) => {
       state.sensors = state.sensors.filter((s) => !(s.pluginId === data.pluginId && s.id === data.id));
+    });
+
+    ch.on<SensorsNamespaceEvents['sensor:source:changed']>('sensor:source:changed', (data) => {
+      for (const handler of sourceChangedHandlers) handler(data);
     });
   });
 
@@ -161,6 +168,11 @@ export function useSensorsSocket() {
     }
   }
 
+  function onSourceChanged(handler: SourceChangedHandler): () => void {
+    sourceChangedHandlers.add(handler);
+    return () => sourceChangedHandlers.delete(handler);
+  }
+
   const sortedSensors = computed(() => [...state.sensors].sort((a, b) => a.name.localeCompare(b.name)));
 
   tryOnScopeDispose(() => {
@@ -191,5 +203,6 @@ export function useSensorsSocket() {
     unsubscribe: unsubscribeInternal,
     forceRescan,
     adoptSensor,
+    onSourceChanged,
   };
 }

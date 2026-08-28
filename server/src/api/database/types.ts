@@ -1,4 +1,4 @@
-import type { BaseCamera, Point, SENSOR_META, SensorType, Severity } from '@camera.ui/sdk';
+import type { BaseCamera, Point, SENSOR_META, SensorSourceState, SensorType, Severity } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
@@ -426,8 +426,9 @@ export interface DBSensor {
   assignedCameraIds: string[];
   boundCameraId?: string;
   exposed: boolean;
-  hidden?: boolean;
   origin?: string;
+  address?: string;
+  sourceState?: SensorSourceState;
   state?: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
