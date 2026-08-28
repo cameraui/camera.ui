@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.12]
+
+### Changed
+
+- **WebRTC uses one port for UDP and TCP.** Video ran over a random UDP port per connection, so a firewall or a Docker port mapping only ever let TCP through. Everything now goes through 2004 (UDP with TCP as fallback), existing installs are switched on the next start.
+
+### Fixed
+
+- **The streaming service finds camera.ui's own certificate again.** Freshly issued certificates were written next to the old location instead of into the `certs` folder, so go2rtc and the worker link could point at a file that was not there, which showed up right after removing your own certificate.
+
+- **Streams, recordings and detections no longer slow each other down.** Every video stream in a process waited for its camera data on the same handful of worker threads, so with several cameras active they starved each other: HomeKit live views drifted behind real time and froze, on macOS the Home app dropped the stream, and browser live views, snapshots and detection could stall the same way. Each stream now reads on a thread of its own.
+
+- **Choosing a server address no longer cuts off local WebRTC.** The selected addresses also limited the network sockets the streaming service listens on, so a browser that reaches the server another way (a proxy, another VLAN, IPv6) could only play in MSE mode. The addresses now only decide which of them the browser is offered; the old limit is removed on the next start.
+
+- **Scrubbing close to live no longer hitches.** Dragging the timeline within the last minute rebuilt it once a second and could nudge the strip under your finger. It now stays put until you let go.
+
 ## [2.1.11]
 
 ### Added
@@ -21,6 +37,8 @@ All notable changes to this project will be documented in this file.
 - **The zone settings say what they mean.** Info icons explain when something counts as inside, what the face options do, how "detections inside" is counted and which crossing direction a line watches.
 
 ### Fixed
+
+- **The browser stops asking about the certificate after every restart.** When the internet provider handed out a new IPv6 address, the next start issued a new certificate and the exception stored in the browser was gone. Public addresses are no longer baked into the certificate or offered to the apps unless you pick them under Server addresses; the log now says when and why a certificate is issued.
 
 - **The apps use the local address from Settings → Remote.** With the server in Docker the apps only tried the container's own addresses and then went out through the tunnel, the address entered under Network never got a try. It is now the first local candidate on every path the apps discover the server on.
 
