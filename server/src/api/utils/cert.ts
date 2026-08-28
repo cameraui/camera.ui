@@ -8,6 +8,7 @@ import { ServerService } from '../services/server.service.js';
 import { DEFAULTS } from './constants.js';
 
 import type { ConfigService } from '../../services/config/index.js';
+import type { LoggerService } from '../../services/logger/index.js';
 import type { DBServer } from '../database/types.js';
 
 export interface Certificate {
@@ -47,6 +48,14 @@ const getCANotAfter = (notBefore: Date): Date => {
   const hundredYearsLater = new Date(notBefore);
   hundredYearsLater.setFullYear(hundredYearsLater.getFullYear() + 100);
   return new Date(hundredYearsLater.toISOString().split('T')[0] + 'T23:59:59Z');
+};
+
+const logCertificate = (message: string): void => {
+  try {
+    container.resolve<LoggerService>('logger').log(message);
+  } catch {
+    console.log(message);
+  }
 };
 
 const storedServerInfo = (): DBServer | undefined => {
@@ -254,8 +263,8 @@ export class CertificateGeneration {
     const configService = container.resolve<ConfigService>('configService');
     const addresses = new Set<string>(['127.0.0.1']);
 
-    for (const { address } of fetchViableNetworkAddresses()) {
-      addresses.add(address);
+    for (const { address, isPrivate } of fetchViableNetworkAddresses()) {
+      if (isPrivate) addresses.add(address);
     }
 
     const serverInfo = storedServerInfo();
@@ -291,6 +300,7 @@ export class CertificateGeneration {
     const isLegacy = certExists && isLegacyCertificate(certFile) && getCertAltNames(certFile).length === 0;
 
     if (!certExists || !certIsValid || isLegacy || forceNew) {
+      logCertificate(`Issuing a new root CA and host certificate for ${requiredAddresses.join(', ')}`);
       const CA = CertificateGeneration.createRootCA(requiredAddresses);
       const hostCert = CertificateGeneration.createHostCert(requiredAddresses, CA);
 
@@ -308,6 +318,7 @@ export class CertificateGeneration {
     const missingSans = requiredAddresses.filter((address) => !altNames.includes(address));
 
     if (missingSans.length > 0 && existsSync(rootKeyPath)) {
+      logCertificate(`Re-issuing the host certificate, not yet covered: ${missingSans.join(', ')}. Browsers that stored an exception will ask again.`);
       const CA: Certificate = {
         cert: readFileSync(caFile, 'utf8'),
         certPath: caFile,
