@@ -1,9 +1,12 @@
 import { request } from 'node:https';
 
 import { WorkersService } from '../api/services/workers.service.js';
+import { FatalBootError } from '../utils/ipc.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { ConfigService } from '../services/config/index.js';
+
+const MASTER_API_PORT = 3443;
 
 interface PairResponse {
   user: string;
@@ -17,7 +20,7 @@ export async function ensureWorkerPaired(configService: ConfigService, logger: L
   const master = workerConfig?.master;
 
   if (!master) {
-    throw new Error('worker.master is not configured');
+    throw new FatalBootError('worker.master is not configured');
   }
 
   const workersService = new WorkersService();
@@ -29,20 +32,26 @@ export async function ensureWorkerPaired(configService: ConfigService, logger: L
   }
 
   if (!pairingCode) {
-    throw new Error(`Worker is not paired with ${master} — generate a pairing code on the master (Workers view) and set worker.pairingCode`);
+    throw new FatalBootError(`Worker is not paired with ${master}. Generate a pairing code on the master (Workers view) and set worker.pairingCode`);
   }
 
   const workerName = workerConfig?.name ?? 'worker';
   const agentId = workersService.getOrCreateAgentId(workerName);
-  const apiPort = workerConfig?.apiPort ?? configService.config.port;
+  const apiPort = workerConfig?.apiPort ?? MASTER_API_PORT;
 
   logger.log(`Pairing with master ${master}:${apiPort}...`);
 
-  const response = await pairRequest(master, apiPort, {
-    code: pairingCode,
-    agentId,
-    name: workerName,
-  });
+  let response: PairResponse;
+  try {
+    response = await pairRequest(master, apiPort, {
+      code: pairingCode,
+      agentId,
+      name: workerName,
+    });
+  } catch (error) {
+    // a wrong address, port or code does not fix itself, no point in a restart loop
+    throw new FatalBootError(error instanceof Error ? error.message : String(error));
+  }
 
   workersService.saveWorkerConnection({
     master,
