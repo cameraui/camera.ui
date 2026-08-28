@@ -34,11 +34,11 @@
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
     "@aparajita/capacitor-secure-storage": "^8.0.0",
-    "@camera.ui/browser": "~0.0.178",
+    "@camera.ui/browser": "~0.0.179",
     "@camera.ui/common": "~0.0.54",
-    "@camera.ui/nvr": "~0.0.107",
+    "@camera.ui/nvr": "~0.0.108",
     "@camera.ui/rpc": "~1.0.11",
-    "@camera.ui/sdk": "~1.2.33",
+    "@camera.ui/sdk": "~1.2.34",
     "@camera.ui/transport": "~0.0.26",
     "@capacitor-firebase/messaging": "^8.4.0",
     "@capacitor/app": "^8.1.1",
@@ -54,7 +54,7 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "@capawesome/capacitor-badge": "^8.0.2",
-    "@capgo/capacitor-updater": "^8.51.14",
+    "@capgo/capacitor-updater": "^8.51.15",
     "@iconify/json": "^2.2.521",
     "@primeuix/themes": "^2.0.3",
     "@tanstack/vue-query": "^5.102.8",
@@ -94,7 +94,7 @@
     "vue-view-transitions": "^1.2.1",
     "vue-zoomable": "^1.2.8",
     "vue3-dnd": "^2.1.0",
-    "zod": "4.4.3"
+    "zod": "4.5.1"
   },
   "devDependencies": {
     "@primevue/auto-import-resolver": "4.5.5",
