@@ -46,7 +46,7 @@ export const DEFAULT_GO2RTC_CONFIG_RTMP: RTMP = {
   listen: listenWithOffset('0.0.0.0', 2003),
 };
 export const DEFAULT_GO2RTC_CONFIG_WEBRTC: Webrtc = {
-  listen: `:${withOffset(2004)}/tcp`,
+  listen: `:${withOffset(2004)}`,
   candidates: [`stun:${withOffset(2004)}`],
 };
 export const DEFAULT_GO2RTC_CONFIG_FFMPEG: Ffmpeg = {
