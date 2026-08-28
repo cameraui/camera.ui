@@ -282,21 +282,14 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     this.#backchannelStreamIndex = this.#backchannelOutput.addStream(this.#backchannelEncoder);
 
     this.#backchannelActive = true;
-
-    this.#backchannelTask = this.#processBackchannel()
-      .catch((error) => {
-        this.#logger.error('Backchannel processing error:', error);
-      })
-      .finally(() => {
-        this.#logger.trace('Backchannel processing ended');
-        this.#backchannelActive = false;
-      });
   }
 
   public async sendAudioPacket(rtp: RtpPacket | Buffer): Promise<void> {
-    if (!this.#backchannelRtpInput) {
+    if (!this.#backchannelRtpInput || !this.#backchannelActive) {
       return;
     }
+
+    this.#backchannelTask ??= this.#runBackchannel();
 
     try {
       // Send to local UDP port; Demuxer receives and decodes.
@@ -308,6 +301,17 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
 
   public async stop(): Promise<void> {
     await this.#onEnded();
+  }
+
+  #runBackchannel(): Promise<void> {
+    return this.#processBackchannel()
+      .catch((error) => {
+        this.#logger.error('Backchannel processing error:', error);
+      })
+      .finally(() => {
+        this.#logger.trace('Backchannel processing ended');
+        this.#backchannelActive = false;
+      });
   }
 
   async #processBackchannel(): Promise<void> {
