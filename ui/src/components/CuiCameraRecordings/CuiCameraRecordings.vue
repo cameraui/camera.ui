@@ -237,6 +237,7 @@
             :camera="camera"
             :load-thumbnails="loadThumbnails"
             @scroll-to-event="(ts: number) => emit('scrollToEvent', ts)"
+            @open-trace="() => openTrace(item.event)"
           />
         </template>
       </CuiRecordingsGrid>
@@ -264,12 +265,14 @@ import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
-import type { GetEventsOptions } from '@camera.ui/nvr';
+import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
 import type { CuiCameraRecordingsEmits, CuiCameraRecordingsProps } from './types.js';
 
 const props = withDefaults(defineProps<CuiCameraRecordingsProps>(), { compact: false });
 
 const emit = defineEmits<CuiCameraRecordingsEmits>();
+
+const { openEventTrace } = useEventTraceDialog();
 
 const { t } = useI18n();
 
@@ -388,6 +391,10 @@ function openMobileSearch() {
 function closeMobileSearch() {
   mobileSearchActive.value = false;
   search.value = '';
+}
+
+function openTrace(event: RecordedEvent): void {
+  if (props.camera) openEventTrace(event, props.camera);
 }
 </script>
 

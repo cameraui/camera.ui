@@ -332,6 +332,7 @@
     "useEventBus": true,
     "useEventListener": true,
     "useEventSource": true,
+    "useEventTraceDialog": true,
     "useEyeDropper": true,
     "useFavicon": true,
     "useFetch": true,

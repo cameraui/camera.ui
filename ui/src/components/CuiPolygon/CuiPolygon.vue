@@ -30,6 +30,17 @@
     </defs>
 
     <path
+      v-for="(zone, i) in motionZones ?? []"
+      :key="`motion-${i}`"
+      :d="convertToSvgPath(zone.points.map((coord: [number, number]) => coord))"
+      :style="{
+        fill: `${zone.color}33`,
+        stroke: zone.color,
+        'stroke-width': '2',
+      }"
+    />
+
+    <path
       v-for="(zone, i) in cameraZones"
       :key="`zone-${i}`"
       :d="convertToSvgPath(zone.points.map((coord: [number, number]) => coord))"
@@ -38,6 +49,18 @@
         fill: `${zone.color}4D`,
         stroke: zone.color,
         'stroke-width': '2',
+      }"
+    />
+
+    <path
+      v-for="(zone, i) in alertZones ?? []"
+      :key="`alert-${i}`"
+      :d="convertToSvgPath(zone.points.map((coord: [number, number]) => coord))"
+      class="alert"
+      :style="{
+        fill: `${zone.color}26`,
+        stroke: zone.color,
+        'stroke-width': '3',
       }"
     />
 
@@ -74,22 +97,71 @@
       <rect :x="lineSvg(line).labelBx - 8" :y="lineSvg(line).labelBy - 8" width="16" height="16" rx="3" :fill="line.color" />
       <text :x="lineSvg(line).labelBx" :y="lineSvg(line).labelBy" fill="#fff" font-size="10" font-weight="bold" text-anchor="middle" dominant-baseline="central">B</text>
     </template>
+
+    <template v-if="showLabels">
+      <g v-for="label in zoneLabels" :key="label.key">
+        <rect :x="label.x" :y="label.y" :width="label.width" :height="LABEL_HEIGHT" rx="3" :fill="label.color" />
+        <text :x="label.x + LABEL_PAD" :y="label.y + LABEL_HEIGHT / 2" fill="#fff" font-size="10" font-weight="bold" dominant-baseline="central">
+          {{ label.text }}
+        </text>
+      </g>
+    </template>
   </svg>
 </template>
 
 <script lang="ts" setup>
-import type { DetectionLine } from '@camera.ui/sdk';
+import type { AlertZone, DetectionLine, MotionZone, ObjectZone } from '@camera.ui/sdk';
+import type { CuiPolygonProps, ZoneKind } from './types.js';
 
-import type { CuiPolygonProps } from './types.js';
+interface ZoneLabel {
+  key: string;
+  text: string;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+}
 
 const props = defineProps<CuiPolygonProps>();
 
-const { cameraZones } = toRefs(props);
+const { t } = useI18n();
 
-const privacyOnly = computed(() => !props.cameraZones.length && !props.cameraLines?.length && Boolean(props.privacyZones?.length));
+const LABEL_HEIGHT = 16;
+const LABEL_PAD = 6;
+const LABEL_CHAR_WIDTH = 6;
+
+const { cameraZones } = toRefs(props);
 
 const zoneRef = useTemplateRef<SVGSVGElement>('zoneRef');
 const zoneElement = useElementSize(zoneRef);
+
+const privacyOnly = computed(
+  () => !props.cameraZones.length && !props.cameraLines?.length && !props.motionZones?.length && !props.alertZones?.length && Boolean(props.privacyZones?.length),
+);
+
+const zoneLabels = computed<ZoneLabel[]>(() => {
+  const w = zoneElement.width.value;
+  const h = zoneElement.height.value;
+  if (!w || !h) return [];
+
+  const labels: ZoneLabel[] = [];
+  const place = (kind: ZoneKind, zone: MotionZone | ObjectZone | AlertZone, index: number) => {
+    if (zone.points.length < 3) return;
+    const top = zone.points.reduce((best, point) => (point[1] < best[1] ? point : best), zone.points[0]);
+    const text = `${t(`components.polygon.kind_${kind}`)} · ${zone.name}`;
+    const width = text.length * LABEL_CHAR_WIDTH + LABEL_PAD * 2;
+    const px = (top[0] / 100) * w;
+    const py = (top[1] / 100) * h;
+    const x = Math.min(Math.max(px, 0), Math.max(w - width, 0));
+    const y = py >= LABEL_HEIGHT + 2 ? py - LABEL_HEIGHT - 2 : py + 2;
+    labels.push({ key: `${kind}-${index}`, text, color: zone.color, x, y, width });
+  };
+
+  props.motionZones?.forEach((zone, i) => place('motion', zone, i));
+  cameraZones.value.forEach((zone, i) => place('object', zone, i));
+  props.alertZones?.forEach((zone, i) => place('alert', zone, i));
+  return labels;
+});
 
 function convertToSvgPath(coords: [number, number][]): string {
   if (!coords) {
@@ -196,65 +268,14 @@ function lineSvg(line: DetectionLine) {
 .polygon-container {
   position: absolute;
 
-  .polygon {
-    stroke-width: 2;
-    cursor: pointer;
-
-    &.selected {
-      stroke-width: 2;
-    }
-
-    &.dash {
-      stroke-dasharray: 5, 5;
-    }
-  }
-
-  .polygon-exclude {
-    stroke-width: 2;
-    cursor: pointer;
-
-    &.selected {
-      stroke-width: 2;
-    }
-
-    &.dash {
-      stroke-dasharray: 5, 5;
-    }
-  }
-
-  .polygon-privacy {
-    stroke-width: 2;
-    cursor: pointer;
-
-    &.selected {
-      stroke-width: 2;
-    }
-
-    &.dash {
-      stroke-dasharray: 5, 5;
-    }
-  }
-
-  .polygon-privacy-exclude {
-    stroke-width: 2;
-    cursor: pointer;
-
-    &.selected {
-      stroke-width: 2;
-    }
-
-    &.dash {
-      stroke-dasharray: 5, 5;
-    }
-  }
-
   path {
-    &.selected {
-      stroke-width: 2;
-    }
-
     &.dash {
       stroke-dasharray: 5, 5;
+    }
+
+    &.alert {
+      stroke-dasharray: 2, 4;
+      stroke-linecap: round;
     }
   }
 }

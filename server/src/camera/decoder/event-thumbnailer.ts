@@ -25,7 +25,7 @@ interface EventThumbnailerDeps {
   decoder?: FrameWorkerDecoderSettings;
 }
 
-function resolveHqSourceUrl(sources?: CoordinatorSourceUrl[]): string | undefined {
+function resolveHqSource(sources?: CoordinatorSourceUrl[]): CoordinatorSourceUrl | undefined {
   if (!sources?.length) return undefined;
 
   const order: CoordinatorSourceUrl['role'][] = ['high-resolution', 'mid-resolution', 'low-resolution'];
@@ -34,25 +34,31 @@ function resolveHqSourceUrl(sources?: CoordinatorSourceUrl[]): string | undefine
   const hqRole = order.find((role) => byRole.has(role));
   if (!detectionRole || !hqRole || hqRole === detectionRole) return undefined;
 
-  return byRole.get(hqRole)!.url;
+  return byRole.get(hqRole);
 }
 
 export class EventThumbnailer {
   private hqSource?: BufferedSource;
+  private hqRole?: CoordinatorSourceUrl['role'];
   private upgradeInflight = false;
 
   constructor(
     private readonly deps: EventThumbnailerDeps,
     availableSources?: CoordinatorSourceUrl[],
   ) {
-    const hqUrl = resolveHqSourceUrl(availableSources);
-    if (hqUrl) {
-      this.hqSource = new BufferedSource({ url: hqUrl, decoder: deps.decoder, privacy: deps.privacy }, deps.logger);
+    const hq = resolveHqSource(availableSources);
+    if (hq) {
+      this.hqRole = hq.role;
+      this.hqSource = new BufferedSource({ url: hq.url, decoder: deps.decoder, privacy: deps.privacy }, deps.logger);
     }
   }
 
   public get hasMainStream(): boolean {
     return this.hqSource !== undefined;
+  }
+
+  public get mainStreamRole(): CoordinatorSourceUrl['role'] | undefined {
+    return this.hqRole;
   }
 
   public sync(wanted: boolean): void {
@@ -69,16 +75,16 @@ export class EventThumbnailer {
     await this.hqSource?.stop();
   }
 
-  public async acquireHqFrame(maxAgeMs = HQ_FRAME_MAX_AGE_MS): Promise<{ frame: Frame; scaler: FrameScaler } | null> {
+  public async acquireHqFrame(maxAgeMs = HQ_FRAME_MAX_AGE_MS): Promise<{ frame: Frame; scaler: FrameScaler; rtp?: number } | null> {
     const source = this.hqSource;
     if (!source?.isRunning || !source.hasBuffer) return null;
     const scaler = source.scaler;
     if (!scaler) return null;
 
-    const frame = await source.decodeNewest(maxAgeMs);
-    if (!frame) return null;
+    const decoded = await source.decodeNewest(maxAgeMs);
+    if (!decoded) return null;
 
-    return { frame, scaler };
+    return { frame: decoded.frame, scaler, rtp: decoded.rtp };
   }
 
   public async captureEventThumbnail(fallbackFrame: Frame): Promise<{ jpeg?: Buffer; fromHq: boolean }> {

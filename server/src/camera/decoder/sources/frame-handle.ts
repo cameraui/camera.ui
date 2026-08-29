@@ -9,10 +9,11 @@ export class FrameHandle implements AsyncDisposable {
     public readonly frame: Frame,
     private readonly demuxer?: Demuxer,
     private readonly decoder?: Decoder,
+    public readonly rtp?: number,
   ) {}
 
-  public static fromClonedFrame(frame: Frame): FrameHandle {
-    return new FrameHandle(frame);
+  public static fromClonedFrame(frame: Frame, rtp?: number): FrameHandle {
+    return new FrameHandle(frame, undefined, undefined, rtp);
   }
 
   public static async fromUrl(url: string, timeoutMs: number): Promise<FrameHandle> {

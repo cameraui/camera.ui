@@ -43,9 +43,24 @@
             severity="secondary"
             class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
             @click.stop="handleOpenEpisode"
+            @mouseenter="stopPreview"
           >
             <template #icon>
               <i-tabler:sparkles class="w-3 h-3 text-white" />
+            </template>
+          </Button>
+          <Button
+            v-if="camera && !selectionMode"
+            v-tooltip.left="{ value: $t('views.recordings.open_trace') }"
+            rounded
+            text
+            severity="secondary"
+            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            @click.stop="emit('openTrace')"
+            @mouseenter="stopPreview"
+          >
+            <template #icon>
+              <i-tabler:list-search class="w-3 h-3 text-white" />
             </template>
           </Button>
           <Button
@@ -57,6 +72,7 @@
             :loading="isDownloading"
             class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
             @click.stop="handleDownload"
+            @mouseenter="stopPreview"
           >
             <template #icon>
               <i-tabler:download class="w-3 h-3 text-white" />

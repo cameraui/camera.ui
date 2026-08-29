@@ -2,6 +2,7 @@ import { Decoder } from 'node-av/api';
 
 import { FrameHandle } from './frame-handle.js';
 import { ReconnectLoop } from './reconnect-loop.js';
+import { RtpIndex } from './rtp-index.js';
 import { SnapshotFetcher } from './snapshot-fetcher.js';
 import { createFrameFilter, openVideoInput } from './video-input.js';
 
@@ -49,6 +50,7 @@ export class FrameSource implements AnalysisSource {
 
   private readonly reconnect: ReconnectLoop;
   private readonly snapshots: SnapshotFetcher;
+  private readonly rtpIndex = new RtpIndex(64);
 
   constructor(
     private readonly config: FrameSourceConfig,
@@ -143,7 +145,7 @@ export class FrameSource implements AnalysisSource {
   public async getFrame(maxAgeMs: number): Promise<FrameHandle | null> {
     if (maxAgeMs > 0 && this.connected && this.latest && Date.now() - this.latestAt <= maxAgeMs) {
       const cloned = this.latest.frame.clone();
-      if (cloned) return FrameHandle.fromClonedFrame(cloned);
+      if (cloned) return FrameHandle.fromClonedFrame(cloned, this.latest.rtp);
     }
     return this.snapshots.fetch();
   }
@@ -225,10 +227,12 @@ export class FrameSource implements AnalysisSource {
         if (!this.shouldRun) break;
         if (!packet) continue;
 
+        this.rtpIndex.remember(packet);
         const decodeStart = Date.now();
         for await (const decoded of this.decoder.frames(packet)) {
           if (!decoded) continue;
 
+          const rtp = this.rtpIndex.lookup(decoded);
           const frame = await this.applyFilter(decoded);
           this.decodeMs += Date.now() - decodeStart;
           this.decodedFrames++;
@@ -239,7 +243,7 @@ export class FrameSource implements AnalysisSource {
           }
 
           this.dropLatest();
-          this.latest = { frame, id: this.nextId++ };
+          this.latest = { frame, id: this.nextId++, rtp };
           this.latestAt = Date.now();
           delivered = true;
 
@@ -294,6 +298,7 @@ export class FrameSource implements AnalysisSource {
 
   private async teardown(): Promise<void> {
     this.dropLatest();
+    this.rtpIndex.clear();
 
     if (this.filter) {
       this.filter[Symbol.dispose]();

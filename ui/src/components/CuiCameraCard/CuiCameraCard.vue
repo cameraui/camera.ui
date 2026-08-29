@@ -216,7 +216,14 @@
               <div class="absolute inset-0 z-3 pointer-events-none">
                 <CuiBBoxPlayground v-if="boundingBoxOverlay && !inStandby && !nvrPlaybackVisible && !isDisabled" ref="detectionCanvasRef" :classes="bboxClasses" />
 
-                <CuiPolygon v-if="zoneState && !inStandby && !isDisabled" :camera-zones :camera-lines />
+                <CuiPolygon
+                  v-if="zoneState && !inStandby && !isDisabled"
+                  :camera-zones
+                  :camera-lines
+                  :motion-zones="cameraMotionZones"
+                  :alert-zones="cameraAlertZones"
+                  show-labels
+                />
 
                 <CuiPolygon v-if="privacyOverlay && cameraPrivacyZones.length && !inStandby" :camera-zones="[]" :privacy-zones="cameraPrivacyZones" />
 
@@ -1098,6 +1105,8 @@ const hasMotionDetector = computed(() => cameraDevice.value?.hasMotionSensor.val
 const hasObjectDetector = computed(() => cameraDevice.value?.hasObjectSensor.value ?? false);
 
 const cameraZones = computed(() => cameraDevice.value?.camera.value?.zones?.object ?? []);
+const cameraMotionZones = computed(() => cameraDevice.value?.camera.value?.zones?.motion ?? []);
+const cameraAlertZones = computed(() => cameraDevice.value?.camera.value?.zones?.alert ?? []);
 const cameraLines = computed(() => cameraDevice.value?.camera.value?.zones?.lines ?? []);
 const cameraPrivacyZones = computed(() => cameraDevice.value?.camera.value?.zones?.privacy ?? []);
 

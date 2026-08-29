@@ -1,5 +1,6 @@
 import type { RPCClient } from '@camera.ui/rpc';
 import type { BoundingBox, DetectionEvent, DetectionEventType, EventAttribute, EventDetection, EventSegment, LoggerService } from '@camera.ui/sdk';
+import type { TraceTick } from './event-trace.js';
 
 export interface RecordedDetection extends EventDetection {
   box?: BoundingBox;
@@ -34,6 +35,7 @@ export interface EventAttachments {
   strip?: Uint8Array;
   card?: Uint8Array;
   attributes?: (Uint8Array | undefined)[];
+  trace?: TraceTick[];
 }
 
 export function leanEvent(event: RecordedEvent): DetectionEvent {

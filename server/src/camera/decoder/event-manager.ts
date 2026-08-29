@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { boxAnchorInPolygon, boxInsidePolygon, boxIntersectsPolygon } from '../utils/filter.js';
 import { detectionRecord } from './debug/detection-record.js';
+import { EventTraceCollector } from './event-trace.js';
 import { leanEvent, NvrSink } from './nvr-sink.js';
 import { MAX_UNTRACKED_PLATES, normalizePlateText, PlateVoteTracker } from './plate-vote.js';
 import { isFullFrameBox } from './types.js';
@@ -26,6 +27,7 @@ import type {
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { DetectionThumbnail } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
+import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
 import type { AnalysisStream } from './types.js';
 
@@ -42,9 +44,7 @@ export interface TrackedClipEmbedding extends ClipEmbedding, TrackedSecondary {}
 export interface NormalizedDetectionZone {
   name: string;
   points: Point[];
-  /** Alert zones bring their own rule; filter zones are always tested by touch. */
   match?: AlertZoneMatch;
-  /** Set on alert zones only, lowercase. Empty means every label alerts here. */
   alertLabels?: string[];
 }
 
@@ -90,6 +90,7 @@ export interface ProcessedDetectionData {
   segmentTimeout: number;
   expectedEndTime: number;
   detectionZones?: NormalizedDetectionZone[];
+  trace?: TraceTick;
 }
 
 const UPDATE_THROTTLE_MS = 1000;
@@ -162,8 +163,6 @@ export class DetectionEventManager {
 
   private activeEvent: RecordedEvent | null = null;
   private activeSegment: RecordedSegment | null = null;
-  // first/last box center per track within the current segment, so the NVR
-  // can reason about where a subject entered and left the frame
   private segmentTrackPaths = new Map<number, DetectionPath>();
   private segmentIndex = 0;
   private lastPublishTime = 0;
@@ -178,7 +177,6 @@ export class DetectionEventManager {
   private eventThumbnailAt = 0;
   private segmentClosePendingSince: number | null = null;
   private lingerTimer: NodeJS.Timeout | null = null;
-  private onSegmentClosedCallback?: () => void;
 
   private eventThumbnail: Buffer | null = null;
   private needsEventThumbnail = false;
@@ -193,7 +191,10 @@ export class DetectionEventManager {
 
   private readonly eventSubject: string;
   private readonly nvr: NvrSink;
+  private readonly trace = new EventTraceCollector();
+
   private onEventEndCallback?: () => void;
+  private onSegmentClosedCallback?: () => void;
 
   constructor(
     private readonly cameraId: string,
@@ -247,8 +248,11 @@ export class DetectionEventManager {
     if (!this.activeEvent) {
       if (triggers.length === 0) return;
       this.startEvent(triggers, data, now);
+      if (data.trace) this.trace.add(data.trace);
       return;
     }
+
+    if (data.trace) this.trace.add(data.trace);
 
     // publish immediately, the UI shouldn't wait for the next throttled update
     if (data.eventThumbnail && this.needsEventThumbnail) {
@@ -342,6 +346,7 @@ export class DetectionEventManager {
   }
 
   private startEvent(triggers: EventTrigger[], data: ProcessedDetectionData, now: number): void {
+    this.trace.reset();
     this.activeEvent = {
       id: randomUUID(),
       cameraId: this.cameraId,
@@ -392,7 +397,10 @@ export class DetectionEventManager {
     this.activeEvent.segments = [];
     this.eventThumbnail = null;
     this.needsEventThumbnail = false;
-    this.publish('end');
+
+    // ticks after the last segment closed (linger, motion without objects)
+    const trace = this.trace.take();
+    this.publish('end', trace ? { trace } : undefined);
 
     const duration = this.activeEvent.endTime - this.activeEvent.startTime;
     this.logger.log(`[event] end id=${this.activeEvent.id.slice(0, 8)} duration=${duration}ms segments=${this.segmentIndex} types=[${this.activeEvent.types.join(',')}]`);
@@ -1038,7 +1046,9 @@ export class DetectionEventManager {
     const moment = this.segmentMoment;
     if (moment) this.activeSegment.thumbnailAt = moment.capturedAt;
 
-    this.publish(type, this.segmentAttachments(type === 'segment-end'));
+    const attachments = this.segmentAttachments(type === 'segment-end');
+    if (type === 'segment-end') attachments.trace = this.trace.take();
+    this.publish(type, attachments);
   }
 
   private publishSegmentThrottled(type: 'segment-update'): void {

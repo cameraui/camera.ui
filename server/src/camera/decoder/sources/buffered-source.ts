@@ -3,6 +3,7 @@ import { Decoder } from 'node-av/api';
 import { FrameScaler } from '../frame-scaler.js';
 import { FrameHandle } from './frame-handle.js';
 import { ReconnectLoop } from './reconnect-loop.js';
+import { RtpIndex } from './rtp-index.js';
 import { SnapshotFetcher } from './snapshot-fetcher.js';
 import { createFrameFilter, openVideoInput } from './video-input.js';
 
@@ -20,6 +21,11 @@ export interface BufferedSourceConfig {
   decoder?: FrameWorkerDecoderSettings;
   privacy?: PrivacyMask;
   snapshot?: SnapshotConfig;
+}
+
+export interface DecodedFrame {
+  frame: Frame;
+  rtp?: number;
 }
 
 interface BufferedPacket {
@@ -46,6 +52,7 @@ export class BufferedSource implements AnalysisSource {
   private decodedThrough = -1;
 
   private cachedFrame?: Frame;
+  private cachedFrameRtp?: number;
   private cachedFrameAt = 0;
   private lastPacketAt = 0;
   private lastDecodeAt = 0;
@@ -63,6 +70,7 @@ export class BufferedSource implements AnalysisSource {
 
   private readonly reconnect: ReconnectLoop;
   private readonly snapshots?: SnapshotFetcher;
+  private readonly rtpIndex = new RtpIndex(2 * BufferedSource.MAX_BUFFER_PACKETS);
 
   constructor(
     private readonly config: BufferedSourceConfig,
@@ -150,16 +158,17 @@ export class BufferedSource implements AnalysisSource {
   }
 
   public async getFrame(maxAgeMs: number): Promise<FrameHandle | null> {
-    const frame = maxAgeMs > 0 ? await this.decodeNewest(maxAgeMs) : null;
-    if (frame) return FrameHandle.fromClonedFrame(frame);
+    const decoded = maxAgeMs > 0 ? await this.decodeNewest(maxAgeMs) : null;
+    if (decoded) return FrameHandle.fromClonedFrame(decoded.frame, decoded.rtp);
     return (await this.snapshots?.fetch()) ?? null;
   }
 
-  public async decodeNewest(maxAgeMs: number): Promise<Frame | null> {
+  public async decodeNewest(maxAgeMs: number): Promise<DecodedFrame | null> {
     if (!this.hasBuffer || !this.videoStream) return null;
 
     if (this.cachedFrame && Date.now() - this.cachedFrameAt <= maxAgeMs) {
-      return this.cachedFrame.clone();
+      const frame = this.cachedFrame.clone();
+      return frame ? { frame, rtp: this.cachedFrameRtp } : null;
     }
 
     this.inflightDecode ??= this.catchUpDecode()
@@ -171,20 +180,20 @@ export class BufferedSource implements AnalysisSource {
         this.inflightDecode = undefined;
       });
 
-    const frame = await this.inflightDecode;
-    return frame?.clone() ?? null;
+    const frame = (await this.inflightDecode)?.clone();
+    return frame ? { frame, rtp: this.cachedFrameRtp } : null;
   }
 
   public async nextFrame(lastId: number): Promise<FrameSnap | undefined> {
     while (this.shouldRun && !this.paused) {
       if (this.hasBuffer && this.nextSerial - 1 > lastId) {
-        const frame = await this.decodeNewest(0);
+        const decoded = await this.decodeNewest(0);
         // decoder delay can leave the cursor behind the newest packet, waiting
         // for the next one beats handing back a frame the caller already had
-        if (frame && this.decodedThrough > lastId) {
-          return { frame, id: this.decodedThrough };
+        if (decoded && this.decodedThrough > lastId) {
+          return { frame: decoded.frame, id: this.decodedThrough, rtp: decoded.rtp };
         }
-        frame?.[Symbol.dispose]?.();
+        decoded?.frame[Symbol.dispose]?.();
       }
       await this.waitForPacket();
     }
@@ -229,13 +238,13 @@ export class BufferedSource implements AnalysisSource {
   }
 
   public async snapshotJpeg(maxWidth: number, quality?: number, maxAgeMs = 500): Promise<Buffer | null> {
-    const frame = await this.decodeNewest(maxAgeMs);
-    if (!frame) return null;
+    const decoded = await this.decodeNewest(maxAgeMs);
+    if (!decoded) return null;
 
     try {
-      return (await this.frameScaler?.frameToJPEG(frame, maxWidth, quality)) ?? null;
+      return (await this.frameScaler?.frameToJPEG(decoded.frame, maxWidth, quality)) ?? null;
     } finally {
-      frame[Symbol.dispose]?.();
+      decoded.frame[Symbol.dispose]?.();
     }
   }
 
@@ -295,6 +304,7 @@ export class BufferedSource implements AnalysisSource {
 
   private ingest(packet: Packet): void {
     this.lastPacketAt = Date.now();
+    this.rtpIndex.remember(packet);
     if (packet.isKeyframe) {
       this.clearBuffer();
       this.waitingForKeyframe = false;
@@ -364,6 +374,7 @@ export class BufferedSource implements AnalysisSource {
     }
 
     let last: Frame | undefined;
+    let lastRtp: number | undefined;
     try {
       this.decoder ??= await Decoder.create(this.videoStream, {
         hardware: this.hwContext ?? undefined,
@@ -376,6 +387,7 @@ export class BufferedSource implements AnalysisSource {
         while ((frame = await this.decoder.receive())) {
           last?.[Symbol.dispose]?.();
           last = frame;
+          lastRtp = this.rtpIndex.lookup(frame);
           this.decodedFrames++;
         }
         this.decodedThrough = p.serial;
@@ -391,6 +403,7 @@ export class BufferedSource implements AnalysisSource {
       // ownership moves into the cache, consumers receive clones via getFrame
       this.cachedFrame?.[Symbol.dispose]?.();
       this.cachedFrame = last;
+      this.cachedFrameRtp = lastRtp;
       this.cachedFrameAt = this.lastPacketAt || Date.now();
       this.lastDecodeAt = Date.now();
       const result = last;
@@ -452,8 +465,10 @@ export class BufferedSource implements AnalysisSource {
 
     this.cachedFrame?.[Symbol.dispose]?.();
     this.cachedFrame = undefined;
+    this.cachedFrameRtp = undefined;
     this.cachedFrameAt = 0;
     this.lastPacketAt = 0;
+    this.rtpIndex.clear();
 
     if (this.input) {
       try {

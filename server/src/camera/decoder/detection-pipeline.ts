@@ -1,6 +1,7 @@
 import { CameraWorld, merge as rustMerge, nms as rustNms, nmsIndices as rustNmsIndices } from '@camera.ui/rust-postprocessor';
 
 import { detectionRecord } from './debug/detection-record.js';
+import { worldTrace } from './event-trace.js';
 
 import type {
   Detection as RustDetection,
@@ -22,6 +23,7 @@ import type {
   TrackedDetection,
   ZoneLabel,
 } from '@camera.ui/sdk';
+import type { TraceTick } from './event-trace.js';
 
 const NMS_IOU_THRESHOLD = 0.45;
 const NMS_CONFIDENCE_THRESHOLD = 0.25;
@@ -44,10 +46,6 @@ export interface LineCrossingEvent {
   box: [number, number, number, number];
 }
 
-function round(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
-
 export interface PipelineResult {
   tracked: TrackedDetection[];
   staticTracks: TrackedDetection[];
@@ -55,6 +53,7 @@ export interface PipelineResult {
   created: number[];
   removed: number[];
   events: WorldEvent[];
+  trace: TraceTick;
 }
 
 function toRustDetection(det: Detection): RustDetection {
@@ -230,31 +229,13 @@ export class DetectionPipeline {
     this.world.notifyCameraMove();
   }
 
-  public process(rawDetections: Detection[], poseDelta?: { panDelta: number; tiltDelta: number }): PipelineResult {
+  public process(rawDetections: Detection[], poseDelta?: { panDelta: number; tiltDelta: number }, tMs = Date.now()): PipelineResult {
     // the label whitelist is ours, not rust's: a zone only constrains the
     // labels it lists, so a label no zone lists would otherwise pass anywhere
     const allowed = this.allowedByWhitelist(rawDetections);
     const flat = allowed.length === 0 ? [] : this.runNmsAndMergeFlat(allowed);
     const cameraMotion = poseDelta ? { x: -poseDelta.panDelta * PAN_TO_IMAGE_RATIO, y: poseDelta.tiltDelta * PAN_TO_IMAGE_RATIO } : undefined;
-    const tMs = Date.now();
     const result = this.world.ingest(tMs, flat, cameraMotion);
-    // debugging
-    if (detectionRecord.active) {
-      detectionRecord.tick({
-        tMs,
-        detections: flat,
-        cameraMotion,
-        world: result.tracked.map((t) => ({
-          id: t.trackId,
-          label: t.label,
-          conf: round(t.confidence),
-          state: t.state,
-          speed: round(t.speed),
-          box: [round(t.x), round(t.y), round(t.width), round(t.height)],
-        })),
-        events: result.events.map((e) => ({ kind: e.eventType, id: e.object.trackId, label: e.object.label, state: e.object.state })),
-      });
-    }
     const tracked = (this.suppressStatic ? result.tracked.filter((t) => t.state !== 'stationary') : result.tracked).map(fromWorldObject);
     const staticTracks = this.suppressStatic ? result.tracked.filter((t) => t.state === 'stationary').map(fromWorldObject) : [];
     const boxLookup = new Map<number, BoundingBox>();
@@ -269,6 +250,7 @@ export class DetectionPipeline {
       created: result.created,
       removed: result.removed,
       events: result.events,
+      trace: worldTrace(tMs, flat, cameraMotion, result),
     };
   }
 

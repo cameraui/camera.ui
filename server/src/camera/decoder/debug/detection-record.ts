@@ -66,6 +66,8 @@ class DetectionRecorder {
   private source: AnalysisStream = 'low';
   private frameWidth = 0;
   private frameHeight = 0;
+  private frameRtp?: number;
+  private frameRole?: string;
 
   constructor() {
     const dir = recordDir();
@@ -80,10 +82,12 @@ class DetectionRecorder {
     this.line({ camera: { id: cameraId, name: cameraName, slug: name, startedAt: Date.now() } });
   }
 
-  public setFrame(source: AnalysisStream, width: number, height: number): void {
+  public setFrame(source: AnalysisStream, width: number, height: number, rtp?: number, role?: string): void {
     this.source = source;
     this.frameWidth = width;
     this.frameHeight = height;
+    this.frameRtp = rtp;
+    this.frameRole = role;
   }
 
   public get frameStream(): AnalysisStream {
@@ -99,7 +103,7 @@ class DetectionRecorder {
   }
 
   public tick(entry: Record<string, unknown>): void {
-    this.line({ tick: { ...entry, stream: this.source, frame: [this.frameWidth, this.frameHeight] } });
+    this.line({ tick: { ...entry, stream: this.source, frame: [this.frameWidth, this.frameHeight], rtp: this.frameRtp, src: this.frameRole } });
   }
 
   public perf(perf: Record<string, unknown>): void {

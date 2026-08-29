@@ -469,6 +469,7 @@ export class FrameWorker extends Subscribed {
         audioStreamUrl: audioSource,
         controllerSnapshotSourceId: this.getControllerSnapshotSourceId(),
         availableSources,
+        streamRole: this.analysisSource.role as StreamingRole,
         zones: this.camera.zones,
         detectionSettings: this.camera.detectionSettings,
         ptzAutotrack: this.camera.ptzAutotrack,

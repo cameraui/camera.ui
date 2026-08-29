@@ -5,6 +5,7 @@ import type { FrameHandle } from './frame-handle.js';
 export interface FrameSnap {
   frame: Frame;
   id: number;
+  rtp?: number;
 }
 
 export interface AnalysisSource {

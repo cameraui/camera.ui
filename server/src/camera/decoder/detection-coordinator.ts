@@ -14,6 +14,7 @@ import { clusterBoxes, DetectionWindow, mergeWindowDetections, MOTION_PAD, planW
 import { DwellManager } from './dwell-manager.js';
 import { DetectionEventManager, MOMENT_RANK_ATTRIBUTE, MOMENT_RANK_OBJECT } from './event-manager.js';
 import { EventThumbnailer } from './event-thumbnailer.js';
+import { externalTrace, motionTrace, traceAttributes } from './event-trace.js';
 import { FrameScaler } from './frame-scaler.js';
 import { hardwareDecodingAvailable } from './hardware.js';
 import { directionBetween, directionOf, MOMENT_FORMATS, MOMENT_QUALITY, momentWindow, unionBox } from './moment-crop.js';
@@ -60,10 +61,11 @@ import type { CameraDeviceInterface } from '../../rpc/interfaces/device.js';
 import type { SensorWriteMessage } from '../../rpc/interfaces/sensor.js';
 import type { LineCrossingEvent, PipelineResult, ZoneConfig } from './detection-pipeline.js';
 import type { NormalizedDetectionZone, ProcessedDetectionData, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
+import type { TraceTick } from './event-trace.js';
 import type { LetterboxGeometry } from './frame-scaler.js';
 import type { CropWindow, MomentFormatName, MomentTarget } from './moment-crop.js';
 import type { AnyModelSpec, RegisteredPlugin } from './plugin-registry.js';
-import type { AnalysisSource } from './sources/analysis-source.js';
+import type { AnalysisSource, FrameSnap } from './sources/analysis-source.js';
 import type { SnapshotConfig } from './sources/snapshot-fetcher.js';
 import type { CoordinatorSourceUrl, DetectorInfo, FrameWorkerPerfSnapshot, ObjectBenchmarkResult } from './types.js';
 
@@ -74,6 +76,7 @@ export interface DetectionCoordinatorConfig {
   audioStreamUrl: string;
   controllerSnapshotSourceId?: string;
   availableSources?: CoordinatorSourceUrl[];
+  streamRole?: CoordinatorSourceUrl['role'];
   zones: CameraZones;
   detectionSettings: CameraDetectionSettings;
   ptzAutotrack: PtzAutotrackSettings;
@@ -93,6 +96,8 @@ interface AnalysisFrame {
   frame: Frame;
   scaler: FrameScaler;
   isMainStream: boolean;
+  rtp?: number;
+  role?: CoordinatorSourceUrl['role'];
 }
 
 interface AttributeMomentCandidate {
@@ -115,8 +120,6 @@ const MOMENT_ATTRIBUTE_MIN_AREA = 600;
 const DEFAULT_CASCADE_TIMEOUT = 10;
 const OBJECT_DWELL_SECONDS = 2;
 const SECONDARY_BBOX_TTL_MS = 2000;
-// generous vs. the cascade window (default 10s): fresh motion re-arms the
-// cascade and lets the tracker close its spans properly well before this
 const WORLD_TICK_STARVATION_MS = 60_000;
 const CADENCE_MIN_SAMPLES = 5;
 const CADENCE_OUTLIER_BAND = 2.5;
@@ -548,10 +551,20 @@ export class DetectionCoordinator {
       if (this.ptzAutotracker.suppressionActive) return;
 
       detectionRecord.tick({
-        externalObject: { detected: filtered.detected === true, count: ((filtered.detections as Detection[] | undefined) ?? []).length },
+        externalObject: { detected: filtered.detected === true, count: externalDetections.length },
       });
       this.ingestDetectionResult(SensorType.Object, sensorId, filtered);
-      this.eventManager.processResults(this.buildSnapshot());
+
+      const hasAnchors = this.anchorBoxes.length > 0 || this.farewellBoxes.length > 0;
+      const wantsFrame =
+        filtered.detected === true &&
+        (this.plugins.hasFrameBasedSecondary() || this.plugins.hasEligibleObjectAssist() || hasAnchors) &&
+        !this.processingExternalSecondary;
+
+      const reportSnapshot = this.buildSnapshot();
+      // without a frame to look at, the camera's report is the whole tick
+      if (!wantsFrame) reportSnapshot.trace = externalTrace(reportSnapshot.timestamp, externalDetections, undefined);
+      this.eventManager.processResults(reportSnapshot);
 
       // re-shoot the event thumbnail: smart-camera reports arrive after the
       // motion-start shot, often before the subject fully entered the frame
@@ -559,17 +572,7 @@ export class DetectionCoordinator {
         this.thumbnailer.fetchEventThumbnailAsync();
       }
 
-      // the camera reported the end (or zones dropped everything): nothing to
-      // localize or crop, and an assist hit on leftover scene objects (a
-      // parked car) would resurrect the span the camera just closed
-      if (filtered.detected !== true) return;
-
-      // assist alone is enough: its boxes upgrade zones, bboxes and thumbnails
-      // even when no face/plate/clip secondary consumes them; without either,
-      // the embedded diff's anchors can still localize a moment crop
-      const hasAnchors = this.anchorBoxes.length > 0 || this.farewellBoxes.length > 0;
-      if (!this.plugins.hasFrameBasedSecondary() && !this.plugins.hasEligibleObjectAssist() && !hasAnchors) return;
-      if (this.processingExternalSecondary) return; // previous RPC still running
+      if (!wantsFrame) return;
 
       this.processingExternalSecondary = true;
       try {
@@ -581,7 +584,7 @@ export class DetectionCoordinator {
           const results: DetectionResults = { timestamp: Date.now() };
           // anchors may have switched analysis to the main stream: the assist
           // windows and secondary crops should see those native pixels
-          const analysis = await this.acquireAnalysisFrame(handle.frame);
+          const analysis = await this.acquireAnalysisFrame({ frame: handle.frame, rtp: handle.rtp });
           try {
             const objects = await this.runObjectAssist(analysis.frame, rawExternal, analysis.scaler);
             this.ingestAssistedObjects(sensorId, objects);
@@ -591,11 +594,13 @@ export class DetectionCoordinator {
               // plate secondaries run on the subject instead of the whole scene
               // (processExternal only adapts the shape, external boxes get no real tracking)
               const objectDetections = this.pipeline.processExternal(objects.detections);
+              const trace = externalTrace(results.timestamp, rawExternal, objectDetections);
               detectionRecord.tick({ assistProcessed: { count: objectDetections.length, bufferedObjects: this.currentDetectionState.object?.detections?.length ?? 0 } });
               await this.runSecondariesAndThumbnails(analysis, objectDetections, results);
               await this.captureExternalMoment(objectDetections, analysis, results.timestamp);
               this.ingestResultsForAllSecondaries(results);
               const snapshot = this.buildSnapshot();
+              snapshot.trace = this.finishTrace(trace, analysis, results);
               detectionRecord.tick({ assistSnapshot: { objects: snapshot.objects.length } });
               if (results.thumbnails && results.thumbnails.length > 0) {
                 snapshot.thumbnails = results.thumbnails;
@@ -616,6 +621,7 @@ export class DetectionCoordinator {
               }
               this.ingestResultsForAllSecondaries(results);
               const snapshot = this.buildSnapshot();
+              snapshot.trace = this.finishTrace(externalTrace(results.timestamp, rawExternal, undefined), analysis, results);
               if (results.thumbnails && results.thumbnails.length > 0) {
                 snapshot.thumbnails = results.thumbnails;
               }
@@ -644,7 +650,11 @@ export class DetectionCoordinator {
 
       const filtered = this.applyExternalDetectionFilters(sensorType, properties);
       this.ingestDetectionResult(SensorType.Motion, sensorId, filtered);
-      this.eventManager.processResults(this.buildSnapshot());
+      const snapshot = this.buildSnapshot();
+      // some cameras report where it moved, that is a tick worth keeping
+      const boxes = ((filtered.detections as Detection[] | undefined) ?? []).filter((d) => d.box);
+      if (boxes.length > 0) snapshot.trace = motionTrace(snapshot.timestamp, boxes);
+      this.eventManager.processResults(snapshot);
       this.thumbnailer.fetchEventThumbnailAsync();
       return;
     }
@@ -1295,9 +1305,9 @@ export class DetectionCoordinator {
 
         // motion always reads the low stream: switching its input resolution
         // would reset the background model on every transition
-        const analysis = await this.acquireAnalysisFrame(snap.frame);
+        const analysis = await this.acquireAnalysisFrame(snap);
         // debugging
-        detectionRecord.setFrame(analysis.isMainStream ? 'main' : 'low', analysis.frame.width, analysis.frame.height);
+        detectionRecord.setFrame(analysis.isMainStream ? 'main' : 'low', analysis.frame.width, analysis.frame.height, analysis.rtp, analysis.role);
         try {
           await this.processRawFrame(analysis, snap.frame);
         } finally {
@@ -1343,7 +1353,7 @@ export class DetectionCoordinator {
     this.logger.debug('Detection loop ended');
   }
 
-  private async acquireAnalysisFrame(lowFrame: Frame): Promise<AnalysisFrame> {
+  private async acquireAnalysisFrame(snap: Pick<FrameSnap, 'frame' | 'rtp'>): Promise<AnalysisFrame> {
     if (this.mainStreamActive) {
       const t0 = Date.now();
       try {
@@ -1351,14 +1361,14 @@ export class DetectionCoordinator {
         if (main) {
           this.perf.mainFrames++;
           this.perf.mainDecodeMs += Date.now() - t0;
-          return { frame: main.frame, scaler: main.scaler, isMainStream: true };
+          return { frame: main.frame, scaler: main.scaler, isMainStream: true, rtp: main.rtp, role: this.thumbnailer.mainStreamRole };
         }
       } catch (error) {
         this.logger.debug('Main stream frame unavailable:', error);
       }
     }
 
-    return { frame: lowFrame, scaler: this.frameScaler, isMainStream: false };
+    return { frame: snap.frame, scaler: this.frameScaler, isMainStream: false, rtp: snap.rtp, role: this.config.streamRole };
   }
 
   private async acquireOpeningHqFrame(): Promise<AnalysisFrame | undefined> {
@@ -1369,7 +1379,7 @@ export class DetectionCoordinator {
       if (main) {
         this.perf.mainFrames++;
         this.perf.mainDecodeMs += Date.now() - t0;
-        return { frame: main.frame, scaler: main.scaler, isMainStream: true };
+        return { frame: main.frame, scaler: main.scaler, isMainStream: true, rtp: main.rtp, role: this.thumbnailer.mainStreamRole };
       }
     } catch (error) {
       this.logger.debug('HQ frame unavailable for the opening tick:', error);
@@ -1400,6 +1410,15 @@ export class DetectionCoordinator {
     }
   }
 
+  private finishTrace(trace: TraceTick, analysis: AnalysisFrame, results: DetectionResults): TraceTick {
+    trace.rtp = analysis.rtp;
+    trace.src = analysis.role?.replace('-resolution', '');
+    trace.attrs = traceAttributes(results);
+    // debugging
+    detectionRecord.tick({ ...trace });
+    return trace;
+  }
+
   private async processRawFrame(analysis: AnalysisFrame, motionRawFrame: Frame): Promise<void> {
     if (!this.loopRunning || !this.plugins.hasAny()) return;
 
@@ -1416,6 +1435,7 @@ export class DetectionCoordinator {
     let objectDetections: Detection[] = [];
     let staticDetections: TrackedDetection[] = [];
     const results: DetectionResults = { timestamp: t0 };
+    let trace: TraceTick | undefined;
 
     // while the PTZ repositions: motion and object keep running so the
     // background model and track ids survive the pan, but nothing below
@@ -1450,6 +1470,7 @@ export class DetectionCoordinator {
             const filtered = this.pipeline.runMergeAndZoneFilter(ensureDetectionBoxes(result.detections));
             motionDetected = filtered.length > 0;
             results.motion = { ...result, detections: filtered };
+            trace = motionTrace(t0, filtered);
           } else {
             // record empty so the UI clears stale bboxes
             results.motion = { detected: false, detections: [] };
@@ -1499,8 +1520,9 @@ export class DetectionCoordinator {
           // Kalman state; the pose delta keeps predictions stable across pans
           const poseDelta = this.ptzAutotracker.consumePoseDelta();
           const postStart = Date.now();
-          const pipelineResult = this.pipeline.process(detected, poseDelta);
+          const pipelineResult = this.pipeline.process(detected, poseDelta, t0);
           this.perf.postMs += Date.now() - postStart;
+          trace = { ...pipelineResult.trace, motion: trace?.motion };
           this.lastWorldTickAt = t0;
           // the tick that opens a span analysed the low stream (the switch lands
           // next tick), its picture work is worth a one-off HQ decode
@@ -1573,6 +1595,7 @@ export class DetectionCoordinator {
       if (objectPlugin && objectDetections.length > 0 && this.dwell.isActive(objectPlugin.sensorId)) {
         this.dwell.refresh(objectPlugin.sensorId, OBJECT_DWELL_SECONDS);
       }
+      if (trace) this.finishTrace(trace, analysis, results);
       return;
     }
 
@@ -1612,6 +1635,7 @@ export class DetectionCoordinator {
     if (results.thumbnails && results.thumbnails.length > 0) {
       snapshot.thumbnails = results.thumbnails;
     }
+    if (trace) snapshot.trace = this.finishTrace(trace, analysis, results);
 
     // pre-encode the event thumbnail when this frame starts an event, so the
     // start message carries it inline; attaching is harmless otherwise
