@@ -1,5 +1,5 @@
 const MAX_RECONNECT_COUNT = 10;
-const RECONNECT_DELAY_MS = 10_000;
+const RECONNECT_DELAY_MS = 3_000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
 
 export class ReconnectBackoff {

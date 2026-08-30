@@ -240,7 +240,7 @@ export const sourcePrefixes = [
   'wyze://',
 ] as const;
 
-export const rtspPresets = ['#backchannel=', '#header=', '#media=audio', '#media=video', '#timeout=10', '#timeout=20', '#timeout=30', '#transport='] as const;
+export const rtspPresets = ['#backchannel=', '#header=', '#media=audio', '#media=video', '#transport='] as const;
 
 export const ffmpegPresets = [
   '#audio=aac',

@@ -1,11 +1,19 @@
-import { GOP_REGEX } from '../api/utils/regex.js';
+import { GOP_REGEX, SOURCE_HANDSHAKE_TIMEOUT_REGEX, SOURCE_TIMEOUT_REGEX } from '../api/utils/regex.js';
 
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
 
 const NO_AUDIO_FLAG = '#noAudio';
 const NO_BACKCHANNEL_FLAG = '#noBackchannel';
 
-export function applySourceUrlFlags(url: string, source: { preload: boolean; muted?: boolean; backchannelDisabled?: boolean }): string {
+export interface SourceUrlFlags {
+  preload: boolean;
+  muted?: boolean;
+  backchannelDisabled?: boolean;
+  timeout?: number;
+  handshakeTimeout?: number;
+}
+
+export function applySourceUrlFlags(url: string, source: SourceUrlFlags): string {
   if (source.preload && !GOP_REGEX.test(url)) {
     url += '#gop=1';
   } else if (!source.preload && GOP_REGEX.test(url)) {
@@ -24,7 +32,18 @@ export function applySourceUrlFlags(url: string, source: { preload: boolean; mut
     url = url.replace(NO_BACKCHANNEL_FLAG, '');
   }
 
+  url = applyNumberFlag(url, SOURCE_TIMEOUT_REGEX, 'timeout', source.timeout);
+  url = applyNumberFlag(url, SOURCE_HANDSHAKE_TIMEOUT_REGEX, 'handshake_timeout', source.handshakeTimeout);
+
   return url;
+}
+
+function applyNumberFlag(url: string, regex: RegExp, name: string, value: number | undefined): string {
+  const flag = value && value > 0 ? `#${name}=${Math.round(value)}` : '';
+  if (regex.test(url)) {
+    return url.replace(regex, flag);
+  }
+  return url + flag;
 }
 
 export function buildTargetUrl(rtspUrl: string, options: RTSPUrlOptions): string {

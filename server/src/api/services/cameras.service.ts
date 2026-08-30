@@ -39,6 +39,15 @@ const cameraSourceProbeCache = new TTLCache<string, Go2RTCProbe>({ max: 100, ttl
 
 const DEFAULT_EXTENSION_PLUGINS = ['@camera.ui/camera-ui-nvr'];
 
+const pluginSourceTimeoutSeconds = 60;
+
+function withSourceTransportDefaults<T extends { urls: string[]; timeout?: number }>(source: T): T {
+  if (source.timeout || !source.urls.some((url) => url.startsWith('cui://'))) {
+    return source;
+  }
+  return { ...source, timeout: pluginSourceTimeoutSeconds };
+}
+
 @registry([
   {
     token: 'dbs',
@@ -102,6 +111,8 @@ export class CamerasService {
         }
       }
     }
+
+    cameraData.sources = cameraData.sources.map(withSourceTransportDefaults);
 
     await this.addCameraSourcesToConfig(cameraData._id, cameraData.name, cameraData.sources);
 
@@ -289,7 +300,7 @@ export class CamerasService {
           return (mergeTarget as CameraInputSettings[]).map((srcItem) => {
             const objItem: CameraInputSettings | undefined = source.find((o: any) => o.name === srcItem.name);
             const sourceId = objItem?._id ?? srcItem._id;
-            return objItem ? { ...objItem, ...srcItem, _id: sourceId, name: objItem.name } : srcItem;
+            return withSourceTransportDefaults(objItem ? { ...objItem, ...srcItem, _id: sourceId, name: objItem.name } : srcItem);
           });
         }
 
@@ -708,6 +719,8 @@ export class CamerasService {
         preload: source.preload,
         muted: source.muted,
         backchannelDisabled: source.backchannelDisabled,
+        timeout: source.timeout,
+        handshakeTimeout: source.handshakeTimeout,
         ...getSourceCodecInfo(source._id),
         childSourceId: source.childSourceId,
         urls: {
