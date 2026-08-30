@@ -29,7 +29,7 @@
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "5.9.3",
     "updates": "^18.0.7"
   },
