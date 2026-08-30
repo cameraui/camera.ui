@@ -1047,7 +1047,9 @@ export class DetectionEventManager {
     if (moment) this.activeSegment.thumbnailAt = moment.capturedAt;
 
     const attachments = this.segmentAttachments(type === 'segment-end');
-    if (type === 'segment-end') attachments.trace = this.trace.take();
+    // ticks ride every segment message: they reach the store while the
+    // segment runs, and a crash costs a second of trace, not the segment
+    if (type !== 'segment-start') attachments.trace = this.trace.take();
     this.publish(type, attachments);
   }
 
