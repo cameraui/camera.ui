@@ -38,6 +38,32 @@ export function applySourceUrlFlags(url: string, source: SourceUrlFlags): string
   return url;
 }
 
+export interface GeneratedSource extends SourceUrlFlags {
+  name: string;
+  role: string;
+  urls: string[];
+}
+
+export function generatedSourceUrls(cameraId: string, port: number, source: GeneratedSource): string[] {
+  return source.urls.map((url) => {
+    if (url.startsWith('cui://')) {
+      url = `cui://127.0.0.1:${port}/api/cameras/streams/${cameraId}/${source.name}`;
+    }
+    return applySourceUrlFlags(url, source);
+  });
+}
+
+export function go2rtcStreamUrls(sourceName: string, source: GeneratedSource, urls: string[]): string[] {
+  const companion = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
+  const isCompanion = (url: string): boolean => url.startsWith('ffmpeg:') && url.includes('#cameraui');
+
+  const own = urls.filter((url) => !isCompanion(url));
+  if (source.muted || source.role === 'snapshot') {
+    return own;
+  }
+  return [...own, companion];
+}
+
 function applyNumberFlag(url: string, regex: RegExp, name: string, value: number | undefined): string {
   const flag = value && value > 0 ? `#${name}=${Math.round(value)}` : '';
   if (regex.test(url)) {

@@ -6,12 +6,11 @@ import { unlink } from 'node:fs/promises';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
-import { applySourceUrlFlags, createSourceName } from '../../utils/camera.js';
+import { createSourceName, generatedSourceUrls, go2rtcStreamUrls } from '../../utils/camera.js';
 import { createAutomationSchema } from '../schemas/automations.schema.js';
 import { createCameraBaseSchema } from '../schemas/cameras.schema.js';
 import { notificationSettingsSchema } from '../schemas/notifications.schema.js';
 import { createShareSchema } from '../schemas/shares.schema.js';
-import { REGEX_ESCAPE } from '../utils/regex.js';
 import { backfillDefaults, backfillSingletonDefaults } from './backfill.js';
 import {
   AUTOMATION_STATE_ID,
@@ -248,34 +247,8 @@ export class Database {
         const sourceName = createSourceName(camera.name, source.name);
         validSourceNames.add(sourceName);
 
-        source.urls = source.urls.map((url) => {
-          if (url.startsWith('cui://')) {
-            url = `cui://127.0.0.1:${port}/api/cameras/streams/${camera._id}/${source.name}`;
-          }
-          return applySourceUrlFlags(url, source);
-        });
-
-        const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
-
-        const existing = streams[sourceName];
-        if (!existing) {
-          streams[sourceName] = source.muted ? [...source.urls] : [...source.urls, ffmpegUrl];
-        } else if (source.role !== 'snapshot') {
-          const go2rtcUrls = Array.isArray(existing) ? existing : [existing];
-          const escaped = sourceName.replace(REGEX_ESCAPE, '\\$&');
-          const ourPattern = new RegExp(`^ffmpeg:${escaped}(#cameraui)?#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio$`);
-          const idx = go2rtcUrls.findIndex((u) => ourPattern.test(u));
-          if (source.muted) {
-            if (idx !== -1) {
-              go2rtcUrls.splice(idx, 1);
-            }
-          } else if (idx !== -1) {
-            go2rtcUrls[idx] = ffmpegUrl;
-          } else {
-            go2rtcUrls.push(ffmpegUrl);
-          }
-          streams[sourceName] = go2rtcUrls;
-        }
+        source.urls = generatedSourceUrls(camera._id, port, source);
+        streams[sourceName] = go2rtcStreamUrls(sourceName, source, source.urls);
 
         // a disabled camera must not be preloaded by go2rtc at its own startup
         if (source.hotMode && !camera.disabled) {

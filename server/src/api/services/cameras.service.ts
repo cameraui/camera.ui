@@ -6,7 +6,7 @@ import { container, delay, registry } from 'tsyringe';
 import { clearSourceCodecInfos, deleteSourceCodecInfo, getSourceCodecInfo } from '../../camera/codecCache.js';
 import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
 import { ConfigService } from '../../services/config/index.js';
-import { applySourceUrlFlags, createSourceName, normalizeCameraName } from '../../utils/camera.js';
+import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, normalizeCameraName } from '../../utils/camera.js';
 import { Database } from '../database/index.js';
 import { FloorPlanService } from './floorplan.service.js';
 import { PluginsService } from './plugins.service.js';
@@ -787,26 +787,10 @@ export class CamerasService {
 
   private async addCameraSourcesToConfig(cameraId: string, cameraname: string, sources: CameraInputSettings[]): Promise<void> {
     for (const source of sources) {
-      source.urls = source.urls.map((url) => {
-        if (url.startsWith('cui://')) {
-          url = `cui://127.0.0.1:${this.configService.config.port}/api/cameras/streams/${cameraId}/${source.name}`;
-        }
-        return applySourceUrlFlags(url, source);
-      });
+      source.urls = generatedSourceUrls(cameraId, this.configService.config.port, source);
 
       const sourceName = createSourceName(cameraname, source.name);
-      const ffmpegUrl = `ffmpeg:${sourceName}#cameraui#audio=pcma#audio=opus#audio=aac#noVideo#noBackchannel#requirePrevAudio`;
-      let baseUrls = [...source.urls];
-
-      const isCompanionUrl = (url: string): boolean => url.startsWith('ffmpeg:') && url.includes('#cameraui');
-      const hasFFmpegUrl = baseUrls.some(isCompanionUrl);
-      if (source.muted) {
-        baseUrls = baseUrls.filter((url) => !isCompanionUrl(url));
-      } else if (!hasFFmpegUrl && source.role !== 'snapshot') {
-        baseUrls.push(ffmpegUrl);
-      } else if (hasFFmpegUrl) {
-        baseUrls = baseUrls.map((url) => (isCompanionUrl(url) ? ffmpegUrl : url));
-      }
+      const baseUrls = go2rtcStreamUrls(sourceName, source, source.urls);
 
       const cameraSource: CreateStreamData = {
         name: sourceName,
