@@ -47,7 +47,7 @@ export function createConnection(options: ConnectionOptions): Connection {
       if (next === prev) journal.record('kernel', `${action.type} dropped`, `phase=${prev.kind}`);
     },
   });
-  const { http, socketio, nats, ws } = createTransports(apiPrefix);
+  const { http, socketio, nats, ws } = createTransports(apiPrefix, options.transportOptions);
 
   const phase = shallowRef<ConnectionPhase>(kernel.phase);
   const target = shallowRef<ConnectionTarget | null>(null);

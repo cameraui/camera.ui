@@ -38,7 +38,7 @@ export const camviewViewSizeSchema = zod.union([
 
 export const camviewViewTypeSchema = zod.union([zod.literal('dnd'), zod.literal('view')]);
 
-export const camviewCardFitSchema = zod.enum(['aspect', 'fill', 'cover']);
+export const camviewCardFitSchema = zod.enum(['aspect', 'contain', 'fill', 'cover']);
 
 export const userPreferencesCamviewViewsLayout = zod.object({
   _id: zod

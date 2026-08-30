@@ -31,6 +31,7 @@
             'overflow-visible': isZoomingIn,
             'overflow-hidden': !isZoomingIn,
             'resizable-mode': resizable,
+            'min-h-0': fillsCard,
           }"
           :style="[
             videoContainerStyle,
@@ -1082,9 +1083,24 @@ const coverStyle = computed(() => {
   return { width: `${w * scale}px`, height: `${h * scale}px`, maxWidth: 'none', maxHeight: 'none', flexShrink: 0 };
 });
 
+const containStyle = computed(() => {
+  if (!fillsCard.value || cardFit.value !== 'contain') return undefined;
+
+  const cw = playerContainer.width.value;
+  const ch = playerContainer.height.value;
+  const { w, h } = arParsed.value;
+  if (!cw || !ch) return undefined;
+
+  const scale = Math.min(cw / w, ch / h);
+  return { width: `${w * scale}px`, height: `${h * scale}px`, maxWidth: 'none', maxHeight: 'none', flexShrink: 0 };
+});
+
 const arStyle = computed(() => {
   if (coverStyle.value) {
     return coverStyle.value;
+  }
+  if (containStyle.value) {
+    return containStyle.value;
   }
   if (fillsCard.value) {
     return { width: '100%', height: '100%' };

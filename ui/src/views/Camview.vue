@@ -416,7 +416,7 @@ const timelineLocaleSettings = computed<CuiTimelineLocale>(() => {
 const cardFit = computed<DBCamviewCardFit>(() => cardFitOverride.value ?? currentView.value?.cardFit ?? 'aspect');
 
 const cardFitItems = computed<MenuItem[]>(() =>
-  (['aspect', 'fill', 'cover'] as const).map((fit) => ({
+  (['aspect', 'contain', 'fill', 'cover'] as const).map((fit) => ({
     label: t(`views.camview.card_fit_${fit}`),
     description: t(`views.camview.card_fit_${fit}_info`),
     active: cardFit.value === fit,

@@ -1,5 +1,6 @@
 import { isPublicFqdnUrl } from '@camera.ui/transport/transports/nativeHttp';
 
+import { fetchAuthHeaders } from '@/connection/fetchAuth.js';
 import { getConnection } from '@/connection/instance.js';
 import { isCapacitor } from '@/connection/runtime.js';
 
@@ -55,18 +56,6 @@ function buildAbsoluteUrl(url: string): string {
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-function buildAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  const tokens = getConnection().target.value?.tokens;
-  if (tokens?.access) {
-    headers.Authorization = `Bearer ${tokens.access}`;
-  }
-  if (tokens?.proxySession) {
-    headers['X-Proxy-Session'] = tokens.proxySession;
-  }
-  return headers;
-}
-
 async function resolveBlobForWeb(options: DownloadOptions): Promise<Blob> {
   if ('blob' in options) {
     return options.blob;
@@ -81,7 +70,7 @@ async function resolveBlobForWeb(options: DownloadOptions): Promise<Blob> {
   // the app's webview for LAN endpoints). Bare fetch with the auth headers
   // axios would attach keeps streaming chunked responses working.
   const response = await fetch(buildAbsoluteUrl(options.url), {
-    headers: buildAuthHeaders(),
+    headers: await fetchAuthHeaders(),
     credentials: 'include',
   });
   if (!response.ok) {
@@ -144,7 +133,7 @@ async function downloadViaCapacitor(options: DownloadOptions): Promise<void> {
     await FileTransfer.downloadFile({
       url: buildAbsoluteUrl(options.url),
       path: fullPath.uri,
-      headers: buildAuthHeaders(),
+      headers: await fetchAuthHeaders(),
       readTimeout: 5 * 60 * 1000,
     });
     writtenUri = fullPath.uri;

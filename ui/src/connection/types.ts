@@ -11,10 +11,10 @@ import type {
   StorageAdapter,
   Tokens,
 } from '@camera.ui/transport';
-import type { HttpTransport } from '@camera.ui/transport/transports/http';
-import type { NatsTransport } from '@camera.ui/transport/transports/nats';
-import type { SocketioTransport } from '@camera.ui/transport/transports/socketio';
-import type { WsTransport } from '@camera.ui/transport/transports/ws';
+import type { HttpTransport, HttpTransportOptions } from '@camera.ui/transport/transports/http';
+import type { NatsTransport, NatsTransportOptions } from '@camera.ui/transport/transports/nats';
+import type { SocketioTransport, SocketioTransportOptions } from '@camera.ui/transport/transports/socketio';
+import type { WsTransport, WsTransportOptions } from '@camera.ui/transport/transports/ws';
 import type { NavLayoutSettings } from '@shared/types';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 import type { ConnectionAttemptLog } from './attempts.js';
@@ -46,12 +46,20 @@ export interface ConnectionCallbacks {
   readonly onConnectionReset?: () => void;
 }
 
+export interface TransportOptions {
+  readonly http?: Partial<HttpTransportOptions>;
+  readonly socketio?: Partial<SocketioTransportOptions>;
+  readonly nats?: Partial<NatsTransportOptions>;
+  readonly ws?: Partial<WsTransportOptions>;
+}
+
 export interface ConnectionOptions {
   readonly adapters: ConnectionAdapters;
   readonly callbacks: ConnectionCallbacks;
   readonly apiPrefix?: string;
   readonly logger?: Logger;
   readonly storageNamespace?: string;
+  readonly transportOptions?: TransportOptions;
 }
 
 export interface Connection {

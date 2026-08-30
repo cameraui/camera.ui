@@ -2026,6 +2026,8 @@ export default {
       card_fit: 'Bild in der Karte',
       card_fit_aspect: 'Seitenverhältnis behalten',
       card_fit_aspect_info: 'Schwarze Balken, wenn die Karte anders geformt ist',
+      card_fit_contain: 'Einpassen',
+      card_fit_contain_info: 'Ganzes Bild in der Karte, schwarze Balken wo nötig',
       card_fit_cover: 'Zuschneiden',
       card_fit_cover_info: 'Füllt die Karte, schneidet die Ränder ab',
       card_fit_fill: 'Verzerren',

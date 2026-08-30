@@ -98,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+import { appRootElement } from '@/common/appRoot.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 
 import type { ContentProps, CustomDialogComponent, DeepShallowRef, DialogTemplates } from '@/composables/useCuiDialog.js';
@@ -150,7 +151,7 @@ const headerActionToggles = reactive<Record<number, boolean>>({});
 provide('dialogHeaderToggles', headerActionToggles);
 
 const templates = dialogRef.value.options.templates as Partial<DialogTemplates> | undefined;
-const appEl = useElementSize(document.getElementById('app'));
+const appEl = useElementSize(appRootElement());
 
 const componentIsLoading = ref(false);
 const componentRef = ref<CustomDialogComponent | null>(null);
@@ -163,7 +164,7 @@ let stepper: ReturnType<typeof useCuiDialogStepper> | undefined;
 const { style, x, y } = useDraggable(dialogHeader, {
   disabled: !draggable?.value,
   containerElement() {
-    return document.getElementById('app');
+    return appRootElement();
   },
   onStart(_position, event) {
     const target = event.target as HTMLElement | null;

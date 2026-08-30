@@ -2010,6 +2010,8 @@ export default {
       card_fit: 'Picture in the card',
       card_fit_aspect: 'Keep aspect ratio',
       card_fit_aspect_info: 'Black bars when the card has a different shape',
+      card_fit_contain: 'Fit inside',
+      card_fit_contain_info: 'Whole picture in the card, black bars where needed',
       card_fit_cover: 'Crop to fit',
       card_fit_cover_info: 'Fills the card, cuts off the edges',
       card_fit_fill: 'Stretch to fit',

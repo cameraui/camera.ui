@@ -1,3 +1,4 @@
+import { isHaCards } from '@/common/base.js';
 import { isCapacitor } from '@/connection/index.js';
 
 import type { SupportedThemes, ThemeLocalStorage } from '@shared/types';
@@ -30,7 +31,14 @@ export function readThemeStorage(): ThemeLocalStorage {
   }
 }
 
+function applyThemeClasses(el: Element, t: SupportedThemes): void {
+  el.setAttribute('data-mode', t);
+  el.classList.toggle('dark-mode', t === 'dark');
+  el.classList.toggle('light-mode', t === 'light');
+}
+
 export const useThemeStore = defineStore('theme', () => {
+  const themeRoots = new Set<Element>();
   const localStorageObj: ThemeLocalStorage = readThemeStorage();
 
   const forced = readForcedTheme();
@@ -78,21 +86,27 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function setAppTheme(t: SupportedThemes): void {
-    document.documentElement.setAttribute('data-mode', t);
-    document.documentElement.style.background = t === 'dark' ? '#0d0d0d' : '#f8fafc';
-
-    switch (t) {
-      case 'light':
-        document.documentElement.classList.remove('dark-mode');
-        document.documentElement.classList.add('light-mode');
-        break;
-      case 'dark':
-        document.documentElement.classList.remove('light-mode');
-        document.documentElement.classList.add('dark-mode');
-        break;
+    for (const el of themeRoots) applyThemeClasses(el, t);
+    if (isHaCards()) {
+      // PrimeVue tokens on :root reference semantic vars, and var() resolves on the declaring element: the dark
+      // values must sit on <html> or descendants inherit the resolved light color. No data-mode or background here.
+      document.documentElement.classList.toggle('dark-mode', t === 'dark');
+      document.documentElement.classList.toggle('light-mode', t === 'light');
+      return;
     }
 
+    document.documentElement.style.background = t === 'dark' ? '#0d0d0d' : '#f8fafc';
+    applyThemeClasses(document.documentElement, t);
+
     syncNativeStatusBar(t);
+  }
+
+  function registerThemeRoot(el: Element): () => void {
+    themeRoots.add(el);
+    applyThemeClasses(el, currentTheme());
+    return () => {
+      themeRoots.delete(el);
+    };
   }
 
   function applyHostTheme(mode: SupportedThemes): void {
@@ -150,5 +164,6 @@ export const useThemeStore = defineStore('theme', () => {
     getSystemMode,
     toggleTheme,
     applyHostTheme,
+    registerThemeRoot,
   };
 });

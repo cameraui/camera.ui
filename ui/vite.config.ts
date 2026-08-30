@@ -317,6 +317,7 @@ export default defineConfig(({ command }) => ({
               clientsClaim: true,
               cleanupOutdatedCaches: true,
               globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,jpg,jpeg,mp4,txt,woff2,ttf}'],
+              globIgnores: ['ha/**'],
               navigateFallback: 'index.html',
               navigateFallbackAllowlist: [/^(?!\/api)/],
               navigateFallbackDenylist: [/[?&]session=/],

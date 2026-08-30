@@ -11,6 +11,7 @@ import type { HttpTransport } from '@camera.ui/transport/transports/http';
 import type { NatsTransport } from '@camera.ui/transport/transports/nats';
 import type { SocketioTransport } from '@camera.ui/transport/transports/socketio';
 import type { WsTransport } from '@camera.ui/transport/transports/ws';
+import type { TransportOptions } from './types.js';
 
 export const HTTP_SPEC: TransportSpec = { id: 'http', kind: 'request', phaseGating: false };
 export const SOCKETIO_SPEC: TransportSpec = { id: 'socketio', kind: 'persistent', phaseGating: true };
@@ -31,11 +32,11 @@ export interface TransportBundle {
   readonly ws: WsTransport;
 }
 
-export function createTransports(apiPrefix: string): TransportBundle {
-  const http = createHttpTransport({ apiPrefix, spec: HTTP_SPEC, logger: new Logger('HttpT') });
+export function createTransports(apiPrefix: string, overrides: TransportOptions = {}): TransportBundle {
+  const http = createHttpTransport({ apiPrefix, spec: HTTP_SPEC, logger: new Logger('HttpT'), ...overrides.http });
   installNativeHttp(http.client);
-  const socketio = createSocketioTransport({ spec: SOCKETIO_SPEC, logger: new Logger('SioT') });
-  const nats = createNatsTransport({ spec: NATS_SPEC, logger: new Logger('NatsT') });
-  const ws = createWsTransport({ spec: WS_SPEC, logger: new Logger('WsT') });
+  const socketio = createSocketioTransport({ spec: SOCKETIO_SPEC, logger: new Logger('SioT'), ...overrides.socketio });
+  const nats = createNatsTransport({ spec: NATS_SPEC, logger: new Logger('NatsT'), ...overrides.nats });
+  const ws = createWsTransport({ spec: WS_SPEC, logger: new Logger('WsT'), ...overrides.ws });
   return { http, socketio, nats, ws };
 }

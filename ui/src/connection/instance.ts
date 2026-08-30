@@ -22,6 +22,8 @@ export function bootConnectionInstance(options: ConnectionOptions): Connection {
     kernel: _connection.kernel,
     hosts: () => Array.from(workerRegistry),
     listenForResyncRequests: true,
+    // workers own their NATS socket but cannot sign URLs, the main thread's resolver answers for them
+    resolveServers: options.transportOptions?.nats?.resolveServers,
   });
   _workerBridge = bridge;
   // On every connection wake (foreground / online / network-change) nudge all

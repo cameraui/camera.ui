@@ -12,7 +12,8 @@
     "vue-demi": true
   },
   "scripts": {
-    "build": "rimraf ../server/dist/interface && npm run type-check && npm run pwa && npm run build:only",
+    "build": "rimraf ../server/dist/interface && npm run type-check && npm run pwa && npm run build:only && npm run build:ha",
+    "build:ha": "vite build -c vite.ha.config.ts",
     "build:only": "vite build",
     "build:mobile": "rimraf dist-mobile && npm run type-check && npm run build:mobile:only",
     "build:mobile:only": "cross-env CAMERA_UI_MOBILE=1 vite build",

@@ -22,3 +22,7 @@ export function embedHost(): string | null {
 export function isHomeAssistant(): boolean {
   return embedHost() === 'homeassistant';
 }
+
+export function isHaCards(): boolean {
+  return typeof window !== 'undefined' && window.__CUI_HA_CARDS__ === true;
+}
