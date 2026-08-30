@@ -36,20 +36,6 @@
             {{ semanticDisplay.label }}
           </span>
           <Button
-            v-if="memberEpisodeId && !selectionMode"
-            v-tooltip.left="{ value: $t('views.recordings.open_episode') }"
-            rounded
-            text
-            severity="secondary"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
-            @click.stop="handleOpenEpisode"
-            @mouseenter="stopPreview"
-          >
-            <template #icon>
-              <i-tabler:sparkles class="w-3 h-3 text-white" />
-            </template>
-          </Button>
-          <Button
             v-if="camera && !selectionMode"
             v-tooltip.left="{ value: $t('views.recordings.open_trace') }"
             rounded
@@ -111,7 +97,11 @@
         </Button>
       </template>
 
-      <div v-if="footerLabel" class="absolute bottom-10 left-1/2 -translate-x-1/2 z-[3] max-w-[85%] pointer-events-none">
+      <div
+        v-if="footerLabel"
+        class="absolute left-1/2 -translate-x-1/2 z-[3] max-w-[85%] pointer-events-none transition-all duration-200"
+        :class="previewIndicator ? 'bottom-16' : 'bottom-10'"
+      >
         <span class="block text-[11px] text-white font-medium truncate bg-black/50 rounded-md px-2 py-0.5">{{ footerLabel }}</span>
       </div>
 
@@ -151,7 +141,7 @@
         <ProgressSpinner class="w-[28px] h-[28px] m-0" stroke-width="6" />
       </div>
 
-      <div v-if="previewIndicator" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-[4] pointer-events-none">
+      <div v-if="previewIndicator" class="absolute bottom-10 left-1/2 -translate-x-1/2 z-[4] pointer-events-none">
         <span class="text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-md whitespace-nowrap" style="font-variant-numeric: tabular-nums">
           {{ previewIndicator }}
         </span>
@@ -227,12 +217,6 @@ const descriptionTitle = computed(() => {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   eventStore.storeVersion.value;
   return props.event.segments?.find((s) => s?.description)?.description?.title;
-});
-
-const memberEpisodeId = computed(() => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  eventStore.storeVersion.value;
-  return props.event.episodeIds?.[0];
 });
 
 const semanticDisplay = computed(() => {
@@ -419,10 +403,6 @@ async function triggerLoad(retries = 2): Promise<void> {
   } else {
     thumbnailState.value = props.event.state === 'active' ? 'loading' : 'empty';
   }
-}
-
-function handleOpenEpisode(): void {
-  if (memberEpisodeId.value) emit('openEpisode', memberEpisodeId.value);
 }
 
 function handleClick(): void {

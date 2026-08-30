@@ -60,9 +60,10 @@
 </template>
 
 <script setup lang="ts">
-import { CuiTimeline, useNvrPlayback } from '@camera.ui/nvr';
+import { CuiTimeline, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
 import { usePrimeVue } from 'primevue';
 import DownloadIcon from '~icons/tabler/download';
+import TraceIcon from '~icons/tabler/list-search';
 import SparklesIcon from '~icons/tabler/sparkles';
 
 import { extractErrorMessage } from '@/common/utils.js';
@@ -85,6 +86,8 @@ const { mdBreakpoint } = useSharedCuiBreakpoint();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const headerToggles = inject<Record<number, boolean>>('dialogHeaderToggles', {});
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { openEventTrace } = useEventTraceDialog();
+const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 
 const { camera, eventTimestamp } = toRefs(props);
 
@@ -122,6 +125,12 @@ const timelineLocaleSettings = computed<CuiTimelineLocale>(() => {
     monthNamesShort: primevue.config.locale?.monthNamesShort,
   };
 });
+
+function openTrace(): void {
+  const current = cuiTimelineRef.value?.currentEvent;
+  const event = current ? eventStore.getEvent(current.id) : undefined;
+  if (event) openEventTrace(event, camera.value);
+}
 
 async function handleDownload(): Promise<void> {
   if (isDownloading.value) return;
@@ -164,6 +173,7 @@ watch(
     const actions: { icon: any; tooltip?: string; onClick: () => void; toggle?: boolean; loading?: boolean }[] = [];
     actions.push({ icon: SparklesIcon, tooltip: t('components.player.ai_descriptions'), toggle: true, onClick: () => {} });
     if (!live && hasEvent && nvrPluginRef.value) {
+      actions.push({ icon: TraceIcon, tooltip: t('views.recordings.open_trace'), onClick: openTrace });
       actions.push({ icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value });
     }
     dialogRefProps.headerActions.value = actions;

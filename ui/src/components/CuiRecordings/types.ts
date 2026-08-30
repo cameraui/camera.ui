@@ -40,7 +40,6 @@ export interface RecordingCardProps {
 export interface RecordingCardEmits {
   scrollToEvent: [timestamp: number];
   select: [];
-  openEpisode: [episodeId: string];
   openTrace: [];
 }
 

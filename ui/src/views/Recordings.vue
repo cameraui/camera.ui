@@ -113,7 +113,6 @@
                 :sibling-active="item.segIndex !== undefined && hoveredEventId === item.event.id"
                 @select="toggleSelection(item.event.id)"
                 @scroll-to-event="() => openRecordingDialog(item.event)"
-                @open-episode="openEpisodeDialog"
                 @open-trace="() => openTraceDialog(item.event)"
                 @mouseenter="hoveredEventId = item.segIndex !== undefined ? item.event.id : null"
                 @mouseleave="hoveredEventId = null"
@@ -265,7 +264,6 @@ const authStore = useAuthStore();
 const { bottombarHeight } = useSharedCuiStates();
 const { status: reindexStatus, checking: reindexChecking } = useClipReindex();
 
-const { openEpisodePlayer } = useEpisodePlayerDialog();
 const { openEventTrace } = useEventTraceDialog();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const toast = useCuiToast();
@@ -595,16 +593,6 @@ function onSemanticSearch(query: string): void {
     return;
   }
   runSemanticSearch(query);
-}
-
-async function openEpisodeDialog(episodeId: string): Promise<void> {
-  let episode = eventStore.getEpisode(episodeId);
-  if (!episode) {
-    await eventStore.loadEpisodes({ limit: 50 });
-    episode = eventStore.getEpisode(episodeId);
-  }
-  if (!episode) return;
-  openEpisodePlayer(episode, cameraById.value);
 }
 
 function openTraceDialog(event: RecordedEvent): void {
