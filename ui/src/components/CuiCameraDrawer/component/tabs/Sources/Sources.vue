@@ -225,61 +225,73 @@
             </Field>
           </div>
 
-          <div v-if="source.role !== 'snapshot'" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field v-slot="{ errors }" :model-value="source.timeout" :name="`sources[${i}].timeout`" as="div" class="flex flex-col field-gap">
-              <label :for="`sources[${i}].timeout`" class="cui-label">{{ $t('components.form.label.source_timeout') }}</label>
-              <InputGroup>
-                <InputNumber
-                  :model-value="source.timeout"
-                  :invalid="errors.length > 0"
-                  :loading
-                  show-buttons
-                  :min="5"
-                  :max="120"
-                  :use-grouping="false"
-                  suffix=" s"
-                  :placeholder="String(source.urls.some(isGeneratedUrl) ? 60 : 5)"
-                  @value-change="(e) => (source.timeout = e ?? undefined)"
-                  @input="(e) => (source.timeout = (e.value as any) ?? undefined)"
-                />
-              </InputGroup>
+          <Field
+            v-if="source.role !== 'snapshot'"
+            v-slot="{ errors }"
+            :model-value="source.timeout"
+            :name="`sources[${i}].timeout`"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label :for="`sources[${i}].timeout`" class="cui-label">{{ $t('components.form.label.source_timeout') }}</label>
+            <InputGroup>
+              <InputNumber
+                :model-value="source.timeout"
+                :invalid="errors.length > 0"
+                :loading
+                show-buttons
+                :min="5"
+                :max="120"
+                :use-grouping="false"
+                suffix=" s"
+                :placeholder="String(source.urls.some(isGeneratedUrl) ? 60 : 5)"
+                @value-change="(e) => (source.timeout = e ?? undefined)"
+                @input="(e) => (source.timeout = (e.value as any) ?? undefined)"
+              />
+            </InputGroup>
 
-              <Transition name="fade">
-                <ErrorMessage :name="`sources[${i}].timeout`" class="cui-input-error" />
-              </Transition>
+            <Transition name="fade">
+              <ErrorMessage :name="`sources[${i}].timeout`" class="cui-input-error" />
+            </Transition>
 
-              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                $t('components.form.hint.source_timeout')
-              }}</Message>
-            </Field>
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.source_timeout')
+            }}</Message>
+          </Field>
 
-            <Field v-slot="{ errors }" :model-value="source.handshakeTimeout" :name="`sources[${i}].handshakeTimeout`" as="div" class="flex flex-col field-gap">
-              <label :for="`sources[${i}].handshakeTimeout`" class="cui-label">{{ $t('components.form.label.source_handshake_timeout') }}</label>
-              <InputGroup>
-                <InputNumber
-                  :model-value="source.handshakeTimeout"
-                  :invalid="errors.length > 0"
-                  :loading
-                  show-buttons
-                  :min="1"
-                  :max="60"
-                  :use-grouping="false"
-                  suffix=" s"
-                  placeholder="5"
-                  @value-change="(e) => (source.handshakeTimeout = e ?? undefined)"
-                  @input="(e) => (source.handshakeTimeout = (e.value as any) ?? undefined)"
-                />
-              </InputGroup>
+          <Field
+            v-if="source.role !== 'snapshot'"
+            v-slot="{ errors }"
+            :model-value="source.handshakeTimeout"
+            :name="`sources[${i}].handshakeTimeout`"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label :for="`sources[${i}].handshakeTimeout`" class="cui-label">{{ $t('components.form.label.source_handshake_timeout') }}</label>
+            <InputGroup>
+              <InputNumber
+                :model-value="source.handshakeTimeout"
+                :invalid="errors.length > 0"
+                :loading
+                show-buttons
+                :min="1"
+                :max="60"
+                :use-grouping="false"
+                suffix=" s"
+                placeholder="5"
+                @value-change="(e) => (source.handshakeTimeout = e ?? undefined)"
+                @input="(e) => (source.handshakeTimeout = (e.value as any) ?? undefined)"
+              />
+            </InputGroup>
 
-              <Transition name="fade">
-                <ErrorMessage :name="`sources[${i}].handshakeTimeout`" class="cui-input-error" />
-              </Transition>
+            <Transition name="fade">
+              <ErrorMessage :name="`sources[${i}].handshakeTimeout`" class="cui-input-error" />
+            </Transition>
 
-              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                $t('components.form.hint.source_handshake_timeout')
-              }}</Message>
-            </Field>
-          </div>
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.source_handshake_timeout')
+            }}</Message>
+          </Field>
 
           <Field
             v-if="source.role !== 'snapshot'"
