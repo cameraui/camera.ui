@@ -774,7 +774,6 @@ async function exportBundle(): Promise<void> {
     const encoder = new TextEncoder();
     const ticks = await allTicks();
     const entries: ZipEntry[] = [];
-    const notes: string[] = [];
 
     entries.push({
       name: 'event.json',
@@ -786,7 +785,6 @@ async function exportBundle(): Promise<void> {
 
     const clip = await exportClip();
     if (clip) entries.push({ name: 'clip.mp4', data: clip });
-    else notes.push('clip.mp4: no recording could be exported for this event');
 
     let rendered = 0;
     for (const [index, frame] of frames.value.entries()) {
@@ -803,22 +801,6 @@ async function exportBundle(): Promise<void> {
       entries.push({ name: `frames/${String(index).padStart(4, '0')}_${relativeSeconds(tick.tMs)}s_${status}.jpg`, data: jpeg });
       rendered++;
     }
-    if (rendered >= BUNDLE_MAX_FRAMES) notes.push(`frames: capped at ${BUNDLE_MAX_FRAMES} pictures, trace.jsonl holds every tick`);
-    if (ticks.length > frames.value.length) notes.push(`frames: only the ${frames.value.length} loaded ticks were rendered`);
-
-    entries.push({
-      name: 'README.txt',
-      data: encoder.encode(
-        [
-          `camera.ui detection trace, camera "${props.camera.name}", event ${props.event.id}`,
-          'trace.jsonl: first line is the detection setup at event time, then one analysis tick per line',
-          'frames/: the tick pictures with what the detector saw (exact = found by RTP timestamp, approx = by time)',
-          'clip.mp4: the recording of the event window',
-          ...notes,
-          '',
-        ].join('\n'),
-      ),
-    });
 
     const blob = buildStoredZip(entries);
     const url = URL.createObjectURL(blob);

@@ -329,6 +329,7 @@
     "useElementSize": true,
     "useElementVisibility": true,
     "useEpisodePlayerDialog": true,
+    "useEpisodeTraceDialog": true,
     "useEventBus": true,
     "useEventListener": true,
     "useEventSource": true,

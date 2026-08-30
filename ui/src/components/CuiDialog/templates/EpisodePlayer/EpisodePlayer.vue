@@ -129,6 +129,7 @@
 import { playheadUs, useMultiNvrPlayback } from '@camera.ui/nvr';
 import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
+import TraceIcon from '~icons/tabler/list-search';
 
 import { extractErrorMessage, randomLetter } from '@/common/utils.js';
 
@@ -149,6 +150,7 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { openEpisodeTrace } = useEpisodeTraceDialog();
 
 const BLOCK_TAIL_MS = 2000;
 const BLOCK_HEAD_MS = 1500;
@@ -703,7 +705,10 @@ watch(
       dialogRefProps.headerActions.value = [];
       return;
     }
-    dialogRefProps.headerActions.value = [{ icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value }];
+    dialogRefProps.headerActions.value = [
+      { icon: TraceIcon, tooltip: t('views.recordings.episode_trace.open'), onClick: () => openEpisodeTrace(props.episode, props.cameraById) },
+      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value },
+    ];
   },
   { immediate: true },
 );
