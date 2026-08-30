@@ -1,15 +1,10 @@
 window.__CUI_HA_CARDS__ = true;
 
-import '@/plugins/logger.js';
-
-import { configElement, configForm, createCard, stubConfig, unavailable } from './cards.js';
 import { cameraAttributes, cameraEntities, entryIdFromPanels, firstCameraUiCamera, isCameraUiCamera } from './types.js';
-import './viewEditor.js';
 
 import type { CardConfig, CardController, CardKind } from './cards.js';
 import type { HaCameraCardConfig, HaEventsCardConfig, HaViewCardConfig, HomeAssistant } from './types.js';
 
-// bump when the backend contract below changes; a mismatched server is told to update instead of breaking
 const CARDS_CONTRACT = 2;
 
 interface CardBackend {
@@ -25,23 +20,52 @@ interface CardBackend {
 declare global {
   interface Window {
     __cameraui_card_backends?: Map<string, CardBackend>;
+    __cameraui_card_waiters?: Set<() => void>;
     customCards?: unknown[];
   }
 }
 
 const BUNDLE_ENTRY_ID = /\/api\/cameraui\/cards\/([^/]+)\//.exec(import.meta.url)?.[1] ?? '';
+const BACKEND_WAIT_MS = 30_000;
+
+const GRID: Record<CardKind, { size: number; options: Record<string, number | string> }> = {
+  camera: { size: 5, options: { rows: 4, columns: 12, min_rows: 2, min_columns: 3 } },
+  events: { size: 4, options: { rows: 3, min_rows: 3, max_rows: 3, columns: 12, min_columns: 4 } },
+  view: { size: 8, options: { rows: 8, columns: 'full', min_rows: 3, min_columns: 6 } },
+};
+
+const HULL_STYLE = `
+  :host { display: block; height: 100%; }
+  .skeleton, .message {
+    box-sizing: border-box; height: 100%; min-height: 96px;
+    border-radius: var(--ha-card-border-radius, 12px);
+    background: var(--ha-card-background, var(--card-background-color, #fff));
+    border: 1px solid var(--ha-card-border-color, var(--divider-color, #e0e0e0));
+  }
+  .skeleton { animation: cui-ha-pulse 1.6s ease-in-out infinite; }
+  .message { display: flex; align-items: center; padding: 16px; color: var(--secondary-text-color); font: 14px/1.4 var(--ha-font-family-body, sans-serif); }
+  @keyframes cui-ha-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+`;
 
 const backends = (window.__cameraui_card_backends ??= new Map<string, CardBackend>());
+const waiters = (window.__cameraui_card_waiters ??= new Set<() => void>());
+
 if (BUNDLE_ENTRY_ID) {
-  backends.set(BUNDLE_ENTRY_ID, {
-    entryId: BUNDLE_ENTRY_ID,
-    contract: CARDS_CONTRACT,
-    createCard: (kind, host) => createCard(kind, host, BUNDLE_ENTRY_ID),
-    stubConfig,
-    configForm,
-    configElement,
-    unavailable,
-  });
+  void import('./cards.js').then(
+    (backend) => {
+      backends.set(BUNDLE_ENTRY_ID, {
+        entryId: BUNDLE_ENTRY_ID,
+        contract: CARDS_CONTRACT,
+        createCard: (kind, host) => backend.createCard(kind, host, BUNDLE_ENTRY_ID),
+        stubConfig: backend.stubConfig,
+        configForm: backend.configForm,
+        configElement: backend.configElement,
+        unavailable: backend.unavailable,
+      });
+      for (const wake of [...waiters]) wake();
+    },
+    (err: unknown) => console.error('[camera.ui] cards backend failed to load', err),
+  );
 }
 
 function anyBackend(): CardBackend | undefined {
@@ -77,6 +101,8 @@ abstract class CardHull extends HTMLElement {
   private hassValue: HomeAssistant | null = null;
   private layoutValue: string | null = null;
   private controller: CardController | null = null;
+  private waitTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly wake = (): void => this.resolve();
 
   public setConfig(config: CardConfig): void {
     this.validate(config);
@@ -110,20 +136,20 @@ abstract class CardHull extends HTMLElement {
   }
 
   public disconnectedCallback(): void {
+    this.stopWaiting();
     this.controller?.disconnected();
   }
 
   public getCardSize(): number {
-    return this.controller?.getCardSize() ?? 4;
+    return this.controller?.getCardSize() ?? GRID[this.kind].size;
   }
 
   public getGridOptions(): Record<string, number | string> {
-    return this.controller?.getGridOptions() ?? { rows: 4, columns: 12 };
+    return this.controller?.getGridOptions() ?? GRID[this.kind].options;
   }
 
   protected validate(_config: CardConfig): void {}
 
-  // bind once: the entry of a card does not change, and everything after the lookup is the backend's
   private resolve(): void {
     const config = this.config;
     const hass = this.hassValue;
@@ -131,24 +157,53 @@ abstract class CardHull extends HTMLElement {
     const entryId = entryIdFor(this.kind, config, hass);
     if (!entryId) {
       const backend = anyBackend();
-      this.textContent = backend?.unavailable(this.kind, config, hass) ? 'camera.ui is not reachable' : 'Not a camera.ui entity';
+      this.show('message', backend?.unavailable(this.kind, config, hass) ? 'camera.ui is not reachable' : 'Not a camera.ui entity');
       return;
     }
     const backend = backends.get(entryId);
     if (!backend) {
-      this.textContent = 'camera.ui cards for this server are not loaded (server too old?)';
+      this.waitForBackend();
       return;
     }
     if (backend.contract !== CARDS_CONTRACT) {
-      this.textContent = 'This camera.ui server needs an update, its dashboard cards do not match the ones already loaded';
+      this.show('message', 'This camera.ui server needs an update, its dashboard cards do not match the ones already loaded');
       return;
     }
-    this.textContent = '';
+    this.stopWaiting();
+    this.shadowRoot?.replaceChildren();
     this.controller = backend.createCard(this.kind, this);
     this.controller.setConfig(config);
     this.controller.setHass(hass);
     this.controller.setLayout(this.layoutValue);
     if (this.isConnected) this.controller.connected();
+  }
+
+  private waitForBackend(): void {
+    if (this.waitTimer) return;
+    this.show('skeleton', '');
+    waiters.add(this.wake);
+    this.waitTimer = setTimeout(() => {
+      this.stopWaiting();
+      this.show('message', 'camera.ui cards for this server are not loaded (server too old?)');
+    }, BACKEND_WAIT_MS);
+  }
+
+  private stopWaiting(): void {
+    waiters.delete(this.wake);
+    if (this.waitTimer) {
+      clearTimeout(this.waitTimer);
+      this.waitTimer = null;
+    }
+  }
+
+  private show(kind: 'skeleton' | 'message', text: string): void {
+    const root = this.shadowRoot ?? this.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = HULL_STYLE;
+    const box = document.createElement('div');
+    box.className = kind;
+    box.textContent = text;
+    root.replaceChildren(style, box);
   }
 }
 

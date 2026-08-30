@@ -1,3 +1,5 @@
+import '@/plugins/logger.js';
+
 import { reactive } from 'vue';
 
 import HaCameraCard from './HaCameraCard.vue';
@@ -6,6 +8,7 @@ import HaViewCard from './HaViewCard.vue';
 import { ensureShell } from './shell.js';
 import { adoptStyles } from './styles.js';
 import { cameraAttributes, cameraEntities, firstCameraUiCamera } from './types.js';
+import './viewEditor.js';
 
 import type { Component } from 'vue';
 import type { Shell } from './shell.js';

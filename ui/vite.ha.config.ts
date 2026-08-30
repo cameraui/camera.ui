@@ -22,7 +22,6 @@ const UI_VERSION: string = JSON.parse(readFileSync(resolve(__dirname, 'package.j
 
 const SCOPE = '.cui-ha';
 const ROOT_SELECTOR = /^(:root|html|body|:host)(?![\w-])/;
-// `html.dark-mode`, `:root[data-mode]`: the compound lives on the theme node inside the scope node
 const ROOT_COMPOUND = /^(:root|html|body|:host)(?=[.[:])/;
 const ROOT_SIZING_PROPS = /^(min-|max-)?(width|height)$|^overflow/;
 const UNSCOPED_AT_RULES = /^(keyframes|-webkit-keyframes|font-face|property|page|counter-style)$/;
@@ -36,7 +35,6 @@ function scopeSelector(selector: string): string {
   return `${SCOPE} ${s}`;
 }
 
-// the cards bundle shares HA's document: every rule is confined to .cui-ha mount nodes
 function scopeToCards(): PostcssPlugin {
   return {
     postcssPlugin: 'cui-ha-scope',
@@ -70,8 +68,6 @@ function scopeToCards(): PostcssPlugin {
   };
 }
 
-// the lib build extracts every SFC <style> (and @camera.ui/nvr's css) into a .css asset that Lovelace would
-// never load; hand it to the entry chunk instead, styles.ts folds it into the adopted sheets
 function inlineExtractedCss(): Plugin {
   return {
     name: 'cui-ha-inline-css',
@@ -83,9 +79,10 @@ function inlineExtractedCss(): Plugin {
         css += `${typeof item.source === 'string' ? item.source : new TextDecoder().decode(item.source)}\n`;
         delete bundle[fileName];
       }
-      const entry = Object.values(bundle).find((item) => item.type === 'chunk' && item.isEntry);
-      if (entry && entry.type === 'chunk') {
-        entry.code = `globalThis.__CUI_HA_CSS__ = ${JSON.stringify(css)};\n${entry.code}`;
+      const chunks = Object.values(bundle).filter((item) => item.type === 'chunk');
+      const target = chunks.find((item) => item.facadeModuleId?.endsWith('/src/ha/cards.ts')) ?? chunks.find((item) => item.isEntry);
+      if (target) {
+        target.code = `globalThis.__CUI_HA_CSS__ = ${JSON.stringify(css)};\n${target.code}`;
       }
     },
   };
