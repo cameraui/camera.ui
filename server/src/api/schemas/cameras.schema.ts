@@ -514,7 +514,7 @@ export const createCameraBaseSchema = zod
     plugins: pluginInfo.array().default([]),
     assignments: assignmentsSchema.default({}),
     interfaceSettings: interfaceSettingsSchema.default({
-      streamingMode: 'webrtc',
+      streamingMode: 'auto',
       streamingSource: 'high-resolution',
       playbackSource: 'auto',
       activityMode: 'always-on',

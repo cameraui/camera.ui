@@ -334,6 +334,7 @@
             v-if="previewCamera"
             :camera-info="previewCamera"
             source-role="low-resolution"
+            streaming-mode="auto"
             :toolbar="false"
             :control="false"
             :subcontrol="false"

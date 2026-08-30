@@ -71,7 +71,7 @@ const cards = ref<CardState[]>([]);
 const cameraCardModels = reactive<CuiCameraCardModels>({
   sourceRole: 'low-resolution',
   activityMode: 'always-on',
-  streamingMode: 'webrtc',
+  streamingMode: 'auto',
 });
 
 const view = computed(() => {

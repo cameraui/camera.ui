@@ -168,7 +168,7 @@
                 ref="cameraCardRef"
                 :camera-info="cameraName"
                 source-role="low-resolution"
-                streaming-mode="webrtc"
+                streaming-mode="auto"
                 :toolbar="false"
                 :control="false"
                 :subcontrol="false"

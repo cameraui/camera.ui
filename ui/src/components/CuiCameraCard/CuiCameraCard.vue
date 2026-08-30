@@ -1013,7 +1013,7 @@ const codecDegradedTooltip = computed(() => {
   return t('components.player.codec_degraded', { quality });
 });
 
-const selectedStreamingMode = computed<VideoStreamingMode>(() => streamingMode.value ?? camera.value?.interfaceSettings.streamingMode ?? 'webrtc');
+const selectedStreamingMode = computed<VideoStreamingMode>(() => streamingMode.value ?? camera.value?.interfaceSettings.streamingMode ?? 'auto');
 const selectedSourceRole = computed<StreamingRole>(() => sourceRole.value ?? camera.value?.interfaceSettings.streamingSource ?? 'high-resolution');
 
 const cameraAspectRatio = computed(() => {

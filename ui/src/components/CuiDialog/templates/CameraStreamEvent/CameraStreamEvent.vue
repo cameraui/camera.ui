@@ -5,7 +5,7 @@
         ref="cameraCardRef"
         :key="camera.name"
         v-model:source-role="qualityRole"
-        :streaming-mode="'webrtc'"
+        streaming-mode="auto"
         :camera-info="camera.name"
         flat-card
         :card-props="{ pt: { root: { class: { '!rounded-md': true } } } }"

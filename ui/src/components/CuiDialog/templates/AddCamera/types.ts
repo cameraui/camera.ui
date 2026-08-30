@@ -54,7 +54,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
     },
   ],
   interfaceSettings: {
-    streamingMode: 'webrtc',
+    streamingMode: 'auto',
     streamingSource: 'high-resolution',
     playbackSource: 'auto',
     activityMode: 'always-on',
