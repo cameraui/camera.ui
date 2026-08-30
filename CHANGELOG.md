@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.13]
+
+### Added
+
+- **Every event keeps a detection trace.** Open it from an event on the recordings page: the frames the detector worked on, each with the objects, tracks and readings it found on it, pulled straight from the recording. The trace can be exported for a bug report. Frames need a recording of the event; without one the detection data still shows. Needs the NVR plugin 1.3.19.
+
+- **Episodes explain themselves.** The trace icon on an episode shows every event that was a candidate and why it stayed or went, how the events were linked, both AI passes with the pictures and text the model got and what it answered, and the cut. The bundle download packs it with the clip for a bug report.
+
+- **Episode cards play on hover.** Resting on an episode card plays its cut the way the player would: each camera in turn, with the camera name and time shown. Holding the card does the same on the phone.
+
+- **camera.ui cards for Home Assistant dashboards.** A camera card that shows the snapshot tile from the home view or the full live player, an events strip, and a camview view as a widget with drag and drop. A click opens the camera.ui dialog with the timeline, right inside Home Assistant. The cards are served by your camera.ui server, so they always match it, and keep working from a local copy while the server is down. Card access is admins only by default; the integration settings can open it to all users, with an optional viewer token. They replace the integration's old built-in cards: the camera card switches over by itself, the old grid card is gone, rebuild those dashboards with the view card. Needs the Home Assistant integration 0.4.0.
+
+- **Recordings in the Home Assistant media browser.** Events with a recording and a detection appear under camera.ui, by camera and day, with thumbnails; a click plays the clip right away while it is still being exported, and any entry can be sent to a TV or Chromecast with `media_player.play_media`. Needs the Home Assistant integration 0.4.0.
+
+- **Camview cards can show the whole picture.** "Fit inside" joins keep, crop and stretch: the entire frame stays visible, with black bars where the card has a different shape.
+
+- **Stream and connection timeouts per source.** Two new fields in the source settings: how many seconds without video the stream is given before it reconnects, and how many seconds the camera gets for each connection step. Raise the second one for cameras that wake up slowly. Plugin sources come with 60 seconds, since their plugin already watches the camera itself; direct camera sources keep the 5 second default.
+
+### Changed
+
+- **Streams default to Auto.** New cameras start with streaming mode Auto, which picks the transport the connection supports best. The small embedded players, the zone editor, shortcut previews, the floor plan hover and the event dialog, always use Auto now instead of forcing WebRTC; the camera view keeps following the camera's setting.
+
+### Fixed
+
+- **Home Assistant cards reconnect after a Home Assistant restart.** They kept retrying with the old signed address for up to 20 minutes and filled the Home Assistant log with failed logins. Needs the Home Assistant integration 0.4.0.
+
+- **A camera on shaky WiFi no longer loses a whole minute over a few seconds of hiccup.** Every stage of the pipeline gave up after 5 seconds without video and reconnected on its own, so a short stall turned into a reconnect cascade with 20 seconds of nothing and a "disrupted" band on the timeline. Plugin streams and the analysis now wait out a stall; the recording gets a hole as long as the stall itself, nothing more. Needs the NVR plugin 1.3.19.
+
+- **Adopted sensors survive plugin and server restarts.** camera.ui keeps the list of adopted sensors now; a plugin cannot lose it anymore. Entities adopted with the Home Assistant plugin 1.0.11 show up as discovered once more after this update, adopt them again. Needs the Home Assistant plugin 1.0.12.
+
+- **Home Assistant notifications carry their picture now.** The image link only worked inside the LAN, so phones away from home showed text-only notifications. Needs the Home Assistant plugin 1.0.12 and integration 0.4.0.
+
+- **Notifications through the Home Assistant plugin arrive once.** The plugin treated Home Assistant's catch-all service, the phone's own service and the phone's notify entity as three targets, so one push showed up three times on the same phone. Needs the Home Assistant plugin 1.0.12.
+
+- **Renaming an entity in Home Assistant keeps the sensor.** Camera assignments, automations and history stay with it.
+
+- **A sensor deleted at its source says so.** It stays in camera.ui, marked "removed in Home Assistant", until you delete it; nothing disappears on its own. The sensors page also tells "unavailable" from "not connected" now, and discovered sensors can be adopted in bulk.
+
+- **A desktop worker reaches a server master without typing the port, and a failed pairing says why.** Without a port the worker knocked on the desktop port instead of 3443, then restarted five times and only showed "keeps exiting". A wrong address, port or code now goes straight back to the setup screen with the actual reason.
+
 ## [2.1.12]
 
 ### Changed
