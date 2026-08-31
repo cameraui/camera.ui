@@ -35,7 +35,7 @@
   "dependencies": {
     "@bjia56/portable-python": "^0.1.166",
     "@camera.ui/common": "~0.0.54",
-    "@camera.ui/go2rtc": "^1.9.14-cui.40",
+    "@camera.ui/go2rtc": "^1.9.14-cui.41",
     "@camera.ui/nats": "^2.14.6",
     "@camera.ui/rpc": "^1.0.12",
     "@camera.ui/rust-detector": "~0.0.12",
@@ -104,7 +104,7 @@
     "@types/semver": "^7.8.0",
     "@types/tail": "^2.2.3",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/parser": "^8.68.0",
+    "@typescript-eslint/parser": "^8.69.0",
     "cpy-cli": "^7.0.0",
     "cross-env": "^10.1.0",
     "eslint": "9.39.2",
@@ -112,7 +112,7 @@
     "prettier": "^3.9.6",
     "rimraf": "^6.1.3",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.68.0",
+    "typescript-eslint": "^8.69.0",
     "updates": "^18.0.7",
     "vitest": "^4.1.11"
   },

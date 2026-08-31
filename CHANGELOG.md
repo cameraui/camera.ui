@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 
 - **Live audio reaches every viewer and stays up.** The second viewer of the same camera got no sound, and a running view lost its sound as soon as any other viewer joined or left. Audio now reaches everyone, survives viewers coming and going, and comes back on its own after a short outage instead of staying silent until the view was reopened.
 
+- **Switching a camera's microphone on no longer needs a restart for sound.** The stream notices the new audio track within seconds and picks it up on its own. Sessions already running carry it from their next reconnect on.
+
 - **A Tapo camera can no longer freeze its stream for good.** One malformed piece of data from the camera wedged the feed permanently: frozen picture, no recovery until a restart. The feed now reconnects on its own.
 
 - **Line crossings fire on the drawn line.** The check watched the wrong direction arrow, so a real crossing went unnoticed while something moving near the arrow.
