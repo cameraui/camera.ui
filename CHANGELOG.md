@@ -22,7 +22,11 @@ All notable changes to this project will be documented in this file.
 
 - **A Tapo camera can no longer freeze its stream for good.** One malformed piece of data from the camera wedged the feed permanently: frozen picture, no recovery until a restart. The feed now reconnects on its own.
 
-- **Line crossings fire on the drawn line.** The check watched the wrong direction arrow, so a real crossing went unnoticed while something moving near the arrow.
+- **A parked car no longer stretches events.** The detector blinking on something that never moved, parked cars at dusk mostly, could hold an event open for a minute after the action was over, and an episode built from it got a long empty tail in its clip, sometimes cutting out the actual moment. Such a flicker now counts as scenery within seconds and its later blinks stay silent.
+
+- **Line crossings fire on the drawn line.** The check watched the direction arrow instead, so a real crossing went unnoticed while something moving near the arrow could report one it never made.
+
+- **The detection trace skips the quiet stretches.** A long event with barely any real activity, a camera OSD flickering at night say, filled the trace with frames where nothing was found. Only a few of those around each activity are kept now.
 
 - **Two views of the same camera no longer fight over the picture.** A live card next to the open dialog, or the same camera in two grids, made one of them stutter while they pulled the stream back and forth. The second view now opens its own stream.
 
