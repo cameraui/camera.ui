@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The updates page notices the next update after an update.** Once something was updated, a later release of the same component hid behind the green check of the finished one until the next restart, the page claimed everything was up to date while Manage listed the new version.
+
 - **A stream no longer comes up without video after a restart.** When a viewer connected in the same moment its camera stream was starting or reconnecting, it could end up on a feed that carried audio but never a single picture, and stayed that way until the next restart. Recordings were hit hardest: one resolution kept recording, the other silently stopped, and scrubbing the timeline reported "No recording". That timing hole is closed. As a safety net the recorder also reconnects on its own if a feed ever stays without video for half a minute, and says so in the log. Needs the NVR plugin 1.3.20.
 
 - **Line crossings fire on the drawn line.** The check watched the wrong direction arrow, so a real crossing went unnoticed while something moving near the arrow.

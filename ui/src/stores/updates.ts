@@ -119,6 +119,8 @@ export const useUpdatesStore = defineStore('updates', () => {
     const active = activity.value.get(row.id);
     if (!active) return row;
     if (active.status === 'success' && row.status === 'uptodate') return row;
+    // success only bridges the stale-pending window of its own version, a newer update must show
+    if (active.status === 'success' && row.status === 'pending' && row.latestVersion !== active.targetVersion) return row;
     return { ...row, status: active.status as UpdateItemStatus, error: active.error, latestVersion: active.targetVersion ?? row.latestVersion };
   }
 
