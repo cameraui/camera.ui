@@ -10,11 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The desktop app no longer pushes the timeline header under the top bar.** On the camera page the date row sat half hidden behind the window buttons.
+
 - **The updates page notices the next update after an update.** Once something was updated, a later release of the same component hid behind the green check of the finished one until the next restart, the page claimed everything was up to date while Manage listed the new version.
 
 - **A stream no longer comes up without video after a restart.** When a viewer connected in the same moment its camera stream was starting or reconnecting, it could end up on a feed that carried audio but never a single picture, and stayed that way until the next restart. Recordings were hit hardest: one resolution kept recording, the other silently stopped, and scrubbing the timeline reported "No recording". That timing hole is closed. As a safety net the recorder also reconnects on its own if a feed ever stays without video for half a minute, and says so in the log. Needs the NVR plugin 1.3.20.
 
+- **Live audio reaches every viewer and stays up.** The second viewer of the same camera got no sound, and a running view lost its sound as soon as any other viewer joined or left. Audio now reaches everyone, survives viewers coming and going, and comes back on its own after a short outage instead of staying silent until the view was reopened.
+
+- **A Tapo camera can no longer freeze its stream for good.** One malformed piece of data from the camera wedged the feed permanently: frozen picture, no recovery until a restart. The feed now reconnects on its own.
+
 - **Line crossings fire on the drawn line.** The check watched the wrong direction arrow, so a real crossing went unnoticed while something moving near the arrow.
+
+- **Two views of the same camera no longer fight over the picture.** A live card next to the open dialog, or the same camera in two grids, made one of them stutter while they pulled the stream back and forth. The second view now opens its own stream.
 
 ## [2.1.13]
 
