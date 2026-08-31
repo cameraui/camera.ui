@@ -35,7 +35,7 @@
   "dependencies": {
     "@bjia56/portable-python": "^0.1.166",
     "@camera.ui/common": "~0.0.54",
-    "@camera.ui/go2rtc": "^1.9.14-cui.38",
+    "@camera.ui/go2rtc": "^1.9.14-cui.39",
     "@camera.ui/nats": "^2.14.6",
     "@camera.ui/rpc": "^1.0.12",
     "@camera.ui/rust-detector": "~0.0.12",
@@ -55,7 +55,7 @@
     "@isaacs/ttlcache": "^2.1.5",
     "@scrypted/node-pty": "^1.0.25",
     "adm-zip": "^0.6.0",
-    "aedes": "^1.1.1",
+    "aedes": "^1.1.2",
     "ansicolor": "^2.0.3",
     "cloudflared": "^0.7.3",
     "croner": "^10.0.1",
@@ -85,7 +85,7 @@
     "tail": "^2.2.6",
     "tar": "^7.5.22",
     "tsyringe": "^4.10.0",
-    "undici": "^8.10.0",
+    "undici": "^8.10.1",
     "werift": "^0.24.4",
     "ws": "^8.21.3",
     "zod": "4.5.4"
