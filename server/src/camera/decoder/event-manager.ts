@@ -521,7 +521,7 @@ export class DetectionEventManager {
     if (data.objects.length > 0) {
       const labelCounts = new Map<string, { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean; anyMoving: boolean }>();
       for (const obj of data.objects) {
-        const t = obj as { trackId?: number; trackSpeed?: number; label: string; confidence: number; box: BoundingBox };
+        const t = obj as { trackId?: number; trackSpeed?: number; stationarySince?: number; label: string; confidence: number; box: BoundingBox };
         if (t.trackId !== undefined && obj.box) {
           const cx = obj.box.x + obj.box.width / 2;
           const cy = obj.box.y + obj.box.height / 2;
@@ -533,7 +533,8 @@ export class DetectionEventManager {
             this.segmentTrackPaths.set(t.trackId, { enterX: cx, enterY: cy, exitX: cx, exitY: cy });
           }
         }
-        const moving = t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD : undefined;
+        // a settled track's box jitter clears the speed floor; settled is not moving
+        const moving = t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD && t.stationarySince === undefined : undefined;
         const entry = labelCounts.get(obj.label);
         if (entry) {
           entry.count++;
