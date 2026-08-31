@@ -312,6 +312,8 @@ import ActivityModeSleepIcon from '~icons/icon-park-solid/sleep';
 import MicrophoneIcon from '~icons/mage/microphone-fill';
 import StreamingModeAutoIcon from '~icons/material-symbols/motion-photos-auto-outline-rounded';
 import NewViewIcon from '~icons/mdi/card-plus-outline';
+import DetectionsOnIcon from '~icons/mdi/motion-sensor';
+import DetectionsOffIcon from '~icons/mdi/motion-sensor-off';
 import ActivityModeWebcamIcom from '~icons/mdi/webcam';
 import FullscreenOffIcon from '~icons/mingcute/fullscreen-exit-fill';
 import FullscreenOnIcon from '~icons/mingcute/fullscreen-fill';
@@ -432,7 +434,8 @@ const cameraCardProps = computed<Partial<CuiCameraCardProps>>(() => ({
   control: true,
   toolbar: false,
   expandableCard: (currentView.value?.cameras?.length ?? 0) > 1,
-  detectionIndicatorOverlay: !rearrangeMode.value,
+  detectionIndicatorOverlay: !rearrangeMode.value && detectionsEnabled.value,
+  detectionIconsOverlay: !rearrangeMode.value && detectionsEnabled.value,
   boundingBoxOverlay: false,
   cardClickAction: 'expand',
   viewTransition: true,
@@ -470,6 +473,8 @@ const contentContainerStyle = computed<HTMLAttributes['style']>(() => {
 const editMode = computed(() => editView.value || newView.value);
 
 const isFullscreen = computed(() => Boolean(viewDndRef.value?.isFullscreen));
+
+const detectionsEnabled = computed(() => uiSettings.value.camview.detections !== false);
 
 const cameraButtons = computed<{ label: string; icon: any; buttonProps?: ButtonProps; command: () => void }[]>(() => [
   {
@@ -516,6 +521,11 @@ const cameraButtons = computed<{ label: string; icon: any; buttonProps?: ButtonP
           : `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_high')}`,
     icon: sourceRole.value === 'low-resolution' ? SourceRoleLowIcon : sourceRole.value === 'mid-resolution' ? SourceRoleMidIcon : SourceRoleHighIcon,
     command: () => togglePlayerSourceRole(),
+  },
+  {
+    label: `${t('components.form.tooltip.detections')}: ${detectionsEnabled.value ? t('components.form.tooltip.detections_on') : t('components.form.tooltip.detections_off')}`,
+    icon: detectionsEnabled.value ? DetectionsOnIcon : DetectionsOffIcon,
+    command: () => (uiSettings.value.camview.detections = !detectionsEnabled.value),
   },
 ]);
 

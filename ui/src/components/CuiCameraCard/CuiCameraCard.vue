@@ -90,6 +90,22 @@
             </div>
           </TransitionGroup>
 
+          <TransitionGroup
+            tag="div"
+            name="overlay-actions"
+            class="absolute top-[10px] z-9 flex items-center gap-1.5 pointer-events-none"
+            :class="backButton ? 'left-16' : 'left-4'"
+          >
+            <div
+              v-for="chip in detectionIconChips"
+              :key="chip.kind"
+              class="w-8 h-8 rounded-full flex items-center justify-center"
+              :style="{ background: 'color-mix(in srgb, var(--primary-500) 90%, transparent)' }"
+            >
+              <component :is="chip.icon" class="w-4 h-4 text-white" />
+            </div>
+          </TransitionGroup>
+
           <TransitionGroup tag="div" name="overlay-actions" class="absolute top-[10px] right-4 z-9 flex items-center gap-2">
             <div v-if="showPtzToolbar" key="ptz" class="flex items-center gap-1 rounded-full bg-black/40 p-1">
               <Button
@@ -806,6 +822,7 @@ import ShareForm from '@/components/CuiDialog/templates/ShareForm/ShareForm.vue'
 import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { useCameraPtz } from '@/components/CuiPTZControl/useCameraPtz.js';
 import { isCapacitor } from '@/connection/runtime.js';
+import { resolveEventIcons } from '@/utils/eventIcons.js';
 import { maskPrivacyZones } from '@/utils/privacyMask.js';
 import { CAMERA_CARD_DEFAULTS } from './types.js';
 
@@ -861,6 +878,7 @@ const {
   cameraNameOverlay,
   liveIndicatorOverlay,
   detectionIndicatorOverlay,
+  detectionIconsOverlay,
   boundingBoxOverlay,
   privacyOverlay,
   control,
@@ -959,6 +977,8 @@ const timelineState = ref(false);
 const heatmapEnabled = ref(false);
 const zoneState = ref(false);
 const hasActiveDetection = ref(false);
+const activeDetectionKinds = ref<string[]>([]);
+const detectionKindLastSeen = new Map<string, number>();
 const initialHover = ref(true);
 const muted = ref(true);
 const micActive = ref(false);
@@ -1053,12 +1073,16 @@ const {
 const { start: startDetectionIndicatorTimeout } = useTimeoutFn(
   () => {
     hasActiveDetection.value = false;
+    detectionKindLastSeen.clear();
+    activeDetectionKinds.value = [];
   },
   DETECTION_INDICATOR_TIMEOUT,
   { immediate: false },
 );
 
-const needsDetections = computed(() => !nvrPlaybackVisible.value && ((boundingBoxOverlay.value && bboxEnabled.value) || detectionIndicatorOverlay.value));
+const needsDetections = computed(
+  () => !nvrPlaybackVisible.value && ((boundingBoxOverlay.value && bboxEnabled.value) || detectionIndicatorOverlay.value || detectionIconsOverlay.value),
+);
 const gatedCameraDevice = computed(() => (needsDetections.value ? cameraDevice.value : undefined));
 
 const { sensor: motionSensor } = useMotionSensor(gatedCameraDevice, () => camera.value?.assignments?.motion?.id);
@@ -1174,6 +1198,12 @@ const showPtzToolbar = computed(
   () => showControl.value && hasPtz.value && subcontrol.value && subcontrolPtzButton.value && isFullPlayer.value && !timelineState.value && !nvrPlaybackVisible.value,
 );
 const showDetectionIndicator = computed(() => detectionIndicatorOverlay.value && hasActiveDetection.value);
+
+const { icons: eventIconMap, generic: genericEventIcon } = resolveEventIcons();
+const detectionIconChips = computed(() => {
+  if (!detectionIconsOverlay.value || !hasActiveDetection.value) return [];
+  return activeDetectionKinds.value.slice(0, 3).map((kind) => ({ kind, icon: eventIconMap[kind] ?? genericEventIcon }));
+});
 
 const arParsed = computed(() => {
   const ratio = cameraAspectRatio.value.split('/');
@@ -1797,6 +1827,16 @@ function handleDetectionIndicator(detections: Detection[]) {
   }
 }
 
+function trackDetectionKinds(kinds: string[]) {
+  if (!detectionIconsOverlay.value || !kinds.length) return;
+  const now = Date.now();
+  for (const kind of kinds) detectionKindLastSeen.set(kind, now);
+  for (const [kind, seen] of detectionKindLastSeen) {
+    if (now - seen > DETECTION_INDICATOR_TIMEOUT) detectionKindLastSeen.delete(kind);
+  }
+  activeDetectionKinds.value = [...detectionKindLastSeen.keys()];
+}
+
 function resumeStream() {
   if (!isDisabled.value) cameraStream.resumeFromStandby();
 }
@@ -2134,6 +2174,7 @@ watch(
     const detectionsArray = (detections ?? []) as FaceDetection[];
     handleActivity(detectionsArray);
     handleDetectionIndicator(detectionsArray);
+    trackDetectionKinds(detectionsArray.length ? ['motion'] : []);
     drawCanvas('motion', drawableDetections(detectionsArray));
   },
   { deep: true },
@@ -2145,6 +2186,7 @@ watch(
     const detectionsArray = (detections ?? []) as TrackedDetection[];
     handleActivity(detectionsArray);
     handleDetectionIndicator(detectionsArray);
+    trackDetectionKinds(detectionsArray.flatMap((d) => (d.attribute ? [d.label, d.attribute] : [d.label])));
     drawCanvas('object', drawableDetections(detectionsArray));
   },
   { deep: true },

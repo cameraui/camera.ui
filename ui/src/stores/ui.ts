@@ -17,6 +17,7 @@ const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
   },
   camview: {
     dragDisabled: false,
+    detections: true,
   },
   config: {
     zoom: 12,
@@ -48,6 +49,7 @@ export const useUiStore = defineStore('ui', () => {
 
   uiSettings.value.interface.landingPage ??= '/home';
   uiSettings.value.interface.tableRows ??= 15;
+  uiSettings.value.camview.detections ??= true;
 
   return {
     uiSettings,

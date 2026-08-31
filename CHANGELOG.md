@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Camview shows what a camera sees.** Next to the red glow, small icons name the active detections on each tile (motion, person, vehicle, face and the rest). A new button in Camview's quick menu turns glow and icons off.
+
 - **Mode switching without a tray icon.** The desktop app's mode switch now also sits in the app menu under File, and starting the app a second time with `--switch-mode` opens the mode picker in the running instance. For Linux desktops that show no tray icon.
 
 ### Fixed

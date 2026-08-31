@@ -653,6 +653,7 @@ export interface CamviewLayoutOverride {
 
 export interface CamviewSettings {
   dragDisabled?: boolean;
+  detections?: boolean;
   viewid?: string;
   layouts?: Record<string, CamviewLayoutOverride[]>;
 }
