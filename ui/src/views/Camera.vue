@@ -87,7 +87,7 @@
           'lg:fixed lg:right-safe-offset-2 lg:bottom-safe-offset-2': !smBreakpoint && !xmdBreakpoint,
         }"
         :style="{
-          height: `calc(100% - ${topbarHeight}px - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))`,
+          height: `calc(100% - ${topbarOffset}px - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))`,
         }"
       />
     </div>
@@ -293,7 +293,7 @@ const primevue = usePrimeVue();
 const route = useRoute();
 const router = useRouter();
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
-const { topbarHeight } = useSharedCuiStates();
+const { topbarOffset } = useSharedCuiStates();
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 
 const routerStore = useRouterStore();
