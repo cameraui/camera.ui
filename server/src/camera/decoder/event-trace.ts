@@ -46,6 +46,7 @@ export interface TraceTick {
 
 const KEEP_INTERVAL_MS = 500;
 const MOTION_ONLY_INTERVAL_MS = 1000;
+const EMPTY_CONTEXT_TICKS = 3;
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
@@ -131,16 +132,39 @@ export function traceAttributes(results: DetectionResults): TraceAttribute[] | u
 export class EventTraceCollector {
   private ticks: TraceTick[] = [];
   private lastKeptAt = 0;
+  private pendingEmpty: TraceTick[] = [];
+  private emptyTail = 0;
   private readonly seenReadings = new Set<string>();
 
   public add(tick: TraceTick): void {
     if (tick.world.length === 0 && tick.events.length === 0 && !tick.motion?.length && !tick.objectRan) return;
 
+    // a tick where nothing was found only earns its place around activity: a
+    // few kept before and after, the hours in between say nothing
+    const empty =
+      tick.world.length === 0 && tick.events.length === 0 && tick.detections.length === 0 && !tick.motion?.length && !tick.attrs?.length;
+    if (empty) {
+      if (this.emptyTail > 0) {
+        if (tick.tMs - this.lastKeptAt < MOTION_ONLY_INTERVAL_MS) return;
+        this.emptyTail--;
+        this.ticks.push(tick);
+        this.lastKeptAt = tick.tMs;
+        return;
+      }
+      const last = this.pendingEmpty.at(-1);
+      if (last && tick.tMs - last.tMs < MOTION_ONLY_INTERVAL_MS) return;
+      this.pendingEmpty.push(tick);
+      if (this.pendingEmpty.length > EMPTY_CONTEXT_TICKS) this.pendingEmpty.shift();
+      return;
+    }
+
     const changed = tick.events.length > 0 || (tick.created?.length ?? 0) > 0 || (tick.removed?.length ?? 0) > 0 || this.hasNewReading(tick);
     const interval = tick.world.length > 0 ? KEEP_INTERVAL_MS : MOTION_ONLY_INTERVAL_MS;
     if (!changed && tick.tMs - this.lastKeptAt < interval) return;
 
-    this.ticks.push(tick);
+    this.ticks.push(...this.pendingEmpty, tick);
+    this.pendingEmpty = [];
+    this.emptyTail = EMPTY_CONTEXT_TICKS;
     this.lastKeptAt = tick.tMs;
   }
 
@@ -154,6 +178,8 @@ export class EventTraceCollector {
   public reset(): void {
     this.ticks = [];
     this.lastKeptAt = 0;
+    this.pendingEmpty = [];
+    this.emptyTail = 0;
     this.seenReadings.clear();
   }
 
