@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [2.1.14]
 
+### Added
+
+- **Mode switching without a tray icon.** The desktop app's mode switch now also sits in the app menu under File, and starting the app a second time with `--switch-mode` opens the mode picker in the running instance. For Linux desktops that show no tray icon.
+
 ### Fixed
+
+- **A stream no longer comes up without video after a restart.** When a viewer connected in the same moment its camera stream was starting or reconnecting, it could end up on a feed that carried audio but never a single picture, and stayed that way until the next restart. Recordings were hit hardest: one resolution kept recording, the other silently stopped, and scrubbing the timeline reported "No recording". That timing hole is closed. As a safety net the recorder also reconnects on its own if a feed ever stays without video for half a minute, and says so in the log. Needs the NVR plugin 1.3.20.
 
 - **Line crossings fire on the drawn line.** The check watched the wrong direction arrow, so a real crossing went unnoticed while something moving near the arrow.
 
