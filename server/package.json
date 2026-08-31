@@ -35,11 +35,11 @@
   "dependencies": {
     "@bjia56/portable-python": "^0.1.166",
     "@camera.ui/common": "~0.0.54",
-    "@camera.ui/go2rtc": "^1.9.14-cui.37",
+    "@camera.ui/go2rtc": "^1.9.14-cui.38",
     "@camera.ui/nats": "^2.14.6",
     "@camera.ui/rpc": "^1.0.12",
     "@camera.ui/rust-detector": "~0.0.12",
-    "@camera.ui/rust-postprocessor": "~0.1.2",
+    "@camera.ui/rust-postprocessor": "~0.1.3",
     "@camera.ui/sdk": "~1.2.35",
     "@camera.ui/tunnel": "^1.0.4",
     "@eneris/push-receiver": "^4.3.1",
