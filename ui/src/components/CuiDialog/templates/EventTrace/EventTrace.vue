@@ -13,43 +13,66 @@
     </div>
 
     <template v-else-if="status === 'ready'">
-      <div class="stage relative w-full bg-black shrink-0 flex items-center justify-center overflow-hidden">
-        <div class="frame relative" :style="{ '--ar-w': stageAspect.w, '--ar-h': stageAspect.h }">
-          <div ref="playerRef" class="absolute inset-0" />
+      <div ref="stageRef" class="stage relative w-full bg-black shrink-0 overflow-hidden">
+        <VueZoomable
+          v-model:pan="stagePan"
+          v-model:zoom="stageZoomLevel"
+          :pan-enabled="stageZoomLevel > 1"
+          :enable-control-button="false"
+          :dbl-click-enabled="false"
+          :min-zoom="1"
+          :max-zoom="STAGE_MAX_ZOOM"
+          :selector="`[data-stage-zoom='${zoomId}']`"
+          zoom-origin="pointer"
+          class="absolute inset-0 flex items-center justify-center"
+          :class="{ 'zoom-constraining': stageConstraining }"
+          @panned="onStageZoomPan"
+          @zoom="onStageZoomPan"
+          @dblclick="onStageDoubleClick"
+          @touchstart="onStageTouchStart"
+          @touchend="onStageTouchEnd"
+        >
+          <div ref="frameRef" :data-stage-zoom="zoomId" class="frame relative" :style="{ '--ar-w': stageAspect.w, '--ar-h': stageAspect.h }">
+            <div ref="playerRef" class="absolute inset-0" />
 
-          <div class="absolute inset-0 z-[3] transition-opacity duration-500" :class="playerLive ? 'opacity-0' : 'opacity-100'">
-            <Transition
-              enter-active-class="transition-opacity duration-300 ease-out"
-              enter-from-class="opacity-0"
-              enter-to-class="opacity-100"
-              leave-active-class="transition-opacity duration-200 ease-in"
-              leave-from-class="opacity-100"
-              leave-to-class="opacity-0"
-              mode="out-in"
-            >
-              <canvas v-if="stagePicture" :key="stageVersion" ref="stageCanvasRef" class="absolute inset-0 w-full h-full object-contain" />
-              <div v-else :key="`empty-${stageVersion}`" class="absolute inset-0 flex items-center justify-center text-sm text-white/60 px-6 text-center">
-                <span v-if="stageLoading || selected?.status === 'pending' || framesStatus === 'loading'">{{ $t('views.recordings.trace.loading_frames') }}</span>
-                <span v-else-if="framesStatus === 'nodata'">{{ $t('views.recordings.trace.no_recording') }}</span>
-                <span v-else-if="framesStatus === 'unsupported'">{{ $t('views.recordings.trace.unsupported') }}</span>
-                <span v-else>{{ $t('views.recordings.trace.missing') }}</span>
-              </div>
-            </Transition>
+            <div class="absolute inset-0 z-[3] transition-opacity duration-500" :class="playerLive ? 'opacity-0' : 'opacity-100'">
+              <Transition
+                enter-active-class="transition-opacity duration-300 ease-out"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition-opacity duration-200 ease-in"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+                mode="out-in"
+              >
+                <canvas v-if="stagePicture" :key="stageVersion" ref="stageCanvasRef" class="absolute inset-0 w-full h-full object-contain" />
+                <div v-else :key="`empty-${stageVersion}`" class="absolute inset-0 flex items-center justify-center text-sm text-white/60 px-6 text-center">
+                  <span v-if="stageLoading || selected?.status === 'pending' || framesStatus === 'loading'">{{ $t('views.recordings.trace.loading_frames') }}</span>
+                  <span v-else-if="framesStatus === 'nodata'">{{ $t('views.recordings.trace.no_recording') }}</span>
+                  <span v-else-if="framesStatus === 'unsupported'">{{ $t('views.recordings.trace.unsupported') }}</span>
+                  <span v-else>{{ $t('views.recordings.trace.missing') }}</span>
+                </div>
+              </Transition>
+            </div>
+
+            <CuiPolygon
+              v-if="showPlayback"
+              class="absolute inset-0 z-[4] pointer-events-none"
+              :camera-zones="showZones ? objectZones : []"
+              :motion-zones="showZones ? motionZones : []"
+              :alert-zones="showZones ? alertZones : []"
+              :privacy-zones="privacyZones"
+              :show-labels="showZones"
+            />
+
+            <div v-if="playbackNotice" class="absolute inset-0 z-[4] flex items-center justify-center text-sm text-white/70 px-6 text-center bg-black/60">
+              {{ playbackNotice }}
+            </div>
           </div>
+        </VueZoomable>
 
-          <CuiPolygon
-            v-if="showPlayback"
-            class="absolute inset-0 z-[4] pointer-events-none"
-            :camera-zones="showZones ? objectZones : []"
-            :motion-zones="showZones ? motionZones : []"
-            :alert-zones="showZones ? alertZones : []"
-            :privacy-zones="privacyZones"
-            :show-labels="showZones"
-          />
-
-          <div v-if="playbackNotice" class="absolute inset-0 z-[4] flex items-center justify-center text-sm text-white/70 px-6 text-center bg-black/60">
-            {{ playbackNotice }}
-          </div>
+        <div v-if="stageMinimapStyle" class="zoom-minimap" :style="stageMinimapBoxStyle ?? undefined">
+          <div class="zoom-minimap-viewport" :style="stageMinimapStyle" />
         </div>
 
         <div class="absolute top-2 right-2 z-[5] dark-mode">
@@ -231,10 +254,11 @@
 
 <script setup lang="ts">
 import { playheadUs, useEventTrace, useNvrPlayback } from '@camera.ui/nvr';
+import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 
 import { detectionStyle } from '@/common/detectionLabels.js';
-import { extractErrorMessage } from '@/common/utils.js';
+import { extractErrorMessage, randomLetter } from '@/common/utils.js';
 import { buildStoredZip } from '@/utils/zipStore.js';
 import { boxIntersectsPolygon, boxMatchesZone } from '@/utils/zoneGeometry.js';
 
@@ -290,6 +314,8 @@ const stageCanvasRef = useTemplateRef<HTMLCanvasElement>('stageCanvasRef');
 const playerRef = useTemplateRef<HTMLElement>('playerRef');
 const scrubRef = useTemplateRef<HTMLElement>('scrubRef');
 const stripRef = useTemplateRef<HTMLElement>('stripRef');
+const stageRef = useTemplateRef<HTMLElement>('stageRef');
+const frameRef = useTemplateRef<HTMLElement>('frameRef');
 const thumbCanvases = new Map<number, HTMLCanvasElement>();
 const selectedIndex = ref(-1);
 const stagePicture = shallowRef<ImageBitmap>();
@@ -306,6 +332,19 @@ const bundleBusy = ref(false);
 let stageRequest = 0;
 let wasPlayingBeforeScrub = false;
 let lastScrubSent = 0;
+
+const zoomId = randomLetter();
+const {
+  zoom: stageZoomLevel,
+  pan: stagePan,
+  constraining: stageConstraining,
+  minimapStyle: stageMinimapStyle,
+  minimapBoxStyle: stageMinimapBoxStyle,
+  onZoomPan: onStageZoomPan,
+  onDoubleClick: onStageDoubleClick,
+  onTouchStart: onStageTouchStart,
+  onTouchEnd: onStageTouchEnd,
+} = useStageZoom(stageRef, frameRef);
 
 const selected = computed<TraceFrame | undefined>(() => frames.value[selectedIndex.value]);
 
@@ -925,6 +964,30 @@ onMounted(() => {
 .frame {
   width: min(100cqw, calc(100cqh * var(--ar-w) / var(--ar-h)));
   height: min(100cqh, calc(100cqw * var(--ar-h) / var(--ar-w)));
+}
+
+.zoom-constraining :deep(> *) {
+  transition: transform 0.15s ease-out !important;
+}
+
+.zoom-minimap {
+  position: absolute;
+  right: 10px;
+  bottom: 56px;
+  width: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.zoom-minimap-viewport {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .control-bar-btn {

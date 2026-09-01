@@ -13,9 +13,32 @@
     </div>
 
     <template v-else-if="status === 'ready' && trace">
-      <div class="stage relative w-full bg-black shrink-0 flex items-center justify-center overflow-hidden">
-        <img v-if="selectedImage" :src="selectedImage.url" class="max-w-full max-h-full object-contain" alt="" />
+      <div ref="stageRef" class="stage relative w-full bg-black shrink-0 flex items-center justify-center overflow-hidden">
+        <VueZoomable
+          v-if="selectedImage"
+          v-model:pan="stagePan"
+          v-model:zoom="stageZoomLevel"
+          :pan-enabled="stageZoomLevel > 1"
+          :enable-control-button="false"
+          :dbl-click-enabled="false"
+          :min-zoom="1"
+          :max-zoom="STAGE_MAX_ZOOM"
+          :selector="`[data-stage-zoom='${zoomId}']`"
+          zoom-origin="pointer"
+          class="absolute inset-0 flex items-center justify-center"
+          :class="{ 'zoom-constraining': stageConstraining }"
+          @panned="onStageZoomPan"
+          @zoom="onStageZoomPan"
+          @dblclick="onStageDoubleClick"
+          @touchstart="onStageTouchStart"
+          @touchend="onStageTouchEnd"
+        >
+          <img ref="imageRef" :data-stage-zoom="zoomId" :src="selectedImage.url" class="max-w-full max-h-full object-contain" alt="" draggable="false" />
+        </VueZoomable>
         <span v-else-if="!imagesLoading" class="text-sm text-white/60 px-6 text-center">{{ $t('views.recordings.episode_trace.no_images') }}</span>
+        <div v-if="stageMinimapStyle" class="zoom-minimap" :style="stageMinimapBoxStyle ?? undefined">
+          <div class="zoom-minimap-viewport" :style="stageMinimapStyle" />
+        </div>
         <div v-if="selectedImage" class="absolute bottom-0 inset-x-0 z-[5] px-3 pb-2 pt-6 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
           <span class="text-xs text-white">{{ selectedIndex + 1 }}. {{ selectedImage.note }}</span>
         </div>
@@ -174,9 +197,10 @@
 
 <script setup lang="ts">
 import { thumbnailToUrl, useEventStore } from '@camera.ui/nvr';
+import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 
-import { extractErrorMessage } from '@/common/utils.js';
+import { extractErrorMessage, randomLetter } from '@/common/utils.js';
 import { buildStoredZip } from '@/utils/zipStore.js';
 
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
@@ -204,12 +228,28 @@ const DROPPED_COLOR = '#ef4444';
 const FALLBACK_COLOR = '#eab308';
 
 const stripRef = useTemplateRef<HTMLElement>('stripRef');
+const stageRef = useTemplateRef<HTMLElement>('stageRef');
+const imageRef = useTemplateRef<HTMLImageElement>('imageRef');
 const trace = shallowRef<EpisodeTrace>();
 const images = shallowRef<TraceImage[]>([]);
 const status = ref<'loading' | 'ready' | 'empty' | 'unavailable'>('loading');
 const imagesLoading = ref(false);
 const selectedIndex = ref(0);
 const bundleBusy = ref(false);
+
+const zoomId = randomLetter();
+const {
+  zoom: stageZoomLevel,
+  pan: stagePan,
+  constraining: stageConstraining,
+  minimapStyle: stageMinimapStyle,
+  minimapBoxStyle: stageMinimapBoxStyle,
+  onZoomPan: onStageZoomPan,
+  onDoubleClick: onStageDoubleClick,
+  onTouchStart: onStageTouchStart,
+  onTouchEnd: onStageTouchEnd,
+  reset: resetStageZoom,
+} = useStageZoom(stageRef, imageRef);
 
 let loadStarted = false;
 
@@ -372,6 +412,8 @@ useEventListener(
   { passive: false },
 );
 
+watch(selectedIndex, resetStageZoom);
+
 watch(
   nvrPluginRef,
   (proxy) => {
@@ -388,6 +430,30 @@ watch([status, bundleBusy], updateHeaderActions, { immediate: true });
 <style scoped>
 .stage {
   height: clamp(180px, 34vh, 400px);
+}
+
+.zoom-constraining :deep(> *) {
+  transition: transform 0.15s ease-out !important;
+}
+
+.zoom-minimap {
+  position: absolute;
+  right: 10px;
+  bottom: 44px;
+  width: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.zoom-minimap-viewport {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .tile {

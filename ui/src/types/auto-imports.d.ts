@@ -15,6 +15,7 @@ declare global {
   const MAX_METRICS_DATA_POINTS: typeof import('../composables/sockets/useMetricsSocket').MAX_METRICS_DATA_POINTS
   const MAX_WORKERS_DATA_POINTS: typeof import('../composables/sockets/useWorkersSocket').MAX_WORKERS_DATA_POINTS
   const NAV_GROUPS: typeof import('../composables/useNavLayout').NAV_GROUPS
+  const STAGE_MAX_ZOOM: typeof import('../composables/useStageZoom').STAGE_MAX_ZOOM
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const adoptUpdateIfPending: typeof import('../composables/useAppUpdate').adoptUpdateIfPending
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -377,6 +378,7 @@ declare global {
   const useSorted: typeof import('@vueuse/core').useSorted
   const useSpeechRecognition: typeof import('@vueuse/core').useSpeechRecognition
   const useSpeechSynthesis: typeof import('@vueuse/core').useSpeechSynthesis
+  const useStageZoom: typeof import('../composables/useStageZoom').useStageZoom
   const useStepper: typeof import('@vueuse/core').useStepper
   const useStorage: typeof import('@vueuse/core').useStorage
   const useStorageAsync: typeof import('@vueuse/core').useStorageAsync
@@ -552,6 +554,7 @@ declare module 'vue' {
     readonly MAX_METRICS_DATA_POINTS: UnwrapRef<typeof import('../composables/sockets/useMetricsSocket')['MAX_METRICS_DATA_POINTS']>
     readonly MAX_WORKERS_DATA_POINTS: UnwrapRef<typeof import('../composables/sockets/useWorkersSocket')['MAX_WORKERS_DATA_POINTS']>
     readonly NAV_GROUPS: UnwrapRef<typeof import('../composables/useNavLayout')['NAV_GROUPS']>
+    readonly STAGE_MAX_ZOOM: UnwrapRef<typeof import('../composables/useStageZoom')['STAGE_MAX_ZOOM']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly adoptUpdateIfPending: UnwrapRef<typeof import('../composables/useAppUpdate')['adoptUpdateIfPending']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -914,6 +917,7 @@ declare module 'vue' {
     readonly useSorted: UnwrapRef<typeof import('@vueuse/core')['useSorted']>
     readonly useSpeechRecognition: UnwrapRef<typeof import('@vueuse/core')['useSpeechRecognition']>
     readonly useSpeechSynthesis: UnwrapRef<typeof import('@vueuse/core')['useSpeechSynthesis']>
+    readonly useStageZoom: UnwrapRef<typeof import('../composables/useStageZoom')['useStageZoom']>
     readonly useStepper: UnwrapRef<typeof import('@vueuse/core')['useStepper']>
     readonly useStorage: UnwrapRef<typeof import('@vueuse/core')['useStorage']>
     readonly useStorageAsync: UnwrapRef<typeof import('@vueuse/core')['useStorageAsync']>
