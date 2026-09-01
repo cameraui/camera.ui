@@ -12,7 +12,13 @@ All notable changes to this project will be documented in this file.
 
 - **The detection trace zooms.** Mouse wheel, pinch or a double tap zoom into the frames, with the same feel as the live view, so a distant animal is readable. Works in playback and on the episode trace pictures too.
 
+- **The Apple TV app controls PTZ cameras.** A camera that can pan, tilt or zoom gets a move button in its live player: hold a direction to move, a short press nudges a little, with home and preset buttons when the camera offers them.
+
+- **Apple TV camera tiles can show the whole picture.** The new "Whole picture" toggle in Camview fits each camera into its tile with bars instead of cropping, so a 4:3 camera no longer loses its edges next to widescreen ones. Remembered per view; cameras that match their tile shape look the same either way.
+
 ### Fixed
+
+- **Controlling sensors now needs an admin account.** The API accepted sensor commands from any signed-in account, so a viewer who knew the API could have opened a lock or moved a PTZ camera even though no button showed. If Home Assistant controls your camera.ui sensors, make sure the integration uses an admin's API token; a viewer token can only watch from now on.
 
 - **Snoozing detections no longer risks losing them for good.** After a snooze, disable or a manual frame-worker stop, the worker no longer followed the camera: a stream hiccup later and detections stayed dead until a server restart, with "Failed to reconcile sensor triggers" timeouts in the log. Quick snooze toggles could also tangle the stop and start of the detection process, and a detection process that never finished starting now retries instead of hanging.
 
