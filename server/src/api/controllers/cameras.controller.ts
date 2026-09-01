@@ -599,7 +599,7 @@ export class CamerasController {
         });
       }
 
-      const newCamera = await this.service.patchCameraByName(req.params.cameraname, req.body);
+      const newCamera = await this.service.patchCameraByName(camera.name, req.body);
 
       return reply.code(200).send(newCamera);
     } catch (error: any) {
