@@ -100,7 +100,7 @@ export const SensorsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/:id/command',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
     handler: controller.command.bind(controller),
     schema: {
       tags: ['Sensors'],
