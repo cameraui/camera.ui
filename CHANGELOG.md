@@ -10,7 +10,15 @@ All notable changes to this project will be documented in this file.
 
 - **Mode switching without a tray icon.** The desktop app's mode switch now also sits in the app menu under File, and starting the app a second time with `--switch-mode` opens the mode picker in the running instance. For Linux desktops that show no tray icon.
 
+- **The detection trace zooms.** Mouse wheel, pinch or a double tap zoom into the frames, with the same feel as the live view, so a distant animal is readable. Works in playback and on the episode trace pictures too.
+
 ### Fixed
+
+- **Snoozing detections no longer risks losing them for good.** After a snooze, disable or a manual frame-worker stop, the worker no longer followed the camera: a stream hiccup later and detections stayed dead until a server restart, with "Failed to reconcile sensor triggers" timeouts in the log. Quick snooze toggles could also tangle the stop and start of the detection process, and a detection process that never finished starting now retries instead of hanging.
+
+- **Uninstalling a plugin from its own page returns to the plugin list.** Before, the page of the removed plugin stayed open.
+
+- **Changing a camera through the API by its id works.** The request reported success but changed nothing, only the camera name worked.
 
 - **The desktop app no longer pushes the timeline header under the top bar.** On the camera page the date row sat half hidden behind the window buttons.
 
@@ -29,6 +37,8 @@ All notable changes to this project will be documented in this file.
 - **Line crossings fire on the drawn line.** The check watched the direction arrow instead, so a real crossing went unnoticed while something moving near the arrow could report one it never made.
 
 - **The detection trace skips the quiet stretches.** A long event with barely any real activity, a camera OSD flickering at night say, filled the trace with frames where nothing was found. Only a few of those around each activity are kept now.
+
+- **Episode cuts keep every stop and open where the story starts.** A short crossing of the yard could vanish from an episode entirely, and when people stood at the door while one of them was already in the yard, the episode opened with the yard instead of the door. Needs the NVR plugin 1.3.22.
 
 - **Two views of the same camera no longer fight over the picture.** A live card next to the open dialog, or the same camera in two grids, made one of them stutter while they pulled the stream back and forth. The second view now opens its own stream.
 
