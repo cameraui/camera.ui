@@ -77,6 +77,7 @@ const props = defineProps<VersionsHandlerProps>();
 
 const toast = useCuiToast();
 const { t } = useI18n();
+const router = useRouter();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { beginServerRestart } = useServerRestart();
 const { isBeta } = useUpdateChannel();
@@ -314,6 +315,18 @@ async function installTarget(version: string): Promise<void> {
   }
 }
 
+function leaveUninstalledPluginPage(): void {
+  if (!isPluginTarget(target.value)) return;
+  const route = router.currentRoute.value;
+  const scope = route.params.scope as string | undefined;
+  const name = route.params.pluginname as string | undefined;
+  if (!name) return;
+  const shownPlugin = scope ? `${scope}/${name}` : name;
+  if (shownPlugin === target.value.pluginName) {
+    router.replace('/plugins');
+  }
+}
+
 async function uninstallTarget(): Promise<void> {
   if (!isPluginTarget(target.value)) {
     return;
@@ -325,6 +338,7 @@ async function uninstallTarget(): Promise<void> {
     await uninstallPlugin({ pluginName: target.value.pluginName, removeStorage: removeStorage.value });
 
     uninstallDone.value = true;
+    leaveUninstalledPluginPage();
 
     if (dialogRefProps.confirmText) {
       dialogRefProps.confirmText.value = t('components.form.button.finish');
