@@ -47,7 +47,7 @@ export interface LineCrossingEvent {
 }
 
 export interface PipelineResult {
-  tracked: TrackedDetection[];
+  tracked: PresentTrackedDetection[];
   staticTracks: TrackedDetection[];
   crossings: LineCrossingEvent[];
   created: number[];
@@ -55,6 +55,8 @@ export interface PipelineResult {
   events: WorldEvent[];
   trace: TraceTick;
 }
+
+export type PresentTrackedDetection = TrackedDetection & { presentSince?: number };
 
 function toRustDetection(det: Detection): RustDetection {
   return {
@@ -189,6 +191,7 @@ export class DetectionPipeline {
   private lines: DetectionLine[] = [];
   private suppressStatic: boolean;
   private whitelist: Set<string> | null = null;
+  private stillSince = new Map<number, number>();
 
   constructor(zones: ZoneConfig, settings: CameraDetectionSettings) {
     this.world = new CameraWorld();
@@ -236,8 +239,25 @@ export class DetectionPipeline {
     const flat = allowed.length === 0 ? [] : this.runNmsAndMergeFlat(allowed);
     const cameraMotion = poseDelta ? { x: -poseDelta.panDelta * PAN_TO_IMAGE_RATIO, y: poseDelta.tiltDelta * PAN_TO_IMAGE_RATIO } : undefined;
     const result = this.world.ingest(tMs, flat, cameraMotion);
-    const tracked = (this.suppressStatic ? result.tracked.filter((t) => t.state !== 'stationary') : result.tracked).map(fromWorldObject);
+    const tracked: PresentTrackedDetection[] = (this.suppressStatic ? result.tracked.filter((t) => t.state !== 'stationary') : result.tracked).map(fromWorldObject);
     const staticTracks = this.suppressStatic ? result.tracked.filter((t) => t.state === 'stationary').map(fromWorldObject) : [];
+
+    // a standing subject is suppressed until it wakes; remember since when it
+    // stood so its wake sighting can say how long it was already there
+    const seen = new Set<number>();
+    for (const t of result.tracked) {
+      seen.add(t.trackId);
+      if (t.stationarySinceMs !== undefined) this.stillSince.set(t.trackId, t.stationarySinceMs);
+    }
+    for (const id of this.stillSince.keys()) {
+      if (!seen.has(id)) this.stillSince.delete(id);
+    }
+    for (const t of tracked) {
+      if (t.trackId === undefined || t.stationarySince !== undefined) continue;
+      const since = this.stillSince.get(t.trackId);
+      if (since !== undefined) t.presentSince = since;
+    }
+
     const boxLookup = new Map<number, BoundingBox>();
     for (const t of tracked) {
       if (t.trackId !== undefined) boxLookup.set(t.trackId, t.box);

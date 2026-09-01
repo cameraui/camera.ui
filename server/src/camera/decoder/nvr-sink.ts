@@ -9,6 +9,7 @@ export interface RecordedDetection extends EventDetection {
   lastSeen?: number;
   firstMovingSeen?: number;
   lastMovingSeen?: number;
+  presentSince?: number;
 }
 
 export interface RecordedAttribute extends EventAttribute {
@@ -46,7 +47,8 @@ export function leanEvent(event: RecordedEvent): DetectionEvent {
     segments: segments.map(({ thumbnailAt: _segAt, detections, attributes, ...segment }) => ({
       ...segment,
       detections: detections.map(
-        ({ box: _box, trackId: _trackId, zones: _zones, firstSeen: _f, lastSeen: _l, firstMovingSeen: _fm, lastMovingSeen: _lm, ...detection }) => detection,
+        ({ box: _box, trackId: _trackId, zones: _zones, firstSeen: _f, lastSeen: _l, firstMovingSeen: _fm, lastMovingSeen: _lm, presentSince: _ps, ...detection }) =>
+          detection,
       ),
       attributes: attributes
         .filter((attribute) => attribute.type !== 'clip')

@@ -519,9 +519,12 @@ export class DetectionEventManager {
     this.activeSegment.lastSeen = now;
 
     if (data.objects.length > 0) {
-      const labelCounts = new Map<string, { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean; anyMoving: boolean }>();
+      const labelCounts = new Map<
+        string,
+        { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean; anyMoving: boolean; presentSince?: number }
+      >();
       for (const obj of data.objects) {
-        const t = obj as { trackId?: number; trackSpeed?: number; stationarySince?: number; label: string; confidence: number; box: BoundingBox };
+        const t = obj as { trackId?: number; trackSpeed?: number; stationarySince?: number; presentSince?: number; label: string; confidence: number; box: BoundingBox };
         if (t.trackId !== undefined && obj.box) {
           const cx = obj.box.x + obj.box.width / 2;
           const cy = obj.box.y + obj.box.height / 2;
@@ -539,6 +542,7 @@ export class DetectionEventManager {
         if (entry) {
           entry.count++;
           if (moving === true) entry.anyMoving = true;
+          if (t.presentSince !== undefined) entry.presentSince = Math.min(entry.presentSince ?? t.presentSince, t.presentSince);
           if (obj.confidence > entry.bestScore) {
             entry.bestScore = obj.confidence;
             entry.bestBox = obj.box;
@@ -553,11 +557,12 @@ export class DetectionEventManager {
             bestTrackId: t.trackId,
             moving,
             anyMoving: moving === true,
+            presentSince: t.presentSince,
           });
         }
       }
 
-      for (const [label, { count, bestScore, bestBox, bestTrackId, moving, anyMoving }] of labelCounts) {
+      for (const [label, { count, bestScore, bestBox, bestTrackId, moving, anyMoving, presentSince }] of labelCounts) {
         const existing = this.activeSegment.detections.find((d) => d.label === label);
         if (existing) {
           if (bestScore > existing.score) {
@@ -572,6 +577,9 @@ export class DetectionEventManager {
             existing.firstMovingSeen ??= now;
             existing.lastMovingSeen = now;
           }
+          if (presentSince !== undefined) {
+            existing.presentSince = Math.min(existing.presentSince ?? presentSince, presentSince);
+          }
         } else {
           this.activeSegment.detections.push({
             label,
@@ -584,6 +592,7 @@ export class DetectionEventManager {
             lastSeen: now,
             firstMovingSeen: anyMoving ? now : undefined,
             lastMovingSeen: anyMoving ? now : undefined,
+            presentSince,
           });
         }
       }
