@@ -1,5 +1,6 @@
 import { Logger } from '@camera.ui/common/logger';
 import { IS_DEV, IS_ELECTRON, isEqual, sleep, Subscribed } from '@camera.ui/common/utils';
+import { Disposable } from '@camera.ui/sdk';
 import { fork } from 'node:child_process';
 import { container } from 'tsyringe';
 
@@ -25,7 +26,7 @@ import type {
 import type { ChildProcess } from 'node:child_process';
 import type { SocketService } from '../../api/websocket/index.js';
 import type { WorkerRuntime } from '../../api/websocket/types.js';
-import type { InternalEventBus, PluginEventPayload } from '../../internal-bus.js';
+import type { InternalEventBus, InternalEventPayload, PluginEventPayload } from '../../internal-bus.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { FrameWorkerChildInterface } from '../../rpc/interfaces/frameworker.js';
 import type { FrameWorkerNamespaces } from '../../rpc/namespaces.js';
@@ -56,6 +57,7 @@ export class FrameWorker extends Subscribed {
 
   private readonly logger: Logger;
   private logBuffer = '';
+  private opQueue: Promise<unknown> = Promise.resolve();
 
   public get name(): string {
     return this.camera.name;
@@ -90,7 +92,45 @@ export class FrameWorker extends Subscribed {
     this.setupEventListeners();
   }
 
-  public async start(): Promise<void> {
+  public start(): Promise<void> {
+    return this.enqueue(() => this.doStart());
+  }
+
+  public stop(): Promise<void> {
+    return this.enqueue(() => this.doStop());
+  }
+
+  public close(): Promise<void> {
+    this.isClosed = true;
+    clearTimeout(this.retryTimeout);
+    this.retryTimeout = undefined;
+    return this.enqueue(() => this.doClose());
+  }
+
+  public restart(): Promise<void> {
+    return this.enqueue(() => this.doRestart());
+  }
+
+  public destroy(): Promise<void> {
+    this.isClosed = true;
+    clearTimeout(this.retryTimeout);
+    this.retryTimeout = undefined;
+    return this.enqueue(async () => {
+      await this.doClose();
+      this.unsubscribe();
+    });
+  }
+
+  private enqueue<T>(op: () => Promise<T>): Promise<T> {
+    const run = this.opQueue.then(op, op);
+    this.opQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async doStart(): Promise<void> {
     if (this.status === PLUGIN_STATUS.STARTING || this.status === PLUGIN_STATUS.STARTED) {
       return;
     }
@@ -123,7 +163,7 @@ export class FrameWorker extends Subscribed {
     }
   }
 
-  public async stop(): Promise<void> {
+  private async doStop(): Promise<void> {
     if (this.status === PLUGIN_STATUS.STOPPED || this.status === PLUGIN_STATUS.STOPPING) {
       return;
     }
@@ -148,7 +188,7 @@ export class FrameWorker extends Subscribed {
     await this.clearProcessState();
   }
 
-  public async close(): Promise<void> {
+  private async doClose(): Promise<void> {
     this.logger.trace('Closing Frame Worker');
 
     this.isClosed = true;
@@ -158,19 +198,22 @@ export class FrameWorker extends Subscribed {
     clearTimeout(this.remoteStartTimeout);
     this.remoteStartTimeout = undefined;
 
-    await this.stop();
-    this.unsubscribe();
+    await this.doStop();
     await this.channel?.close();
     this.logBuffer = '';
   }
 
-  public async restart(): Promise<void> {
+  private async doRestart(): Promise<void> {
+    if (this.isClosed) {
+      return;
+    }
+
     this.logger.debug('Restarting Frame Worker...');
     this.isRestarting = true;
 
-    await this.stop();
+    await this.doStop();
     await sleep(2000);
-    await this.start();
+    await this.doStart();
   }
 
   public getPID(): number {
@@ -290,7 +333,9 @@ export class FrameWorker extends Subscribed {
 
       this.camera.onConnected.subscribe((connected) => {
         if (connected) {
-          this.start();
+          if (!this.isClosed) {
+            this.start();
+          }
         } else {
           this.stop();
         }
@@ -299,11 +344,13 @@ export class FrameWorker extends Subscribed {
 
     const bus = container.resolve<InternalEventBus>('internalBus');
     for (const event of ['plugin:started', 'plugin:stopped', 'plugin:crashed'] as const) {
-      bus.onEvent(event, (payload) => {
+      const handler = (payload: InternalEventPayload): void => {
         if (!isNvrPluginName((payload as PluginEventPayload).pluginName)) return;
         if (this.status !== PLUGIN_STATUS.STARTED) return;
         this.pushChildUpdate('NVR namespace', this.frameWorkerChildProxy.updateNvrRpc(nvrRpcNamespace()));
-      });
+      };
+      bus.onEvent(event, handler);
+      this.addSubscriptions(new Disposable(() => bus.offEvent(event, handler)));
     }
   }
 
@@ -462,25 +509,32 @@ export class FrameWorker extends Subscribed {
         availableSources = availableSources.map((s) => ({ ...s, url: this.rewriteForRemote(s.url) }));
       }
 
-      await this.frameWorkerChildProxy.initialize({
-        cameraId: this.camera.id,
-        streamUrl: source,
-        snapshotUrl: snapshotSource,
-        audioStreamUrl: audioSource,
-        controllerSnapshotSourceId: this.getControllerSnapshotSourceId(),
-        availableSources,
-        streamRole: this.analysisSource.role as StreamingRole,
-        zones: this.camera.zones,
-        detectionSettings: this.camera.detectionSettings,
-        ptzAutotrack: this.camera.ptzAutotrack,
-        frameWorkerSettings: this.resolveFrameWorkerSettings(this.camera.frameWorkerSettings),
-        interfaceSettings: this.camera.interfaceSettings,
-        nvrRpc: nvrRpcNamespace(),
-        streamHot: this.analysisSource.hotMode === true,
-      });
+      try {
+        await this.frameWorkerChildProxy.initialize({
+          cameraId: this.camera.id,
+          streamUrl: source,
+          snapshotUrl: snapshotSource,
+          audioStreamUrl: audioSource,
+          controllerSnapshotSourceId: this.getControllerSnapshotSourceId(),
+          availableSources,
+          streamRole: this.analysisSource.role as StreamingRole,
+          zones: this.camera.zones,
+          detectionSettings: this.camera.detectionSettings,
+          ptzAutotrack: this.camera.ptzAutotrack,
+          frameWorkerSettings: this.resolveFrameWorkerSettings(this.camera.frameWorkerSettings),
+          interfaceSettings: this.camera.interfaceSettings,
+          nvrRpc: nvrRpcNamespace(),
+          streamHot: this.analysisSource.hotMode === true,
+        });
 
-      this.setStatus(PLUGIN_STATUS.STARTED);
-      this.logger.debug('Frame Worker ready');
+        this.setStatus(PLUGIN_STATUS.STARTED);
+        this.logger.debug('Frame Worker ready');
+      } catch (error) {
+        // without this a child that says 'started' but cannot finish initialize pins the status on STARTING forever
+        this.logger.error('Frame Worker initialization failed:', error);
+        this.setStatus(PLUGIN_STATUS.ERROR);
+        this.process?.kill('SIGKILL');
+      }
       resolve();
     }
   }

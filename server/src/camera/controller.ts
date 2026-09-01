@@ -405,7 +405,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.stopAutoRefresh();
     this.detectionEventUnsub?.();
     this.snapshotPrivacy.dispose();
-    await this.frameWorker.close();
+    await this.frameWorker.destroy();
     await this.sensorController.destroy();
     this.removeAllListeners();
     this.unsubscribe();
