@@ -48,7 +48,7 @@
         </CuiTopNavbarItem>
 
         <CuiTopNavbarItem
-          v-if="!editMode && currentView && rearrangeMode && !smBreakpoint"
+          v-if="!editMode && currentView"
           v-tooltip.bottom="{ value: $t('views.camview.card_fit') }"
           :active="cardFit !== 'aspect'"
           :menu-open="cardFitMenuRef?.isOpen"

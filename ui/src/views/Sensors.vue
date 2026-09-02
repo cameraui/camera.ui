@@ -178,7 +178,13 @@
       </Card>
     </div>
 
-    <div v-if="isAdmin && !isLoading" class="flex min-h-0 flex-col mt-6">
+    <div
+      v-if="isAdmin && !isLoading"
+      class="flex min-h-0 flex-col"
+      :class="{
+        'mt-6': rows.length,
+      }"
+    >
       <span class="card-title">{{ t('views.sensors.discovered_title') }}</span>
       <Card class="cui-card">
         <template #content>
