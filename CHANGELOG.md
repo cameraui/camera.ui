@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **CUDA detection works again on the NVIDIA Docker image.** The ONNX plugin moved to CUDA 13 while the `:nvidia` image stayed on CUDA 12.6, so detection silently ran on the CPU and RTX 50xx cards could not work at all. The image now ships CUDA 13 (host driver 580 or newer); a new `:nvidia-cuda12` image keeps the old base for older drivers, paired with the ONNX Legacy plugin. The plugin log now names the matching image when CUDA fails to load.
+
 - **Getting signed out of the cloud is fixed, and no longer silent.** Cloud maintenance could sign a server out of its cameraui.com account without notice, which also dropped the NVR recording license. If a sign-out ever happens again, camera.ui notifies you and the NVR keeps recording so you have time to reconnect.
 
 - **The update badge no longer needs a full reload.** When the page loaded while the connection was still settling, the red dot on the Updates entry and the live update state never arrived, even though the updates page and notifications knew better. The affected channel now catches up on its own, and a connection setup that failed once retries instead of staying dead.
