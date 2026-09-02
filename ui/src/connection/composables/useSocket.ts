@@ -29,6 +29,7 @@ export function useSocket(namespace: string): SocketChannel {
   const ready = computed(() => connected.value);
 
   let socket: Socket | null = null;
+  let attachedUrl: string | null = null;
   const handlers = new Map<string, Set<SocketEventHandler>>();
 
   function handleConnect(): void {
@@ -66,12 +67,17 @@ export function useSocket(namespace: string): SocketChannel {
   }
 
   const stop = watch(
-    () => connection.target.value?.endpoint.url,
-    (url) => {
+    [() => connection.target.value?.endpoint.url, connection.signal],
+    ([url]) => {
+      if (url && socket && attachedUrl === url) return;
       detach();
+      attachedUrl = null;
       if (url) {
         const s = connection.socketio.ensureSocket(namespace);
-        if (s) attach(s);
+        if (s) {
+          attach(s);
+          attachedUrl = url;
+        }
       }
     },
     { immediate: true },
