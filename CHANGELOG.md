@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.15]
+
+### Fixed
+
+- **Getting signed out of the cloud is fixed, and no longer silent.** Cloud maintenance could sign a server out of its cameraui.com account without notice, which also dropped the NVR recording license. If a sign-out ever happens again, camera.ui notifies you and the NVR keeps recording so you have time to reconnect.
+
+- **The update badge no longer needs a full reload.** When the page loaded while the connection was still settling, the red dot on the Updates entry and the live update state never arrived, even though the updates page and notifications knew better. The affected channel now catches up on its own, and a connection setup that failed once retries instead of staying dead.
+
 ## [2.1.14]
 
 ### Added
