@@ -143,6 +143,7 @@ declare global {
   const restarting: typeof import('../composables/useServerRestart').restarting
   const saveCredentials: typeof import('../composables/useBiometricCredentials').saveCredentials
   const setActivePinia: typeof import('pinia').setActivePinia
+  const setHostMenuBadge: typeof import('../composables/useHostMenu').setHostMenuBadge
   const setHostMenuState: typeof import('../composables/useHostMenu').setHostMenuState
   const setMapStoreSuffix: typeof import('pinia').setMapStoreSuffix
   const settingsViews: typeof import('../stores/ui').settingsViews
@@ -684,6 +685,7 @@ declare module 'vue' {
     readonly restarting: UnwrapRef<typeof import('../composables/useServerRestart')['restarting']>
     readonly saveCredentials: UnwrapRef<typeof import('../composables/useBiometricCredentials')['saveCredentials']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
+    readonly setHostMenuBadge: UnwrapRef<typeof import('../composables/useHostMenu')['setHostMenuBadge']>
     readonly setHostMenuState: UnwrapRef<typeof import('../composables/useHostMenu')['setHostMenuState']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly settingsViews: UnwrapRef<typeof import('../stores/ui')['settingsViews']>

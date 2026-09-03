@@ -234,6 +234,7 @@
       <div v-if="!navEditMode" class="shrink-0 px-1 pb-4">
         <div class="mb-4 mt-2" :class="navbarWidth === NAVBAR_SIZE.EXPANDED ? 'border-t border-[#313131]' : 'w-[22px] mx-auto border-t border-[#313131]'"></div>
         <div v-if="canToggleHostMenu" class="w-full h-[50px] relative">
+          <Badge v-if="hostMenuBadge" class="absolute min-w-[8px] w-[8px] h-[8px] left-[31px] top-[10px] z-1"></Badge>
           <Button
             v-tooltip.right="{ value: navbarWidth === NAVBAR_SIZE.MINIFIED ? $t('views.menu.home_assistant') : '', pt: { root: { class: 'dark-mode' } } }"
             text
@@ -335,7 +336,7 @@ const { isElectronApp, electron } = useElectron();
 const { isTouch } = useSharedCuiUserAgent();
 const serverSocket = useServerSocket();
 const { entries: navEntries, groups: navGroups, settingsInNav, isCollapsible, isHidden, toggleHidden, persistOrder, resetOrder } = useNavLayout();
-const { canToggle: canToggleHostMenu, toggle: toggleHostMenu } = useHostMenu();
+const { canToggle: canToggleHostMenu, badge: hostMenuBadge, toggle: toggleHostMenu } = useHostMenu();
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);

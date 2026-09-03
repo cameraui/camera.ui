@@ -53,6 +53,7 @@ initHostSync({
   onLanguage: (language) => useLocaleStore().applyHostLanguage(language),
   onNavigate: (path) => Router.push(path),
   onSidebar: setHostMenuState,
+  onBadge: setHostMenuBadge,
 });
 
 let seeded = await consumeAuthParam(connection, {

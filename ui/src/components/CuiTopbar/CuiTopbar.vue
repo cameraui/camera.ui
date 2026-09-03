@@ -16,13 +16,14 @@
         <Button
           v-if="canToggleHostMenu"
           v-tooltip.bottom="$t('views.menu.home_assistant')"
-          class="cui-button p-2 text-color non-draggable-region"
+          class="cui-button relative p-2 text-color non-draggable-region"
           severity="secondary"
           text
           @click="toggleHostMenu()"
         >
           <template #icon>
             <i-mdi:menu class="w-6 h-6" />
+            <Badge v-if="hostMenuBadge" class="absolute min-w-[8px] w-[8px] h-[8px] right-[8px] top-[10px]"></Badge>
           </template>
         </Button>
         <CuiInstanceSwitcher
@@ -78,7 +79,7 @@ const { hasSlot, scrollToTop } = useCuiTopbarSlots();
 const { minifiedTopbar } = useRouteMeta();
 const { topbarHeight } = useSharedCuiStates();
 const { isElectronApp } = useElectron();
-const { canToggle: canToggleHostMenu, toggle: toggleHostMenu } = useHostMenu();
+const { canToggle: canToggleHostMenu, badge: hostMenuBadge, toggle: toggleHostMenu } = useHostMenu();
 
 const instanceStore = useInstanceStore();
 const { isMultiInstance } = storeToRefs(instanceStore);

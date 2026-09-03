@@ -7,6 +7,7 @@ interface HostSyncHandlers {
   onLanguage?: (language: string) => void;
   onNavigate?: (path: string) => void;
   onSidebar?: (canToggle: boolean) => void;
+  onBadge?: (count: number) => void;
 }
 
 const SAFE_AREA_SIDES = ['top', 'right', 'bottom', 'left'] as const;
@@ -74,6 +75,7 @@ function initPanelSync(handlers: HostSyncHandlers): void {
       path?: unknown;
       canToggle?: unknown;
       insets?: unknown;
+      count?: unknown;
     } | null;
     if (!data) return;
 
@@ -87,6 +89,8 @@ function initPanelSync(handlers: HostSyncHandlers): void {
       handlers.onSidebar?.(data.canToggle);
     } else if (data.type === 'cui:safe-area') {
       applyPanelSafeArea(data.insets);
+    } else if (data.type === 'cui:badge' && typeof data.count === 'number') {
+      handlers.onBadge?.(data.count);
     }
   });
 }

@@ -213,6 +213,7 @@
     "restarting": true,
     "saveCredentials": true,
     "setActivePinia": true,
+    "setHostMenuBadge": true,
     "setHostMenuState": true,
     "setMapStoreSuffix": true,
     "settingsViews": true,
