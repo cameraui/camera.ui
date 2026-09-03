@@ -229,7 +229,7 @@ class Controller implements CardController {
       this.shell?.update(hass);
       return;
     }
-    void ensureShell(hass, this.entryId).then((shell) => {
+    ensureShell(hass, this.entryId).then((shell) => {
       if (!this.host.isConnected || !this.mountEl || this.props) return;
       adoptStyles(this.host.shadowRoot!);
       this.shell = shell;

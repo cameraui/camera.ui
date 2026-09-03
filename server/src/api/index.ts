@@ -204,7 +204,7 @@ export class Server {
           const token = (req as IngressRequest).ingressToken;
           if (token) {
             headers.authorization = `Bearer ${token}`;
-            headers['x-cui-embed'] = 'homeassistant';
+            headers['x-cui-embed'] = 'hassio';
             const ingressPath = req.headers['x-ingress-path'];
             if (typeof ingressPath === 'string') headers['x-cui-base'] = ingressPath;
           }

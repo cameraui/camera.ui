@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.16]
+
+### Added
+
+- **camera.ui in Home Assistant no longer carries its own bar above the app.** The Home Assistant menu button now sits where camera.ui's own navigation lives: top left on phones, and as a "Home Assistant" entry at the bottom of the sidebar on desktop when the Home Assistant sidebar is hidden. It only shows when Home Assistant has no sidebar of its own on screen. The top and bottom bars now run under the status bar and home indicator in the Home Assistant app, in camera.ui's colors, with no doubled spacing and no stray band in the wrong theme color. Needs the Home Assistant integration 0.4.1. The Home Assistant add-on gets the same on phones: camera.ui takes over the top bar and the menu button, on desktop the Home Assistant sidebar stays as it is.
+
 ## [2.1.15]
 
 ### Fixed

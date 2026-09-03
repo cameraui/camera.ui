@@ -6,7 +6,7 @@ import { container } from 'tsyringe';
 import type { ConfigService } from '../services/config/index.js';
 
 const BASE_RE = /^\/[A-Za-z0-9/_-]*\/$/;
-const EMBED_HOSTS = new Set(['homeassistant']);
+const EMBED_HOSTS = new Set(['homeassistant', 'hassio']);
 const rendered = new Map<string, string>();
 let rawHtml: string | undefined;
 

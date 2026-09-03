@@ -51,7 +51,7 @@ const backends = (window.__cameraui_card_backends ??= new Map<string, CardBacken
 const waiters = (window.__cameraui_card_waiters ??= new Set<() => void>());
 
 if (BUNDLE_ENTRY_ID) {
-  void import('./cards.js').then(
+  import('./cards.js').then(
     (backend) => {
       backends.set(BUNDLE_ENTRY_ID, {
         entryId: BUNDLE_ENTRY_ID,

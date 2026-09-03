@@ -19,8 +19,16 @@ export function embedHost(): string | null {
   return raw ? raw : null;
 }
 
-export function isHomeAssistant(): boolean {
+export function isHaPanel(): boolean {
   return embedHost() === 'homeassistant';
+}
+
+export function isHaIngress(): boolean {
+  return embedHost() === 'hassio';
+}
+
+export function isHomeAssistant(): boolean {
+  return isHaPanel() || isHaIngress();
 }
 
 export function isHaCards(): boolean {

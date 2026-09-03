@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex flex-col w-full gap-6">
-      <div v-if="!isHomeAssistant()">
+      <div v-if="!isHaPanel()">
         <span class="card-title">{{ $t('views.settings.theme') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -31,7 +31,7 @@
         </Card>
       </div>
 
-      <div v-if="!isHomeAssistant()">
+      <div v-if="!isHaPanel()">
         <span class="card-title">{{ $t('views.settings.locale') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -167,7 +167,7 @@
 <script setup lang="ts">
 import { Logger } from '@camera.ui/logger';
 
-import { isHomeAssistant } from '@/common/base.js';
+import { isHaPanel } from '@/common/base.js';
 import { landingPageRoutes } from '@/router/index.js';
 
 withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
