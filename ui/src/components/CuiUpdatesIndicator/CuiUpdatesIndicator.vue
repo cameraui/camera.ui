@@ -57,7 +57,7 @@ const text = computed(() => {
   return t('views.updates.indicator_preparing');
 });
 
-const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + env(safe-area-inset-bottom, 0px))`);
+const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 
 function goToUpdates(): void {
   if (isAdmin.value) {

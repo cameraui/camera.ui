@@ -27,10 +27,10 @@
       class="relative w-dvw z-1 overflow-x-hidden"
       :style="{
         transition: layoutReady ? 'padding-left 200ms' : undefined,
-        paddingTop: topbarRef ? `${topbar.height.value}px` : 'env(safe-area-inset-top, 0px)',
+        paddingTop: topbarRef ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)',
         paddingLeft: navbarPaddingLeft,
-        paddingRight: 'env(safe-area-inset-right, 0px)',
-        paddingBottom: bottombarRef ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'env(safe-area-inset-bottom, 0px)',
+        paddingRight: 'var(--safe-area-inset-right)',
+        paddingBottom: bottombarRef ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)',
       }"
     >
       <div
@@ -148,9 +148,9 @@ const navbarLeft = computed(() => {
 
 const navbarPaddingLeft = computed(() => {
   if (!navbarRef.value || mdBreakpoint.value) {
-    return 'env(safe-area-inset-left, 0px)';
+    return 'var(--safe-area-inset-left)';
   }
-  return `calc(${navbarTargetWidth.value}px + max(${navbarLeft.value}px, env(safe-area-inset-left, 0px)))`;
+  return `calc(${navbarTargetWidth.value}px + max(${navbarLeft.value}px, var(--safe-area-inset-left)))`;
 });
 
 const appBG = computed(() => {
@@ -160,8 +160,8 @@ const appBG = computed(() => {
 });
 
 const containerHeight = computed(() => {
-  const top = topbarRef.value ? `${topbar.height.value}px` : 'env(safe-area-inset-top, 0px)';
-  const bottom = bottombarRef.value ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'env(safe-area-inset-bottom, 0px)';
+  const top = topbarRef.value ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)';
+  const bottom = bottombarRef.value ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)';
   const extraPadding = bottombarRef.value || !routeMeta.disableScroll.value || routeMeta.noExtraPadding.value ? '0px' : '8px';
   return `calc(100dvh - ${top} - ${bottom} - ${extraPadding})`;
 });
@@ -253,10 +253,10 @@ onMounted(async () => {
 <style scoped>
 .fixed-bg {
   position: fixed;
-  top: calc(0px - env(safe-area-inset-top, 0px) - 10px);
-  left: calc(0px - env(safe-area-inset-left, 0px) - 10px);
-  right: calc(0px - env(safe-area-inset-right, 0px) - 10px);
-  bottom: calc(0px - env(safe-area-inset-bottom, 0px) - 10px);
+  top: calc(0px - var(--safe-area-inset-top) - 10px);
+  left: calc(0px - var(--safe-area-inset-left) - 10px);
+  right: calc(0px - var(--safe-area-inset-right) - 10px);
+  bottom: calc(0px - var(--safe-area-inset-bottom) - 10px);
   z-index: 0;
 }
 </style>

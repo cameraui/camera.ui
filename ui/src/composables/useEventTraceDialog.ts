@@ -31,7 +31,7 @@ export function useEventTraceDialog() {
       dialogSize: {
         desktop: {
           maxWidth: '1100px',
-          maxHeight: 'calc(100vh - max(1rem, env(safe-area-inset-top, 0px)) - max(1rem, env(safe-area-inset-bottom, 0px)))',
+          maxHeight: 'calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
           width: '70vw',
         },
       },

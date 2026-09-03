@@ -5,14 +5,26 @@
       '!border-none': smBreakpoint,
     }"
     :style="{
-      height: `calc(${topbarHeight}px + env(safe-area-inset-top, 0px) + ${TOPBAR_SIZE.ELECTRON_OFFSET}px)`,
+      height: `calc(${topbarHeight}px + var(--safe-area-inset-top) + ${TOPBAR_SIZE.ELECTRON_OFFSET}px)`,
       viewTransitionName: 'cui-topbar',
       background: smBreakpoint ? 'var(--ground-background)' : undefined,
-      paddingTop: isElectronApp ? `calc(${TOPBAR_SIZE.ELECTRON_OFFSET}px + env(safe-area-inset-top, 0px))` : undefined,
+      paddingTop: isElectronApp ? `calc(${TOPBAR_SIZE.ELECTRON_OFFSET}px + var(--safe-area-inset-top))` : undefined,
     }"
   >
     <div v-if="smBreakpoint && !minifiedTopbar" class="flex flex-row items-center flex-1 p-2 gap-1">
       <div class="flex-1 flex items-center justify-start min-w-0">
+        <Button
+          v-if="canToggleHostMenu"
+          v-tooltip.bottom="$t('views.menu.home_assistant')"
+          class="cui-button p-2 text-color non-draggable-region"
+          severity="secondary"
+          text
+          @click="toggleHostMenu()"
+        >
+          <template #icon>
+            <i-mdi:menu class="w-6 h-6" />
+          </template>
+        </Button>
         <CuiInstanceSwitcher
           v-if="!hasSlot('left') && hasPermission(undefined, 'admin') && router.currentRoute.value.name === 'Home' && isMultiInstance"
           class="cui-topbar-default non-draggable-region"
@@ -39,7 +51,7 @@
       v-else-if="!minifiedTopbar"
       class="flex flex-row items-center flex-1 p-2"
       :style="{
-        'margin-left': `calc(${offsetLeft}px + max(8px, env(safe-area-inset-left, 0px)))`,
+        'margin-left': `calc(${offsetLeft}px + max(8px, var(--safe-area-inset-left)))`,
         transition: animate ? 'margin-left 200ms' : undefined,
       }"
     >
@@ -66,6 +78,7 @@ const { hasSlot, scrollToTop } = useCuiTopbarSlots();
 const { minifiedTopbar } = useRouteMeta();
 const { topbarHeight } = useSharedCuiStates();
 const { isElectronApp } = useElectron();
+const { canToggle: canToggleHostMenu, toggle: toggleHostMenu } = useHostMenu();
 
 const instanceStore = useInstanceStore();
 const { isMultiInstance } = storeToRefs(instanceStore);

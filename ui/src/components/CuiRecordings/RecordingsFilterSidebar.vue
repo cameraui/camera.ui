@@ -5,7 +5,7 @@
     :style="{
       width: `${sidebarWidth}px`,
       borderRightWidth: isOpen ? '1px' : '0px',
-      paddingBottom: `calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + ${bottombarHeight}px + ${topbarOffset}px)`,
+      paddingBottom: `calc(var(--safe-area-inset-top) + var(--safe-area-inset-bottom) + ${bottombarHeight}px + ${topbarOffset}px)`,
     }"
   >
     <div class="flex flex-col gap-4 p-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">

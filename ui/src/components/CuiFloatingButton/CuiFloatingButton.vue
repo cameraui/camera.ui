@@ -9,7 +9,7 @@
         'scale-110': isHovered,
       },
     ]"
-    :style="!grouped ? { bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))` } : undefined"
+    :style="!grouped ? { bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))` } : undefined"
     v-element-hover="[onHover, {}]"
   >
     <Button v-bind="buttonProps" v-tooltip.left="tooltipProps" rounded @click="$emit('click')" :label="label" class="shadow-lg">

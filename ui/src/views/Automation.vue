@@ -53,8 +53,8 @@
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + ${hasChanges ? '4.25rem' : '1.25rem'} + env(safe-area-inset-bottom, 0px))`,
-          right: fabRight || 'calc(1.25rem + env(safe-area-inset-right, 0px))',
+          bottom: `calc(${bottombarHeight}px + ${hasChanges ? '4.25rem' : '1.25rem'} + var(--safe-area-inset-bottom))`,
+          right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
           transition: 'right 0.2s ease-in-out, bottom 0.2s ease-in-out',
         }"
         :pt="{ root: { style: 'pointer-events: none' } }"
@@ -99,8 +99,8 @@
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))`,
-          right: 'calc(4.75rem + env(safe-area-inset-right, 0px))',
+          bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+          right: 'calc(4.75rem + var(--safe-area-inset-right))',
         }"
         @click="showMobilePalette = true"
       >
@@ -118,8 +118,8 @@
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))`,
-          right: fabRight || 'calc(1.25rem + env(safe-area-inset-right, 0px))',
+          bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+          right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
           transition: 'right 0.2s ease-in-out',
         }"
         @click="onSave"
@@ -215,7 +215,7 @@ const selectedNode = computed((): AutomationNode | undefined => {
 
 const fabRight = computed(() => {
   if (smBreakpoint.value || !selectedNode.value) return undefined;
-  return 'calc(300px + 1.25rem + env(safe-area-inset-right, 0px))';
+  return 'calc(300px + 1.25rem + var(--safe-area-inset-right))';
 });
 
 const speedDialItems = computed(() => {

@@ -2291,6 +2291,7 @@ export default {
       switch_server: 'Server wechseln',
       logout: 'Abmelden',
       section_actions: 'Aktionen',
+      home_assistant: 'Home Assistant Menü',
     },
     app_lock: {
       title: 'App gesperrt',

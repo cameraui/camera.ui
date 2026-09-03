@@ -3,14 +3,14 @@
     ref="bottombarRef"
     class="cui-bottombar bottombar-background fixed bottom-0 left-0 right-0 border-t-[1px] border-color bottombar-background"
     :style="{
-      height: `calc(${bottombarHeight}px + env(safe-area-inset-bottom, 0px))`,
+      height: `calc(${bottombarHeight}px + var(--safe-area-inset-bottom))`,
       viewTransitionName: 'cui-bottombar',
     }"
   >
     <div
       class="px-2 h-full flex items-center justify-around"
       :style="{
-        paddingBottom: 'calc(max(8px, env(safe-area-inset-bottom, 0px)))',
+        paddingBottom: 'calc(max(8px, var(--safe-area-inset-bottom)))',
       }"
     >
       <CuiNavItem

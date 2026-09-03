@@ -6,7 +6,7 @@
       // '!border-none': smBreakpoint,
     }"
     :style="{
-      paddingLeft: `calc(${leftOffset}px + max(8px, env(safe-area-inset-left, 0px)))`,
+      paddingLeft: `calc(${leftOffset}px + max(8px, var(--safe-area-inset-left)))`,
       transition: animate ? 'padding-left 200ms' : undefined,
       // background: smBreakpoint ? 'var(--ground-background)' : undefined,
     }"

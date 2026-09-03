@@ -2274,6 +2274,7 @@ export default {
       switch_server: 'Switch server',
       logout: 'Logout',
       section_actions: 'Actions',
+      home_assistant: 'Home Assistant menu',
     },
     app_lock: {
       title: 'App locked',

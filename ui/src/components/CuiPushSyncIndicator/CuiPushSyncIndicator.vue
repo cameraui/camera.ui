@@ -37,7 +37,7 @@ const { updateAvailable } = useAppUpdate();
 const connection = useConnection();
 
 const visible = computed(() => needsAction.value && connection.bannerMode.value === null && !updateAvailable.value);
-const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + env(safe-area-inset-bottom, 0px))`);
+const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 </script>
 
 <style scoped>

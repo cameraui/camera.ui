@@ -138,7 +138,7 @@ const sheetStyle = computed<Record<string, string | number | undefined>>(() => {
     // Sheet behind: match topmost height + peek offset (with transition)
     // Use CSS calc to include safe-area-inset-bottom for iPhone notch/home indicator
     const peekHeight = 16;
-    sheetHeightValue = `calc(${topMeasuredHeight}px + ${peekHeight}px + env(safe-area-inset-bottom, 0px))`;
+    sheetHeightValue = `calc(${topMeasuredHeight}px + ${peekHeight}px + var(--safe-area-inset-bottom))`;
     maxHeightValue = sheetHeightValue;
   } else {
     // Topmost or single sheet
@@ -362,7 +362,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-area-inset-bottom);
   /* GPU acceleration for smooth animations */
   will-change: transform;
   /* Smooth transition for stacking effects (forward/backward movement) */

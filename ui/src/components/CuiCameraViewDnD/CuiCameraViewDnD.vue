@@ -512,8 +512,8 @@ defineExpose({
 
 .cui-fs-exit {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 12px);
-  right: calc(env(safe-area-inset-right) + 12px);
+  top: calc(var(--safe-area-inset-top) + 12px);
+  right: calc(var(--safe-area-inset-right) + 12px);
   z-index: 2147483647;
   width: 40px;
   height: 40px;

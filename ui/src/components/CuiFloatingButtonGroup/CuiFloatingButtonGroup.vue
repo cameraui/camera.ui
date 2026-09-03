@@ -9,7 +9,7 @@
       'scale-100 opacity-100': forceVisible || !hidden,
     }"
     :style="{
-      bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))`,
+      bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
       right: right || undefined,
     }"
   >

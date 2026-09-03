@@ -39,7 +39,7 @@ const notice = ref<'lan' | 'wan' | null>(null);
 const announcedKind = ref<'lan' | 'wan' | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
-const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + env(safe-area-inset-bottom, 0px))`);
+const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 
 const visible = computed(() => isLoggedIn.value && (bannerMode.value !== null || restarting.value));
 

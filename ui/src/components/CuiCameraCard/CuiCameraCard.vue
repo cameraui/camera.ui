@@ -2431,8 +2431,8 @@ defineExpose({
 }
 
 #video-container[data-cui-fullscreen='fit'] {
-  --cui-fs-vw: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right));
-  --cui-fs-vh: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  --cui-fs-vw: calc(100dvw - var(--safe-area-inset-left) - var(--safe-area-inset-right));
+  --cui-fs-vh: calc(100dvh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
   width: min(var(--cui-fs-vw), calc(var(--cui-fs-vh) * var(--cam-ar-w) / var(--cam-ar-h))) !important;
   height: min(var(--cui-fs-vh), calc(var(--cui-fs-vw) * var(--cam-ar-h) / var(--cam-ar-w))) !important;
   max-width: none !important;

@@ -128,7 +128,7 @@
 }
 
 .p-dialog-maximized > .p-dialog-footer {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 1.25rem);
 }
 
 .p-accordionpanel {

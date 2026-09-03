@@ -6,10 +6,10 @@
       'shadow-xl': mdBreakpoint && navbarWidth === NAVBAR_SIZE.EXPANDED,
     }"
     :style="{
-      top: `calc(max(8px, env(safe-area-inset-top, 0px)) + ${WINDOW_CONTROL_HEIGHT}px)`,
-      left: navbarWidth === NAVBAR_SIZE.CLOSED ? '-2px' : 'max(8px, env(safe-area-inset-left, 0px))',
+      top: `calc(max(8px, var(--safe-area-inset-top)) + ${WINDOW_CONTROL_HEIGHT}px)`,
+      left: navbarWidth === NAVBAR_SIZE.CLOSED ? '-2px' : 'max(8px, var(--safe-area-inset-left))',
       width: `${navbarWidth}px`,
-      height: `calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - max(8px, env(safe-area-inset-bottom, 0px)) - ${WINDOW_CONTROL_HEIGHT}px)`,
+      height: `calc(100dvh - max(8px, var(--safe-area-inset-top)) - max(8px, var(--safe-area-inset-bottom)) - ${WINDOW_CONTROL_HEIGHT}px)`,
       viewTransitionName: 'cui-navbar',
     }"
   >
@@ -233,6 +233,31 @@
 
       <div v-if="!navEditMode" class="shrink-0 px-1 pb-4">
         <div class="mb-4 mt-2" :class="navbarWidth === NAVBAR_SIZE.EXPANDED ? 'border-t border-[#313131]' : 'w-[22px] mx-auto border-t border-[#313131]'"></div>
+        <div v-if="canToggleHostMenu" class="w-full h-[50px] relative">
+          <Button
+            v-tooltip.right="{ value: navbarWidth === NAVBAR_SIZE.MINIFIED ? $t('views.menu.home_assistant') : '', pt: { root: { class: 'dark-mode' } } }"
+            text
+            severity="secondary"
+            class="cui-button navitem-button navitem-inactive w-full h-full flex items-center relative dark-mode hover:!text-color active:!text-color focus:!text-color"
+            :style="{
+              color: '#a4a4a4',
+            }"
+            fluid
+            @click="toggleHostMenu()"
+          >
+            <template #default>
+              <div class="flex items-center justify-center h-full absolute left-[14px]">
+                <i-mdi:home-assistant class="w-[24px] h-[24px]" />
+              </div>
+              <Transition name="fade">
+                <div v-if="navbarWidth === NAVBAR_SIZE.EXPANDED" class="overflow-hidden flex-1 ml-10 text-start text-sm font-semibold truncate">
+                  {{ $t('views.menu.home_assistant') }}
+                </div>
+              </Transition>
+            </template>
+          </Button>
+        </div>
+
         <div v-if="navbarWidth === NAVBAR_SIZE.MINIFIED" class="w-full h-[50px]">
           <Button
             v-tooltip.right="$t('views.menu.logout')"
@@ -310,6 +335,7 @@ const { isElectronApp, electron } = useElectron();
 const { isTouch } = useSharedCuiUserAgent();
 const serverSocket = useServerSocket();
 const { entries: navEntries, groups: navGroups, settingsInNav, isCollapsible, isHidden, toggleHidden, persistOrder, resetOrder } = useNavLayout();
+const { canToggle: canToggleHostMenu, toggle: toggleHostMenu } = useHostMenu();
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);

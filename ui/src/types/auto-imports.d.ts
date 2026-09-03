@@ -143,6 +143,7 @@ declare global {
   const restarting: typeof import('../composables/useServerRestart').restarting
   const saveCredentials: typeof import('../composables/useBiometricCredentials').saveCredentials
   const setActivePinia: typeof import('pinia').setActivePinia
+  const setHostMenuState: typeof import('../composables/useHostMenu').setHostMenuState
   const setMapStoreSuffix: typeof import('pinia').setMapStoreSuffix
   const settingsViews: typeof import('../stores/ui').settingsViews
   const setupAppUpdate: typeof import('../composables/useAppUpdate').setupAppUpdate
@@ -278,6 +279,7 @@ declare global {
   const useFullscreen: typeof import('@vueuse/core').useFullscreen
   const useGamepad: typeof import('@vueuse/core').useGamepad
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
+  const useHostMenu: typeof import('../composables/useHostMenu').useHostMenu
   const useHttp: typeof import('../connection/composables/useHttp').useHttp
   const useI18n: typeof import('vue-i18n').useI18n
   const useId: typeof import('vue').useId
@@ -682,6 +684,7 @@ declare module 'vue' {
     readonly restarting: UnwrapRef<typeof import('../composables/useServerRestart')['restarting']>
     readonly saveCredentials: UnwrapRef<typeof import('../composables/useBiometricCredentials')['saveCredentials']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
+    readonly setHostMenuState: UnwrapRef<typeof import('../composables/useHostMenu')['setHostMenuState']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly settingsViews: UnwrapRef<typeof import('../stores/ui')['settingsViews']>
     readonly setupAppUpdate: UnwrapRef<typeof import('../composables/useAppUpdate')['setupAppUpdate']>
@@ -817,6 +820,7 @@ declare module 'vue' {
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
+    readonly useHostMenu: UnwrapRef<typeof import('../composables/useHostMenu')['useHostMenu']>
     readonly useHttp: UnwrapRef<typeof import('../connection/composables/useHttp')['useHttp']>
     readonly useI18n: UnwrapRef<typeof import('vue-i18n')['useI18n']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>

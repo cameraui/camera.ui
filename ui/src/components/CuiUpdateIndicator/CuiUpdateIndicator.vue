@@ -26,7 +26,7 @@ const { isLoggedIn } = storeToRefs(authStore);
 const connection = useConnection();
 
 const updateAvailable = computed(() => isLoggedIn.value && updateAvailableState.value && connection.bannerMode.value === null);
-const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + env(safe-area-inset-bottom, 0px))`);
+const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 
 function onApply() {
   applyUpdate();

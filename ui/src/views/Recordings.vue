@@ -137,8 +137,8 @@
       class="fixed z-10"
       :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
       :style="{
-        left: `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem + env(safe-area-inset-left, 0px))`,
-        bottom: `calc(${bottombarHeight}px + 1.25rem + env(safe-area-inset-bottom, 0px))`,
+        left: `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem + var(--safe-area-inset-left))`,
+        bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
         transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
       }"
     >
@@ -635,7 +635,7 @@ function openRecordingDialog(event: RecordedEvent): void {
     dialogSize: {
       desktop: {
         maxWidth: '800px',
-        maxHeight: 'calc(100vh - max(1rem, env(safe-area-inset-top, 0px)) - max(1rem, env(safe-area-inset-bottom, 0px)))',
+        maxHeight: 'calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
         width: '50vw',
       },
     },

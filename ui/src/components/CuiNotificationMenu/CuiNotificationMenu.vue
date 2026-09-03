@@ -443,7 +443,7 @@ onUnmounted(() => {
 <style>
 .notification-menu {
   left: auto !important;
-  right: calc(env(safe-area-inset-right, 0px) + 0.5rem) !important;
-  top: calc(env(safe-area-inset-top, 0px) + 3.3rem) !important;
+  right: calc(var(--safe-area-inset-right) + 0.5rem) !important;
+  top: calc(var(--safe-area-inset-top) + 3.3rem) !important;
 }
 </style>

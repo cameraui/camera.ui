@@ -87,7 +87,7 @@
           'lg:fixed lg:right-safe-offset-2 lg:bottom-safe-offset-2': !smBreakpoint && !xmdBreakpoint,
         }"
         :style="{
-          height: `calc(100% - ${topbarOffset}px - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))`,
+          height: `calc(100% - ${topbarOffset}px - 1rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))`,
         }"
       />
     </div>

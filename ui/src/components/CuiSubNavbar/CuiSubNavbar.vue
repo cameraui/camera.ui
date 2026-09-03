@@ -5,7 +5,7 @@
     :style="{
       width: `${subnavbarWidth}px`,
       borderRightWidth: subnavbarState === 'opened' ? '1px' : '0px',
-      paddingBottom: `calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + ${bottombarHeight}px + ${topbarOffset}px)`,
+      paddingBottom: `calc(var(--safe-area-inset-top) + var(--safe-area-inset-bottom) + ${bottombarHeight}px + ${topbarOffset}px)`,
     }"
   >
     <template v-for="section in navSections" :key="section.key">

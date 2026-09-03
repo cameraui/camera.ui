@@ -52,6 +52,7 @@ initHostSync({
   onTheme: (mode) => useThemeStore().applyHostTheme(mode),
   onLanguage: (language) => useLocaleStore().applyHostLanguage(language),
   onNavigate: (path) => Router.push(path),
+  onSidebar: setHostMenuState,
 });
 
 let seeded = await consumeAuthParam(connection, {

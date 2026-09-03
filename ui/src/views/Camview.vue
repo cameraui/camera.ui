@@ -199,7 +199,7 @@
             '!shadow-xl': true,
             '!rounded-none border-l-0! border-r-0!': smBreakpoint,
           }"
-          :style="!lgBreakpoint ? { left: `${navbarOffset}px`, bottom: `calc(${bottombarHeight}px + env(safe-area-inset-bottom, 0px))` } : undefined"
+          :style="!lgBreakpoint ? { left: `${navbarOffset}px`, bottom: `calc(${bottombarHeight}px + var(--safe-area-inset-bottom))` } : undefined"
           :locale-settings="timelineLocaleSettings"
         />
       </Transition>
