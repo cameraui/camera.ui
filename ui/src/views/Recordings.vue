@@ -303,6 +303,7 @@ const sidebarState = ref<'opened' | 'closed'>('closed');
 const layoutReady = ref(false);
 const filters = ref<RecordingsFilterState>({
   contentKind: 'all',
+  favoritesOnly: false,
   search: '',
   semanticQuery: '',
   filterLogicTriggers: 'or',
@@ -423,6 +424,10 @@ const displayEvents = computed(() => {
     result = result.filter((e) => e.segments.some((s) => s.detections.some((d) => d.box && boxOverlapsRegions(d.box, f.gridRegions))));
   }
 
+  if (f.favoritesOnly) {
+    result = result.filter((e) => e.favorite);
+  }
+
   if (isSemanticActive.value) {
     result = result.filter((e) => {
       const score = semanticEventIds.value.get(e.id);
@@ -469,6 +474,7 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   const items: UngroupedItem[] = [];
   for (const episode of eventStore.getEpisodes()) {
     if (!episode.description) continue;
+    if (f.favoritesOnly && !episode.favorite) continue;
     if (cutoff && episode.endTime < cutoff) continue;
     if (episode.startTime > rangeEndMs) continue;
     if (scope.length > 0 && !episode.members.some((m) => scope.includes(m.cameraId))) continue;
@@ -544,6 +550,16 @@ const viewMenuItems = computed<MenuItem[]>(() => [
     toggleState: filters.value.onlyWithRecordings,
     onClick: () => {
       filters.value = { ...filters.value, onlyWithRecordings: !filters.value.onlyWithRecordings };
+    },
+  },
+  {
+    key: 'favoritesOnly',
+    label: t('views.recordings.favorites_only'),
+    description: t('views.recordings.favorites_hint'),
+    toggle: true,
+    toggleState: filters.value.favoritesOnly,
+    onClick: () => {
+      filters.value = { ...filters.value, favoritesOnly: !filters.value.favoritesOnly };
     },
   },
 ]);
@@ -666,6 +682,7 @@ watch(
       hasDetections: !hasAnyContentFilter,
       withRecordingInfo: true,
       hasRecording: f.onlyWithRecordings || undefined,
+      favoritesOnly: f.favoritesOnly || undefined,
     };
 
     const nextJSON = JSON.stringify(next);

@@ -501,6 +501,8 @@ declare module 'vue' {
     'ITabler:search': typeof import('~icons/tabler/search')['default']
     'ITabler:share': typeof import('~icons/tabler/share')['default']
     'ITabler:sparkles': typeof import('~icons/tabler/sparkles')['default']
+    'ITabler:star': typeof import('~icons/tabler/star')['default']
+    'ITabler:starFilled': typeof import('~icons/tabler/star-filled')['default']
     'ITabler:upload': typeof import('~icons/tabler/upload')['default']
     'ITabler:users': typeof import('~icons/tabler/users')['default']
     'ITabler:videoOff': typeof import('~icons/tabler/video-off')['default']

@@ -26,6 +26,21 @@
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ title }}</p>
           <Button
             v-if="!clickDisabled"
+            v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
+            rounded
+            text
+            severity="secondary"
+            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            @click.stop="toggleFavorite"
+            @mouseenter="stopPreview"
+          >
+            <template #icon>
+              <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
+              <i-tabler:star v-else class="w-3 h-3 text-white" />
+            </template>
+          </Button>
+          <Button
+            v-if="!clickDisabled"
             v-tooltip.left="{ value: $t('views.recordings.episode_trace.open') }"
             rounded
             text
@@ -116,6 +131,7 @@ const mosaicUrl = ref<string | undefined>(undefined);
 const mosaicState = ref<'loading' | 'loaded' | 'empty'>('loading');
 const isDownloading = ref(false);
 const isPreviewActive = ref(false);
+const favoriteOverride = ref<boolean | null>(null);
 const previewBlocked = ref(false);
 
 const longPress = useLongPressPreview(
@@ -126,6 +142,8 @@ const longPress = useLongPressPreview(
 
 let dialogInstance: DynamicDialogInstance | undefined;
 let loadTriggered = false;
+
+const isFavorite = computed(() => favoriteOverride.value ?? props.episode.favorite ?? false);
 
 const title = computed(() => props.episode.description?.title ?? props.episode.group ?? '');
 
@@ -220,6 +238,17 @@ function openEpisode(): void {
 
 function openTrace(): void {
   openEpisodeTrace(props.episode, props.cameraById);
+}
+
+async function toggleFavorite(): Promise<void> {
+  const next = !isFavorite.value;
+  favoriteOverride.value = next;
+  try {
+    await eventStore.setEpisodeFavorite(props.episode.id, next);
+  } catch (error) {
+    favoriteOverride.value = null;
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
+  }
 }
 
 async function handleDownload(): Promise<void> {

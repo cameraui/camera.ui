@@ -36,6 +36,21 @@
             {{ semanticDisplay.label }}
           </span>
           <Button
+            v-if="!selectionMode"
+            v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
+            rounded
+            text
+            severity="secondary"
+            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            @click.stop="toggleFavorite"
+            @mouseenter="stopPreview"
+          >
+            <template #icon>
+              <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
+              <i-tabler:star v-else class="w-3 h-3 text-white" />
+            </template>
+          </Button>
+          <Button
             v-if="camera && !selectionMode"
             v-tooltip.left="{ value: $t('views.recordings.open_trace') }"
             rounded
@@ -210,8 +225,11 @@ const loadedThumbs = ref<EventThumbnails | null>(cachedInit ?? null);
 const thumbnailState = ref<'loading' | 'loaded' | 'empty'>(initialState);
 const isDownloading = ref(false);
 const activeImageIndexRaw = ref(0);
+const favoriteOverride = ref<boolean | null>(null);
 
 const { width: footerWidth } = useElementSize(footerRef);
+
+const isFavorite = computed(() => favoriteOverride.value ?? props.event.favorite ?? false);
 
 const descriptionTitle = computed(() => {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -412,6 +430,17 @@ function handleClick(): void {
     return;
   }
   emit('scrollToEvent', shownSegment.value?.firstSeen ?? eventAnchorTime(props.event));
+}
+
+async function toggleFavorite(): Promise<void> {
+  const next = !isFavorite.value;
+  favoriteOverride.value = next;
+  try {
+    await eventStore.setEventFavorite(props.event.id, next);
+  } catch (error) {
+    favoriteOverride.value = null;
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
+  }
 }
 
 async function handleDownload(): Promise<void> {

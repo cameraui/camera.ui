@@ -6,6 +6,7 @@ export type RecordingsContentKind = 'all' | 'events' | 'episodes';
 
 export interface RecordingsFilterState {
   contentKind: RecordingsContentKind;
+  favoritesOnly: boolean;
   search: string;
   semanticQuery: string;
   filterLogicTriggers: 'and' | 'or';
