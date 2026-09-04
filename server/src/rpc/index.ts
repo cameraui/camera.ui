@@ -11,6 +11,7 @@ import { DiscoveryManager } from '../manager/discoveryManager.js';
 import { DownloadManager } from '../manager/downloadManager.js';
 import { NotificationManager } from '../manager/notificationManager.js';
 import { TerminalManager } from '../manager/terminalManager.js';
+import { TrainingCandidateManager } from '../manager/trainingCandidateManager.js';
 import { NATS } from './server.js';
 import { generateCredentials, safeAsync } from './utils.js';
 
@@ -30,6 +31,7 @@ export class ProxyServer {
   public discoveryManager!: DiscoveryManager;
   public downloadManager!: DownloadManager;
   public notificationManager!: NotificationManager;
+  public trainingCandidateManager!: TrainingCandidateManager;
   public terminalManager!: TerminalManager;
 
   public auth: ProxyAuth = {
@@ -68,6 +70,7 @@ export class ProxyServer {
       this.downloadManager = new DownloadManager();
       this.notificationManager = new NotificationManager();
       this.terminalManager = new TerminalManager();
+      this.trainingCandidateManager = new TrainingCandidateManager();
 
       // this.api.setMaxListeners(this.api.getMaxListeners() + 1);
       // this.api.once(API_EVENT.SHUTDOWN, this.close.bind(this));
@@ -150,6 +153,7 @@ export class ProxyServer {
       await this.discoveryManager.register();
       await this.downloadManager.register();
       await this.notificationManager.register();
+      await this.trainingCandidateManager.register();
       await this.terminalManager.register();
     }
   }
@@ -161,6 +165,7 @@ export class ProxyServer {
       await safeAsync(this.downloadManager.destroy());
       await safeAsync(this.discoveryManager.destroy());
       await safeAsync(this.notificationManager.destroy());
+      await safeAsync(this.trainingCandidateManager.destroy());
     }
     await safeAsync(this.server.stop());
     // proxy is unset when startup failed before initialize() (e.g. pairing)

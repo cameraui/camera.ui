@@ -1,4 +1,5 @@
 import type { Notification, NotifierDevice } from '@camera.ui/sdk';
+import type { DBTrainingCandidateBox } from '../api/database/types.js';
 
 export type NotificationSourceKind = 'plugin' | 'system' | 'automation';
 
@@ -55,4 +56,24 @@ export interface SourcesListing {
 export interface NotifierDeviceWithSource extends NotifierDevice {
   pluginId: string;
   pluginName: string;
+}
+
+export interface TrainingSubmitResult {
+  queued: number;
+}
+
+export interface TrainingSubmitProgress {
+  active: boolean;
+  total: number;
+  done: number;
+  failed: number;
+}
+
+export interface TrainingSubmission {
+  id: string;
+  labels: DBTrainingCandidateBox[];
+  imageBytes: number;
+  createdAt: string;
+  usedInWave?: string;
+  imageUrl?: string;
 }

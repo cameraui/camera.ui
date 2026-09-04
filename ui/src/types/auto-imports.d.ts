@@ -137,6 +137,7 @@ declare global {
   const resetPluginsSocket: typeof import('../composables/sockets/usePluginsSocket').resetPluginsSocket
   const resetServerSocket: typeof import('../composables/sockets/useServerSocket').resetServerSocket
   const resetStreamStatus: typeof import('../composables/sockets/useStreamStatus').resetStreamStatus
+  const resetTrainingSocket: typeof import('../composables/sockets/useTrainingSocket').resetTrainingSocket
   const resetUpdatesSocket: typeof import('../composables/sockets/useUpdatesSocket').resetUpdatesSocket
   const resetWorkersSocket: typeof import('../composables/sockets/useWorkersSocket').resetWorkersSocket
   const resolveComponent: typeof import('vue').resolveComponent
@@ -411,6 +412,7 @@ declare global {
   const useToNumber: typeof import('@vueuse/core').useToNumber
   const useToString: typeof import('@vueuse/core').useToString
   const useToggle: typeof import('@vueuse/core').useToggle
+  const useTrainingSocket: typeof import('../composables/sockets/useTrainingSocket').useTrainingSocket
   const useTransition: typeof import('@vueuse/core').useTransition
   const useUiStore: typeof import('../stores/ui').useUiStore
   const useUpdateChannel: typeof import('../composables/useUpdateChannel').useUpdateChannel
@@ -679,6 +681,7 @@ declare module 'vue' {
     readonly resetPluginsSocket: UnwrapRef<typeof import('../composables/sockets/usePluginsSocket')['resetPluginsSocket']>
     readonly resetServerSocket: UnwrapRef<typeof import('../composables/sockets/useServerSocket')['resetServerSocket']>
     readonly resetStreamStatus: UnwrapRef<typeof import('../composables/sockets/useStreamStatus')['resetStreamStatus']>
+    readonly resetTrainingSocket: UnwrapRef<typeof import('../composables/sockets/useTrainingSocket')['resetTrainingSocket']>
     readonly resetUpdatesSocket: UnwrapRef<typeof import('../composables/sockets/useUpdatesSocket')['resetUpdatesSocket']>
     readonly resetWorkersSocket: UnwrapRef<typeof import('../composables/sockets/useWorkersSocket')['resetWorkersSocket']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
@@ -953,6 +956,7 @@ declare module 'vue' {
     readonly useToNumber: UnwrapRef<typeof import('@vueuse/core')['useToNumber']>
     readonly useToString: UnwrapRef<typeof import('@vueuse/core')['useToString']>
     readonly useToggle: UnwrapRef<typeof import('@vueuse/core')['useToggle']>
+    readonly useTrainingSocket: UnwrapRef<typeof import('../composables/sockets/useTrainingSocket')['useTrainingSocket']>
     readonly useTransition: UnwrapRef<typeof import('@vueuse/core')['useTransition']>
     readonly useUiStore: UnwrapRef<typeof import('../stores/ui')['useUiStore']>
     readonly useUpdateChannel: UnwrapRef<typeof import('../composables/useUpdateChannel')['useUpdateChannel']>

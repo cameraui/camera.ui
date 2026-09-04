@@ -17,6 +17,7 @@ import { PluginsNamespace } from './nsp/plugins.js';
 import { SensorsNamespace } from './nsp/sensors.js';
 import { ServerNamespace } from './nsp/server.js';
 import { StatusNamespace } from './nsp/status.js';
+import { TrainingNamespace } from './nsp/training.js';
 import { WorkersNamespace } from './nsp/workers.js';
 
 import type { FastifyInstance } from 'fastify';
@@ -31,7 +32,7 @@ export class SocketService {
   public io: Server;
 
   public namespaces = new Map<SocketNsp, SocketNspMap>();
-  public adminNsp: SocketNsp[] = ['/logs', '/status', '/metrics', '/plugins', '/server', '/cameras', '/sensors', '/workers'];
+  public adminNsp: SocketNsp[] = ['/logs', '/status', '/metrics', '/plugins', '/server', '/cameras', '/sensors', '/workers', '/training'];
 
   private logger: LoggerService;
   private authService!: AuthService;
@@ -71,6 +72,7 @@ export class SocketService {
     this.namespaces.set('/cameras', new CamerasNamespace(this.io));
     this.namespaces.set('/sensors', new SensorsNamespace(this.io));
     this.namespaces.set('/workers', new WorkersNamespace(this.io));
+    this.namespaces.set('/training', new TrainingNamespace(this.io));
 
     updatesService().init();
 

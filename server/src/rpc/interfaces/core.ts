@@ -10,7 +10,28 @@ export interface FloorPlan {
   plan: DBFloorPlan;
 }
 
+export interface TrainingCandidateBox {
+  label: string;
+  confidence: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TrainingCandidateIngest {
+  cameraId: string;
+  eventId: string;
+  capturedAt: number;
+  boxes: TrainingCandidateBox[];
+  scene: Uint8Array;
+}
+
+export type TrainingIngestResult = 'stored' | 'skip' | 'disabled';
+
 export interface CoreManagerInterface {
+  ingestTrainingCandidate(payload: TrainingCandidateIngest): Promise<TrainingIngestResult>;
+  getTrainingCollectionEnabled(): Promise<boolean>;
   getFFmpegPath(): Promise<string>;
   getServerAddresses(): Promise<string[]>;
   getCloudServerId(): Promise<string>;
@@ -21,6 +42,7 @@ export interface CoreManagerInterface {
 
 export interface CoreManagerProxyEvents {
   cloudAccountChanged: { connected: boolean };
+  trainingSettingsChanged: { enabled: boolean };
   pluginStatusChanged: { pluginName: string; running: boolean };
 }
 

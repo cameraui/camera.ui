@@ -141,8 +141,7 @@ export class EventTraceCollector {
 
     // a tick where nothing was found only earns its place around activity: a
     // few kept before and after, the hours in between say nothing
-    const empty =
-      tick.world.length === 0 && tick.events.length === 0 && tick.detections.length === 0 && !tick.motion?.length && !tick.attrs?.length;
+    const empty = tick.world.length === 0 && tick.events.length === 0 && tick.detections.length === 0 && !tick.motion?.length && !tick.attrs?.length;
     if (empty) {
       if (this.emptyTail > 0) {
         if (tick.tMs - this.lastKeptAt < MOTION_ONLY_INTERVAL_MS) return;

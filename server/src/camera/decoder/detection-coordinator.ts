@@ -26,7 +26,7 @@ import { PtzAutotracker } from './ptz/autotracker.js';
 import { SecondaryStage } from './secondary-stage.js';
 import { BufferedSource } from './sources/buffered-source.js';
 import { FrameSource } from './sources/frame-source.js';
-import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, MOTION_WIDTH_MAP } from './types.js';
+import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, isMovingTrainingSubject, MOTION_WIDTH_MAP, touchesFrameEdge } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { RPCClient } from '@camera.ui/rpc';
@@ -113,6 +113,8 @@ interface RenderedMoment {
   windows: Partial<Record<MomentFormatName, CropWindow>>;
 }
 
+const TRAINING_FRAME_MAX_WIDTH = 1280;
+const TRAINING_FRAME_QUALITY = 80;
 const MOMENT_EVENTS = new Set(['objectEntered', 'objectWoke', 'objectRecovered', 'bestShotUpdated']);
 const MOMENT_MOVING_SPEED = 0.05;
 const MOMENT_ATTRIBUTE_MIN_AREA = 600;
@@ -605,6 +607,7 @@ export class DetectionCoordinator {
               if (results.thumbnails && results.thumbnails.length > 0) {
                 snapshot.thumbnails = results.thumbnails;
               }
+              await this.attachTrainingFrame(snapshot, analysis);
               this.eventManager.processResults(snapshot);
             } else {
               // no assist boxes: the diff's motion clusters are the only
@@ -1632,6 +1635,7 @@ export class DetectionCoordinator {
     // messages already carry them
     if (!this.loopRunning) return;
     const snapshot = this.buildSnapshot(t0);
+    if (staticDetections.length > 0) snapshot.staticObjects = staticDetections;
     if (results.thumbnails && results.thumbnails.length > 0) {
       snapshot.thumbnails = results.thumbnails;
     }
@@ -1653,6 +1657,7 @@ export class DetectionCoordinator {
       }
     }
 
+    await this.attachTrainingFrame(snapshot, this.hqUpgrade ?? analysis);
     this.eventManager.processResults(snapshot);
 
     // a span can only close while the tracker receives ticks; if the cascade
@@ -1775,6 +1780,29 @@ export class DetectionCoordinator {
     if ((snapshot.sensorTriggers?.length ?? 0) > 0) return true;
     if ((snapshot.lineCrossings?.length ?? 0) > 0) return true;
     return false;
+  }
+
+  private async attachTrainingFrame(snapshot: ProcessedDetectionData, analysis: AnalysisFrame): Promise<void> {
+    if (!this.eventManager.hasActiveEvent() && !this.snapshotWillStartEvent(snapshot)) return;
+
+    const moving = snapshot.objects.filter((d) => isMovingTrainingSubject(d));
+    if (moving.length === 0) return;
+    const movingTrackIds = moving.map((d) => (d as { trackId?: number }).trackId).filter((id): id is number => id !== undefined);
+    // moment-style score, an edge-clipped subject makes a poor sample
+    const score = moving.reduce((sum, d) => sum + d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1), 0);
+    if (!this.eventManager.wantsTrainingFrame(movingTrackIds, score)) return;
+
+    try {
+      const start = Date.now();
+      const jpeg = await analysis.scaler.frameToJPEG(analysis.frame, TRAINING_FRAME_MAX_WIDTH, TRAINING_FRAME_QUALITY);
+      this.perf.jpegMs += Date.now() - start;
+      if (jpeg) {
+        snapshot.trainingFrame = jpeg;
+        snapshot.trainingScore = score;
+      }
+    } catch (error) {
+      this.logger.debug('Training frame capture error:', error);
+    }
   }
 
   private updateWorldSpans(result: PipelineResult): boolean {

@@ -20,6 +20,7 @@ import { RoomsRoute } from './rooms.routes.js';
 import { SensorsRoute } from './sensors.routes.js';
 import { ServerRoute } from './server.routes.js';
 import { SharesRoute } from './shares.routes.js';
+import { TrainingRoute } from './training.routes.js';
 import { TunnelRoute } from './tunnel.routes.js';
 import { UpdatesRoute } from './updates.routes.js';
 import { UsersRoute } from './users.routes.js';
@@ -63,6 +64,7 @@ export class FastifyRoutes {
     await this.app.register(SensorsRoute, { prefix: '/api/sensors' });
     await this.app.register(NotificationsRoute, { prefix: '/api/notifications' });
     await this.app.register(NvrRoute, { prefix: '/api/nvr' });
+    await this.app.register(TrainingRoute, { prefix: '/api/training' });
     await this.app.register(OAuthCallbackRoute, { prefix: '/oauth' });
 
     const serveIndex = (req: FastifyRequest, reply: FastifyReply): void => {

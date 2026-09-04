@@ -10,6 +10,7 @@ export * from '../../server/src/api/schemas/rooms.schema.js';
 export * from '../../server/src/api/schemas/sensors.schema.js';
 export * from '../../server/src/api/schemas/server.schema.js';
 export * from '../../server/src/api/schemas/storage.schema.js';
+export * from '../../server/src/api/schemas/training.schema.js';
 export * from '../../server/src/api/schemas/users.schema.js';
 export * from '../../server/src/api/schemas/workers.schema.js';
 export type { ScheduledBackupEntry } from '../../server/src/api/services/backupScheduler.service.js';

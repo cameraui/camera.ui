@@ -254,6 +254,11 @@ async function onCancel() {
   try {
     componentIsLoading.value = true;
     const data = await componentRef.value?.onCancel?.();
+
+    if (data === null) {
+      return;
+    }
+
     dialogRef.value.close({ status: 'cancel', data });
   } catch (error: any) {
     toast.add({ severity: 'error', detail: error, life: 3000 });

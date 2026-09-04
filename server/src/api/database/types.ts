@@ -59,6 +59,36 @@ export interface DBBackupSchedulerSettings {
   lastRun?: DBBackupSchedulerLastRun;
 }
 
+export interface DBTrainingSettings {
+  enabled: boolean;
+  perCameraLimit: number;
+  minIntervalSeconds: number;
+  retentionDays: number;
+}
+
+export interface DBTrainingCandidateBox {
+  label: string;
+  confidence: number;
+  // normalized top-left box
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text?: string;
+}
+
+export interface DBTrainingCandidate {
+  id: string;
+  cameraId: string;
+  eventId: string;
+  createdAt: number;
+  status: 'new' | 'verified';
+  boxes: DBTrainingCandidateBox[];
+  submittedAt?: number;
+  upload?: 'queued' | 'uploading' | 'failed';
+  uploadError?: string;
+}
+
 export interface DBSettings {
   version: string;
   instanceId?: string;
@@ -68,6 +98,7 @@ export interface DBSettings {
   backupScheduler?: DBBackupSchedulerSettings;
   notificationsSuppressed?: boolean;
   notificationsMutedCameras?: string[];
+  training?: DBTrainingSettings;
 }
 
 export interface DBKnownWorker {

@@ -5,6 +5,7 @@ import MotionIcon from '~icons/healthicons/running-24px';
 import BoxesIcon from '~icons/lucide/boxes';
 import LicensePlateIcon from '~icons/mdi/card-text-outline';
 import FaceIcon from '~icons/mdi/face-recognition';
+import PackageIcon from '~icons/mdi/package-variant-closed';
 import ClassifierIcon from '~icons/mdi/tag-multiple';
 
 import type { Component } from 'vue';
@@ -21,6 +22,7 @@ const STYLES: Record<string, DetectionStyle> = {
   person: { color: '#3B82F6', highlight: 'rgba(59, 130, 246, 0.1)', icon: PersonIcon },
   vehicle: { color: '#EF4444', highlight: 'rgba(239, 68, 68, 0.1)', icon: VehicleIcon },
   face: { color: '#F59E0B', highlight: 'rgba(245, 158, 11, 0.1)', icon: FaceIcon },
+  package: { color: '#EC4899', highlight: 'rgba(236, 72, 153, 0.1)', icon: PackageIcon },
   license_plate: { color: '#06B6D4', highlight: 'rgba(6, 182, 212, 0.1)', icon: LicensePlateIcon },
   classifier: { color: '#8B5CF6', highlight: 'rgba(139, 92, 246, 0.1)', icon: ClassifierIcon },
   other: { color: '#CAC443', highlight: 'rgba(202, 196, 67, 0.1)', icon: BoxesIcon },

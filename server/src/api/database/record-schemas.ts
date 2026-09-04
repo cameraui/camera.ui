@@ -108,6 +108,13 @@ export const dbSettingsSchema = zod.object({
   knownWorkers: zod.object({ agentId: zod.string(), name: zod.string(), lastSeen: zod.number() }).array().optional(),
   workerCredentials: zod.object({ agentId: zod.string(), name: zod.string(), user: zod.string(), secret: zod.string(), createdAt: zod.number() }).array().optional(),
   workerPairings: zod.object({ code: zod.string(), expiresAt: zod.number() }).array().optional(),
+  training: zod
+    .object({
+      enabled: zod.boolean().default(true),
+      perCameraLimit: zod.number().min(1).max(5000).default(200),
+      minIntervalSeconds: zod.number().min(0).max(3600).default(10),
+    })
+    .optional(),
   backupScheduler: zod
     .object({
       enabled: zod.boolean().default(false),

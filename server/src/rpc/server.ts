@@ -141,6 +141,8 @@ export class NATS {
                   'rpc.plugin.*.child.rpc.getSystemEvents',
                   'rpc.plugin.*.child.rpc.getClipReindexStatus',
                   'rpc.plugin.*.child.rpc.onClipReindex',
+                  'rpc.plugin.*.child.rpc.getFacesRescanStatus',
+                  'rpc.plugin.*.child.rpc.onFacesRescan',
                   'rpc.plugin.*.child.rpc.onRecordingState',
                   'rpc.plugin.*.child.rpc.onSystemEvent',
                   'rpc.plugin.*.child.rpc.onEventsDeleted',

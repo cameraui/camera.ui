@@ -21,4 +21,5 @@ export const NOTIFICATIONS_ID = 'notifications';
 export const NOTIFICATION_HISTORY_ID = 'notification-history';
 export const DOWNLOADS_ID = 'downloads';
 export const WORKER_STATE_ID = 'worker-state';
+export const TRAINING_CANDIDATES_ID = 'training-candidates';
 export const AUTOMATION_STATE_ID = 'automation-state';

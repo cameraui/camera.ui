@@ -25,6 +25,7 @@ import SensorsIconActive from '~icons/material-symbols/home-iot-device';
 import SensorsIcon from '~icons/material-symbols/home-iot-device-outline';
 import HomeIcon from '~icons/material-symbols/home-outline-rounded';
 import HomeIconActive from '~icons/material-symbols/home-rounded';
+import TrainingIcon from '~icons/material-symbols/model-training';
 import SettingsAccountIconActive from '~icons/mdi/account-circle';
 import SettingsAccountIcon from '~icons/mdi/account-circle-outline';
 import SettingsNotificationsIconActive from '~icons/mdi/bell';
@@ -68,6 +69,7 @@ const Camview = () => import('@/views/Camview.vue');
 const Recordings = () => import('@/views/Recordings.vue');
 const Floorplan = () => import('@/views/Floorplan.vue');
 const Faces = () => import('@/views/Faces.vue');
+const Training = () => import('@/views/Training.vue');
 const Plugins = () => import('@/views/Plugins.vue');
 const Plugin = () => import('@/views/Plugin.vue');
 const Metrics = () => import('@/views/Metrics.vue');
@@ -436,6 +438,42 @@ export const routes: RouteRecordRaw[] = [
         icon: {
           default: FacesIcon,
           active: FacesIcon,
+        },
+      },
+    },
+  },
+  {
+    name: 'Training',
+    path: '/training',
+    component: Training,
+    meta: {
+      name: 'training',
+      auth: {
+        requiresAuth: true,
+        role: 'admin',
+      },
+      ui: {
+        containerSettings: {
+          showTitle: true,
+          padding: true,
+        },
+        showNavbar: true,
+        showTopbar: true,
+        showBottombar: true,
+        showRouterLoading: true,
+      },
+      menu: {
+        icon: {
+          default: TrainingIcon,
+          active: TrainingIcon,
+        },
+      },
+      navbar: {
+        position: 'bottom',
+        group: 'manage',
+        icon: {
+          default: TrainingIcon,
+          active: TrainingIcon,
         },
       },
     },
@@ -1252,6 +1290,7 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
   // Menu group: menu is depth 0, sub-pages are depth 1
   if (p === '/menu') return { group: 'menu', key: 'menu', depth: 0 };
   if (p === '/faces') return { group: 'menu', key: 'faces', depth: 1 };
+  if (p === '/training') return { group: 'menu', key: 'training', depth: 1 };
   if (p === '/plugins') return { group: 'menu', key: 'plugins', depth: 1 };
   if (p.startsWith('/plugins/')) return { group: 'menu', key: 'plugin-detail', depth: 2 };
   if (p === '/settings') return { group: 'menu', key: 'settings', depth: 1 };

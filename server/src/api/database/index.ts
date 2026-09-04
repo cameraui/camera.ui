@@ -34,6 +34,7 @@ import {
   SETTINGS_ID,
   SHARES_ID,
   TOKENS_ID,
+  TRAINING_CANDIDATES_ID,
   USERS_ID,
   WORKER_STATE_ID,
 } from './constants.js';
@@ -75,6 +76,7 @@ import type {
   DBServer,
   DBSettings,
   DBShare,
+  DBTrainingCandidate,
   DBUser,
   DBWorkerState,
 } from './types.js';
@@ -107,6 +109,7 @@ export class Database {
   public notificationsDB!: DB<DBNotificationSettings, string>;
   public notificationHistoryDB!: DB<DBNotificationHistory, string>;
   public downloadsDB!: DB<DBDownloadEntry, string>;
+  public trainingCandidatesDB!: DB<DBTrainingCandidate, string>;
   public instancesDB!: DB<DBInstance, string>;
 
   private lowdb: RootDB;
@@ -157,6 +160,7 @@ export class Database {
     this.notificationsDB = this.lowdb.openDB({ name: NOTIFICATIONS_ID });
     this.notificationHistoryDB = this.lowdb.openDB({ name: NOTIFICATION_HISTORY_ID });
     this.downloadsDB = this.lowdb.openDB({ name: DOWNLOADS_ID });
+    this.trainingCandidatesDB = this.lowdb.openDB({ name: TRAINING_CANDIDATES_ID });
 
     this.selfCheck = new SelfCheck();
     this.migrationRunner = new MigrationRunner(this);

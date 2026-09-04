@@ -10,8 +10,17 @@ import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { PluginInterface } from '@camera.ui/sdk';
 import type { ProxyServer } from '../rpc/index.js';
-import type { CoreManagerInterface, CoreManagerProxyEvents, CoreManagerProxyGenericEvent, FloorPlan, HostPluginInfo } from '../rpc/interfaces/core.js';
+import type {
+  CoreManagerInterface,
+  CoreManagerProxyEvents,
+  CoreManagerProxyGenericEvent,
+  FloorPlan,
+  HostPluginInfo,
+  TrainingCandidateIngest,
+  TrainingIngestResult,
+} from '../rpc/interfaces/core.js';
 import type { ConfigService } from '../services/config/index.js';
+import type { TrainingCandidateManager } from './trainingCandidateManager.js';
 
 @RPCClass
 export class CoreManager implements CoreManagerInterface {
@@ -73,6 +82,16 @@ export class CoreManager implements CoreManagerInterface {
     return allPlugins
       .filter((p) => p.contract.interfaces?.includes(interfaceName) && !p.disabled)
       .map((p) => ({ id: p.id, name: p.pluginName, contract: p.contract, running: p.worker?.isRunning() === true }));
+  }
+
+  @RPCMethod
+  public async ingestTrainingCandidate(payload: TrainingCandidateIngest): Promise<TrainingIngestResult> {
+    return container.resolve<TrainingCandidateManager>('trainingCandidateManager').ingest(payload);
+  }
+
+  @RPCMethod
+  public async getTrainingCollectionEnabled(): Promise<boolean> {
+    return container.resolve<TrainingCandidateManager>('trainingCandidateManager').getSettings().enabled;
   }
 
   @RPCMethod

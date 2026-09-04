@@ -23,7 +23,7 @@ export interface PollResult {
 }
 
 const CLIENT_ID = 'camera-ui-server';
-const SCOPES = 'server:register server:update server:share server:unregister tunnel:connect';
+const SCOPES = 'server:register server:update server:share server:unregister tunnel:connect train:submit';
 
 export class OAuthRoute {
   constructor(private credentialStore: CloudCredentialStore) {}
