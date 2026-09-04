@@ -28,7 +28,7 @@
     "format": "prettier --write 'src/' 'bin/' --ignore-unknown --no-error-on-unmatched-pattern && ruff format",
     "install-updates": "npm i --save",
     "lint": "eslint --fix . && ruff check --fix && mypy --config-file ./mypy.ini src",
-    "update": "updates --update ./ && cupdate",
+    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate",
     "prepublishOnly": "npm i --package-lock-only && npm --prefix .. run check:sensors && npm run lint && npm run format && npm run build && npm --prefix ../ui run lint && npm --prefix ../ui run format && npm --prefix ../ui run build",
     "publish:dev": "npm publish --tag dev"
   },
@@ -46,7 +46,7 @@
     "@fastify/cors": "^11.3.0",
     "@fastify/formbody": "^9.0.0",
     "@fastify/helmet": "^13.1.1",
-    "@fastify/http-proxy": "^11.6.1",
+    "@fastify/http-proxy": "^11.6.2",
     "@fastify/multipart": "^10.1.1",
     "@fastify/static": "^10.1.3",
     "@fastify/swagger": "^9.8.1",
@@ -59,7 +59,7 @@
     "ansicolor": "^2.0.3",
     "cloudflared": "^0.7.3",
     "croner": "^10.0.1",
-    "fastify": "^5.12.1",
+    "fastify": "^5.12.3",
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "7.0.0",
     "fkill": "^10.0.3",
@@ -81,11 +81,11 @@
     "semver": "^7.8.5",
     "sharp": "^0.35.4",
     "socket.io": "^4.8.3",
-    "systeminformation": "^5.33.7",
+    "systeminformation": "^5.33.8",
     "tail": "^2.2.6",
     "tar": "^7.5.22",
     "tsyringe": "^4.10.0",
-    "undici": "^8.10.1",
+    "undici": "^8.10.2",
     "werift": "^0.24.4",
     "ws": "^8.21.3",
     "zod": "4.5.4"
@@ -113,8 +113,8 @@
     "rimraf": "^6.1.3",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.69.0",
-    "updates": "^18.0.7",
-    "vitest": "^4.1.11"
+    "updates": "^18.1.0",
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2"

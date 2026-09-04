@@ -21,7 +21,7 @@
     "presetup": "npm install",
     "release": "tsx ./scripts/release.ts",
     "setup": "tsx ./scripts/setup.ts",
-    "update": "updates --update ./ && cupdate && tsx ./scripts/update.ts"
+    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate && tsx ./scripts/update.ts"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
@@ -31,7 +31,7 @@
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",
     "typescript": "5.9.3",
-    "updates": "^18.0.7"
+    "updates": "^18.1.0"
   },
   "dependencies": {
     "commander": "^15.0.0",

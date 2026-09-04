@@ -14,9 +14,9 @@
     "build": "rimraf dist && tsc",
     "format": "prettier --write 'src/' --ignore-unknown --no-error-on-unmatched-pattern",
     "lint": "eslint --fix .",
-    "update": "updates --update ./",
     "install-updates": "npm i --save",
     "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build",
+    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./",
     "watch": "nodemon src/cameraui.ts -H ../.camera.ui run",
     "watch:alt": "CAMERA_UI_PORT=5443 nodemon src/cameraui.ts -H ../.camera.ui.alt run",
     "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run"
@@ -27,7 +27,7 @@
     "fs-extra": "^11.4.0",
     "js-yaml": "^5.4.1",
     "ora": "^9.4.1",
-    "systeminformation": "^5.33.7",
+    "systeminformation": "^5.33.8",
     "tail": "^2.2.6"
   },
   "devDependencies": {
@@ -45,7 +45,7 @@
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.69.0",
-    "updates": "^18.0.7"
+    "updates": "^18.1.0"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "bugs": {
