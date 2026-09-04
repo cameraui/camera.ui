@@ -40,12 +40,17 @@ const cameraSourceProbeCache = new TTLCache<string, Go2RTCProbe>({ max: 100, ttl
 const DEFAULT_EXTENSION_PLUGINS = ['@camera.ui/camera-ui-nvr'];
 
 const pluginSourceTimeoutSeconds = 60;
+const pluginSourceHandshakeTimeoutSeconds = 15;
 
-function withSourceTransportDefaults<T extends { urls: string[]; timeout?: number }>(source: T): T {
-  if (source.timeout || !source.urls.some((url) => url.startsWith('cui://'))) {
+function withSourceTransportDefaults<T extends { urls: string[]; timeout?: number; handshakeTimeout?: number }>(source: T): T {
+  if (!source.urls.some((url) => url.startsWith('cui://'))) {
     return source;
   }
-  return { ...source, timeout: pluginSourceTimeoutSeconds };
+  return {
+    ...source,
+    timeout: source.timeout ?? pluginSourceTimeoutSeconds,
+    handshakeTimeout: source.handshakeTimeout ?? pluginSourceHandshakeTimeoutSeconds,
+  };
 }
 
 @registry([
