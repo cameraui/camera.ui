@@ -6,11 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Help train camera.ui's own detection models.** The new Training page collects sample frames from your cameras on your own disk, capped per camera and cleaned up after two weeks. Nothing is uploaded by itself: you annotate frames (person, vehicle, animal, package, face, license plate with plate text) and submit only the ones you choose to the community pool with your cameraui.com account. Your submissions stay visible and removable, and the local collection can be turned off in the settings (trainings page).
+
+- **Favorite events and episodes.** A star on the recording cards keeps a moment forever: automatic cleanup deletes around it and the footage stays playable, however old. The view settings in Recordings can show only favorites. Needs the NVR plugin update.
+
+- **Home Assistant can back up camera.ui before a server update.** The update dialog in Home Assistant offers "Create backup before updating", and the integration settings can block installing updates from Home Assistant altogether. Needs the Home Assistant integration 0.4.1.
+
 - **camera.ui in Home Assistant no longer carries its own bar above the app.** The Home Assistant menu button now sits where camera.ui's own navigation lives: top left on phones, and as a "Home Assistant" entry at the bottom of the sidebar on desktop when the Home Assistant sidebar is hidden. It only shows when Home Assistant has no sidebar of its own on screen. The top and bottom bars now run under the status bar and home indicator in the Home Assistant app, in camera.ui's colors, with no doubled spacing and no stray band in the wrong theme color. Needs the Home Assistant integration 0.4.1. The Home Assistant add-on gets the same on phones: camera.ui takes over the top bar and the menu button, on desktop the Home Assistant sidebar stays as it is.
+
+### Changed
+
+- **Recordings and timelines got faster.** Event lists open quickly no matter how much history the NVR keeps, searching doesn't stall while cameras record, and the timeline stays smooth with several live events on screen. Needs the NVR plugin update.
 
 ## [2.1.15]
 
 ### Fixed
+
+- **Plugin cameras that wake slowly connect again.** A camera that takes a few seconds to start its stream (common on WiFi doorbells under load) could fail to come up at all, showing as offline while its recording stalled, after a recent change shortened the connection handshake. Plugin sources now allow enough time for the camera to answer.
+
+- **Rescanning faces no longer shows a timeout error while it works.** On a large backlog the scan runs longer than the request allowed, so it reported a timeout even though it finished and updated the matches. It now runs in the background and reports the result when done. Needs the NVR plugin update.
 
 - **CUDA detection works again on the NVIDIA Docker image.** The ONNX plugin moved to CUDA 13 while the `:nvidia` image stayed on CUDA 12.6, so detection silently ran on the CPU and RTX 50xx cards could not work at all. The image now ships CUDA 13 (host driver 580 or newer); a new `:nvidia-cuda12` image keeps the old base for older drivers, paired with the ONNX Legacy plugin. The plugin log now names the matching image when CUDA fails to load. A new `:nvidia-tensorrt` image carries the TensorRT runtime for the plugin's tensorrt provider, measured at roughly 2.5x detection throughput for about twice the VRAM.
 
