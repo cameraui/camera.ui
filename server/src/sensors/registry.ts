@@ -122,6 +122,8 @@ export class SensorRegistry {
 
       this.announceAdded(record);
     }
+
+    await this.sweepOrphanedRecords();
   }
 
   public async destroy(): Promise<void> {
@@ -738,6 +740,16 @@ export class SensorRegistry {
       } catch (error) {
         this.logger.warn(`Failed to re-sync cascade trigger for sensor ${sensorId}:`, error);
       }
+    }
+  }
+
+  private async sweepOrphanedRecords(): Promise<void> {
+    for (const record of Array.from(this.records.values())) {
+      if (!record.boundCameraId || this.dbs.camerasDB.get(record.boundCameraId)) continue;
+      if (this.runtime.has(record._id)) this.disconnectSensor(record._id);
+      await this.deleteSensor(record._id).catch((error: unknown) =>
+        this.logger.warn(`Failed to delete sensor "${record.displayName ?? record.name}" of a removed camera:`, error),
+      );
     }
   }
 

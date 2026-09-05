@@ -365,6 +365,7 @@ import { SensorsQuery } from '@/api/routes/sensors.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { sensorTypeIcon } from '@/common/sensorIcons.js';
 import { useCardSelection } from '@/composables/useCardSelection.js';
+import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
@@ -474,19 +475,32 @@ const sensors = computed(() => sensorsData.value ?? []);
 
 const cameraBoundCount = computed(() => sensors.value.filter((sensor) => sensor.assignmentLocked).length);
 
+const inactiveCameraBoundCount = computed(() => sensors.value.filter((sensor) => !isEnabledForItsCamera(sensor)).length);
+
 const menuItems = computed(() => [
   {
-    key: 'hideCameraBound',
-    label: t('views.sensors.hide_camera_bound'),
-    description: t('views.sensors.hide_camera_bound_hint'),
+    key: 'hideAllCameraBound',
+    label: t('views.sensors.hide_all_camera_bound'),
+    description: t('views.sensors.hide_all_camera_bound_hint'),
     badge: cameraBoundCount.value ? String(cameraBoundCount.value) : undefined,
     toggle: true,
-    toggleState: uiSettings.value.sensors.hideCameraBound,
-    onClick: () => (uiSettings.value.sensors.hideCameraBound = !uiSettings.value.sensors.hideCameraBound),
+    toggleState: uiSettings.value.sensors.hideAllCameraBound,
+    onClick: () => (uiSettings.value.sensors.hideAllCameraBound = !uiSettings.value.sensors.hideAllCameraBound),
+  },
+  {
+    key: 'onlyEnabledCameraBound',
+    label: t('views.sensors.only_enabled_camera_bound'),
+    description: t('views.sensors.only_enabled_camera_bound_hint'),
+    badge: inactiveCameraBoundCount.value ? String(inactiveCameraBoundCount.value) : undefined,
+    toggle: true,
+    toggleState: uiSettings.value.sensors.onlyEnabledCameraBound,
+    onClick: () => (uiSettings.value.sensors.onlyEnabledCameraBound = !uiSettings.value.sensors.onlyEnabledCameraBound),
   },
 ]);
 
 const cameraOptions = computed(() => (camerasData.value?.result ?? []).map((camera) => ({ label: camera.name, value: camera._id })));
+
+const cameraById = computed(() => new Map((camerasData.value?.result ?? []).map((camera) => [camera._id, camera])));
 
 const liveSensorById = computed(() => new Map(liveSensors.value.map((sensor) => [sensor.id, sensor])));
 
@@ -511,7 +525,8 @@ const rows = computed<SensorRow[]>(() => {
         stateColor: STATE_COLORS[state],
       };
     })
-    .filter((row) => !uiSettings.value.sensors.hideCameraBound || !row.sensor.assignmentLocked)
+    .filter((row) => !uiSettings.value.sensors.hideAllCameraBound || !row.sensor.assignmentLocked)
+    .filter((row) => !uiSettings.value.sensors.onlyEnabledCameraBound || isEnabledForItsCamera(row.sensor))
     .filter((row) => !query || [row.label, row.typeLabel, row.nativeLabel, row.pluginLabel, row.assignedLabel].some((value) => value.toLowerCase().includes(query)))
     .sort((a, b) => a.label.localeCompare(b.label));
 });
@@ -546,6 +561,13 @@ const deletableSelected = computed(() => selectedItems.value.filter((row) => can
 
 function discoveredKey(item: DiscoveredSensorListItem): string {
   return `${item.pluginId}:${item.id}`;
+}
+
+function isEnabledForItsCamera(sensor: TransformedSensor): boolean {
+  if (!sensor.boundCameraId) return true;
+  const camera = cameraById.value.get(sensor.boundCameraId);
+  if (!camera) return false;
+  return sensorProvidedForCamera(sensor, camera);
 }
 
 function isConnected(sensor: TransformedSensor): boolean {

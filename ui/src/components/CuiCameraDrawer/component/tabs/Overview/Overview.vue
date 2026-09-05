@@ -371,11 +371,11 @@ import {
 } from '@camera.ui/sdk';
 
 import CuiDetection from '@/components/CuiDetection/CuiDetection.vue';
-
-import { getAssignmentKey } from '@shared/types';
+import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
-import type { Camera, SensorType } from '@camera.ui/sdk';
+import type { SlotSensor } from '@/utils/sensorSlots.js';
+import type { Camera } from '@camera.ui/sdk';
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabProps, OverviewRow } from '../../types.js';
 
@@ -424,25 +424,25 @@ const statusLabel = computed(() => {
   }
 });
 
-const motionSensors = computed(() => assignedOnly(allSensors.value.filter(isReactiveMotionSensor)));
-const objectSensors = computed(() => assignedOnly(allSensors.value.filter(isReactiveObjectSensor)));
-const audioSensors = computed(() => assignedOnly(allSensors.value.filter(isReactiveAudioSensor)));
-const faceSensors = computed(() => assignedOnly(allSensors.value.filter(isReactiveFaceSensor)));
-const licensePlateSensors = computed(() => assignedOnly(allSensors.value.filter(isReactiveLicensePlateSensor)));
-const batterySensors = computed(() => allSensors.value.filter(isReactiveBatteryInfo));
-const lightSensors = computed(() => allSensors.value.filter(isReactiveLightControl));
-const sirenSensors = computed(() => allSensors.value.filter(isReactiveSirenControl));
-const switchSensors = computed(() => allSensors.value.filter(isReactiveSwitchControl));
-const lockSensors = computed(() => allSensors.value.filter(isReactiveLockControl));
-const doorbellSensors = computed(() => allSensors.value.filter(isReactiveDoorbellTrigger));
-const contactSensors = computed(() => allSensors.value.filter(isReactiveContactSensor));
-const temperatureSensors = computed(() => allSensors.value.filter(isReactiveTemperatureInfo));
-const humiditySensors = computed(() => allSensors.value.filter(isReactiveHumidityInfo));
-const occupancySensors = computed(() => allSensors.value.filter(isReactiveOccupancySensor));
-const smokeSensors = computed(() => allSensors.value.filter(isReactiveSmokeSensor));
-const leakSensors = computed(() => allSensors.value.filter(isReactiveLeakSensor));
-const garageSensors = computed(() => allSensors.value.filter(isReactiveGarageControl));
-const securitySystemSensors = computed(() => allSensors.value.filter(isReactiveSecuritySystem));
+const motionSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveMotionSensor)));
+const objectSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveObjectSensor)));
+const audioSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveAudioSensor)));
+const faceSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveFaceSensor)));
+const licensePlateSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLicensePlateSensor)));
+const batterySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveBatteryInfo)));
+const lightSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLightControl)));
+const sirenSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSirenControl)));
+const switchSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSwitchControl)));
+const lockSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLockControl)));
+const doorbellSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveDoorbellTrigger)));
+const contactSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveContactSensor)));
+const temperatureSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveTemperatureInfo)));
+const humiditySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveHumidityInfo)));
+const occupancySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveOccupancySensor)));
+const smokeSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSmokeSensor)));
+const leakSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLeakSensor)));
+const garageSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveGarageControl)));
+const securitySystemSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSecuritySystem)));
 
 const isMotionActive = computed(() => motionSensors.value.some((s) => s.getProperty(MotionProperty.Detected)));
 
@@ -517,13 +517,8 @@ const hasSensors = computed(
     securitySystemSensors.value.length > 0,
 );
 
-function assignedOnly<T extends { type: SensorType; pluginId: string }>(sensors: T[]): T[] {
-  if (sensors.length === 0) return sensors;
-  const key = getAssignmentKey(sensors[0].type) as keyof Camera['assignments'];
-  const assignment = cameraObject.value?.assignments?.[key];
-  const assigned = Array.isArray(assignment) ? undefined : assignment?.name;
-  if (!assigned) return sensors;
-  return sensors.filter((sensor) => cameraObject.value?.plugins.find((plugin) => plugin.id === sensor.pluginId)?.name === assigned);
+function providedForCamera<T extends SlotSensor>(sensors: T[]): T[] {
+  return sensors.filter((sensor) => sensorProvidedForCamera(sensor, cameraObject.value));
 }
 </script>
 

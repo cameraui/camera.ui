@@ -684,7 +684,8 @@ export interface InterfaceSettinges {
 }
 
 export interface SensorsSettings {
-  hideCameraBound: boolean;
+  hideAllCameraBound: boolean;
+  onlyEnabledCameraBound: boolean;
 }
 
 export interface PluginsViewSettings {
