@@ -701,13 +701,9 @@ watch(
   [nvrPluginRef, isDownloading],
   ([proxy]) => {
     if (!dialogRefProps.headerActions) return;
-    if (!proxy) {
-      dialogRefProps.headerActions.value = [];
-      return;
-    }
     dialogRefProps.headerActions.value = [
-      { icon: TraceIcon, tooltip: t('views.recordings.episode_trace.open'), onClick: () => openEpisodeTrace(props.episode, props.cameraById) },
-      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value },
+      { icon: TraceIcon, tooltip: t('views.recordings.episode_trace.open'), onClick: () => openEpisodeTrace(props.episode, props.cameraById), disabled: !proxy },
+      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value, disabled: !proxy },
     ];
   },
   { immediate: true },

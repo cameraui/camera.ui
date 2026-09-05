@@ -47,7 +47,7 @@ export interface ContentBaseProps {
   goTo?: string;
   rootId?: string;
   dedupeKey?: string;
-  headerActions?: { icon: Component; tooltip?: string; onClick: () => void; toggle?: boolean; loading?: boolean }[];
+  headerActions?: { icon: Component; tooltip?: string; onClick: () => void; toggle?: boolean; loading?: boolean; disabled?: boolean }[];
   contentClickConfirms?: boolean;
 }
 

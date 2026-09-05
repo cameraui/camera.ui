@@ -878,10 +878,15 @@ function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Uint8Array<ArrayBuffer
 
 function updateHeaderActions(): void {
   if (!dialogRefProps.headerActions) return;
-  dialogRefProps.headerActions.value =
-    status.value === 'ready'
-      ? [{ icon: DownloadIcon, tooltip: t('views.recordings.trace.bundle_hint'), onClick: () => void exportBundle(), loading: bundleBusy.value }]
-      : [];
+  dialogRefProps.headerActions.value = [
+    {
+      icon: DownloadIcon,
+      tooltip: t('views.recordings.trace.bundle_hint'),
+      onClick: () => void exportBundle(),
+      loading: bundleBusy.value,
+      disabled: status.value !== 'ready',
+    },
+  ];
 }
 
 useEventListener(

@@ -29,6 +29,7 @@
           text
           rounded
           :loading="action.loading"
+          :disabled="action.disabled"
           class="p-dialog-close-button"
           :class="{ '!text-primary': action.toggle && headerActionToggles[idx] }"
           @click="

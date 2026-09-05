@@ -167,16 +167,15 @@ function resolveGoTo(): string | undefined {
 }
 
 watch(
-  [hasCurrentEvent, isLive, isDownloading],
+  [hasCurrentEvent, isLive, isDownloading, nvrPluginRef],
   ([hasEvent, live]) => {
     if (!dialogRefProps.headerActions) return;
-    const actions: { icon: any; tooltip?: string; onClick: () => void; toggle?: boolean; loading?: boolean }[] = [];
-    actions.push({ icon: SparklesIcon, tooltip: t('components.player.ai_descriptions'), toggle: true, onClick: () => {} });
-    if (!live && hasEvent && nvrPluginRef.value) {
-      actions.push({ icon: TraceIcon, tooltip: t('views.recordings.open_trace'), onClick: openTrace });
-      actions.push({ icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value });
-    }
-    dialogRefProps.headerActions.value = actions;
+    const eventActionable = !live && hasEvent && Boolean(nvrPluginRef.value);
+    dialogRefProps.headerActions.value = [
+      { icon: SparklesIcon, tooltip: t('components.player.ai_descriptions'), toggle: true, onClick: () => {} },
+      { icon: TraceIcon, tooltip: t('views.recordings.open_trace'), onClick: openTrace, disabled: !eventActionable },
+      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value, disabled: !eventActionable },
+    ];
   },
   { immediate: true },
 );
