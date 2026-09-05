@@ -7,6 +7,7 @@ import {
   trainingCandidatePatchSchema,
   trainingSettingsPatchSchema,
   trainingSubmissionParamsSchema,
+  trainingSubmissionsQuerySchema,
   trainingSubmitSchema,
 } from '../schemas/training.schema.js';
 
@@ -77,7 +78,7 @@ export const TrainingRoute: FastifyPluginAsync = async (app: FastifyInstance): P
     },
   });
 
-  app.route({
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/submissions',
     method: 'GET',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
@@ -85,6 +86,7 @@ export const TrainingRoute: FastifyPluginAsync = async (app: FastifyInstance): P
     schema: {
       tags: ['Training'],
       summary: "List this account's community pool contributions",
+      querystring: trainingSubmissionsQuerySchema,
     },
   });
 

@@ -3,7 +3,13 @@ import { container } from 'tsyringe';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { TrainingCandidateManager } from '../../manager/trainingCandidateManager.js';
-import type { TrainingCandidateListQuery, TrainingCandidatePatchInput, TrainingSettingsPatchInput, TrainingSubmitInput } from '../schemas/training.schema.js';
+import type {
+  TrainingCandidateListQuery,
+  TrainingCandidatePatchInput,
+  TrainingSettingsPatchInput,
+  TrainingSubmissionsQuery,
+  TrainingSubmitInput,
+} from '../schemas/training.schema.js';
 import type { AuthLoginRequest } from '../types/index.js';
 
 export class TrainingController {
@@ -64,9 +70,9 @@ export class TrainingController {
     }
   }
 
-  public async submissions(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async submissions(req: FastifyRequest<AuthLoginRequest & { Querystring: TrainingSubmissionsQuery }>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(await this.manager.listSubmissions());
+      return reply.code(200).send(await this.manager.listSubmissions(req.query.cursor));
     } catch (error: any) {
       return reply.code(502).send({ statusCode: 502, message: error.message });
     }

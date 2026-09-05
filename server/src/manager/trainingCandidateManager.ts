@@ -13,11 +13,10 @@ import type { CloudApi } from '../remote/api/index.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { TrainingCandidateIngest, TrainingIngestResult } from '../rpc/interfaces/core.js';
 import type { ConfigService } from '../services/config/index.js';
-import type { TrainingSubmission, TrainingSubmitProgress, TrainingSubmitResult } from './types.js';
+import type { TrainingSubmissionPage, TrainingSubmitProgress, TrainingSubmitResult } from './types.js';
 
 const DEFAULT_SETTINGS: DBTrainingSettings = { enabled: true, perCameraLimit: 200, minIntervalSeconds: 10, retentionDays: 14 };
 const SUBMIT_ITEM_DELAY_MS = 750;
-const SUBMIT_EMIT_INTERVAL_MS = 1000;
 const RETENTION_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export class TrainingCandidateManager {
@@ -29,7 +28,6 @@ export class TrainingCandidateManager {
   private submitQueued = new Set<string>();
   private submitWorker?: Promise<void>;
   private submitProgress = { total: 0, done: 0, failed: 0 };
-  private lastSubmitEmitAt = 0;
   private retentionTimer?: NodeJS.Timeout;
 
   constructor() {
@@ -122,16 +120,20 @@ export class TrainingCandidateManager {
     return { active: this.submitWorker !== undefined, ...this.submitProgress };
   }
 
-  public async listSubmissions(): Promise<TrainingSubmission[]> {
-    const items = await container.resolve<CloudApi>('cloudApi').trainRoute.list();
-    return items.map((s) => ({
-      id: s.id,
-      labels: s.labels,
-      imageBytes: s.image_bytes,
-      createdAt: s.created_at,
-      usedInWave: s.used_in_wave,
-      imageUrl: s.image_url,
-    }));
+  public async listSubmissions(cursor?: string): Promise<TrainingSubmissionPage> {
+    const page = await container.resolve<CloudApi>('cloudApi').trainRoute.list(cursor);
+    return {
+      items: page.items.map((s) => ({
+        id: s.id,
+        labels: s.labels,
+        imageBytes: s.image_bytes,
+        createdAt: s.created_at,
+        usedInWave: s.used_in_wave,
+        imageUrl: s.image_url,
+      })),
+      nextCursor: page.next_cursor,
+      total: page.total,
+    };
   }
 
   public async removeSubmission(id: string): Promise<void> {
@@ -222,6 +224,7 @@ export class TrainingCandidateManager {
       if (candidate?.status !== 'verified') continue;
 
       await this.dbs.commit(this.dbs.trainingCandidatesDB, id, (c) => (c ? { ...c, upload: 'uploading' as const } : undefined));
+      this.emitChanged(candidate.cameraId);
 
       try {
         const image = await readFile(join(this.imagesDir, `${id}.jpg`));
@@ -234,12 +237,8 @@ export class TrainingCandidateManager {
         await this.dbs.commit(this.dbs.trainingCandidatesDB, id, (c) => (c ? { ...c, upload: 'failed' as const, uploadError: message } : undefined));
         this.submitProgress.failed++;
       }
-      const now = Date.now();
-      if (now - this.lastSubmitEmitAt >= SUBMIT_EMIT_INTERVAL_MS || this.submitQueue.length === 0) {
-        this.lastSubmitEmitAt = now;
-        this.emitChanged(candidate.cameraId);
-        this.emitSubmitProgress(true);
-      }
+      this.emitChanged(candidate.cameraId);
+      this.emitSubmitProgress(true);
 
       if (this.submitQueue.length > 0) await new Promise((resolve) => setTimeout(resolve, SUBMIT_ITEM_DELAY_MS));
     }

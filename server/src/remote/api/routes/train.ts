@@ -20,6 +20,14 @@ export interface CloudTrainSubmission {
   image_url?: string;
 }
 
+export interface CloudTrainSubmissionPage {
+  items: CloudTrainSubmission[];
+  next_cursor?: string;
+  total?: number;
+}
+
+const LIST_PAGE_SIZE = 30;
+
 export class TrainRoute {
   constructor(private credentialStore: CloudCredentialStore) {}
 
@@ -50,10 +58,12 @@ export class TrainRoute {
     return created.id;
   }
 
-  public async list(): Promise<CloudTrainSubmission[]> {
-    const res = await this.fetchCloud()('/api/v1/train/submissions', { method: 'GET' });
+  public async list(cursor?: string): Promise<CloudTrainSubmissionPage> {
+    const params = new URLSearchParams({ limit: String(LIST_PAGE_SIZE) });
+    if (cursor) params.set('cursor', cursor);
+    const res = await this.fetchCloud()(`/api/v1/train/submissions?${params.toString()}`, { method: 'GET' });
     await assertResponseOk(res);
-    return (await res.json()) as CloudTrainSubmission[];
+    return (await res.json()) as CloudTrainSubmissionPage;
   }
 
   public async remove(id: string): Promise<void> {

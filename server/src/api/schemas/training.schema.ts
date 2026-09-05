@@ -20,6 +20,10 @@ export const trainingSubmissionParamsSchema = zod.object({
   id: zod.string().trim().min(1),
 });
 
+export const trainingSubmissionsQuerySchema = zod.object({
+  cursor: zod.string().trim().min(1).optional(),
+});
+
 export const trainingCandidateListQuerySchema = zod.object({
   cameraId: zod.string().trim().min(1).optional(),
   status: zod.enum(['new', 'verified']).optional(),
@@ -51,3 +55,4 @@ export type TrainingCandidateListQuery = zod.output<typeof trainingCandidateList
 export type TrainingCandidatePatchInput = zod.output<typeof trainingCandidatePatchSchema>;
 export type TrainingSettingsPatchInput = zod.output<typeof trainingSettingsPatchSchema>;
 export type TrainingSubmitInput = zod.output<typeof trainingSubmitSchema>;
+export type TrainingSubmissionsQuery = zod.output<typeof trainingSubmissionsQuerySchema>;

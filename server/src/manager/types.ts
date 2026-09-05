@@ -77,3 +77,9 @@ export interface TrainingSubmission {
   usedInWave?: string;
   imageUrl?: string;
 }
+
+export interface TrainingSubmissionPage {
+  items: TrainingSubmission[];
+  nextCursor?: string;
+  total?: number;
+}

@@ -6,7 +6,7 @@ import type {
   TrainingCandidateListQuery,
   TrainingCandidatePatchInput,
   TrainingSettingsPatchInput,
-  TrainingSubmission,
+  TrainingSubmissionPage,
   TrainingSubmitResult,
 } from '@shared/types';
 import type { AxiosResponse } from 'axios';
@@ -30,8 +30,8 @@ export async function submitTrainingCandidates(ids: string[]): Promise<TrainingS
   return response.data;
 }
 
-export async function getTrainingSubmissions({ signal }: { signal?: AbortSignal } = {}): Promise<TrainingSubmission[]> {
-  const response: AxiosResponse<TrainingSubmission[]> = await api.get('/training/submissions', { signal });
+export async function getTrainingSubmissions({ cursor, signal }: { cursor?: string; signal?: AbortSignal } = {}): Promise<TrainingSubmissionPage> {
+  const response: AxiosResponse<TrainingSubmissionPage> = await api.get('/training/submissions', { params: cursor ? { cursor } : undefined, signal });
   return response.data;
 }
 
@@ -68,15 +68,6 @@ export class TrainingQuery {
     });
   }
 
-  public getSubmissionsQuery() {
-    return useQueryEnhanced({
-      queryKey: ['training-submissions'],
-      queryFn: ({ signal }) => getTrainingSubmissions({ signal }),
-      staleTime: 30_000,
-      retry: false,
-    });
-  }
-
   public patchCandidateMutation() {
     return useMutation({
       mutationFn: ({ id, patch }: { id: string; patch: TrainingCandidatePatchInput }) => patchTrainingCandidate(id, patch),
@@ -98,9 +89,6 @@ export class TrainingQuery {
   public deleteSubmissionMutation() {
     return useMutation({
       mutationFn: deleteTrainingSubmission,
-      onSuccess: async () => {
-        await this.queryClient.refetchQueries({ queryKey: ['training-submissions'], exact: true });
-      },
     });
   }
 

@@ -6,9 +6,10 @@ const state = reactive<{ progress: TrainingSubmitProgress | null }>({ progress: 
 let scope: ReturnType<typeof effectScope> | null = null;
 let channel: SocketChannel | null = null;
 const changeListeners = new Set<() => void>();
+const resyncListeners = new Set<() => void>();
 
-function notifyChanged(): void {
-  for (const listener of changeListeners) {
+function notify(listeners: Set<() => void>): void {
+  for (const listener of listeners) {
     try {
       listener();
     } catch {
@@ -21,10 +22,20 @@ async function loadProgress(): Promise<void> {
   if (!channel?.ready.value) return;
   try {
     const progress = await channel.request<TrainingSubmitProgress>('get-submit-progress');
-    if (progress.active) state.progress = progress;
+    if (progress.active) {
+      state.progress = progress;
+    } else if (state.progress?.active) {
+      state.progress = null;
+    }
   } catch {
     // server unreachable
   }
+}
+
+function resync(): void {
+  loadProgress();
+  notify(changeListeners);
+  notify(resyncListeners);
 }
 
 function ensureChannel(): SocketChannel {
@@ -35,17 +46,14 @@ function ensureChannel(): SocketChannel {
     const ch = useSocket('/training');
     channel = ch;
 
-    ch.on('candidates-changed', () => notifyChanged());
+    ch.on('candidates-changed', () => notify(changeListeners));
 
     ch.on<TrainingSubmitProgress>('submit-progress', (progress) => {
       state.progress = progress;
-      notifyChanged();
+      notify(changeListeners);
     });
 
-    ch.onReady(() => {
-      loadProgress();
-      notifyChanged();
-    });
+    ch.onReady(resync);
   });
 
   return channel!;
@@ -61,6 +69,11 @@ export function useTrainingSocket() {
     return () => changeListeners.delete(listener);
   }
 
+  function onResync(listener: () => void): () => void {
+    resyncListeners.add(listener);
+    return () => resyncListeners.delete(listener);
+  }
+
   function dismissProgress(): void {
     state.progress = null;
   }
@@ -69,6 +82,7 @@ export function useTrainingSocket() {
     submitProgress: computed(() => state.progress),
     connect,
     onCandidatesChanged,
+    onResync,
     dismissProgress,
   };
 }
@@ -79,4 +93,5 @@ export function resetTrainingSocket(): void {
   channel = null;
   state.progress = null;
   changeListeners.clear();
+  resyncListeners.clear();
 }
