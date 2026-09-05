@@ -1,7 +1,5 @@
 <template>
   <div ref="cardRef" class="camera-event-card relative group cursor-pointer" @click="openCameraEvent" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
-    <AiBadge v-if="descriptionTitle" />
-
     <div class="bg-neutral-900 w-[140px] h-[140px] rounded-xl overflow-hidden relative">
       <Skeleton v-if="thumbnailState === 'loading'" class="w-full h-full rounded-xl" width="140px" height="140px" />
 
@@ -208,7 +206,6 @@ const anchorTime = computed(() => props.segment?.firstSeen ?? eventAnchorTime(pr
 const isActive = computed(() => (props.segment ? props.live === true : props.event.state === 'active'));
 const description = computed(() => (props.segment ? props.segment.description : props.event.segments?.find((s) => s?.description)?.description));
 const hasDescription = computed(() => !isActive.value && Boolean(description.value));
-const descriptionTitle = computed(() => description.value?.title);
 
 const previewIndicator = computed(() => {
   if (!preview) return '';

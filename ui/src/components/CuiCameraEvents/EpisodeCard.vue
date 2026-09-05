@@ -1,7 +1,5 @@
 <template>
   <div ref="cardRef" class="camera-event-card relative group cursor-pointer" @click="openEpisode" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
-    <AiBadge v-if="!fluid && episode.description" />
-
     <div class="bg-neutral-900 rounded-xl overflow-hidden relative" :class="fluid ? 'w-full aspect-square' : 'w-[140px] h-[140px]'">
       <Skeleton v-if="mosaicState === 'loading'" class="w-full h-full rounded-xl" width="100%" height="100%" />
 
@@ -22,7 +20,6 @@
 
       <div v-if="fluid" class="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/80 to-transparent z-[3]">
         <div class="flex items-center gap-1.5">
-          <AiBadge v-if="episode.description" position="inline" />
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ title }}</p>
           <Button
             v-if="!clickDisabled"

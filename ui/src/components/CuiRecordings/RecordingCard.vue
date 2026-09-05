@@ -28,7 +28,6 @@
 
       <div class="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/80 to-transparent z-[3]">
         <div class="flex items-center gap-1.5">
-          <AiBadge v-if="descriptionTitle" position="inline" />
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ displayCameraName }}</p>
 
           <span v-if="segPosition" class="text-[10px] font-semibold text-white/80 bg-black/60 px-1.5 py-0.5 rounded-md shrink-0">{{ segPosition }}</span>
@@ -51,32 +50,18 @@
             </template>
           </Button>
           <Button
-            v-if="camera && !selectionMode"
-            v-tooltip.left="{ value: $t('views.recordings.open_trace') }"
+            v-if="cardMenuItems.length > 0 && !selectionMode"
+            v-tooltip.left="{ value: $t('views.recordings.more_actions') }"
             rounded
             text
             severity="secondary"
+            :loading="isDownloading || reassignBusy"
             class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
-            @click.stop="emit('openTrace')"
+            @click.stop="openCardMenu"
             @mouseenter="stopPreview"
           >
             <template #icon>
-              <i-tabler:list-search class="w-3 h-3 text-white" />
-            </template>
-          </Button>
-          <Button
-            v-if="canDownload && !selectionMode"
-            v-tooltip.left="{ value: $t('views.recordings.download') }"
-            rounded
-            text
-            severity="secondary"
-            :loading="isDownloading"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
-            @click.stop="handleDownload"
-            @mouseenter="stopPreview"
-          >
-            <template #icon>
-              <i-tabler:download class="w-3 h-3 text-white" />
+              <i-tabler:dots-vertical class="w-3 h-3 text-white" />
             </template>
           </Button>
         </div>
@@ -162,6 +147,18 @@
         </span>
       </div>
     </div>
+
+    <CuiMenu
+      ref="cardMenuRef"
+      :items="cardMenuItems"
+      :popover="{
+        pt: {
+          content: {
+            class: 'p-0! rounded-xl! overflow-hidden!',
+          },
+        },
+      }"
+    />
   </div>
 </template>
 
@@ -175,12 +172,20 @@ import {
   segmentTypes,
   thumbnailToUrl,
   useEventStore,
+  useFaceStore,
 } from '@camera.ui/nvr';
+import DownloadIcon from '~icons/tabler/download';
+import TraceIcon from '~icons/tabler/list-search';
+import FaceEditIcon from '~icons/tabler/user-edit';
 
 import { extractErrorMessage } from '@/common/utils.js';
+import FaceReassignDialog from '@/components/CuiDialog/templates/FaceReassign/FaceReassign.vue';
+import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import { eventAnchorTime, segmentLabel } from '@/utils/eventAnchor.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
+import type { FaceReassignProps } from '@/components/CuiDialog/templates/FaceReassign/types.js';
+import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { EventThumbnails } from '@camera.ui/nvr';
 import type { RecordingCardEmits, RecordingCardProps } from './types.js';
 
@@ -193,6 +198,8 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const faceStore = useFaceStore();
+const dialog = useCuiDialog();
 
 const ICON_PX = 24;
 const TILE_PX = 30;
@@ -213,6 +220,7 @@ const preview = inject(EventHoverPreviewKey, undefined);
 const rootRef = useTemplateRef<HTMLElement>('rootRef');
 const previewCanvasRef = useTemplateRef('previewCanvasRef');
 const footerRef = useTemplateRef<HTMLElement>('footerRef');
+const cardMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('cardMenuRef');
 const previewBlocked = ref(false);
 
 const longPress = useLongPressPreview(
@@ -226,16 +234,11 @@ const thumbnailState = ref<'loading' | 'loaded' | 'empty'>(initialState);
 const isDownloading = ref(false);
 const activeImageIndexRaw = ref(0);
 const favoriteOverride = ref<boolean | null>(null);
+const reassignBusy = ref(false);
 
 const { width: footerWidth } = useElementSize(footerRef);
 
 const isFavorite = computed(() => favoriteOverride.value ?? props.event.favorite ?? false);
-
-const descriptionTitle = computed(() => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  eventStore.storeVersion.value;
-  return props.event.segments?.find((s) => s?.description)?.description?.title;
-});
 
 const semanticDisplay = computed(() => {
   if (props.semanticScore == null) return undefined;
@@ -267,15 +270,18 @@ const segPosition = computed(() => {
   return props.segIndex !== undefined && count > 1 ? `${props.segIndex + 1}/${count}` : undefined;
 });
 
-const carouselImages = computed<{ url: string; label?: string; type: string; crop: boolean }[]>(() => {
+const carouselImages = computed<{ url: string; label?: string; type: string; crop: boolean; faceSeg?: number }[]>(() => {
   const thumbs = loadedThumbs.value;
   const sceneUrl = primary.value?.url;
   if (!thumbs || !sceneUrl) return [];
 
-  const items = [{ url: sceneUrl, label: primary.value?.label, type: primaryType.value, crop: false }];
+  const items: { url: string; label?: string; type: string; crop: boolean; faceSeg?: number }[] = [
+    { url: sceneUrl, label: primary.value?.label, type: primaryType.value, crop: false },
+  ];
   for (const tile of attributeThumbnails(thumbs, props.segIndex)) {
     if (items.some((item) => item.url === tile.url)) continue;
-    items.push({ url: tile.url, label: tile.label, type: tile.type, crop: true });
+    const segPart = tile.key.split(':')[0];
+    items.push({ url: tile.url, label: tile.label, type: tile.type, crop: true, faceSeg: /^\d+$/.test(segPart) ? Number(segPart) : -1 });
   }
   if (props.segIndex === undefined) {
     for (const key of Object.keys(thumbs.cards ?? thumbs.strips ?? {}).sort((a, b) => Number(a) - Number(b))) {
@@ -349,6 +355,38 @@ const previewIndicator = computed(() => {
   if (preview.status.value === 'unavailable') return t('views.recordings.no_preview');
   if (preview.status.value === 'playing' && preview.previewTimeMs.value) return formatClock(preview.previewTimeMs.value);
   return '';
+});
+
+const activeFaceLabel = computed(() => {
+  const img = activeImage.value;
+  if (!img || img.type !== 'face') return undefined;
+  return img.label ? img.label : 'unknown';
+});
+
+const cardMenuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [];
+  if (activeFaceLabel.value !== undefined) {
+    items.push({
+      key: 'reassign',
+      label: t('views.recordings.reassign_face'),
+      icon: FaceEditIcon,
+      loading: reassignBusy.value,
+      onClick: () => void openFaceReassignDialog(),
+    });
+  }
+  if (props.camera) {
+    items.push({ key: 'trace', label: t('views.recordings.open_trace'), icon: TraceIcon, onClick: () => emit('openTrace') });
+  }
+  if (canDownload.value) {
+    items.push({
+      key: 'download',
+      label: t('views.recordings.download'),
+      icon: DownloadIcon,
+      loading: isDownloading.value,
+      onClick: () => void handleDownload(),
+    });
+  }
+  return items;
 });
 
 function fitCount(total: number, space: number, itemPx: number): number {
@@ -430,6 +468,46 @@ function handleClick(): void {
     return;
   }
   emit('scrollToEvent', shownSegment.value?.firstSeen ?? eventAnchorTime(props.event));
+}
+
+function openCardMenu(event: MouseEvent): void {
+  stopPreview();
+  cardMenuRef.value?.toggleMenu(event);
+}
+
+async function openFaceReassignDialog(): Promise<void> {
+  const oldName = activeFaceLabel.value;
+  if (oldName === undefined) return;
+  const cropUrl = activeImage.value?.url;
+
+  await faceStore.refresh(true);
+  dialog.openComponentDialog<FaceReassignProps>(FaceReassignDialog, {
+    data: {
+      title: t('views.recordings.reassign_face'),
+      confirmText: t('components.form.button.save'),
+      contentProps: {
+        cropUrl,
+        oldName,
+        knownNames: faceStore.knownFaces.value.map((profile) => profile.name),
+      },
+    },
+    onConfirm: (newName: string) => void reassignFace(newName),
+  });
+}
+
+async function reassignFace(newName: string): Promise<void> {
+  const oldName = activeFaceLabel.value;
+  if (oldName === undefined || reassignBusy.value) return;
+  const seg = activeImage.value?.faceSeg ?? -1;
+  reassignBusy.value = true;
+  try {
+    await faceStore.reassignEventFace(props.event.id, seg, oldName, newName);
+    toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
+  } catch (error) {
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
+  } finally {
+    reassignBusy.value = false;
+  }
 }
 
 async function toggleFavorite(): Promise<void> {
