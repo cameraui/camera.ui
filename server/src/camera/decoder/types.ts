@@ -7,8 +7,6 @@ export type PixelFormat = 'yuv420p' | 'rgb24' | 'nv12';
 
 export type AnalysisStream = 'low' | 'main';
 
-const TRAINING_MOVING_SPEED = 0.002;
-
 export const FULL_FRAME_BOX: BoundingBox = { x: 0, y: 0, width: 1, height: 1 };
 
 export function ensureDetectionBoxes<T extends { box?: BoundingBox }>(detections: readonly T[]): (T & { box: BoundingBox })[] {
@@ -23,11 +21,9 @@ export function touchesFrameEdge(box: BoundingBox): boolean {
   return box.x <= 0.005 || box.y <= 0.005 || box.x + box.width >= 0.995 || box.y + box.height >= 0.995;
 }
 
-export function isMovingTrainingSubject(detection: { box?: BoundingBox }): boolean {
+export function isTrainingSubject(detection: { box?: BoundingBox }): boolean {
   if (!detection.box || isFullFrameBox(detection.box)) return false;
-  const t = detection as { trackSpeed?: number; stationarySince?: number };
-  if (t.stationarySince !== undefined) return false;
-  return t.trackSpeed === undefined || t.trackSpeed >= TRAINING_MOVING_SPEED;
+  return (detection as { stationarySince?: number }).stationarySince === undefined;
 }
 
 export interface CoordinatorSourceUrl {

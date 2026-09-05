@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full min-h-0">
+  <div class="flex flex-col">
     <h1 v-if="!smBreakpoint" class="page-title">
       {{ $t('views.training.title') }}
     </h1>
@@ -93,20 +93,12 @@
       <span class="text-muted text-sm text-center max-w-md">{{ $t('views.training.no_candidates') }}</span>
     </div>
 
-    <CuiRecordingsGrid
-      v-else
-      :items="gridItems"
-      :min-item-width="smBreakpoint ? 220 : 250"
-      :aspect-ratio="1.17"
-      :gap="12"
-      :has-more="hasMore"
-      :load-more="loadMore"
-      :item-key="(candidate: DBTrainingCandidate) => candidate.id"
-      class="flex-1 min-h-0"
-    >
-      <template #item="{ item: candidate }">
+    <template v-else>
+      <div class="grid w-full gap-3 p-px" :style="gridStyle">
         <Card
-          class="cui-card overflow-hidden transition-shadow cursor-pointer hover:shadow-md h-full flex flex-col"
+          v-for="candidate in gridItems"
+          :key="candidate.id"
+          class="cui-card overflow-hidden transition-shadow cursor-pointer hover:shadow-md aspect-[1.17] flex flex-col"
           :pt="{ header: { class: 'flex-1 min-h-0 flex' }, body: { class: 'shrink-0', style: 'height: auto' } }"
           @click="onCardClick(candidate)"
         >
@@ -170,8 +162,10 @@
             </div>
           </template>
         </Card>
-      </template>
-    </CuiRecordingsGrid>
+      </div>
+
+      <div v-if="hasMore" ref="loadMoreRef" class="h-px" />
+    </template>
 
     <CuiFloatingButtonGroup v-if="filtered.length || selectionMode" :force-visible="selectionMode">
       <template v-if="!selectionMode">
@@ -274,6 +268,7 @@ const searchQuery = ref('');
 const visibleCount = ref(PAGE_SIZE);
 const cameraMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('cameraMenuRef');
 const settingsMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('settingsMenuRef');
+const loadMoreRef = useTemplateRef<HTMLElement>('loadMoreRef');
 
 const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint.value ? '220px' : '260px'}, 1fr))` }));
 
@@ -473,6 +468,10 @@ async function setEnabled(enabled: boolean): Promise<void> {
 
 watch(searchQuery, () => {
   visibleCount.value = PAGE_SIZE;
+});
+
+useIntersectionObserver(loadMoreRef, ([entry]) => {
+  if (entry?.isIntersecting) loadMore();
 });
 
 trainingSocket.connect();

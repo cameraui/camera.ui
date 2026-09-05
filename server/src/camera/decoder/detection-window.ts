@@ -27,11 +27,11 @@ export function padBox(box: BoundingBox, factor: number): BoundingBox {
   };
 }
 
-function overlaps(a: BoundingBox, b: BoundingBox): boolean {
+export function overlaps(a: BoundingBox, b: BoundingBox): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
-function union(a: BoundingBox, b: BoundingBox): BoundingBox {
+export function union(a: BoundingBox, b: BoundingBox): BoundingBox {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
   return {
@@ -42,7 +42,7 @@ function union(a: BoundingBox, b: BoundingBox): BoundingBox {
   };
 }
 
-function iou(a: BoundingBox, b: BoundingBox): number {
+export function iou(a: BoundingBox, b: BoundingBox): number {
   const x1 = Math.max(a.x, b.x);
   const y1 = Math.max(a.y, b.y);
   const x2 = Math.min(a.x + a.width, b.x + b.width);
@@ -52,7 +52,7 @@ function iou(a: BoundingBox, b: BoundingBox): number {
   return total > 0 ? inter / total : 0;
 }
 
-function containment(a: BoundingBox, b: BoundingBox): number {
+export function containment(a: BoundingBox, b: BoundingBox): number {
   const x1 = Math.max(a.x, b.x);
   const y1 = Math.max(a.y, b.y);
   const x2 = Math.min(a.x + a.width, b.x + b.width);
@@ -82,7 +82,7 @@ export function mergeWindowDetections(detections: Detection[]): Detection[] {
   return kept;
 }
 
-function contains(outer: BoundingBox, inner: BoundingBox): boolean {
+export function contains(outer: BoundingBox, inner: BoundingBox): boolean {
   return outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.width >= inner.x + inner.width && outer.y + outer.height >= inner.y + inner.height;
 }
 

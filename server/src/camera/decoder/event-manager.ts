@@ -7,7 +7,7 @@ import { EventTraceCollector } from './event-trace.js';
 import { leanEvent, NvrSink } from './nvr-sink.js';
 import { MAX_UNTRACKED_PLATES, normalizePlateText, PlateVoteTracker } from './plate-vote.js';
 import { TrainingSink } from './training-sink.js';
-import { isFullFrameBox, isMovingTrainingSubject } from './types.js';
+import { isFullFrameBox, isTrainingSubject } from './types.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type {
@@ -31,6 +31,7 @@ import type { DetectionThumbnail } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
+import type { TrainingSubject } from './training-sink.js';
 import type { AnalysisStream } from './types.js';
 
 export interface TrackedSecondary {
@@ -50,6 +51,7 @@ export interface NormalizedDetectionZone {
   alertLabels?: string[];
 }
 
+export const SECONDARY_FRESH_MS = 1000;
 export const MOMENT_RANK_OBJECT = 0;
 export const MOMENT_RANK_ATTRIBUTE = 1;
 
@@ -76,8 +78,10 @@ export interface ProcessedDetectionData {
   sensorTriggers?: string[];
   objects: Detection[];
   faces: TrackedFaceDetection[];
+  facesAt?: number;
   faceEmbeddingModel?: string;
   plates: TrackedLicensePlateDetection[];
+  platesAt?: number;
   plateVoting?: boolean;
   plateMinConfidence?: number;
   plateMinLength?: number;
@@ -351,8 +355,8 @@ export class DetectionEventManager {
     return this.needsEventThumbnail;
   }
 
-  public wantsTrainingFrame(movingTrackIds: number[] = [], score = 0): boolean {
-    return this.training.wantsFrame(this.activeEvent?.id, movingTrackIds, score);
+  public wantsTrainingFrame(subjects: TrainingSubject[] = [], score = 0): boolean {
+    return this.training.wantsFrame(this.activeEvent?.id, subjects, score);
   }
 
   public hasActiveEvent(): boolean {
@@ -1028,14 +1032,20 @@ export class DetectionEventManager {
     const boxes: TrainingCandidateBox[] = data.objects
       .filter((o) => o.box && !isFullFrameBox(o.box))
       .map((o) => ({ label: o.label, confidence: o.confidence, x: o.box.x, y: o.box.y, width: o.box.width, height: o.box.height }));
-    for (const face of data.faces) {
-      if (face.box && !isFullFrameBox(face.box)) {
-        boxes.push({ label: 'face', confidence: face.confidence, x: face.box.x, y: face.box.y, width: face.box.width, height: face.box.height });
+    const facesFresh = data.facesAt !== undefined && capturedAt - data.facesAt <= SECONDARY_FRESH_MS;
+    const platesFresh = data.platesAt !== undefined && capturedAt - data.platesAt <= SECONDARY_FRESH_MS;
+    if (facesFresh) {
+      for (const face of data.faces) {
+        if (face.box && !isFullFrameBox(face.box)) {
+          boxes.push({ label: 'face', confidence: face.confidence, x: face.box.x, y: face.box.y, width: face.box.width, height: face.box.height });
+        }
       }
     }
-    for (const plate of data.plates) {
-      if (plate.box && !isFullFrameBox(plate.box)) {
-        boxes.push({ label: 'license_plate', confidence: plate.confidence, x: plate.box.x, y: plate.box.y, width: plate.box.width, height: plate.box.height });
+    if (platesFresh) {
+      for (const plate of data.plates) {
+        if (plate.box && !isFullFrameBox(plate.box)) {
+          boxes.push({ label: 'license_plate', confidence: plate.confidence, x: plate.box.x, y: plate.box.y, width: plate.box.width, height: plate.box.height });
+        }
       }
     }
     // an unlabeled parked object in a training image teaches "background",
@@ -1045,11 +1055,11 @@ export class DetectionEventManager {
         boxes.push({ label: still.label, confidence: still.confidence, x: still.box.x, y: still.box.y, width: still.box.width, height: still.box.height });
       }
     }
-    const movingTrackIds = data.objects
-      .filter((o) => isMovingTrainingSubject(o))
-      .map((o) => (o as { trackId?: number }).trackId)
-      .filter((id): id is number => id !== undefined);
-    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, movingTrackIds, score);
+    const subjects = data.objects
+      .filter((o) => isTrainingSubject(o))
+      .map((o) => ({ trackId: (o as { trackId?: number }).trackId, box: o.box }))
+      .filter((s): s is TrainingSubject => s.trackId !== undefined);
+    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, subjects, score);
   }
 
   private publish(type: DetectionEventType, attachments?: EventAttachments): void {

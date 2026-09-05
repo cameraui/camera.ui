@@ -266,7 +266,7 @@ const {
   minimapBoxStyle: stageMinimapBoxStyle,
   onZoomPan: onStageZoomPan,
   onDoubleClick: onStageDoubleClick,
-  onTouchStart: onStageTouchStart,
+  onTouchStart: stageZoomTouchStart,
   onTouchEnd: onStageTouchEnd,
   reset: resetStageZoom,
 } = useStageZoom(stageRef, frameRef);
@@ -367,21 +367,32 @@ function dragStart(event: PointerEvent, state: Omit<DragState, 'moved'>): void {
 }
 
 function onPointerDown(event: PointerEvent): void {
-  if (stageZoomLevel.value > 1) return;
+  if (stageZoomLevel.value > 1 || !event.isPrimary) return;
   const { x, y } = pointerPos(event);
   dragStart(event, { mode: 'draw', index: -1, startX: x, startY: y, origin: { label: lastLabel.value, confidence: 1, x, y, width: 0, height: 0 } });
 }
 
 function startMove(index: number, event: PointerEvent): void {
+  if (!event.isPrimary) return;
   const { x, y } = pointerPos(event);
   selectedIndex.value = index;
   dragStart(event, { mode: 'move', index, startX: x, startY: y, origin: { ...boxes.value[index] } });
 }
 
 function startResize(index: number, corner: Corner, event: PointerEvent): void {
+  if (!event.isPrimary) return;
   const { x, y } = pointerPos(event);
   selectedIndex.value = index;
   dragStart(event, { mode: 'resize', index, corner, startX: x, startY: y, origin: { ...boxes.value[index] } });
+}
+
+function onStageTouchStart(event: TouchEvent): void {
+  if (event.touches.length > 1 && drag.value) {
+    drag.value = null;
+    draft.value = null;
+    loupe.value = null;
+  }
+  stageZoomTouchStart(event);
 }
 
 function onPointerMove(event: PointerEvent): void {
@@ -670,6 +681,7 @@ defineExpose<CustomDialogComponent>({
 .frame {
   width: min(100cqw, calc(100cqh * var(--ar-w) / var(--ar-h)));
   height: min(100cqh, calc(100cqw * var(--ar-h) / var(--ar-w)));
+  transition: none !important;
 }
 
 .zoom-constraining :deep(> *) {

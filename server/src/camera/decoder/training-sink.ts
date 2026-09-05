@@ -1,14 +1,21 @@
 import { NamespaceManager } from '../../rpc/namespaces.js';
+import { iou } from './detection-window.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type { LoggerService } from '@camera.ui/sdk';
 import type { CoreManagerInterface, TrainingCandidateBox } from '../../rpc/interfaces/core.js';
 
-const FLUSH_INTERVAL_MS = 10_000;
+const FLUSH_INTERVAL_MS = 15_000;
 const DISABLED_BACKOFF_MS = 5 * 60_000;
-const HOLD_WINDOW_MS = 10_000;
+const HOLD_WINDOW_MS = 5_000;
 const SCORE_IMPROVEMENT = 1.25;
-const MAX_SAMPLES_PER_TRACK = 2;
+const MAX_SAMPLES_PER_EVENT = 64;
+const MOVED_IOU = 0.5;
+
+export interface TrainingSubject {
+  trackId: number;
+  box: { x: number; y: number; width: number; height: number };
+}
 
 interface HeldCandidate {
   eventId: string;
@@ -16,7 +23,7 @@ interface HeldCandidate {
   boxes: TrainingCandidateBox[];
   capturedAt: number;
   score: number;
-  movingTrackIds: Set<number>;
+  subjects: TrainingSubject[];
 }
 
 export class TrainingSink {
@@ -25,7 +32,8 @@ export class TrainingSink {
   private held?: HeldCandidate;
   private holdTimer?: NodeJS.Timeout;
   private sentEventId?: string;
-  private trackSamples = new Map<number, number>();
+  private storedBoxes = new Map<number, TrainingSubject['box']>();
+  private eventSamples = 0;
   private pending = false;
   private lastFlushAt = 0;
   private disabledUntil = 0;
@@ -59,7 +67,7 @@ export class TrainingSink {
       .catch(() => {});
   }
 
-  public wantsFrame(eventId: string | undefined, movingTrackIds: number[] = [], score = 0): boolean {
+  public wantsFrame(eventId: string | undefined, subjects: TrainingSubject[] = [], score = 0): boolean {
     if (!this.enabled || this.pending) return false;
     const now = Date.now();
     if (now < this.disabledUntil) return false;
@@ -67,15 +75,17 @@ export class TrainingSink {
     if (this.held && this.held.eventId === eventId) return score > this.held.score * SCORE_IMPROVEMENT;
     if (now - this.lastFlushAt < FLUSH_INTERVAL_MS) return false;
     if (eventId && this.sentEventId === eventId) {
-      // rolling windows: a presence keeps earning frames until each track
-      // spent its sample budget, so pose variety survives a long walk-through
-      return movingTrackIds.some((id) => (this.trackSamples.get(id) ?? 0) < MAX_SAMPLES_PER_TRACK);
+      // a stuck-open event must not churn the whole per-camera pool
+      if (this.eventSamples >= MAX_SAMPLES_PER_EVENT) return false;
+      // a subject earns another frame only at a position the event has not
+      // stored yet, so static scenes don't repeat
+      return subjects.some((s) => this.movedSinceStored(s));
     }
     return true;
   }
 
-  public consider(eventId: string, scene: Uint8Array, boxes: TrainingCandidateBox[], capturedAt: number, movingTrackIds: number[], score: number): void {
-    if (boxes.length === 0 || !this.wantsFrame(eventId, movingTrackIds, score)) return;
+  public consider(eventId: string, scene: Uint8Array, boxes: TrainingCandidateBox[], capturedAt: number, subjects: TrainingSubject[], score: number): void {
+    if (boxes.length === 0 || !this.wantsFrame(eventId, subjects, score)) return;
 
     if (this.held && this.held.eventId !== eventId) this.flush();
 
@@ -84,12 +94,11 @@ export class TrainingSink {
       this.held.boxes = boxes;
       this.held.capturedAt = capturedAt;
       this.held.score = score;
-      // budget is charged for the frame that actually ships, not for every tick
-      this.held.movingTrackIds = new Set(movingTrackIds);
+      this.held.subjects = subjects;
       return;
     }
 
-    this.held = { eventId, scene, boxes, capturedAt, score, movingTrackIds: new Set(movingTrackIds) };
+    this.held = { eventId, scene, boxes, capturedAt, score, subjects };
     this.holdTimer = setTimeout(() => this.flush(), HOLD_WINDOW_MS);
   }
 
@@ -114,6 +123,12 @@ export class TrainingSink {
     this.held = undefined;
   }
 
+  private movedSinceStored(subject: TrainingSubject): boolean {
+    const stored = this.storedBoxes.get(subject.trackId);
+    if (!stored) return true;
+    return iou(stored, subject.box) < MOVED_IOU;
+  }
+
   private flush(): void {
     const held = this.held;
     this.discard();
@@ -126,9 +141,14 @@ export class TrainingSink {
       .ingestTrainingCandidate({ cameraId: this.cameraId, eventId: held.eventId, capturedAt: held.capturedAt, boxes: held.boxes, scene: held.scene })
       .then((result) => {
         if (result === 'stored') {
-          if (this.sentEventId !== held.eventId) this.trackSamples.clear();
+          if (this.sentEventId !== held.eventId) {
+            this.storedBoxes.clear();
+            this.eventSamples = 0;
+          }
           this.sentEventId = held.eventId;
-          for (const id of held.movingTrackIds) this.trackSamples.set(id, (this.trackSamples.get(id) ?? 0) + 1);
+          this.eventSamples += 1;
+          // positions are charged for the frame that actually ships, not for every tick
+          for (const subject of held.subjects) this.storedBoxes.set(subject.trackId, subject.box);
         } else if (result === 'disabled') {
           this.enabled = false;
           this.disabledUntil = Date.now() + DISABLED_BACKOFF_MS;

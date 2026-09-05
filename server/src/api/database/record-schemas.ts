@@ -113,6 +113,7 @@ export const dbSettingsSchema = zod.object({
       enabled: zod.boolean().default(true),
       perCameraLimit: zod.number().min(1).max(5000).default(200),
       minIntervalSeconds: zod.number().min(0).max(3600).default(10),
+      retentionDays: zod.number().min(1).max(365).default(14),
     })
     .optional(),
   backupScheduler: zod

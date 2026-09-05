@@ -19,6 +19,7 @@ export interface TransformedSensor {
   virtual: boolean;
   cameraBound: boolean;
   assignmentLocked: boolean;
+  boundCameraId?: string;
   connected: boolean;
   requiresFrames: boolean;
   assignedCameraIds: string[];
@@ -122,6 +123,7 @@ export class SensorsService {
       virtual: record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID,
       cameraBound: SENSOR_TYPE_CONFIG[record.type]?.cameraBound ?? false,
       assignmentLocked: record.boundCameraId !== undefined,
+      boundCameraId: record.boundCameraId,
       connected: this.registry.isConnected(record._id),
       requiresFrames: data.requiresFrames ?? false,
       assignedCameraIds: data.assignedCameraIds,

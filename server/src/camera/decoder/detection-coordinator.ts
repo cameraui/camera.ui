@@ -12,7 +12,7 @@ import { detectionRecord } from './debug/detection-record.js';
 import { DetectionPipeline } from './detection-pipeline.js';
 import { clusterBoxes, DetectionWindow, mergeWindowDetections, MOTION_PAD, planWindowsOnce, TRACK_PAD } from './detection-window.js';
 import { DwellManager } from './dwell-manager.js';
-import { DetectionEventManager, MOMENT_RANK_ATTRIBUTE, MOMENT_RANK_OBJECT } from './event-manager.js';
+import { DetectionEventManager, MOMENT_RANK_ATTRIBUTE, MOMENT_RANK_OBJECT, SECONDARY_FRESH_MS } from './event-manager.js';
 import { EventThumbnailer } from './event-thumbnailer.js';
 import { externalTrace, motionTrace, traceAttributes } from './event-trace.js';
 import { FrameScaler } from './frame-scaler.js';
@@ -26,7 +26,7 @@ import { PtzAutotracker } from './ptz/autotracker.js';
 import { SecondaryStage } from './secondary-stage.js';
 import { BufferedSource } from './sources/buffered-source.js';
 import { FrameSource } from './sources/frame-source.js';
-import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, isMovingTrainingSubject, MOTION_WIDTH_MAP, touchesFrameEdge } from './types.js';
+import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, isTrainingSubject, MOTION_WIDTH_MAP, touchesFrameEdge } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { RPCClient } from '@camera.ui/rpc';
@@ -67,6 +67,7 @@ import type { CropWindow, MomentFormatName, MomentTarget } from './moment-crop.j
 import type { AnyModelSpec, RegisteredPlugin } from './plugin-registry.js';
 import type { AnalysisSource, FrameSnap } from './sources/analysis-source.js';
 import type { SnapshotConfig } from './sources/snapshot-fetcher.js';
+import type { TrainingSubject } from './training-sink.js';
 import type { CoordinatorSourceUrl, DetectorInfo, FrameWorkerPerfSnapshot, ObjectBenchmarkResult } from './types.js';
 
 export interface DetectionCoordinatorConfig {
@@ -114,6 +115,7 @@ interface RenderedMoment {
 }
 
 const TRAINING_FRAME_MAX_WIDTH = 1280;
+const TRAINING_ATTRIBUTE_BONUS = 0.2;
 const TRAINING_FRAME_QUALITY = 80;
 const MOMENT_EVENTS = new Set(['objectEntered', 'objectWoke', 'objectRecovered', 'bestShotUpdated']);
 const MOMENT_MOVING_SPEED = 0.05;
@@ -192,7 +194,9 @@ export class DetectionCoordinator {
     motion?: MotionResult;
     object?: ObjectResult;
     face?: FaceResult;
+    faceAt?: number;
     licensePlate?: LicensePlateResult;
+    licensePlateAt?: number;
     classifiers?: Record<string, ClassifierResult>;
     clip?: ClipResult;
     audio?: AudioResult;
@@ -864,8 +868,10 @@ export class DetectionCoordinator {
       sensorTriggers: [...new Set(this.activeSensorTriggerTypes.values())],
       objects: cs.object?.detected ? cs.object.detections : [],
       faces: cs.face?.detections ?? [],
+      facesAt: cs.faceAt,
       faceEmbeddingModel: cs.faceEmbeddingModel,
       plates: cs.licensePlate?.detections ?? [],
+      platesAt: cs.licensePlateAt,
       plateVoting: this.plugins.get(SensorType.LicensePlate)?.requiresFrames === true,
       plateMinConfidence: this.config.detectionSettings.licensePlate?.ocrConfidence,
       plateMinLength: this.config.detectionSettings.licensePlate?.minLength,
@@ -1070,9 +1076,11 @@ export class DetectionCoordinator {
         break;
       case SensorType.Face:
         cs.face = { detected, detections: detections as FaceDetection[] };
+        cs.faceAt = Date.now();
         break;
       case SensorType.LicensePlate:
         cs.licensePlate = { detected, detections: detections as LicensePlateDetection[] };
+        cs.licensePlateAt = Date.now();
         break;
       case SensorType.Classifier:
         if (pluginId) {
@@ -1785,12 +1793,23 @@ export class DetectionCoordinator {
   private async attachTrainingFrame(snapshot: ProcessedDetectionData, analysis: AnalysisFrame): Promise<void> {
     if (!this.eventManager.hasActiveEvent() && !this.snapshotWillStartEvent(snapshot)) return;
 
-    const moving = snapshot.objects.filter((d) => isMovingTrainingSubject(d));
-    if (moving.length === 0) return;
-    const movingTrackIds = moving.map((d) => (d as { trackId?: number }).trackId).filter((id): id is number => id !== undefined);
+    const eligible = snapshot.objects.filter((d) => isTrainingSubject(d));
+    if (eligible.length === 0) return;
+    const subjects = eligible.map((d) => ({ trackId: (d as { trackId?: number }).trackId, box: d.box })).filter((s): s is TrainingSubject => s.trackId !== undefined);
     // moment-style score, an edge-clipped subject makes a poor sample
-    const score = moving.reduce((sum, d) => sum + d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1), 0);
-    if (!this.eventManager.wantsTrainingFrame(movingTrackIds, score)) return;
+    const objectScore = eligible.reduce((sum, d) => sum + d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1), 0);
+    // flat bonus: faces and plates are the scarce labels but their boxes are too
+    // small for the area term; fresh only, a buffered stale result describes
+    // an older frame and must not lift this one
+    const now = Date.now();
+    const facesFresh = snapshot.facesAt !== undefined && now - snapshot.facesAt <= SECONDARY_FRESH_MS;
+    const platesFresh = snapshot.platesAt !== undefined && now - snapshot.platesAt <= SECONDARY_FRESH_MS;
+    const attributeBoxes = [
+      ...(facesFresh ? snapshot.faces : []).map((a) => a.box).filter((box): box is BoundingBox => box !== undefined && !isFullFrameBox(box)),
+      ...(platesFresh ? snapshot.plates : []).map((a) => a.box).filter((box): box is BoundingBox => box !== undefined && !isFullFrameBox(box)),
+    ];
+    const score = objectScore + attributeBoxes.reduce((sum, box) => sum + TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(box) ? 0.5 : 1), 0);
+    if (!this.eventManager.wantsTrainingFrame(subjects, score)) return;
 
     try {
       const start = Date.now();
