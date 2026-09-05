@@ -19,6 +19,8 @@
         option-value="value"
         class="w-full"
         fluid
+        :loading="namesLoading"
+        :disabled="namesLoading"
         :placeholder="$t('views.faces.enter_or_pick_name')"
       />
     </div>
@@ -32,17 +34,32 @@ import type { FaceReassignProps } from './types.js';
 const props = defineProps<FaceReassignProps>();
 
 const { t } = useI18n();
+const { plugin } = usePlugin('@camera.ui/camera-ui-nvr');
 
 const selected = ref<string | null>(null);
+const knownNames = ref<string[]>([]);
+const namesLoading = ref(true);
 
 const displayOldName = computed(() => (props.oldName === 'unknown' ? t('views.recordings.reassign_unknown_person') : props.oldName));
 
 const options = computed(() => {
-  const opts = props.knownNames.filter((name) => name !== props.oldName).map((name) => ({ label: name, value: name }));
+  const opts = knownNames.value.filter((name) => name !== props.oldName).map((name) => ({ label: name, value: name }));
   if (props.oldName !== 'unknown') {
     opts.push({ label: t('views.recordings.reassign_unknown'), value: '' });
   }
   return opts;
+});
+
+onMounted(async () => {
+  try {
+    const nvr = plugin.value as { listKnownFaces?: () => Promise<{ name: string }[]> } | undefined;
+    const known = await nvr?.listKnownFaces?.();
+    knownNames.value = (known ?? []).map((profile) => profile.name);
+  } catch {
+    // the select stays empty, unknown-option still works
+  } finally {
+    namesLoading.value = false;
+  }
 });
 
 defineExpose<CustomDialogComponent>({

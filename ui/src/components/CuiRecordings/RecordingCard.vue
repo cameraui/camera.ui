@@ -475,20 +475,17 @@ function openCardMenu(event: MouseEvent): void {
   cardMenuRef.value?.toggleMenu(event);
 }
 
-async function openFaceReassignDialog(): Promise<void> {
+function openFaceReassignDialog(): void {
   const oldName = activeFaceLabel.value;
   if (oldName === undefined) return;
-  const cropUrl = activeImage.value?.url;
 
-  await faceStore.refresh(true);
   dialog.openComponentDialog<FaceReassignProps>(FaceReassignDialog, {
     data: {
       title: t('views.recordings.reassign_face'),
       confirmText: t('components.form.button.save'),
       contentProps: {
-        cropUrl,
+        cropUrl: activeImage.value?.url,
         oldName,
-        knownNames: faceStore.knownFaces.value.map((profile) => profile.name),
       },
     },
     onConfirm: (newName: string) => void reassignFace(newName),
