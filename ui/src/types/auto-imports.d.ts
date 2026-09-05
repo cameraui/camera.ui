@@ -363,6 +363,7 @@ declare global {
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
   const useScroll: typeof import('@vueuse/core').useScroll
+  const useScrollHide: typeof import('../composables/useScrollHide').useScrollHide
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
   const useSensorsSocket: typeof import('../composables/sockets/useSensorsSocket').useSensorsSocket
   const useServerRestart: typeof import('../composables/useServerRestart').useServerRestart
@@ -907,6 +908,7 @@ declare module 'vue' {
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
+    readonly useScrollHide: UnwrapRef<typeof import('../composables/useScrollHide')['useScrollHide']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useSensorsSocket: UnwrapRef<typeof import('../composables/sockets/useSensorsSocket')['useSensorsSocket']>
     readonly useServerRestart: UnwrapRef<typeof import('../composables/useServerRestart')['useServerRestart']>

@@ -339,9 +339,11 @@ const sidebarOpen = computed(() => {
 
 const sidebarIsOverlay = computed(() => mdBreakpoint.value);
 
+const reindexScrollHidden = useScrollHide(() => gridRef.value?.scrollY ?? 0);
+
 const reindexHidden = computed(() => {
   if (sidebarOpen.value && sidebarIsOverlay.value) return true;
-  return (gridRef.value?.scrollY ?? 0) > 10 && !reindexStatus.value?.running;
+  return reindexScrollHidden.value && !reindexStatus.value?.running;
 });
 
 const mainPaddingLeft = computed(() => {

@@ -433,6 +433,7 @@
     "useScreenSafeArea": true,
     "useScriptTag": true,
     "useScroll": true,
+    "useScrollHide": true,
     "useScrollLock": true,
     "useSensorsSocket": true,
     "useServerRestart": true,
