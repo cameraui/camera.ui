@@ -170,9 +170,10 @@ import {
   previewPlayableEnd,
   resolveThumbnail,
   segmentTypes,
+  clearEventDataCache,
+  resetEventStore,
   thumbnailToUrl,
   useEventStore,
-  useFaceStore,
 } from '@camera.ui/nvr';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
@@ -198,7 +199,6 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
-const faceStore = useFaceStore();
 const dialog = useCuiDialog();
 
 const ICON_PX = 24;
@@ -496,9 +496,15 @@ async function reassignFace(newName: string): Promise<void> {
   const oldName = activeFaceLabel.value;
   if (oldName === undefined || reassignBusy.value) return;
   const seg = activeImage.value?.faceSeg ?? -1;
+  const nvr = nvrPluginRef.value as { reassignEventFace?: (eventId: string, segIndex: number, oldName: string, newName: string) => Promise<number> } | undefined;
+  if (!nvr?.reassignEventFace) return;
   reassignBusy.value = true;
   try {
-    await faceStore.reassignEventFace(props.event.id, seg, oldName, newName);
+    const count = await nvr.reassignEventFace(props.event.id, seg, oldName, newName);
+    if (count > 0) {
+      clearEventDataCache();
+      resetEventStore();
+    }
     toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
