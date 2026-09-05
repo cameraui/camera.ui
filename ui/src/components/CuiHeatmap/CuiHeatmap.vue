@@ -29,7 +29,7 @@ async function load() {
   }
 }
 
-function render(canvas: HTMLCanvasElement, points: { x: number; y: number }[]) {
+function render(canvas: HTMLCanvasElement, points: { x: number; y: number; w?: number }[]) {
   const W = 128;
   const H = 72; // 16:9
   canvas.width = W;
@@ -43,8 +43,9 @@ function render(canvas: HTMLCanvasElement, points: { x: number; y: number }[]) {
   for (const pt of points) {
     const px = pt.x * W;
     const py = pt.y * H;
+    const alpha = 0.15 * Math.min(pt.w ?? 1, 6);
     const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+    grad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
     grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = grad;
     ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);

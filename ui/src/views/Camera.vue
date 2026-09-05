@@ -52,7 +52,7 @@
             <div v-if="!isContentReady" class="h-full flex items-center justify-center">
               <ProgressSpinner class="w-[32px] h-[32px]" stroke-width="4" />
             </div>
-            <Tabs v-else value="0" class="h-full flex flex-col">
+            <Tabs v-else value="0" lazy class="h-full flex flex-col">
               <TabList class="shrink-0">
                 <Tab value="0" class="pt-0 text-sm">{{ $t('views.camera.recordings') }}</Tab>
                 <Tab value="1" class="pt-0 text-sm">{{ $t('views.camera.cameras') }}</Tab>
@@ -93,7 +93,7 @@
     </div>
 
     <CuiBottomSheet v-if="smBreakpoint && isContentReady" v-model="showMobileSheet" height="70vh" max-height="85vh">
-      <Tabs :key="cameraName" value="0" class="h-full flex flex-col">
+      <Tabs :key="cameraName" value="0" lazy class="h-full flex flex-col">
         <TabList class="shrink-0 w-full mt-5">
           <Tab value="0" class="pt-0 text-sm flex-1">{{ $t('views.camera.recordings') }}</Tab>
           <Tab value="1" class="pt-0 text-sm flex-1">{{ $t('views.camera.cameras') }}</Tab>
