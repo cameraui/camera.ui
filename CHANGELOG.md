@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.17]
+
+### Added
+
+- **Correct a face right on the recording.** If a detection names the wrong person, pick the crop on the recording card and assign the right name (or mark it unknown). The correction updates the event and trains recognition for next time. Needs the NVR plugin update.
+
+### Changed
+
+- **Slow connections stay usable.** Opening Recordings used to request everything at once; on weak Wi-Fi the connection could choke until requests timed out and pictures stayed empty. Pictures now load a few at a time and retry after a hiccup, and after a reconnect the camera snapshots refresh one after another instead of all at once. Needs the NVR plugin update.
+
+- **The Faces page loads light.** Gallery pictures arrive progressively instead of as one huge chunk, and uploaded training photos are stored at a sensible size, with oversized ones from earlier shrunk once in the background. Needs the NVR plugin update.
+
+- **Loading more recordings is visible.** Reaching the end of the list shows a small spinner while the next page arrives.
+
+- **Cleaner event cards.** The star stays, everything else on a recording card (trace, download, correcting a face) moved into one menu. The sparkle badges on event, episode and timeline cards are gone: whether an AI summary exists shows where you read it, in the event dialog and the camera card's summary toggle.
+
+- **Dialog header buttons no longer pop in and out.** The trace, download and export buttons in the event and episode dialogs are always visible now and simply stay disabled until they can act.
+
+- **Training collects frames through the whole event.** Long events used to yield pictures only from their first seconds, and a false detection that sat still never showed up at all. Now the first picture of an event arrives within seconds and frames keep coming for as long as something new is in the picture, false alarms included, with frames showing faces or license plates preferred. Face and plate boxes also no longer appear in the wrong spot on a collected frame.
+
+### Fixed
+
+- **Zooming in the training editor works properly on the phone.** Pinch zoom no longer stutters or shows the picture doubled, and zooming no longer draws an accidental box.
+
+- **The training page shows uploads as they happen.** Every frame visibly moves from queued to uploading, and after a reconnect or returning to the app the page catches up on its own instead of hanging on an old status. The page also scrolls as a whole now, and the contributions list opens fast however many you have submitted, loading more as you scroll.
+
+- **The Reindex search button behaves on scroll.** It vanished on the first bit of scrolling and only returned at the very top. Now it hides and comes back with the scroll direction, like the floating buttons bottom right, and those return only after a deliberate upward scroll.
+
+- **Leftover sensors of deleted cameras are cleaned up.** Deleting a camera could leave its plugin sensors behind as disconnected rows on the Sensors page. The server now removes them at start.
+
+- **Sensors only show where their plugin is actually enabled.** A plugin activated for a camera brings along everything it can do, so a detection you never turned on (license plate, for example) still appeared on the camera overview. Now a sensor only shows once its plugin is enabled for that category. The Sensors page lists camera sensors trimmed the same way through the new "Show only enabled camera sensors" setting; "Hide camera sensors" still hides them all, and turning both off shows everything for cleanup.
+
 ## [2.1.16]
 
 ### Added
