@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerRef" class="recordings-grid-root">
+  <div ref="containerRef" class="recordings-grid-root relative">
     <CuiVirtualScroller
       v-if="rows.length > 0 && cellSize > 0"
       :items="rows"
@@ -19,6 +19,10 @@
         </div>
       </template>
     </CuiVirtualScroller>
+
+    <div v-if="loadingMore" class="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-10 rounded-full bg-black/60 p-1.5">
+      <i-svg-spinners:ring-resize width="18px" height="18px" class="text-white" />
+    </div>
   </div>
 </template>
 
@@ -110,19 +114,19 @@ function resolveRowKey(row: unknown): string | number | undefined {
 // serialize via an in-flight flag, and we remember the items.length at which
 // the last load resolved without growth — any further trigger at that same
 // length is a no-op until items actually change (filter swap, new NATS event).
-let loadInFlight = false;
+const loadingMore = ref(false);
 let stagnantAtLength: number | null = null;
 
 async function tryLoadMore(): Promise<void> {
-  if (loadInFlight || !props.hasMore || !props.loadMore) return;
+  if (loadingMore.value || !props.hasMore || !props.loadMore) return;
   if (stagnantAtLength !== null && props.items.length === stagnantAtLength) return;
 
-  loadInFlight = true;
+  loadingMore.value = true;
   const before = props.items.length;
   try {
     await Promise.resolve(props.loadMore());
   } finally {
-    loadInFlight = false;
+    loadingMore.value = false;
     stagnantAtLength = props.items.length === before ? before : null;
   }
 }

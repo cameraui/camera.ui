@@ -349,7 +349,12 @@ watch(
   () => {
     if (!loadTriggered) return;
     const cached = eventStore.getCachedThumbnails(props.event.id);
-    if (cached) applyThumbnails(cached);
+    if (!cached) {
+      // invalidated (face reassign/rescan): refetch so the tiles rename live
+      triggerLoad();
+      return;
+    }
+    applyThumbnails(cached);
   },
 );
 

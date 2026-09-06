@@ -166,12 +166,11 @@
 import {
   attributeThumbnails,
   EventHoverPreviewKey,
+  invalidateEventThumbnails,
   previewFocusTrack,
   previewPlayableEnd,
   resolveThumbnail,
   segmentTypes,
-  clearEventDataCache,
-  resetEventStore,
   thumbnailToUrl,
   useEventStore,
 } from '@camera.ui/nvr';
@@ -371,7 +370,7 @@ const cardMenuItems = computed<MenuItem[]>(() => {
       label: t('views.recordings.reassign_face'),
       icon: FaceEditIcon,
       loading: reassignBusy.value,
-      onClick: () => void openFaceReassignDialog(),
+      onClick: () => openFaceReassignDialog(),
     });
   }
   if (props.camera) {
@@ -383,7 +382,7 @@ const cardMenuItems = computed<MenuItem[]>(() => {
       label: t('views.recordings.download'),
       icon: DownloadIcon,
       loading: isDownloading.value,
-      onClick: () => void handleDownload(),
+      onClick: () => handleDownload(),
     });
   }
   return items;
@@ -488,7 +487,7 @@ function openFaceReassignDialog(): void {
         oldName,
       },
     },
-    onConfirm: (newName: string) => void reassignFace(newName),
+    onConfirm: (newName: string) => reassignFace(newName),
   });
 }
 
@@ -501,10 +500,7 @@ async function reassignFace(newName: string): Promise<void> {
   reassignBusy.value = true;
   try {
     const count = await nvr.reassignEventFace(props.event.id, seg, oldName, newName);
-    if (count > 0) {
-      clearEventDataCache();
-      resetEventStore();
-    }
+    if (count > 0) invalidateEventThumbnails(props.event.id);
     toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
@@ -549,7 +545,10 @@ watch(
   () => eventStore.storeVersion.value,
   () => {
     const cached = eventStore.getCachedThumbnails(props.event.id);
-    if (!cached) return;
+    if (!cached) {
+      if (loadedThumbs.value) triggerLoad();
+      return;
+    }
     loadedThumbs.value = cached;
     if (resolveThumbnail(cached, props.event, 'card').url) thumbnailState.value = 'loaded';
   },
