@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.18]
+
+### Fixed
+
+- **Face corrections stick now.** Correcting a face on a still-running event no longer reverts moments later, a face upgraded from unknown to a name mid-event no longer leaves a stale unknown tile on the card, and the small pictures on a recording card keep their order. Needs the NVR plugin update.
+
+- **The Faces page updates in place.** Deleting or ignoring faces no longer reloads the whole gallery, and the face groups keep their order instead of jumping around.
+
 ## [2.1.17]
 
 ### Added
