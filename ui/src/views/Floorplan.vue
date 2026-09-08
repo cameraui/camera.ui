@@ -402,7 +402,7 @@ import { getRooms } from '@/api/routes/rooms.js';
 import { useAllSensors } from '@camera.ui/browser';
 import { SecuritySystemState } from '@camera.ui/sdk';
 
-import { extractErrorMessage } from '@/common/utils.js';
+import { extractErrorMessage, randomId } from '@/common/utils.js';
 import FloorplanLevelDialog from '@/components/CuiDialog/templates/FloorplanLevel/FloorplanLevel.vue';
 import { passageOn, sharedWall } from '@/components/CuiFloorplan/utils.js';
 import { securityState, sensorIcon, sensorStateText, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
@@ -791,7 +791,7 @@ function onSettleRoom(id: string): void {
   let name = part.name;
   for (let suffix = 2; taken.has(name.toLowerCase()); suffix++) name = `${part.name} ${suffix}`;
 
-  const roomId = crypto.randomUUID();
+  const roomId = randomId();
   for (const camera of cameras.value) {
     if (camera.roomId === part.roomId && contains(part, camera)) camera.roomId = roomId;
   }
@@ -1007,7 +1007,7 @@ function onCreateConnection({ fromRoomId, toRoomId, fromShapeId, toShapeId }: { 
   const wall = from && to ? sharedWall(from, to) : null;
 
   const connection: FloorplanConnection = {
-    id: crypto.randomUUID(),
+    id: randomId(),
     fromRoomId,
     toRoomId,
     fromShapeId: from?.id ?? null,
@@ -1089,8 +1089,8 @@ function addRoom(x: number, y: number, roomId?: string): void {
   const known = roomId ? catalog.value.rooms.find((room) => room.id === roomId) : undefined;
 
   const room: FloorplanRoom = {
-    id: crypto.randomUUID(),
-    roomId: known?.id ?? crypto.randomUUID(),
+    id: randomId(),
+    roomId: known?.id ?? randomId(),
     name: known?.name ?? t('views.floorplan.new_room'),
     note: known?.note ?? '',
     publicSpace: known?.publicSpace ?? false,
@@ -1205,7 +1205,7 @@ function addLevel(): void {
       if (!name) return;
 
       pushHistory();
-      const level: FloorplanLevel = { id: crypto.randomUUID(), name };
+      const level: FloorplanLevel = { id: randomId(), name };
       levels.value.push(level);
       levelId.value = level.id;
       selection.value = null;
