@@ -155,6 +155,7 @@ import { randomLetter } from '@/common/utils.js';
 import CuiTerminal from '@/components/CuiTerminal/CuiTerminal.vue';
 import CuiTerminalToolbar from '@/components/CuiTerminalToolbar/CuiTerminalToolbar.vue';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
+import { isCapacitor } from '@/connection/index.js';
 
 import type { ITerminalInitOnlyOptions, ITerminalOptions } from '@xterm/xterm';
 import type { ButtonProps } from 'primevue';
@@ -189,8 +190,12 @@ const tabs = ref<TerminalTab[]>([]);
 const activeTabId = ref('');
 const keyboardHeight = ref(0);
 const terminalRefs = new Map<string, InstanceType<typeof CuiTerminal>>();
+
 let fullHeight = window.innerHeight;
 let tabCounter = 0;
+let nativeKeyboardHeight = 0;
+let baselineInnerHeight = window.innerHeight;
+let nativeKeyboardListeners: { remove: () => Promise<void> }[] = [];
 
 const toolbarSize = useElementSize(toolbar as any);
 
@@ -251,11 +256,24 @@ function updateKeyboardHeight() {
   const vv = window.visualViewport;
   if (!vv) return;
 
-  const kb = Math.max(0, fullHeight - vv.height - vv.offsetTop);
+  setKeyboardHeight(Math.max(0, fullHeight - vv.height - vv.offsetTop));
+}
+
+function setKeyboardHeight(kb: number) {
   if (kb !== keyboardHeight.value) {
     keyboardHeight.value = kb;
     lockScroll(kb > 0);
   }
+}
+
+function applyNativeKeyboard() {
+  const viewportShrank = Math.max(0, baselineInnerHeight - window.innerHeight);
+  setKeyboardHeight(Math.max(0, nativeKeyboardHeight - viewportShrank));
+}
+
+function onNativeWindowResize() {
+  if (nativeKeyboardHeight === 0) baselineInnerHeight = window.innerHeight;
+  applyNativeKeyboard();
 }
 
 function preventScroll(e: TouchEvent) {
@@ -402,22 +420,41 @@ function zoomOut(): void {
 }
 
 onMounted(() => {
-  window.addEventListener('resize', onWindowResize);
-  const vv = window.visualViewport;
-  if (vv) {
-    vv.addEventListener('resize', updateKeyboardHeight);
-    vv.addEventListener('scroll', updateKeyboardHeight);
+  if (isCapacitor) {
+    window.addEventListener('resize', onNativeWindowResize);
+    import('@capacitor/keyboard').then(async ({ Keyboard }) => {
+      nativeKeyboardListeners = await Promise.all([
+        Keyboard.addListener('keyboardWillShow', (info) => {
+          nativeKeyboardHeight = info.keyboardHeight;
+          applyNativeKeyboard();
+        }),
+        Keyboard.addListener('keyboardWillHide', () => {
+          nativeKeyboardHeight = 0;
+          applyNativeKeyboard();
+        }),
+      ]);
+    });
+  } else {
+    window.addEventListener('resize', onWindowResize);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', updateKeyboardHeight);
+      vv.addEventListener('scroll', updateKeyboardHeight);
+    }
   }
   addTab();
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', onWindowResize);
+  window.removeEventListener('resize', onNativeWindowResize);
   const vv = window.visualViewport;
   if (vv) {
     vv.removeEventListener('resize', updateKeyboardHeight);
     vv.removeEventListener('scroll', updateKeyboardHeight);
   }
+  for (const listener of nativeKeyboardListeners) listener.remove();
+  nativeKeyboardListeners = [];
   lockScroll(false);
 });
 </script>
