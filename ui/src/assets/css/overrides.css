@@ -62,6 +62,11 @@
   border-radius: 10px !important;
 }
 
+.p-inputgroup > .p-textarea {
+  flex: 1 1 auto;
+  width: 1%;
+}
+
 .p-inputgroup > .p-inputgroupaddon:last-child {
   border-top-right-radius: 10px !important;
   border-bottom-right-radius: 10px !important;
