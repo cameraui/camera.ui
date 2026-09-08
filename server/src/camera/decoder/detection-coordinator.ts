@@ -1445,6 +1445,7 @@ export class DetectionCoordinator {
     let motionDetected = false;
     let objectDetections: Detection[] = [];
     let staticDetections: TrackedDetection[] = [];
+    let trainingExtras: Detection[] = [];
     const results: DetectionResults = { timestamp: t0 };
     let trace: TraceTick | undefined;
 
@@ -1572,6 +1573,7 @@ export class DetectionCoordinator {
           objectDetections = visibleTracks.filter((t) => !t.trackLost);
           results.object = { detected: objectDetections.length > 0, detections: visibleTracks };
           staticDetections = pipelineResult.staticTracks;
+          trainingExtras = pipelineResult.trainingExtras;
           if (pipelineResult.crossings.length > 0) results.lineCrossings = pipelineResult.crossings;
 
           // incl. extrapolated tracks, otherwise a single missed detector
@@ -1644,6 +1646,7 @@ export class DetectionCoordinator {
     if (!this.loopRunning) return;
     const snapshot = this.buildSnapshot(t0);
     if (staticDetections.length > 0) snapshot.staticObjects = staticDetections;
+    if (trainingExtras.length > 0) snapshot.trainingExtras = trainingExtras;
     if (results.thumbnails && results.thumbnails.length > 0) {
       snapshot.thumbnails = results.thumbnails;
     }
@@ -1793,23 +1796,27 @@ export class DetectionCoordinator {
   private async attachTrainingFrame(snapshot: ProcessedDetectionData, analysis: AnalysisFrame): Promise<void> {
     if (!this.eventManager.hasActiveEvent() && !this.snapshotWillStartEvent(snapshot)) return;
 
-    const eligible = snapshot.objects.filter((d) => isTrainingSubject(d));
-    if (eligible.length === 0) return;
-    const subjects = eligible.map((d) => ({ trackId: (d as { trackId?: number }).trackId, box: d.box })).filter((s): s is TrainingSubject => s.trackId !== undefined);
-    // moment-style score, an edge-clipped subject makes a poor sample
-    const objectScore = eligible.reduce((sum, d) => sum + d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1), 0);
+    // moment-style score per subject, an edge-clipped subject makes a poor
+    // sample; the sink sums only the boxes the scene memory does not know yet
+    const subjects: TrainingSubject[] = snapshot.objects
+      .filter((d) => isTrainingSubject(d))
+      .map((d) => ({ label: d.label, box: d.box, score: d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1) }));
     // flat bonus: faces and plates are the scarce labels but their boxes are too
     // small for the area term; fresh only, a buffered stale result describes
     // an older frame and must not lift this one
     const now = Date.now();
     const facesFresh = snapshot.facesAt !== undefined && now - snapshot.facesAt <= SECONDARY_FRESH_MS;
     const platesFresh = snapshot.platesAt !== undefined && now - snapshot.platesAt <= SECONDARY_FRESH_MS;
-    const attributeBoxes = [
-      ...(facesFresh ? snapshot.faces : []).map((a) => a.box).filter((box): box is BoundingBox => box !== undefined && !isFullFrameBox(box)),
-      ...(platesFresh ? snapshot.plates : []).map((a) => a.box).filter((box): box is BoundingBox => box !== undefined && !isFullFrameBox(box)),
-    ];
-    const score = objectScore + attributeBoxes.reduce((sum, box) => sum + TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(box) ? 0.5 : 1), 0);
-    if (!this.eventManager.wantsTrainingFrame(subjects, score)) return;
+    for (const face of facesFresh ? snapshot.faces : []) {
+      if (face.box && !isFullFrameBox(face.box))
+        subjects.push({ label: 'face', box: face.box, score: TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(face.box) ? 0.5 : 1) });
+    }
+    for (const plate of platesFresh ? snapshot.plates : []) {
+      if (plate.box && !isFullFrameBox(plate.box))
+        subjects.push({ label: 'license_plate', box: plate.box, score: TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(plate.box) ? 0.5 : 1) });
+    }
+    if (subjects.length === 0) return;
+    if (!this.eventManager.wantsTrainingFrame(subjects)) return;
 
     try {
       const start = Date.now();
@@ -1817,7 +1824,7 @@ export class DetectionCoordinator {
       this.perf.jpegMs += Date.now() - start;
       if (jpeg) {
         snapshot.trainingFrame = jpeg;
-        snapshot.trainingScore = score;
+        snapshot.trainingSubjects = subjects;
       }
     } catch (error) {
       this.logger.debug('Training frame capture error:', error);

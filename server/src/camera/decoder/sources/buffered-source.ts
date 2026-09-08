@@ -377,6 +377,7 @@ export class BufferedSource implements AnalysisSource {
 
     let last: Frame | undefined;
     let lastRtp: number | undefined;
+    this.lastDecodeAt = Date.now();
     try {
       this.decoder ??= await Decoder.create(this.videoStream, {
         hardware: this.hwContext ?? undefined,

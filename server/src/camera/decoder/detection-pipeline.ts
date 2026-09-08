@@ -1,6 +1,8 @@
 import { CameraWorld, merge as rustMerge, nms as rustNms, nmsIndices as rustNmsIndices } from '@camera.ui/rust-postprocessor';
 
+import { boxInsidePolygon, normalizePolygon } from '../utils/filter.js';
 import { detectionRecord } from './debug/detection-record.js';
+import { iou } from './detection-window.js';
 import { worldTrace } from './event-trace.js';
 
 import type {
@@ -19,6 +21,7 @@ import type {
   DetectionLine,
   MotionZone,
   ObjectZone,
+  Point,
   PrivacyZone,
   TrackedDetection,
   ZoneLabel,
@@ -31,6 +34,8 @@ const OBJECT_MERGE_IOU_THRESHOLD = 0.3;
 const OBJECT_MERGE_CLOSE_THRESHOLD = 0.0;
 const MOTION_MERGE_IOU_THRESHOLD = 0.01;
 const MOTION_MERGE_CLOSE_THRESHOLD = 0.1;
+const TRAINING_MIN_CONFIDENCE = 0.5;
+const TRAINING_COVERED_IOU = 0.5;
 export const PAN_TO_IMAGE_RATIO = 4.0;
 
 export interface LineCrossingEvent {
@@ -49,6 +54,7 @@ export interface LineCrossingEvent {
 export interface PipelineResult {
   tracked: PresentTrackedDetection[];
   staticTracks: TrackedDetection[];
+  trainingExtras: Detection[];
   crossings: LineCrossingEvent[];
   created: number[];
   removed: number[];
@@ -99,6 +105,12 @@ function fromWorldObject(obj: WorldObject): TrackedDetection {
     trackVelocity: { x: obj.velocityX, y: obj.velocityY },
     ...(obj.stationarySinceMs !== undefined ? { stationarySince: obj.stationarySinceMs } : {}),
   };
+}
+
+// every privacy zone blacks its pixels out of the shipped training jpeg, so a
+// box fully inside one would label nothing visible, dropDetections or not
+function privacyPolygons(zones: PrivacyZone[]): Point[][] {
+  return zones.map((zone) => normalizePolygon(zone.points));
 }
 
 function toRustZones(zones: ZoneConfig): RustDetectionZone[] {
@@ -191,6 +203,7 @@ export class DetectionPipeline {
   private lines: DetectionLine[] = [];
   private suppressStatic: boolean;
   private whitelist: Set<string> | null = null;
+  private trainingMasks: Point[][] = [];
   private stillSince = new Map<number, number>();
 
   constructor(zones: ZoneConfig, settings: CameraDetectionSettings) {
@@ -198,6 +211,7 @@ export class DetectionPipeline {
     const rustZones = toRustZones(zones);
     this.world.setZones(rustZones);
     this.whitelist = objectWhitelist(zones.object);
+    this.trainingMasks = privacyPolygons(zones.privacy);
     this.applyConfidences(settings);
     this.suppressStatic = settings.object.suppressStatic ?? true;
     // debugging
@@ -208,6 +222,7 @@ export class DetectionPipeline {
     const rustZones = toRustZones(zones);
     this.world.setZones(rustZones);
     this.whitelist = objectWhitelist(zones.object);
+    this.trainingMasks = privacyPolygons(zones.privacy);
     // debugging
     detectionRecord.config({ zones: rustZones });
   }
@@ -266,6 +281,7 @@ export class DetectionPipeline {
     return {
       tracked,
       staticTracks,
+      trainingExtras: this.collectTrainingExtras(rawDetections, tracked, staticTracks),
       crossings: result.crossings.map((c) => fromRustCrossing(c, boxLookup)),
       created: result.created,
       removed: result.removed,
@@ -344,6 +360,22 @@ export class DetectionPipeline {
   private allowedByWhitelist<T extends { label: string }>(detections: T[]): T[] {
     if (detections.length === 0 || this.whitelist === null) return detections;
     return detections.filter((detection) => this.objectLabelAllowed(detection.label));
+  }
+
+  private collectTrainingExtras(rawDetections: Detection[], tracked: TrackedDetection[], staticTracks: TrackedDetection[]): Detection[] {
+    const candidates = rawDetections.filter((d) => d.confidence >= TRAINING_MIN_CONFIDENCE);
+    if (candidates.length === 0) return [];
+    const output = [...tracked, ...staticTracks];
+    const extras: Detection[] = [];
+    for (const flat of this.runNmsAndMergeFlat(candidates)) {
+      const detection = fromRustDetection(flat);
+      const box = detection.box;
+      if (!box) continue;
+      if (this.trainingMasks.some((mask) => boxInsidePolygon(box, mask))) continue;
+      if (output.some((t) => t.label === detection.label && iou(t.box, box) >= TRAINING_COVERED_IOU)) continue;
+      extras.push(detection);
+    }
+    return extras;
   }
 
   private runNmsAndMergeFlat(rawDetections: Detection[]): RustDetection[] {

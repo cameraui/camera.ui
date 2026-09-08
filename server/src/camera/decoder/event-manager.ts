@@ -7,7 +7,7 @@ import { EventTraceCollector } from './event-trace.js';
 import { leanEvent, NvrSink } from './nvr-sink.js';
 import { MAX_UNTRACKED_PLATES, normalizePlateText, PlateVoteTracker } from './plate-vote.js';
 import { TrainingSink } from './training-sink.js';
-import { isFullFrameBox, isTrainingSubject } from './types.js';
+import { isFullFrameBox } from './types.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type {
@@ -31,7 +31,7 @@ import type { DetectionThumbnail } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
-import type { TrainingSubject } from './training-sink.js';
+import type { SceneObservation, TrainingSubject } from './training-sink.js';
 import type { AnalysisStream } from './types.js';
 
 export interface TrackedSecondary {
@@ -92,7 +92,8 @@ export interface ProcessedDetectionData {
   thumbnails?: DetectionThumbnail[];
   eventThumbnail?: Buffer;
   trainingFrame?: Buffer;
-  trainingScore?: number;
+  trainingSubjects?: TrainingSubject[];
+  trainingExtras?: Detection[];
   staticObjects?: Detection[];
   lineCrossings?: LineCrossingEvent[];
   timestamp: number;
@@ -251,6 +252,7 @@ export class DetectionEventManager {
 
   public processResults(data: ProcessedDetectionData): void {
     const now = data.timestamp;
+    this.training.observe(this.sceneObservations(data, now), now);
     const triggers = this.extractTriggers(data, now);
     const hasDetections = this.hasNewDetections(data);
 
@@ -273,7 +275,7 @@ export class DetectionEventManager {
       this.publishEventThumbnail();
     }
 
-    if (data.trainingFrame) this.offerTrainingCandidate(data.trainingFrame, data, now, data.trainingScore ?? 0);
+    if (data.trainingFrame) this.offerTrainingCandidate(data.trainingFrame, data, now);
 
     if (triggers.length > 0) {
       this.enrichTriggers(triggers, now);
@@ -355,8 +357,8 @@ export class DetectionEventManager {
     return this.needsEventThumbnail;
   }
 
-  public wantsTrainingFrame(subjects: TrainingSubject[] = [], score = 0): boolean {
-    return this.training.wantsFrame(this.activeEvent?.id, subjects, score);
+  public wantsTrainingFrame(subjects: TrainingSubject[] = []): boolean {
+    return this.training.wantsFrame(this.activeEvent?.id, subjects);
   }
 
   public hasActiveEvent(): boolean {
@@ -394,7 +396,7 @@ export class DetectionEventManager {
       this.activeEvent.thumbnailAt = this.eventThumbnailAt || undefined;
     }
     this.publish('start', this.eventThumbnail ? { scene: this.eventThumbnail } : undefined);
-    if (data.trainingFrame) this.offerTrainingCandidate(data.trainingFrame, data, now, data.trainingScore ?? 0);
+    if (data.trainingFrame) this.offerTrainingCandidate(data.trainingFrame, data, now);
 
     const triggerTypes = [...new Set(triggers.map((t) => t.type))].join(',');
     const thumbInfo = this.eventThumbnail ? jpegInfo(this.eventThumbnail) : 'pending';
@@ -1027,7 +1029,7 @@ export class DetectionEventManager {
     this.segmentClipLabels.clear();
   }
 
-  private offerTrainingCandidate(scene: Buffer, data: ProcessedDetectionData, capturedAt: number, score: number): void {
+  private offerTrainingCandidate(scene: Buffer, data: ProcessedDetectionData, capturedAt: number): void {
     if (!this.activeEvent) return;
     const boxes: TrainingCandidateBox[] = data.objects
       .filter((o) => o.box && !isFullFrameBox(o.box))
@@ -1055,11 +1057,38 @@ export class DetectionEventManager {
         boxes.push({ label: still.label, confidence: still.confidence, x: still.box.x, y: still.box.y, width: still.box.width, height: still.box.height });
       }
     }
-    const subjects = data.objects
-      .filter((o) => isTrainingSubject(o))
-      .map((o) => ({ trackId: (o as { trackId?: number }).trackId, box: o.box }))
-      .filter((s): s is TrainingSubject => s.trackId !== undefined);
-    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, subjects, score);
+    // same reason for sightings the event pipeline dropped (zones, label
+    // selection, track birth): visible in the picture all the same
+    for (const extra of data.trainingExtras ?? []) {
+      if (extra.box && !isFullFrameBox(extra.box)) {
+        boxes.push({ label: extra.label, confidence: extra.confidence, x: extra.box.x, y: extra.box.y, width: extra.box.width, height: extra.box.height });
+      }
+    }
+    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, data.trainingSubjects ?? []);
+  }
+
+  private sceneObservations(data: ProcessedDetectionData, now: number): SceneObservation[] {
+    const seen: SceneObservation[] = [];
+    for (const o of data.objects) {
+      if (o.box && !isFullFrameBox(o.box)) seen.push({ label: o.label, box: o.box });
+    }
+    for (const still of data.staticObjects ?? []) {
+      if (still.box && !isFullFrameBox(still.box)) seen.push({ label: still.label, box: still.box });
+    }
+    for (const extra of data.trainingExtras ?? []) {
+      if (extra.box && !isFullFrameBox(extra.box)) seen.push({ label: extra.label, box: extra.box });
+    }
+    if (data.facesAt !== undefined && now - data.facesAt <= SECONDARY_FRESH_MS) {
+      for (const face of data.faces) {
+        if (face.box && !isFullFrameBox(face.box)) seen.push({ label: 'face', box: face.box });
+      }
+    }
+    if (data.platesAt !== undefined && now - data.platesAt <= SECONDARY_FRESH_MS) {
+      for (const plate of data.plates) {
+        if (plate.box && !isFullFrameBox(plate.box)) seen.push({ label: 'license_plate', box: plate.box });
+      }
+    }
+    return seen;
   }
 
   private publish(type: DetectionEventType, attachments?: EventAttachments): void {
