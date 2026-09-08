@@ -841,13 +841,7 @@ async function exportBundle(): Promise<void> {
       rendered++;
     }
 
-    const blob = buildStoredZip(entries);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trace-${props.camera.name}-${props.event.id.slice(0, 8)}.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await download({ blob: buildStoredZip(entries), filename: `trace-${props.camera.name}-${props.event.id.slice(0, 8)}.zip` });
   } catch (error) {
     log.error('Trace bundle failed:', error);
     toast.add({ severity: 'error', summary: t('views.recordings.trace.bundle_failed'), detail: extractErrorMessage(error), life: 5000 });

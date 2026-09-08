@@ -365,13 +365,7 @@ async function exportBundle(): Promise<void> {
     const clip = await exportClip(plugin);
     if (clip) entries.push({ name: 'clip.mp4', data: clip });
 
-    const blob = buildStoredZip(entries);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `episode-trace-${props.episode.id.slice(0, 8)}.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await download({ blob: buildStoredZip(entries), filename: `episode-trace-${props.episode.id.slice(0, 8)}.zip` });
   } catch (error) {
     log.error('Episode trace bundle failed:', error);
     toast.add({ severity: 'error', summary: t('views.recordings.episode_trace.bundle_failed'), detail: extractErrorMessage(error), life: 5000 });

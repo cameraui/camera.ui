@@ -479,12 +479,7 @@ function onExportBlueprint() {
   };
   const json = JSON.stringify(blueprint, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${draft.value.name.replace(/\s+/g, '_').toLowerCase()}.blueprint.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  download({ blob, filename: `${draft.value.name.replace(/\s+/g, '_').toLowerCase()}.blueprint.json` });
 }
 
 function confirmClearFlow() {
