@@ -443,9 +443,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
   private async onUnsnoozed(): Promise<void> {
     this.logger.log('Camera unsnoozed — resuming detections');
-    if (this.connected && !this.disabled) {
-      this.frameWorker.start();
-    }
+    this.frameWorker.start();
   }
 
   private async onEnabled(): Promise<void> {
@@ -461,11 +459,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.startAutoRefresh();
     this.preloadSources();
 
-    // onConnected fires on state change, not on current state — start FrameWorker
-    // explicitly when the camera is already connected.
-    if (this.connected) {
-      this.frameWorker.start();
-    }
+    this.frameWorker.start();
   }
 
   private async initialPreload(): Promise<void> {

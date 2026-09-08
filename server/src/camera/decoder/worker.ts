@@ -145,15 +145,15 @@ export class FrameWorker extends Subscribed {
       return;
     }
 
-    if (!this.camera.connected) {
-      this.logger.debug('Camera not connected, worker will not start');
-      return;
-    }
-
     this.isClosed = false;
     this.isRestarting = false;
     clearTimeout(this.retryTimeout);
     this.retryTimeout = undefined;
+
+    if (!this.camera.connected) {
+      this.logger.debug('Camera not connected, worker starts on the next connect');
+      return;
+    }
 
     try {
       await this.startWorkerProcess();
@@ -171,8 +171,6 @@ export class FrameWorker extends Subscribed {
     this.logger.log('Stopping Frame Worker');
     this.setStatus(PLUGIN_STATUS.STOPPING);
 
-    // remote worker: remove from the desired state, the agent converges
-    // (stops the child) on the next nudge/heartbeat
     if (this.isRemote) {
       clearTimeout(this.remoteStartTimeout);
       this.remoteStartTimeout = undefined;
