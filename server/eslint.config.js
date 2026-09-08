@@ -74,6 +74,7 @@ export default [
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-namespace': 'off',
       '@stylistic/generator-star-spacing': ['error', { before: true, after: false }],
+      '@typescript-eslint/no-deprecated': 'warn',
 
       // Stylistic specific rules
       '@stylistic/max-len': ['error', { code: 170, tabWidth: 2 }],
