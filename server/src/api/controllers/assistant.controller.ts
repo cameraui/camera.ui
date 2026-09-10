@@ -361,7 +361,11 @@ function firstHeader(value: string | string[] | undefined): string | undefined {
 
 async function pipeResponse(reply: FastifyReply, response: Response): Promise<void> {
   reply.hijack();
-  const headers: Record<string, string> = { 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' };
+  const headers: Record<string, string | string[]> = {};
+  for (const [key, value] of Object.entries(reply.getHeaders())) {
+    if (value !== undefined) headers[key] = Array.isArray(value) ? value : String(value);
+  }
+  Object.assign(headers, { 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   response.headers.forEach((value, key) => (headers[key] = value));
   reply.raw.writeHead(response.status, headers);
   reply.raw.flushHeaders?.();
