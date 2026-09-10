@@ -1355,6 +1355,8 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
   if (p.startsWith('/cameras/')) return { group: 'main', key: 'cameras' };
   // Menu group: menu is depth 0, sub-pages are depth 1
   if (p === '/menu') return { group: 'menu', key: 'menu', depth: 0 };
+  if (p === '/sensors') return { group: 'menu', key: 'sensors', depth: 1 };
+  if (p === '/floorplan') return { group: 'menu', key: 'floorplan', depth: 1 };
   if (p === '/faces') return { group: 'menu', key: 'faces', depth: 1 };
   if (p === '/training') return { group: 'menu', key: 'training', depth: 1 };
   if (p === '/plugins') return { group: 'menu', key: 'plugins', depth: 1 };
@@ -1362,12 +1364,15 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
   if (p === '/settings') return { group: 'menu', key: 'settings', depth: 1 };
   if (p.startsWith('/settings/')) return { group: 'menu', key: 'settings-detail', depth: 2 };
   if (p === '/metrics') return { group: 'menu', key: 'metrics', depth: 1 };
+  if (p === '/updates') return { group: 'menu', key: 'updates', depth: 1 };
   if (p === '/config') return { group: 'menu', key: 'config', depth: 1 };
+  if (p === '/logs') return { group: 'menu', key: 'logs', depth: 1 };
   if (p === '/console') return { group: 'menu', key: 'console', depth: 1 };
   if (p === '/terminal') return { group: 'menu', key: 'terminal', depth: 1 };
   if (p === '/instances') return { group: 'menu', key: 'instances', depth: 1 };
   if (p === '/workers') return { group: 'menu', key: 'workers', depth: 1 };
   if (p === '/automations') return { group: 'menu', key: 'automations', depth: 1 };
+  if (p === '/assistant') return { group: 'menu', key: 'assistant', depth: 1 };
   if (p === '/about') return { group: 'menu', key: 'about', depth: 1 };
   if (p.startsWith('/automations/')) return { group: 'menu', key: 'automation-detail', depth: 2 };
   return null;

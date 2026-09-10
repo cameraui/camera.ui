@@ -5,6 +5,11 @@
     </CuiTopbarSlot>
 
     <CuiTopbarSlot position="left">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+        <template #icon>
+          <i-weui:back-filled class="w-6 h-6" />
+        </template>
+      </Button>
       <Button id="assistant-sidebar-toggle" severity="secondary" class="cui-button p-2 text-color" text rounded @click="toggleSidebar">
         <template #icon>
           <i-mdi:history width="100%" height="100%" />

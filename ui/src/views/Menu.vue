@@ -85,11 +85,20 @@ const { groups: navGroups } = useNavLayout();
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
-const sections = computed(() =>
-  NAV_GROUPS.map((key) => ({ key, items: toItems(navGroups.value[key].map((entry) => entry.route)) })).filter((section) => section.items.length > 0),
+const SETTINGS_ROUTES = ['Updates', 'Settings'];
+
+const ungroupedRoutes = computed<RouteRecordRaw[]>(() =>
+  routes.filter((r) => r.meta?.navbar?.position === 'bottom' && !r.meta.navbar.group && !SETTINGS_ROUTES.includes(r.name as string) && hasPermission(r)),
 );
 
-const settingsItems = computed<MenuItemDef[]>(() => toItems(routes.filter((r) => (r.name === 'Updates' || r.name === 'Settings') && hasPermission(r))));
+const sections = computed(() =>
+  NAV_GROUPS.map((key) => ({
+    key,
+    items: toItems([...(key === 'manage' ? ungroupedRoutes.value : []), ...navGroups.value[key].map((entry) => entry.route)]),
+  })).filter((section) => section.items.length > 0),
+);
+
+const settingsItems = computed<MenuItemDef[]>(() => toItems(routes.filter((r) => SETTINGS_ROUTES.includes(r.name as string) && hasPermission(r))));
 
 function toItems(routesList: RouteRecordRaw[]): MenuItemDef[] {
   return routesList
