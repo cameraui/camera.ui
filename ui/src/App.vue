@@ -32,7 +32,7 @@
         paddingTop: topbarRef ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)',
         paddingLeft: navbarPaddingLeft,
         paddingRight: 'var(--safe-area-inset-right)',
-        paddingBottom: bottombarRef ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)',
+        paddingBottom: `max(${bottombarRef ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)'}, var(--keyboard-inset, 0px))`,
       }"
     >
       <div
@@ -114,6 +114,7 @@ setupAppUpdate();
 usePushHandler();
 useElectronNotifications();
 useElectronDeepLinks();
+registerKeyboardInset();
 
 const themeStore = useThemeStore();
 const { theme } = storeToRefs(themeStore);
@@ -165,7 +166,7 @@ const containerHeight = computed(() => {
   const top = topbarRef.value ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)';
   const bottom = bottombarRef.value ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)';
   const extraPadding = bottombarRef.value || !routeMeta.disableScroll.value || routeMeta.noExtraPadding.value ? '0px' : '8px';
-  return `calc(100dvh - ${top} - ${bottom} - ${extraPadding})`;
+  return `calc(100dvh - ${top} - max(${bottom}, var(--keyboard-inset, 0px)) - ${extraPadding})`;
 });
 
 const showLoadingScreen = computed(() => {

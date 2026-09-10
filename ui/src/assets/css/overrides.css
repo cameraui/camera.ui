@@ -136,6 +136,24 @@
   padding-bottom: calc(var(--safe-area-inset-bottom) + 1.25rem);
 }
 
+@property --keyboard-inset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+:root {
+  transition: --keyboard-inset 250ms ease-out;
+}
+
+.p-dialog-content .p-dialog-body {
+  padding-bottom: calc(0.25rem + var(--keyboard-inset, 0px)) !important;
+}
+
+.p-drawer {
+  padding-bottom: var(--keyboard-inset, 0px);
+}
+
 .p-accordionpanel {
   border-color: var(--border-color);
 }

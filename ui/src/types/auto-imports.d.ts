@@ -81,6 +81,7 @@ declare global {
   const isRestoreActive: typeof import('../composables/useBackupRestore').isRestoreActive
   const isShallow: typeof import('vue').isShallow
   const isSupported: typeof import('../composables/firebase-messaging-stub').isSupported
+  const isTextEntryElement: typeof import('../composables/useKeyboardInset').isTextEntryElement
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
   const mapActions: typeof import('pinia').mapActions
   const mapGetters: typeof import('pinia').mapGetters
@@ -129,6 +130,7 @@ declare global {
   const refManualReset: typeof import('@vueuse/core').refManualReset
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
+  const registerKeyboardInset: typeof import('../composables/useKeyboardInset').registerKeyboardInset
   const resetCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').resetCamerasSocket
   const resetCuiBus: typeof import('../composables/useCuiAppBus').resetCuiBus
   const resetFloorplanSocket: typeof import('../composables/sockets/useFloorplanSocket').resetFloorplanSocket
@@ -298,6 +300,7 @@ declare global {
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
+  const useKeyboardInset: typeof import('../composables/useKeyboardInset').useKeyboardInset
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
@@ -636,6 +639,7 @@ declare module 'vue' {
     readonly isRestoreActive: UnwrapRef<typeof import('../composables/useBackupRestore')['isRestoreActive']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
     readonly isSupported: UnwrapRef<typeof import('../composables/firebase-messaging-stub')['isSupported']>
+    readonly isTextEntryElement: UnwrapRef<typeof import('../composables/useKeyboardInset')['isTextEntryElement']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
@@ -684,6 +688,7 @@ declare module 'vue' {
     readonly refManualReset: UnwrapRef<typeof import('@vueuse/core')['refManualReset']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly registerKeyboardInset: UnwrapRef<typeof import('../composables/useKeyboardInset')['registerKeyboardInset']>
     readonly resetCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['resetCamerasSocket']>
     readonly resetCuiBus: UnwrapRef<typeof import('../composables/useCuiAppBus')['resetCuiBus']>
     readonly resetFloorplanSocket: UnwrapRef<typeof import('../composables/sockets/useFloorplanSocket')['resetFloorplanSocket']>
@@ -853,6 +858,7 @@ declare module 'vue' {
     readonly useInterval: UnwrapRef<typeof import('@vueuse/core')['useInterval']>
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
     readonly useKeyModifier: UnwrapRef<typeof import('@vueuse/core')['useKeyModifier']>
+    readonly useKeyboardInset: UnwrapRef<typeof import('../composables/useKeyboardInset')['useKeyboardInset']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>

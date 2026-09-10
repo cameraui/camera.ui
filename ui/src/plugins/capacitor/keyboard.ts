@@ -1,7 +1,6 @@
 import { isCapacitor } from '@/connection/index.js';
 
 const TAP_SLOP_PX = 10;
-const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'file', 'color', 'image']);
 const KEEP_FOCUS_SELECTOR = 'input, textarea, select, label, [contenteditable], [class*="-overlay"], .p-popover, .p-datepicker-panel, .xterm, .cui-terminal-toolbar';
 
 export function registerKeyboard() {
@@ -31,7 +30,7 @@ export function registerKeyboard() {
       touchStart = undefined;
 
       const active = document.activeElement;
-      if (!isTextEntry(active)) return;
+      if (!isTextEntryElement(active)) return;
 
       const touch = event.changedTouches[0];
       if (!start || !touch || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) return;
@@ -44,10 +43,4 @@ export function registerKeyboard() {
     },
     { capture: true, passive: true },
   );
-}
-
-function isTextEntry(element: Element | null): element is HTMLElement {
-  if (element instanceof HTMLTextAreaElement) return true;
-  if (element instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(element.type);
-  return element instanceof HTMLElement && element.isContentEditable;
 }
