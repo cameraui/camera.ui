@@ -3,7 +3,7 @@ import { container } from 'tsyringe';
 
 export type SystemEvent = 'system:started' | 'system:shutdown' | 'system:notification' | 'camera:added' | 'camera:removed';
 
-export type PluginEvent = 'plugin:started' | 'plugin:stopped' | 'plugin:error' | 'plugin:crashed';
+export type PluginEvent = 'plugin:started' | 'plugin:stopped' | 'plugin:error' | 'plugin:crashed' | 'plugin:notification';
 
 export type CameraEvent =
   'camera:connected' | 'camera:disconnected' | 'camera:frameworker:started' | 'camera:frameworker:stopped' | 'camera:property:changed' | 'camera:snapshot:updated';
@@ -37,6 +37,17 @@ export interface PluginEventPayload {
   pluginId: string;
   status: string;
   displayName?: string;
+}
+
+export interface PluginNotificationPayload {
+  pluginId: string;
+  pluginName: string;
+  title: string;
+  subtitle?: string;
+  body?: string;
+  severity: string;
+  tag?: string;
+  [key: string]: string | undefined;
 }
 
 export interface CameraEventPayload {
@@ -81,6 +92,7 @@ export type InternalEventPayload =
   | SystemEventPayload
   | SystemNotificationPayload
   | PluginEventPayload
+  | PluginNotificationPayload
   | CameraEventPayload
   | SensorPropertyChangedPayload
   | SensorLifecyclePayload

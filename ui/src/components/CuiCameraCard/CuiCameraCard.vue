@@ -1347,6 +1347,12 @@ const streamMenuItems = computed<MenuItem[]>(() => {
     },
   });
 
+  items.push({
+    key: 'ask',
+    label: t('components.player.ask_assistant'),
+    onClick: () => router.push({ path: '/assistant', query: { prompt: t('components.player.ask_assistant_prompt', { camera: cameraName.value }) } }),
+  });
+
   return items;
 });
 

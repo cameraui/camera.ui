@@ -37,6 +37,8 @@ import SettingsIcon from '~icons/mdi/cog-outline';
 import FacesIcon from '~icons/mdi/face-recognition';
 import ConfigIconActive from '~icons/mdi/note-edit';
 import ConfigIcon from '~icons/mdi/note-edit-outline';
+import AssistantIconActive from '~icons/mdi/robot';
+import AssistantIcon from '~icons/mdi/robot-outline';
 import SettingsPermissionsIconActive from '~icons/mdi/shield-check';
 import SettingsPermissionsIcon from '~icons/mdi/shield-check-outline';
 import SettingsMqttIcon from '~icons/mdi/transit-connection-variant';
@@ -64,6 +66,7 @@ const NotFound = () => import('@/views/404.vue');
 const FirstSteps = () => import('@/views/FirstSteps.vue');
 const Cameras = () => import('@/views/Cameras.vue');
 const Sensors = () => import('@/views/Sensors.vue');
+const Assistant = () => import('@/views/Assistant.vue');
 const Camera = () => import('@/views/Camera.vue');
 const Camview = () => import('@/views/Camview.vue');
 const Recordings = () => import('@/views/Recordings.vue');
@@ -92,6 +95,7 @@ const SettingsBackup = () => import('@/subviews/SettingsBackup.vue');
 const SettingsRecordings = () => import('@/subviews/SettingsRecordings.vue');
 const SettingsRemote = () => import('@/subviews/SettingsRemote.vue');
 const SettingsMqtt = () => import('@/subviews/SettingsMqtt.vue');
+const SettingsAssistant = () => import('@/subviews/SettingsAssistant.vue');
 const SettingsList = () => import('@/subviews/SettingsList.vue');
 const SettingsSystem = () => import('@/subviews/SettingsSystem.vue');
 const SettingsUsers = () => import('@/subviews/SettingsUsers.vue');
@@ -211,6 +215,42 @@ export const routes: RouteRecordRaw[] = [
         icon: {
           default: CctvIcon,
           active: CctvIconActive,
+        },
+      },
+    },
+  },
+  {
+    name: 'Assistant',
+    path: '/assistant',
+    component: Assistant,
+    meta: {
+      name: 'assistant',
+      auth: {
+        requiresAuth: true,
+        role: 'user',
+      },
+      ui: {
+        containerSettings: {
+          showTitle: false,
+          padding: false,
+          disableScroll: true,
+        },
+        showNavbar: true,
+        showTopbar: true,
+        showBottombar: true,
+        showRouterLoading: true,
+      },
+      navbar: {
+        position: 'bottom',
+        icon: {
+          default: AssistantIcon,
+          active: AssistantIconActive,
+        },
+      },
+      menu: {
+        icon: {
+          default: AssistantIcon,
+          active: AssistantIconActive,
         },
       },
     },
@@ -1180,6 +1220,32 @@ export const routes: RouteRecordRaw[] = [
             icon: {
               default: SettingsMqttIcon,
               active: SettingsMqttIcon,
+            },
+          },
+        },
+      },
+      {
+        name: 'SettingsAssistant',
+        path: 'assistant',
+        component: SettingsAssistant,
+        meta: {
+          name: 'assistant',
+          description: 'assistant_description',
+          auth: {
+            requiresAuth: true,
+            role: 'admin',
+          },
+          ui: {
+            showNavbar: true,
+            showTopbar: true,
+            showBottombar: true,
+            showRouterLoadingSub: true,
+          },
+          settingsBar: {
+            group: 'system',
+            icon: {
+              default: AssistantIcon,
+              active: AssistantIconActive,
             },
           },
         },

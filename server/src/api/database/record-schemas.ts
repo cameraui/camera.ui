@@ -298,3 +298,36 @@ export const dbCloudSchema = zod.object({
 export const dbInstancesConfigSchema = zod.object({
   homeId: zod.string(),
 });
+
+export const dbAssistantSchema = zod.object({
+  enabled: zod.boolean().default(false),
+  provider: zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']).default('ollama'),
+  baseURL: zod.string().nullable().default(null),
+  apiKey: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
+  model: zod.string().default(''),
+  sendImages: zod.boolean().default(false),
+  language: zod.string().nullable().default(null),
+  maxIterations: zod.number().int().min(1).max(30).default(8),
+  maxToolCalls: zod.number().int().min(1).max(100).default(25),
+  contextTokens: zod.number().int().min(8_000).max(400_000).default(48_000),
+  historyThreads: zod.number().int().min(5).max(500).default(50),
+  historyImages: zod.number().int().min(0).max(200).default(24),
+  terminalEnabled: zod.boolean().default(false),
+  reasoning: zod.enum(['default', 'off', 'low', 'high']).default('default'),
+  systemPromptExtra: zod.string().default(''),
+  mcpEnabled: zod.boolean().default(false),
+  mcpWrites: zod.boolean().default(false),
+  mcpServers: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        name: zod.string(),
+        url: zod.string(),
+        token: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
+        enabled: zod.boolean().default(true),
+        insecure: zod.boolean().default(false),
+      }),
+    )
+    .default([]),
+  memoryEnabled: zod.boolean().default(true),
+});

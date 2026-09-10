@@ -249,6 +249,11 @@ function producersFor(node: RawNode): FlowVariable[] {
       add('{{snapshot.base64}}', 'string', 'variable_snapshot_data_uri');
       break;
 
+    case 'action-assistant':
+      add('{{assistant.answer}}', 'string', 'variable_assistant_answer');
+      add('{{assistant.replied}}', 'boolean', 'variable_assistant_replied');
+      break;
+
     case 'action-http':
       add('{{http.status}}', 'number', 'variable_http_status');
       add('{{http.body}}', 'string', 'variable_http_body');

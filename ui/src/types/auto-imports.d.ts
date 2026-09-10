@@ -192,6 +192,9 @@ declare global {
   const useArrayReduce: typeof import('@vueuse/core').useArrayReduce
   const useArraySome: typeof import('@vueuse/core').useArraySome
   const useArrayUnique: typeof import('@vueuse/core').useArrayUnique
+  const useAssistantActions: typeof import('../composables/useAssistantActions').useAssistantActions
+  const useAssistantChat: typeof import('../composables/useAssistantChat').useAssistantChat
+  const useAssistantReferences: typeof import('../composables/useAssistantReferences').useAssistantReferences
   const useAsyncQueue: typeof import('@vueuse/core').useAsyncQueue
   const useAsyncState: typeof import('@vueuse/core').useAsyncState
   const useAttrs: typeof import('vue').useAttrs
@@ -223,6 +226,7 @@ declare global {
   const useCssSupports: typeof import('@vueuse/core').useCssSupports
   const useCssVar: typeof import('@vueuse/core').useCssVar
   const useCssVars: typeof import('vue').useCssVars
+  const useCuiAssistantDrawer: typeof import('../composables/useCuiAssistantDrawer').useCuiAssistantDrawer
   const useCuiBottomSheet: typeof import('../composables/useCuiBottomSheet').useCuiBottomSheet
   const useCuiBreakpoint: typeof import('../composables/useCuiBreakpoint').useCuiBreakpoint
   const useCuiBus: typeof import('../composables/useCuiAppBus').useCuiBus
@@ -459,6 +463,12 @@ declare global {
   // @ts-ignore
   export type { RouteRecordRaw } from 'vue-router'
   import('vue-router')
+  // @ts-ignore
+  export type { AssistantUiAction } from '../composables/useAssistantActions'
+  import('../composables/useAssistantActions')
+  // @ts-ignore
+  export type { AssistantQuestionInterrupt, AssistantApproval, UseAssistantChatOptions } from '../composables/useAssistantChat'
+  import('../composables/useAssistantChat')
   // @ts-ignore
   export type { BackupRestorePhase } from '../composables/useBackupRestore'
   import('../composables/useBackupRestore')
@@ -737,6 +747,9 @@ declare module 'vue' {
     readonly useArrayReduce: UnwrapRef<typeof import('@vueuse/core')['useArrayReduce']>
     readonly useArraySome: UnwrapRef<typeof import('@vueuse/core')['useArraySome']>
     readonly useArrayUnique: UnwrapRef<typeof import('@vueuse/core')['useArrayUnique']>
+    readonly useAssistantActions: UnwrapRef<typeof import('../composables/useAssistantActions')['useAssistantActions']>
+    readonly useAssistantChat: UnwrapRef<typeof import('../composables/useAssistantChat')['useAssistantChat']>
+    readonly useAssistantReferences: UnwrapRef<typeof import('../composables/useAssistantReferences')['useAssistantReferences']>
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
@@ -768,6 +781,7 @@ declare module 'vue' {
     readonly useCssSupports: UnwrapRef<typeof import('@vueuse/core')['useCssSupports']>
     readonly useCssVar: UnwrapRef<typeof import('@vueuse/core')['useCssVar']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
+    readonly useCuiAssistantDrawer: UnwrapRef<typeof import('../composables/useCuiAssistantDrawer')['useCuiAssistantDrawer']>
     readonly useCuiBottomSheet: UnwrapRef<typeof import('../composables/useCuiBottomSheet')['useCuiBottomSheet']>
     readonly useCuiBreakpoint: UnwrapRef<typeof import('../composables/useCuiBreakpoint')['useCuiBreakpoint']>
     readonly useCuiBus: UnwrapRef<typeof import('../composables/useCuiAppBus')['useCuiBus']>

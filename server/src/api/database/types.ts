@@ -250,6 +250,163 @@ export interface DBMqtt {
   };
 }
 
+export type DBAssistantProvider = 'openai-compatible' | 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'openrouter';
+
+export type DBAssistantReasoning = 'default' | 'off' | 'low' | 'high';
+
+export interface DBAssistantSecret {
+  encrypted: string;
+  iv: string;
+}
+
+export interface DBAssistantMcpServer {
+  id: string;
+  name: string;
+  url: string;
+  token: DBAssistantSecret | null;
+  enabled: boolean;
+  insecure: boolean;
+}
+
+export interface DBAssistant {
+  enabled: boolean;
+  provider: DBAssistantProvider;
+  baseURL: string | null;
+  apiKey: DBAssistantSecret | null;
+  model: string;
+  sendImages: boolean;
+  language: string | null;
+  maxIterations: number;
+  maxToolCalls: number;
+  contextTokens: number;
+  reasoning: DBAssistantReasoning;
+  systemPromptExtra: string;
+  mcpEnabled: boolean;
+  mcpWrites: boolean;
+  mcpServers: DBAssistantMcpServer[];
+  memoryEnabled: boolean;
+  historyThreads: number;
+  historyImages: number;
+  terminalEnabled: boolean;
+}
+
+export type DBAssistantScheduleDelivery = 'push' | 'thread' | 'both';
+
+export interface DBAssistantSchedule {
+  readonly _id: string;
+  userId: string;
+  title: string;
+  prompt: string;
+  cron: string;
+  timezone: string;
+  language?: string;
+  deliver: DBAssistantScheduleDelivery;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastRun?: { at: number; status: 'success' | 'error'; message?: string };
+}
+
+export interface DBAssistantMemoryFact {
+  readonly _id: string;
+  userId: string;
+  text: string;
+  source?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DBAssistantUsageMonth {
+  userId: string;
+  month: string;
+  runs: number;
+  promptTokens: number;
+  completionTokens: number;
+  cachedTokens: number;
+  reasoningTokens: number;
+  costUsd: number;
+  updatedAt: number;
+}
+
+export interface DBAssistantProfile {
+  readonly _id: string;
+  userId: string;
+  name: string;
+  disabledGroups: string[];
+  instructions: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DBAssistantAttachmentImage {
+  data: string;
+  mimeType: string;
+  caption?: string;
+}
+
+export interface DBAssistantAttachmentReference {
+  kind: 'event' | 'episode' | 'camera' | 'download';
+  id: string;
+  label?: string;
+  cameraId?: string;
+  timestamp?: number;
+  url?: string;
+}
+
+export interface DBAssistantCardItem {
+  label: string;
+  value: string;
+  note?: string;
+  severity?: 'ok' | 'warn' | 'error' | 'info';
+  share?: number;
+  episodeId?: string;
+  eventId?: string;
+}
+
+export interface DBAssistantCard {
+  kind: 'day_recap' | 'system_health' | 'list';
+  title: string;
+  subtitle?: string;
+  items: DBAssistantCardItem[];
+  footer?: string;
+}
+
+export interface DBAssistantAttachment {
+  images: DBAssistantAttachmentImage[];
+  references: DBAssistantAttachmentReference[];
+  cards?: DBAssistantCard[];
+  settings?: string[];
+}
+
+export interface DBAssistantStoredImage {
+  data: Uint8Array;
+  mimeType: string;
+  caption?: string;
+}
+
+export interface DBAssistantAttachmentRecord {
+  toolCallId: string;
+  images: DBAssistantStoredImage[];
+  references: DBAssistantAttachmentReference[];
+  cards?: DBAssistantCard[];
+  settings?: string[];
+}
+
+export interface DBAssistantThreadMeta {
+  readonly _id: string;
+  userId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+  imageCount: number;
+}
+
+export interface DBAssistantThread extends DBAssistantThreadMeta {
+  messages: unknown[];
+  attachments: Record<string, DBAssistantAttachment>;
+}
+
 export interface ServerOAuthCredentials {
   access_token: string;
   refresh_token: string;

@@ -42,7 +42,19 @@
 
       <div class="flex-1 flex items-center justify-end min-w-0">
         <div id="cui-topbar-right" class="cui-topbar-slot non-draggable-region" />
-        <div class="cui-topbar-default">
+        <div class="cui-topbar-default flex items-center">
+          <Button
+            v-if="assistantReady && $route.name !== 'Assistant'"
+            v-tooltip.bottom="$t('views.assistant.open_assistant')"
+            class="cui-button p-2 text-color non-draggable-region"
+            severity="secondary"
+            text
+            @click="assistantDrawer.toggle()"
+          >
+            <template #icon>
+              <i-tabler:sparkles class="w-6 h-6" />
+            </template>
+          </Button>
           <CuiNotificationMenu class="non-draggable-region" />
         </div>
       </div>
@@ -59,17 +71,33 @@
       <CuiNavbarToggle class="non-draggable-region" />
       <CuiInstanceSwitcher v-if="hasPermission(undefined, 'admin') && isMultiInstance" class="non-draggable-region" />
       <CuiThemeSwitch v-if="!isHaPanel()" class="ml-auto non-draggable-region" />
-      <CuiNotificationMenu class="non-draggable-region" :class="{ 'ml-auto': isHaPanel() }" />
+      <Button
+        v-if="assistantReady && $route.name !== 'Assistant'"
+        v-tooltip.bottom="$t('views.assistant.open_assistant')"
+        class="cui-button p-2 text-color non-draggable-region"
+        :class="{ 'ml-auto': isHaPanel() }"
+        severity="secondary"
+        text
+        @click="assistantDrawer.toggle()"
+      >
+        <template #icon>
+          <i-tabler:sparkles class="w-6 h-6" />
+        </template>
+      </Button>
+      <CuiNotificationMenu class="non-draggable-region" :class="{ 'ml-auto': isHaPanel() && !assistantReady }" />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { AssistantQuery } from '@/api/routes/assistant.js';
 import { isHaPanel } from '@/common/base.js';
 
 import { TOPBAR_SIZE } from './types.js';
 
 import type { CuiTopbarProps } from './types.js';
+
+const assistantQuery = new AssistantQuery();
 
 const props = defineProps<CuiTopbarProps>();
 
@@ -78,13 +106,18 @@ const { smBreakpoint } = useSharedCuiBreakpoint();
 const { hasSlot, scrollToTop } = useCuiTopbarSlots();
 const { minifiedTopbar } = useRouteMeta();
 const { topbarHeight } = useSharedCuiStates();
+const assistantDrawer = useCuiAssistantDrawer();
 const { isElectronApp } = useElectron();
 const { canToggle: canToggleHostMenu, badge: hostMenuBadge, toggle: toggleHostMenu } = useHostMenu();
 
 const instanceStore = useInstanceStore();
 const { isMultiInstance } = storeToRefs(instanceStore);
 
+const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
+
 const { offsetLeft, animate } = toRefs(props);
+
+const assistantReady = computed(() => assistantStatus.value?.state === 'ready');
 </script>
 
 <style scoped>

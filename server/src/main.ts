@@ -16,6 +16,7 @@ import { Database } from './api/database/index.js';
 import { Server } from './api/index.js';
 import { BackupSchedulerService } from './api/services/backupScheduler.service.js';
 import { CertificateGeneration } from './api/utils/cert.js';
+import { AssistantManager } from './assistant/manager.js';
 import { AutomationEngine } from './automations/engine.js';
 import { setupNodeAvLog } from './camera/streaming/node-av-log.js';
 import { Go2RtcApi } from './go2rtc/api/index.js';
@@ -57,6 +58,7 @@ class CameraUi {
   private workerManager: WorkerManager;
   private backupScheduler: BackupSchedulerService;
   private mqttManager: MqttManager;
+  private assistantManager: AssistantManager;
   private sensorRegistry?: SensorRegistry;
   private signalHandler: SignalHandler;
 
@@ -107,6 +109,7 @@ class CameraUi {
     this.workerManager = new WorkerManager();
     this.backupScheduler = new BackupSchedulerService();
     this.mqttManager = new MqttManager();
+    this.assistantManager = new AssistantManager();
   }
 
   public async start(): Promise<void> {
@@ -182,6 +185,7 @@ class CameraUi {
 
     await this.automationEngine?.start();
     this.backupScheduler.start();
+    await this.assistantManager.start();
 
     // Emit system:started AFTER engine is ready so flows can catch it
     const bus = container.resolve<InternalEventBus>('internalBus');
@@ -202,6 +206,7 @@ class CameraUi {
 
     this.automationEngine?.stop();
     this.backupScheduler?.stop();
+    await this.assistantManager?.stop().catch(() => {});
     await this.mqttManager?.stop().catch(() => {});
     await this.workerManager?.stop().catch(() => {});
 

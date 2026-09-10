@@ -7,6 +7,24 @@ import type { ApplicationResponse, DeviceSourceType } from '../../go2rtc/types.j
 import type { PLUGIN_STATUS } from '../../plugins/types.js';
 import type { AuthConfig } from '../../rpc/interfaces/config.js';
 import type { DBCamera, DBCamviewLayout, DBNotificationSettings, DBRemote, DBRoles, DBServer, DBUser } from '../database/types.js';
+import type {
+  AssistantChatCancelInput,
+  AssistantChatResumeInput,
+  AssistantMemoryParamsInput,
+  AssistantProfileParamsInput,
+  AssistantScheduleParamsInput,
+  AssistantSearchInput,
+  AssistantThreadParamsInput,
+  BranchAssistantThreadInput,
+  CreateAssistantProfileInput,
+  CreateAssistantScheduleInput,
+  PatchAssistantInput,
+  PatchAssistantProfileInput,
+  PatchAssistantScheduleInput,
+  RenameAssistantThreadInput,
+  ReplaceAssistantThreadMessagesInput,
+  TestAssistantInput,
+} from '../schemas/assistant.schema.js';
 import type { Disable2FAInput, Enable2FAInput, OAuthTokenInput, RefreshTokenInput, RegenerateBackupCodesInput, Verify2FAInput } from '../schemas/auth.schema.js';
 import type {
   BulkDeleteAutomationsInput,
@@ -547,6 +565,79 @@ export interface ServerUpdateRequest {
 
 export interface ServerChangelogRequest {
   Querystring: ServerChangelogQueryInput;
+}
+
+export interface AssistantPatchRequest {
+  Body: PatchAssistantInput;
+}
+
+export interface AssistantTestRequest {
+  Body: TestAssistantInput;
+}
+
+export interface AssistantChatRequest {
+  Body: unknown;
+}
+
+export interface AssistantChatResumeRequest {
+  Querystring: AssistantChatResumeInput;
+}
+
+export interface AssistantChatCancelRequest {
+  Body: AssistantChatCancelInput;
+}
+
+export interface AssistantSearchRequest {
+  Body: AssistantSearchInput;
+}
+
+export interface AssistantThreadRequest {
+  Params: AssistantThreadParamsInput;
+}
+
+export interface AssistantThreadRenameRequest {
+  Params: AssistantThreadParamsInput;
+  Body: RenameAssistantThreadInput;
+}
+
+export interface AssistantThreadMessagesRequest {
+  Params: AssistantThreadParamsInput;
+  Body: ReplaceAssistantThreadMessagesInput;
+}
+
+export interface AssistantThreadBranchRequest {
+  Params: AssistantThreadParamsInput;
+  Body: BranchAssistantThreadInput;
+}
+
+export interface AssistantScheduleCreateRequest {
+  Body: CreateAssistantScheduleInput;
+}
+
+export interface AssistantScheduleRequest {
+  Params: AssistantScheduleParamsInput;
+}
+
+export interface AssistantSchedulePatchRequest {
+  Params: AssistantScheduleParamsInput;
+  Body: PatchAssistantScheduleInput;
+}
+
+export interface AssistantProfileCreateRequest {
+  Body: CreateAssistantProfileInput;
+}
+
+export interface AssistantProfileRequest {
+  Params: AssistantProfileParamsInput;
+}
+
+export interface AssistantMemoryRequest {
+  Params: AssistantMemoryParamsInput;
+}
+
+export interface AssistantProfilePatchRequest {
+  Params: AssistantProfileParamsInput;
+  Body: PatchAssistantProfileInput;
 }
 
 export interface MqttPatchRequest {

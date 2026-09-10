@@ -1,3 +1,4 @@
+import { actionAssistant } from './assistant.js';
 import { actionCameraControl } from './cameraControl.js';
 import { actionDelay } from './delay.js';
 import { actionHttp } from './http.js';
@@ -22,7 +23,8 @@ export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'action-variable': actionVariable,
   'action-plugin': actionPlugin,
   'action-camera-control': actionCameraControl,
+  'action-assistant': actionAssistant,
 };
 
-export type { ActionContext, ActionHandler } from './types.js';
 export { clearCachedPluginCall } from './plugin.js';
+export type { ActionContext, ActionHandler } from './types.js';

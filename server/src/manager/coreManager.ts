@@ -9,6 +9,8 @@ import { ServerService } from '../api/services/server.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { PluginInterface } from '@camera.ui/sdk';
+import type { AssistantManager } from '../assistant/manager.js';
+import type { AssistantPluginModel, AssistantPost } from '../assistant/types.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
   CoreManagerInterface,
@@ -92,6 +94,18 @@ export class CoreManager implements CoreManagerInterface {
   @RPCMethod
   public async getTrainingCollectionEnabled(): Promise<boolean> {
     return container.resolve<TrainingCandidateManager>('trainingCandidateManager').getSettings().enabled;
+  }
+
+  @RPCMethod
+  public async getAssistantModel(): Promise<AssistantPluginModel> {
+    return container.resolve<AssistantManager>('assistantManager').pluginModel();
+  }
+
+  @RPCMethod
+  public async assistantPost(post: AssistantPost): Promise<boolean> {
+    if (!post || typeof post.userId !== 'string' || typeof post.threadId !== 'string' || typeof post.text !== 'string') return false;
+    await container.resolve<AssistantManager>('assistantManager').post(post);
+    return true;
   }
 
   @RPCMethod

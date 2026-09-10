@@ -76,6 +76,10 @@ export class MetricsNamespace {
     this.setupIntervals();
   }
 
+  public snapshot(): { system: ProcessInfo | null; processes: AllProcesses | null } {
+    return this.realtimeData;
+  }
+
   private setupIntervals(): void {
     setInterval(async () => {
       await this.refreshWorkerPerf();

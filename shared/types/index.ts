@@ -1,4 +1,7 @@
 export type * from '../../server/src/api/database/types.js';
+export * from '../../server/src/api/schemas/assistant.schema.js';
+export * from '../../server/src/assistant/client-tools.js';
+export * from '../../server/src/assistant/interrupts.js';
 export * from '../../server/src/api/schemas/auth.schema.js';
 export * from '../../server/src/api/schemas/cameras.schema.js';
 export * from '../../server/src/api/schemas/floorplan.schema.js';
@@ -30,6 +33,7 @@ export type * from '../../server/src/api/types/index.js';
 export type { BulkResult } from '../../server/src/api/utils/bulk.js';
 export type { CustomCertificateInfo, CustomCertificateProblem, CustomCertificateState } from '../../server/src/api/utils/custom-cert.js';
 export type * from '../../server/src/api/websocket/types.js';
+export type * from '../../server/src/assistant/types.js';
 export type { AutomationRun, RunTraceEntry } from '../../server/src/automations/trace.js';
 export * from '../../server/src/go2rtc/types.js';
 export type * from '../../server/src/manager/types.js';

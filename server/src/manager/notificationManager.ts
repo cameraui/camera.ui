@@ -198,8 +198,8 @@ export class NotificationManager {
     const { source, targets } = opts;
 
     // Source-kind-specific permission checks.
+    const plugin = source.kind === 'plugin' ? this.pluginsService.getPluginById(source.id) : undefined;
     if (source.kind === 'plugin') {
-      const plugin = this.pluginsService.getPluginById(source.id);
       if (!plugin) {
         this.logger.warn(`notify: plugin "${source.id}" not found, dropping`);
         return [];
@@ -231,17 +231,29 @@ export class NotificationManager {
       data: { ...opts.notification.data, ...originData },
     };
 
-    if (source.kind === 'system') {
-      try {
-        container.resolve<InternalEventBus>('internalBus').emitEvent('system:notification', {
+    try {
+      const bus = container.resolve<InternalEventBus>('internalBus');
+      if (source.kind === 'system') {
+        bus.emitEvent('system:notification', {
           typeId: source.id,
           title: resolved.title,
           body: resolved.body,
           severity: String(resolved.severity),
         });
-      } catch {
-        // bus not registered (worker mode) — ignore
+      } else if (source.kind === 'plugin' && plugin) {
+        bus.emitEvent('plugin:notification', {
+          ...resolved.data,
+          pluginId: source.id,
+          pluginName: plugin.pluginName,
+          title: resolved.title,
+          subtitle: resolved.subtitle,
+          body: resolved.body,
+          severity: String(resolved.severity),
+          tag: resolved.tag,
+        });
       }
+    } catch {
+      // bus not registered (worker mode) — ignore
     }
 
     // Per-user filtering (settings / source / quiet-hours / history) is

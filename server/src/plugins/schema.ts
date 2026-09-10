@@ -463,7 +463,7 @@ export function validateConfig(config: Record<string, any>, schemas: JsonSchema[
   return errors;
 }
 
-export function generateZodSchemaField(schema: JsonSchema): zod.ZodTypeAny {
+export function generateZodSchemaField(schema: JsonSchema): zod.ZodType {
   if (isButtonType(schema) || isSubmitType(schema)) {
     return zod.any();
   }
@@ -544,7 +544,7 @@ export function generateZodSchemaField(schema: JsonSchema): zod.ZodTypeAny {
     }
 
     case 'object': {
-      const shape: Record<string, zod.ZodTypeAny> = {};
+      const shape: Record<string, zod.ZodType> = {};
       for (const property of schema.properties ?? []) {
         if (isButtonType(property) || isSubmitType(property)) continue;
         shape[property.key] = generateZodSchemaField(property);
@@ -568,7 +568,7 @@ const groupHasValue = (data: Record<string, any>, schemas: JsonSchema[], group: 
 
 // When `required` is used with `group`, fields are only required if at least one field in the group has a value
 export function generateZodSchema(schemas: JsonSchema[]): zod.ZodObject<any> {
-  const zodSchemaObj: Record<string, zod.ZodTypeAny> = {};
+  const zodSchemaObj: Record<string, zod.ZodType> = {};
 
   const groups = new Set<string>();
   schemas.forEach((schema) => {
@@ -610,7 +610,7 @@ export function generateZodSchema(schemas: JsonSchema[]): zod.ZodObject<any> {
               const value = data[schema.key];
               if (value === undefined || value === null || value === '') {
                 ctx.addIssue({
-                  code: zod.ZodIssueCode.custom,
+                  code: 'custom',
                   message: 'Required',
                   path: [schema.key],
                 });
@@ -627,7 +627,7 @@ export function generateZodSchema(schemas: JsonSchema[]): zod.ZodObject<any> {
           const value = data[schema.key];
           if (value === undefined || value === null || value === '') {
             ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
+              code: 'custom',
               message: 'Required',
               path: [schema.key],
             });

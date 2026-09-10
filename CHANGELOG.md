@@ -2,9 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.18]
+## [2.2.0]
+
+**camera.ui gets an assistant.** A chat that knows your instance and the documentation, answers in plain language, runs the tools you allow, and lives on every page. Bring your own model: a local Ollama or any OpenAI-compatible server keeps everything at home, or use an OpenAI, Anthropic, Gemini or OpenRouter key. Everything that touches recordings, episodes, faces and alerts comes with the NVR plugin update.
+
+### Added
+
+- **Talk to your cameras.** The Assistant view answers questions about your instance: what happened today, whether every camera is online, what a camera sees right now. Anything that changes something is shown to you first and runs after you confirm, and the confirmation card lets you correct the values before you allow it. Setup lives under Settings, Assistant; the test button tells you whether the chosen model can call tools and read images.
+
+- **It knows camera.ui.** The assistant carries the user documentation and looks up how a feature works before it answers, so "how do I set up two-factor login" gets a real answer with the right page. It reaches what the API never exposed: cameras and sensors found in the network and their adoption, the notification history, logs, update checks, MQTT and process states. When something is out of its reach it says so and names the place in the app, and it talks about anything else you bring up without pretending it is about your cameras.
+
+- **Recordings, episodes and faces in the chat.** The assistant searches recordings, episodes and faces, fetches event pictures and builds a recap of a day or a week with the moments that matter. Ask for the clip of a moment and it lands as a download button in the chat, or as a video notification on your phone. The faces the recognition could not name come up as pictures, so you name, ignore or correct them in the conversation. It also lists the license plates of a period, tells when a camera is busiest and where in the picture the activity was, and shows the stretches a camera did not record.
+
+- **The detection plugins at work.** Ask what the object detection sees on a camera right now, read the plate on an event, or check how well a picture matches a description. Attach your own picture, audio recording or video clip with the paper clip (or paste a picture) and ask the same about that file.
+
+- **Automations in plain words.** Tell the assistant "when someone is on the terrace at night, send me a push with a picture" and it builds the automation, shows you the flow and creates it after you confirm. The result opens in the editor like any other automation.
+
+- **Alerts in plain words.** Tell the assistant "let me know when someone carries a parcel to the door" and get a push with the picture whenever an event looks like that. The assistant shows past events that would have fired, so you see whether the words fit, and with Moments AI configured the model checks every hit on the pictures before the push goes out.
+
+- **Watch a camera for a while.** "Keep an eye on the driveway for two hours and tell me when a courier comes" makes the assistant report every hit right into that conversation, with the picture, and close with a summary when the time is up.
+
+- **Scheduled prompts.** Ask for a summary of the day every evening, or a camera check every morning, and the answer arrives as a push or a saved conversation on schedule. A weekly recap is one click away: schedule "Every Sunday" and ask for the highlights of the week with pictures. Manage the schedules under Settings, Assistant, or ask in the chat.
+
+- **Automations can ask the assistant.** The "Ask the assistant" action takes a question and the picture of the flow, and answers as a push or a conversation, or stays silent when there is nothing worth telling.
+
+- **Search recordings in your own words.** With the assistant set up, the filter sidebar on the recordings page takes a sentence like "cars in the driveway yesterday" or "favorites with the doorbell" and sets the filters for you, including an AI search when the words describe a scene. A note tells you what the filters cannot express.
+
+- **The assistant on every page.** The sparkle button in the top bar opens it as a side panel, or as a small window bottom right that keeps the page usable while you chat. Pictures, cards and the buttons that open a recording or an episode appear under the answer, the tool steps fold into one block.
+
+- **The assistant navigates the app.** Ask it to "show me the garden camera", "open the recording from 7:12" or "go to the automations" and the app goes there for you. On the camera page it can jump the timeline ("go back an hour") and zoom it.
+
+- **Cards and forms instead of walls of text.** A day recap or a system check comes as a card whose rows open the moment, and an ambiguous question ("which camera?", "which time range?") gets a small form to answer instead of a text round trip.
+
+- **Working with a conversation.** Every message has actions: edit your question and resend it, regenerate an answer, delete an exchange, or branch the conversation from any point into a new one. A stopped answer offers to continue where it broke off, and the next message can be typed while an answer still runs and waits its turn. A microphone next to the text box turns speech into text, in browsers that support it.
+
+- **Tool groups and profiles.** A switch in the text box turns whole tool groups (camera.ui, documentation, each plugin) off for a conversation and takes extra instructions for it. Save such a setup as a profile ("night watch": recordings only, short answers) and apply it with one click.
+
+- **The assistant remembers you.** Facts from earlier conversations (your dog's name, which camera watches what) carry over, and the list is shown to you so you can make it forget any of them.
+
+- **Nothing is lost on a bad connection.** A dropped connection mid-answer picks the stream up where it stopped, a reload or a second tab rejoins an answer that is still running, and a pending confirmation survives a server restart.
+
+- **Thinking, costs and budgets.** A **Thinking** setting picks how long the model reasons before it answers, every answer ends with a small line showing tokens, duration, speed and an estimated cost for cloud models, and Settings, Assistant shows what each user spent per month. Small local models get a context budget setting, and two limits say how many conversations per user and pictures per conversation the history keeps.
+
+- **Shell commands, if you allow them.** An admin can let the assistant run host diagnostics: disk usage, whether a camera answers on the network, processes, container logs. It is off by default, every command is shown to you before it runs and waits for your click, and it is never offered outside the chat.
+
+- **Secrets stay out of the chat.** Passwords, tokens and camera credentials the model might repeat are masked before they reach the chat.
+
+- **Home Assistant and other MCP servers.** Under Settings, Assistant you can add external MCP servers. With the Home Assistant MCP server integration and a long-lived token the assistant switches lights, scenes and climate ("turn on the hall light when someone is at the door" becomes an automation with a Home Assistant action, "is the garage door closed" a direct answer), and it asks before it changes anything there.
+
+- **camera.ui as MCP server.** Claude Code, Claude Desktop, Cursor and other MCP clients can talk to your instance directly with their own model: cameras, snapshots, recordings, system status and the whole read side of the API. Tools that change something stay off until you allow them. Enable it under Settings, Assistant, with an API token from your account.
+
+- **Automations react to plugin notifications.** The System event trigger has the option "Plugin sends a notification": every push a plugin sends can start a flow, with the title and the notification data as variables. A text alert of the NVR plugin can switch a light that way.
+
+### Changed
+
+- **Event descriptions use the assistant's model.** The NVR plugin's GenAI tab is gone; its descriptions take the model from Settings, Assistant. If you had a provider configured in the plugin, enter it once under Settings, Assistant, the old fields are not migrated.
+
+- **Training only collects a frame when the scene actually changed.** Busy cameras used to fill the queue with near-identical pictures: the same parked cars came back event after event, sometimes with half of them unboxed, and verifying meant redrawing the same boxes again and again. Now a frame is only taken when something new is in the picture, a new object, a changed position, a fresh face or license plate, and what has already been submitted stays remembered across events. Collected frames also come pre-labeled more completely: objects outside your detection zones or with labels you never selected are drawn in too, they are visible in the picture and belong in the labels.
 
 ### Fixed
+
+- **The floor plan editor works over plain http again.** Opened through the Home Assistant ingress or any http address, adding a room or a level failed with an error about a missing browser function.
+
+- **Tapping outside an input hides the keyboard in the apps.** Once the keyboard was up, only the keyboard's own dismiss could close it. Now a tap anywhere outside the input puts it away, like in native apps; taps into dropdown panels keep it open.
+
+- **The terminal keys stay above the keyboard in the apps.** The key toolbar reacted to the keyboard in the browser but not in the mobile app, where it stayed hidden behind it. It now moves up with the keyboard, and taps into the terminal keep the keyboard open.
+
+- **Trace bundles and automation exports save in the apps too.** The trace download buttons and the automation blueprint export did nothing in the mobile app; they now hand the file to the share sheet like every other download.
+
+- **Unsnoozing an offline camera no longer loses its detections.** If the camera happened to be disconnected in the moment of unsnooze (or enable), detections stayed off for good until a server restart, with nothing in the log. The detection process now remembers the intent and starts with the camera's next connect.
+
+- **Switching a camera between H.264 and H.265 no longer breaks old recordings.** Playback and export follow the codec the footage was recorded with, not the one the camera streams right now. Needs the NVR plugin update.
+
+- **Fixed a decoder restart loop.** A camera stream whose decoder was still warming up could tear it down and rebuild it on every frame, flooding the log and delaying snapshots and detections.
 
 - **Face corrections stick now.** Correcting a face on a still-running event no longer reverts moments later, a face upgraded from unknown to a name mid-event no longer leaves a stale unknown tile on the card, and the small pictures on a recording card keep their order. Needs the NVR plugin update.
 

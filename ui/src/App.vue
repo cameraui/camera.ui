@@ -16,6 +16,8 @@
 
     <CuiCameraDrawer />
 
+    <CuiAssistantDrawer v-if="showTopbar" />
+
     <CuiTopbar v-if="showTopbar" ref="topbarRef" class="z-2 top-0" :offset-left="mdBreakpoint ? 0 : navbarTargetWidth" :animate="layoutReady" />
 
     <CuiBottombar v-if="showBottombar" ref="bottombarRef" class="z-2" />

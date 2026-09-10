@@ -53,10 +53,14 @@ export interface RecordingsFilterSidebarProps {
   semanticCount?: number;
   semanticSearchAvailable?: boolean;
   semanticSearchLoading?: boolean;
+  assistantSearchAvailable?: boolean;
+  assistantSearchLoading?: boolean;
+  assistantSearchNote?: string;
 }
 
 export interface RecordingsFilterSidebarEmits {
   'update:filters': [filters: RecordingsFilterState];
   'semantic-search': [query: string];
+  'assistant-search': [text: string];
   close: [];
 }

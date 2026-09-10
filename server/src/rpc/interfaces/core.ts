@@ -1,5 +1,6 @@
 import type { PluginInfo, PluginInterface } from '@camera.ui/sdk';
 import type { DBFloorPlan, DBRoomCatalog } from '../../api/database/types.js';
+import type { AssistantPluginModel, AssistantPost } from '../../assistant/types.js';
 
 export interface HostPluginInfo extends PluginInfo {
   running: boolean;
@@ -38,11 +39,14 @@ export interface CoreManagerInterface {
   getPlugin(pluginName: string): Promise<HostPluginInfo | undefined>;
   getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]>;
   getFloorPlan(): Promise<FloorPlan>;
+  getAssistantModel(): Promise<AssistantPluginModel>;
+  assistantPost(post: AssistantPost): Promise<boolean>;
 }
 
 export interface CoreManagerProxyEvents {
   cloudAccountChanged: { connected: boolean };
   trainingSettingsChanged: { enabled: boolean };
+  assistantModelChanged: { configured: boolean };
   pluginStatusChanged: { pluginName: string; running: boolean };
 }
 

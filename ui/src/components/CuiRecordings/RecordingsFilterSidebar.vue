@@ -85,6 +85,35 @@
         <div class="sidebar-divider" />
       </template>
 
+      <template v-if="assistantSearchAvailable">
+        <div class="flex flex-col gap-2">
+          <label class="sidebar-section-title flex items-center gap-1.5">
+            <i-mdi:robot-outline class="w-3.5 h-3.5" />
+            {{ $t('views.recordings.assistant_search') }}
+          </label>
+          <InputText
+            v-model="assistantInput"
+            :placeholder="$t('views.recordings.assistant_search_placeholder')"
+            class="w-full text-sm"
+            :disabled="assistantSearchLoading"
+            @keydown.enter.prevent="submitAssistantSearch"
+          />
+          <Button
+            :label="$t('views.recordings.assistant_search_button')"
+            severity="secondary"
+            outlined
+            size="small"
+            class="w-full text-xs"
+            :loading="assistantSearchLoading"
+            :disabled="!assistantInput.trim()"
+            @click="submitAssistantSearch"
+          />
+          <span v-if="assistantSearchNote" class="text-xs text-muted">{{ assistantSearchNote }}</span>
+        </div>
+
+        <div class="sidebar-divider" />
+      </template>
+
       <div v-if="roomOptions.length > 1" class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.rooms') }}</label>
         <MultiSelect
@@ -297,6 +326,7 @@ const sidebarRef = useTemplateRef('sidebarRef');
 
 // Local semantic search input — only emits on submit (Enter / button click)
 const semanticInput = ref(props.filters.semanticQuery ?? '');
+const assistantInput = ref('');
 
 const sections = reactive({
   eventTypes: true,
@@ -393,6 +423,12 @@ const updateSearchDebounced = useDebounceFn((value: string) => {
 function updateRooms(rooms: string[]): void {
   const within = new Set(props.cameras.filter((c) => rooms.length === 0 || rooms.includes(c.room ?? '')).map((c) => c.id));
   emit('update:filters', { ...props.filters, rooms, cameraIds: props.filters.cameraIds.filter((id) => within.has(id)) });
+}
+
+function submitAssistantSearch(): void {
+  const text = assistantInput.value.trim();
+  if (!text || props.assistantSearchLoading) return;
+  emit('assistant-search', text);
 }
 
 function submitSemanticSearch(): void {

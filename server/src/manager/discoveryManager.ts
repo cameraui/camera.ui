@@ -131,6 +131,12 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     return this.isScanning;
   }
 
+  public async snapshot(): Promise<{ devices: DeviceListItem[]; isScanning: boolean }> {
+    const fresh = this.sourceCache.size > 0 && Date.now() - this.lastScanCompletedAt < MIN_SCAN_INTERVAL_MS;
+    if (!this.isScanning && !fresh) await this.discoverCameras();
+    return { devices: this.mergeResults(), isScanning: this.isScanning };
+  }
+
   public unsubscribe(): void {
     this.subscriberCount = Math.max(0, this.subscriberCount - 1);
 

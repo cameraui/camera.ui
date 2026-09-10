@@ -174,6 +174,7 @@ import {
   thumbnailToUrl,
   useEventStore,
 } from '@camera.ui/nvr';
+import AssistantIcon from '~icons/mdi/robot-outline';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 import FaceEditIcon from '~icons/tabler/user-edit';
@@ -196,6 +197,7 @@ const emit = defineEmits<RecordingCardEmits>();
 const log = useLogger();
 const toast = useCuiToast();
 const { t } = useI18n();
+const router = useRouter();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 const dialog = useCuiDialog();
@@ -376,6 +378,7 @@ const cardMenuItems = computed<MenuItem[]>(() => {
   if (props.camera) {
     items.push({ key: 'trace', label: t('views.recordings.open_trace'), icon: TraceIcon, onClick: () => emit('openTrace') });
   }
+  items.push({ key: 'ask', label: t('views.recordings.ask_assistant'), icon: AssistantIcon, onClick: () => askAssistant() });
   if (canDownload.value) {
     items.push({
       key: 'download',
@@ -387,6 +390,15 @@ const cardMenuItems = computed<MenuItem[]>(() => {
   }
   return items;
 });
+
+function askAssistant(): void {
+  const prompt = t('views.recordings.ask_assistant_prompt', {
+    camera: props.cameraName ?? props.camera?.name ?? props.event.cameraId,
+    time: new Date(props.event.startTime).toLocaleString(),
+    id: props.event.id,
+  });
+  router.push({ path: '/assistant', query: { prompt } });
+}
 
 function fitCount(total: number, space: number, itemPx: number): number {
   if (total === 0 || space < itemPx) return 0;

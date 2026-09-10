@@ -292,6 +292,7 @@ const i18n = useI18n();
 const primevue = usePrimeVue();
 const route = useRoute();
 const router = useRouter();
+const assistantActions = useAssistantActions();
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
@@ -519,6 +520,8 @@ watch(
     if (camera.value?.name !== cameraName.value) return;
     consumedStartTs.value = ts;
     nvrController.play(ts * 1000);
+    // a later deep link on the same page must move the timeline too, only the first mount centres on it by itself
+    cuiTimelineRef.value?.scrollToTime(ts);
     router.replace({ query: { ...route.query, startTs: undefined } });
   },
   { immediate: true },
@@ -564,6 +567,29 @@ onBeforeRouteUpdate((to, from) => {
   if (to.params.cameraname !== from.params.cameraname && nvrController.isActive.value) {
     nvrController.stop();
   }
+});
+
+onMounted(() => {
+  assistantActions.register({
+    name: 'timeline.seek',
+    description: 'Jump the recording of the open camera to a time. Args: { time: ISO 8601 with offset }.',
+    run: (args) => {
+      const time = Date.parse(String(args.time ?? ''));
+      if (Number.isNaN(time)) throw new Error('time is not a valid ISO 8601 timestamp');
+      nvrController.play(time * 1000);
+      cuiTimelineRef.value?.scrollToTime(time);
+      return `timeline at ${new Date(time).toLocaleString()}`;
+    },
+  });
+  assistantActions.register({
+    name: 'timeline.zoom',
+    description: 'Zoom the timeline of the open camera. Args: { direction: "in" | "out" }.',
+    run: (args) => {
+      if (args.direction === 'in') cuiTimelineRef.value?.zoomIn();
+      else cuiTimelineRef.value?.zoomOut();
+      return `timeline zoomed ${args.direction === 'in' ? 'in' : 'out'}`;
+    },
+  });
 });
 </script>
 

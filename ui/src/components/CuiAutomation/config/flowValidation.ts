@@ -27,6 +27,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   'action-snapshot': ['cameraId'],
   'action-sensor': ['sensorId'],
   'action-notification': ['title'],
+  'action-assistant': ['user', 'prompt'],
   'action-http': ['url'],
   'action-mqtt': ['topic'],
   'action-variable': ['variableName'],

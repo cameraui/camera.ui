@@ -76,6 +76,8 @@ export function getNodeSummary(
       return data.title || undefined;
     case 'action-notification-control':
       return `${data.mode} · ${data.scope}`;
+    case 'action-assistant':
+      return data.prompt ? data.prompt.slice(0, 40) : undefined;
     case 'action-http':
       return data.url ? `${data.method} ${data.url}` : undefined;
     case 'action-mqtt':

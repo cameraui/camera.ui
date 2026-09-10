@@ -25,6 +25,7 @@ const VALID_NODE_TYPES = [
   'action-camera-control',
   'action-image-input',
   'action-output',
+  'action-assistant',
 ] as const;
 
 const automationNodeSchema = zod.object({

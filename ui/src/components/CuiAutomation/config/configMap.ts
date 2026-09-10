@@ -13,6 +13,7 @@ export const CONFIG_MAP: Record<string, Component> = {
   'action-sensor': asyncComponent(() => import('./ConfigActionSensor.vue')),
   'action-notification': asyncComponent(() => import('./ConfigActionNotification.vue')),
   'action-notification-control': asyncComponent(() => import('./ConfigActionNotificationControl.vue')),
+  'action-assistant': asyncComponent(() => import('./ConfigActionAssistant.vue')),
   'action-http': asyncComponent(() => import('./ConfigActionHttp.vue')),
   'action-mqtt': asyncComponent(() => import('./ConfigActionMqtt.vue')),
   'action-delay': asyncComponent(() => import('./ConfigActionDelay.vue')),

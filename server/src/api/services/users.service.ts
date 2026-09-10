@@ -3,6 +3,7 @@ import { container } from 'tsyringe';
 
 import { AuthService } from './auth.service.js';
 
+import type { AssistantManager } from '../../assistant/manager.js';
 import type { Database } from '../database/index.js';
 import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser } from '../database/types.js';
 
@@ -67,6 +68,7 @@ export class UsersService {
     if (!user) return;
 
     await this.authService.invalidateByUserId(user._id);
+    await this.assistant()?.forgetUser(user._id);
     await this.dbs.usersDB.remove(user._id);
   }
 
@@ -74,6 +76,7 @@ export class UsersService {
     const tasks: Promise<unknown>[] = [];
     for (const { key, value } of this.dbs.usersDB.getRange()) {
       if (value.role !== 'master') {
+        tasks.push(this.assistant()?.forgetUser(key) ?? Promise.resolve());
         tasks.push(this.dbs.usersDB.remove(key));
       }
     }
@@ -360,5 +363,9 @@ export class UsersService {
 
       return current;
     });
+  }
+
+  private assistant(): AssistantManager | undefined {
+    return container.isRegistered('assistantManager') ? container.resolve<AssistantManager>('assistantManager') : undefined;
   }
 }

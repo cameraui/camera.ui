@@ -1,4 +1,5 @@
 import { ApiRoute } from './api.routes.js';
+import { AssistantRoute } from './assistant.routes.js';
 import { AuthRoute } from './auth.routes.js';
 import { AutomationsRoute } from './automations.routes.js';
 import { BackupRoute } from './backup.routes.js';
@@ -55,6 +56,7 @@ export class FastifyRoutes {
     await this.app.register(ServerRoute, { prefix: '/api/server' });
     await this.app.register(RemoteRoute, { prefix: '/api/remote' });
     await this.app.register(MqttRoute, { prefix: '/api/mqtt' });
+    await this.app.register(AssistantRoute, { prefix: '/api/assistant' });
     await this.app.register(UsersRoute, { prefix: '/api/users' });
     await this.app.register(WorkersRoute, { prefix: '/api/workers' });
     await this.app.register(UpdatesRoute, { prefix: '/api/updates' });

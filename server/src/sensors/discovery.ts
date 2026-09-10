@@ -62,6 +62,12 @@ export class SensorDiscoveryManager {
     return this.isScanning;
   }
 
+  public async snapshot(): Promise<{ sensors: DiscoveredSensorListItem[]; isScanning: boolean }> {
+    const fresh = this.lastScanCompletedAt > 0 && Date.now() - this.lastScanCompletedAt < MIN_SCAN_INTERVAL_MS;
+    if (!this.isScanning && !fresh) await this.scan();
+    return { sensors: this.list(), isScanning: this.isScanning };
+  }
+
   public async forceRescan(): Promise<void> {
     this.cache.clear();
     this.lastScanCompletedAt = 0;

@@ -107,6 +107,7 @@ function pluginEvents() {
     { label: t('components.automation_nodes.system_evt_plugin_started'), value: 'plugin:started' },
     { label: t('components.automation_nodes.system_evt_plugin_stopped'), value: 'plugin:stopped' },
     { label: t('components.automation_nodes.system_evt_plugin_error'), value: 'plugin:error' },
+    { label: t('components.automation_nodes.system_evt_plugin_notification'), value: 'plugin:notification' },
   ];
 }
 

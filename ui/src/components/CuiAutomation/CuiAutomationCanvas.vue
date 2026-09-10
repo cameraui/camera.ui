@@ -81,6 +81,7 @@ const nodeTypes: Record<string, any> = {
   'action-sensor': markRaw(ActionNode),
   'action-notification': markRaw(ActionNode),
   'action-notification-control': markRaw(ActionNode),
+  'action-assistant': markRaw(ActionNode),
   'action-http': markRaw(ActionNode),
   'action-mqtt': markRaw(ActionNode),
   'action-delay': markRaw(ActionNode),

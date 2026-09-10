@@ -30,8 +30,12 @@
       :semantic-count="isSemanticActive ? semanticEventIds.size : undefined"
       :semantic-search-available="semanticAvailable"
       :semantic-search-loading="semanticSearching"
+      :assistant-search-available="assistantAvailable"
+      :assistant-search-loading="assistantSearching"
+      :assistant-search-note="assistantNote"
       @update:filters="onFilterUpdate"
       @semantic-search="onSemanticSearch"
+      @assistant-search="onAssistantSearch"
       @close="closeSidebar"
     />
 
@@ -239,6 +243,7 @@ import SelectIcon from '~icons/tabler/dots-filled';
 import DownloadIcon from '~icons/tabler/download';
 import SparklesIcon from '~icons/tabler/sparkles';
 
+import { AssistantQuery, searchAssistantFilters } from '@/api/routes/assistant.js';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import CameraEventDialog from '@/components/CuiDialog/templates/CameraStreamEvent/CameraStreamEvent.vue';
@@ -256,6 +261,7 @@ import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
 import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
 
+const assistantQuery = new AssistantQuery();
 const camerasQuery = new CamerasQuery();
 const usersQuery = new UsersQuery();
 
@@ -267,7 +273,7 @@ const { status: reindexStatus, checking: reindexChecking } = useClipReindex();
 const { openEventTrace } = useEventTraceDialog();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const toast = useCuiToast();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { smBreakpoint, xlBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { registerScrollToTop } = useCuiTopbarSlots();
 
@@ -286,22 +292,12 @@ const {
   clear: clearSemantic,
 } = useSemanticSearch();
 
+const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
 const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
 const { data: currentUser } = usersQuery.getUserQuery(computed(() => authStore.user?.username ?? ''));
 
 const SIDEBAR_WIDTH = 288;
-const TIME_RANGE_MS: Record<string, number> = {
-  '1h': 60 * 60 * 1000,
-  '1d': 24 * 60 * 60 * 1000,
-  '1w': 7 * 24 * 60 * 60 * 1000,
-  '1m': 30 * 24 * 60 * 60 * 1000,
-};
-
-const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number }>('gridRef');
-const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
-const sidebarState = ref<'opened' | 'closed'>('closed');
-const layoutReady = ref(false);
-const filters = ref<RecordingsFilterState>({
+const DEFAULT_FILTERS: RecordingsFilterState = {
   contentKind: 'all',
   favoritesOnly: false,
   search: '',
@@ -320,7 +316,21 @@ const filters = ref<RecordingsFilterState>({
   minConfidence: 0.5,
   minSemanticScore: 0.5,
   onlyWithRecordings: true,
-});
+};
+const TIME_RANGE_MS: Record<string, number> = {
+  '1h': 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+  '1m': 30 * 24 * 60 * 60 * 1000,
+};
+
+const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number }>('gridRef');
+const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
+const sidebarState = ref<'opened' | 'closed'>('closed');
+const layoutReady = ref(false);
+const filters = ref<RecordingsFilterState>({ ...DEFAULT_FILTERS });
+const assistantSearching = ref(false);
+const assistantNote = ref('');
 const serverFilter = shallowRef<GetEventsOptions>({ state: 'ended', hasDetections: true, withRecordingInfo: true, hasRecording: true });
 let _prevFilterJSON = JSON.stringify(serverFilter.value);
 const ungrouped = ref(false);
@@ -442,6 +452,7 @@ const displayEvents = computed(() => {
 });
 
 const episodesOnly = computed(() => filters.value.contentKind === 'episodes');
+const assistantAvailable = computed(() => assistantStatus.value?.state === 'ready');
 
 const episodeGridItems = computed<UngroupedItem[]>(() => {
   if (filters.value.contentKind === 'events') return [];
@@ -603,6 +614,21 @@ function onFilterUpdate(newFilters: RecordingsFilterState): void {
     clearSemantic();
   }
   filters.value = newFilters;
+}
+
+async function onAssistantSearch(text: string): Promise<void> {
+  assistantSearching.value = true;
+  assistantNote.value = '';
+  try {
+    const result = await searchAssistantFilters(text, locale.value, Intl.DateTimeFormat().resolvedOptions().timeZone);
+    onFilterUpdate({ ...DEFAULT_FILTERS, ...result.filters });
+    onSemanticSearch(result.filters.semanticQuery);
+    assistantNote.value = result.note;
+  } catch (error: any) {
+    toast.add({ severity: 'error', detail: error?.response?.data?.message ?? t('views.recordings.assistant_search_failed'), life: 5000 });
+  } finally {
+    assistantSearching.value = false;
+  }
 }
 
 function onSemanticSearch(query: string): void {

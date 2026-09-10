@@ -14,9 +14,10 @@ import ImageIcon from '~icons/mdi/image-outline';
 import LightbulbIcon from '~icons/mdi/lightbulb-outline';
 import MapPinIcon from '~icons/mdi/map-marker-radius';
 import PluginIcon from '~icons/mdi/puzzle-outline';
+import AssistantIcon from '~icons/mdi/robot-outline';
 import GitBranchIcon from '~icons/mdi/source-branch';
-import MqttIcon from '~icons/mdi/transit-connection-variant';
 import TimerIcon from '~icons/mdi/timer-sand';
+import MqttIcon from '~icons/mdi/transit-connection-variant';
 import VariableIcon from '~icons/mdi/variable';
 import HttpIcon from '~icons/mdi/web';
 import WebhookIcon from '~icons/mdi/webhook';
@@ -168,6 +169,15 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     icon: NotificationIcon,
     color: '#3b82f6',
     defaults: { type: 'action-notification', title: '', body: '', severity: 'info', deepLink: '', targets: [] },
+  },
+  {
+    type: 'action-assistant',
+    category: 'action',
+    labelKey: 'components.automation_nodes.action_assistant',
+    descriptionKey: 'components.automation_nodes.action_assistant_desc',
+    icon: AssistantIcon,
+    color: '#3b82f6',
+    defaults: { type: 'action-assistant', user: '', prompt: '', image: '', deliver: 'push', title: '' },
   },
   {
     type: 'action-notification-control',

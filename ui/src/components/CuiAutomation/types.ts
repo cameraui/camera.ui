@@ -24,7 +24,8 @@ export type ActionNodeType =
   | 'action-image-input'
   | 'action-output'
   | 'action-camera-control'
-  | 'action-mqtt';
+  | 'action-mqtt'
+  | 'action-assistant';
 
 export type AutomationNodeType = TriggerNodeType | ConditionNodeType | ActionNodeType;
 
@@ -125,6 +126,15 @@ export interface ActionNotificationData {
   deepLink: string;
   targets: string[];
   image?: string;
+}
+
+export interface ActionAssistantData {
+  type: 'action-assistant';
+  user: string;
+  prompt: string;
+  image?: string;
+  deliver: 'push' | 'thread' | 'both' | 'none';
+  title: string;
 }
 
 export interface ActionNotificationControlData {
@@ -228,6 +238,7 @@ export type AutomationNodeData =
   | ActionSnapshotData
   | ActionSensorData
   | ActionNotificationData
+  | ActionAssistantData
   | ActionNotificationControlData
   | ActionHttpData
   | ActionMqttData
@@ -606,6 +617,11 @@ export interface ConfigActionImageInputProps {
 
 export interface ConfigActionNotificationProps {
   data: ActionNotificationData;
+  nodeId: string;
+}
+
+export interface ConfigActionAssistantProps {
+  data: ActionAssistantData;
   nodeId: string;
 }
 

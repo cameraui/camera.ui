@@ -13,6 +13,15 @@ import { notificationSettingsSchema } from '../schemas/notifications.schema.js';
 import { createShareSchema } from '../schemas/shares.schema.js';
 import { backfillDefaults, backfillSingletonDefaults } from './backfill.js';
 import {
+  ASSISTANT_ID,
+  ASSISTANT_MEMORY_ID,
+  ASSISTANT_PROFILES_ID,
+  ASSISTANT_SCHEDULES_ID,
+  ASSISTANT_STATE_ID,
+  ASSISTANT_THREAD_ATTACHMENTS_ID,
+  ASSISTANT_THREAD_MESSAGES_ID,
+  ASSISTANT_THREADS_ID,
+  ASSISTANT_USAGE_ID,
   AUTOMATION_STATE_ID,
   AUTOMATIONS_ID,
   CAMERAS_ID,
@@ -40,6 +49,7 @@ import {
 } from './constants.js';
 import { MigrationRunner } from './migration.js';
 import {
+  dbAssistantSchema,
   dbCloudSchema,
   dbFloorPlanSchema,
   dbInstanceSchema,
@@ -58,6 +68,13 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { DBToken } from '../types/index.js';
 import type {
+  DBAssistant,
+  DBAssistantAttachmentRecord,
+  DBAssistantMemoryFact,
+  DBAssistantProfile,
+  DBAssistantSchedule,
+  DBAssistantThreadMeta,
+  DBAssistantUsageMonth,
   DBAutomation,
   DBCamera,
   DBCloud,
@@ -97,6 +114,7 @@ export class Database {
   public roomsDB!: DB<DBRoomCatalog, 'rooms'>;
   public floorPlanDB!: DB<DBFloorPlan, 'floorplan'>;
   public instancesConfigDB!: DB<DBInstancesConfig, 'instancesConfig'>;
+  public assistantDB!: DB<DBAssistant, 'assistant'>;
 
   public camerasDB!: DB<DBCamera, string>;
   public pluginsDB!: DB<DBPlugin, string>;
@@ -111,6 +129,14 @@ export class Database {
   public downloadsDB!: DB<DBDownloadEntry, string>;
   public trainingCandidatesDB!: DB<DBTrainingCandidate, string>;
   public instancesDB!: DB<DBInstance, string>;
+  public assistantThreadsDB!: DB<DBAssistantThreadMeta, string>;
+  public assistantThreadMessagesDB!: DB<unknown[], string>;
+  public assistantThreadAttachmentsDB!: DB<DBAssistantAttachmentRecord, string>;
+  public assistantSchedulesDB!: DB<DBAssistantSchedule, string>;
+  public assistantProfilesDB!: DB<DBAssistantProfile, string>;
+  public assistantUsageDB!: DB<DBAssistantUsageMonth, string>;
+  public assistantMemoryDB!: DB<DBAssistantMemoryFact, string>;
+  public assistantStateDB!: DB<unknown, string>;
 
   private lowdb: RootDB;
   private migrationRunner!: MigrationRunner;
@@ -129,7 +155,7 @@ export class Database {
     this.lowdb = open({
       path: this.configService.DATABASE_PATH,
       name: DATABASE_ID,
-      maxDbs: 32,
+      maxDbs: 48,
     });
 
     this.workerStateDB = this.lowdb.openDB({ name: WORKER_STATE_ID });
@@ -151,6 +177,15 @@ export class Database {
     this.roomsDB = this.lowdb.openDB({ name: ROOMS_ID });
     this.floorPlanDB = this.lowdb.openDB({ name: FLOORPLAN_ID });
     this.instancesConfigDB = this.lowdb.openDB({ name: INSTANCES_CONFIG_ID });
+    this.assistantDB = this.lowdb.openDB({ name: ASSISTANT_ID });
+    this.assistantThreadsDB = this.lowdb.openDB({ name: ASSISTANT_THREADS_ID });
+    this.assistantThreadMessagesDB = this.lowdb.openDB({ name: ASSISTANT_THREAD_MESSAGES_ID });
+    this.assistantThreadAttachmentsDB = this.lowdb.openDB({ name: ASSISTANT_THREAD_ATTACHMENTS_ID });
+    this.assistantSchedulesDB = this.lowdb.openDB({ name: ASSISTANT_SCHEDULES_ID });
+    this.assistantProfilesDB = this.lowdb.openDB({ name: ASSISTANT_PROFILES_ID });
+    this.assistantUsageDB = this.lowdb.openDB({ name: ASSISTANT_USAGE_ID });
+    this.assistantMemoryDB = this.lowdb.openDB({ name: ASSISTANT_MEMORY_ID });
+    this.assistantStateDB = this.lowdb.openDB({ name: ASSISTANT_STATE_ID });
     this.sharesDB = this.lowdb.openDB({ name: SHARES_ID });
     this.instancesDB = this.lowdb.openDB({ name: INSTANCES_ID });
     this.automationsDB = this.lowdb.openDB({ name: AUTOMATIONS_ID });
@@ -292,6 +327,7 @@ export class Database {
     await backfillSingletonDefaults(this.roomsDB, 'rooms', dbRoomCatalogSchema, this.logger, ROOMS_ID);
     await backfillSingletonDefaults(this.floorPlanDB, 'floorplan', dbFloorPlanSchema, this.logger, FLOORPLAN_ID);
     await backfillSingletonDefaults(this.instancesConfigDB, 'instancesConfig', dbInstancesConfigSchema, this.logger, INSTANCES_CONFIG_ID);
+    await backfillSingletonDefaults(this.assistantDB, 'assistant', dbAssistantSchema, this.logger, ASSISTANT_ID);
   }
 
   private async checkOldVersion(): Promise<void> {
@@ -337,6 +373,9 @@ export class Database {
     }
     if (!this.instancesConfigDB.get('instancesConfig')) {
       await this.instancesConfigDB.put('instancesConfig', { homeId: randomUUID() });
+    }
+    if (!this.assistantDB.get('assistant')) {
+      await this.assistantDB.put('assistant', dbAssistantSchema.parse({}));
     }
   }
 
