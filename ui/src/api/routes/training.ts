@@ -11,6 +11,8 @@ import type {
 } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 
+const SUBMIT_BATCH = 200;
+
 export async function getTrainingCandidates(params: TrainingCandidateListQuery = {}, { signal }: { signal?: AbortSignal } = {}): Promise<DBTrainingCandidate[]> {
   const response: AxiosResponse<DBTrainingCandidate[]> = await api.get('/training/candidates', { params, signal });
   return response.data;
@@ -26,8 +28,12 @@ export async function deleteTrainingCandidate(id: string): Promise<void> {
 }
 
 export async function submitTrainingCandidates(ids: string[]): Promise<TrainingSubmitResult> {
-  const response: AxiosResponse<TrainingSubmitResult> = await api.post('/training/candidates/submit', { ids });
-  return response.data;
+  let queued = 0;
+  for (let i = 0; i < ids.length; i += SUBMIT_BATCH) {
+    const response: AxiosResponse<TrainingSubmitResult> = await api.post('/training/candidates/submit', { ids: ids.slice(i, i + SUBMIT_BATCH) });
+    queued += response.data.queued;
+  }
+  return { queued };
 }
 
 export async function getTrainingSubmissions({ cursor, signal }: { cursor?: string; signal?: AbortSignal } = {}): Promise<TrainingSubmissionPage> {
