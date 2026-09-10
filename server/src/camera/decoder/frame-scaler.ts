@@ -63,6 +63,7 @@ export class FrameScaler {
 
   private downScaler?: Scaler;
   private upScaler?: Scaler;
+  private disposed = false;
   private privacy: PrivacyMask;
   private maskedFrame?: { pts: bigint; width: number; height: number; revision: number; frame: Frame };
 
@@ -76,8 +77,7 @@ export class FrameScaler {
 
   public async scale(frame: Frame, targetWidth: number, targetHeight: number, format: ScaledFormat = 'rgb'): Promise<ScaledFrame | null> {
     if (targetWidth < 2 || targetHeight < 2) return null;
-    const scaler = this.getScaler(frame.width, targetWidth);
-    const data = await scaler.toBuffer(frame, { resize: { width: targetWidth, height: targetHeight }, format });
+    const data = await this.withScaler(frame.width, targetWidth, (scaler) => scaler.toBuffer(frame, { resize: { width: targetWidth, height: targetHeight }, format }));
     return { data, width: targetWidth, height: targetHeight, format };
   }
 
@@ -161,8 +161,9 @@ export class FrameScaler {
       2,
     );
 
-    const scaler = this.getScaler(crop.width, spec.width);
-    const data = await scaler.toBuffer(frame, { crop, resize: { width: spec.width, height: spec.height }, format: spec.format });
+    const data = await this.withScaler(crop.width, spec.width, (scaler) =>
+      scaler.toBuffer(frame, { crop, resize: { width: spec.width, height: spec.height }, format: spec.format }),
+    );
     const scaled: ScaledFrame = { data, width: spec.width, height: spec.height, format: spec.format };
 
     return {
@@ -253,8 +254,9 @@ export class FrameScaler {
     for (const t of targets) {
       const fitted = t.fit === 'expand' ? this.expandCropToAspect(baseCrop, frame.width, frame.height, t.width / t.height) : baseCrop;
       const crop = this.quantizeCrop(fitted, frame.width, frame.height);
-      const scaler = this.getScaler(crop.width, t.width);
-      const data = await scaler.toBuffer(frame, { crop, resize: { width: t.width, height: t.height }, format: t.format });
+      const data = await this.withScaler(crop.width, t.width, (scaler) =>
+        scaler.toBuffer(frame, { crop, resize: { width: t.width, height: t.height }, format: t.format }),
+      );
       results.set(t.key, {
         frame: { id: `crop:${detection.label}:${t.key}`, data, width: t.width, height: t.height, format: t.format },
         detection,
@@ -269,21 +271,20 @@ export class FrameScaler {
 
   private async encodeJpeg(frame: Frame, options: { crop?: ScalerCrop; resize: { width: number; height: number }; quality: number }): Promise<Buffer | null> {
     const region = options.crop ?? { x: 0, y: 0, width: frame.width, height: frame.height };
-    const scaler = this.getScaler(region.width, options.resize.width);
 
-    if (!this.privacy.active) return scaler.toJpeg(frame, options);
+    if (!this.privacy.active) return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(frame, options));
 
     // a picture that would be black end to end is not worth encoding
     if (this.privacy.covers(region, frame.width, frame.height)) return null;
 
     if (frame.isSwFrame()) {
       if (!this.privacy.apply(frame)) return this.unmaskedFallback(frame, options);
-      return scaler.toJpeg(frame, options);
+      return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(frame, options));
     }
 
     const masked = await this.maskedCopy(frame);
     if (!masked) return this.unmaskedFallback(frame, options);
-    return scaler.toJpeg(masked, options);
+    return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(masked, options));
   }
 
   private async maskedCopy(frame: Frame): Promise<Frame | null> {
@@ -312,7 +313,7 @@ export class FrameScaler {
   private async unmaskedFallback(frame: Frame, options: { crop?: ScalerCrop; resize: { width: number; height: number }; quality: number }): Promise<Buffer | null> {
     if (this.privacy.reportFailure() === 'drop') return null;
     const region = options.crop ?? { x: 0, y: 0, width: frame.width, height: frame.height };
-    return this.getScaler(region.width, options.resize.width).toJpeg(frame, options);
+    return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(frame, options));
   }
 
   public clearCache(): void {
@@ -332,6 +333,7 @@ export class FrameScaler {
   }
 
   public dispose(): void {
+    this.disposed = true;
     this.clearCache();
   }
 
@@ -407,6 +409,18 @@ export class FrameScaler {
     }
     const scale = maxWidth / frameWidth;
     return { width: maxWidth & ~1, height: Math.round(frameHeight * scale) & ~1 };
+  }
+
+  private async withScaler<T>(sourceWidth: number, targetWidth: number, op: (scaler: Scaler) => Promise<T>): Promise<T> {
+    const scaler = this.getScaler(sourceWidth, targetWidth);
+    try {
+      return await op(scaler);
+    } catch (error) {
+      if (this.disposed || !(error instanceof Error) || !error.message.includes('disposed')) throw error;
+      if (this.upScaler === scaler) this.upScaler = undefined;
+      if (this.downScaler === scaler) this.downScaler = undefined;
+      return op(this.getScaler(sourceWidth, targetWidth));
+    }
   }
 
   private getScaler(sourceWidth = 0, targetWidth = 0): Scaler {
