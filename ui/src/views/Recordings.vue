@@ -565,16 +565,20 @@ const viewMenuItems = computed<MenuItem[]>(() => [
       filters.value = { ...filters.value, onlyWithRecordings: !filters.value.onlyWithRecordings };
     },
   },
-  {
-    key: 'favoritesOnly',
-    label: t('views.recordings.favorites_only'),
-    description: t('views.recordings.favorites_hint'),
-    toggle: true,
-    toggleState: filters.value.favoritesOnly,
-    onClick: () => {
-      filters.value = { ...filters.value, favoritesOnly: !filters.value.favoritesOnly };
-    },
-  },
+  ...(isAdmin.value
+    ? [
+        {
+          key: 'favoritesOnly',
+          label: t('views.recordings.favorites_only'),
+          description: t('views.recordings.favorites_hint'),
+          toggle: true,
+          toggleState: filters.value.favoritesOnly,
+          onClick: () => {
+            filters.value = { ...filters.value, favoritesOnly: !filters.value.favoritesOnly };
+          },
+        },
+      ]
+    : []),
 ]);
 
 function openReindexDialog(): void {
@@ -621,7 +625,7 @@ async function onAssistantSearch(text: string): Promise<void> {
   assistantNote.value = '';
   try {
     const result = await searchAssistantFilters(text, locale.value, Intl.DateTimeFormat().resolvedOptions().timeZone);
-    onFilterUpdate({ ...DEFAULT_FILTERS, ...result.filters });
+    onFilterUpdate({ ...DEFAULT_FILTERS, ...result.filters, favoritesOnly: isAdmin.value && result.filters.favoritesOnly });
     onSemanticSearch(result.filters.semanticQuery);
     assistantNote.value = result.note;
   } catch (error: any) {

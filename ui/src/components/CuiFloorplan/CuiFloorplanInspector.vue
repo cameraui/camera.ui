@@ -53,6 +53,7 @@
                   :options="levelOptions"
                   option-label="label"
                   option-value="value"
+                  :disabled="readOnly"
                   @update:model-value="(value) => patchRoom({ levelId: value })"
                 />
               </div>

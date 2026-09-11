@@ -22,7 +22,7 @@
         <div class="flex items-center gap-1.5">
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ title }}</p>
           <Button
-            v-if="!clickDisabled"
+            v-if="isAdmin && !clickDisabled"
             v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
             rounded
             text
@@ -140,6 +140,7 @@ const longPress = useLongPressPreview(
 let dialogInstance: DynamicDialogInstance | undefined;
 let loadTriggered = false;
 
+const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const isFavorite = computed(() => favoriteOverride.value ?? props.episode.favorite ?? false);
 
 const title = computed(() => props.episode.description?.title ?? props.episode.group ?? '');

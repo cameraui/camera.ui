@@ -35,7 +35,7 @@
             {{ semanticDisplay.label }}
           </span>
           <Button
-            v-if="!selectionMode"
+            v-if="isAdmin && !selectionMode"
             v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
             rounded
             text
@@ -239,6 +239,7 @@ const reassignBusy = ref(false);
 
 const { width: footerWidth } = useElementSize(footerRef);
 
+const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const isFavorite = computed(() => favoriteOverride.value ?? props.event.favorite ?? false);
 
 const semanticDisplay = computed(() => {
@@ -366,7 +367,7 @@ const activeFaceLabel = computed(() => {
 
 const cardMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
-  if (activeFaceLabel.value !== undefined) {
+  if (isAdmin.value && activeFaceLabel.value !== undefined) {
     items.push({
       key: 'reassign',
       label: t('views.recordings.reassign_face'),
