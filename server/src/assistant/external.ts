@@ -32,11 +32,15 @@ export class ExternalMcpSource {
   private client?: Client;
   private lastAttempt = 0;
   private connecting?: Promise<void>;
+  private listed: Tool[] = [];
+  private toolApproval: Record<string, boolean>;
 
   constructor(
     public readonly server: ExternalServer,
     private logger: LoggerService,
-  ) {}
+  ) {
+    this.toolApproval = server.toolApproval;
+  }
 
   public get id(): string {
     return this.server.id;
@@ -62,6 +66,11 @@ export class ExternalMcpSource {
     return this.connecting;
   }
 
+  public setToolApproval(toolApproval: Record<string, boolean>): void {
+    this.toolApproval = toolApproval;
+    this.tools = this.listed.map((tool) => this.wrap(tool));
+  }
+
   public touch(): void {
     if (this.state === 'error' && !this.connecting && Date.now() - this.lastAttempt > RETRY_AFTER_MS) this.connect();
   }
@@ -69,6 +78,7 @@ export class ExternalMcpSource {
   public async close(): Promise<void> {
     const client = this.client;
     this.client = undefined;
+    this.listed = [];
     this.tools = [];
     this.state = 'disabled';
     await client?.close().catch(() => undefined);
@@ -128,25 +138,24 @@ export class ExternalMcpSource {
       listed.push(...page.tools);
       cursor = page.nextCursor;
     } while (cursor);
-    const lazy = listed.length > LAZY_FROM;
-    this.tools = listed.map((tool) => this.wrap(tool, lazy));
+    this.listed = listed;
+    this.tools = listed.map((tool) => this.wrap(tool));
   }
 
-  private wrap(tool: Tool, lazy: boolean): CoreTool {
+  private wrap(tool: Tool): CoreTool {
     const name = `${slug(this.server.name)}__${tool.name.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
-    const readOnly = tool.annotations?.readOnlyHint === true;
+    const asks = this.toolApproval[tool.name] ?? tool.annotations?.readOnlyHint !== true;
     const config = {
       name,
       description: `[${this.server.name}] ${tool.description ?? tool.title ?? tool.name}`,
       inputSchema: tool.inputSchema?.type === 'object' ? tool.inputSchema : EMPTY_SCHEMA,
-      lazy,
-      metadata: { externalId: this.server.id, externalName: this.server.name, approval: !readOnly },
+      lazy: this.listed.length > LAZY_FROM,
+      metadata: { externalId: this.server.id, externalName: this.server.name, externalTool: tool.name, approval: asks },
     };
     const execute = async (input: unknown, ctx: ToolContext) => this.call(tool.name, input, ctx);
-    // anything the server does not mark read-only may change the home, so the user confirms it first
-    return readOnly
-      ? toolDefinition(config).server<ToolContext['context']>(execute)
-      : toolDefinition({ ...config, needsApproval: true }).server<ToolContext['context']>(execute);
+    return asks
+      ? toolDefinition({ ...config, needsApproval: true }).server<ToolContext['context']>(execute)
+      : toolDefinition(config).server<ToolContext['context']>(execute);
   }
 
   private async call(name: string, input: unknown, ctx: ToolContext) {

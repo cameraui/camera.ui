@@ -102,6 +102,7 @@ export interface AssistantMcpServerView {
   enabled: boolean;
   insecure: boolean;
   tokenSet: boolean;
+  toolApproval: Record<string, boolean>;
 }
 
 export type AssistantModelView = Omit<DBAssistantModel, 'apiKey'> & { apiKeySet: boolean };
@@ -131,7 +132,7 @@ export interface AssistantInfo {
 export interface AssistantToolInfo {
   name: string;
   description: string;
-  source: { kind: 'core' } | { kind: 'plugin'; pluginId: string; pluginName: string } | { kind: 'external'; serverId: string; serverName: string };
+  source: { kind: 'core' } | { kind: 'plugin'; pluginId: string; pluginName: string } | { kind: 'external'; serverId: string; serverName: string; toolName: string };
   group: string;
   approval: boolean;
   adminOnly: boolean;

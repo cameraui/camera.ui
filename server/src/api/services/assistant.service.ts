@@ -209,6 +209,24 @@ export class AssistantService {
     const defaultModelId = nextModels.some((entry) => entry._id === wantedDefault) ? wantedDefault : null;
     const fallbackId = (nextModels.find((entry) => entry._id === defaultModelId) ?? nextModels[0])?._id;
 
+    const servers =
+      mcpServers === undefined
+        ? current.mcpServers
+        : mcpServers.map((entry) => {
+            const existing = current.mcpServers.find((server) => server.id === entry.id);
+            const token =
+              entry.token === undefined ? (existing?.token ?? null) : entry.token === null || entry.token === '' ? null : this.manager.encryptKey(entry.token);
+            return {
+              id: entry.id ?? randomUUID(),
+              name: entry.name,
+              url: entry.url,
+              token,
+              enabled: entry.enabled,
+              insecure: entry.insecure,
+              toolApproval: entry.toolApproval ?? existing?.toolApproval ?? {},
+            };
+          });
+
     return {
       ...current,
       ...rest,
@@ -217,15 +235,7 @@ export class AssistantService {
       plugins: fallbackId
         ? (plugins ?? current.plugins).map((row) => (nextModels.some((entry) => entry._id === row.modelId) ? row : { ...row, modelId: fallbackId }))
         : [],
-      mcpServers:
-        mcpServers === undefined
-          ? current.mcpServers
-          : mcpServers.map((entry) => {
-              const existing = current.mcpServers.find((server) => server.id === entry.id);
-              const token =
-                entry.token === undefined ? (existing?.token ?? null) : entry.token === null || entry.token === '' ? null : this.manager.encryptKey(entry.token);
-              return { id: entry.id ?? randomUUID(), name: entry.name, url: entry.url, token, enabled: entry.enabled, insecure: entry.insecure };
-            }),
+      mcpServers: servers,
     };
   }
 

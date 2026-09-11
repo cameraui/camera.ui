@@ -97,12 +97,14 @@ export class AssistantToolRegistry {
     this.external.clear();
   }
 
-  // reconciles the configured servers with the open connections: unchanged ones stay, the rest reconnects in the background
   public syncExternal(servers: ExternalServer[]): void {
     const wanted = new Map(servers.filter((server) => server.enabled).map((server) => [server.id, server]));
     for (const [id, source] of this.external) {
       const next = wanted.get(id);
-      if (next && source.sameAs(next)) continue;
+      if (next && source.sameAs(next)) {
+        source.setToolApproval(next.toolApproval);
+        continue;
+      }
       this.external.delete(id);
       source.close();
     }
@@ -133,6 +135,7 @@ export class AssistantToolRegistry {
         pluginName?: string;
         externalId?: string;
         externalName?: string;
+        externalTool?: string;
         approval?: boolean;
       };
       const approval = Boolean(tool.needsApproval ?? meta.approval);
@@ -142,7 +145,7 @@ export class AssistantToolRegistry {
         source: meta.pluginId
           ? { kind: 'plugin', pluginId: meta.pluginId, pluginName: meta.pluginName ?? meta.pluginId }
           : meta.externalId
-            ? { kind: 'external', serverId: meta.externalId, serverName: meta.externalName ?? meta.externalId }
+            ? { kind: 'external', serverId: meta.externalId, serverName: meta.externalName ?? meta.externalId, toolName: meta.externalTool ?? tool.name }
             : { kind: 'core' },
         group: toolGroup(tool),
         approval,

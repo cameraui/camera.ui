@@ -616,28 +616,57 @@
         <Card class="cui-card">
           <template #content>
             <div v-if="!toolSources.length" class="text-sm text-muted">{{ $t('views.settings.assistant_tools_empty') }}</div>
-            <Tabs v-else v-model:value="toolSource" scrollable>
-              <TabList class="mb-3">
-                <Tab v-for="source in toolSources" :key="source.key" :value="source.key" class="text-sm">{{ source.label }} ({{ source.tools.length }})</Tab>
-              </TabList>
-              <TabPanels class="!p-0 !bg-transparent">
-                <TabPanel v-for="source in toolSources" :key="source.key" :value="source.key">
-                  <div class="flex max-h-96 flex-col divide-y divide-(--border-color) overflow-y-auto pr-2">
-                    <div v-for="tool in source.tools" :key="tool.name" class="flex items-start gap-3 py-2 text-sm">
-                      <i-mdi:wrench-outline class="w-4 h-4 mt-0.5 shrink-0 text-muted" />
-                      <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                          <span class="font-medium text-color">{{ toolDisplayName(tool.name) }}</span>
-                          <Tag v-if="tool.approval" severity="warn" :value="$t('views.settings.assistant_tool_approval')" class="text-[10px]" />
-                          <Tag v-if="tool.adminOnly" severity="info" :value="$t('views.settings.assistant_tool_admin')" class="text-[10px]" />
+            <div v-else class="flex flex-col gap-6">
+              <Tabs v-model:value="toolSource" scrollable>
+                <TabList class="mb-3">
+                  <Tab v-for="source in toolSources" :key="source.key" :value="source.key" class="text-sm">{{ source.label }} ({{ source.tools.length }})</Tab>
+                </TabList>
+                <TabPanels class="!p-0 !bg-transparent">
+                  <TabPanel v-for="source in toolSources" :key="source.key" :value="source.key">
+                    <div v-if="source.serverId" class="mb-4 flex flex-col field-gap">
+                      <label :for="`trusted-${source.key}`" class="cui-label">{{ $t('views.settings.assistant_tools_trusted_label') }}</label>
+                      <MultiSelect
+                        :model-value="trustedTools(source)"
+                        :input-id="`trusted-${source.key}`"
+                        :options="toolOptions(source)"
+                        option-label="label"
+                        option-value="value"
+                        :max-selected-labels="3"
+                        :selected-items-label="$t('views.settings.assistant_tools_trusted_selected', { n: trustedTools(source).length })"
+                        :placeholder="$t('views.settings.assistant_tools_trusted_none')"
+                        filter
+                        fluid
+                        @update:model-value="(names) => setTrustedTools(source, names)"
+                      />
+                      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_tools_trusted_info') }}</Message>
+                    </div>
+                    <div class="flex max-h-96 flex-col divide-y divide-(--border-color) overflow-y-auto pr-2">
+                      <div v-for="tool in source.tools" :key="tool.name" class="flex items-start gap-3 py-2 text-sm">
+                        <i-mdi:wrench-outline class="w-4 h-4 mt-0.5 shrink-0 text-muted" />
+                        <div class="min-w-0 flex-1">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-medium text-color">{{ toolDisplayName(tool.name) }}</span>
+                            <Tag v-if="toolAsks(tool)" severity="warn" :value="$t('views.settings.assistant_tool_approval')" class="text-[10px]" />
+                            <Tag v-if="tool.adminOnly" severity="info" :value="$t('views.settings.assistant_tool_admin')" class="text-[10px]" />
+                          </div>
+                          <div class="text-muted">{{ toolDescription(tool.description) }}</div>
                         </div>
-                        <div class="text-muted">{{ toolDescription(tool.description) }}</div>
                       </div>
                     </div>
-                  </div>
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+
+              <div v-if="toolSources.some((source) => source.serverId)" class="flex">
+                <Button
+                  type="button"
+                  :loading="patchMutation.isPending.value"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="onSave"
+                />
+              </div>
+            </div>
           </template>
         </Card>
       </div>
@@ -671,6 +700,7 @@ import type {
 import type { DataTablePassThroughOptions } from 'primevue';
 
 type SchedulePreset = 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'hourly' | 'custom';
+type ToolSource = { key: string; label: string; serverId?: string; tools: AssistantToolInfo[] };
 
 const NO_PLUGIN_ACCESS = 'none';
 const BEHAVIOR_DEFAULTS = {
@@ -736,11 +766,11 @@ const pluginOptions = computed(() => [
 ]);
 
 const toolSources = computed(() => {
-  const groups = new Map<string, { key: string; label: string; tools: AssistantToolInfo[] }>();
+  const groups = new Map<string, ToolSource>();
   for (const tool of info.value?.tools ?? []) {
     const key = tool.source.kind === 'plugin' ? tool.source.pluginId : tool.source.kind === 'external' ? tool.source.serverId : 'core';
     const label = tool.source.kind === 'plugin' ? tool.source.pluginName : tool.source.kind === 'external' ? tool.source.serverName : 'camera.ui';
-    const group = groups.get(key) ?? { key, label, tools: [] };
+    const group = groups.get(key) ?? { key, label, serverId: tool.source.kind === 'external' ? tool.source.serverId : undefined, tools: [] };
     group.tools.push(tool);
     groups.set(key, group);
   }
@@ -854,6 +884,26 @@ function toolDescription(description: string): string {
   return description.replace(/^\[[^\]]+\]\s*/, '');
 }
 
+function toolAsks(tool: AssistantToolInfo): boolean {
+  if (tool.source.kind !== 'external') return tool.approval;
+  const { serverId, toolName } = tool.source;
+  return form.value?.mcpServers.find((server) => server.id === serverId)?.toolApproval[toolName] ?? tool.approval;
+}
+
+function toolOptions(source: ToolSource): { label: string; value: string }[] {
+  return source.tools.flatMap((tool) => (tool.source.kind === 'external' ? [{ label: toolDisplayName(tool.name), value: tool.source.toolName }] : []));
+}
+
+function trustedTools(source: ToolSource): string[] {
+  return source.tools.flatMap((tool) => (tool.source.kind === 'external' && !toolAsks(tool) ? [tool.source.toolName] : []));
+}
+
+function setTrustedTools(source: ToolSource, names: string[]): void {
+  const server = form.value?.mcpServers.find((entry) => entry.id === source.serverId);
+  if (!server) return;
+  server.toolApproval = Object.fromEntries(toolOptions(source).map((option) => [option.value, !names.includes(option.value)]));
+}
+
 function formatTokens(value: number): string {
   if (value < 1000) return String(value);
   if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
@@ -879,7 +929,7 @@ function externalStateClass(id: string): string {
 
 function addServer(): void {
   if (!form.value) return;
-  form.value.mcpServers.push({ id: randomId(), name: '', url: '', enabled: true, insecure: false, tokenSet: false });
+  form.value.mcpServers.push({ id: randomId(), name: '', url: '', enabled: true, insecure: false, tokenSet: false, toolApproval: {} });
 }
 
 function removeServer(id: string): void {
@@ -912,6 +962,7 @@ function buildPatch(): PatchAssistantInput {
         url: server.url.trim(),
         enabled: server.enabled,
         insecure: server.insecure,
+        toolApproval: server.toolApproval,
         ...(serverTokens.value[server.id] ? { token: serverTokens.value[server.id] } : {}),
       })),
   };

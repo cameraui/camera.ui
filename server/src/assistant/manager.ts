@@ -204,6 +204,7 @@ export class AssistantManager {
     const entry = defaultEntry(record);
     return {
       ...record,
+      mcpServers: record.mcpServers.map((server) => ({ ...server, toolApproval: server.toolApproval ?? {} })),
       provider: entry?.provider ?? 'ollama',
       baseURL: entry?.baseURL ?? null,
       apiKey: entry?.apiKey ?? null,

@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
 
 - **Shell commands, if you allow them.** An admin can let the assistant run host diagnostics: disk usage, whether a camera answers on the network, processes, container logs. It is off by default, every command is shown to you before it runs and waits for your click, and it is never offered outside the chat.
 
-- **Home Assistant and other MCP servers.** Under Settings, Assistant you can add external MCP servers. With the Home Assistant MCP server integration and a long-lived token the assistant switches lights, scenes and climate ("turn on the hall light when someone is at the door" becomes an automation with a Home Assistant action, "is the garage door closed" a direct answer), and it asks before it changes anything there.
+- **Home Assistant and other MCP servers.** Under Settings, Assistant you can add external MCP servers. With the Home Assistant MCP server integration and a long-lived token the assistant switches lights, scenes and climate ("turn on the hall light when someone is at the door" becomes an automation with a Home Assistant action, "is the garage door closed" a direct answer), and it asks before it runs a tool there. In the tool list you decide which of these tools may run without asking, the ones that only read for example.
 
 - **camera.ui as MCP server.** Claude Code, Claude Desktop, Cursor and other MCP clients can talk to your instance directly with their own model: cameras, snapshots, recordings, system status and the whole read side of the API. Tools that change something stay off until you allow them. Enable it under Settings, Assistant, with an API token from your account.
 

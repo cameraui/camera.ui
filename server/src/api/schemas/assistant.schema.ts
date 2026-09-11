@@ -47,6 +47,7 @@ export const patchAssistantSchema = zod
             token: zod.string().max(4000).nullable().optional(),
             enabled: zod.boolean().default(true),
             insecure: zod.boolean().default(false),
+            toolApproval: zod.record(zod.string().max(200), zod.boolean()).optional(),
           })
           .strict(),
       )

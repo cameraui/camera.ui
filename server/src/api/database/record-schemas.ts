@@ -347,6 +347,7 @@ export const dbAssistantSchema = zod.object({
         token: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
         enabled: zod.boolean().default(true),
         insecure: zod.boolean().default(false),
+        toolApproval: zod.record(zod.string(), zod.boolean()).default({}),
       }),
     )
     .default([]),

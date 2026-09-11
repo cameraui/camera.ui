@@ -266,6 +266,7 @@ export interface DBAssistantMcpServer {
   token: DBAssistantSecret | null;
   enabled: boolean;
   insecure: boolean;
+  toolApproval: Record<string, boolean>;
 }
 
 export interface DBAssistantModelCapabilities {
