@@ -102,6 +102,7 @@ const systemAction = toolDefinition({
     `needs one, send the user to the Cameras page of the app. Actions: ${describe(ACTIONS)}.`,
   needsApproval: true,
   inputSchema: approvalSchema(systemActionInput),
+  metadata: { adminOnly: true },
 }).server<ToolContext['context']>(async (raw, ctx) => {
   const parsed = systemActionInput.safeParse(raw);
   if (!parsed.success) return toolError(`Invalid arguments: ${parsed.error.issues.map((i) => i.message).join(', ')}`);

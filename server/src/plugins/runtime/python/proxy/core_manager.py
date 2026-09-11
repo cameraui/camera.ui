@@ -14,6 +14,11 @@ from _camera_ui_tools.camera_ui_sdk import (
     PluginInterface,
     Subject,
 )
+from _camera_ui_tools.camera_ui_sdk.manager import (
+    AssistantAccess,
+    AssistantAskRequest,
+    AssistantAskResult,
+)
 from plugins.runtime.python.namespaces import (
     CoreManagerNamespaces,
     NamespaceManager,
@@ -108,10 +113,10 @@ class CoreManagerProxy(CoreManager):
     async def getPluginsByInterface(self, interfaceName: PluginInterface) -> list[PluginInfo]:
         return await self.__core_manager_proxy.getPluginsByInterface(interfaceName)
 
-    async def assistantAsk(self, request: dict[str, Any]) -> dict[str, Any]:
+    async def assistantAsk(self, request: AssistantAskRequest) -> AssistantAskResult:
         return await self.__core_manager_proxy.assistantAsk({**request, "pluginId": self.__plugin["id"]})
 
-    async def assistantAccess(self) -> dict[str, Any]:
+    async def assistantAccess(self) -> AssistantAccess:
         return await self.__core_manager_proxy.assistantAccess(self.__plugin["id"])
 
     async def close(self) -> None:

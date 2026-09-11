@@ -29,6 +29,7 @@ const setSensorProperty = toolDefinition({
     'Read the sensor first to learn its command property. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(setSensorPropertyInput),
+  metadata: { adminOnly: true },
 }).server<ToolContext['context']>(async (args) => {
   const parsed = setSensorPropertyInput.safeParse(args);
   if (!parsed.success) return toolError(`Invalid arguments: ${parsed.error.issues.map((i) => i.message).join(', ')}`);
