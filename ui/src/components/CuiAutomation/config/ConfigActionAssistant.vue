@@ -2,8 +2,27 @@
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.assistant_user') }}</label>
-      <Select :model-value="data.user" :options="userOptions" option-label="label" option-value="value" class="w-full" @update:model-value="update('user', $event)" />
+      <Select :model-value="data.user" :options="userOptions" option-label="label" option-value="value" class="w-full" @update:model-value="onUserChange" />
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.assistant_user_hint') }}</Message>
+    </div>
+
+    <div class="flex flex-col field-gap">
+      <label class="cui-label">{{ t('components.automation_nodes.assistant_profile') }}</label>
+      <Select
+        :model-value="data.profileId ?? null"
+        :options="profiles ?? []"
+        option-label="name"
+        option-value="_id"
+        show-clear
+        class="w-full"
+        :disabled="!data.user"
+        :placeholder="t('components.automation_nodes.assistant_profile_none')"
+        @update:model-value="update('profileId', $event ?? undefined)"
+      />
+      <Message v-if="profileMissing" severity="warn" variant="simple" size="small" class="cui-input-hint">{{
+        t('components.automation_nodes.assistant_profile_missing')
+      }}</Message>
+      <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.assistant_profile_hint') }}</Message>
     </div>
 
     <div class="flex flex-col field-gap">
@@ -46,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { AssistantQuery } from '@/api/routes/assistant.js';
 import { useFlowVariables } from './flowSchema.js';
 import { useUserOptions } from './useUserOptions.js';
 import VariableInput from './VariableInput.vue';
@@ -53,11 +73,15 @@ import VariableSuggestions from './VariableSuggestions.vue';
 
 import type { ConfigActionAssistantProps, ConfigNodeUpdateEmits } from '../types.js';
 
+const assistantQuery = new AssistantQuery();
+
 const props = defineProps<ConfigActionAssistantProps>();
 const emit = defineEmits<ConfigNodeUpdateEmits>();
 
 const { t } = useI18n();
 const { userOptions } = useUserOptions();
+
+const { data: profiles, isFetched: profilesFetched } = assistantQuery.listProfilesOfQuery(computed(() => props.data.user || undefined));
 
 const deliverOptions = [
   { label: t('components.automation_nodes.assistant_deliver_push'), value: 'push' },
@@ -68,9 +92,15 @@ const deliverOptions = [
 
 const { options: availableVars } = useFlowVariables(() => props.nodeId);
 
+const profileMissing = computed(() => Boolean(props.data.profileId) && profilesFetched.value && !profiles.value?.some((profile) => profile._id === props.data.profileId));
+
 function insertInto(field: 'prompt' | 'title', variable: string): void {
   const current = (props.data[field] as string) ?? '';
   emit('update:data', { [field]: current + variable });
+}
+
+function onUserChange(user: string): void {
+  emit('update:data', { user, profileId: undefined });
 }
 
 function update(field: string, value: unknown): void {

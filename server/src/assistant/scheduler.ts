@@ -164,7 +164,8 @@ export class AssistantScheduler {
       const user = new UsersService().findById(current.userId);
       if (!user) throw new Error('The owner of this schedule no longer exists');
 
-      const result = await this.manager.runPrompt(user, current.prompt, { timezone: current.timezone, language: current.language });
+      const profile = current.profileId ? this.manager.profiles.get(user._id, current.profileId) : undefined;
+      const result = await this.manager.runPrompt(user, current.prompt, { timezone: current.timezone, language: current.language, profile });
       if (!result.text.trim()) throw new Error('The model returned no text');
 
       if (current.deliver !== 'thread') await this.push(current, result.text, result.image);

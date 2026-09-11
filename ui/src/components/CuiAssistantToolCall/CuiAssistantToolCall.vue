@@ -26,8 +26,14 @@
       <CuiAssistantCard v-for="(card, index) in cards" :key="index" :card="card" :references="references" />
     </div>
 
-    <div v-if="inlineAttachments && settings?.length" class="flex flex-col gap-2 px-3 pb-2">
-      <CuiAssistantSetting v-for="setting in settings" :key="setting" :setting="setting" />
+    <div v-if="inlineAttachments && (settings?.length || notices?.length)" class="flex flex-col gap-2 px-3 pb-2">
+      <CuiAssistantSetting v-for="setting in settings" :key="setting" :setting="setting" :model-id="modelId" />
+      <CuiAssistantNotice
+        v-for="notice in notices"
+        :key="`${notice.capability}:${notice.model}`"
+        :title="$t(`views.assistant.notice_${notice.capability}_title`, { model: notice.model })"
+        :text="$t(`views.assistant.notice_${notice.capability}_text`)"
+      />
     </div>
 
     <div v-if="inlineAttachments && references?.length" class="px-3 pb-2">

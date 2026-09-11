@@ -12,9 +12,17 @@
           </h1>
         </div>
 
+        <CuiAssistantNotice
+          v-if="activeModel?.capabilities?.toolCalling === false"
+          class="mb-4"
+          :title="$t('views.assistant.notice_tools_title', { model: activeModel.name })"
+          :text="$t('views.assistant.notice_tools_text')"
+        />
+
         <CuiAssistantComposer
           ref="composerRef"
           :busy="chat.busy.value"
+          :vision-missing="visionMissing"
           :compact="compact"
           :placeholder="$t('views.assistant.composer_placeholder')"
           @send="send"
@@ -35,7 +43,7 @@
                   <i-mdi:tune class="w-4 h-4" />
                 </template>
               </Button>
-              <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroupCount }}</span>
+              <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
               <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openMemory($event)">
@@ -74,6 +82,8 @@
           :tool-references="chat.toolReferences.value"
           :tool-cards="chat.toolCards.value"
           :tool-settings="chat.toolSettings.value"
+          :tool-notices="chat.toolNotices.value"
+          :model-id="activeModel?._id"
           :usage="rowUsage(row)"
           :class="{ '-mt-5': row.continuation }"
           @regenerate="regenerate(row.index)"
@@ -136,6 +146,7 @@
         <CuiAssistantComposer
           ref="composerRef"
           :busy="chat.busy.value"
+          :vision-missing="visionMissing"
           :compact="compact"
           :placeholder="$t('views.assistant.composer_placeholder')"
           @send="send"
@@ -156,7 +167,7 @@
                   <i-mdi:tune class="w-4 h-4" />
                 </template>
               </Button>
-              <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroupCount }}</span>
+              <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
               <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openMemory($event)">
@@ -175,15 +186,6 @@
     <Popover ref="toolsPopover">
       <div class="flex w-72 flex-col gap-3">
         <span class="text-sm font-medium text-color">{{ $t('views.assistant.tools_title') }}</span>
-        <div class="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-          <div v-for="group in toolGroups" :key="group.id" class="flex items-center gap-3">
-            <div class="flex min-w-0 flex-col">
-              <span class="truncate text-sm text-color">{{ group.label }}</span>
-              <span class="text-xs text-muted">{{ $t('views.assistant.tools_count', { n: group.count }) }}</span>
-            </div>
-            <ToggleSwitch :model-value="!disabledGroups.includes(group.id)" class="ml-auto shrink-0" @update:model-value="setGroup(group.id, $event)" />
-          </div>
-        </div>
         <div class="flex flex-col gap-1">
           <label for="assistantInstructions" class="text-xs text-muted">{{ $t('views.assistant.instructions_label') }}</label>
           <Textarea
@@ -194,6 +196,46 @@
             class="text-sm"
             :placeholder="$t('views.assistant.instructions_placeholder')"
           />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="assistantTools" class="text-xs text-muted">{{ $t('views.assistant.tools_label') }}</label>
+          <MultiSelect
+            v-model="enabledGroups"
+            input-id="assistantTools"
+            :options="toolGroups"
+            option-label="label"
+            option-value="id"
+            :max-selected-labels="2"
+            :selected-items-label="$t('views.assistant.tools_selected', { n: enabledGroups.length })"
+            :placeholder="$t('views.assistant.tools_none')"
+            class="min-w-0"
+          >
+            <template #option="{ option }">
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <span class="truncate">{{ option.label }}</span>
+                <span class="ml-auto shrink-0 text-xs text-muted">{{ $t('views.assistant.tools_count', { n: option.count }) }}</span>
+              </div>
+            </template>
+          </MultiSelect>
+        </div>
+        <div v-if="models.length > 1" class="flex flex-col gap-1">
+          <label for="assistantModel" class="text-xs text-muted">{{ $t('views.assistant.model_label') }}</label>
+          <Select v-model="modelId" input-id="assistantModel" :options="models" option-label="name" option-value="_id" class="min-w-0" :placeholder="defaultEntry?.name">
+            <template #option="{ option }">
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <span class="truncate">{{ option.name }}</span>
+                <span class="ml-auto flex shrink-0 gap-1">
+                  <Tag
+                    v-for="tag in warningTags(option)"
+                    :key="tag.key"
+                    :severity="tag.severity"
+                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
+                    class="text-[10px]"
+                  />
+                </span>
+              </div>
+            </template>
+          </Select>
         </div>
         <div class="flex flex-col gap-1">
           <label for="assistantProfile" class="text-xs text-muted">{{ $t('views.assistant.profiles_label') }}</label>
@@ -208,7 +250,22 @@
               class="min-w-0"
               :placeholder="$t('views.assistant.profile_none')"
               @update:model-value="applyProfile"
-            />
+            >
+              <template #option="{ option }">
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                  <span class="truncate">{{ option.name }}</span>
+                  <span class="ml-auto flex shrink-0 gap-1">
+                    <Tag
+                      v-for="tag in warningTags(profileModel(option))"
+                      :key="tag.key"
+                      :severity="tag.severity"
+                      :value="$t(`views.settings.assistant_capability_${tag.key}`)"
+                      class="text-[10px]"
+                    />
+                  </span>
+                </div>
+              </template>
+            </Select>
             <InputGroupAddon class="!p-0">
               <Button
                 v-tooltip.top="{ value: profileId ? $t('views.assistant.profile_update') : $t('views.assistant.profile_save') }"
@@ -299,11 +356,13 @@
 
 <script setup lang="ts">
 import { AssistantQuery, branchAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
+import { capabilityTags, defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
 
+import type { AssistantCapabilityTag } from '@/common/assistantModels.js';
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
 import type { ComposerSubmission } from '@/components/CuiAssistantComposer/types.js';
-import type { AssistantUsageEvent, DBAssistantThread } from '@shared/types';
+import type { AssistantModelView, AssistantUsageEvent, DBAssistantProfile, DBAssistantThread } from '@shared/types';
 import type { ContentPart, UIMessage } from '@tanstack/ai';
 import type Popover from 'primevue/popover';
 import type { ConversationRow, CuiAssistantConversationEmits, CuiAssistantConversationProps, ToolGroupOption } from './types.js';
@@ -329,12 +388,19 @@ const deleteProfileMutation = assistantQuery.deleteProfileMutation();
 const { data: memory, refetch: refetchMemory } = assistantQuery.memoryQuery();
 const deleteMemoryFactMutation = assistantQuery.deleteMemoryFactMutation();
 const deleteMemoryMutation = assistantQuery.deleteMemoryMutation();
+const { data: info } = assistantQuery.getAssistantInfoQuery();
 
+const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
+const composerRef = useTemplateRef<InstanceType<typeof CuiAssistantComposer>>('composerRef');
+const toolsPopover = useTemplateRef<InstanceType<typeof Popover>>('toolsPopover');
+const memoryPopover = useTemplateRef<InstanceType<typeof Popover>>('memoryPopover');
+const pinnedToBottom = ref(true);
 const disabledGroups = ref<string[]>([]);
 const instructions = ref('');
 const profileId = ref<string | null>(null);
 const namingProfile = ref(false);
 const profileName = ref('');
+const modelId = ref<string | null>(null);
 
 const threadId = computed(() => props.threadId);
 
@@ -345,19 +411,18 @@ const chat = useAssistantChat({
   language: locale,
   disabledGroups,
   instructions,
+  modelId,
   approvalTools: props.approvalTools,
   onFinish: () => emit('finished'),
   onError: (error) => toast.add({ severity: 'error', detail: error.message, life: 5000 }),
 });
 
-const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
-const composerRef = useTemplateRef<InstanceType<typeof CuiAssistantComposer>>('composerRef');
-const toolsPopover = useTemplateRef<InstanceType<typeof Popover>>('toolsPopover');
-const memoryPopover = useTemplateRef<InstanceType<typeof Popover>>('memoryPopover');
-
-const pinnedToBottom = ref(true);
-
 const welcome = computed(() => chat.messages.value.length === 0);
+
+const models = computed(() => info.value?.settings.models ?? []);
+const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
+const activeModel = computed(() => models.value.find((entry) => entry._id === modelId.value) ?? defaultEntry.value);
+const visionMissing = computed(() => (activeModel.value?.capabilities?.vision === false ? activeModel.value.name : undefined));
 
 const rows = computed<ConversationRow[]>(() => {
   const list = chat.messages.value;
@@ -400,7 +465,12 @@ const toolGroups = computed<ToolGroupOption[]>(() => {
   return Array.from(groups.values()).sort((a, b) => order(a.id) - order(b.id) || a.label.localeCompare(b.label));
 });
 
-const enabledGroupCount = computed(() => toolGroups.value.filter((group) => !disabledGroups.value.includes(group.id)).length);
+const enabledGroups = computed({
+  get: () => toolGroups.value.filter((group) => !disabledGroups.value.includes(group.id)).map((group) => group.id),
+  set: (ids: string[]) => {
+    disabledGroups.value = toolGroups.value.filter((group) => !ids.includes(group.id)).map((group) => group.id);
+  },
+});
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
@@ -437,12 +507,26 @@ function applyProfile(id: string | null): void {
   if (!profile) return;
   disabledGroups.value = [...profile.disabledGroups];
   instructions.value = profile.instructions;
+  modelId.value = models.value.some((entry) => entry._id === profile.modelId) ? profile.modelId : null;
+}
+
+function profileModel(profile: DBAssistantProfile): AssistantModelView | undefined {
+  return models.value.find((entry) => entry._id === profile.modelId) ?? defaultEntry.value;
+}
+
+function warningTags(entry: AssistantModelView | undefined): AssistantCapabilityTag[] {
+  return entry ? capabilityTags(entry).filter((tag) => tag.severity !== 'success') : [];
 }
 
 async function createProfile(): Promise<void> {
   const name = profileName.value.trim();
   if (!name) return;
-  const profile = await createProfileMutation.mutateAsync({ name, disabledGroups: [...disabledGroups.value], instructions: instructions.value.trim() });
+  const profile = await createProfileMutation.mutateAsync({
+    name,
+    modelId: activeModel.value?._id ?? '',
+    disabledGroups: [...disabledGroups.value],
+    instructions: instructions.value.trim(),
+  });
   profileId.value = profile._id;
   namingProfile.value = false;
   profileName.value = '';
@@ -450,7 +534,10 @@ async function createProfile(): Promise<void> {
 
 async function updateProfile(): Promise<void> {
   if (!profileId.value) return;
-  await patchProfileMutation.mutateAsync({ profileId: profileId.value, patch: { disabledGroups: [...disabledGroups.value], instructions: instructions.value.trim() } });
+  await patchProfileMutation.mutateAsync({
+    profileId: profileId.value,
+    patch: { modelId: activeModel.value?._id ?? '', disabledGroups: [...disabledGroups.value], instructions: instructions.value.trim() },
+  });
 }
 
 async function deleteProfile(): Promise<void> {
@@ -459,8 +546,11 @@ async function deleteProfile(): Promise<void> {
   profileId.value = null;
 }
 
-function setGroup(id: string, enabled: boolean): void {
-  disabledGroups.value = enabled ? disabledGroups.value.filter((group) => group !== id) : [...disabledGroups.value, id];
+// the drawer stays in place while the page behind it scrolls, the popovers are placed against the page and would drift off their button
+function realignPopovers(): void {
+  for (const popover of [toolsPopover.value, memoryPopover.value] as unknown as ({ visible: boolean; alignOverlay: () => void } | null)[]) {
+    if (popover?.visible) popover.alignOverlay();
+  }
 }
 
 function exchangeEnd(index: number): number {
@@ -549,6 +639,8 @@ watch(welcome, async () => {
   await nextTick();
   composerRef.value?.focus();
 });
+
+useEventListener(window, 'scroll', realignPopovers, { capture: true, passive: true });
 
 onMounted(async () => {
   await nextTick();

@@ -62,12 +62,29 @@ export function markerFor(part: DataPart): DataPart {
 }
 
 export function messagesForModel(messages: ModelMessage[], sendImages: boolean): ModelMessage[] {
-  return messages.map((message) => {
-    if (message.role !== 'user' || !Array.isArray(message.content)) return message;
+  const out: ModelMessage[] = [];
+  for (const message of messages) {
+    if (message.role === 'tool' && Array.isArray(message.content)) {
+      const parts = message.content as DataPart[];
+      const images = parts.filter((part) => part.type === 'image');
+      if (images.length) {
+        out.push({ ...message, content: parts.filter((part) => part.type !== 'image') } as ModelMessage);
+        out.push({ role: 'user', content: images } as ModelMessage);
+        continue;
+      }
+    }
+    if (message.role !== 'user' || !Array.isArray(message.content)) {
+      out.push(message);
+      continue;
+    }
     const content = (message.content as DataPart[]).filter((part) => !isAttachmentMarker(part) && (!isDataUpload(part) || (part.type === 'image' && sendImages)));
-    if (content.length === message.content.length) return message;
-    return { ...message, content: content.length ? content : [{ type: 'text', content: '[attachment]' }] } as ModelMessage;
-  });
+    if (content.length === message.content.length) {
+      out.push(message);
+      continue;
+    }
+    out.push({ ...message, content: content.length ? content : [{ type: 'text', content: '[attachment]' }] } as ModelMessage);
+  }
+  return out;
 }
 
 export function describeUploads(uploads: AssistantUpload[], sendImages: boolean): string {

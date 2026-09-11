@@ -108,10 +108,21 @@ class CoreManagerProxy(CoreManager):
     async def getPluginsByInterface(self, interfaceName: PluginInterface) -> list[PluginInfo]:
         return await self.__core_manager_proxy.getPluginsByInterface(interfaceName)
 
+    async def assistantAsk(self, request: dict[str, Any]) -> dict[str, Any]:
+        return await self.__core_manager_proxy.assistantAsk({**request, "pluginId": self.__plugin["id"]})
+
+    async def assistantAccess(self) -> dict[str, Any]:
+        return await self.__core_manager_proxy.assistantAccess(self.__plugin["id"])
+
     async def close(self) -> None:
         """Internal method to close the core manager proxy."""
         self.__initialized = False
         self.__event_subject.complete()
+
+        if self.__close_subscription:
+            await self.__close_subscription()
+            self.__close_subscription = None
+        await self.__disconnect_rpc()
 
     async def __on_event_message(self, event: dict[str, Any]) -> None:
         event_type = event.get("type")
@@ -119,11 +130,6 @@ class CoreManagerProxy(CoreManager):
             return
         data = event.get("data")
         self.__event_subject.next({"type": event_type, "data": data})
-
-        if self.__close_subscription:
-            await self.__close_subscription()
-            self.__close_subscription = None
-        await self.__disconnect_rpc()
 
     async def __disconnect_rpc(self) -> None:
         await asyncio.gather(

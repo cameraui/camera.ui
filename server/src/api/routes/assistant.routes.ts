@@ -6,6 +6,7 @@ import {
   assistantChatResumeSchema,
   assistantMemoryParamsSchema,
   assistantProfileParamsSchema,
+  assistantProfilesQuerySchema,
   assistantScheduleParamsSchema,
   assistantSearchSchema,
   assistantThreadParamsSchema,
@@ -291,14 +292,15 @@ export const AssistantRoute: FastifyPluginAsync = async (app: FastifyInstance): 
     },
   });
 
-  app.route({
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/profiles',
     method: 'GET',
     preValidation: [validJWTNeeded],
     handler: controller.listProfiles.bind(controller),
     schema: {
       tags: ['Assistant'],
-      summary: 'List the conversation profiles of the current user',
+      summary: 'List the conversation profiles of the current user, admins may name another user',
+      querystring: assistantProfilesQuerySchema,
     },
   });
 

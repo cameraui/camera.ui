@@ -22,6 +22,10 @@ export class AssistantProfileStore {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  public get(userId: string, profileId: string): DBAssistantProfile | undefined {
+    return this.dbs.assistantProfilesDB.get(profileKey(userId, profileId));
+  }
+
   public async create(userId: string, input: CreateAssistantProfileInput): Promise<DBAssistantProfile> {
     if (this.list(userId).length >= MAX_PROFILES_PER_USER) throw new Error(`At most ${MAX_PROFILES_PER_USER} profiles per user`);
     const now = Date.now();
@@ -29,6 +33,7 @@ export class AssistantProfileStore {
       _id: randomUUID(),
       userId,
       name: input.name,
+      modelId: input.modelId,
       disabledGroups: input.disabledGroups,
       instructions: input.instructions,
       createdAt: now,
@@ -49,6 +54,14 @@ export class AssistantProfileStore {
     if (!this.dbs.assistantProfilesDB.get(key)) return false;
     await this.dbs.assistantProfilesDB.remove(key);
     return true;
+  }
+
+  public async reassignModel(removedIds: Set<string>, fallbackId: string): Promise<void> {
+    const affected = Array.from(this.dbs.assistantProfilesDB.getRange({})).filter((entry) => removedIds.has(entry.value.modelId));
+    if (!affected.length) return;
+    await this.dbs.assistantProfilesDB.transaction(() => {
+      for (const { key, value } of affected) this.dbs.assistantProfilesDB.put(key, { ...value, modelId: fallbackId, updatedAt: Date.now() });
+    });
   }
 
   public async removeAll(userId: string): Promise<void> {

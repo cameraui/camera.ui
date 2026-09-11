@@ -12,6 +12,10 @@
       @paste="onPaste"
     />
 
+    <div v-if="visionMissing && attachments.some((item) => item.kind === 'image')" class="px-3 pb-2">
+      <CuiAssistantNotice :title="$t('views.assistant.notice_vision_title', { model: visionMissing })" :text="$t('views.assistant.notice_vision_attach')" />
+    </div>
+
     <div v-if="attachments.length" class="flex flex-wrap gap-2 px-3 pb-1">
       <div v-for="item in attachments" :key="item.id" class="cui-assistant-attachment relative flex items-center rounded-lg text-xs text-color">
         <img v-if="item.kind === 'image'" :src="item.preview" class="h-14 w-14 rounded-lg object-cover" alt="" />

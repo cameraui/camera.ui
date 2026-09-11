@@ -1,6 +1,6 @@
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
 import type { ToolResultImage } from '@/components/CuiAssistantToolCall/types.js';
-import type { AssistantSettingKey, AssistantUsageEvent, DBAssistantCard } from '@shared/types';
+import type { AssistantSettingKey, AssistantUsageEvent, DBAssistantAttachmentNotice, DBAssistantCard } from '@shared/types';
 import type { UIMessage } from '@tanstack/ai';
 
 export const ATTACHMENT_PREFIX = 'attachment:';
@@ -16,6 +16,8 @@ export interface CuiAssistantMessageProps {
   toolReferences?: Record<string, AssistantReference[]>;
   toolCards?: Record<string, DBAssistantCard[]>;
   toolSettings?: Record<string, AssistantSettingKey[]>;
+  toolNotices?: Record<string, DBAssistantAttachmentNotice[]>;
+  modelId?: string | null;
   usage?: AssistantUsageEvent;
 }
 

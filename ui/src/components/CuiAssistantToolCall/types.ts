@@ -1,5 +1,5 @@
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
-import type { AssistantSettingKey, DBAssistantCard } from '@shared/types';
+import type { AssistantSettingKey, DBAssistantAttachmentNotice, DBAssistantCard } from '@shared/types';
 import type { ContentPart, ToolCallPart, ToolResultPart } from '@tanstack/ai';
 
 export interface CuiAssistantToolCallProps {
@@ -9,6 +9,8 @@ export interface CuiAssistantToolCallProps {
   references?: AssistantReference[];
   cards?: DBAssistantCard[];
   settings?: AssistantSettingKey[];
+  notices?: DBAssistantAttachmentNotice[];
+  modelId?: string | null;
   inlineAttachments?: boolean;
 }
 

@@ -2,14 +2,30 @@ import * as zod from 'zod';
 
 export const assistantProviderSchema = zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']);
 
+export const assistantModelInputSchema = zod
+  .object({
+    id: zod.string().trim().min(1).max(64).optional(),
+    name: zod.string().trim().max(40, 'Name cannot be more than 40 characters').optional(),
+    provider: assistantProviderSchema,
+    baseURL: zod.string().trim().max(500, 'Base URL cannot be more than 500 characters').nullable().optional(),
+    apiKey: zod.string().max(1000, 'API key cannot be more than 1000 characters').nullable().optional(),
+    copyKeyFrom: zod.string().trim().min(1).max(64).optional(),
+    model: zod.string().trim().max(200, 'Model cannot be more than 200 characters'),
+    sendImages: zod.boolean().optional(),
+    userAccess: zod.boolean().optional(),
+    retest: zod.boolean().optional(),
+  })
+  .strict();
+
 export const patchAssistantSchema = zod
   .object({
     enabled: zod.boolean().optional(),
-    provider: assistantProviderSchema.optional(),
-    baseURL: zod.string().trim().max(500, 'Base URL cannot be more than 500 characters').nullable().optional(),
-    apiKey: zod.string().max(1000, 'API key cannot be more than 1000 characters').nullable().optional(),
-    model: zod.string().trim().max(200, 'Model cannot be more than 200 characters').optional(),
-    sendImages: zod.boolean().optional(),
+    models: zod.array(assistantModelInputSchema).max(20, 'At most 20 models').optional(),
+    defaultModelId: zod.string().trim().min(1).max(64).nullable().optional(),
+    plugins: zod
+      .array(zod.object({ pluginId: zod.string().trim().min(1).max(200), modelId: zod.string().trim().min(1).max(64) }).strict())
+      .max(50)
+      .optional(),
     language: zod.string().trim().max(16).nullable().optional(),
     maxIterations: zod.number().int().min(1).max(30).optional(),
     maxToolCalls: zod.number().int().min(1).max(100).optional(),
@@ -60,7 +76,7 @@ export const assistantMemoryParamsSchema = zod.object({
   factId: zod.string().min(1).max(128),
 });
 
-export const testAssistantSchema = patchAssistantSchema;
+export const testAssistantSchema = assistantModelInputSchema;
 
 export const assistantThreadParamsSchema = zod.object({
   threadId: zod.string().min(1).max(128),
@@ -77,6 +93,7 @@ export const branchAssistantThreadSchema = zod.object({ until: zod.number().int(
 export const createAssistantProfileSchema = zod
   .object({
     name: zod.string().trim().min(1, 'Name is required').max(40, 'Name cannot be more than 40 characters'),
+    modelId: zod.string().trim().max(64).default(''),
     disabledGroups: zod.array(zod.string().max(100)).max(50).default([]),
     instructions: zod.string().max(2000, 'Instructions cannot be more than 2000 characters').default(''),
   })
@@ -88,6 +105,10 @@ export const assistantProfileParamsSchema = zod.object({
   profileId: zod.string().min(1).max(128),
 });
 
+export const assistantProfilesQuerySchema = zod.object({
+  user: zod.string().trim().min(1).max(100).optional(),
+});
+
 export const assistantScheduleDeliverySchema = zod.enum(['push', 'thread', 'both']);
 
 export const createAssistantScheduleSchema = zod
@@ -95,6 +116,7 @@ export const createAssistantScheduleSchema = zod
     title: zod.string().trim().min(1, 'Title is required').max(80, 'Title cannot be more than 80 characters'),
     prompt: zod.string().trim().min(1, 'Prompt is required').max(2000, 'Prompt cannot be more than 2000 characters'),
     cron: zod.string().trim().min(9, 'Cron expression is required').max(100),
+    profileId: zod.string().trim().max(64).nullable().optional(),
     timezone: zod.string().trim().max(64).optional(),
     language: zod.string().trim().min(2).max(10).optional(),
     deliver: assistantScheduleDeliverySchema.default('push'),
@@ -110,6 +132,8 @@ export const assistantScheduleParamsSchema = zod.object({
 
 export type PatchAssistantInput = zod.output<typeof patchAssistantSchema>;
 export type TestAssistantInput = zod.output<typeof testAssistantSchema>;
+export type AssistantModelInput = zod.output<typeof assistantModelInputSchema>;
+export type AssistantProfilesQueryInput = zod.output<typeof assistantProfilesQuerySchema>;
 export type AssistantThreadParamsInput = zod.output<typeof assistantThreadParamsSchema>;
 export type RenameAssistantThreadInput = zod.output<typeof renameAssistantThreadSchema>;
 export type ReplaceAssistantThreadMessagesInput = zod.output<typeof replaceAssistantThreadMessagesSchema>;

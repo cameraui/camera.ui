@@ -4,6 +4,7 @@ import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type { BasePlugin, CoreManager, CoreManagerEvent, Observable, PluginInfo, PluginInterface, PluginInterfaces } from '@camera.ui/sdk';
+import type { AssistantAccess, AssistantAskRequest, AssistantAskResult } from '../../../../assistant/types.js';
 import type { CoreManagerInterface, CoreManagerListenerMessagePayload } from '../../../../rpc/interfaces/core.js';
 import type { CoreManagerNamespaces, PluginNamespaces } from '../../../../rpc/namespaces.js';
 
@@ -90,6 +91,14 @@ export class CoreManagerProxy implements CoreManager {
 
   public async getPluginsByInterface(interfaceName: PluginInterface): Promise<PluginInfo[]> {
     return await this.#coreManagerProxy.getPluginsByInterface(interfaceName);
+  }
+
+  public async assistantAsk(request: Omit<AssistantAskRequest, 'pluginId'>): Promise<AssistantAskResult> {
+    return await this.#coreManagerProxy.assistantAsk({ ...request, pluginId: this.#plugin.id });
+  }
+
+  public async assistantAccess(): Promise<AssistantAccess> {
+    return await this.#coreManagerProxy.assistantAccess(this.#plugin.id);
   }
 
   /** Internal method to close the core manager proxy */

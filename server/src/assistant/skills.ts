@@ -1,6 +1,3 @@
-import { inlineSkill, withSkills } from '@tanstack/ai-skills';
-
-import type { ChatMiddleware } from '@tanstack/ai';
 import type { InlineSkillConfig } from '@tanstack/ai-skills';
 
 // prettier-ignore
@@ -45,13 +42,17 @@ const SKILLS: InlineSkillConfig[] = [
     instructions: [
       '# Reports and recaps',
       '',
-      'For a recap of a day or a week, a system health check or any list of labelled numbers call show_report once with all items and',
-      'add at most one short sentence. Do not repeat the numbers of the card in text. Give a moment its episodeId or eventId from the',
-      'tool result, the row then opens it.',
+      'Recap of one day: call summarize_day of the NVR plugin (nvr__summarize_day) for that date, then show_report with kind day_recap, one item',
+      'per notable episode with its episodeId, and one short sentence.',
       '',
-      'For a recap or highlights over several days work day by day with the episode and summary tools, pick the few moments that matter',
-      '(at most five) and order the answer by day. When the user wants pictures, call the event image tool once per picked moment with an',
-      'event id from the episode, before you answer.',
+      'Highlights of several days: call nvr__summarize_day once with date = the last day and days = the number of days (this week = 7), never',
+      'once per day. Pick at most five moments from the result. When the user wants pictures, call nvr__get_event_image once per picked moment',
+      'with its episode id, before you answer. Then show_report with kind day_recap: one item per moment, label = what happened, value = day and',
+      'time, note = camera, episodeId from the summary, ordered by day, plus at most one short sentence. Never call show_report before these tools ran.',
+      '',
+      'System health check: get_metrics and system_query first, then show_report with kind system_health.',
+      '',
+      'Any other list of labelled numbers: show_report with kind list. Do not repeat the numbers of the card in text.',
       '',
       'You cannot play video. When asked for a clip, fetch the event picture and point the user to the recording in the app.',
     ].join('\n'),
@@ -104,8 +105,6 @@ const SKILLS: InlineSkillConfig[] = [
   },
 ];
 
-const SOURCES = SKILLS.map((skill) => inlineSkill(skill));
-
-export function skillsMiddleware(): ChatMiddleware {
-  return withSkills(SOURCES);
+export function skillsPrompt(): string {
+  return ['Procedures for common tasks, follow the one that matches:', ...SKILLS.map((skill) => skill.instructions)].join('\n\n');
 }

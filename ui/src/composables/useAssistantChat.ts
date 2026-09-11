@@ -10,7 +10,15 @@ import { getConnection } from '@/connection/instance.js';
 
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
 import type { ToolResultImage } from '@/components/CuiAssistantToolCall/types.js';
-import type { AssistantQuestion, AssistantSettingKey, AssistantToolInfo, AssistantUsageEvent, DBAssistantAttachment, DBAssistantCard } from '@shared/types';
+import type {
+  AssistantQuestion,
+  AssistantSettingKey,
+  AssistantToolInfo,
+  AssistantUsageEvent,
+  DBAssistantAttachment,
+  DBAssistantAttachmentNotice,
+  DBAssistantCard,
+} from '@shared/types';
 import type { JSONSchema } from '@tanstack/ai';
 import type { UIMessage } from '@tanstack/ai-vue';
 import type { Ref } from 'vue';
@@ -38,6 +46,7 @@ export interface UseAssistantChatOptions {
   language: Ref<string>;
   disabledGroups?: Ref<string[]>;
   instructions?: Ref<string>;
+  modelId?: Ref<string | null>;
   approvalTools?: AssistantToolInfo[];
   onFinish?: () => void;
   onError?: (error: Error) => void;
@@ -134,12 +143,14 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   const toolReferences = ref<Record<string, AssistantReference[]>>({});
   const toolCards = ref<Record<string, DBAssistantCard[]>>({});
   const toolSettings = ref<Record<string, AssistantSettingKey[]>>({});
+  const toolNotices = ref<Record<string, DBAssistantAttachmentNotice[]>>({});
   const usage = ref<Record<string, AssistantUsageEvent>>({});
   const stoppedId = ref<string | null>(null);
 
   function syncForwarded(): void {
     forwardedProps.disabledGroups = [...(options.disabledGroups?.value ?? [])];
     forwardedProps.instructions = options.instructions?.value?.trim() || undefined;
+    forwardedProps.modelId = options.modelId?.value ?? undefined;
   }
 
   function seedAttachments(attachments: Record<string, DBAssistantAttachment>): void {
@@ -148,11 +159,13 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
       if (entry.references.length) toolReferences.value[key] = entry.references.map((reference) => ({ ...reference }));
       if (entry.cards?.length) toolCards.value[key] = entry.cards.map((card) => ({ ...card }));
       if (entry.settings?.length) toolSettings.value[key] = entry.settings.filter(isSettingKey);
+      if (entry.notices?.length) toolNotices.value[key] = entry.notices.map((notice) => ({ ...notice }));
     }
     toolImages.value = { ...toolImages.value };
     toolReferences.value = { ...toolReferences.value };
     toolCards.value = { ...toolCards.value };
     toolSettings.value = { ...toolSettings.value };
+    toolNotices.value = { ...toolNotices.value };
   }
 
   seedAttachments(options.initialAttachments ?? {});
@@ -202,6 +215,10 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
         const setting = (data as { setting?: string }).setting;
         if (!isSettingKey(setting)) return;
         toolSettings.value = { ...toolSettings.value, [key]: [...(toolSettings.value[key] ?? []), setting] };
+      } else if (eventType === 'assistant.notice') {
+        const notice = (data as { notice?: DBAssistantAttachmentNotice }).notice;
+        if (!notice?.model) return;
+        toolNotices.value = { ...toolNotices.value, [key]: [...(toolNotices.value[key] ?? []), notice] };
       } else if (eventType === 'assistant.reference') {
         const reference = data as AssistantReference;
         if (!reference.id || !reference.kind) return;
@@ -271,6 +288,7 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
     toolReferences,
     toolCards,
     toolSettings,
+    toolNotices,
     usage,
     stoppedId,
   };

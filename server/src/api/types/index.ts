@@ -12,6 +12,7 @@ import type {
   AssistantChatResumeInput,
   AssistantMemoryParamsInput,
   AssistantProfileParamsInput,
+  AssistantProfilesQueryInput,
   AssistantScheduleParamsInput,
   AssistantSearchInput,
   AssistantThreadParamsInput,
@@ -629,6 +630,10 @@ export interface AssistantProfileCreateRequest {
 
 export interface AssistantProfileRequest {
   Params: AssistantProfileParamsInput;
+}
+
+export interface AssistantProfilesListRequest {
+  Querystring: AssistantProfilesQueryInput;
 }
 
 export interface AssistantMemoryRequest {

@@ -94,6 +94,8 @@
           :references="toolReferences?.[entry.part.id]"
           :cards="toolCards?.[entry.part.id]"
           :settings="toolSettings?.[entry.part.id]"
+          :notices="toolNotices?.[entry.part.id]"
+          :model-id="modelId"
           :inline-attachments="!results"
         />
         <details v-else-if="entry.kind === 'steps'" class="cui-assistant-steps rounded-xl text-sm" :open="streaming">
@@ -113,6 +115,8 @@
               :references="toolReferences?.[item.part.id]"
               :cards="toolCards?.[item.part.id]"
               :settings="toolSettings?.[item.part.id]"
+              :notices="toolNotices?.[item.part.id]"
+              :model-id="modelId"
               :inline-attachments="!results"
             />
           </div>
@@ -138,7 +142,13 @@
           </button>
         </div>
         <CuiAssistantCard v-for="(card, index) in results.cards" :key="index" :card="card" :references="results.all" />
-        <CuiAssistantSetting v-for="setting in results.settings" :key="setting" :setting="setting" />
+        <CuiAssistantSetting v-for="setting in results.settings" :key="setting" :setting="setting" :model-id="modelId" />
+        <CuiAssistantNotice
+          v-for="notice in results.notices"
+          :key="`${notice.capability}:${notice.model}`"
+          :title="$t(`views.assistant.notice_${notice.capability}_title`, { model: notice.model })"
+          :text="$t(`views.assistant.notice_${notice.capability}_text`)"
+        />
         <CuiAssistantReferences v-if="results.references.length" :references="results.references" />
       </template>
     </div>
@@ -220,7 +230,7 @@ import { ATTACHMENT_PREFIX, messageText } from './types.js';
 
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
 import type { ToolResultImage } from '@/components/CuiAssistantToolCall/types.js';
-import type { AssistantSettingKey, DBAssistantCard } from '@shared/types';
+import type { AssistantSettingKey, DBAssistantAttachmentNotice, DBAssistantCard } from '@shared/types';
 import type { ToolCallPart, ToolResultPart } from '@tanstack/ai';
 import type { CuiAssistantMessageEmits, CuiAssistantMessageProps } from './types.js';
 
@@ -306,6 +316,7 @@ const results = computed(() => {
   const cards: DBAssistantCard[] = [];
   const references: AssistantReference[] = [];
   const settings: AssistantSettingKey[] = [];
+  const notices: DBAssistantAttachmentNotice[] = [];
   const seen = new Set<string>();
   for (const entry of entries.value) {
     if (entry.kind !== 'tool') continue;
@@ -313,6 +324,9 @@ const results = computed(() => {
     for (const image of own) if (!seen.has(image.src) && seen.add(image.src)) images.push(image);
     cards.push(...(props.toolCards?.[entry.part.id] ?? []));
     for (const setting of props.toolSettings?.[entry.part.id] ?? []) if (!settings.includes(setting)) settings.push(setting);
+    for (const notice of props.toolNotices?.[entry.part.id] ?? []) {
+      if (!notices.some((known) => known.capability === notice.capability && known.model === notice.model)) notices.push(notice);
+    }
     for (const reference of props.toolReferences?.[entry.part.id] ?? []) {
       const key = `${reference.kind}:${reference.id}`;
       if (!seen.has(key) && seen.add(key)) references.push(reference);
@@ -320,7 +334,9 @@ const results = computed(() => {
   }
   const linked = new Set(cards.flatMap((card) => card.items.flatMap((item) => [item.episodeId, item.eventId].filter(Boolean))));
   const rest = references.filter((reference) => !linked.has(reference.id)).slice(0, MAX_RESULT_REFERENCES);
-  return images.length || cards.length || rest.length || settings.length ? { images, cards, settings, references: rest, all: references } : null;
+  return images.length || cards.length || rest.length || settings.length || notices.length
+    ? { images, cards, settings, notices, references: rest, all: references }
+    : null;
 });
 
 const usageLine = computed(() => {

@@ -15,7 +15,7 @@ export interface MemoryChange {
   remove: string[];
 }
 
-export type MemoryExtractor = (turn: MemoryTurn, existing: string[]) => Promise<MemoryChange>;
+export type MemoryExtractor = (userId: string, turn: MemoryTurn, existing: string[]) => Promise<MemoryChange>;
 
 export class AssistantMemoryStore {
   private dbs: Database;
@@ -92,7 +92,7 @@ export function memoryAdapter(store: AssistantMemoryStore, extract: MemoryExtrac
     async save(scope, turn) {
       if (!scope.userId || turn.user.trim().length < MIN_TURN_CHARS || turn.user.trim() === '[continue]') return [];
       const existing = store.list(scope.userId).map((fact) => fact.text);
-      const change = await extract(turn, existing);
+      const change = await extract(scope.userId, turn, existing);
       const removed = change.remove.length ? await store.removeMatching(scope.userId, change.remove) : 0;
       const added = change.add.length ? await store.add(scope.userId, change.add, scope.threadId) : 0;
       if (added || removed) logger.debug(`Assistant memory: ${added} facts added, ${removed} removed`);

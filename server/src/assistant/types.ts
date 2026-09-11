@@ -1,6 +1,6 @@
 import type { AssistantToolReference, AssistantToolSpec } from '@camera.ui/sdk';
 import type { Interrupt, JSONSchema, UIMessage } from '@tanstack/ai';
-import type { DBAssistant, DBAssistantAttachment, DBAssistantProvider, DBAssistantUsageMonth, DBRoles } from '../api/database/types.js';
+import type { DBAssistant, DBAssistantAttachment, DBAssistantModel, DBAssistantProvider, DBAssistantUsageMonth, DBRoles } from '../api/database/types.js';
 
 export const ASSISTANT_PROVIDERS: DBAssistantProvider[] = ['ollama', 'openai-compatible', 'openai', 'anthropic', 'gemini', 'openrouter'];
 
@@ -15,6 +15,9 @@ export interface AssistantRunContext {
   instructions?: string;
   answers?: Map<string, string>;
   threadId?: string;
+  calledTools?: string[];
+  visionMissing?: string;
+  visionNoticed?: boolean;
 }
 
 export interface AssistantPost {
@@ -59,12 +62,24 @@ export interface AssistantUsageEvent extends Omit<AssistantRunStats, 'startedAt'
 
 export type AssistantState = 'disabled' | 'unconfigured' | 'ready';
 
-export interface AssistantPluginModel {
-  provider: DBAssistantProvider;
-  baseURL: string | null;
-  apiKey: string | null;
-  model: string;
-  configured: boolean;
+export interface AssistantAskRequest {
+  pluginId: string;
+  prompt: string;
+  system?: string;
+  images?: { data: Uint8Array; mimeType: string }[];
+  outputSchema?: JSONSchema;
+  timeoutMs?: number;
+}
+
+export type AssistantAskResult =
+  | { ok: true; text: string; json?: unknown; usage: { promptTokens: number; completionTokens: number } }
+  | { ok: false; reason: 'not_allowed' | 'unconfigured' | 'timeout' | 'error'; message: string };
+
+export interface AssistantAccess {
+  allowed: boolean;
+  model: string | null;
+  vision: boolean | null;
+  language: string | null;
 }
 
 export interface AssistantStatus {
@@ -75,9 +90,9 @@ export interface AssistantStatus {
   pluginToolCount: number;
 }
 
-// a usage month with the user name resolved for the admin table
 export interface AssistantUsageRow extends DBAssistantUsageMonth {
   username?: string;
+  pluginName?: string;
 }
 
 export interface AssistantMcpServerView {
@@ -89,7 +104,11 @@ export interface AssistantMcpServerView {
   tokenSet: boolean;
 }
 
-export type AssistantMaskedSettings = Omit<DBAssistant, 'apiKey' | 'mcpServers'> & { mcpServers: AssistantMcpServerView[] };
+export type AssistantModelView = Omit<DBAssistantModel, 'apiKey'> & { apiKeySet: boolean };
+
+export type AssistantMaskedSettings = Omit<DBAssistant, 'mcpServers' | 'models'> & { mcpServers: AssistantMcpServerView[]; models: AssistantModelView[] };
+
+export type AssistantSettings = DBAssistant & Pick<DBAssistantModel, 'provider' | 'baseURL' | 'apiKey' | 'model' | 'sendImages'>;
 
 export type AssistantExternalState = 'connecting' | 'connected' | 'error' | 'disabled';
 
@@ -103,8 +122,8 @@ export interface AssistantExternalStatus {
 
 export interface AssistantInfo {
   settings: AssistantMaskedSettings;
-  apiKeySet: boolean;
   status: AssistantStatus;
+  plugins: { id: string; name: string }[];
   tools: AssistantToolInfo[];
   external: AssistantExternalStatus[];
 }

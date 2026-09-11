@@ -131,6 +131,7 @@ export interface ActionNotificationData {
 export interface ActionAssistantData {
   type: 'action-assistant';
   user: string;
+  profileId?: string;
   prompt: string;
   image?: string;
   deliver: 'push' | 'thread' | 'both' | 'none';

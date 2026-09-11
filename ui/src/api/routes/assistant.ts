@@ -7,7 +7,6 @@ import type {
   AssistantModelsResult,
   AssistantSearchResult,
   AssistantStatus,
-  AssistantTestResult,
   AssistantThreadSummary,
   AssistantUsageRow,
   CreateAssistantProfileInput,
@@ -23,6 +22,7 @@ import type {
 } from '@shared/types';
 import type { UIMessage } from '@tanstack/ai';
 import type { AxiosResponse } from 'axios';
+import type { ComputedRef, Ref } from 'vue';
 
 export async function getAssistantInfo({ signal }: { signal: AbortSignal }): Promise<AssistantInfo> {
   const response: AxiosResponse<AssistantInfo> = await api.get('/assistant', { signal });
@@ -36,11 +36,6 @@ export async function getAssistantStatus({ signal }: { signal?: AbortSignal } = 
 
 export async function patchAssistantInfo(patch: PatchAssistantInput): Promise<AssistantInfo> {
   const response: AxiosResponse<AssistantInfo> = await api.patch('/assistant', patch);
-  return response.data;
-}
-
-export async function testAssistant(patch: TestAssistantInput): Promise<AssistantTestResult> {
-  const response: AxiosResponse<AssistantTestResult> = await api.post('/assistant/test', patch);
   return response.data;
 }
 
@@ -119,8 +114,8 @@ export async function deleteAssistantMemory(): Promise<void> {
   await api.delete('/assistant/memory');
 }
 
-export async function listAssistantProfiles({ signal }: { signal: AbortSignal }): Promise<DBAssistantProfile[]> {
-  const response: AxiosResponse<DBAssistantProfile[]> = await api.get('/assistant/profiles', { signal });
+export async function listAssistantProfiles({ signal, user }: { signal: AbortSignal; user?: string }): Promise<DBAssistantProfile[]> {
+  const response: AxiosResponse<DBAssistantProfile[]> = await api.get('/assistant/profiles', { signal, params: user ? { user } : undefined });
   return response.data;
 }
 
@@ -200,10 +195,6 @@ export class AssistantQuery {
     });
   }
 
-  public testAssistantMutation() {
-    return useMutation({ mutationFn: testAssistant });
-  }
-
   public listAssistantModelsMutation() {
     return useMutation({ mutationFn: listAssistantModels });
   }
@@ -272,6 +263,15 @@ export class AssistantQuery {
     return useQueryEnhanced({
       queryKey: ['assistant', 'profiles'],
       queryFn: ({ signal }) => listAssistantProfiles({ signal }),
+      staleTime: 5000,
+    });
+  }
+
+  public listProfilesOfQuery(user: Ref<string | undefined> | ComputedRef<string | undefined>) {
+    return useQueryEnhanced({
+      queryKey: ['assistant', 'profiles', 'of', user],
+      queryFn: ({ signal }) => listAssistantProfiles({ signal, user: unref(user) }),
+      enabled: () => Boolean(unref(user)),
       staleTime: 5000,
     });
   }

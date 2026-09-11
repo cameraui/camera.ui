@@ -3,6 +3,7 @@ export interface CuiAssistantComposerProps {
   disabled?: boolean;
   placeholder?: string;
   compact?: boolean;
+  visionMissing?: string;
 }
 
 export interface CuiAssistantComposerEmits {

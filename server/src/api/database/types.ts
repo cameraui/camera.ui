@@ -268,13 +268,36 @@ export interface DBAssistantMcpServer {
   insecure: boolean;
 }
 
-export interface DBAssistant {
-  enabled: boolean;
+export interface DBAssistantModelCapabilities {
+  toolCalling: boolean;
+  vision: boolean | null;
+  testedAt: number;
+  latencyMs: number;
+  error: string | null;
+}
+
+export interface DBAssistantModel {
+  readonly _id: string;
+  name: string;
   provider: DBAssistantProvider;
   baseURL: string | null;
   apiKey: DBAssistantSecret | null;
   model: string;
   sendImages: boolean;
+  userAccess: boolean;
+  capabilities: DBAssistantModelCapabilities | null;
+}
+
+export interface DBAssistantPluginAccess {
+  pluginId: string;
+  modelId: string;
+}
+
+export interface DBAssistant {
+  enabled: boolean;
+  models: DBAssistantModel[];
+  defaultModelId: string | null;
+  plugins: DBAssistantPluginAccess[];
   language: string | null;
   maxIterations: number;
   maxToolCalls: number;
@@ -300,6 +323,7 @@ export interface DBAssistantSchedule {
   cron: string;
   timezone: string;
   language?: string;
+  profileId?: string | null;
   deliver: DBAssistantScheduleDelivery;
   enabled: boolean;
   createdAt: number;
@@ -319,6 +343,8 @@ export interface DBAssistantMemoryFact {
 export interface DBAssistantUsageMonth {
   userId: string;
   month: string;
+  provider: DBAssistantProvider;
+  model: string;
   runs: number;
   promptTokens: number;
   completionTokens: number;
@@ -332,6 +358,7 @@ export interface DBAssistantProfile {
   readonly _id: string;
   userId: string;
   name: string;
+  modelId: string;
   disabledGroups: string[];
   instructions: string;
   createdAt: number;
@@ -355,7 +382,7 @@ export interface DBAssistantAttachmentReference {
 
 export interface DBAssistantCardItem {
   label: string;
-  value: string;
+  value?: string;
   note?: string;
   severity?: 'ok' | 'warn' | 'error' | 'info';
   share?: number;
@@ -371,11 +398,17 @@ export interface DBAssistantCard {
   footer?: string;
 }
 
+export interface DBAssistantAttachmentNotice {
+  capability: 'vision' | 'tools';
+  model: string;
+}
+
 export interface DBAssistantAttachment {
   images: DBAssistantAttachmentImage[];
   references: DBAssistantAttachmentReference[];
   cards?: DBAssistantCard[];
   settings?: string[];
+  notices?: DBAssistantAttachmentNotice[];
 }
 
 export interface DBAssistantStoredImage {
@@ -390,6 +423,7 @@ export interface DBAssistantAttachmentRecord {
   references: DBAssistantAttachmentReference[];
   cards?: DBAssistantCard[];
   settings?: string[];
+  notices?: DBAssistantAttachmentNotice[];
 }
 
 export interface DBAssistantThreadMeta {

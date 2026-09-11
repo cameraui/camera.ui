@@ -1,4 +1,5 @@
-import type { DBAssistant, DBAssistantReasoning } from '../api/database/types.js';
+import type { DBAssistantReasoning } from '../api/database/types.js';
+import type { AssistantSettings } from './types.js';
 
 type Level = Exclude<DBAssistantReasoning, 'default'>;
 
@@ -9,7 +10,7 @@ const ANTHROPIC_BUDGET_ONLY = /^claude-(?:opus-4(?:-[015])?|sonnet-4(?:-5)?|haik
 // families that accept the ollama think flag, everything else keeps its default
 const OLLAMA_THINKERS = /qwen3|deepseek-r1|gpt-oss|magistral|qwq|cogito|smollm3|glm|nemotron|phi4-reasoning|granite3\.[3-9]|granite4/i;
 
-export function modelOptionsFor(settings: Pick<DBAssistant, 'provider' | 'model' | 'reasoning'>): Record<string, unknown> | undefined {
+export function modelOptionsFor(settings: Pick<AssistantSettings, 'provider' | 'model' | 'reasoning'>): Record<string, unknown> | undefined {
   const level = settings.reasoning;
   if (level === 'default') return undefined;
   const model = settings.model.trim();

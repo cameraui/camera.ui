@@ -1,4 +1,4 @@
-import { Severity } from '@camera.ui/sdk';
+import { hasInterface, PluginInterface, Severity } from '@camera.ui/sdk';
 import { chat, chatParamsFromRequestBody, EventType, maxIterations, modelMessagesToUIMessages, toolDefinition, toServerSentEventsResponse } from '@tanstack/ai';
 import { clearToolResults, composeStrategies, evictOldest, withCompaction } from '@tanstack/ai-compaction';
 import { memoryMiddleware } from '@tanstack/ai-memory';
@@ -12,6 +12,7 @@ import * as zod from 'zod';
 import { CamerasService } from '../api/services/cameras.service.js';
 import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
+import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
 import { secretGuard } from './guard.js';
 import { ASK_USER_INTERRUPT } from './interrupts.js';
@@ -24,9 +25,9 @@ import { buildSystemPrompt } from './prompt.js';
 import { createAdapter, listModels, providerNeedsKey } from './providers.js';
 import { modelOptionsFor } from './reasoning.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
+import { withEmptyTurnRetry } from './retry.js';
 import { AssistantScheduler, PUSH_BODY_MAX } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
-import { skillsMiddleware } from './skills.js';
 import { AssistantThreadStore, contentParts } from './threads.js';
 import { isBrowserTool } from './tools/index.js';
 import { describeUploads, extractUploads, messagesForModel } from './uploads.js';
@@ -40,9 +41,12 @@ import type { Database } from '../api/database/index.js';
 import type {
   DBAssistant,
   DBAssistantAttachment,
+  DBAssistantAttachmentNotice,
   DBAssistantAttachmentReference,
   DBAssistantCard,
   DBAssistantMcpServer,
+  DBAssistantModel,
+  DBAssistantProfile,
   DBRoles,
   DBUser,
 } from '../api/database/types.js';
@@ -56,14 +60,17 @@ import type { AssistantQuestion } from './interrupts.js';
 import type { MemoryChange } from './memory.js';
 import type { ToolImage } from './tools/shared.js';
 import type {
+  AssistantAccess,
+  AssistantAskRequest,
+  AssistantAskResult,
   AssistantHydration,
   AssistantInfo,
   AssistantModelsResult,
-  AssistantPluginModel,
   AssistantPost,
   AssistantRunContext,
   AssistantRunStats,
   AssistantSearchResult,
+  AssistantSettings,
   AssistantStatus,
   AssistantTestResult,
   AssistantUsageEvent,
@@ -98,6 +105,10 @@ const CACHED_TOOLS = [
 ];
 
 const USAGE_EVENT = 'assistant.usage';
+const ASK_TIMEOUT_MS = 45_000;
+const ASK_TIMEOUT_MAX_MS = 300_000;
+const ASK_CONCURRENCY = 4;
+const EMPTY_TURN_LOG = 'Assistant: the model ended a turn without text or tool call, asking once more';
 const EXTRACT_TIMEOUT_MS = 30_000;
 const EXTRACT_MAX_CHARS = 1500;
 
@@ -129,8 +140,8 @@ export class AssistantManager {
   public readonly memory: AssistantMemoryStore;
 
   private mcp: AssistantMcp;
-  // finished runs stay listed as long as the durability log keeps them replayable
   private runs = new Map<string, { userId: string; threadId: string; abort: AbortController; finishedAt?: number }>();
+  private askSlots = new Map<string, { active: number; waiters: (() => void)[] }>();
   private memoryAdapter: MemoryAdapter;
   private memoryMiddleware: ChatMiddleware;
   private logger: LoggerService;
@@ -148,7 +159,7 @@ export class AssistantManager {
     this.profiles = new AssistantProfileStore();
     this.usage = new AssistantUsageStore();
     this.memory = new AssistantMemoryStore();
-    this.memoryAdapter = memoryAdapter(this.memory, (turn, existing) => this.extractFacts(turn, existing), this.logger);
+    this.memoryAdapter = memoryAdapter(this.memory, (userId, turn, existing) => this.extractFacts(userId, turn, existing), this.logger);
     this.memoryMiddleware = memoryMiddleware({
       adapter: this.memoryAdapter,
       scope: (ctx) => ({ threadId: ctx.threadId, userId: (ctx.context as AssistantRunContext).userId }),
@@ -172,9 +183,12 @@ export class AssistantManager {
     await this.registry.stop();
   }
 
-  public settings(): DBAssistant {
-    return Object.assign(
+  public settings(): AssistantSettings {
+    const record: DBAssistant = Object.assign(
       {
+        models: [],
+        defaultModelId: null,
+        plugins: [],
         mcpEnabled: false,
         mcpWrites: false,
         reasoning: 'default' as const,
@@ -187,27 +201,57 @@ export class AssistantManager {
       },
       this.dbs.assistantDB.get('assistant')!,
     );
+    const entry = defaultEntry(record);
+    return {
+      ...record,
+      provider: entry?.provider ?? 'ollama',
+      baseURL: entry?.baseURL ?? null,
+      apiKey: entry?.apiKey ?? null,
+      model: entry?.model ?? '',
+      sendImages: entry ? sendsImages(entry) : false,
+    };
   }
 
-  public status(): AssistantStatus {
+  public resolveModel(user: Pick<DBUser, '_id' | 'role'>, pick: { modelId?: string; profileId?: string } = {}): DBAssistantModel | undefined {
     const settings = this.settings();
-    const configured = settings.model.trim().length > 0 && (!providerNeedsKey(settings.provider) || settings.apiKey !== null);
+    const models = modelsFor(settings.models, user.role);
+    const profile = pick.profileId ? this.profiles.get(user._id, pick.profileId) : undefined;
+    return (
+      models.find((entry) => entry._id === pick.modelId) ??
+      models.find((entry) => entry._id === profile?.modelId) ??
+      models.find((entry) => entry._id === defaultEntry(settings)?._id) ??
+      models[0]
+    );
+  }
+
+  public defaultModel(): DBAssistantModel | undefined {
+    return defaultEntry(this.settings());
+  }
+
+  public status(role?: DBRoles): AssistantStatus {
+    const settings = this.settings();
+    const entry = defaultEntry({ models: modelsFor(settings.models, role), defaultModelId: settings.defaultModelId });
+    const configured = entry !== undefined && entryConfigured(entry);
     return {
       state: !settings.enabled ? 'disabled' : configured ? 'ready' : 'unconfigured',
-      provider: settings.provider,
-      model: settings.model,
+      provider: entry?.provider ?? settings.provider,
+      model: entry?.model ?? '',
       toolCount: this.registry.toolCount,
       pluginToolCount: this.registry.pluginToolCount,
     };
   }
 
   public info(role?: DBRoles): AssistantInfo {
-    const { apiKey, mcpServers, ...settings } = this.settings();
+    const { apiKey: _apiKey, provider: _provider, baseURL: _baseURL, model: _model, sendImages: _sendImages, mcpServers, models, ...settings } = this.settings();
     const servers = mcpServers.map(({ token, ...server }) => ({ ...server, tokenSet: token !== null }));
+    const views = modelsFor(models, role).map(({ apiKey, ...entry }) => ({ ...entry, apiKeySet: apiKey !== null }));
     return {
-      settings: { ...settings, mcpServers: servers },
-      apiKeySet: apiKey !== null,
-      status: this.status(),
+      settings: { ...settings, mcpServers: servers, models: views },
+      status: this.status(role),
+      plugins: new PluginsService()
+        .listPlugins()
+        .filter((plugin) => hasInterface(plugin.contract, PluginInterface.AssistantTools))
+        .map((plugin) => ({ id: plugin.id, name: plugin.displayName })),
       tools: this.registry.describe(role).filter((tool) => settings.terminalEnabled ?? tool.group !== TERMINAL_GROUP),
       external: this.registry.externalStatus(this.externalServers(this.settings())),
     };
@@ -327,28 +371,77 @@ export class AssistantManager {
     await this.memory.removeAll(userId);
   }
 
-  public pluginModel(): AssistantPluginModel {
-    const settings = this.settings();
-    const model = settings.model.trim();
-    const configured = model.length > 0 && (!providerNeedsKey(settings.provider) || settings.apiKey !== null);
-    return { provider: settings.provider, baseURL: settings.baseURL, apiKey: this.decryptKey(settings) ?? null, model, configured };
+  public access(pluginId: string): AssistantAccess {
+    const entry = this.pluginModel(pluginId);
+    return { allowed: entry !== undefined, model: entry?.model ?? null, vision: entry?.capabilities?.vision ?? null, language: this.settings().language };
   }
 
-  public encryptKey(apiKey: string): DBAssistant['apiKey'] {
+  public async ask(request: AssistantAskRequest): Promise<AssistantAskResult> {
+    const settings = this.settings();
+    const entry = this.pluginModel(request.pluginId);
+    if (!entry) return { ok: false, reason: 'not_allowed', message: `Plugin ${request.pluginId} may not use the assistant model, allow it under Settings, Assistant` };
+    if (!settings.enabled || !entryConfigured(entry)) return { ok: false, reason: 'unconfigured', message: 'The assistant model is not configured' };
+
+    const release = await this.askSlot(request.pluginId);
+    const timeoutMs = Math.min(Math.max(request.timeoutMs ?? ASK_TIMEOUT_MS, 1000), ASK_TIMEOUT_MAX_MS);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), timeoutMs);
+    const stats = newStats();
+    const model = this.modelSettings(settings, entry);
+
+    const images =
+      entry.capabilities?.vision !== false
+        ? (request.images ?? []).map((img) => ({ type: 'image', source: { type: 'data', value: Buffer.from(img.data).toString('base64'), mimeType: img.mimeType } }))
+        : [];
+
+    const base = {
+      adapter: createAdapter(model, this.decryptKey(entry)),
+      systemPrompts: request.system ? [request.system] : [],
+      messages: [{ role: 'user', content: [{ type: 'text', content: request.prompt }, ...images] }],
+      modelOptions: modelOptionsFor(model) as never,
+      middleware: [countUsage(stats)],
+      abortController: abort,
+    };
+
+    try {
+      if (request.outputSchema) {
+        const json = await (chat({ ...base, outputSchema: request.outputSchema } as never) as unknown as Promise<unknown>);
+        return { ok: true, text: JSON.stringify(json), json, usage: { promptTokens: stats.promptTokens, completionTokens: stats.completionTokens } };
+      }
+
+      let text = '';
+      for await (const chunk of chat({ ...base, agentLoopStrategy: maxIterations(1) } as never) as AsyncIterable<StreamChunk>) {
+        if (chunk.type === EventType.TEXT_MESSAGE_CONTENT) text += chunk.delta ?? '';
+        else if (chunk.type === EventType.RUN_ERROR) throw new Error(chunk.message);
+      }
+
+      return { ok: true, text: text.trim(), usage: { promptTokens: stats.promptTokens, completionTokens: stats.completionTokens } };
+    } catch (error: unknown) {
+      return { ok: false, reason: abort.signal.aborted ? 'timeout' : 'error', message: describeError(error) };
+    } finally {
+      clearTimeout(timer);
+      release();
+      this.usage
+        .record(`plugin:${request.pluginId}`, usageEvent(model, stats))
+        .catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+    }
+  }
+
+  public encryptKey(apiKey: string): DBAssistantModel['apiKey'] {
     return encryptPassword(apiKey, this.configService.SECRETS.jwtAccessKey);
   }
 
-  public async test(settings: DBAssistant, rawKey?: string | null): Promise<AssistantTestResult> {
+  public async test(entry: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'model' | 'apiKey'>, rawKey?: string | null): Promise<AssistantTestResult> {
     const started = Date.now();
-    const model = settings.model.trim();
+    const model = entry.model.trim();
     if (!model) return { ok: false, toolCalling: false, vision: null, latencyMs: 0, model, error: 'No model configured' };
 
-    const apiKey = rawKey ?? this.decryptKey(settings);
-    if (providerNeedsKey(settings.provider) && !apiKey) {
+    const apiKey = rawKey ?? this.decryptKey(entry);
+    if (providerNeedsKey(entry.provider) && !apiKey) {
       return { ok: false, toolCalling: false, vision: null, latencyMs: 0, model, error: 'This provider needs an API key' };
     }
 
-    const adapter = createAdapter({ ...settings, model }, apiKey);
+    const adapter = createAdapter({ ...entry, model }, apiKey);
     let toolCalled = false;
     const probe = toolDefinition({
       name: 'assistant_probe',
@@ -379,37 +472,36 @@ export class AssistantManager {
     }
 
     let vision: boolean | null = null;
-    if (settings.sendImages) {
-      try {
-        await this.drain(
-          chat({
-            adapter,
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  { type: 'text', content: 'Answer with one word: what color is this image?' },
-                  { type: 'image', source: { type: 'data', value: PROBE_IMAGE, mimeType: 'image/png' } },
-                ],
-              },
-            ],
-            agentLoopStrategy: maxIterations(1),
-            abortController: abort,
-          }),
-        );
-        vision = true;
-      } catch {
-        vision = false;
-      }
+
+    try {
+      await this.drain(
+        chat({
+          adapter,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', content: 'Answer with one word: what color is this image?' },
+                { type: 'image', source: { type: 'data', value: PROBE_IMAGE, mimeType: 'image/png' } },
+              ],
+            },
+          ],
+          agentLoopStrategy: maxIterations(1),
+          abortController: abort,
+        }),
+      );
+      vision = true;
+    } catch {
+      vision = false;
     }
 
     clearTimeout(timer);
     return { ok: true, toolCalling: toolCalled, vision, latencyMs: Date.now() - started, model };
   }
 
-  public async models(settings: DBAssistant, rawKey?: string | null): Promise<AssistantModelsResult> {
+  public async models(entry: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'apiKey'>, rawKey?: string | null): Promise<AssistantModelsResult> {
     try {
-      const models = await listModels(settings, rawKey ?? this.decryptKey(settings));
+      const models = await listModels(entry, rawKey ?? this.decryptKey(entry));
       return { models: Array.from(new Set(models)).sort((a, b) => a.localeCompare(b)) };
     } catch (error: any) {
       return { models: [], error: describeError(error) };
@@ -419,34 +511,38 @@ export class AssistantManager {
   public async run(request: AssistantRunRequest): Promise<Response> {
     const settings = this.settings();
     if (!settings.enabled) throw new Error('The assistant is disabled');
-    if (this.status().state !== 'ready') throw new Error('The assistant is not configured');
+    if (this.status(request.user.role).state !== 'ready') throw new Error('The assistant is not configured');
 
     const params = await chatParamsFromRequestBody(request.body);
     const forwarded = (params as { forwardedProps?: Record<string, unknown> }).forwardedProps ?? {};
+    const entry = this.resolveModel(request.user, { modelId: pickString(forwarded.modelId), profileId: pickString(forwarded.profileId) })!;
+    const model = this.modelSettings(settings, entry);
     const ctx: AssistantRunContext = {
       userId: request.user._id,
       role: request.user.role,
       language: pickString(forwarded.language) ?? request.language ?? settings.language ?? request.user.preferences?.language ?? 'en',
       timezone: pickString(forwarded.timezone) ?? request.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-      sendImages: settings.sendImages,
+      sendImages: model.sendImages,
       authorization: request.authorization,
+      visionMissing: entry.capabilities?.vision === false ? entry.name : undefined,
     };
     if (ctx.language === 'auto') ctx.language = 'en';
     ctx.uploads = extractUploads(params.messages);
     ctx.instructions = pickString(forwarded.instructions)?.slice(0, 2000);
     ctx.answers = new Map();
+    ctx.calledTools = [];
 
-    const adapter = createAdapter(settings, this.decryptKey(settings));
+    const adapter = withEmptyTurnRetry(createAdapter(model, this.decryptKey(entry)), () => this.logger.debug(EMPTY_TURN_LOG));
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
-    const tools = this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
+    const tools = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
     const abortController = new AbortController();
     request.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
     const stats = newStats();
-    warmPrices(settings.provider);
+    warmPrices(model.provider);
     const runId = params.runId ?? randomUUID();
     this.runs.set(runId, { userId: ctx.userId, threadId: thread._id, abort: abortController });
 
@@ -460,12 +556,12 @@ export class AssistantManager {
       tools,
       interrupts: [ASK_USER_INTERRUPT],
       context: ctx,
-      systemPrompts: [...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(request.user)), settings.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(
+      systemPrompts: [...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(request.user)), model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(
         Boolean,
       ),
       agentLoopStrategy: maxIterations(settings.maxIterations + 1),
       lazyToolsConfig: { includeDescription: 'first-sentence' },
-      modelOptions: modelOptionsFor(settings) as never,
+      modelOptions: modelOptionsFor(model) as never,
       middleware: [
         withPersistence(lmdbPersistence(this.dbs, this.threads, ctx.userId)),
         settings.memoryEnabled ? this.memoryMiddleware : NO_MIDDLEWARE,
@@ -473,8 +569,7 @@ export class AssistantManager {
           maxTokens: settings.contextTokens,
           strategy: composeStrategies(clearToolResults({ keepRecentToolResults: 6 }), evictOldest({ keepRecentTokens: Math.floor(settings.contextTokens / 2) })),
         }),
-        skillsMiddleware(),
-        this.runMiddleware(settings, ctx, thread._id, params.messages, stats),
+        this.runMiddleware(model, ctx, thread._id, params.messages, stats),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
         secretGuard(this.logger),
       ],
@@ -488,7 +583,7 @@ export class AssistantManager {
       ctx.userId,
       thread._id,
       () => {
-        const event = usageEvent(settings, stats);
+        const event = usageEvent(model, stats);
         this.usage.record(ctx.userId, event).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
         return event;
       },
@@ -517,25 +612,32 @@ export class AssistantManager {
   public async runPrompt(
     user: DBUser,
     prompt: string,
-    opts: { timezone?: string; language?: string; image?: ToolImage; instructions?: string },
+    opts: { timezone?: string; language?: string; image?: ToolImage; instructions?: string; profile?: DBAssistantProfile },
   ): Promise<{ text: string; image?: ToolImage; attachments: Record<string, DBAssistantAttachment> }> {
     const settings = this.settings();
-    if (!settings.enabled || this.status().state !== 'ready') throw new Error('The assistant is not ready');
+    if (!settings.enabled || this.status(user.role).state !== 'ready') throw new Error('The assistant is not ready');
+    const entry = this.resolveModel(user, { profileId: opts.profile?._id })!;
+    const model = this.modelSettings(settings, entry);
 
     const ctx: AssistantRunContext = {
       userId: user._id,
       role: user.role,
       language: opts.language ?? settings.language ?? preferredLanguage(user) ?? 'en',
       timezone: opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-      sendImages: settings.sendImages,
+      sendImages: model.sendImages,
     };
 
-    const tools = this.registry.toolsFor(ctx.role).filter((tool) => !tool.needsApproval && !isBrowserTool(tool));
+    const disabledGroups = new Set(opts.profile?.disabledGroups ?? []);
+    const tools =
+      entry.capabilities?.toolCalling === false
+        ? []
+        : this.registry.toolsFor(ctx.role).filter((tool) => !tool.needsApproval && !isBrowserTool(tool) && !disabledGroups.has(toolGroup(tool)));
     const systemPrompts = [
-      ...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(user)), settings.provider),
+      ...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(user)), model.provider),
       // prettier-ignore
       'This run is scheduled and unattended: nobody reads along and nobody can confirm anything. ' +
       'Answer completely in one go, as a report the user reads later on the phone. No questions back, no markdown headings.',
+      ...(opts.profile?.instructions.trim() ? [opts.profile.instructions.trim()] : []),
       ...(opts.instructions ? [opts.instructions] : []),
     ];
     const parts =
@@ -554,14 +656,14 @@ export class AssistantManager {
 
     try {
       const stream = chat({
-        adapter: createAdapter(settings, this.decryptKey(settings)),
+        adapter: withEmptyTurnRetry(createAdapter(model, this.decryptKey(entry)), () => this.logger.debug(EMPTY_TURN_LOG)),
         messages: [{ id: `${Date.now()}-user`, role: 'user', parts: parts as never }],
         tools,
         context: ctx,
         systemPrompts,
         agentLoopStrategy: maxIterations(settings.maxIterations),
-        modelOptions: modelOptionsFor(settings) as never,
-        middleware: [skillsMiddleware(), countUsage(stats)],
+        modelOptions: modelOptionsFor(model) as never,
+        middleware: [countUsage(stats)],
         abortController,
       });
 
@@ -572,7 +674,7 @@ export class AssistantManager {
       }
     } finally {
       clearTimeout(timer);
-      this.usage.record(user._id, usageEvent(settings, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+      this.usage.record(user._id, usageEvent(model, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
     }
 
     const image = Object.values(attachments).flatMap((entry) => entry.images)[0];
@@ -581,7 +683,9 @@ export class AssistantManager {
 
   public async search(user: DBUser, text: string, opts: { language?: string; timezone?: string }): Promise<AssistantSearchResult> {
     const settings = this.settings();
-    if (!settings.enabled || this.status().state !== 'ready') throw new Error('The assistant is not ready');
+    if (!settings.enabled || this.status(user.role).state !== 'ready') throw new Error('The assistant is not ready');
+    const entry = this.resolveModel(user)!;
+    const model = this.modelSettings(settings, entry);
 
     const rooms = new RoomsService();
     const cameras = new CamerasService().list().map((camera) => ({ id: camera._id, name: camera.name, room: rooms.label(camera.roomId) ?? camera.room ?? undefined }));
@@ -597,7 +701,7 @@ export class AssistantManager {
     const stats = newStats();
     try {
       const output = await chat({
-        adapter: createAdapter(settings, this.decryptKey(settings)),
+        adapter: createAdapter(model, this.decryptKey(entry)),
         systemPrompts: [searchPrompt(cameras, ctx.language === 'auto' ? 'en' : ctx.language, ctx.timezone)],
         messages: [{ role: 'user', content: text }],
         outputSchema: SEARCH_SCHEMA,
@@ -608,12 +712,12 @@ export class AssistantManager {
       return toSearchResult(output, cameras);
     } finally {
       clearTimeout(timer);
-      this.usage.record(user._id, usageEvent(settings, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+      this.usage.record(user._id, usageEvent(model, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
     }
   }
 
   private runMiddleware(
-    settings: DBAssistant,
+    settings: AssistantSettings,
     runCtx: AssistantRunContext,
     threadId: string,
     incoming: (UIMessage | ModelMessage)[],
@@ -657,6 +761,7 @@ export class AssistantManager {
         return undefined;
       },
       onAfterToolCall: (_ctx, info) => {
+        runCtx.calledTools?.push(info.toolName);
         log.debug(`Assistant tool ${info.toolName} ${info.ok ? 'ok' : 'failed'} in ${info.duration}ms`);
       },
       onUsage: countUsage(stats).onUsage,
@@ -677,19 +782,21 @@ export class AssistantManager {
     };
   }
 
-  private async extractFacts(turn: MemoryTurn, existing: string[]): Promise<MemoryChange> {
-    const settings = this.settings();
+  private async extractFacts(userId: string, turn: MemoryTurn, existing: string[]): Promise<MemoryChange> {
+    const entry = this.resolveModel({ _id: userId, role: new UsersService().findById(userId)?.role ?? 'user' });
+    if (!entry) return { add: [], remove: [] };
+    const model = this.modelSettings(this.settings(), entry);
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), EXTRACT_TIMEOUT_MS);
     let text = '';
     try {
       const stream = chat({
-        adapter: createAdapter(settings, this.decryptKey(settings)),
+        adapter: createAdapter(model, this.decryptKey(entry)),
         systemPrompts: [EXTRACT_PROMPT],
         messages: [
           {
             role: 'user',
-            content: JSON.stringify({ existing, user: turn.user.slice(0, EXTRACT_MAX_CHARS), assistant: turn.assistant.slice(0, EXTRACT_MAX_CHARS) }),
+            content: JSON.stringify({ existing, user: turn.user.slice(0, EXTRACT_MAX_CHARS) }),
           },
         ],
         agentLoopStrategy: maxIterations(1),
@@ -785,10 +892,39 @@ export class AssistantManager {
     }
   }
 
-  private decryptKey(settings: DBAssistant): string | null {
-    if (!settings.apiKey) return null;
+  private pluginModel(pluginId: string): DBAssistantModel | undefined {
+    const settings = this.settings();
+    const access = settings.plugins.find((row) => row.pluginId === pluginId);
+    return access ? (settings.models.find((entry) => entry._id === access.modelId) ?? defaultEntry(settings)) : undefined;
+  }
+
+  private modelSettings(settings: AssistantSettings, entry: DBAssistantModel): AssistantSettings {
+    return { ...settings, provider: entry.provider, baseURL: entry.baseURL, apiKey: entry.apiKey, model: entry.model, sendImages: sendsImages(entry) };
+  }
+
+  private askSlot(pluginId: string): Promise<() => void> {
+    const slot = this.askSlots.get(pluginId) ?? { active: 0, waiters: [] };
+    this.askSlots.set(pluginId, slot);
+    const release = (): void => {
+      slot.active -= 1;
+      slot.waiters.shift()?.();
+    };
+    if (slot.active < ASK_CONCURRENCY) {
+      slot.active += 1;
+      return Promise.resolve(release);
+    }
+    return new Promise((resolve) => {
+      slot.waiters.push(() => {
+        slot.active += 1;
+        resolve(release);
+      });
+    });
+  }
+
+  private decryptKey(entry: Pick<DBAssistantModel, 'apiKey'>): string | null {
+    if (!entry.apiKey) return null;
     try {
-      return decryptPassword(settings.apiKey.encrypted, settings.apiKey.iv, this.configService.SECRETS.jwtAccessKey);
+      return decryptPassword(entry.apiKey.encrypted, entry.apiKey.iv, this.configService.SECRETS.jwtAccessKey);
     } catch {
       this.logger.warn('Assistant: stored API key cannot be decrypted, enter it again');
       return null;
@@ -845,7 +981,7 @@ function newStats(): AssistantRunStats {
   return { startedAt: Date.now(), promptTokens: 0, completionTokens: 0, cachedTokens: 0, reasoningTokens: 0, iterations: 0, toolCalls: 0 };
 }
 
-function usageEvent(settings: DBAssistant, stats: AssistantRunStats): AssistantUsageEvent {
+function usageEvent(settings: Pick<AssistantSettings, 'provider' | 'model'>, stats: AssistantRunStats): AssistantUsageEvent {
   const { startedAt, ...totals } = stats;
   return {
     ...totals,
@@ -869,6 +1005,8 @@ function collectAttachment(chunk: StreamChunk, attachments: Record<string, DBAss
     const entry = (attachments[key] ??= { images: [], references: [] });
     if (chunk.name === 'assistant.setting' && typeof (value as { setting?: unknown }).setting === 'string') {
       (entry.settings ??= []).push((value as { setting: string }).setting);
+    } else if (chunk.name === 'assistant.notice' && typeof (value as { notice?: { model?: unknown } }).notice?.model === 'string') {
+      (entry.notices ??= []).push((value as { notice: DBAssistantAttachmentNotice }).notice);
     } else if (chunk.name === 'assistant.card' && value && typeof (value as { card?: unknown }).card === 'object') {
       (entry.cards ??= []).push((value as { card: DBAssistantCard }).card);
     } else if (chunk.name === 'assistant.image' && typeof value.data === 'string') {
@@ -915,6 +1053,22 @@ function cachedPrompts(prompts: string[], provider: string): SystemPrompt<never>
   if (provider !== 'anthropic') return prompts;
   const [first, ...rest] = prompts;
   return [{ content: first, metadata: { cache_control: { type: 'ephemeral' } } } as unknown as SystemPrompt<never>, ...rest];
+}
+
+function modelsFor(models: DBAssistantModel[], role?: DBRoles): DBAssistantModel[] {
+  return role === 'user' ? models.filter((entry) => entry.userAccess !== false) : models;
+}
+
+function defaultEntry(record: Pick<DBAssistant, 'models' | 'defaultModelId'>): DBAssistantModel | undefined {
+  return record.models.find((entry) => entry._id === record.defaultModelId) ?? record.models[0];
+}
+
+function entryConfigured(entry: DBAssistantModel): boolean {
+  return entry.model.trim().length > 0 && (!providerNeedsKey(entry.provider) || entry.apiKey !== null);
+}
+
+function sendsImages(entry: DBAssistantModel): boolean {
+  return entry.sendImages && entry.capabilities?.vision !== false;
 }
 
 function pickString(value: unknown): string | undefined {

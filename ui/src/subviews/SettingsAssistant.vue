@@ -30,56 +30,133 @@
                   <label for="enabled" class="cui-label-switch">{{ $t('components.form.label.enabled') }}</label>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ $t('views.settings.assistant_enabled_info') }}</Message>
                 </div>
-                <ToggleSwitch v-model="form.enabled" class="ml-auto shrink-0" />
-              </div>
-
-              <div class="flex flex-col field-gap">
-                <label for="provider" class="cui-label">{{ $t('views.settings.assistant_provider_label') }}</label>
-                <Select v-model="form.provider" :options="providerOptions" option-label="label" option-value="value" @change="onProviderChange" fluid />
-                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ providerHint }}</Message>
-              </div>
-
-              <div v-if="showBaseUrl" class="flex flex-col field-gap">
-                <label for="baseURL" class="cui-label">{{ $t('views.settings.assistant_base_url_label') }}</label>
-                <InputText v-model.trim="form.baseURL" type="text" :placeholder="baseUrlPlaceholder" class="w-full" autocomplete="off" />
-              </div>
-
-              <div v-if="needsKey || form.provider === 'openai-compatible'" class="flex flex-col field-gap">
-                <label for="apiKey" class="cui-label">{{ $t('views.settings.assistant_api_key_label') }}</label>
-                <Password v-model="apiKeyInput" :feedback="false" toggle-mask fluid autocomplete="new-password" :placeholder="apiKeySet ? '••••••••' : ''" />
-                <Message v-if="apiKeySet" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                  $t('views.settings.assistant_api_key_keep_hint')
-                }}</Message>
-                <Message v-else-if="!needsKey" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                  $t('views.settings.assistant_api_key_optional')
-                }}</Message>
-              </div>
-
-              <div class="flex flex-col field-gap">
-                <label for="model" class="cui-label">{{ $t('views.settings.assistant_model_label') }}</label>
-                <AutoComplete
-                  v-model="form.model"
-                  :suggestions="modelSuggestions"
-                  :loading="modelsMutation.isPending.value"
-                  dropdown
-                  fluid
-                  :placeholder="$t('views.settings.assistant_model_placeholder')"
-                  @complete="onModelSearch"
-                  @dropdown-click="loadModels"
+                <ToggleSwitch
+                  :model-value="info?.settings.enabled ?? false"
+                  input-id="enabled"
+                  :disabled="patchMutation.isPending.value"
+                  class="ml-auto shrink-0"
+                  @update:model-value="(value) => patchMutation.mutate({ enabled: value })"
                 />
-                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_model_info') }}</Message>
               </div>
 
-              <div class="flex items-center gap-3">
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_models_info') }}</Message>
+
+              <div v-if="models.length" class="flex flex-col divide-y divide-(--border-color)">
+                <div v-for="entry in models" :key="entry._id" class="flex items-start gap-3 py-3 text-sm">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium text-color">{{ entry.name }}</span>
+                      <Tag v-if="entry._id === defaultEntry?._id" severity="info" :value="$t('views.settings.assistant_model_default')" class="text-[10px]" />
+                      <Tag v-if="entry.userAccess === false" severity="secondary" :value="$t('views.settings.assistant_model_admins_only')" class="text-[10px]" />
+                      <Tag
+                        v-for="tag in capabilityTags(entry)"
+                        :key="tag.key"
+                        :severity="tag.severity"
+                        :value="$t(`views.settings.assistant_capability_${tag.key}`)"
+                        class="text-[10px]"
+                      />
+                    </div>
+                    <div class="mt-0.5 truncate text-muted">{{ providerLabel(entry.provider) }} · {{ entry.model }}</div>
+                    <div v-if="entry.capabilities?.error" class="mt-1 text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-1">
+                    <Button
+                      v-if="entry._id !== defaultEntry?._id"
+                      v-tooltip.top="{ value: $t('views.settings.assistant_model_make_default') }"
+                      type="button"
+                      severity="secondary"
+                      text
+                      rounded
+                      class="cui-icon-md"
+                      :disabled="patchMutation.isPending.value"
+                      @click="makeDefault(entry)"
+                    >
+                      <template #icon>
+                        <i-mdi:star-outline width="100%" height="100%" />
+                      </template>
+                    </Button>
+                    <Button
+                      v-tooltip.top="{ value: $t('views.settings.assistant_model_edit') }"
+                      type="button"
+                      severity="secondary"
+                      text
+                      rounded
+                      class="cui-icon-md"
+                      @click="openModelDialog(entry)"
+                    >
+                      <template #icon>
+                        <i-mdi:pencil-outline width="100%" height="100%" />
+                      </template>
+                    </Button>
+                    <Button
+                      v-tooltip.top="{ value: $t('views.settings.assistant_model_delete') }"
+                      type="button"
+                      severity="danger"
+                      text
+                      rounded
+                      class="cui-icon-md"
+                      @click="confirmDeleteModel(entry)"
+                    >
+                      <template #icon>
+                        <i-mdi:delete-outline width="100%" height="100%" />
+                      </template>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-sm text-muted">{{ $t('views.settings.assistant_models_empty') }}</div>
+
+              <div class="flex">
                 <Button
                   type="button"
                   severity="secondary"
-                  :loading="testMutation.isPending.value"
-                  :disabled="!form.model"
-                  class="cui-button-medium"
-                  :label="$t('views.settings.assistant_test')"
-                  @click="onTest"
-                />
+                  outlined
+                  class="cui-button-medium ml-auto"
+                  :label="$t('views.settings.assistant_model_add')"
+                  :disabled="models.length >= 20"
+                  @click="openModelDialog()"
+                >
+                  <template #icon>
+                    <i-mdi:plus class="w-4 h-4" />
+                  </template>
+                </Button>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div>
+        <span class="card-title">{{ $t('views.settings.assistant_plugins') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_plugins_info') }}</Message>
+
+              <div v-if="info?.plugins.length" class="flex flex-col divide-y divide-(--border-color)">
+                <div v-for="plugin in info.plugins" :key="plugin.id" class="flex flex-col gap-2 py-3 text-sm md:flex-row md:items-center md:gap-4">
+                  <div class="flex min-w-0 items-center gap-2 md:w-48 md:shrink-0">
+                    <span class="truncate font-medium text-color">{{ plugin.name }}</span>
+                    <Tag
+                      v-if="pluginModel(plugin.id)?.capabilities?.vision === false"
+                      severity="warn"
+                      :value="$t('views.settings.assistant_capability_no_vision')"
+                      class="shrink-0 text-[10px]"
+                    />
+                  </div>
+                  <Select
+                    :model-value="pluginChoice(plugin.id)"
+                    :options="pluginOptions"
+                    option-label="label"
+                    option-value="value"
+                    class="w-full md:min-w-0 md:flex-1"
+                    @update:model-value="(value) => setPluginChoice(plugin.id, value)"
+                  />
+                </div>
+              </div>
+              <div v-else class="text-sm text-muted">{{ $t('views.settings.assistant_plugins_empty') }}</div>
+
+              <div class="flex">
                 <Button
                   type="button"
                   :loading="patchMutation.isPending.value"
@@ -88,25 +165,6 @@
                   @click="onSave"
                 />
               </div>
-
-              <Message
-                v-if="testResult"
-                :severity="testResult.ok ? (testResult.toolCalling ? 'success' : 'warn') : 'error'"
-                variant="outlined"
-                size="small"
-                :closable="false"
-              >
-                <div class="flex flex-col gap-1 text-sm">
-                  <span v-if="!testResult.ok">{{ $t('views.settings.assistant_test_failed', { message: testResult.error ?? '' }) }}</span>
-                  <template v-else>
-                    <span>{{ $t('views.settings.assistant_test_ok', { model: testResult.model, ms: testResult.latencyMs }) }}</span>
-                    <span>{{ testResult.toolCalling ? $t('views.settings.assistant_test_tools_ok') : $t('views.settings.assistant_test_tools_missing') }}</span>
-                    <span v-if="testResult.vision !== null">{{
-                      testResult.vision ? $t('views.settings.assistant_test_vision_ok') : $t('views.settings.assistant_test_vision_missing')
-                    }}</span>
-                  </template>
-                </div>
-              </Message>
             </div>
           </template>
         </Card>
@@ -117,16 +175,6 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <div class="flex items-center gap-4 cui-toggle-switch">
-                <div class="flex flex-col field-switch-gap">
-                  <label for="sendImages" class="cui-label-switch">{{ $t('views.settings.assistant_send_images') }}</label>
-                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{
-                    $t('views.settings.assistant_send_images_info')
-                  }}</Message>
-                </div>
-                <ToggleSwitch v-model="form.sendImages" class="ml-auto shrink-0" />
-              </div>
-
               <div class="flex items-center gap-4 cui-toggle-switch">
                 <div class="flex flex-col field-switch-gap">
                   <label for="memoryEnabled" class="cui-label-switch">{{ $t('views.settings.assistant_memory') }}</label>
@@ -193,14 +241,20 @@
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_extra_prompt_info') }}</Message>
               </div>
 
-              <div class="flex">
+              <div class="flex items-center gap-2">
                 <Button
                   type="button"
-                  :loading="patchMutation.isPending.value"
+                  severity="secondary"
+                  outlined
                   class="cui-button-medium ml-auto"
-                  :label="$t('components.form.button.save')"
-                  @click="onSave"
-                />
+                  :label="$t('components.form.button.reset_defaults')"
+                  @click="resetBehavior"
+                >
+                  <template #icon>
+                    <i-mdi:restore class="w-4 h-4" />
+                  </template>
+                </Button>
+                <Button type="button" :loading="patchMutation.isPending.value" class="cui-button-medium" :label="$t('components.form.button.save')" @click="onSave" />
               </div>
             </div>
           </template>
@@ -390,6 +444,12 @@
                         :value="$t(`views.settings.assistant_schedule_deliver_${schedule.deliver}`)"
                         class="text-[10px]"
                       />
+                      <Tag
+                        v-if="schedule.profileId"
+                        :severity="profileName(schedule.profileId) ? 'secondary' : 'warn'"
+                        :value="profileName(schedule.profileId) ?? $t('views.settings.assistant_schedule_profile_missing')"
+                        class="text-[10px]"
+                      />
                     </div>
                     <div class="mt-0.5 text-muted line-clamp-2">{{ schedule.prompt }}</div>
                     <div class="mt-1 text-xs text-muted">
@@ -448,6 +508,20 @@
                   <Textarea v-model="scheduleForm.prompt" rows="2" auto-resize :placeholder="$t('views.settings.assistant_schedule_prompt_placeholder')" />
                 </div>
 
+                <div v-if="profiles?.length" class="flex flex-col field-gap">
+                  <label for="scheduleProfile" class="cui-label">{{ $t('views.settings.assistant_schedule_profile_label') }}</label>
+                  <Select
+                    v-model="scheduleForm.profileId"
+                    input-id="scheduleProfile"
+                    :options="profiles"
+                    option-label="name"
+                    option-value="_id"
+                    show-clear
+                    fluid
+                    :placeholder="$t('views.settings.assistant_schedule_profile_none')"
+                  />
+                </div>
+
                 <div class="flex flex-col md:flex-row gap-6">
                   <div class="flex flex-col field-gap flex-1">
                     <label for="schedulePreset" class="cui-label">{{ $t('views.settings.assistant_schedule_when_label') }}</label>
@@ -495,7 +569,12 @@
                 <Column field="month" :header="$t('views.settings.assistant_usage_month')" header-class="p-2" class="p-2 tabular-nums" />
                 <Column field="username" :header="$t('views.settings.assistant_usage_user')" header-class="p-2" class="p-2">
                   <template #body="{ data }">
-                    <span class="truncate">{{ data.username ?? data.userId }}</span>
+                    <span class="truncate">{{ data.pluginName ?? data.username ?? data.userId }}</span>
+                  </template>
+                </Column>
+                <Column field="model" :header="$t('views.settings.assistant_usage_model')" header-class="p-2" class="p-2">
+                  <template #body="{ data }">
+                    <span class="truncate">{{ usageModelLabel(data) }}</span>
                   </template>
                 </Column>
                 <Column field="runs" :header="$t('views.settings.assistant_usage_runs')" header-class="p-2" class="p-2 text-right tabular-nums" :pt="NUMERIC_COLUMN_PT" />
@@ -571,23 +650,40 @@ import CopyIcon from '~icons/mdi/content-copy';
 
 import { axiosInstance } from '@/api/index.js';
 import { AssistantQuery } from '@/api/routes/assistant.js';
+import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@/common/assistantModels.js';
 import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
+import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
 
+import type { AssistantModelFormProps } from '@/components/CuiDialog/templates/AssistantModel/types.js';
 import type { PassThrough } from '@primevue/core';
 import type {
+  AssistantInfo,
   AssistantMaskedSettings,
-  AssistantTestResult,
+  AssistantModelInput,
+  AssistantModelView,
   AssistantToolInfo,
+  AssistantUsageRow,
   DBAssistantProvider,
   DBAssistantScheduleDelivery,
   PatchAssistantInput,
 } from '@shared/types';
 import type { DataTablePassThroughOptions } from 'primevue';
-import type { AutoCompleteCompleteEvent } from 'primevue/autocomplete';
 
 type SchedulePreset = 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'hourly' | 'custom';
 
+const NO_PLUGIN_ACCESS = 'none';
+const BEHAVIOR_DEFAULTS = {
+  memoryEnabled: true,
+  terminalEnabled: false,
+  language: null,
+  reasoning: 'default',
+  maxIterations: 8,
+  maxToolCalls: 25,
+  contextTokens: 48_000,
+  historyThreads: 50,
+  historyImages: 24,
+} satisfies Partial<AssistantMaskedSettings>;
 const NUMERIC_COLUMN_PT = { columnHeaderContent: { class: 'justify-end' } };
 const usageTablePt: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: { class: 'text-sm text-secondary' },
@@ -597,55 +693,47 @@ const usageTablePt: PassThrough<DataTablePassThroughOptions> = {
 const assistantQuery = new AssistantQuery();
 
 const toast = useCuiToast();
+const dialog = useCuiDialog();
 const { t, locale } = useI18n();
 
 const { data: usageRows, isLoading: usageLoading } = assistantQuery.usageAllQuery();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
 const patchMutation = assistantQuery.patchAssistantInfoMutation();
-const testMutation = assistantQuery.testAssistantMutation();
-const modelsMutation = assistantQuery.listAssistantModelsMutation();
+const { data: profiles } = assistantQuery.listProfilesQuery();
 const { data: schedules } = assistantQuery.listSchedulesQuery();
 const createScheduleMutation = assistantQuery.createScheduleMutation();
 const patchScheduleMutation = assistantQuery.patchScheduleMutation();
 const deleteScheduleMutation = assistantQuery.deleteScheduleMutation();
 const runScheduleMutation = assistantQuery.runScheduleMutation();
 
-const providerOptions: { label: string; value: DBAssistantProvider }[] = [
-  { label: 'Ollama (local)', value: 'ollama' },
-  { label: 'OpenAI-compatible server (LM Studio, vLLM, LiteLLM, …)', value: 'openai-compatible' },
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Anthropic', value: 'anthropic' },
-  { label: 'Google Gemini', value: 'gemini' },
-  { label: 'OpenRouter', value: 'openrouter' },
-];
-
-const defaultBaseUrls: Record<DBAssistantProvider, string> = {
-  ollama: 'http://127.0.0.1:11434',
-  'openai-compatible': 'http://127.0.0.1:1234/v1',
-  openai: 'https://api.openai.com/v1',
-  anthropic: 'https://api.anthropic.com',
-  gemini: 'https://generativelanguage.googleapis.com',
-  openrouter: 'https://openrouter.ai/api/v1',
-};
-
 const form = ref<AssistantMaskedSettings | null>(null);
-const scheduleForm = ref<{ title: string; prompt: string; preset: SchedulePreset; time: string; cron: string; deliver: DBAssistantScheduleDelivery }>({
+const scheduleForm = ref<{
+  title: string;
+  prompt: string;
+  preset: SchedulePreset;
+  time: string;
+  cron: string;
+  deliver: DBAssistantScheduleDelivery;
+  profileId: string | null;
+}>({
   title: '',
   prompt: '',
   preset: 'daily',
   time: '20:00',
   cron: '',
   deliver: 'push',
+  profileId: null,
 });
-const apiKeyInput = ref('');
 const serverTokens = ref<Record<string, string>>({});
 const mcpClient = ref<'claude-code' | 'cursor' | 'claude-desktop'>('claude-code');
-const testResult = ref<AssistantTestResult | null>(null);
-const availableModels = ref<string[]>([]);
-const modelSuggestions = ref<string[]>([]);
 const toolSource = ref('core');
 
-const apiKeySet = computed(() => info.value?.apiKeySet ?? false);
+const models = computed(() => info.value?.settings.models ?? []);
+const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
+const pluginOptions = computed(() => [
+  { label: t('views.settings.assistant_plugin_no_access'), value: NO_PLUGIN_ACCESS },
+  ...models.value.map((model) => ({ label: model.name, value: model._id })),
+]);
 
 const toolSources = computed(() => {
   const groups = new Map<string, { key: string; label: string; tools: AssistantToolInfo[] }>();
@@ -659,15 +747,9 @@ const toolSources = computed(() => {
   return Array.from(groups.values());
 });
 
-const usage = computed(() => usageRows.value?.map((row) => ({ ...row, key: `${row.userId}-${row.month}` })));
+const usage = computed(() => usageRows.value?.map((row) => ({ ...row, key: `${row.userId}-${row.month}-${row.provider}-${row.model}` })));
 
 const status = computed(() => info.value?.status);
-
-const needsKey = computed(() => ['openai', 'anthropic', 'gemini', 'openrouter'].includes(form.value?.provider ?? ''));
-const showBaseUrl = computed(() => form.value?.provider === 'ollama' || form.value?.provider === 'openai-compatible');
-const baseUrlPlaceholder = computed(() => (form.value ? defaultBaseUrls[form.value.provider] : ''));
-
-const providerHint = computed(() => t(`views.settings.assistant_provider_hint_${(form.value?.provider ?? 'ollama').replace('-', '_')}`));
 
 const languageOptions = computed(() => [
   { label: t('views.settings.assistant_language_auto'), value: null },
@@ -762,9 +844,10 @@ async function onAddSchedule(): Promise<void> {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     language: locale.value,
     deliver: scheduleForm.value.deliver,
+    profileId: scheduleForm.value.profileId,
     enabled: true,
   });
-  scheduleForm.value = { ...scheduleForm.value, title: '', prompt: '', cron: '' };
+  scheduleForm.value = { ...scheduleForm.value, title: '', prompt: '', cron: '', profileId: null };
 }
 
 function toolDescription(description: string): string {
@@ -808,11 +891,6 @@ function removeServer(id: string): void {
 function buildPatch(): PatchAssistantInput {
   const raw = deepToRaw(form.value!);
   const patch: PatchAssistantInput = {
-    enabled: raw.enabled,
-    provider: raw.provider,
-    baseURL: raw.baseURL?.trim() ? raw.baseURL.trim() : null,
-    model: raw.model.trim(),
-    sendImages: raw.sendImages,
     language: raw.language,
     maxIterations: raw.maxIterations,
     maxToolCalls: raw.maxToolCalls,
@@ -825,6 +903,7 @@ function buildPatch(): PatchAssistantInput {
     mcpEnabled: raw.mcpEnabled,
     mcpWrites: raw.mcpWrites,
     memoryEnabled: raw.memoryEnabled,
+    plugins: raw.plugins.map(({ pluginId, modelId }) => ({ pluginId, modelId })),
     mcpServers: raw.mcpServers
       .filter((server) => server.name.trim() || server.url.trim())
       .map((server) => ({
@@ -836,45 +915,99 @@ function buildPatch(): PatchAssistantInput {
         ...(serverTokens.value[server.id] ? { token: serverTokens.value[server.id] } : {}),
       })),
   };
-  if (apiKeyInput.value) patch.apiKey = apiKeyInput.value;
   return patch;
 }
 
-function onProviderChange(): void {
+function resetBehavior(): void {
   if (!form.value) return;
-  form.value.baseURL = null;
-  form.value.model = '';
-  availableModels.value = [];
-  testResult.value = null;
-}
-
-function onModelSearch(event: AutoCompleteCompleteEvent): void {
-  const query = event.query.toLowerCase();
-  modelSuggestions.value = availableModels.value.filter((m) => m.toLowerCase().includes(query));
-}
-
-async function loadModels(): Promise<void> {
-  if (!form.value) return;
-  const result = await modelsMutation.mutateAsync(buildPatch());
-  if (result.error) {
-    toast.add({ severity: 'warn', detail: t('views.settings.assistant_models_failed', { message: result.error }), life: 5000 });
-    return;
-  }
-  availableModels.value = result.models;
-  modelSuggestions.value = result.models;
+  Object.assign(form.value, BEHAVIOR_DEFAULTS);
 }
 
 async function onSave(): Promise<void> {
   if (!form.value) return;
   await patchMutation.mutateAsync(buildPatch());
-  apiKeyInput.value = '';
   serverTokens.value = {};
 }
 
-async function onTest(): Promise<void> {
+function providerLabel(provider: DBAssistantProvider): string {
+  return ASSISTANT_PROVIDERS.find((option) => option.value === provider)?.label ?? provider;
+}
+
+async function saveModels(next: AssistantModelInput[]): Promise<AssistantInfo> {
+  return patchMutation.mutateAsync({ models: next });
+}
+
+function openModelDialog(entry?: AssistantModelView): void {
+  const before = new Set(models.value.map((model) => model._id));
+  dialog.openComponentDialog<AssistantModelFormProps>(AssistantModelDialog, {
+    data: {
+      title: entry ? t('views.settings.assistant_model_edit') : t('views.settings.assistant_model_add'),
+      confirmText: t('components.form.button.save'),
+      awaitConfirm: true,
+      contentProps: { entry: entry ? toRaw(entry) : undefined, models: toRaw(models.value) },
+    },
+    onConfirm: async (input: AssistantModelInput) => {
+      const next = entry ? models.value.map((model) => (model._id === entry._id ? input : modelInput(model))) : [...models.value.map(modelInput), input];
+      const updated = await saveModels(next);
+      reportTest(updated.settings.models.find((model) => (entry ? model._id === entry._id : !before.has(model._id))));
+    },
+  });
+}
+
+function reportTest(entry: AssistantModelView | undefined): void {
+  const capabilities = entry?.capabilities;
+  if (!capabilities) return;
+
+  // prettier-ignore
+  const detail = capabilities.error
+    ? t('views.settings.assistant_test_failed', { message: capabilities.error })
+    : !capabilities.toolCalling
+        ? t('views.settings.assistant_test_tools_missing')
+        : capabilities.vision === false
+          ? t('views.settings.assistant_test_vision_missing')
+          : '';
+
+  if (detail) toast.add({ severity: capabilities.error ? 'error' : 'warn', detail, life: 8000 });
+}
+
+function confirmDeleteModel(entry: AssistantModelView): void {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.assistant_model_delete'),
+      contentText: t('views.settings.assistant_model_delete_confirm', { name: entry.name }),
+      confirmText: t('views.settings.assistant_model_delete'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: async () => {
+      await saveModels(models.value.filter((model) => model._id !== entry._id).map(modelInput));
+    },
+  });
+}
+
+async function makeDefault(entry: AssistantModelView): Promise<void> {
+  await patchMutation.mutateAsync({ defaultModelId: entry._id });
+}
+
+function pluginChoice(pluginId: string): string {
+  return form.value?.plugins.find((row) => row.pluginId === pluginId)?.modelId ?? NO_PLUGIN_ACCESS;
+}
+
+function pluginModel(pluginId: string): AssistantModelView | undefined {
+  return models.value.find((model) => model._id === pluginChoice(pluginId));
+}
+
+function setPluginChoice(pluginId: string, modelId: string): void {
   if (!form.value) return;
-  testResult.value = null;
-  testResult.value = await testMutation.mutateAsync(buildPatch());
+  const rows = form.value.plugins.filter((row) => row.pluginId !== pluginId);
+  form.value.plugins = modelId === NO_PLUGIN_ACCESS ? rows : [...rows, { pluginId, modelId }];
+}
+
+function usageModelLabel(row: AssistantUsageRow): string {
+  return models.value.find((model) => model.provider === row.provider && model.model === row.model)?.name ?? row.model;
+}
+
+function profileName(profileId: string): string | undefined {
+  return profiles.value?.find((profile) => profile._id === profileId)?.name;
 }
 
 watch(

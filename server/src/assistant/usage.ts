@@ -18,22 +18,24 @@ export class AssistantUsageStore {
     const prefix = `${userId}/`;
     return Array.from(this.dbs.assistantUsageDB.getRange({ start: prefix, end: `${prefix}${KEY_END}` }))
       .map((entry) => entry.value)
-      .sort((a, b) => b.month.localeCompare(a.month))
+      .sort(byMonthOwnerModel)
       .slice(0, MONTHS_KEPT);
   }
 
   public listAll(): DBAssistantUsageMonth[] {
     return Array.from(this.dbs.assistantUsageDB.getRange({}))
       .map((entry) => entry.value)
-      .sort((a, b) => b.month.localeCompare(a.month) || a.userId.localeCompare(b.userId));
+      .sort(byMonthOwnerModel);
   }
 
   public async record(userId: string, event: AssistantUsageEvent): Promise<void> {
     const month = new Date().toISOString().slice(0, 7);
-    const key = `${userId}/${month}`;
+    const key = `${userId}/${month}/${event.provider}/${event.model}`;
     await this.dbs.commit(this.dbs.assistantUsageDB, key, (current) => ({
       userId,
       month,
+      provider: event.provider,
+      model: event.model,
       runs: (current?.runs ?? 0) + 1,
       promptTokens: (current?.promptTokens ?? 0) + event.promptTokens,
       completionTokens: (current?.completionTokens ?? 0) + event.completionTokens,
@@ -51,4 +53,8 @@ export class AssistantUsageStore {
       for (const key of keys) this.dbs.assistantUsageDB.remove(key);
     });
   }
+}
+
+function byMonthOwnerModel(a: DBAssistantUsageMonth, b: DBAssistantUsageMonth): number {
+  return b.month.localeCompare(a.month) || a.userId.localeCompare(b.userId) || a.model.localeCompare(b.model);
 }

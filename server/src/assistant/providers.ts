@@ -5,11 +5,11 @@ import { createOpenaiChat } from '@tanstack/ai-openai';
 import { openaiCompatibleText } from '@tanstack/ai-openai/compatible';
 import { createOpenRouterText } from '@tanstack/ai-openrouter';
 
-import type { DBAssistant } from '../api/database/types.js';
+import type { DBAssistantModel, DBAssistantProvider } from '../api/database/types.js';
 
 export type AssistantAdapter = ReturnType<typeof createOllamaChat>;
 
-const DEFAULT_BASE_URLS: Record<DBAssistant['provider'], string | null> = {
+const DEFAULT_BASE_URLS: Record<DBAssistantProvider, string | null> = {
   ollama: 'http://127.0.0.1:11434',
   'openai-compatible': 'http://127.0.0.1:1234/v1',
   openai: null,
@@ -20,15 +20,15 @@ const DEFAULT_BASE_URLS: Record<DBAssistant['provider'], string | null> = {
 
 const MODELS_TIMEOUT_MS = 10_000;
 
-export function defaultBaseURL(provider: DBAssistant['provider']): string | null {
+export function defaultBaseURL(provider: DBAssistantProvider): string | null {
   return DEFAULT_BASE_URLS[provider];
 }
 
-export function providerNeedsKey(provider: DBAssistant['provider']): boolean {
+export function providerNeedsKey(provider: DBAssistantProvider): boolean {
   return provider === 'openai' || provider === 'anthropic' || provider === 'gemini' || provider === 'openrouter';
 }
 
-export function createAdapter(settings: Pick<DBAssistant, 'provider' | 'baseURL' | 'model'>, apiKey: string | null): AssistantAdapter {
+export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'model'>, apiKey: string | null): AssistantAdapter {
   const baseURL = nonEmpty(settings.baseURL) ?? DEFAULT_BASE_URLS[settings.provider] ?? undefined;
   const key = apiKey ?? '';
 
@@ -48,7 +48,7 @@ export function createAdapter(settings: Pick<DBAssistant, 'provider' | 'baseURL'
   }
 }
 
-export async function listModels(settings: Pick<DBAssistant, 'provider' | 'baseURL'>, apiKey: string | null): Promise<string[]> {
+export async function listModels(settings: Pick<DBAssistantModel, 'provider' | 'baseURL'>, apiKey: string | null): Promise<string[]> {
   const baseURL = (nonEmpty(settings.baseURL) ?? DEFAULT_BASE_URLS[settings.provider] ?? '').replace(/\/+$/, '');
 
   switch (settings.provider) {

@@ -22,7 +22,7 @@
         >
           <span class="cui-assistant-card-dot h-2 w-2 shrink-0 self-center rounded-full" :class="severityClass(item.severity)" />
           <span class="min-w-0 flex-1 truncate text-color">{{ item.label }}</span>
-          <span class="shrink-0 font-medium tabular-nums text-color">{{ item.value }}</span>
+          <span v-if="item.value" class="shrink-0 font-medium tabular-nums text-color">{{ item.value }}</span>
           <i-mdi:chevron-right v-if="itemReference(item)" class="h-4 w-4 shrink-0 self-center text-muted" />
         </component>
         <div v-if="item.share !== undefined" class="cui-assistant-card-bar ml-4 h-1 overflow-hidden rounded-full">

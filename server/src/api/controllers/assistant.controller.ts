@@ -18,6 +18,7 @@ import type {
   AssistantProfileCreateRequest,
   AssistantProfilePatchRequest,
   AssistantProfileRequest,
+  AssistantProfilesListRequest,
   AssistantScheduleCreateRequest,
   AssistantSchedulePatchRequest,
   AssistantScheduleRequest,
@@ -45,9 +46,9 @@ export class AssistantController {
     }
   }
 
-  public async getStatus(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async getStatus(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(this.service.status());
+      return reply.code(200).send(this.service.status(req.locals.user?.role));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
@@ -63,7 +64,7 @@ export class AssistantController {
 
   public async test(req: FastifyRequest<AuthLoginRequest & AssistantTestRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(await this.service.test(req.body ?? {}));
+      return reply.code(200).send(await this.service.test(req.body));
     } catch (error: any) {
       return reply.code(200).send({ ok: false, toolCalling: false, vision: null, latencyMs: 0, model: '', error: error.message });
     }
@@ -71,7 +72,7 @@ export class AssistantController {
 
   public async models(req: FastifyRequest<AuthLoginRequest & AssistantTestRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(await this.service.models(req.body ?? {}));
+      return reply.code(200).send(await this.service.models(req.body));
     } catch (error: any) {
       return reply.code(200).send({ models: [], error: error.message });
     }
@@ -262,9 +263,15 @@ export class AssistantController {
     }
   }
 
-  public async listProfiles(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async listProfiles(req: FastifyRequest<AuthLoginRequest & AssistantProfilesListRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(this.service.listProfiles(req.locals.user!._id));
+      const user = req.locals.user!;
+      const username = req.query.user;
+      if (!username || username === user.username) return reply.code(200).send(this.service.listProfiles(user._id));
+      if (user.role !== 'admin' && user.role !== 'master') return reply.code(403).send({ statusCode: 403, message: 'Only admins can list the profiles of other users' });
+      const profiles = this.service.listProfilesOf(username);
+      if (!profiles) return reply.code(404).send({ statusCode: 404, message: 'User not found' });
+      return reply.code(200).send(profiles);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }

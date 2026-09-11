@@ -43,6 +43,7 @@ export class AssistantThreadStore {
         references: value.references,
         ...(value.cards?.length ? { cards: value.cards } : {}),
         ...(value.settings?.length ? { settings: value.settings } : {}),
+        ...(value.notices?.length ? { notices: value.notices } : {}),
       };
     }
     return { ...meta, messages: this.dbs.assistantThreadMessagesDB.get(key) ?? [], attachments };
@@ -184,13 +185,14 @@ export class AssistantThreadStore {
   private putAttachments(key: string, attachments: Record<string, DBAssistantAttachment>): number {
     let added = 0;
     for (const [toolCallId, entry] of Object.entries(attachments)) {
-      if (!entry.images.length && !entry.references.length && !entry.cards?.length && !entry.settings?.length) continue;
+      if (!entry.images.length && !entry.references.length && !entry.cards?.length && !entry.settings?.length && !entry.notices?.length) continue;
       const record: DBAssistantAttachmentRecord = {
         toolCallId,
         images: entry.images.map((image) => ({ data: Buffer.from(image.data, 'base64'), mimeType: image.mimeType, caption: image.caption })),
         references: entry.references,
         ...(entry.cards?.length ? { cards: entry.cards } : {}),
         ...(entry.settings?.length ? { settings: entry.settings } : {}),
+        ...(entry.notices?.length ? { notices: entry.notices } : {}),
       };
       this.dbs.assistantThreadAttachmentsDB.put(attachmentKey(key), record);
       added += entry.images.length;
@@ -216,7 +218,8 @@ export class AssistantThreadStore {
       stripped.push({ recordKey, value });
     }
     for (const { recordKey, value } of stripped) {
-      if (value.references.length || value.cards?.length || value.settings?.length) this.dbs.assistantThreadAttachmentsDB.put(recordKey, { ...value, images: [] });
+      const keep = value.references.length + (value.cards?.length ?? 0) + (value.settings?.length ?? 0) + (value.notices?.length ?? 0) > 0;
+      if (keep) this.dbs.assistantThreadAttachmentsDB.put(recordKey, { ...value, images: [] });
       else this.dbs.assistantThreadAttachmentsDB.remove(recordKey);
     }
     return count;

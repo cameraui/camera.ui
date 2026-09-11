@@ -9,6 +9,7 @@ export const ASSISTANT_IMAGE_EVENT = 'assistant.image';
 export const ASSISTANT_REFERENCE_EVENT = 'assistant.reference';
 export const ASSISTANT_CARD_EVENT = 'assistant.card';
 export const ASSISTANT_SETTING_EVENT = 'assistant.setting';
+export const ASSISTANT_NOTICE_EVENT = 'assistant.notice';
 
 export const DOWNLOAD_PATH = /^\/api\/download\/[0-9a-f-]+$/i;
 
@@ -41,6 +42,10 @@ export function withImages(text: string, images: ToolImage[], ctx: ToolContext):
   if (usable.length === 0) return text;
 
   if (!ctx.context.sendImages) {
+    if (ctx.context.visionMissing && !ctx.context.visionNoticed) {
+      ctx.context.visionNoticed = true;
+      ctx.emitCustomEvent(ASSISTANT_NOTICE_EVENT, { toolCallId: ctx.toolCallId ?? null, notice: { capability: 'vision', model: ctx.context.visionMissing } });
+    }
     for (const img of usable) {
       ctx.emitCustomEvent(ASSISTANT_IMAGE_EVENT, { toolCallId: ctx.toolCallId ?? null, data: img.data, mimeType: img.mimeType, caption: img.caption ?? null });
     }

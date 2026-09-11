@@ -301,11 +301,32 @@ export const dbInstancesConfigSchema = zod.object({
 
 export const dbAssistantSchema = zod.object({
   enabled: zod.boolean().default(false),
-  provider: zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']).default('ollama'),
-  baseURL: zod.string().nullable().default(null),
-  apiKey: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
-  model: zod.string().default(''),
-  sendImages: zod.boolean().default(false),
+  models: zod
+    .array(
+      zod.object({
+        _id: zod.string(),
+        name: zod.string().default(''),
+        provider: zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']).default('ollama'),
+        baseURL: zod.string().nullable().default(null),
+        apiKey: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
+        model: zod.string().default(''),
+        sendImages: zod.boolean().default(false),
+        userAccess: zod.boolean().default(true),
+        capabilities: zod
+          .object({
+            toolCalling: zod.boolean(),
+            vision: zod.boolean().nullable().default(null),
+            testedAt: zod.number().default(0),
+            latencyMs: zod.number().default(0),
+            error: zod.string().nullable().default(null),
+          })
+          .nullable()
+          .default(null),
+      }),
+    )
+    .default([]),
+  defaultModelId: zod.string().nullable().default(null),
+  plugins: zod.array(zod.object({ pluginId: zod.string(), modelId: zod.string() })).default([]),
   language: zod.string().nullable().default(null),
   maxIterations: zod.number().int().min(1).max(30).default(8),
   maxToolCalls: zod.number().int().min(1).max(100).default(25),

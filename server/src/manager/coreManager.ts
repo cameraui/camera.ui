@@ -10,7 +10,7 @@ import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { PluginInterface } from '@camera.ui/sdk';
 import type { AssistantManager } from '../assistant/manager.js';
-import type { AssistantPluginModel, AssistantPost } from '../assistant/types.js';
+import type { AssistantAccess, AssistantAskRequest, AssistantAskResult, AssistantPost } from '../assistant/types.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
   CoreManagerInterface,
@@ -97,8 +97,13 @@ export class CoreManager implements CoreManagerInterface {
   }
 
   @RPCMethod
-  public async getAssistantModel(): Promise<AssistantPluginModel> {
-    return container.resolve<AssistantManager>('assistantManager').pluginModel();
+  public async assistantAsk(request: AssistantAskRequest): Promise<AssistantAskResult> {
+    return container.resolve<AssistantManager>('assistantManager').ask(request);
+  }
+
+  @RPCMethod
+  public async assistantAccess(pluginId: string): Promise<AssistantAccess> {
+    return container.resolve<AssistantManager>('assistantManager').access(pluginId);
   }
 
   @RPCMethod

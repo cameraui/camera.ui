@@ -1,13 +1,15 @@
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
-import { ASSISTANT_CARD_EVENT } from './shared.js';
+import { ASSISTANT_CARD_EVENT, toolError } from './shared.js';
 
 import type { CoreTool, ToolContext } from './shared.js';
 
+const DATA_FREE_TOOLS = new Set(['show_report', 'docs_search', 'docs_read', 'api_search', 'ask_user']);
+
 const item = zod.object({
-  label: zod.string().min(1).max(60),
-  value: zod.string().min(1).max(60).describe('The number or state, short'),
+  label: zod.string().min(1).max(80).describe('What the row is about, for a moment what happened'),
+  value: zod.string().max(60).optional().describe('The number, state or time, short'),
   note: zod.string().max(160).optional().describe('One short remark, for example the camera or the time'),
   severity: zod.enum(['ok', 'warn', 'error', 'info']).optional(),
   share: zod.number().min(0).max(1).optional().describe('Fraction of the total for a bar, when the items add up to something'),
@@ -29,6 +31,14 @@ const showReport = toolDefinition({
   }),
   metadata: { interactive: true },
 }).server<ToolContext['context']>((card, ctx) => {
+  const called = ctx.context.calledTools;
+  if (called?.every((name) => DATA_FREE_TOOLS.has(name))) {
+    // prettier-ignore
+    return toolError(
+      'The card was not shown, no data was fetched in this run yet. Fetch it first: for a recap call the summarize_day tool of the NVR plugin per day, ' +
+      'for system health get_metrics, then call show_report again with the real moments and numbers. Do not tell the user that nothing was found.',
+    );
+  }
   ctx.emitCustomEvent(ASSISTANT_CARD_EVENT, { toolCallId: ctx.toolCallId ?? null, card });
   return `The card "${card.title}" with ${card.items.length} items is shown to the user. Do not repeat its numbers, add at most one short sentence.`;
 });
