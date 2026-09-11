@@ -18,7 +18,9 @@
     "lmdb": true,
     "msgpackr-extract": true,
     "node-av": true,
-    "protobufjs": true
+    "protobufjs": true,
+    "@google/genai": true,
+    "@openrouter/sdk": true
   },
   "scripts": {
     "build": "npm run build:server && npm run copy:files && node scripts/build-docs.mjs",
@@ -26,7 +28,7 @@
     "check": "tsc --noEmit",
     "copy:files": "cpy package.json dist/server && cpy requirements.txt dist/server && cpy 'src/**/*.py' dist/server/src --parents",
     "format": "prettier --write 'src/' 'bin/' --ignore-unknown --no-error-on-unmatched-pattern && ruff format",
-    "install-updates": "npm i --save",
+    "install-updates": "npm i --save --legacy-peer-deps",
     "lint": "eslint --fix . && ruff check --fix && mypy --config-file ./mypy.ini src",
     "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate",
     "prepublishOnly": "npm i --package-lock-only && npm --prefix .. run check:sensors && npm run lint && npm run format && npm run build && npm --prefix ../ui run lint && npm --prefix ../ui run format && npm --prefix ../ui run build",
