@@ -1,6 +1,6 @@
 {
   "name": "@camera.ui/server",
-  "version": "2.2.0",
+  "version": "2.1.17",
   "description": "camera.ui server",
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "type": "module",
@@ -130,7 +130,8 @@
     "vitest": "^5.0.0"
   },
   "overrides": {
-    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2"
+    "@shinyoshiaki/binary-data": "npm:@seydx/binary-data@0.6.2",
+    "vitest": "$vitest"
   },
   "bugs": {
     "url": "https://github.com/cameraui/camera.ui/issues"

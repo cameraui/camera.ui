@@ -139,7 +139,8 @@
   "overrides": {
     "unplugin-vue-markdown": {
       "vite": "$vite"
-    }
+    },
+    "vitest": "$vitest"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "license": "MIT",
