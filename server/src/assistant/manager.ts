@@ -535,7 +535,8 @@ export class AssistantManager {
     const adapter = withEmptyTurnRetry(createAdapter(model, this.decryptKey(entry)), () => this.logger.debug(EMPTY_TURN_LOG));
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
-    const tools = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
+    const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
+    const tools = params.resume ? available.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : available;
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
