@@ -1,6 +1,8 @@
 import type { AssistantToolInfo, DBAssistantAttachment, DBAssistantThread } from '@shared/types';
 import type { UIMessage } from '@tanstack/ai';
 
+export const PENDING_ANSWER: UIMessage = { id: 'pending-answer', role: 'assistant', parts: [] };
+
 export interface CuiAssistantConversationProps {
   threadId: string;
   initialMessages: UIMessage[];

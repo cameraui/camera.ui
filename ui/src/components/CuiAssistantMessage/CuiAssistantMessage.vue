@@ -76,7 +76,7 @@
 
   <div v-else class="cui-assistant-answer group flex flex-col">
     <div v-if="!continuation" class="mb-1.5 flex items-center gap-2 text-[12.5px] text-muted">
-      <span class="cui-assistant-dot h-1.5 w-1.5 shrink-0 rounded-full" />
+      <span class="cui-assistant-dot h-1.5 w-1.5 shrink-0 rounded-full" :class="{ 'cui-assistant-dot-live': working }" />
       <span>{{ $t('views.assistant.title') }}</span>
     </div>
 
@@ -84,7 +84,7 @@
       <template v-for="(entry, index) in rows" :key="index">
         <div v-if="entry.kind === 'text'" class="text-[15px] leading-relaxed text-color break-words">
           <CuiMarkdownContent :content="entry.text" class="cui-assistant-markdown" />
-          <span v-if="streaming && index === rows.length - 1" class="cui-assistant-caret" />
+          <span v-if="working && index === rows.length - 1" class="cui-assistant-caret" />
         </div>
         <CuiAssistantToolCall
           v-else-if="entry.kind === 'tool'"
@@ -127,7 +127,12 @@
         </details>
       </template>
 
-      <span v-if="streaming && !rows.length" class="text-[15px] italic text-muted">{{ $t('views.assistant.thinking') }}<span class="cui-assistant-caret" /></span>
+      <span v-if="working && rows.at(-1)?.kind !== 'text'" class="flex items-center gap-2 text-[13.5px] text-muted">
+        <span class="cui-assistant-pulse flex items-center gap-1" aria-hidden="true">
+          <span v-for="dot in 3" :key="dot" class="h-1.5 w-1.5 rounded-full" />
+        </span>
+        {{ workingLabel }}
+      </span>
 
       <template v-if="results">
         <div v-if="results.images.length" class="flex flex-wrap gap-2">
@@ -339,6 +344,11 @@ const results = computed(() => {
     : null;
 });
 
+const workingLabel = computed(() => {
+  const last = rows.value.at(-1);
+  return last?.kind === 'tool' || last?.kind === 'steps' ? t('views.assistant.working') : t('views.assistant.thinking');
+});
+
 const usageLine = computed(() => {
   const usage = props.usage;
   if (!usage) return '';
@@ -432,6 +442,23 @@ async function copyAnswer(): Promise<void> {
   background: var(--p-primary-color);
 }
 
+.cui-assistant-dot-live {
+  animation: cui-assistant-live 1.4s ease-in-out infinite;
+}
+
+.cui-assistant-pulse > span {
+  background: var(--p-primary-color);
+  animation: cui-assistant-bounce 1.2s ease-in-out infinite;
+}
+
+.cui-assistant-pulse > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.cui-assistant-pulse > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
 .cui-assistant-caret {
   display: inline-block;
   width: 2px;
@@ -448,8 +475,30 @@ async function copyAnswer(): Promise<void> {
   }
 }
 
+@keyframes cui-assistant-live {
+  50% {
+    transform: scale(1.6);
+    opacity: 0.45;
+  }
+}
+
+@keyframes cui-assistant-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .cui-assistant-caret {
+  .cui-assistant-caret,
+  .cui-assistant-dot-live,
+  .cui-assistant-pulse > span {
     animation: none;
   }
 }

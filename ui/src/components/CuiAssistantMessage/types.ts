@@ -9,6 +9,7 @@ export const CONTINUE_MARK = '[continue]';
 export interface CuiAssistantMessageProps {
   message: UIMessage;
   streaming?: boolean;
+  working?: boolean;
   busy?: boolean;
   continuation?: boolean;
   stopped?: boolean;

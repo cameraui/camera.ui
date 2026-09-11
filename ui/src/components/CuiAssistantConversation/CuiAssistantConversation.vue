@@ -75,6 +75,7 @@
           :key="row.message.id"
           :message="row.message"
           :streaming="chat.isLoading.value && row.lastIndex === chat.messages.value.length - 1 && row.message.role === 'assistant'"
+          :working="waiting && row.lastIndex === chat.messages.value.length - 1 && row.message.role === 'assistant'"
           :busy="chat.busy.value"
           :continuation="row.continuation"
           :stopped="row.ids.includes(chat.stoppedId.value ?? '')"
@@ -91,6 +92,15 @@
           @delete="deleteExchange(row.index)"
           @branch="branchAt(row.index)"
           @continue="chat.continueAnswer()"
+        />
+
+        <CuiAssistantMessage
+          v-if="pendingAnswer"
+          :message="PENDING_ANSWER"
+          working
+          busy
+          :continuation="isContinueMark(chat.messages.value.at(-1))"
+          :class="{ '-mt-5': isContinueMark(chat.messages.value.at(-1)) }"
         />
 
         <CuiAssistantApproval
@@ -358,6 +368,7 @@
 import { AssistantQuery, branchAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
 import { capabilityTags, defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
+import { PENDING_ANSWER } from './types.js';
 
 import type { AssistantCapabilityTag } from '@/common/assistantModels.js';
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
@@ -423,6 +434,8 @@ const models = computed(() => info.value?.settings.models ?? []);
 const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
 const activeModel = computed(() => models.value.find((entry) => entry._id === modelId.value) ?? defaultEntry.value);
 const visionMissing = computed(() => (activeModel.value?.capabilities?.vision === false ? activeModel.value.name : undefined));
+const waiting = computed(() => chat.busy.value && !chat.approvals.value.length && !chat.questions.value.length && !chat.pausedElsewhere.value);
+const pendingAnswer = computed(() => waiting.value && chat.messages.value.at(-1)?.role !== 'assistant');
 
 const rows = computed<ConversationRow[]>(() => {
   const list = chat.messages.value;

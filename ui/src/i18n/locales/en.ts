@@ -1940,6 +1940,7 @@ export default {
       composer_placeholder: 'Ask something…',
       disclaimer: 'Answers come from a language model and can be wrong. Check the recording when it matters.',
       thinking: 'Thinking',
+      working: 'Working',
       tool_arguments: 'Arguments',
       tool_result: 'Result',
       tool_running: 'running',

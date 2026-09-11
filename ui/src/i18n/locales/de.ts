@@ -1954,6 +1954,7 @@ export default {
       composer_placeholder: 'Frag etwas…',
       disclaimer: 'Antworten stammen von einem Sprachmodell und können falsch sein. Im Zweifel die Aufnahme prüfen.',
       thinking: 'Denkt nach',
+      working: 'Arbeitet',
       tool_arguments: 'Argumente',
       tool_result: 'Ergebnis',
       tool_running: 'läuft',
