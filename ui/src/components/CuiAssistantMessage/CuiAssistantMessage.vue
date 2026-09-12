@@ -340,7 +340,8 @@ const results = computed(() => {
     }
   }
   const linked = new Set(cards.flatMap((card) => card.items.flatMap((item) => [item.episodeId, item.eventId].filter(Boolean))));
-  const rest = references.filter((reference) => !linked.has(reference.id)).slice(0, MAX_RESULT_REFERENCES);
+  const downloads = references.filter((reference) => reference.kind === 'download');
+  const rest = [...downloads, ...references.filter((reference) => reference.kind !== 'download' && !linked.has(reference.id)).slice(0, MAX_RESULT_REFERENCES)];
   return images.length || cards.length || rest.length || settings.length || notices.length
     ? { images, cards, settings, notices, references: rest, all: references }
     : null;

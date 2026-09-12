@@ -9,7 +9,7 @@ import { createDocsTools } from './docs.js';
 import { instanceTools } from './instance.js';
 import { memoryTools } from './memory.js';
 import { metricsTools } from './metrics.js';
-import { notificationTools } from './notifications.js';
+import { createNotificationTools } from './notifications.js';
 import { createPluginTools } from './plugins.js';
 import { reportTools } from './report.js';
 import { scheduleTools } from './schedules.js';
@@ -32,7 +32,7 @@ export function coreTools(registry: AssistantToolRegistry, api: ApiCatalog, docs
     ...metricsTools,
     ...automationTools,
     ...scheduleTools,
-    ...notificationTools,
+    ...createNotificationTools(registry),
     ...instanceTools,
     ...terminalTools,
     ...createApiTools(api),

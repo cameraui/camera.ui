@@ -170,17 +170,22 @@ export function createPluginTools(registry: AssistantToolRegistry): CoreTool[] {
       return { images };
     }
     if (input.eventId) {
-      const result = await registry.callPluginTool('get_event_image', { eventId: input.eventId }, ctx);
-      if (!result) return { error: 'No plugin offers event pictures, the NVR plugin is not running.' };
-      if (result.error) return { error: result.error };
-      const image = result.images?.find((img) => typeof img.data === 'string' && img.data.length > 0);
-      if (!image) return { error: `Event "${input.eventId}" has no picture.` };
-      return { images: [{ data: Buffer.from(image.data, 'base64'), caption: image.caption ?? `event ${input.eventId}` }] };
+      const picture = await eventPicture(registry, input.eventId, ctx);
+      return 'error' in picture ? picture : { images: [picture] };
     }
     return { error: 'Pass a camera name, an eventId or an upload id.' };
   }
 
   return [pluginCapabilities, analyzeImage, analyzeAudio, analyzeVideo];
+}
+
+export async function eventPicture(registry: AssistantToolRegistry, eventId: string, ctx: ToolContext): Promise<{ data: Buffer; caption: string } | { error: string }> {
+  const result = await registry.callPluginTool('get_event_image', { eventId }, ctx);
+  if (!result) return { error: 'No plugin offers event pictures, the NVR plugin is not running.' };
+  if (result.error) return { error: result.error };
+  const image = result.images?.find((img) => typeof img.data === 'string' && img.data.length > 0);
+  if (!image) return { error: `Event "${eventId}" has no picture.` };
+  return { data: Buffer.from(image.data, 'base64'), caption: image.caption ?? `event ${eventId}` };
 }
 
 interface Target {

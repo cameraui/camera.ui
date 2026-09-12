@@ -157,6 +157,10 @@ export class DownloadManager implements DownloadManagerInterface {
     }
   }
 
+  public publicUrl(token: string): string {
+    return this.buildPublicUrl(token);
+  }
+
   public resolveLocalFile(token: string): string | null {
     const entry = this.registry.get(token);
     if (!entry || entry.remotePluginId || entry.streaming || Date.now() > entry.expiresAt) return null;

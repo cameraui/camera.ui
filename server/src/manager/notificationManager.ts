@@ -1,6 +1,6 @@
 import { uuidv4 } from '@camera.ui/common/utils';
 import { hasCapability, PluginCapability, Severity } from '@camera.ui/sdk';
-import { copyFile, mkdir, readdir, unlink } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { container } from 'tsyringe';
 
@@ -492,7 +492,7 @@ export class NotificationManager {
       body: n.body,
       severity: n.severity,
       tag: n.tag,
-      imageUrl: await this.persistImage(n.id, n.imageUrl),
+      imageUrl: (await this.persistImage(n.id, n.imageUrl)) ?? (await this.persistThumbnail(n.id, n.thumbnail)),
       videoUrl: await this.persistVideo(n.id, n.videoUrl),
       deepLink: n.deepLink,
       source: n.source,
@@ -541,6 +541,16 @@ export class NotificationManager {
       return `/api/notifications/history/${id}/image`;
     } catch {
       return imageUrl;
+    }
+  }
+
+  private async persistThumbnail(id: string, thumbnail?: Uint8Array): Promise<string | undefined> {
+    if (!thumbnail?.byteLength) return undefined;
+    try {
+      await writeFile(join(this.imagesDir, `${id}.img`), thumbnail);
+      return `/api/notifications/history/${id}/image`;
+    } catch {
+      return undefined;
     }
   }
 
