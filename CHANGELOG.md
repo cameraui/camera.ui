@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1]
+
+### Added
+
+- **A jump button in the chat.** Scrolled up in a long conversation, a small arrow appears above the text box and takes you back to the latest message.
+
+### Fixed
+
+- **The assistant answers the next question again.** After an answer that had used tools, the following question could come back empty or simply repeat the previous answer, mostly in longer conversations. The conversation is now passed to the model in the same shape the model itself produced.
+
+- **A question from the assistant scrolls into view.** When it asked something back, the question could sit below the visible area, in the small window especially, and it looked as if nothing had happened. The conversation now jumps to it.
+
+- **Opening a page from the chat finishes the request.** When the assistant opened a camera, a page or the settings for you, the page change could cut its own request short, leaving the step spinning in the conversation forever. The step is now reported as done before the page changes, and a step whose answer never arrived shows as not finished instead of spinning forever.
+
+- **No dimmed screen left behind after a reload.** With the assistant open as a side panel, reloading the page could leave part of the dimming on screen while the panel itself was closed. The side panel now starts closed, the small window bottom right still comes back on desktop.
+
+- **A stuck step no longer blocks the conversation.** If the assistant opened a page for you and its step never finished, a server restart in between for example, that conversation swallowed every new message. The step is closed when the conversation is opened again, the browser's own leftover of it is ignored, and you can write in that conversation as usual.
+
 ## [2.2.0]
 
 **camera.ui gets an assistant.** A chat that knows your instance and the documentation, answers in plain language, runs the tools you allow, and lives on every page. Bring your own model: a local Ollama or any OpenAI-compatible server keeps everything at home, or use an OpenAI, Anthropic, Gemini or OpenRouter key. Everything that touches recordings, episodes, faces and alerts comes with the NVR plugin update.

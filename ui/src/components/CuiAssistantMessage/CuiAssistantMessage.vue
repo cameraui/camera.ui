@@ -97,6 +97,7 @@
           :notices="toolNotices?.[entry.part.id]"
           :model-id="modelId"
           :inline-attachments="!results"
+          :busy="busy"
         />
         <details v-else-if="entry.kind === 'steps'" class="cui-assistant-steps rounded-xl text-sm" :open="streaming">
           <summary class="flex cursor-pointer select-none items-center gap-2 px-3 py-2">
@@ -118,6 +119,7 @@
               :notices="toolNotices?.[item.part.id]"
               :model-id="modelId"
               :inline-attachments="!results"
+              :busy="busy"
             />
           </div>
         </details>
@@ -384,7 +386,7 @@ function formatCost(usd: number): string {
 }
 
 function stepsRunning(entry: { items: ToolEntry[] }): boolean {
-  return entry.items.some((item) => !item.result && RUNNING_STATES.includes(item.part.state));
+  return Boolean(props.busy) && entry.items.some((item) => !item.result && RUNNING_STATES.includes(item.part.state));
 }
 
 async function startEdit(): Promise<void> {

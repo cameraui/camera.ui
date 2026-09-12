@@ -7,6 +7,9 @@ export const useCuiAssistantDrawer = createSharedComposable(() => {
   const visible = useLocalStorage('cui-assistant-drawer-open', false);
   const mini = useLocalStorage('cui-assistant-drawer-mini', false);
   const threadId = useLocalStorage('cui-assistant-drawer-thread', randomId());
+  const { smBreakpoint } = useSharedCuiBreakpoint();
+
+  if (!mini.value || smBreakpoint.value) visible.value = false;
   const initialMessages = ref<UIMessage[]>([]);
   const initialAttachments = ref<Record<string, DBAssistantAttachment>>({});
   const initialPrompt = ref<string | undefined>();

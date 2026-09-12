@@ -12,6 +12,7 @@ export interface CuiAssistantToolCallProps {
   notices?: DBAssistantAttachmentNotice[];
   modelId?: string | null;
   inlineAttachments?: boolean;
+  busy?: boolean;
 }
 
 export interface ToolResultImage {

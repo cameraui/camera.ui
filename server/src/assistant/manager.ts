@@ -351,11 +351,18 @@ export class AssistantManager {
     const pending = await persistence.stores.interrupts.listPending(threadId);
     const live = active ? this.runs.get(active.runId) : undefined;
     const alive = live ? live.finishedAt === undefined : false;
+
+    const open = [];
+    for (const record of pending) {
+      if (!alive && isClientToolInterrupt(record.payload)) await persistence.stores.interrupts.cancel(record.interruptId);
+      else open.push(record);
+    }
+
     return {
       messages: (thread?.messages ?? []) as UIMessage[],
       attachments: thread?.attachments ?? {},
       activeRun: active && alive ? { runId: active.runId } : null,
-      interrupts: pending[0] ? { runId: pending[0].runId, pending: pending.map((record) => record.payload as unknown as Interrupt) } : null,
+      interrupts: open[0] ? { runId: open[0].runId, pending: open.map((record) => record.payload as unknown as Interrupt) } : null,
     };
   }
 
@@ -533,11 +540,19 @@ export class AssistantManager {
     ctx.answers = new Map();
     ctx.calledTools = [];
 
+    const persistence = lmdbPersistence(this.dbs, this.threads, ctx.userId);
+    const openInterrupts = new Set<string>();
+    for (const item of params.resume ?? []) {
+      const record = await persistence.stores.interrupts.get(item.interruptId);
+      if (record?.status === 'pending') openInterrupts.add(item.interruptId);
+    }
+    const resume = (params.resume ?? []).filter((item) => openInterrupts.has(item.interruptId));
+
     const adapter = withEmptyTurnRetry(createAdapter(model, this.decryptKey(entry)), () => this.logger.debug(EMPTY_TURN_LOG));
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
     const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
-    const tools = params.resume ? available.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : available;
+    const tools = resume.length ? available.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : available;
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
@@ -554,7 +569,7 @@ export class AssistantManager {
       threadId: thread._id,
       runId,
       parentRunId: params.parentRunId,
-      ...(params.resume ? { resume: params.resume } : {}),
+      ...(resume.length ? { resume } : {}),
       tools,
       interrupts: [ASK_USER_INTERRUPT],
       context: ctx,
@@ -565,7 +580,7 @@ export class AssistantManager {
       lazyToolsConfig: { includeDescription: 'first-sentence' },
       modelOptions: modelOptionsFor(model) as never,
       middleware: [
-        withPersistence(lmdbPersistence(this.dbs, this.threads, ctx.userId)),
+        withPersistence(persistence),
         settings.memoryEnabled ? this.memoryMiddleware : NO_MIDDLEWARE,
         withCompaction({
           maxTokens: settings.contextTokens,
@@ -1059,6 +1074,11 @@ function cachedPrompts(prompts: string[], provider: string): SystemPrompt<never>
 
 function modelsFor(models: DBAssistantModel[], role?: DBRoles): DBAssistantModel[] {
   return role === 'user' ? models.filter((entry) => entry.userAccess !== false) : models;
+}
+
+function isClientToolInterrupt(payload: unknown): boolean {
+  const reason = (payload as { reason?: unknown } | undefined)?.reason;
+  return typeof reason === 'string' && reason.includes('client_tool');
 }
 
 function defaultEntry(record: Pick<DBAssistant, 'models' | 'defaultModelId'>): DBAssistantModel | undefined {

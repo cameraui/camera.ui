@@ -22,6 +22,7 @@ import type {
 import type { JSONSchema } from '@tanstack/ai';
 import type { UIMessage } from '@tanstack/ai-vue';
 import type { Ref } from 'vue';
+import type { RouteLocationRaw } from 'vue-router';
 
 export interface AssistantQuestionInterrupt {
   id: string;
@@ -69,6 +70,16 @@ function chatUrl(): string {
   return `${origin}/api/assistant/chat`;
 }
 
+function leave(router: ReturnType<typeof useRouter>, to: RouteLocationRaw): { ok: boolean; message?: string } {
+  try {
+    router.resolve(to);
+  } catch {
+    return { ok: false, message: 'unknown page' };
+  }
+  setTimeout(() => router.push(to), 0);
+  return { ok: true };
+}
+
 async function navigate(
   router: ReturnType<typeof useRouter>,
   actions: ReturnType<typeof useAssistantActions>,
@@ -79,28 +90,24 @@ async function navigate(
   switch (name) {
     case 'open_camera':
       if (!camera) return { ok: false, message: 'camera name is missing' };
-      await router.push(`/cameras/${encodeURIComponent(camera)}`);
-      return { ok: true };
+      return leave(router, `/cameras/${encodeURIComponent(camera)}`);
     case 'open_recording': {
       const time = Date.parse(String(args.time ?? ''));
       if (!camera || Number.isNaN(time)) return { ok: false, message: 'camera name or time is missing' };
-      await router.push({ path: `/cameras/${encodeURIComponent(camera)}`, query: { startTs: String(time) } });
-      return { ok: true, message: `showing ${camera} at ${new Date(time).toLocaleString()}` };
+      const result = leave(router, { path: `/cameras/${encodeURIComponent(camera)}`, query: { startTs: String(time) } });
+      return result.ok ? { ok: true, message: `showing ${camera} at ${new Date(time).toLocaleString()}` } : result;
     }
     case 'open_camview':
-      await router.push('/camview');
-      return { ok: true };
+      return leave(router, '/camview');
     case 'open_page': {
       const page = ASSISTANT_PAGES[String(args.page ?? '')];
       if (!page) return { ok: false, message: 'unknown page' };
-      await router.push(page.path);
-      return { ok: true };
+      return leave(router, page.path);
     }
     case 'open_settings': {
       const page = String(args.page ?? '');
       if (!page) return { ok: false, message: 'page is missing' };
-      await router.push({ name: `Settings${page.charAt(0).toUpperCase()}${page.slice(1)}` });
-      return { ok: true };
+      return leave(router, { name: `Settings${page.charAt(0).toUpperCase()}${page.slice(1)}` });
     }
     case 'ui_actions': {
       const list = actions.list();

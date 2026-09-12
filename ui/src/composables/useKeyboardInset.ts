@@ -33,21 +33,22 @@ export function registerKeyboardInset(): void {
       apply();
     });
 
-    void Promise.all([import('@capacitor/keyboard'), import('@capacitor/core')]).then(([{ Keyboard }, { Capacitor }]) => {
+    Promise.all([import('@capacitor/keyboard'), import('@capacitor/core')]).then(([{ Keyboard }, { Capacitor }]) => {
       let pinned = false;
 
       const unpinScroll = (): void => {
         if (!pinned) return;
         pinned = false;
-        void Keyboard.setScroll({ isDisabled: false });
+        Keyboard.setScroll({ isDisabled: false });
       };
 
-      void Keyboard.addListener('keyboardWillShow', (info) => {
+      Keyboard.addListener('keyboardWillShow', (info) => {
         nativeHeight = info.keyboardHeight;
         apply();
         scrollFocusedIntoView();
       });
-      void Keyboard.addListener('keyboardWillHide', () => {
+
+      Keyboard.addListener('keyboardWillHide', () => {
         nativeHeight = 0;
         apply();
         unpinScroll();
@@ -62,7 +63,7 @@ export function registerKeyboardInset(): void {
         const inOverlay = target.closest('.p-dialog-mask, .p-drawer-mask, .cui-bottom-sheet');
         if (!inOverlay && document.documentElement.scrollHeight > window.innerHeight + 1) return;
         pinned = true;
-        void Keyboard.setScroll({ isDisabled: true });
+        Keyboard.setScroll({ isDisabled: true });
       });
       document.addEventListener('focusout', unpinScroll);
     });

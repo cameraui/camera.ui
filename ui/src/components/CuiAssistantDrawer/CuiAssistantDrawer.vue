@@ -175,9 +175,8 @@ function openSettings(closeCallback: () => void): void {
 }
 
 onMounted(async () => {
-  if (!drawer.visible.value) return;
+  if (!drawer.visible.value || !mini.value) return;
   drawer.visible.value = false;
-  if (!mini.value) return;
   const thread = await getAssistantThread(drawer.threadId.value).catch(() => undefined);
   if (thread) drawer.load(thread);
   drawer.visible.value = true;

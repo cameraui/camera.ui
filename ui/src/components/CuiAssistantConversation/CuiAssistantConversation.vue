@@ -69,7 +69,7 @@
         </div>
       </div>
 
-      <div v-else class="mx-auto flex w-full max-w-[720px] flex-col gap-7 pt-6 pb-4">
+      <div v-else ref="contentRef" class="mx-auto flex w-full max-w-[720px] flex-col gap-7 pt-6 pb-4">
         <CuiAssistantMessage
           v-for="row in rows"
           :key="row.message.id"
@@ -132,7 +132,21 @@
       </div>
     </div>
 
-    <div v-if="!welcome" class="cui-assistant-dock px-4 pb-3 pt-6">
+    <div v-if="!welcome" class="cui-assistant-dock relative px-4 pb-3 pt-6">
+      <Button
+        v-if="!pinnedToBottom"
+        v-tooltip.top="{ value: $t('views.assistant.scroll_to_latest') }"
+        type="button"
+        rounded
+        severity="secondary"
+        class="cui-assistant-jump absolute left-1/2 top-0 z-[2] -translate-x-1/2 -translate-y-1/2"
+        @click="jumpToBottom"
+      >
+        <template #icon>
+          <i-mdi:chevron-down class="w-4 h-4" />
+        </template>
+      </Button>
+
       <div class="mx-auto w-full max-w-[720px]">
         <div v-if="chat.queue.value.length" class="mb-2 flex flex-col gap-1">
           <div v-for="item in chat.queue.value" :key="item.id" class="cui-assistant-queued flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] text-muted">
@@ -402,6 +416,7 @@ const deleteMemoryMutation = assistantQuery.deleteMemoryMutation();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
 
 const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
+const contentRef = useTemplateRef<HTMLDivElement>('contentRef');
 const composerRef = useTemplateRef<InstanceType<typeof CuiAssistantComposer>>('composerRef');
 const toolsPopover = useTemplateRef<InstanceType<typeof Popover>>('toolsPopover');
 const memoryPopover = useTemplateRef<InstanceType<typeof Popover>>('memoryPopover');
@@ -502,6 +517,11 @@ function onScroll(): void {
   const el = scrollRef.value;
   if (!el) return;
   pinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+}
+
+function jumpToBottom(): void {
+  pinnedToBottom.value = true;
+  scrollToBottom();
 }
 
 function scrollToBottom(): void {
@@ -648,12 +668,26 @@ watch(
   { deep: true },
 );
 
+watch(
+  () => chat.approvals.value.length + chat.questions.value.length,
+  async (pending, before) => {
+    if (pending <= before) return;
+    pinnedToBottom.value = true;
+    await nextTick();
+    scrollToBottom();
+  },
+);
+
 watch(welcome, async () => {
   await nextTick();
   composerRef.value?.focus();
 });
 
 useEventListener(window, 'scroll', realignPopovers, { capture: true, passive: true });
+
+useResizeObserver(contentRef, () => {
+  if (pinnedToBottom.value) scrollToBottom();
+});
 
 onMounted(async () => {
   await nextTick();
@@ -716,6 +750,12 @@ defineExpose({ refreshFromStore });
 
 .cui-assistant-note {
   border-left: 2px solid var(--border-color-inner);
+}
+
+.cui-assistant-jump {
+  border: 1px solid var(--border-color);
+  background: var(--card-background);
+  box-shadow: var(--shadow-sm);
 }
 
 .cui-assistant-dock {

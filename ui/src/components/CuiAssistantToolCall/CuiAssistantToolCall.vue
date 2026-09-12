@@ -4,7 +4,7 @@
       <ProgressSpinner v-if="running" class="w-4 h-4 m-0 shrink-0" stroke-width="6" />
       <i-mdi:alert-circle-outline v-else-if="failed" class="w-4 h-4 shrink-0 text-danger" />
       <i-mdi:shield-alert-outline v-else-if="awaitingApproval" class="w-4 h-4 shrink-0 text-warning" />
-      <i-mdi:close-circle-outline v-else-if="rejected" class="w-4 h-4 shrink-0 text-muted" />
+      <i-mdi:close-circle-outline v-else-if="rejected || unfinished" class="w-4 h-4 shrink-0 text-muted" />
       <i-mdi:check-circle-outline v-else class="w-4 h-4 shrink-0 text-success" />
 
       <span class="font-medium truncate text-color">{{ displayName }}</span>
@@ -58,7 +58,7 @@ import { resultContentParts, resultImages, safeParseJson, toolDisplayName } from
 
 import type { CuiAssistantToolCallProps, ToolResultImage } from './types.js';
 
-const props = withDefaults(defineProps<CuiAssistantToolCallProps>(), { inlineAttachments: true });
+const props = withDefaults(defineProps<CuiAssistantToolCallProps>(), { inlineAttachments: true, busy: true });
 
 const { t } = useI18n();
 const { openImageDialog } = useCuiDialog();
@@ -67,13 +67,16 @@ const expanded = ref(false);
 
 const displayName = computed(() => toolDisplayName(props.part.name));
 
-const running = computed(() => ['awaiting-input', 'input-streaming', 'input-complete', 'approval-responded'].includes(props.part.state) && !props.result);
+const started = computed(() => ['awaiting-input', 'input-streaming', 'input-complete', 'approval-responded'].includes(props.part.state) && !props.result);
+const running = computed(() => started.value && props.busy);
+const unfinished = computed(() => started.value && !props.busy);
 const awaitingApproval = computed(() => props.part.state === 'approval-requested');
 const rejected = computed(() => props.part.approval?.needsApproval === true && props.part.approval.approved === false);
 const failed = computed(() => props.part.state === 'error' || props.result?.state === 'error' || Boolean(props.result?.error));
 
 const statusLabel = computed(() => {
   if (running.value) return t('views.assistant.tool_running');
+  if (unfinished.value) return t('views.assistant.tool_unfinished');
   if (awaitingApproval.value) return t('views.assistant.tool_waiting_approval');
   if (rejected.value) return t('views.assistant.tool_rejected');
   if (failed.value) return t('views.assistant.tool_failed');

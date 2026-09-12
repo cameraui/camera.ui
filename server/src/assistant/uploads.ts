@@ -63,7 +63,7 @@ export function markerFor(part: DataPart): DataPart {
 
 export function messagesForModel(messages: ModelMessage[], sendImages: boolean): ModelMessage[] {
   const out: ModelMessage[] = [];
-  for (const message of messages) {
+  for (const message of answerAfterResults(messages)) {
     if (message.role === 'tool' && Array.isArray(message.content)) {
       const parts = message.content as DataPart[];
       const images = parts.filter((part) => part.type === 'image');
@@ -84,6 +84,28 @@ export function messagesForModel(messages: ModelMessage[], sendImages: boolean):
     }
     out.push({ ...message, content: content.length ? content : [{ type: 'text', content: '[attachment]' }] } as ModelMessage);
   }
+  return out;
+}
+
+function answerAfterResults(messages: ModelMessage[]): ModelMessage[] {
+  const out: ModelMessage[] = [];
+  let answer: ModelMessage | undefined;
+
+  for (const message of messages) {
+    if (answer && message.role !== 'tool') {
+      out.push(answer);
+      answer = undefined;
+    }
+    const { toolCalls, ...rest } = message as ModelMessage & { toolCalls?: unknown[] };
+    if (message.role === 'assistant' && toolCalls?.length && message.content) {
+      answer = { ...rest, id: rest.id ? `${rest.id}-answer` : undefined };
+      out.push({ ...message, content: null });
+      continue;
+    }
+    out.push(message);
+  }
+  if (answer) out.push(answer);
+
   return out;
 }
 
