@@ -79,12 +79,11 @@
           <div
             v-for="(box, i) in boxes"
             :key="`label-${i}`"
-            class="bbox-label cursor-pointer"
+            class="bbox-label cursor-move"
             :data-box-label="i"
-            @pointerdown.stop
+            @pointerdown.stop="startMove(i, $event)"
             @touchstart.stop
             @mousedown.stop
-            @click.stop="openLabelMenu(i, $event)"
             :class="{
               'label-bottom': labelPlacement(box) === 'below',
               'label-inside': labelPlacement(box) === 'inside',
@@ -367,6 +366,7 @@ function dragStart(event: PointerEvent, state: Omit<DragState, 'moved'>): void {
 }
 
 function onPointerDown(event: PointerEvent): void {
+  labelMenuRef.value?.hide();
   if (stageZoomLevel.value > 1 || !event.isPrimary) return;
   const { x, y } = pointerPos(event);
   dragStart(event, { mode: 'draw', index: -1, startX: x, startY: y, origin: { label: lastLabel.value, confidence: 1, x, y, width: 0, height: 0 } });
@@ -381,6 +381,7 @@ function startMove(index: number, event: PointerEvent): void {
 
 function startResize(index: number, corner: Corner, event: PointerEvent): void {
   if (!event.isPrimary) return;
+  labelMenuRef.value?.hide();
   const { x, y } = pointerPos(event);
   selectedIndex.value = index;
   dragStart(event, { mode: 'resize', index, corner, startX: x, startY: y, origin: { ...boxes.value[index] } });
