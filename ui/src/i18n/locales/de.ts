@@ -560,6 +560,11 @@ export default {
       no_events: 'Keine aktuellen Ereignisse',
       events_unavailable: 'Ereignisse nicht verfügbar, das NVR-Plugin läuft nicht',
       title: 'Letzte Ereignisse',
+      filter: 'Letzte Ereignisse filtern',
+      filter_hint: 'Wähle die Kameras, deren Ereignisse hier erscheinen. Ausgeblendete Ereignisse werden weiter erkannt und aufgezeichnet.',
+      filter_all_cameras: 'Alle Kameras',
+      filter_shown_on: 'Auf {n} von {total} Kameras sichtbar',
+      filter_hidden_everywhere: 'Auf allen Kameras ausgeblendet',
     },
     camera_options: {
       overview: 'Übersicht',

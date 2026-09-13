@@ -557,6 +557,11 @@ export default {
       no_events: 'No recent events',
       events_unavailable: 'Events unavailable, the NVR plugin is not running',
       title: 'Recent Events',
+      filter: 'Filter recent events',
+      filter_hint: 'Select the cameras whose events show up here. Hidden events are still detected and recorded.',
+      filter_all_cameras: 'All cameras',
+      filter_shown_on: 'Shown on {n} of {total} cameras',
+      filter_hidden_everywhere: 'Hidden on all cameras',
     },
     camera_options: {
       overview: 'Overview',

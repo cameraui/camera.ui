@@ -11,7 +11,7 @@
       <h1 v-if="!smBreakpoint" class="page-title mb-2">
         {{ $t('components.camera_events.title') }}
       </h1>
-      <CuiCameraEvents :cameras="cameras?.result" />
+      <CuiCameraEvents v-if="hiddenEventTypesReady" :cameras="cameras?.result" :hidden-types="hiddenEventTypes" />
     </div>
 
     <div class="flex flex-col flex-1 overflow-x-hidden">
@@ -121,6 +121,15 @@
           @click="uiSettings.cameras.dragDisabled = !uiSettings.cameras.dragDisabled"
         />
         <CuiFloatingButton
+          v-if="uiSettings.cameras.showEvents"
+          grouped
+          :tooltip-props="{ value: $t('components.camera_events.filter') }"
+          :button-props="{ severity: recentEventsFiltered ? 'primary' : 'secondary' }"
+          :icon="recentEventsFiltered ? FilterActiveIcon : FilterIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="openRecentEventsFilter"
+        />
+        <CuiFloatingButton
           v-if="isAdmin"
           grouped
           :tooltip-props="{ value: $t('components.form.tooltip.select_cameras') }"
@@ -196,6 +205,8 @@ import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import VideoOnIcon from '~icons/fluent/video-32-filled';
 import VideoOffIcon from '~icons/fluent/video-off-32-filled';
 import RecordIcon from '~icons/fluent/video-recording-20-filled';
+import FilterIcon from '~icons/mage/filter';
+import FilterActiveIcon from '~icons/mage/filter-fill';
 import CloseIcon from '~icons/mdi/close';
 import TrashIcon from '~icons/mdi/delete-outline';
 import LockIcon from '~icons/mdi/lock';
@@ -211,7 +222,8 @@ import { extractErrorMessage, getImageUrl } from '@/common/utils.js';
 
 import type CuiCameraSnapshot from '@/components/CuiCameraSnapshot/CuiCameraSnapshot.vue';
 import type { CameraConsoleProps } from '@/components/CuiDialog/templates/CameraConsole/types.js';
-import type { BulkResult, DBCamera } from '@shared/types';
+import type { RecentEventsFilterProps } from '@/components/CuiDialog/templates/RecentEventsFilter/types.js';
+import type { BulkResult, DBCamera, HiddenEventTypes } from '@shared/types';
 
 interface CameraGroup {
   room: string;
@@ -221,6 +233,7 @@ interface CameraGroup {
 const CLICK_AFTER_DRAG_GRACE = 300;
 
 const CameraConsoleDialog = asyncComponent(() => import('@/components/CuiDialog/templates/CameraConsole/CameraConsole.vue'));
+const RecentEventsFilterDialog = asyncComponent(() => import('@/components/CuiDialog/templates/RecentEventsFilter/RecentEventsFilter.vue'));
 
 const camerasQuery = new CamerasQuery();
 
@@ -237,6 +250,14 @@ const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { isTouch } = useSharedCuiUserAgent();
 const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
+
+const {
+  hidden: hiddenEventTypes,
+  active: recentEventsFiltered,
+  ready: hiddenEventTypesReady,
+  saving: hiddenEventTypesSaving,
+  save: saveHiddenEventTypes,
+} = useHiddenEventTypes();
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
@@ -441,6 +462,27 @@ function confirmBulkDelete() {
       const cameranames = selectedCameras.value.map((camera) => camera.name);
       await runBulk(() => bulkDeleteCamerasFn({ cameranames }), t('components.toast.cameras_removed'));
       exitSelectionMode();
+    },
+  });
+}
+
+function openRecentEventsFilter() {
+  dialog.openComponentDialog<RecentEventsFilterProps>(RecentEventsFilterDialog, {
+    data: {
+      title: t('components.camera_events.filter'),
+      confirmText: t('components.form.button.save'),
+      loading: hiddenEventTypesSaving,
+      contentProps: {
+        cameras: sortedCameras.value,
+        hidden: hiddenEventTypes.value,
+      },
+    },
+    onConfirm: async (next: HiddenEventTypes) => {
+      try {
+        await saveHiddenEventTypes(next);
+      } catch (error) {
+        toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
+      }
     },
   });
 }

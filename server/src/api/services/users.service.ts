@@ -5,7 +5,7 @@ import { AuthService } from './auth.service.js';
 
 import type { AssistantManager } from '../../assistant/manager.js';
 import type { Database } from '../database/index.js';
-import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser } from '../database/types.js';
+import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser, HiddenEventTypes } from '../database/types.js';
 
 export class UsersService {
   private dbs: Database;
@@ -83,6 +83,41 @@ export class UsersService {
 
     await this.authService.invalidateAll();
     await Promise.all(tasks);
+  }
+
+  public getHiddenEventTypes(username: string): HiddenEventTypes | undefined {
+    const user = this.findByName(username);
+    if (!user) return undefined;
+
+    const hidden: HiddenEventTypes = {};
+    for (const [cameraId, prefs] of Object.entries(user.preferences.cameras)) {
+      if (prefs?.hiddenEventTypes?.length) hidden[cameraId] = prefs.hiddenEventTypes;
+    }
+    return hidden;
+  }
+
+  public async setHiddenEventTypes(username: string, hidden: HiddenEventTypes): Promise<HiddenEventTypes | undefined> {
+    const existing = this.findByName(username);
+    if (!existing) return undefined;
+
+    const user = await this.dbs.commit(this.dbs.usersDB, existing._id, (current) => {
+      if (!current) return undefined;
+
+      for (const prefs of Object.values(current.preferences.cameras)) {
+        if (prefs) delete prefs.hiddenEventTypes;
+      }
+
+      for (const [cameraId, types] of Object.entries(hidden)) {
+        const normalized = [...new Set(types.map((type) => type.toLowerCase()))];
+        if (normalized.length === 0) continue;
+        const prefs = (current.preferences.cameras[cameraId] ??= { shortcuts: [] });
+        prefs.hiddenEventTypes = normalized;
+      }
+
+      return current;
+    });
+
+    return user ? this.getHiddenEventTypes(username) : undefined;
   }
 
   public async createShortcut(username: string, cameraId: string, shortcutData: DBShortcut): Promise<DBShortcut[] | undefined> {

@@ -113,7 +113,10 @@ export const patchPreferencesCameraShortcutLayout = zod.union([patchCameraShortc
 
 export const userPreferencesCameras = zod.object({
   shortcuts: userPreferencesCameraShortcutLayout.array(),
+  hiddenEventTypes: zod.string().array().optional(),
 });
+
+export const hiddenEventTypesSchema = zod.record(zod.string().trim().min(1), zod.string().trim().min(1).max(64).array().max(64));
 
 export const userLanguageSchema = zod.enum(['auto', ...SUPPORTED_LANGUAGES]);
 
@@ -248,6 +251,7 @@ export type PatchViewInput = zod.output<typeof patchPreferencesCamviewViewsLayou
 export type CreateShortcutInput = zod.output<typeof userPreferencesCameraShortcutLayout>;
 export type PatchShortcutInput = zod.output<typeof patchPreferencesCameraShortcutLayout>;
 export type UsernameParamsInput = zod.output<typeof usernameParamsSchema>;
+export type HiddenEventTypesInput = zod.output<typeof hiddenEventTypesSchema>;
 export type CameraShortcutParamsInput = zod.output<typeof cameraShortcutParamsSchema>;
 export type CameraShortcutByIdParamsInput = zod.output<typeof cameraShortcutByIdParamsSchema>;
 export type ViewParamsInput = zod.output<typeof viewParamsSchema>;

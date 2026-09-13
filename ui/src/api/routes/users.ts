@@ -8,6 +8,7 @@ import type {
   DBCameraShortcut,
   DBCamviewLayout,
   DBUser,
+  HiddenEventTypes,
   MethodKeys,
   PaginationQuery,
   PatchShortcutInput,
@@ -136,6 +137,16 @@ export async function removeViewsFn({ username }: { username: string }): Promise
   return response.data;
 }
 
+export async function getHiddenEventTypesFn({ username, signal }: { username: string; signal: AbortSignal }): Promise<HiddenEventTypes> {
+  const response: AxiosResponse<HiddenEventTypes> = await api.get(`/users/${username}/preferences/hidden-event-types`, { signal });
+  return response.data;
+}
+
+export async function putHiddenEventTypesFn({ username, hidden }: { username: string; hidden: HiddenEventTypes }): Promise<HiddenEventTypes> {
+  const response: AxiosResponse<HiddenEventTypes> = await api.put(`/users/${username}/preferences/hidden-event-types`, hidden);
+  return response.data;
+}
+
 export class UsersQuery {
   private _queryClient = useQueryClient();
   private t = i18n.global.t;
@@ -164,6 +175,10 @@ export class UsersQuery {
     },
     {
       name: 'getViewsQuery',
+      enabled: true,
+    },
+    {
+      name: 'getHiddenEventTypesQuery',
       enabled: true,
     },
   ]);
@@ -227,6 +242,33 @@ export class UsersQuery {
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['usersList'] });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.users_removed'), life: 3000 });
+      },
+    });
+  }
+
+  public getHiddenEventTypesQuery(username: string | Ref<string>) {
+    return useQueryEnhanced({
+      queryKey: ['hiddenEventTypes', username],
+      queryFn: ({ signal }) => getHiddenEventTypesFn({ username: unref(username), signal }),
+      enabled: () => Boolean(unref(username)) && this.queryActivator.value.some((query) => query.name === 'getHiddenEventTypesQuery' && query.enabled),
+    });
+  }
+
+  public putHiddenEventTypesQuery() {
+    return useMutation({
+      mutationFn: putHiddenEventTypesFn,
+      onMutate: async ({ username, hidden }) => {
+        const queryKey = ['hiddenEventTypes', username];
+        await this._queryClient.cancelQueries({ queryKey });
+        const previous = this._queryClient.getQueryData<HiddenEventTypes>(queryKey);
+        this._queryClient.setQueryData(queryKey, hidden);
+        return { previous };
+      },
+      onError: (_error, { username }, context) => {
+        this._queryClient.setQueryData(['hiddenEventTypes', username], context?.previous);
+      },
+      onSuccess: (saved, { username }) => {
+        this._queryClient.setQueryData(['hiddenEventTypes', username], saved);
       },
     });
   }

@@ -73,6 +73,7 @@ import type {
   CreateShortcutInput,
   CreateUserInput,
   CreateViewInput,
+  HiddenEventTypesInput,
   LoginUserInput,
   PatchShortcutInput,
   PatchUserInput,
@@ -550,6 +551,10 @@ export interface UsersParamsRequest {
 
 export interface UsersInsertRequest {
   Body: CreateUserInput & { avatar: string };
+}
+
+export interface HiddenEventTypesPutRequest {
+  Body: HiddenEventTypesInput;
 }
 
 export interface UsersPatchRequest {

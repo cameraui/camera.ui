@@ -14,6 +14,7 @@ import type {
   AuthLoginRequest,
   AuthParamsRequest,
   CamerasParamsRequest,
+  HiddenEventTypesPutRequest,
   PaginationRequest,
   ShortcutInsertRequest,
   ShortcutParamsRequest,
@@ -349,6 +350,51 @@ export class UsersController {
       }
 
       return reply.code(200).send(shortcut);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public getHiddenEventTypes(req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      const hidden = this.service.getHiddenEventTypes(req.params.username);
+
+      if (!hidden) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'User not exists',
+        });
+      }
+
+      return reply.code(200).send(hidden);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async putHiddenEventTypes(
+    req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest & HiddenEventTypesPutRequest>,
+    reply: FastifyReply,
+  ): Promise<FastifyReply> {
+    try {
+      // cameras that no longer exist would pile up in the preference forever
+      const hidden = Object.fromEntries(Object.entries(req.body).filter(([cameraId]) => this.camerasService.findById(cameraId)));
+      const saved = await this.service.setHiddenEventTypes(req.params.username, hidden);
+
+      if (!saved) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'User not exists',
+        });
+      }
+
+      return reply.code(200).send(saved);
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

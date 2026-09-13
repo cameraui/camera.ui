@@ -569,6 +569,7 @@ declare module 'vue' {
     Popover: typeof import('primevue/popover')['default']
     ProgressBar: typeof import('primevue/progressbar')['default']
     ProgressSpinner: typeof import('primevue/progressspinner')['default']
+    RecentEventsFilter: typeof import('./../components/CuiDialog/templates/RecentEventsFilter/RecentEventsFilter.vue')['default']
     RecordingCard: typeof import('./../components/CuiRecordings/RecordingCard.vue')['default']
     RecordingsFilterSidebar: typeof import('./../components/CuiRecordings/RecordingsFilterSidebar.vue')['default']
     RenameSensor: typeof import('./../components/CuiDialog/templates/RenameSensor/RenameSensor.vue')['default']

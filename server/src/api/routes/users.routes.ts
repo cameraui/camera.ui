@@ -7,6 +7,7 @@ import {
   cameraShortcutByIdParamsSchema,
   cameraShortcutParamsSchema,
   createUserSchema,
+  hiddenEventTypesSchema,
   patchPreferencesCameraShortcutLayout,
   patchPreferencesCamviewViewsLayout,
   patchUserSchema,
@@ -93,6 +94,31 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
       tags: ['Users'],
       summary: 'Delete a user by username',
       params: usernameParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'GET',
+    url: '/:username/preferences/hidden-event-types',
+    preValidation: [validJWTNeeded, onlySameUserOrAdminCanDoThisAction],
+    handler: usersController.getHiddenEventTypes.bind(usersController),
+    schema: {
+      tags: ['Users'],
+      summary: 'Detection types a user hides from recent events, per camera',
+      params: usernameParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'PUT',
+    url: '/:username/preferences/hidden-event-types',
+    preValidation: [validJWTNeeded, onlySameUserOrAdminCanDoThisAction],
+    handler: usersController.putHiddenEventTypes.bind(usersController),
+    schema: {
+      tags: ['Users'],
+      summary: 'Replace the detection types a user hides from recent events',
+      params: usernameParamsSchema,
+      body: hiddenEventTypesSchema,
     },
   });
 

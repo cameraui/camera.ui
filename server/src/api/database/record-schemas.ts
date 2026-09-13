@@ -50,7 +50,7 @@ export const dbUserSchema = zod.object({
     .object({
       language: userLanguageSchema.default('auto'),
       camview: zod.object({ views: dbCamviewLayoutSchema.array().default([]) }).default({ views: [] }),
-      cameras: zod.record(zod.string(), zod.object({ shortcuts: dbShortcutSchema.array().default([]) })).default({}),
+      cameras: zod.record(zod.string(), zod.object({ shortcuts: dbShortcutSchema.array().default([]), hiddenEventTypes: zod.string().array().optional() })).default({}),
       discovery: zod
         .object({
           hiddenDevices: zod.object({ id: zod.string(), name: zod.string(), model: zod.string().optional() }).array().default([]),

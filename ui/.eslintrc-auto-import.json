@@ -361,6 +361,7 @@
     "useFullscreen": true,
     "useGamepad": true,
     "useGeolocation": true,
+    "useHiddenEventTypes": true,
     "useHostMenu": true,
     "useHttp": true,
     "useI18n": true,

@@ -489,11 +489,14 @@ export interface DBSensorShortcut extends DBShortcutBase {
 
 export type DBShortcut = DBCameraShortcut | DBSensorShortcut;
 
+export type HiddenEventTypes = Record<string, string[]>;
+
 // prettier-ignore
 export type DBUserCameraPreferences = Record<
   string,
   | {
     shortcuts: DBShortcut[];
+    hiddenEventTypes?: string[];
   }
   | undefined
 >;
