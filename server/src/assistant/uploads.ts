@@ -63,13 +63,18 @@ export function markerFor(part: DataPart): DataPart {
 
 export function messagesForModel(messages: ModelMessage[], sendImages: boolean): ModelMessage[] {
   const out: ModelMessage[] = [];
+  let pictures: DataPart[] = [];
   for (const message of answerAfterResults(messages)) {
+    if (pictures.length && message.role !== 'tool') {
+      out.push({ role: 'user', content: pictures } as ModelMessage);
+      pictures = [];
+    }
     if (message.role === 'tool' && Array.isArray(message.content)) {
       const parts = message.content as DataPart[];
       const images = parts.filter((part) => part.type === 'image');
       if (images.length) {
         out.push({ ...message, content: parts.filter((part) => part.type !== 'image') } as ModelMessage);
-        out.push({ role: 'user', content: images } as ModelMessage);
+        pictures.push(...images);
         continue;
       }
     }
@@ -84,6 +89,7 @@ export function messagesForModel(messages: ModelMessage[], sendImages: boolean):
     }
     out.push({ ...message, content: content.length ? content : [{ type: 'text', content: '[attachment]' }] } as ModelMessage);
   }
+  if (pictures.length) out.push({ role: 'user', content: pictures } as ModelMessage);
   return out;
 }
 
