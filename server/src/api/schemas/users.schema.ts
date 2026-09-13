@@ -8,7 +8,51 @@ import type { SensorShortcutType } from '../database/types.js';
 import { uploadSchema } from '../utils/upload.js';
 import { pointsSchema } from './cameras.schema.js';
 
-export const SUPPORTED_LANGUAGES = ['de', 'en'] as const;
+export const LANGUAGES = [
+  'ar',
+  'bg',
+  'bn',
+  'ca',
+  'cs',
+  'da',
+  'de',
+  'el',
+  'en',
+  'es',
+  'et',
+  'fa',
+  'fi',
+  'fr',
+  'he',
+  'hi',
+  'hr',
+  'hu',
+  'id',
+  'it',
+  'ja',
+  'ko',
+  'lt',
+  'lv',
+  'ms',
+  'nb',
+  'nl',
+  'pl',
+  'pt',
+  'ro',
+  'ru',
+  'sk',
+  'sl',
+  'sr',
+  'sv',
+  'th',
+  'tr',
+  'uk',
+  'ur',
+  'vi',
+  'zh',
+] as const;
+
+export const SUPPORTED_LANGUAGES = ['de', 'en'] as const satisfies readonly (typeof LANGUAGES)[number][];
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
 export const MAX_IMAGE_FILE_SIZE = 1024 * 1024 * 5;
 
@@ -256,5 +300,6 @@ export type CameraShortcutParamsInput = zod.output<typeof cameraShortcutParamsSc
 export type CameraShortcutByIdParamsInput = zod.output<typeof cameraShortcutByIdParamsSchema>;
 export type ViewParamsInput = zod.output<typeof viewParamsSchema>;
 export type ViewsListParamsInput = zod.output<typeof viewsListParamsSchema>;
+export type LanguageAbbreviations = (typeof LANGUAGES)[number];
 export type SupportedLanguageAbbreviatons = (typeof SUPPORTED_LANGUAGES)[number];
 export type UserLanguage = zod.output<typeof userLanguageSchema>;

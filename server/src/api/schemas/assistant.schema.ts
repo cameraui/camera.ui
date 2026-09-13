@@ -1,5 +1,7 @@
 import * as zod from 'zod';
 
+import { LANGUAGES } from './users.schema.js';
+
 export const assistantProviderSchema = zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']);
 
 export const assistantModelInputSchema = zod
@@ -26,7 +28,7 @@ export const patchAssistantSchema = zod
       .array(zod.object({ pluginId: zod.string().trim().min(1).max(200), modelId: zod.string().trim().min(1).max(64) }).strict())
       .max(50)
       .optional(),
-    language: zod.string().trim().max(16).nullable().optional(),
+    language: zod.enum(LANGUAGES).nullable().optional(),
     maxIterations: zod.number().int().min(1).max(30).optional(),
     maxToolCalls: zod.number().int().min(1).max(100).optional(),
     contextTokens: zod.number().int().min(8_000).max(400_000).optional(),

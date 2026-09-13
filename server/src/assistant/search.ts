@@ -1,6 +1,8 @@
 import { BASE_AUDIO_LABELS, DETECTION_ATTRIBUTES, EVENT_TRIGGER_TYPES, OBJECT_DETECTION_LABELS } from '@camera.ui/sdk';
 import * as zod from 'zod';
 
+import { languageName } from './prompt.js';
+
 import type { AssistantSearchFilters, AssistantSearchResult } from './types.js';
 
 export interface SearchCamera {
@@ -34,7 +36,7 @@ export function searchPrompt(cameras: SearchCamera[], language: string, timezone
   // prettier-ignore
   return [
     'You translate a wish about recorded camera events into the filters of the recordings page. Answer only with the filter object.',
-    `Current time: ${now.toLocaleString('en-GB', { timeZone: timezone, hour12: false })} (${timezone}). The user writes in ${language}.`,
+    `Current time: ${now.toLocaleString('en-GB', { timeZone: timezone, hour12: false })} (${timezone}). The user writes in ${languageName(language)}.`,
     '',
     `Cameras (name, room): ${cameras.map((camera) => `${camera.name}${camera.room ? ` (${camera.room})` : ''}`).join('; ') || 'none'}.`,
     `Rooms: ${rooms.join(', ') || 'none'}.`,
@@ -50,7 +52,8 @@ export function searchPrompt(cameras: SearchCamera[], language: string, timezone
     '- semanticQuery: when the wish describes a scene beyond the labels above (a color, an action, an object like a parcel), ' +
     'an English scene description ("a blue car in the driveway"), empty otherwise.',
     '- favoritesOnly: only when the wish asks for favorites or starred recordings.',
-    `- note: one short sentence in ${language} about the part of the wish the filters cannot express (an exact day, a name of a person unknown here), empty otherwise.`,
+    `- note: one short sentence in ${languageName(language)} about the part of the wish the filters cannot express ` +
+    '(an exact day, a name of a person unknown here), empty otherwise.',
   ].join('\n');
 }
 

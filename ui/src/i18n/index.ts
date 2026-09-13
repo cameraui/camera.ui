@@ -3,8 +3,8 @@ import { createI18n } from 'vue-i18n';
 
 import { messages } from './languages.js';
 
-import type { SupportedLanguageAbbreviatons } from '@shared/types';
-import type { LanguageAbbreviations, LanguageList } from './types.js';
+import type { LanguageAbbreviations, SupportedLanguageAbbreviatons } from '@shared/types';
+import type { LanguageList } from './types.js';
 
 export const DEFAULT_LOCALE: SupportedLanguageAbbreviatons = 'en';
 export const SUPPORTED_LOCALES: SupportedLanguageAbbreviatons[] = [...SUPPORTED_LANGUAGES];

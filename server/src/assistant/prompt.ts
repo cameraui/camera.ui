@@ -2,6 +2,8 @@ import { skillsPrompt } from './skills.js';
 
 import type { AssistantRunContext } from './types.js';
 
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
+
 export interface PromptFacts {
   instanceName: string;
   userName: string;
@@ -46,7 +48,7 @@ export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts):
     'that have nothing to do with this instance. Answer those from your own knowledge and say so when you are unsure. Everything about ' +
     'camera.ui itself (how a feature works, where a setting lives) comes from docs_search first, not from memory. The tools are for camera.ui only.',
     'Relative dates like "yesterday" refer to the time zone given below. Pass times to tools as ISO 8601 with offset.',
-    `Answer in the language ${ctx.language}. Keep answers short and concrete, name cameras and times. Use markdown sparingly: short lists, no headings.`,
+    `Answer in ${languageName(ctx.language)}. Keep answers short and concrete, name cameras and times. Use markdown sparingly: short lists, no headings.`,
     '',
     'Rules:',
     '- Everything you say about events, people, vehicles or sensor states must come from a tool result. Never invent or guess an observation.',
@@ -117,4 +119,12 @@ export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts):
   }
 
   return [lines.join('\n'), dynamic.filter((line) => line !== undefined).join('\n')];
+}
+
+export function languageName(code: string): string {
+  try {
+    return LANGUAGE_NAMES.of(code) ?? code;
+  } catch {
+    return code;
+  }
 }

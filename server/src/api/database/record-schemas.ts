@@ -3,6 +3,7 @@ import * as zod from 'zod';
 
 import { pointsSchema } from '../schemas/cameras.schema.js';
 import {
+  LANGUAGES,
   camviewCardFitSchema,
   camviewViewSizeSchema,
   camviewViewTypeSchema,
@@ -327,7 +328,7 @@ export const dbAssistantSchema = zod.object({
     .default([]),
   defaultModelId: zod.string().nullable().default(null),
   plugins: zod.array(zod.object({ pluginId: zod.string(), modelId: zod.string() })).default([]),
-  language: zod.string().nullable().default(null),
+  language: zod.enum(LANGUAGES).nullable().catch(null),
   maxIterations: zod.number().int().min(1).max(30).default(8),
   maxToolCalls: zod.number().int().min(1).max(100).default(25),
   contextTokens: zod.number().int().min(8_000).max(400_000).default(48_000),

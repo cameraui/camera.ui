@@ -193,7 +193,7 @@
 
               <div class="flex flex-col field-gap">
                 <label for="language" class="cui-label">{{ $t('views.settings.assistant_language_label') }}</label>
-                <Select v-model="form.language" :options="languageOptions" option-label="label" option-value="value" fluid />
+                <Select v-model="form.language" input-id="language" :options="languageOptions" option-label="label" option-value="value" filter fluid />
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_language_info') }}</Message>
               </div>
 
@@ -675,6 +675,7 @@
 </template>
 
 <script setup lang="ts">
+import { LANGUAGES } from '@shared/types';
 import CopyIcon from '~icons/mdi/content-copy';
 
 import { axiosInstance } from '@/api/index.js';
@@ -695,6 +696,7 @@ import type {
   AssistantUsageRow,
   DBAssistantProvider,
   DBAssistantScheduleDelivery,
+  LanguageAbbreviations,
   PatchAssistantInput,
 } from '@shared/types';
 import type { DataTablePassThroughOptions } from 'primevue';
@@ -781,11 +783,13 @@ const usage = computed(() => usageRows.value?.map((row) => ({ ...row, key: `${ro
 
 const status = computed(() => info.value?.status);
 
-const languageOptions = computed(() => [
-  { label: t('views.settings.assistant_language_auto'), value: null },
-  { label: 'Deutsch', value: 'de' },
-  { label: 'English', value: 'en' },
-]);
+const languageOptions = computed(() => {
+  const names = new Intl.DisplayNames([locale.value], { type: 'language' });
+  const languages = LANGUAGES.map((code) => ({ label: names.of(code) ?? code, value: code as LanguageAbbreviations | null })).sort((a, b) =>
+    a.label.localeCompare(b.label, locale.value),
+  );
+  return [{ label: t('views.settings.assistant_language_auto'), value: null }, ...languages];
+});
 
 const reasoningOptions = computed(() =>
   (['default', 'off', 'low', 'high'] as const).map((value) => ({ label: t(`views.settings.assistant_reasoning_${value}`), value })),
