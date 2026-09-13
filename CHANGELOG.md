@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.2]
+
+### Added
+
+- **Choose what shows in Recent Events.** A filter button on the home screen hides chosen detection types per camera, for example cars on a camera facing the street. Hidden events are still detected, recorded and found in Recordings, and an event where someone walks by while a car passes still shows. The choice belongs to your account and follows you to every device. Needs the NVR plugin update.
+
+### Fixed
+
+- **Long activity stays visible on the timeline.** Activity that goes on for hours is one event, and it disappeared from the timeline as soon as you looked at a stretch that did not contain its beginning. Needs the NVR plugin update.
+
+- **Detections come back after a restart during ongoing motion.** Restarting while something was still moving in front of a camera left the timeline empty for that camera until the motion stopped, with recordings running normally the whole time. Needs the NVR plugin update.
+
+- **Pictures from the assistant show up in the notification center.** A push the assistant, a scheduled prompt or an automation sent with a picture arrived with the picture on the phone, but without it in camera.ui's own notification list.
+
+- **The assistant sends the picture of the moment you talked about.** Asked to push the picture of an event it had just found, it took a new snapshot of the camera instead. It now attaches the picture of that event.
+
+- **Clip pushes from the assistant play on the phone.** The push carried the clip under a path only the camera.ui app itself could resolve, so the iPhone showed no video, and the clip started at the beginning of the event, before the person was even in the picture. It now sends a short clip around the moment the picture shows, with a link the phone can load. Needs the NVR plugin update.
+
+- **The download button for a clip always shows.** After an answer with several recordings, the download button of an exported clip could be missing under it.
+
+- **Weekly recaps with pictures work with Anthropic and OpenAI models.** When several tools returned pictures at once, the request put the pictures between the results and the provider refused it with an error about tool_use ids without tool_result. The pictures now follow all results.
+
+- **The assistant answers in Italian, French and other languages.** The answer language offered only German and English, so the event descriptions of the NVR plugin could not be set to another language anymore. It now lists the common languages. Needs the NVR plugin update for the descriptions.
+
 ## [2.2.1]
 
 ### Added
