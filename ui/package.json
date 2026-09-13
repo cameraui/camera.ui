@@ -37,7 +37,7 @@
     "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@camera.ui/browser": "~0.0.189",
     "@camera.ui/common": "~0.0.55",
-    "@camera.ui/nvr": "~0.0.120",
+    "@camera.ui/nvr": "~0.0.121",
     "@camera.ui/rpc": "~1.0.12",
     "@camera.ui/sdk": "~1.2.37",
     "@camera.ui/transport": "~0.0.29",
@@ -98,7 +98,7 @@
     "vue-view-transitions": "^1.2.1",
     "vue-zoomable": "^1.2.8",
     "vue3-dnd": "^2.1.0",
-    "zod": "4.6.2"
+    "zod": "4.6.4"
   },
   "devDependencies": {
     "@primevue/auto-import-resolver": "4.5.5",

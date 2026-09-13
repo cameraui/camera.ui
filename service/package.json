@@ -25,7 +25,7 @@
     "@camera.ui/common": "~0.0.55",
     "commander": "^15.0.0",
     "fs-extra": "^11.4.0",
-    "js-yaml": "^5.4.1",
+    "js-yaml": "^5.4.2",
     "ora": "^9.4.1",
     "systeminformation": "^5.33.10",
     "tail": "^2.2.6"
