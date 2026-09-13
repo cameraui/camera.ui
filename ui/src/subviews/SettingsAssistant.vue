@@ -43,9 +43,9 @@
 
               <div v-if="models.length" class="flex flex-col divide-y divide-(--border-color)">
                 <div v-for="entry in models" :key="entry._id" class="flex items-start gap-3 py-3 text-sm">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="font-medium text-color">{{ entry.name }}</span>
+                  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="max-w-full basis-full truncate font-medium text-color md:basis-auto">{{ entry.name }}</span>
+                    <div class="order-3 mt-1 flex flex-wrap items-center gap-1.5 md:order-2 md:mt-0">
                       <Tag v-if="entry._id === defaultEntry?._id" severity="info" :value="$t('views.settings.assistant_model_default')" class="text-[10px]" />
                       <Tag v-if="entry.userAccess === false" severity="secondary" :value="$t('views.settings.assistant_model_admins_only')" class="text-[10px]" />
                       <Tag
@@ -56,10 +56,10 @@
                         class="text-[10px]"
                       />
                     </div>
-                    <div class="mt-0.5 truncate text-muted">{{ providerLabel(entry.provider) }} · {{ entry.model }}</div>
-                    <div v-if="entry.capabilities?.error" class="mt-1 text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
+                    <div class="order-2 basis-full truncate text-muted md:order-3">{{ providerLabel(entry.provider) }} · {{ entry.model }}</div>
+                    <div v-if="entry.capabilities?.error" class="order-4 basis-full text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
                   </div>
-                  <div class="flex shrink-0 items-center gap-1">
+                  <div class="hidden shrink-0 items-center gap-1 md:flex">
                     <Button
                       v-if="entry._id !== defaultEntry?._id"
                       v-tooltip.top="{ value: $t('views.settings.assistant_model_make_default') }"
@@ -102,6 +102,11 @@
                       </template>
                     </Button>
                   </div>
+                  <Button type="button" severity="secondary" text rounded class="cui-icon-md shrink-0 md:hidden" @click="openModelMenu($event, entry)">
+                    <template #icon>
+                      <i-mdi:dots-vertical width="100%" height="100%" />
+                    </template>
+                  </Button>
                 </div>
               </div>
               <div v-else class="text-sm text-muted">{{ $t('views.settings.assistant_models_empty') }}</div>
@@ -133,10 +138,10 @@
             <div class="flex flex-col gap-6">
               <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_plugins_info') }}</Message>
 
-              <div v-if="info?.plugins.length" class="flex flex-col divide-y divide-(--border-color)">
-                <div v-for="plugin in info.plugins" :key="plugin.id" class="flex flex-col gap-2 py-3 text-sm md:flex-row md:items-center md:gap-4">
-                  <div class="flex min-w-0 items-center gap-2 md:w-48 md:shrink-0">
-                    <span class="truncate font-medium text-color">{{ plugin.name }}</span>
+              <template v-if="info?.plugins.length">
+                <div v-for="plugin in info.plugins" :key="plugin.id" class="flex flex-col field-gap">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <label :for="`plugin-${plugin.id}`" class="cui-label truncate">{{ plugin.name }}</label>
                     <Tag
                       v-if="pluginModel(plugin.id)?.capabilities?.vision === false"
                       severity="warn"
@@ -146,14 +151,15 @@
                   </div>
                   <Select
                     :model-value="pluginChoice(plugin.id)"
+                    :input-id="`plugin-${plugin.id}`"
                     :options="pluginOptions"
                     option-label="label"
                     option-value="value"
-                    class="w-full md:min-w-0 md:flex-1"
+                    fluid
                     @update:model-value="(value) => setPluginChoice(plugin.id, value)"
                   />
                 </div>
-              </div>
+              </template>
               <div v-else class="text-sm text-muted">{{ $t('views.settings.assistant_plugins_empty') }}</div>
 
               <div class="flex">
@@ -671,12 +677,17 @@
         </Card>
       </div>
     </div>
+
+    <CuiMenu ref="modelMenuRef" :items="modelMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { LANGUAGES } from '@shared/types';
 import CopyIcon from '~icons/mdi/content-copy';
+import DeleteIcon from '~icons/mdi/delete-outline';
+import EditIcon from '~icons/mdi/pencil-outline';
+import StarIcon from '~icons/mdi/star-outline';
 
 import { axiosInstance } from '@/api/index.js';
 import { AssistantQuery } from '@/api/routes/assistant.js';
@@ -684,8 +695,10 @@ import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@
 import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
+import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
 import type { AssistantModelFormProps } from '@/components/CuiDialog/templates/AssistantModel/types.js';
+import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { PassThrough } from '@primevue/core';
 import type {
   AssistantInfo,
@@ -757,11 +770,35 @@ const scheduleForm = ref<{
   profileId: null,
 });
 const serverTokens = ref<Record<string, string>>({});
+const menuEntry = ref<AssistantModelView | null>(null);
 const mcpClient = ref<'claude-code' | 'cursor' | 'claude-desktop'>('claude-code');
 const toolSource = ref('core');
+const modelMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('modelMenuRef');
 
 const models = computed(() => info.value?.settings.models ?? []);
 const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
+const modelMenuItems = computed<MenuItem[]>(() => {
+  const entry = menuEntry.value;
+  if (!entry) return [];
+  return [
+    {
+      label: t('views.settings.assistant_model_make_default'),
+      icon: StarIcon,
+      hide: entry._id === defaultEntry.value?._id,
+      disabled: patchMutation.isPending.value,
+      onClick: () => makeDefault(entry),
+    },
+    { label: t('views.settings.assistant_model_edit'), icon: EditIcon, onClick: () => openModelDialog(entry) },
+    {
+      label: t('views.settings.assistant_model_delete'),
+      icon: DeleteIcon,
+      iconProps: { class: 'text-red-500' },
+      labelProps: { class: 'text-red-500' },
+      buttonProps: { severity: 'danger' },
+      onClick: () => confirmDeleteModel(entry),
+    },
+  ];
+});
 const pluginOptions = computed(() => [
   { label: t('views.settings.assistant_plugin_no_access'), value: NO_PLUGIN_ACCESS },
   ...models.value.map((model) => ({ label: model.name, value: model._id })),
@@ -990,6 +1027,11 @@ function providerLabel(provider: DBAssistantProvider): string {
 
 async function saveModels(next: AssistantModelInput[]): Promise<AssistantInfo> {
   return patchMutation.mutateAsync({ models: next });
+}
+
+function openModelMenu(event: Event, entry: AssistantModelView): void {
+  menuEntry.value = entry;
+  modelMenuRef.value?.toggleMenu(event);
 }
 
 function openModelDialog(entry?: AssistantModelView): void {
