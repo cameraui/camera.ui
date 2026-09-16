@@ -16,6 +16,17 @@ import {
 import type { AudioStreamInfo, RTPInfo, VideoStreamInfo } from '@camera.ui/sdk';
 import type { Go2RTCProducer } from '../go2rtc/types.js';
 
+const COMPANION_AUDIO_FORMATS: Record<string, { rate?: number; channels?: number }> = {
+  pcma: { rate: 8000, channels: 1 },
+  opus: { rate: 48000, channels: 2 },
+  aac: {},
+};
+
+export function isCompanionProducer(producer: Go2RTCProducer): boolean {
+  const url = producer.url ? decodeURIComponent(producer.url) : '';
+  return url.includes('#cameraui');
+}
+
 export function generateAudioStreamInfo(producers: Go2RTCProducer[]): AudioStreamInfo[] {
   const audioStreamInfos: AudioStreamInfo[] = [];
 
@@ -27,51 +38,8 @@ export function generateAudioStreamInfo(producers: Go2RTCProducer[]): AudioStrea
     if (producer.receivers?.length) {
       for (const receiver of producer.receivers) {
         if (receiver.codec?.codec_type === 'audio') {
-          const audioCodec = mapAudioCodecName(receiver.codec.codec_name);
-          if (!audioCodec) continue;
-
-          const { codec, ffmpegCodec } = normalizeAudioCodecs(audioCodec);
-
-          const rtpInfo: RTPInfo = {
-            codec: receiver.codec.codec_name,
-            rate: receiver.codec.sample_rate,
-            encoding: receiver.codec.channels,
-          };
-
-          const sdpCodecInfo = sdpInfo.audio[codec];
-          if (sdpCodecInfo) {
-            if (sdpCodecInfo.clockRate) {
-              rtpInfo.rate = sdpCodecInfo.clockRate;
-            }
-            if (sdpCodecInfo.channels) {
-              rtpInfo.encoding = sdpCodecInfo.channels;
-            }
-            if (sdpCodecInfo.payload) {
-              rtpInfo.payload = sdpCodecInfo.payload;
-            }
-          }
-
-          const properties = getAudioCodecProperties(codec, rtpInfo);
-
-          if (sdpCodecInfo?.fmtp && properties.fmtpInfo) {
-            properties.fmtpInfo.config = sdpCodecInfo.fmtp;
-          }
-
-          // MPEG4-GENERIC: append config from SDP if not already present.
-          if (codec === 'MPEG4-GENERIC' && sdpCodecInfo?.config && properties.fmtpInfo) {
-            if (!properties.fmtpInfo.config.includes('config=')) {
-              properties.fmtpInfo.config += `;config=${sdpCodecInfo.config}`;
-            }
-          }
-
-          const audioStreamInfo: AudioStreamInfo = {
-            codec,
-            ffmpegCodec,
-            properties,
-            direction: 'sendonly',
-          };
-
-          if (!audioStreamInfos.some((info) => isSameAudioStreamInfo(info, audioStreamInfo))) {
+          const audioStreamInfo = playbackAudioStreamInfo(receiver.codec.codec_name, receiver.codec.sample_rate, receiver.codec.channels, sdpInfo);
+          if (audioStreamInfo && !audioStreamInfos.some((info) => isSameAudioStreamInfo(info, audioStreamInfo))) {
             audioStreamInfos.push(audioStreamInfo);
           }
         }
@@ -175,7 +143,93 @@ export function generateAudioStreamInfo(producers: Go2RTCProducer[]): AudioStrea
     }
   }
 
+  const cameraProducers = producers.filter((producer) => !isCompanionProducer(producer));
+  for (const producer of cameraProducers) {
+    for (const media of producer.medias ?? []) {
+      const [kind, direction, ...codecs] = media.split(', ');
+      if (kind !== 'audio' || direction !== 'recvonly') continue;
+
+      for (const codecInfo of codecs) {
+        const [codecName, rate, channels] = codecInfo.split('/');
+        addMissingPlaybackAudio(audioStreamInfos, playbackAudioStreamInfo(codecName, parseOptionalInt(rate), parseOptionalInt(channels), sdpInfo));
+      }
+    }
+  }
+
+  const cameraAudio = cameraProducers.some((producer) => producer.medias?.some((media) => media.startsWith('audio, recvonly')));
+  if (cameraAudio) {
+    const cameraRate = audioStreamInfos.find((info) => info.direction === 'sendonly')?.properties.sampleRate;
+    for (const producer of producers.filter(isCompanionProducer)) {
+      for (const [, codecName] of decodeURIComponent(producer.url ?? '').matchAll(/#audio=([a-z0-9]+)/g)) {
+        const format = COMPANION_AUDIO_FORMATS[codecName];
+        if (!format) continue;
+        addMissingPlaybackAudio(audioStreamInfos, playbackAudioStreamInfo(codecName, format.rate ?? cameraRate, format.channels, { audio: {} }));
+      }
+    }
+  }
+
   return audioStreamInfos;
+}
+
+function playbackAudioStreamInfo(
+  codecName: string,
+  rate: number | undefined,
+  channels: number | undefined,
+  sdpInfo: { audio: Record<string, Record<string, any>> },
+): AudioStreamInfo | undefined {
+  const audioCodec = mapAudioCodecName(codecName);
+  if (!audioCodec) return undefined;
+
+  const { codec, ffmpegCodec } = normalizeAudioCodecs(audioCodec);
+
+  const rtpInfo: RTPInfo = {
+    codec: codecName,
+    rate,
+    encoding: channels,
+  };
+
+  const sdpCodecInfo = sdpInfo.audio?.[codec];
+  if (sdpCodecInfo) {
+    if (sdpCodecInfo.clockRate) {
+      rtpInfo.rate = sdpCodecInfo.clockRate;
+    }
+    if (sdpCodecInfo.channels) {
+      rtpInfo.encoding = sdpCodecInfo.channels;
+    }
+    if (sdpCodecInfo.payload) {
+      rtpInfo.payload = sdpCodecInfo.payload;
+    }
+  }
+
+  const properties = getAudioCodecProperties(codec, rtpInfo);
+
+  if (sdpCodecInfo?.fmtp && properties.fmtpInfo) {
+    properties.fmtpInfo.config = sdpCodecInfo.fmtp;
+  }
+
+  if (codec === 'MPEG4-GENERIC' && sdpCodecInfo?.config && properties.fmtpInfo) {
+    if (!properties.fmtpInfo.config.includes('config=')) {
+      properties.fmtpInfo.config += `;config=${sdpCodecInfo.config}`;
+    }
+  }
+
+  return {
+    codec,
+    ffmpegCodec,
+    properties,
+    direction: 'sendonly',
+  };
+}
+
+function addMissingPlaybackAudio(audioStreamInfos: AudioStreamInfo[], audioStreamInfo: AudioStreamInfo | undefined): void {
+  if (!audioStreamInfo) return;
+  if (audioStreamInfos.some((info) => info.direction === 'sendonly' && info.codec === audioStreamInfo.codec)) return;
+  audioStreamInfos.push(audioStreamInfo);
+}
+
+function parseOptionalInt(value: string | undefined): number | undefined {
+  const parsed = value ? parseInt(value, 10) : NaN;
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 export function generateVideoStreamInfo(producers: Go2RTCProducer[]): VideoStreamInfo[] {

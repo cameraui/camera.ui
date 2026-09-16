@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The speaker button no longer stays greyed out while the camera sends sound.** After a server restart it could stay disabled on a random camera until the next restart, even though live view, recordings and talkback had audio. The button now follows what the camera actually offers, and a sleeping battery camera is not woken just to check.
+
 - **Two-way audio works again on plugin cameras.** Since 2.1.13 the microphone button stayed greyed out on Reolink and other plugin cameras, and HomeKit dropped the talkback. The same happened to any RTSP or ONVIF camera with a connection timeout set in its source settings.
 
 ## [2.2.4]

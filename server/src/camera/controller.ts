@@ -1,5 +1,5 @@
 import { generateSdp } from '@camera.ui/common/camera';
-import { isEqual, sleep } from '@camera.ui/common/utils';
+import { isEqual, PromiseTimeout, sleep } from '@camera.ui/common/utils';
 import { RPCClass, RPCMethod } from '@camera.ui/rpc';
 import { API_EVENT, filter, pairwise, SensorType, Subject } from '@camera.ui/sdk';
 import { container } from 'tsyringe';
@@ -15,12 +15,11 @@ import { SensorController } from './sensors/controller.js';
 import { SnapshotStore } from './snapshot-store.js';
 import { Fmp4Session } from './streaming/fmp4-session.js';
 import { RtpSession } from './streaming/rtp-session.js';
-import { generateAudioStreamInfo, generateVideoStreamInfo } from './utils.js';
+import { generateAudioStreamInfo, generateVideoStreamInfo, isCompanionProducer } from './utils.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type {
-  AudioStreamInfo,
   Camera,
   CameraDeviceSource,
   CameraImplementation,
@@ -35,11 +34,11 @@ import type {
   RTSPUrlOptions,
   Sensor,
   SensorLike,
-  VideoStreamInfo,
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
+import type { Go2RTCProducer } from '../go2rtc/types.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent, SnapshotWithMeta } from '../rpc/interfaces/device.js';
@@ -51,6 +50,8 @@ import type { SourceCodecInfo } from './codecCache.js';
 import type { StoredSnapshot } from './snapshot-store.js';
 
 const PRELOAD_KINDS: ProbeConfig = { video: true, audio: true, microphone: true };
+// covers a battery camera waking up: bridge handshake plus the wait for its parameter sets
+const COLD_PROBE_TIMEOUT_MS = 30_000;
 
 @RPCClass
 export class CameraController extends CameraDevice implements CameraDeviceInterface {
@@ -305,38 +306,33 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   @RPCMethod
-  public async probeStream(sourceId: string, probeConfig?: ProbeConfig, refresh = false): Promise<ProbeStream | undefined> {
-    let streamInfo = this.streamInfos.get(sourceId);
-    if (streamInfo && !refresh) {
-      return Promise.resolve(streamInfo);
-    }
-
+  public async probeStream(sourceId: string, _probeConfig?: ProbeConfig, refresh = false): Promise<ProbeStream | undefined> {
     const cameraSource = this.sources.find((source) => source._id === sourceId);
     if (!cameraSource) {
       return;
     }
 
-    try {
-      const src = createSourceName(this.name, cameraSource?.name);
-      const probe = await this.go2rtcApi.streamsRoute.probeStreamSource({ src }, probeConfig);
+    const src = createSourceName(this.name, cameraSource.name);
 
-      const videoStreamInfo: VideoStreamInfo[] = generateVideoStreamInfo(probe.producers);
-      const audioStreamInfo: AudioStreamInfo[] = generateAudioStreamInfo(probe.producers);
-      const sdp = generateSdp(videoStreamInfo, audioStreamInfo);
+    if (!refresh) {
+      const live = await this.go2rtcApi.streamsRoute.getStreamInfo({ src }).catch(() => undefined);
+      if (live?.producers?.some((producer) => !isCompanionProducer(producer) && producer.medias?.length)) {
+        return this.rememberStreamInfo(sourceId, live.producers);
+      }
 
-      streamInfo = {
-        sdp,
-        video: videoStreamInfo,
-        audio: audioStreamInfo,
-      };
-
-      this.streamInfos.set(sourceId, streamInfo);
-      this.applySourceCodec(sourceId, streamInfo);
-    } catch (err) {
-      this.logger.error('Error while probing stream source', err.message.split('\n')[0]);
+      const known = this.streamInfos.get(sourceId);
+      if (known) {
+        return known;
+      }
     }
 
-    return streamInfo;
+    try {
+      const probe = await PromiseTimeout(this.go2rtcApi.streamsRoute.probeStreamSource({ src }, PRELOAD_KINDS), COLD_PROBE_TIMEOUT_MS);
+      return this.rememberStreamInfo(sourceId, probe.producers);
+    } catch (err) {
+      this.logger.error('Error while probing stream source', err.message.split('\n')[0]);
+      return this.streamInfos.get(sourceId);
+    }
   }
 
   @RPCMethod
@@ -617,6 +613,21 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         // and cascade state reset (true→false).
         this.sensorController.onFrameWorkerStateChanged(oldState, newState);
       });
+  }
+
+  private rememberStreamInfo(sourceId: string, producers: Go2RTCProducer[]): ProbeStream | undefined {
+    const video = generateVideoStreamInfo(producers);
+    const audio = generateAudioStreamInfo(producers);
+
+    if (!video.length && !audio.length) {
+      return this.streamInfos.get(sourceId);
+    }
+
+    const streamInfo: ProbeStream = { sdp: generateSdp(video, audio), video, audio };
+    this.streamInfos.set(sourceId, streamInfo);
+    this.applySourceCodec(sourceId, streamInfo);
+
+    return streamInfo;
   }
 
   private applySourceCodec(sourceId: string, streamInfo: ProbeStream): void {
