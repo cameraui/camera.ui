@@ -48,7 +48,7 @@ const { camera, loading, src, width, height, showLoadingScreen, objectFit, aspec
 
 const { snapshotSrc: cachedSnapshotSrc, isLoading: snapshotLoading, snapshotTimestamp, refresh } = useSnapshot(camera);
 
-const now = props.showTimestamp ? useNow({ interval: 1000 }) : undefined;
+const now = props.showTimestamp ? useNow({ scheduler: (cb) => useIntervalFn(cb, 1000) }) : undefined;
 
 const cuiImageRef = useTemplateRef('cuiImageRef');
 
