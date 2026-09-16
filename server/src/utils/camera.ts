@@ -1,9 +1,11 @@
-import { GOP_REGEX, SOURCE_HANDSHAKE_TIMEOUT_REGEX, SOURCE_TIMEOUT_REGEX } from '../api/utils/regex.js';
+import { GOP_REGEX, SOURCE_BACKCHANNEL_REGEX, SOURCE_HANDSHAKE_TIMEOUT_REGEX, SOURCE_TIMEOUT_REGEX } from '../api/utils/regex.js';
 
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
 
 const NO_AUDIO_FLAG = '#noAudio';
 const NO_BACKCHANNEL_FLAG = '#noBackchannel';
+const BACKCHANNEL_FLAG = '#backchannel=1';
+const BACKCHANNEL_SCHEMES = ['rtsp://', 'rtsps://', 'cui://', 'onvif://'];
 
 export interface SourceUrlFlags {
   preload: boolean;
@@ -34,6 +36,10 @@ export function applySourceUrlFlags(url: string, source: SourceUrlFlags): string
 
   url = applyNumberFlag(url, SOURCE_TIMEOUT_REGEX, 'timeout', source.timeout);
   url = applyNumberFlag(url, SOURCE_HANDSHAKE_TIMEOUT_REGEX, 'handshake_timeout', source.handshakeTimeout);
+
+  if (BACKCHANNEL_SCHEMES.some((scheme) => url.startsWith(scheme)) && !SOURCE_BACKCHANNEL_REGEX.test(url)) {
+    url += BACKCHANNEL_FLAG;
+  }
 
   return url;
 }

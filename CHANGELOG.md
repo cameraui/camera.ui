@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.5]
+
+### Fixed
+
+- **Two-way audio works again on plugin cameras.** Since 2.1.13 the microphone button stayed greyed out on Reolink and other plugin cameras, and HomeKit dropped the talkback. The same happened to any RTSP or ONVIF camera with a connection timeout set in its source settings.
+
 ## [2.2.4]
 
 ### Added
