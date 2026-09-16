@@ -52,6 +52,7 @@ import type { StoredSnapshot } from './snapshot-store.js';
 const PRELOAD_KINDS: ProbeConfig = { video: true, audio: true, microphone: true };
 // covers a battery camera waking up: bridge handshake plus the wait for its parameter sets
 const COLD_PROBE_TIMEOUT_MS = 30_000;
+const SOURCE_CODEC_KEYS: (keyof SourceCodecInfo)[] = ['videoCodec', 'audioCodecs', 'backchannelAudioCodec'];
 
 @RPCClass
 export class CameraController extends CameraDevice implements CameraDeviceInterface {
@@ -646,7 +647,13 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     const source = camera.sources.find((s) => s._id === sourceId);
     if (!source) return;
 
-    Object.assign(source, info);
+    for (const key of SOURCE_CODEC_KEYS) {
+      if (info[key] === undefined) {
+        delete source[key];
+      } else {
+        Object.assign(source, { [key]: info[key] });
+      }
+    }
     this.updateCamera(camera);
   }
 
