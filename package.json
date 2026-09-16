@@ -28,7 +28,7 @@
     "chalk": "^6.0.0",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.7",
     "tsx": "^4.23.13",
     "typescript": "5.9.3",
     "updates": "^18.1.0"
