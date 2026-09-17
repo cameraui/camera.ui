@@ -1,6 +1,5 @@
 import { isEqual, mergeWith } from '@camera.ui/common/utils';
 import { canCreateCameras, isHub, PluginRole, SensorType } from '@camera.ui/sdk';
-import { TTLCache } from '@isaacs/ttlcache';
 import { container, delay, registry } from 'tsyringe';
 
 import { clearSourceCodecInfos, deleteSourceCodecInfo, getSourceCodecInfo } from '../../camera/codecCache.js';
@@ -27,6 +26,7 @@ import type {
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../../api.js';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
+import type { Go2RtcState } from '../../go2rtc/state.js';
 import type { CreateStreamData, Go2RTCProbe } from '../../go2rtc/types.js';
 import type { SensorRegistry } from '../../sensors/registry.js';
 import type { DeepPartial } from '../../types.js';
@@ -34,8 +34,6 @@ import type { DBCamera } from '../database/types.js';
 
 const VALID_SENSOR_TYPES: (SensorType | 'cameraController' | 'hub')[] = [...getValidSensorTypes(), 'cameraController', 'hub'];
 const MULTI_PROVIDER_ASSIGNMENT_TYPES = new Set<string>([...getMultiProviderTypes(), 'hub']);
-
-const cameraSourceProbeCache = new TTLCache<string, Go2RTCProbe>({ max: 100, ttl: Infinity });
 
 const DEFAULT_EXTENSION_PLUGINS = ['@camera.ui/camera-ui-nvr'];
 
@@ -294,7 +292,6 @@ export class CamerasService {
       throw new Error(`Camera name "${cameraData.name}" is already in use`);
     }
 
-    const cameraController = this.api.getCamera(existing._id);
     const cameraOld = structuredClone(existing);
 
     const isInputSourceArray = (value: unknown) => Array.isArray(value) && value.every((item) => item && typeof item === 'object');
@@ -346,11 +343,10 @@ export class CamerasService {
       this.dbs.syncCamerasToGo2RtcConfig();
     }
 
-    if (!isEqual(cameraOld.sources, camera.sources, true)) {
-      cameraController?.streamInfos.clear();
-      for (const source of camera.sources) {
-        cameraSourceProbeCache.delete(source._id);
-        deleteSourceCodecInfo(source._id);
+    for (const before of cameraOld.sources) {
+      const source = camera.sources.find((s) => s._id === before._id);
+      if (!source || !isEqual(before.urls, source.urls, true)) {
+        deleteSourceCodecInfo(before._id);
       }
     }
 
@@ -659,7 +655,6 @@ export class CamerasService {
   public async removeAll(): Promise<void> {
     const camerasToRemove = [...this.dbs.camerasDB.getRange()].map(({ value }) => value);
 
-    cameraSourceProbeCache.clear();
     clearSourceCodecInfos();
     await this.usersService.resetAllPreferences();
     await this.floorPlanService.dropCameras(camerasToRemove.map((camera) => camera._id));
@@ -694,19 +689,20 @@ export class CamerasService {
   public async probeCameraSource(camera: DBCamera, source: CameraInput, probeData?: ProbeConfig, force = false): Promise<Go2RTCProbe> {
     const src = createSourceName(camera.name, source.name);
 
-    const live = await this.go2rtcApi.streamsRoute.getStreamInfo({ src }).catch(() => undefined);
-    const liveHasCodecs = live?.producers?.some((p) => (p.receivers?.length ?? 0) > 0) ?? false;
-    if (!force && live && liveHasCodecs) {
-      return live;
+    if (!force) {
+      const live = await this.go2rtcApi.streamsRoute.getStreamInfo({ src }).catch(() => undefined);
+      if (live && live.offers.state !== 'unknown') {
+        return live;
+      }
+      const known = this.go2rtcState.offers(src);
+      if (live && known) {
+        return { ...live, offers: known };
+      }
     }
 
-    let probe = force ? undefined : cameraSourceProbeCache.get(source._id);
-    if (!probe) {
-      probe = await this.go2rtcApi.streamsRoute.probeStreamSource({ src }, probeData);
-      cameraSourceProbeCache.set(source._id, probe);
-    }
-
-    return { producers: probe.producers, consumers: live?.consumers ?? [] };
+    const probe = await this.go2rtcApi.streamsRoute.probeStreamSource({ src }, probeData);
+    this.go2rtcState.rememberOffers(src, probe.offers);
+    return probe;
   }
 
   public transformCamera(camera: DBCamera): Camera {
@@ -765,6 +761,10 @@ export class CamerasService {
     camera.room = this.roomsService.label(room.id) ?? room.name;
   }
 
+  private get go2rtcState(): Go2RtcState {
+    return container.resolve<Go2RtcState>('go2rtcState');
+  }
+
   private async activateDefaultExtensions(camera: DBCamera): Promise<DBCamera | undefined> {
     let updated: DBCamera | undefined;
     for (const pluginName of DEFAULT_EXTENSION_PLUGINS) {
@@ -779,7 +779,6 @@ export class CamerasService {
 
   private async removeOne(camera: DBCamera): Promise<void> {
     for (const source of camera.sources) {
-      cameraSourceProbeCache.delete(source._id);
       deleteSourceCodecInfo(source._id);
     }
 
@@ -803,6 +802,7 @@ export class CamerasService {
       };
 
       if (!this.sourcesAreEqual(sourceName, baseUrls)) {
+        this.go2rtcState.forgetOffers(sourceName);
         this.configService.go2rtcConfig.streams ??= {};
 
         await this.go2rtcApi.streamsRoute.createStream({
@@ -818,6 +818,7 @@ export class CamerasService {
   private async removeCameraSourcesFromConfig(cameraname: string, oldSources: CameraInputSettings[]): Promise<void> {
     for (const source of oldSources) {
       const sourceName = createSourceName(cameraname, source.name);
+      this.go2rtcState.forgetOffers(sourceName);
       const sourcesToRemove: string[] = [];
       const preloadsToRemove: string[] = [];
 

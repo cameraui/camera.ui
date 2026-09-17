@@ -392,7 +392,7 @@ function updateHeaderActions(): void {
     {
       icon: DownloadIcon,
       tooltip: t('views.recordings.episode_trace.bundle_hint'),
-      onClick: () => void exportBundle(),
+      onClick: () => exportBundle(),
       loading: bundleBusy.value,
       disabled: status.value !== 'ready',
     },

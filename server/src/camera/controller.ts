@@ -1,4 +1,3 @@
-import { generateSdp } from '@camera.ui/common/camera';
 import { isEqual, PromiseTimeout } from '@camera.ui/common/utils';
 import { RPCClass, RPCMethod } from '@camera.ui/rpc';
 import { API_EVENT, filter, pairwise, SensorType, Subject } from '@camera.ui/sdk';
@@ -15,7 +14,7 @@ import { SensorController } from './sensors/controller.js';
 import { SnapshotStore } from './snapshot-store.js';
 import { Fmp4Session } from './streaming/fmp4-session.js';
 import { RtpSession } from './streaming/rtp-session.js';
-import { generateAudioStreamInfo, generateVideoStreamInfo, hasLiveCameraProducer } from './utils.js';
+import { sdkAudioCodec, sdkVideoCodec, streamInfoFromOffers } from './utils.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -39,7 +38,7 @@ import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
 import type { Go2RtcState, Go2RtcStreamState } from '../go2rtc/state.js';
-import type { Go2RTCProducer } from '../go2rtc/types.js';
+import type { Go2RTCOfferCodec, Go2RTCOffers } from '../go2rtc/types.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent, SnapshotWithMeta } from '../rpc/interfaces/device.js';
@@ -58,7 +57,6 @@ const SOURCE_CODEC_KEYS: (keyof SourceCodecInfo)[] = ['videoCodec', 'audioCodecs
 @RPCClass
 export class CameraController extends CameraDevice implements CameraDeviceInterface {
   public readonly frameWorker: FrameWorker;
-  public readonly streamInfos = new Map<string, ProbeStream>();
   public readonly sensorController: SensorController;
 
   readonly #sensorAddedSubject = new Subject<{ sensorId: string; sensorType: SensorType }>();
@@ -323,24 +321,24 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     const src = createSourceName(this.name, cameraSource.name);
 
     if (!refresh) {
-      const live = this.go2rtcState.get(src)?.producers;
-      if (hasLiveCameraProducer(live)) {
-        return this.rememberStreamInfo(sourceId, live);
-      }
-
-      const known = this.streamInfos.get(sourceId);
-      if (known) {
-        return known;
+      const current = this.applyOffers(sourceId, this.go2rtcState.offers(src));
+      if (current) {
+        return current;
       }
     }
 
     try {
-      const probe = await PromiseTimeout(this.go2rtcApi.streamsRoute.probeStreamSource({ src }, PRELOAD_KINDS), COLD_PROBE_TIMEOUT_MS);
-      return this.rememberStreamInfo(sourceId, probe.producers);
+      const { offers } = await PromiseTimeout(this.go2rtcApi.streamsRoute.probeStreamSource({ src }, PRELOAD_KINDS), COLD_PROBE_TIMEOUT_MS);
+      this.go2rtcState.rememberOffers(src, offers);
+      const probed = this.applyOffers(sourceId, offers);
+      if (probed) {
+        return probed;
+      }
     } catch (err) {
       this.logger.error('Error while probing stream source', err.message.split('\n')[0]);
-      return this.streamInfos.get(sourceId);
     }
+
+    return this.applyOffers(sourceId, this.go2rtcState.offers(src));
   }
 
   @RPCMethod
@@ -506,9 +504,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   private applyStreamState(source: CameraInput, state: Go2RtcStreamState | undefined): void {
-    if (hasLiveCameraProducer(state?.producers)) {
-      this.rememberStreamInfo(source._id, state.producers);
-    }
+    this.applyOffers(source._id, this.go2rtcState.offers(createSourceName(this.name, source.name)));
     this.reconcilePreload(source, state);
   }
 
@@ -626,30 +622,30 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       });
   }
 
-  private rememberStreamInfo(sourceId: string, producers: Go2RTCProducer[]): ProbeStream | undefined {
-    const video = generateVideoStreamInfo(producers);
-    const audio = generateAudioStreamInfo(producers);
-
-    if (!video.length && !audio.length) {
-      return this.streamInfos.get(sourceId);
+  private applyOffers(sourceId: string, offers: Go2RTCOffers | undefined): ProbeStream | undefined {
+    const streamInfo = streamInfoFromOffers(offers);
+    if (!streamInfo || !offers) {
+      return undefined;
     }
 
-    const streamInfo: ProbeStream = { sdp: generateSdp(video, audio), video, audio };
-    this.streamInfos.set(sourceId, streamInfo);
-    this.applySourceCodec(sourceId, streamInfo);
+    this.applySourceCodec(sourceId, offers);
 
     return streamInfo;
   }
 
-  private applySourceCodec(sourceId: string, streamInfo: ProbeStream): void {
+  private applySourceCodec(sourceId: string, offers: Go2RTCOffers): void {
+    const known = getSourceCodecInfo(sourceId);
+    const native = (codecs: Go2RTCOfferCodec[]): Go2RTCOfferCodec[] => codecs.filter((codec) => codec.native);
+
+    const videoCodecs = [...new Set(native(offers.video).flatMap((codec) => sdkVideoCodec(codec.codec) ?? []))];
+    const audioCodecs = [...new Set(native(offers.audio).flatMap((codec) => sdkAudioCodec(codec.codec) ?? []))];
+
     const info: SourceCodecInfo = {
-      videoCodec: streamInfo.video.find((v) => v.direction === 'sendonly')?.codec,
-      audioCodecs: [...new Set(streamInfo.audio.filter((a) => a.direction === 'sendonly').map((a) => a.codec))],
-      backchannelAudioCodec: streamInfo.audio.find((a) => a.direction === 'recvonly')?.codec,
+      videoCodec: videoCodecs.length > 1 ? known?.videoCodec : videoCodecs[0],
+      audioCodecs: audioCodecs.length ? audioCodecs : undefined,
+      backchannelAudioCodec: native(offers.backchannel?.codecs ?? []).flatMap((codec) => sdkAudioCodec(codec.codec) ?? [])[0],
     };
-    if (!info.audioCodecs?.length) delete info.audioCodecs;
-    if (!info.videoCodec && !info.audioCodecs && !info.backchannelAudioCodec) return;
-    if (isEqual(getSourceCodecInfo(sourceId), info, true)) return;
+    if (isEqual(known, info, true)) return;
 
     setSourceCodecInfo(sourceId, info);
 

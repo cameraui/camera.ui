@@ -1,11 +1,12 @@
 import type { SocketChannel } from '@/connection/index.js';
+import type { Go2RTCOfferCodec } from '@shared/types';
 
 export type StreamStatus = 'connected' | 'connecting' | 'error' | 'idle' | 'partial';
 export type CameraStreamStatus = Record<string, Record<string, StreamStatus>>;
 export type CameraStreamConnections = Record<string, Record<string, number>>;
 export interface StreamCodecs {
-  video: string[];
-  audio: string[];
+  video: Go2RTCOfferCodec[];
+  audio: Go2RTCOfferCodec[];
 }
 export type CameraStreamCodecs = Record<string, Record<string, StreamCodecs | undefined>>;
 

@@ -5,13 +5,13 @@ import { createSourceName } from '../../../utils/camera.js';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
 import type { Go2RtcState } from '../../../go2rtc/state.js';
-import type { Go2RTCProducer, StreamStatus } from '../../../go2rtc/types.js';
+import type { Go2RTCOfferCodec, Go2RTCOffers, StreamStatus } from '../../../go2rtc/types.js';
 import type { CameraUi } from '../../../main.js';
 import type { SocketNsp } from '../types.js';
 
 interface StreamCodecs {
-  video: string[];
-  audio: string[];
+  video: Go2RTCOfferCodec[];
+  audio: Go2RTCOfferCodec[];
 }
 
 export class MainNamespace {
@@ -68,7 +68,7 @@ export class MainNamespace {
   }
 
   private streamCodecs(): Record<string, Record<string, StreamCodecs | undefined>> {
-    return this.perSource((name) => receiverCodecs(this.go2rtcState.get(name)?.producers));
+    return this.perSource((name) => nativeCodecs(this.go2rtcState.offers(name)));
   }
 
   private perSource<T>(value: (streamName: string) => T): Record<string, Record<string, T>> {
@@ -89,10 +89,7 @@ export class MainNamespace {
   }
 }
 
-function receiverCodecs(producers: Go2RTCProducer[] | undefined): StreamCodecs | undefined {
-  const receivers = (producers ?? []).flatMap((producer) => producer.receivers ?? []);
-  if (!receivers.length) return undefined;
-
-  const names = (type: string): string[] => [...new Set(receivers.filter((receiver) => receiver.codec.codec_type === type).map((receiver) => receiver.codec.codec_name))];
-  return { video: names('video'), audio: names('audio') };
+function nativeCodecs(offers: Go2RTCOffers | undefined): StreamCodecs | undefined {
+  if (!offers || offers.state === 'unknown') return undefined;
+  return { video: offers.video.filter((codec) => codec.native), audio: offers.audio.filter((codec) => codec.native) };
 }

@@ -8,7 +8,7 @@ import type { RawData } from 'ws';
 import type { CameraUiAPI } from '../api.js';
 import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
-import type { Go2RTCProducer, Go2RTCReceiver, Go2RTCSender, StreamStatus, StreamStatusResponse } from './types.js';
+import type { Go2RTCOffers, Go2RTCProducer, Go2RTCReceiver, Go2RTCSender, StreamStatus, StreamStatusResponse } from './types.js';
 
 export interface Go2RtcConsumerState {
   id?: number;
@@ -25,6 +25,7 @@ export interface Go2RtcStreamState {
   producers: Go2RTCProducer[];
   consumers: Go2RtcConsumerState[];
   preload: { attached: boolean; error?: string } | null;
+  offers: Go2RTCOffers;
 }
 
 export interface Go2RtcStreamStats {
@@ -52,6 +53,7 @@ export class Go2RtcState extends EventEmitter<Go2RtcStateEvents> {
   private configService: ConfigService;
 
   private streams = new Map<string, Go2RtcStreamState>();
+  private knownOffers = new Map<string, Go2RTCOffers>();
   private ws?: WebSocket;
   private active = false;
   private synced = false;
@@ -106,6 +108,21 @@ export class Go2RtcState extends EventEmitter<Go2RtcStateEvents> {
 
   public get(name: string): Go2RtcStreamState | undefined {
     return this.streams.get(name);
+  }
+
+  public offers(name: string): Go2RTCOffers | undefined {
+    const offers = this.streams.get(name)?.offers;
+    if (offers && offers.state !== 'unknown') return offers;
+    return this.knownOffers.get(name);
+  }
+
+  public rememberOffers(name: string, offers: Go2RTCOffers | undefined): void {
+    if (!offers || offers.state === 'unknown') return;
+    this.knownOffers.set(name, { ...offers, state: 'cached' });
+  }
+
+  public forgetOffers(name: string): void {
+    this.knownOffers.delete(name);
   }
 
   public statuses(): StreamStatusResponse {
@@ -212,6 +229,9 @@ export class Go2RtcState extends EventEmitter<Go2RtcStateEvents> {
     switch (message.type) {
       case 'cui/snapshot': {
         this.streams = new Map(Object.entries(message.value.streams ?? {}));
+        for (const [name, state] of this.streams) {
+          this.rememberOffers(name, state.offers);
+        }
         this.synced = true;
         this.emit('snapshot');
         for (const resolve of this.snapshotWaiters.splice(0)) resolve();
@@ -221,6 +241,7 @@ export class Go2RtcState extends EventEmitter<Go2RtcStateEvents> {
         const { name, state } = message.value;
         if (state) {
           this.streams.set(name, state);
+          this.rememberOffers(name, state.offers);
         } else {
           this.streams.delete(name);
         }

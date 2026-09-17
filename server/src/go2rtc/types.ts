@@ -190,9 +190,30 @@ export interface Go2RTCConsumer {
   senders?: Go2RTCSender[];
 }
 
+export interface Go2RTCOfferCodec {
+  codec: string;
+  rate?: number;
+  channels?: number;
+  fmtp?: string;
+  payload_type: number;
+  ffmpeg: string;
+  profile?: string;
+  level?: number;
+  native: boolean;
+}
+
+export interface Go2RTCOffers {
+  state: 'live' | 'cached' | 'unknown';
+  sdp: string;
+  video: Go2RTCOfferCodec[];
+  audio: Go2RTCOfferCodec[];
+  backchannel: { codecs: Go2RTCOfferCodec[]; transcode: boolean } | null;
+}
+
 export interface Go2RTCProbe {
   producers: Go2RTCProducer[];
   consumers: Go2RTCConsumer[];
+  offers: Go2RTCOffers;
 }
 
 export interface Go2RTCPreload {

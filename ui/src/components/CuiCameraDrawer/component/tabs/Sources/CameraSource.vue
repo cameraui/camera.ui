@@ -73,9 +73,11 @@ import ReloadIcon from '~icons/fluent/arrow-sync-16-filled';
 import CopyButton from '~icons/fluent/copy-16-filled';
 
 import { CamerasQuery, probeCameraSourceFn, streamSourceInfoFn } from '@/api/routes/cameras.js';
+import { codecLabel } from '@/common/codecs.js';
 import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
+import type { Go2RTCOfferCodec } from '@shared/types';
 import type { CameraSourceProps } from '../../types.js';
 
 const camerasQuery = new CamerasQuery();
@@ -133,16 +135,12 @@ const connections = computed(() => getSourceConnections(cameraId.value, source.v
 
 const liveCodecs = computed(() => getSourceCodecs(cameraId.value, source.value.name));
 
-const videoCodecs = computed(() => liveCodecs.value?.video ?? producerCodecs('video'));
+const videoCodecs = computed(() => (liveCodecs.value?.video ?? probedCodecs('video')).map(codecLabel));
 
-const audioCodecs = computed(() => liveCodecs.value?.audio ?? producerCodecs('audio'));
+const audioCodecs = computed(() => (liveCodecs.value?.audio ?? probedCodecs('audio')).map(codecLabel));
 
-function producerCodecs(type: 'video' | 'audio'): string[] {
-  const names = (probeData.value?.probe.producers ?? [])
-    .flatMap((producer) => producer.receivers ?? [])
-    .filter((receiver) => receiver.codec.codec_type === type)
-    .map((receiver) => receiver.codec.codec_name);
-  return [...new Set(names)];
+function probedCodecs(kind: 'video' | 'audio'): Go2RTCOfferCodec[] {
+  return (probeData.value?.probe.offers[kind] ?? []).filter((codec) => codec.native);
 }
 
 async function copyStreamJson(): Promise<void> {

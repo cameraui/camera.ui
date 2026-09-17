@@ -18,15 +18,15 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { DBCamera } from '../database/types.js';
 import type {
   AuthLoginRequest,
-  CameraZoneConfigPatchRequest,
   CameraProbeSourceQueryRequest,
   CameraSnapshotQueryRequest,
   CameraSourceParamsRequest,
+  CameraZoneConfigPatchRequest,
+  CamerasBulkDeleteRequest,
+  CamerasBulkPatchRequest,
   CamerasExtensionsParamsRequest,
   CamerasExtensionsRequest,
   CamerasInsertRequest,
-  CamerasBulkDeleteRequest,
-  CamerasBulkPatchRequest,
   CamerasParamsRequest,
   CamerasPatchRequest,
   CamerasPreviewRequest,
@@ -356,7 +356,11 @@ export class CamerasController {
       probe = await this.service.probeCameraSource(camera, source, probeConfig, req.query.refresh);
       return reply.code(200).send({ rtspUrl: source.urls.rtsp.base, onvifUrl: source.urls.rtsp.onvif, probe });
     } catch {
-      return reply.code(200).send({ rtspUrl: source.urls.rtsp.base, onvifUrl: source.urls.rtsp.onvif, probe: { producers: [], consumers: [] } });
+      return reply.code(200).send({
+        rtspUrl: source.urls.rtsp.base,
+        onvifUrl: source.urls.rtsp.onvif,
+        probe: { producers: [], consumers: [], offers: { state: 'unknown', sdp: '', video: [], audio: [], backchannel: null } } satisfies Go2RTCProbe,
+      });
     }
   }
 
