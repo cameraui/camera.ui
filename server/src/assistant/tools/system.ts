@@ -7,10 +7,12 @@ import { FloorPlanService } from '../../api/services/floorplan.service.js';
 import { PluginsService } from '../../api/services/plugins.service.js';
 import { RoomsService } from '../../api/services/rooms.service.js';
 import { ConfigService } from '../../services/config/index.js';
+import { createSourceName } from '../../utils/camera.js';
 import { collectSystemInfo } from '../../utils/system-info.js';
 
 import type { CameraUiAPI } from '../../api.js';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
+import type { StreamStatusResponse } from '../../go2rtc/types.js';
 import type { WorkerManager } from '../../workers/manager.js';
 import type { AssistantToolRegistry } from '../registry.js';
 import type { CoreTool, ToolContext } from './shared.js';
@@ -29,19 +31,19 @@ const getSystemStatus = toolDefinition({
 
   const [system, streams] = await Promise.all([
     collectSystemInfo(ConfigService.RUNNING_VERSION).catch(() => undefined),
-    go2rtc.streamsRoute.getStreamsStatus().catch(() => ({})),
+    go2rtc.streamsRoute.getStreamsStatus().catch((): StreamStatusResponse => ({})),
   ]);
 
   const cameras = new CamerasService().list().map((camera) => {
     const controller = api.getCamera(camera._id);
-    const sourceStates = Object.entries(streams)
-      .filter(([name]) => name.startsWith(camera._id))
-      .map(([, state]) => state);
+    const sourceStates = Object.fromEntries(
+      camera.sources.filter((source) => source.role !== 'snapshot').map((source) => [source.name, streams[createSourceName(camera.name, source.name)] ?? 'idle']),
+    );
     return {
       name: camera.name,
       online: controller?.connected ?? false,
       analysis: controller?.frameWorkerConnected ?? false,
-      streams: sourceStates.length ? sourceStates : undefined,
+      streams: Object.keys(sourceStates).length ? sourceStates : undefined,
     };
   });
 
