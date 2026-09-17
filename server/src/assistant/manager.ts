@@ -15,6 +15,7 @@ import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
 import { secretGuard } from './guard.js';
+import { repairHistory } from './history.js';
 import { ASK_USER_INTERRUPT } from './interrupts.js';
 import { AssistantMcp } from './mcp.js';
 import { AssistantMemoryStore, memoryAdapter } from './memory.js';
@@ -771,7 +772,7 @@ export class AssistantManager {
       },
       onConfig: (ctx, config) => {
         const exhausted = ctx.iteration >= settings.maxIterations || stats.toolCalls >= settings.maxToolCalls;
-        const providerMessages = messagesForModel(config.providerMessages ?? config.messages, settings.sendImages);
+        const providerMessages = messagesForModel(repairHistory(config.providerMessages ?? config.messages), settings.sendImages);
         if (!exhausted || !config.tools.length) return { providerMessages };
         return { providerMessages, tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
       },

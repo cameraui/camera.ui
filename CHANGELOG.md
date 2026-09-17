@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **A conversation with the assistant no longer dies for good.** After a run that was cut off, for example by closing the chat while it was still answering, every further question in that conversation came back as an error like "400 status code". The conversation repairs itself now, you no longer have to start a new one.
+
+- **Conversations can be deleted from the small chat window.** The history there now has a delete button per conversation and one for all of them, like the assistant page.
+
 - **The speaker button no longer stays greyed out while the camera sends sound.** After a server restart it could stay disabled on a random camera until the next restart, even though live view, recordings and talkback had audio. The button now follows what the camera actually offers, also when talkback runs over a second source, and a sleeping battery camera is not woken just to check.
 
 - **Two-way audio works again on plugin cameras.** Since 2.1.13 the microphone button stayed greyed out on Reolink and other plugin cameras, and HomeKit dropped the talkback. The same happened to any RTSP or ONVIF camera with a connection timeout set in its source settings.

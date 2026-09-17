@@ -83,19 +83,41 @@
             <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
           </div>
           <div v-else-if="!threads?.length" class="px-4 py-8 text-center text-sm text-muted">{{ $t('views.assistant.no_conversations') }}</div>
-          <button
-            v-for="thread in threads"
-            v-else
-            :key="thread.id"
-            type="button"
-            class="cui-assistant-drawer-thread flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left"
-            :class="{ 'cui-assistant-drawer-thread-active': thread.id === drawer.threadId.value }"
-            :disabled="loadingThreadId !== null"
-            @click="selectThread(thread.id)"
-          >
-            <span class="min-w-0 flex-1 truncate text-[13.5px] text-color">{{ thread.title }}</span>
-            <span class="shrink-0 text-xs text-muted">{{ formatDate(thread.updatedAt) }}</span>
-          </button>
+          <template v-else>
+            <div
+              v-for="thread in threads"
+              :key="thread.id"
+              class="cui-assistant-drawer-thread group flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left"
+              :class="{ 'cui-assistant-drawer-thread-active': thread.id === drawer.threadId.value }"
+              @click="selectThread(thread.id)"
+            >
+              <span class="min-w-0 flex-1 truncate text-[13.5px] text-color">{{ thread.title }}</span>
+              <span class="shrink-0 text-xs text-muted">{{ formatDate(thread.updatedAt) }}</span>
+              <Button
+                v-tooltip.left="{ value: $t('views.assistant.delete_conversation') }"
+                type="button"
+                severity="secondary"
+                text
+                rounded
+                class="cui-icon-sm shrink-0"
+                @click.stop="removeThread(thread.id)"
+              >
+                <template #icon>
+                  <i-mdi:delete-outline width="100%" height="100%" />
+                </template>
+              </Button>
+            </div>
+            <div class="px-4 py-3">
+              <Button
+                type="button"
+                severity="danger"
+                text
+                class="cui-button-small w-full"
+                :label="$t('views.assistant.delete_all_conversations')"
+                @click="removeAllThreads"
+              />
+            </div>
+          </template>
         </div>
 
         <CuiAssistantConversation
@@ -126,6 +148,7 @@ const assistantQuery = new AssistantQuery();
 const router = useRouter();
 const { t, locale } = useI18n();
 const drawer = useCuiAssistantDrawer();
+const { openTextDialog } = useCuiDialog();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 
 const authStore = useAuthStore();
@@ -133,6 +156,8 @@ const { user } = storeToRefs(authStore);
 
 const { data: info } = assistantQuery.getAssistantInfoQuery();
 const { data: threads, isLoading: threadsLoading } = assistantQuery.listThreadsQuery();
+const deleteThreadMutation = assistantQuery.deleteThreadMutation();
+const deleteAllMutation = assistantQuery.deleteAllThreadsMutation();
 
 const view = ref<'chat' | 'history'>('chat');
 const loadingThreadId = ref<string | null>(null);
@@ -154,7 +179,28 @@ function startNew(): void {
   view.value = 'chat';
 }
 
+async function removeThread(threadId: string): Promise<void> {
+  await deleteThreadMutation.mutateAsync(threadId).catch(() => undefined);
+  if (threadId === drawer.threadId.value) startNew();
+}
+
+function removeAllThreads(): void {
+  openTextDialog({
+    data: {
+      title: t('views.assistant.delete_all_conversations'),
+      contentText: t('views.assistant.delete_all_confirm'),
+      confirmText: t('components.form.button.remove'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: async () => {
+      await deleteAllMutation.mutateAsync();
+      startNew();
+    },
+  });
+}
+
 async function selectThread(threadId: string): Promise<void> {
+  if (loadingThreadId.value) return;
   loadingThreadId.value = threadId;
   try {
     drawer.load(await getAssistantThread(threadId));
