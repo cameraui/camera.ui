@@ -54,16 +54,40 @@
             <div>
               <span class="card-title">{{ $t('views.metrics.cameras') }}</span>
               <CuiChartTable
-                :items="frameworkerItems"
-                :headers="headers('frameworker')"
-                :chart-data="frameworkerChartData"
+                :key="showStreams ? 'streams' : 'processes'"
+                :items="showStreams ? streamStats : frameworkerItems"
+                :headers="showStreams ? streamHeaders : headers('frameworker')"
+                :chart-data="showStreams ? undefined : frameworkerChartData"
                 :loading="frameWorkersLoading"
                 paginator
-                :pagination="{ page: tablePages.frameworker }"
-                :total-records="frameworkerItems.length"
+                :pagination="{ page: showStreams ? tablePages.streams : tablePages.frameworker }"
+                :total-records="showStreams ? streamStats.length : frameworkerItems.length"
                 :empty-message="$t('views.metrics.no_cameras')"
-                @update:page="onPage($event, 'frameworker')"
-              />
+                @update:page="onPage($event, showStreams ? 'streams' : 'frameworker')"
+              >
+                <template #actions>
+                  <div class="flex items-end gap-2">
+                    <Button v-tooltip.top="{ value: $t('views.metrics.copy') }" severity="secondary" outlined class="cui-button-medium" @click="copyCameras">
+                      <template #icon>
+                        <i-mdi:content-copy />
+                      </template>
+                    </Button>
+                    <Button
+                      v-tooltip.top="{ value: showStreams ? $t('views.metrics.show_processes') : $t('views.metrics.show_streams'), disabled: !xsBreakpoint }"
+                      severity="secondary"
+                      outlined
+                      class="cui-button-medium"
+                      :label="xsBreakpoint ? undefined : showStreams ? $t('views.metrics.show_processes') : $t('views.metrics.show_streams')"
+                      @click="showStreams = !showStreams"
+                    >
+                      <template v-if="xsBreakpoint" #icon>
+                        <i-mdi:chart-timeline-variant v-if="showStreams" />
+                        <i-mdi:transit-connection-variant v-else />
+                      </template>
+                    </Button>
+                  </div>
+                </template>
+              </CuiChartTable>
             </div>
 
             <div>
@@ -250,7 +274,7 @@ import BenchmarkDialog from '@/components/CuiDialog/templates/DetectionBenchmark
 import { DEFAULT_PROCESS_LOAD, MAX_METRICS_DATA_POINTS } from '@/composables/sockets/useMetricsSocket.js';
 
 import type { TableHeader, TableHeaderChart } from '@/components/CuiChartTable/types.js';
-import type { PaginationQuery, ProcessInfo } from '@shared/types';
+import type { PaginationQuery, ProcessInfo, StreamStatsRow } from '@shared/types';
 import type { ChartData, ChartOptions } from 'chart.js';
 import type { DataTablePassThroughOptions } from 'primevue';
 
@@ -301,7 +325,8 @@ const tablePtOptions: DataTablePassThroughOptions = {
 const containerRef = useTemplateRef('containerRef');
 const currentTab = ref('overview');
 const showInference = ref(false);
-const tablePages = ref({ frameworker: 1, plugins: 1 });
+const showStreams = ref(false);
+const tablePages = ref({ frameworker: 1, plugins: 1, streams: 1 });
 const frameworkersPagination = ref<PaginationQuery>({ page: 1, pageSize: -1 });
 const pluginsPagination = ref<PaginationQuery>({ page: 1, pageSize: -1 });
 const frameWorkersRestarting = ref<string[]>([]);
@@ -337,6 +362,7 @@ const frameWorkersProcessInfos = metricsSocket.frameWorkersProcessInfos;
 const pluginsStatus = metricsSocket.pluginsStatus;
 const pluginsProcesses = metricsSocket.pluginsProcesses;
 const pluginsProcessInfos = metricsSocket.pluginsProcessInfos;
+const streamStats = metricsSocket.streamStats;
 
 const headers = computed<(type: 'system' | 'core' | 'frameworker' | 'plugins') => TableHeader[]>(() => {
   return (type) => {
@@ -576,6 +602,50 @@ const analysisPerformanceHeaders = computed<TableHeader[]>(() => {
   ];
 });
 
+const streamHeaders = computed<TableHeader[]>(() => [
+  {
+    type: 'category',
+    field: 'cameraName',
+    name: t('views.metrics.col_camera'),
+    columnProps: {
+      alignFrozen: 'left',
+      frozen: !mdBreakpoint.value,
+      headerClass: 'w-56 min-w-56 max-w-56',
+      class: 'w-56 min-w-56 max-w-56',
+    },
+    props: { class: 'font-bold text-color' },
+  },
+  { type: 'category', field: 'sourceName', name: t('views.metrics.col_source'), columnProps: analysisFirstColumnProps },
+  {
+    type: 'category',
+    field: 'connections',
+    name: t('views.metrics.col_connections'),
+    headerTooltip: t('views.metrics.info_connections'),
+    columnProps: analysisColumnProps,
+  },
+  {
+    type: 'category',
+    field: (item: StreamStatsRow) => bitrate(item.bitrateIn),
+    name: t('views.metrics.col_bitrate_in'),
+    headerTooltip: t('views.metrics.info_bitrate_in'),
+    columnProps: analysisColumnProps,
+  },
+  {
+    type: 'category',
+    field: (item: StreamStatsRow) => bitrate(item.bitrateOut),
+    name: t('views.metrics.col_bitrate_out'),
+    headerTooltip: t('views.metrics.info_bitrate_out'),
+    columnProps: analysisColumnProps,
+  },
+  {
+    type: 'category',
+    field: 'drops',
+    name: t('views.metrics.col_drops'),
+    headerTooltip: t('views.metrics.info_drops'),
+    columnProps: analysisColumnProps,
+  },
+]);
+
 const analysisHeaders = computed<TableHeader[]>(() => [
   analysisCameraColumn.value,
   ...(showInference.value ? analysisInferenceHeaders.value : analysisPerformanceHeaders.value),
@@ -583,6 +653,12 @@ const analysisHeaders = computed<TableHeader[]>(() => [
 
 function ms(value?: number): string {
   return value && value > 0 ? `${value.toFixed(1)} ms` : '-';
+}
+
+function bitrate(bitsPerSecond: number): string {
+  if (bitsPerSecond <= 0) return '-';
+  if (bitsPerSecond >= 1_000_000) return `${(bitsPerSecond / 1_000_000).toFixed(1)} Mbit/s`;
+  return `${Math.round(bitsPerSecond / 1_000)} kbit/s`;
 }
 
 function fps(value?: number): string {
@@ -601,6 +677,35 @@ function detectorTooltip(item: ProcessInfo, type: string): string {
   const parts = [info.plugin, info.input, info.runtime, ...models];
   if (!info.stamped) parts.push(t('views.metrics.tip_round_trip'));
   return parts.filter(Boolean).join(' · ');
+}
+
+async function copyCameras() {
+  const processHeaders = headers.value('frameworker').filter((header) => header.type === 'category' && header.field !== 'name');
+  const sourceHeaders = streamHeaders.value.slice(2);
+
+  const names = [...new Set([...frameworkerItems.value.map((item) => item.name), ...streamStats.value.map((row) => row.cameraName)])];
+
+  const text = names
+    .map((name) => {
+      const item = frameworkerItems.value.find((process) => process.name === name);
+      const title = item?.worker ? `${name} (${item.worker})` : name;
+      const processLines = item
+        ? processHeaders.map((header) => `  ${header.name}: ${cellValue(header, item)}${header.type === 'category' && header.suffix ? header.suffix : ''}`)
+        : [];
+      const sourceLines = streamStats.value
+        .filter((row) => row.cameraName === name)
+        .flatMap((row) => [`  ${row.sourceName}:`, ...sourceHeaders.map((header) => `    ${header.name}: ${cellValue(header, row)}`)]);
+      return [title, ...processLines, ...sourceLines].join('\n');
+    })
+    .join('\n\n');
+
+  await copy(text);
+  toast.add({ severity: 'success', detail: t('views.metrics.copied'), life: 3000 });
+}
+
+function cellValue(header: TableHeader, item: object): string {
+  const value = typeof header.field === 'function' ? header.field(item) : (item as Record<string, unknown>)[header.field];
+  return String(value ?? '-');
 }
 
 async function copyAnalysis() {
@@ -788,7 +893,7 @@ function buildChartData(type: 'system' | 'core' | 'frameworker' | 'plugins', pro
   }, {});
 }
 
-function onPage(e: { page: number; rows: number; first: number }, type: 'frameworker' | 'plugins') {
+function onPage(e: { page: number; rows: number; first: number }, type: 'frameworker' | 'plugins' | 'streams') {
   tablePages.value[type] = e.page + 1;
 }
 

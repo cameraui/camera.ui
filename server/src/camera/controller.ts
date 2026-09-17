@@ -1,5 +1,5 @@
 import { generateSdp } from '@camera.ui/common/camera';
-import { isEqual, PromiseTimeout, sleep } from '@camera.ui/common/utils';
+import { isEqual, PromiseTimeout } from '@camera.ui/common/utils';
 import { RPCClass, RPCMethod } from '@camera.ui/rpc';
 import { API_EVENT, filter, pairwise, SensorType, Subject } from '@camera.ui/sdk';
 import { container } from 'tsyringe';
@@ -15,7 +15,7 @@ import { SensorController } from './sensors/controller.js';
 import { SnapshotStore } from './snapshot-store.js';
 import { Fmp4Session } from './streaming/fmp4-session.js';
 import { RtpSession } from './streaming/rtp-session.js';
-import { generateAudioStreamInfo, generateVideoStreamInfo, isCompanionProducer } from './utils.js';
+import { generateAudioStreamInfo, generateVideoStreamInfo, hasLiveCameraProducer } from './utils.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -38,6 +38,7 @@ import type {
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
+import type { Go2RtcState, Go2RtcStreamState } from '../go2rtc/state.js';
 import type { Go2RTCProducer } from '../go2rtc/types.js';
 import type { InternalEventBus } from '../internal-bus.js';
 import type { ProxyServer } from '../rpc/index.js';
@@ -72,6 +73,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   private namespaces: CameraNamespaces & FrameWorkerDetectionNamespaces;
 
   private go2rtcApi: Go2RtcApi;
+  private go2rtcState: Go2RtcState;
   private loggerService: LoggerService;
   private api: CameraUiAPI;
 
@@ -80,6 +82,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   private autoRefreshInterval?: NodeJS.Timeout;
   private snapshotPrivacy: SnapshotPrivacy;
   private readonly snapshots = new SnapshotStore((sourceId, entry) => this.announceSnapshot(sourceId, entry));
+  private readonly preloadsInFlight = new Set<string>();
 
   constructor(camera: Camera, logger: Logger) {
     super(camera, logger);
@@ -89,6 +92,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     this.api = container.resolve<CameraUiAPI>('api');
     this.go2rtcApi = container.resolve<Go2RtcApi>('go2rtcApi');
+    this.go2rtcState = container.resolve<Go2RtcState>('go2rtcState');
     this.loggerService = container.resolve<LoggerService>('logger');
     this.proxy = container.resolve<ProxyServer>('proxy').proxy;
 
@@ -101,6 +105,9 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     };
 
     this.addSubscriptions(this.subscribeToCameraState(), this.subscribeToFrameWorkerState(), this.subscribeToCameraChanges());
+
+    this.go2rtcState.on('stream', this.handleStreamState);
+    this.go2rtcState.on('snapshot', this.handleStreamSnapshot);
 
     this.api.setMaxListeners(this.api.getMaxListeners() + 1);
     this.api.once(API_EVENT.SHUTDOWN, () => {
@@ -189,7 +196,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     }
 
     this.startAutoRefresh();
-    this.preloadSources();
+    this.reconcilePreloads();
   }
 
   public removePluginSensors(pluginId: string): void {
@@ -316,9 +323,9 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     const src = createSourceName(this.name, cameraSource.name);
 
     if (!refresh) {
-      const live = await this.go2rtcApi.streamsRoute.getStreamInfo({ src }).catch(() => undefined);
-      if (live?.producers?.some((producer) => !isCompanionProducer(producer) && producer.medias?.length)) {
-        return this.rememberStreamInfo(sourceId, live.producers);
+      const live = this.go2rtcState.get(src)?.producers;
+      if (hasLiveCameraProducer(live)) {
+        return this.rememberStreamInfo(sourceId, live);
       }
 
       const known = this.streamInfos.get(sourceId);
@@ -338,15 +345,9 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
   @RPCMethod
   public async getStreamStatus(sourceId: string): Promise<string> {
-    const source = this.sources.find((s) => s._id === sourceId);
+    const source = this.cameraObject.sources.find((s) => s._id === sourceId);
     if (!source) return 'idle';
-    try {
-      const sourceName = createSourceName(this.name, source.name);
-      const statuses = await this.go2rtcApi.streamsRoute.getStreamsStatus();
-      return statuses[sourceName] ?? 'idle';
-    } catch {
-      return 'idle';
-    }
+    return this.go2rtcState.get(createSourceName(this.name, source.name))?.status ?? 'idle';
   }
 
   @RPCMethod
@@ -400,6 +401,8 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   public async cleanup(): Promise<void> {
+    this.go2rtcState.off('stream', this.handleStreamState);
+    this.go2rtcState.off('snapshot', this.handleStreamSnapshot);
     this.stopAutoRefresh();
     this.snapshots.dispose();
     this.detectionEventUnsub?.();
@@ -456,7 +459,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     }
 
     this.startAutoRefresh();
-    this.preloadSources();
+    this.reconcilePreloads();
 
     this.frameWorker.start();
   }
@@ -468,42 +471,45 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         const sourceName = createSourceName(this.name, source.name);
         await this.go2rtcApi.streamsRoute.addPreloadStream({ src: sourceName }, PRELOAD_KINDS);
       } catch {
-        // Non-fatal: go2rtc might not be ready yet, 30s loop will retry
+        // go2rtc might not be ready yet, ignore
       }
     }
   }
 
-  private async preloadSources(): Promise<void> {
-    while (this.initialized.value) {
-      if (this.disabled) {
-        await this.stopAllPreloads();
-        return;
-      }
-
-      await this.reconcilePreloads();
-
-      await sleep(30000);
+  private reconcilePreloads(): void {
+    for (const source of this.cameraObject.sources) {
+      this.reconcilePreload(source, this.go2rtcState.get(createSourceName(this.name, source.name)));
     }
   }
 
-  private async reconcilePreloads(): Promise<void> {
-    if (!this.connected || this.disabled) return;
+  private async reconcilePreload(source: CameraInput, state: Go2RtcStreamState | undefined): Promise<void> {
+    if (!state || !this.connected || this.disabled) return;
 
-    for (const source of this.sources) {
-      try {
-        const src = createSourceName(this.name, source.name);
-        const preloadInfo = await this.go2rtcApi.streamsRoute.getPreloadStream({ src });
-        if (source.hotMode && preloadInfo.status === 'stopped') {
-          this.logger.debug(`Preloading source "${source.name}" for camera "${this.name}"`);
-          await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, PRELOAD_KINDS);
-        } else if (!source.hotMode && preloadInfo.status === 'started') {
-          this.logger.debug(`Stopping preload for source "${source.name}" for camera "${this.name}"`);
-          await this.go2rtcApi.streamsRoute.deletePreloadStream({ src });
-        }
-      } catch {
-        //
+    const src = createSourceName(this.name, source.name);
+    const preloaded = state.preload !== null;
+    if (Boolean(source.hotMode) === preloaded || this.preloadsInFlight.has(src)) return;
+
+    this.preloadsInFlight.add(src);
+    try {
+      if (source.hotMode) {
+        this.logger.debug(`Preloading source "${source.name}" for camera "${this.name}"`);
+        await this.go2rtcApi.streamsRoute.addPreloadStream({ src }, PRELOAD_KINDS);
+      } else {
+        this.logger.debug(`Stopping preload for source "${source.name}" for camera "${this.name}"`);
+        await this.go2rtcApi.streamsRoute.deletePreloadStream({ src });
       }
+    } catch {
+      // retried with the next state of this stream
+    } finally {
+      this.preloadsInFlight.delete(src);
     }
+  }
+
+  private applyStreamState(source: CameraInput, state: Go2RtcStreamState | undefined): void {
+    if (hasLiveCameraProducer(state?.producers)) {
+      this.rememberStreamInfo(source._id, state.producers);
+    }
+    this.reconcilePreload(source, state);
   }
 
   private async stopAllPreloads(): Promise<void> {
@@ -583,6 +589,10 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       .subscribe(([, newState]) => {
         this.logger.log(`Camera ${newState ? 'connected' : 'disconnected'}`);
         this.triggerProxyEvent('cameraState', newState);
+
+        if (newState && !this.disabled) {
+          this.reconcilePreloads();
+        }
 
         try {
           const bus = container.resolve<InternalEventBus>('internalBus');
@@ -733,6 +743,19 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         }
       });
   }
+
+  private readonly handleStreamState = (name: string, state: Go2RtcStreamState | undefined): void => {
+    const source = this.cameraObject.sources.find((s) => createSourceName(this.name, s.name) === name);
+    if (source) {
+      this.applyStreamState(source, state);
+    }
+  };
+
+  private readonly handleStreamSnapshot = (): void => {
+    for (const source of this.cameraObject.sources) {
+      this.applyStreamState(source, this.go2rtcState.get(createSourceName(this.name, source.name)));
+    }
+  };
 
   private triggerProxyEvent(stateName: 'removed'): void;
   private triggerProxyEvent(stateName: 'updated', data: Camera): void;

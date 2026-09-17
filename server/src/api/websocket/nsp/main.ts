@@ -4,10 +4,15 @@ import { createSourceName } from '../../../utils/camera.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
-import type { Go2RtcApi } from '../../../go2rtc/api/index.js';
-import type { StreamStatus } from '../../../go2rtc/types.js';
+import type { Go2RtcState } from '../../../go2rtc/state.js';
+import type { Go2RTCProducer, StreamStatus } from '../../../go2rtc/types.js';
 import type { CameraUi } from '../../../main.js';
 import type { SocketNsp } from '../types.js';
+
+interface StreamCodecs {
+  video: string[];
+  audio: string[];
+}
 
 export class MainNamespace {
   public nsp: Namespace;
@@ -15,21 +20,27 @@ export class MainNamespace {
 
   private cameraui: CameraUi;
   private api: CameraUiAPI;
-  private go2rtcApi: Go2RtcApi;
+  private go2rtcState: Go2RtcState;
+  private broadcastTimer?: NodeJS.Timeout;
 
   constructor(io: Server) {
     this.cameraui = container.resolve<CameraUi>('cameraui');
     this.api = container.resolve<CameraUiAPI>('api');
-    this.go2rtcApi = container.resolve<Go2RtcApi>('go2rtcApi');
+    this.go2rtcState = container.resolve<Go2RtcState>('go2rtcState');
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
       socket.on('get-status', this.getStatus.bind(this));
 
       socket.on('get-stream-status', () => {
-        this.handleGetStreamStatus(socket);
+        socket.emit('stream-status', this.streamStatus());
+        socket.emit('stream-connections', this.streamConnections());
+        socket.emit('stream-codecs', this.streamCodecs());
       });
     });
+
+    this.go2rtcState.on('stream', () => this.scheduleBroadcast());
+    this.go2rtcState.on('snapshot', () => this.scheduleBroadcast());
   }
 
   public async getStatus(_payload: any, callback?: Function): Promise<'loading' | 'ready'> {
@@ -38,29 +49,50 @@ export class MainNamespace {
     return status;
   }
 
-  private async handleGetStreamStatus(socket: Socket): Promise<void> {
-    let statuses: Record<string, StreamStatus> = {};
-    try {
-      statuses = await this.go2rtcApi.streamsRoute.getStreamsStatus();
-    } catch {
-      // Silent catch — UI shows everything as idle
-    }
+  private scheduleBroadcast(): void {
+    if (this.broadcastTimer) return;
+    this.broadcastTimer = setTimeout(() => {
+      this.broadcastTimer = undefined;
+      this.nsp.emit('stream-status', this.streamStatus());
+      this.nsp.emit('stream-connections', this.streamConnections());
+      this.nsp.emit('stream-codecs', this.streamCodecs());
+    }, 100);
+  }
 
-    const cameras = this.api.getCameras();
-    const result: Record<string, Record<string, StreamStatus>> = {};
+  private streamStatus(): Record<string, Record<string, StreamStatus>> {
+    return this.perSource((name) => this.go2rtcState.get(name)?.status ?? 'idle');
+  }
 
-    for (const camera of cameras) {
-      const cameraStatuses: Record<string, StreamStatus> = {};
+  private streamConnections(): Record<string, Record<string, number>> {
+    return this.perSource((name) => this.go2rtcState.get(name)?.consumers.length ?? 0);
+  }
+
+  private streamCodecs(): Record<string, Record<string, StreamCodecs | undefined>> {
+    return this.perSource((name) => receiverCodecs(this.go2rtcState.get(name)?.producers));
+  }
+
+  private perSource<T>(value: (streamName: string) => T): Record<string, Record<string, T>> {
+    const result: Record<string, Record<string, T>> = {};
+
+    for (const camera of this.api.getCameras()) {
+      const sources: Record<string, T> = {};
       for (const source of camera.sources) {
         if (source.role === 'snapshot') {
           continue;
         }
-        const sourceName = createSourceName(camera.name, source.name);
-        cameraStatuses[source.name] = statuses[sourceName] ?? 'idle';
+        sources[source.name] = value(createSourceName(camera.name, source.name));
       }
-      result[camera.id] = cameraStatuses;
+      result[camera.id] = sources;
     }
 
-    socket.emit('stream-status', result);
+    return result;
   }
+}
+
+function receiverCodecs(producers: Go2RTCProducer[] | undefined): StreamCodecs | undefined {
+  const receivers = (producers ?? []).flatMap((producer) => producer.receivers ?? []);
+  if (!receivers.length) return undefined;
+
+  const names = (type: string): string[] => [...new Set(receivers.filter((receiver) => receiver.codec.codec_type === type).map((receiver) => receiver.codec.codec_name))];
+  return { video: names('video'), audio: names('audio') };
 }

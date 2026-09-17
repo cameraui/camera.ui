@@ -7,6 +7,7 @@ import { createSourceName } from '../../utils/camera.js';
 import { AuthService } from './auth.service.js';
 
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
+import type { Go2RtcState } from '../../go2rtc/state.js';
 import type { CloudApi } from '../../remote/api/index.js';
 import type { ConfigService } from '../../services/config/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
@@ -41,6 +42,7 @@ export class SharesService {
   private authService: AuthService;
   private cloudApi: CloudApi;
   private go2rtcApi: Go2RtcApi;
+  private go2rtcState: Go2RtcState;
 
   private validateAttempts = new Map<string, { count: number; first: number }>();
 
@@ -50,6 +52,7 @@ export class SharesService {
     this.logger = container.resolve<LoggerService>('logger');
     this.cloudApi = container.resolve<CloudApi>('cloudApi');
     this.go2rtcApi = container.resolve<Go2RtcApi>('go2rtcApi');
+    this.go2rtcState = container.resolve<Go2RtcState>('go2rtcState');
     this.authService = new AuthService();
   }
 
@@ -102,7 +105,7 @@ export class SharesService {
       if (s.revoked) continue;
       if (s.expiresAt < now) continue;
       if (cameraId && s.cameraId !== cameraId) continue;
-      result.push({ ...s, code: '****', sourceName: this.getSourceDisplayName(s.cameraId, s.sourceId) });
+      result.push({ ...s, code: '****', currentViewers: this.currentViewers(s._id), sourceName: this.getSourceDisplayName(s.cameraId, s.sourceId) });
     }
 
     return result;
@@ -135,7 +138,7 @@ export class SharesService {
     const share = this.getShare(token);
     if (!share) return null;
     if (share.code !== code) return null;
-    if (share.maxViewers > 0 && share.currentViewers >= share.maxViewers) return null;
+    if (share.maxViewers > 0 && this.currentViewers(token) >= share.maxViewers) return null;
     return share;
   }
 
@@ -205,27 +208,22 @@ export class SharesService {
     return token;
   }
 
-  public async incrementViewers(token: string): Promise<void> {
+  public async countView(token: string): Promise<void> {
     await this.dbs.commit(this.dbs.sharesDB, token, (current) => {
       if (!current) return undefined;
 
-      current.currentViewers++;
       current.totalViews++;
 
       return current;
     });
   }
 
-  public async decrementViewers(token: string): Promise<void> {
-    await this.dbs.commit(this.dbs.sharesDB, token, (current) => {
-      if (!current || current.currentViewers <= 0) return undefined;
-
-      current.currentViewers--;
-
-      return current;
-    });
-
+  public async endView(token: string): Promise<void> {
     await this.authService.invalidateById(`share_${token}`);
+  }
+
+  public currentViewers(token: string): number {
+    return this.go2rtcState.countConsumersByTag(`share_${token}`);
   }
 
   public async cleanup(): Promise<void> {

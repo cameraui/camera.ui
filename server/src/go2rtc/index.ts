@@ -17,6 +17,7 @@ import type { SocketService } from '../api/websocket/index.js';
 import type { ServerRuntime } from '../api/websocket/types.js';
 import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
+import type { Go2RtcState } from './state.js';
 
 export class Go2Rtc {
   public version = 'unknown';
@@ -103,6 +104,8 @@ export class Go2Rtc {
 
         this.setStatus(RUNTIME_STATUS.STARTED);
 
+        await container.resolve<Go2RtcState>('go2rtcState').connect();
+
         resolve();
       });
 
@@ -118,6 +121,7 @@ export class Go2Rtc {
 
       this.go2rtcProcess.on('exit', async (code, signal) => {
         this.configService.removeProcessByPID(go2rtcPID);
+        container.resolve<Go2RtcState>('go2rtcState').disconnect();
 
         const details = exitInfo(code, signal, { pid: go2rtcPID });
 

@@ -9,6 +9,13 @@
     <InputGroup>
       <InputText :value="connections" :loading="isLoading" readonly type="text" />
       <InputGroupAddon>
+        <Button v-tooltip.left="$t('components.form.tooltip.copy_stream_json')" severity="secondary" text :loading="isCopyingStream" @click="copyStreamJson">
+          <template #icon>
+            <CopyButton class="w-4 h-4" />
+          </template>
+        </Button>
+      </InputGroupAddon>
+      <InputGroupAddon>
         <Button v-tooltip.left="$t('components.form.button.reload')" severity="secondary" text :loading="isReprobing" :disabled="isLoading" @click="reprobe">
           <template #icon>
             <ReloadIcon class="w-4 h-4" />
@@ -59,34 +66,13 @@
     </InputGroup>
     <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.rtsp_url') }}</Message>
   </div>
-
-  <div v-if="source.role !== 'snapshot'" class="flex flex-col field-gap">
-    <label class="cui-label">{{ $t('components.form.label.onvif_url') }}</label>
-    <InputGroup>
-      <InputText :model-value="probeData?.onvifUrl" :loading="isLoading" readonly type="text" />
-      <InputGroupAddon>
-        <CuiActionButton
-          :action-text="$t('components.form.tooltip.copied')"
-          :icon="CopyButton"
-          :button-props="{
-            severity: 'secondary',
-            disabled: !probeData?.onvifUrl,
-            loading: isLoading,
-            text: true,
-          }"
-          @action="copy(probeData!.onvifUrl)"
-        />
-      </InputGroupAddon>
-    </InputGroup>
-    <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.onvif_url') }}</Message>
-  </div>
 </template>
 
 <script setup lang="ts">
 import ReloadIcon from '~icons/fluent/arrow-sync-16-filled';
 import CopyButton from '~icons/fluent/copy-16-filled';
 
-import { CamerasQuery, probeCameraSourceFn } from '@/api/routes/cameras.js';
+import { CamerasQuery, probeCameraSourceFn, streamSourceInfoFn } from '@/api/routes/cameras.js';
 import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
@@ -97,14 +83,13 @@ const camerasQuery = new CamerasQuery();
 const props = defineProps<CameraSourceProps>();
 
 const { t } = useI18n();
-const { getSourceStatus, connect: connectStreamStatus } = useStreamStatus();
+const { getSourceStatus, getSourceConnections, getSourceCodecs, connect: connectStreamStatus } = useStreamStatus();
 const queryClient = useQueryClient();
 const toast = useCuiToast();
 
-const INTERNAL_CONSUMERS = ['probe', 'preload'];
-
 const { cameraId, cameraName, source, loading } = toRefs(props);
 const isReprobing = ref(false);
+const isCopyingStream = ref(false);
 
 const { data: probeData, isBusy: probeLoading } = camerasQuery.probeCameraSourceQuery(cameraName.value, source.value.name, {
   video: true,
@@ -144,13 +129,13 @@ const sourceStatusLabel = computed(() => {
 
 const isLoading = computed(() => Boolean(loading.value || probeLoading.value));
 
-const connections = computed(() => {
-  return probeData.value?.probe.consumers.filter((consumer) => !INTERNAL_CONSUMERS.includes(consumer.format_name)).length || 0;
-});
+const connections = computed(() => getSourceConnections(cameraId.value, source.value.name));
 
-const videoCodecs = computed(() => producerCodecs('video'));
+const liveCodecs = computed(() => getSourceCodecs(cameraId.value, source.value.name));
 
-const audioCodecs = computed(() => producerCodecs('audio'));
+const videoCodecs = computed(() => liveCodecs.value?.video ?? producerCodecs('video'));
+
+const audioCodecs = computed(() => liveCodecs.value?.audio ?? producerCodecs('audio'));
 
 function producerCodecs(type: 'video' | 'audio'): string[] {
   const names = (probeData.value?.probe.producers ?? [])
@@ -158,6 +143,20 @@ function producerCodecs(type: 'video' | 'audio'): string[] {
     .filter((receiver) => receiver.codec.codec_type === type)
     .map((receiver) => receiver.codec.codec_name);
   return [...new Set(names)];
+}
+
+async function copyStreamJson(): Promise<void> {
+  if (isCopyingStream.value) return;
+  isCopyingStream.value = true;
+  try {
+    const info = await streamSourceInfoFn({ cameraname: cameraName.value, sourcename: source.value.name });
+    const copied = await copy(JSON.stringify(info, null, 2));
+    toast.add({ severity: copied ? 'success' : 'error', detail: t(copied ? 'components.form.tooltip.copied' : 'components.toast.copy_failed'), life: 3000 });
+  } catch {
+    toast.add({ severity: 'error', detail: t('components.toast.copy_failed'), life: 3000 });
+  } finally {
+    isCopyingStream.value = false;
+  }
 }
 
 async function reprobe(): Promise<void> {

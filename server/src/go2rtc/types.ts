@@ -151,6 +151,7 @@ export interface Go2RTCSender {
   parent?: number;
   bytes?: number;
   packets?: number;
+  drops?: number;
 }
 
 export interface Go2RTCMixer {

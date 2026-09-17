@@ -1,17 +1,7 @@
 import { assertResponseOk, fetchInstance } from '../instance.js';
 
 import type { ProbeConfig } from '@camera.ui/sdk';
-import type {
-  CreateStreamData,
-  Go2RTCPreload,
-  Go2RTCProbe,
-  HomeKitPairData,
-  HomeKitPairResponse,
-  SourceData,
-  StreamStatusResponse,
-  UnpairData,
-  UpdateStreamData,
-} from '../../types.js';
+import type { CreateStreamData, Go2RTCPreload, Go2RTCProbe, HomeKitPairData, HomeKitPairResponse, SourceData, UnpairData, UpdateStreamData } from '../../types.js';
 import type { RequestManager } from '../manager.js';
 
 export class StreamsRoute {
@@ -217,16 +207,6 @@ export class StreamsRoute {
     );
 
     await assertResponseOk(response);
-  }
-
-  public async getStreamsStatus(): Promise<StreamStatusResponse> {
-    const response = await this.requestManager.deduplicatedRequest('streamsStatus', () => fetchInstance()('/streams/status', { method: 'GET' }));
-
-    if (!response.ok) {
-      throw new Error((await response.text()) ?? response.statusText);
-    }
-
-    return response.json() as any;
   }
 
   public async deletePreloadStream(data: SourceData): Promise<void> {

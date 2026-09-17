@@ -21,6 +21,7 @@ import { AutomationEngine } from './automations/engine.js';
 import { setupNodeAvLog } from './camera/streaming/node-av-log.js';
 import { Go2RtcApi } from './go2rtc/api/index.js';
 import { Go2Rtc } from './go2rtc/index.js';
+import { Go2RtcState } from './go2rtc/state.js';
 import { InternalEventBus } from './internal-bus.js';
 import { MqttManager } from './mqtt/manager.js';
 import { PluginManager } from './plugins/index.js';
@@ -50,6 +51,7 @@ class CameraUi {
   private pluginManager: PluginManager;
   private go2rtc: Go2Rtc;
   private go2rtcApi: Go2RtcApi;
+  private go2rtcState: Go2RtcState;
   private tunnelClient: TunnelClient;
   private server: Server;
   private cloudApi: CloudApi;
@@ -99,6 +101,7 @@ class CameraUi {
     this.database = new Database();
     this.go2rtc = new Go2Rtc();
     this.go2rtcApi = new Go2RtcApi();
+    this.go2rtcState = new Go2RtcState();
     this.pluginManager = new PluginManager();
     this.proxy = new ProxyServer();
     this.cloudApi = new CloudApi();

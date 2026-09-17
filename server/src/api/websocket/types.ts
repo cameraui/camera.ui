@@ -56,6 +56,16 @@ export interface ProcessInfo {
   perf?: WorkerPerfStats;
 }
 
+export interface StreamStatsRow {
+  cameraId: string;
+  cameraName: string;
+  sourceName: string;
+  connections: number;
+  bitrateIn: number;
+  bitrateOut: number;
+  drops: number;
+}
+
 export interface ServerProcessInfo {
   'camera.ui': ProcessInfo;
   go2rtc: ProcessInfo;

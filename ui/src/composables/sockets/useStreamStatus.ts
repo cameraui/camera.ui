@@ -2,16 +2,21 @@ import type { SocketChannel } from '@/connection/index.js';
 
 export type StreamStatus = 'connected' | 'connecting' | 'error' | 'idle' | 'partial';
 export type CameraStreamStatus = Record<string, Record<string, StreamStatus>>;
+export type CameraStreamConnections = Record<string, Record<string, number>>;
+export interface StreamCodecs {
+  video: string[];
+  audio: string[];
+}
+export type CameraStreamCodecs = Record<string, Record<string, StreamCodecs | undefined>>;
 
-const POLL_INTERVAL_MS = 10_000;
-
-const state = reactive<{ streamStatus: CameraStreamStatus }>({
+const state = reactive<{ streamStatus: CameraStreamStatus; streamConnections: CameraStreamConnections; streamCodecs: CameraStreamCodecs }>({
   streamStatus: {},
+  streamConnections: {},
+  streamCodecs: {},
 });
 
 let scope: ReturnType<typeof effectScope> | null = null;
 let channel: SocketChannel | null = null;
-let pollInterval: ReturnType<typeof setInterval> | undefined;
 
 function refresh(): void {
   channel?.emit('get-stream-status');
@@ -31,14 +36,18 @@ function ensureChannel(): SocketChannel {
       state.streamStatus = data;
     });
 
+    ch.on<CameraStreamConnections>('stream-connections', (data) => {
+      state.streamConnections = data;
+    });
+
+    ch.on<CameraStreamCodecs>('stream-codecs', (data) => {
+      state.streamCodecs = data;
+    });
+
     ch.onReady(() => {
       refresh();
     });
   });
-
-  if (!pollInterval) {
-    pollInterval = setInterval(refresh, POLL_INTERVAL_MS);
-  }
 
   return channel!;
 }
@@ -81,11 +90,21 @@ export function useStreamStatus() {
     return state.streamStatus[cameraId]?.[sourceName] ?? 'idle';
   }
 
+  function getSourceConnections(cameraId: string, sourceName: string): number {
+    return state.streamConnections[cameraId]?.[sourceName] ?? 0;
+  }
+
+  function getSourceCodecs(cameraId: string, sourceName: string): StreamCodecs | undefined {
+    return state.streamCodecs[cameraId]?.[sourceName];
+  }
+
   return {
     streamStatus: computed(() => state.streamStatus),
     getCameraStatus,
     getCameraSources,
     getSourceStatus,
+    getSourceConnections,
+    getSourceCodecs,
     connect,
     disconnect,
     refresh,
@@ -93,12 +112,10 @@ export function useStreamStatus() {
 }
 
 export function resetStreamStatus(): void {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = undefined;
-  }
   scope?.stop();
   scope = null;
   channel = null;
   state.streamStatus = {};
+  state.streamConnections = {};
+  state.streamCodecs = {};
 }

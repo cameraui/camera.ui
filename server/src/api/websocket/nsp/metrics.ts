@@ -2,6 +2,8 @@ import { cpus, loadavg, platform } from 'node:os';
 import { currentLoad, mem, processes } from 'systeminformation';
 import { container } from 'tsyringe';
 
+import { StreamRates } from '../../../go2rtc/stream-rates.js';
+import { createSourceName } from '../../../utils/camera.js';
 import { WorkerCapability } from '../../../workers/types.js';
 import { deriveWorkerPerf } from './worker-perf.js';
 
@@ -9,10 +11,11 @@ import type { Namespace, Server, Socket } from 'socket.io';
 import type { Systeminformation } from 'systeminformation';
 import type { CameraUiAPI } from '../../../api.js';
 import type { Go2Rtc } from '../../../go2rtc/index.js';
+import type { Go2RtcState, Go2RtcStreamStats } from '../../../go2rtc/state.js';
 import type { PluginManager } from '../../../plugins/index.js';
 import type { NATS } from '../../../rpc/server.js';
 import type { WorkerManager } from '../../../workers/manager.js';
-import type { AllProcesses, ProcessInfo, ProcessType, ServerProcesses, SocketNsp, WorkerPerfStats, WorkerProcesses } from '../types.js';
+import type { AllProcesses, ProcessInfo, ProcessType, ServerProcesses, SocketNsp, StreamStatsRow, WorkerPerfStats, WorkerProcesses } from '../types.js';
 
 export class MetricsNamespace {
   public nsp: Namespace;
@@ -25,6 +28,9 @@ export class MetricsNamespace {
   private api: CameraUiAPI;
   private pluginManager: PluginManager;
   private go2rtc: Go2Rtc;
+  private go2rtcState: Go2RtcState;
+  private streamRates = new StreamRates();
+  private streamStats: StreamStatsRow[] = [];
   private natsServer: NATS;
   private workerManager: WorkerManager;
 
@@ -50,6 +56,7 @@ export class MetricsNamespace {
     this.api = container.resolve<CameraUiAPI>('api');
     this.pluginManager = container.resolve<PluginManager>('pluginManager');
     this.go2rtc = container.resolve<Go2Rtc>('go2rtc');
+    this.go2rtcState = container.resolve<Go2RtcState>('go2rtcState');
     this.natsServer = container.resolve<NATS>('natsServer');
     this.workerManager = container.resolve<WorkerManager>('workerManager');
 
@@ -71,7 +78,10 @@ export class MetricsNamespace {
       if (this.realtimeData.processes) {
         socket.emit('process-infos-realtime', this.realtimeData.processes);
       }
+      socket.emit('stream-stats-realtime', this.streamStats);
     });
+
+    this.go2rtcState.on('stats', (stats) => this.updateStreamStats(stats));
 
     this.setupIntervals();
   }
@@ -360,6 +370,35 @@ export class MetricsNamespace {
   private async handleGetFrameWorkerProcessInfo(_payload: any, callback?: Function): Promise<WorkerProcesses> {
     callback?.(this.history.frameWorkers);
     return this.history.frameWorkers;
+  }
+
+  private updateStreamStats(stats: Record<string, Go2RtcStreamStats>): void {
+    const rates = this.streamRates.update(stats, (name) => this.go2rtcState.get(name));
+    const rows: StreamStatsRow[] = [];
+
+    for (const camera of this.api.getCameras()) {
+      for (const source of camera.sources) {
+        if (source.role === 'snapshot') continue;
+
+        const streamName = createSourceName(camera.name, source.name);
+        const rate = rates.get(streamName);
+        rows.push({
+          cameraId: camera.id,
+          cameraName: camera.name,
+          sourceName: source.name,
+          connections: this.go2rtcState.get(streamName)?.consumers.length ?? 0,
+          bitrateIn: rate?.bitrateIn ?? 0,
+          bitrateOut: rate?.bitrateOut ?? 0,
+          drops: rate?.drops ?? 0,
+        });
+      }
+    }
+
+    this.streamStats = rows;
+
+    if (this.hasConnectedClients()) {
+      this.nsp.emit('stream-stats-realtime', rows);
+    }
   }
 
   private hasConnectedClients(): boolean {

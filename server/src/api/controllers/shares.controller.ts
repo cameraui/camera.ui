@@ -87,7 +87,7 @@ export class SharesController {
       }
 
       const jwtToken = await this.service.generateShareJWT(share);
-      await this.service.incrementViewers(token);
+      await this.service.countView(token);
 
       return reply.code(200).send({
         access_token: jwtToken,
@@ -103,7 +103,7 @@ export class SharesController {
   public async disconnect(req: FastifyRequest<ShareParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const { token } = req.params;
-      await this.service.decrementViewers(token);
+      await this.service.endView(token);
       return reply.code(200).send({ message: 'Disconnected' });
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });

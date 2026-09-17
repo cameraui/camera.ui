@@ -1,7 +1,17 @@
 import { RUNTIME_STATUS } from '@shared/types';
 
 import type { SocketChannel } from '@/connection/index.js';
-import type { AllProcesses, PluginRuntimeInfo, ProcessInfo, ServerProcesses, ServerProcessInfo, ServerRuntime, WorkerProcesses, WorkerProcessInfo } from '@shared/types';
+import type {
+  AllProcesses,
+  PluginRuntimeInfo,
+  ProcessInfo,
+  ServerProcesses,
+  ServerProcessInfo,
+  ServerRuntime,
+  StreamStatsRow,
+  WorkerProcesses,
+  WorkerProcessInfo,
+} from '@shared/types';
 
 export const MAX_METRICS_DATA_POINTS = 30;
 
@@ -29,6 +39,8 @@ export interface MetricsSocketState {
   pluginsStatus: Record<string, PluginRuntimeInfo>;
   pluginsProcesses: WorkerProcessInfo;
   pluginsProcessInfos: WorkerProcesses;
+
+  streamStats: StreamStatsRow[];
 }
 
 function makeInitialState(): MetricsSocketState {
@@ -54,6 +66,7 @@ function makeInitialState(): MetricsSocketState {
     pluginsStatus: {},
     pluginsProcesses: {},
     pluginsProcessInfos: {},
+    streamStats: [],
   };
 }
 
@@ -173,6 +186,9 @@ function ensureChannels(): void {
     m.on<ProcessInfo>('system-infos-realtime', (data) => {
       state.systemProcess = [data];
     });
+    m.on<StreamStatsRow[]>('stream-stats-realtime', (data) => {
+      state.streamStats = data;
+    });
     m.on<ProcessInfo>('system-infos', (data) => {
       state.systemProcessInfo.push(data);
       state.systemProcessInfo = state.systemProcessInfo.slice(-MAX_METRICS_DATA_POINTS);
@@ -228,6 +244,8 @@ export function useMetricsSocket() {
     pluginsStatus: computed(() => state.pluginsStatus),
     pluginsProcesses: computed(() => state.pluginsProcesses),
     pluginsProcessInfos: computed(() => state.pluginsProcessInfos),
+
+    streamStats: computed(() => state.streamStats),
 
     connect,
     disconnect,

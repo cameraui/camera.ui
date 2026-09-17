@@ -27,6 +27,10 @@ export function isCompanionProducer(producer: Go2RTCProducer): boolean {
   return url.includes('#cameraui');
 }
 
+export function hasLiveCameraProducer(producers: Go2RTCProducer[] | undefined): producers is Go2RTCProducer[] {
+  return producers?.some((producer) => !isCompanionProducer(producer) && producer.medias?.length) ?? false;
+}
+
 export function generateAudioStreamInfo(producers: Go2RTCProducer[]): AudioStreamInfo[] {
   const audioStreamInfos: AudioStreamInfo[] = [];
 

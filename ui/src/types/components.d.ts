@@ -471,6 +471,7 @@ declare module 'vue' {
     'IMdi:stop': typeof import('~icons/mdi/stop')['default']
     'IMdi:storeSearch': typeof import('~icons/mdi/store-search')['default']
     'IMdi:textBoxOutline': typeof import('~icons/mdi/text-box-outline')['default']
+    'IMdi:transitConnectionVariant': typeof import('~icons/mdi/transit-connection-variant')['default']
     'IMdi:trashCanOutline': typeof import('~icons/mdi/trash-can-outline')['default']
     'IMdi:tune': typeof import('~icons/mdi/tune')['default']
     'IMdi:undo': typeof import('~icons/mdi/undo')['default']

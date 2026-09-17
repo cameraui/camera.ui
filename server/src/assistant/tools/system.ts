@@ -11,8 +11,7 @@ import { createSourceName } from '../../utils/camera.js';
 import { collectSystemInfo } from '../../utils/system-info.js';
 
 import type { CameraUiAPI } from '../../api.js';
-import type { Go2RtcApi } from '../../go2rtc/api/index.js';
-import type { StreamStatusResponse } from '../../go2rtc/types.js';
+import type { Go2RtcState } from '../../go2rtc/state.js';
 import type { WorkerManager } from '../../workers/manager.js';
 import type { AssistantToolRegistry } from '../registry.js';
 import type { CoreTool, ToolContext } from './shared.js';
@@ -25,14 +24,12 @@ const getSystemStatus = toolDefinition({
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(async (_input, ctx) => {
   const api = container.resolve<CameraUiAPI>('api');
-  const go2rtc = container.resolve<Go2RtcApi>('go2rtcApi');
+  const go2rtc = container.resolve<Go2RtcState>('go2rtcState');
   const workers = container.resolve<WorkerManager>('workerManager');
   const plugins = new PluginsService();
 
-  const [system, streams] = await Promise.all([
-    collectSystemInfo(ConfigService.RUNNING_VERSION).catch(() => undefined),
-    go2rtc.streamsRoute.getStreamsStatus().catch((): StreamStatusResponse => ({})),
-  ]);
+  const system = await collectSystemInfo(ConfigService.RUNNING_VERSION).catch(() => undefined);
+  const streams = go2rtc.statuses();
 
   const cameras = new CamerasService().list().map((camera) => {
     const controller = api.getCamera(camera._id);
