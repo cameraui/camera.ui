@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.5]
 
+### Changed
+
+- **The camera settings show the codecs by their usual names.** A source lists what the camera itself sends, for example "H.264 · High · 5.1" or "AAC · 16 kHz", instead of internal names mixed with the audio formats camera.ui converts to.
+
 ### Fixed
 
-- **The speaker button no longer stays greyed out while the camera sends sound.** After a server restart it could stay disabled on a random camera until the next restart, even though live view, recordings and talkback had audio. The button now follows what the camera actually offers, and a sleeping battery camera is not woken just to check.
+- **The speaker button no longer stays greyed out while the camera sends sound.** After a server restart it could stay disabled on a random camera until the next restart, even though live view, recordings and talkback had audio. The button now follows what the camera actually offers, also when talkback runs over a second source, and a sleeping battery camera is not woken just to check.
 
 - **Two-way audio works again on plugin cameras.** Since 2.1.13 the microphone button stayed greyed out on Reolink and other plugin cameras, and HomeKit dropped the talkback. The same happened to any RTSP or ONVIF camera with a connection timeout set in its source settings.
+
+- **Live view recovers when the camera switches its codec.** After changing a camera from H.264 to H.265 or back in its own settings, open live views froze until you reloaded them. They now reconnect by themselves.
+
+- **Tapo cameras set to H.265 show a picture.** Live view and recordings stayed black, because the stream was always set up for H.264.
 
 ## [2.2.4]
 
