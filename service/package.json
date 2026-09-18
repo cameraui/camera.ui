@@ -14,6 +14,7 @@
     "build": "rimraf dist && tsc",
     "format": "prettier --write 'src/' --ignore-unknown --no-error-on-unmatched-pattern",
     "lint": "eslint --fix .",
+    "test": "vitest run --passWithNoTests",
     "install-updates": "npm i --save",
     "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build",
     "prepack": "node ../scripts/shrinkwrap.mjs create",
@@ -24,13 +25,10 @@
     "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run"
   },
   "dependencies": {
-    "@camera.ui/common": "~0.0.57",
+    "@camera.ui/common": "~0.0.58-beta.2",
     "commander": "^15.0.0",
-    "fs-extra": "^11.4.0",
     "js-yaml": "^5.4.2",
-    "ora": "^9.4.1",
-    "systeminformation": "^5.33.12",
-    "tail": "^2.2.6"
+    "systeminformation": "^5.33.12"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
@@ -39,15 +37,19 @@
     "@types/tail": "^2.2.3",
     "@typescript-eslint/parser": "^8.70.0",
     "eslint": "9.39.2",
+    "fs-extra": "^11.4.0",
     "globals": "^17.12.0",
     "nodemon": "^3.1.14",
+    "ora": "^9.4.1",
     "prettier": "^3.9.8",
     "rimraf": "^6.1.3",
+    "tail": "^2.2.6",
     "tsx": "^4.23.13",
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.70.0",
-    "updates": "^18.1.1"
+    "updates": "^18.1.1",
+    "vitest": "^5.0.1"
   },
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "bugs": {
