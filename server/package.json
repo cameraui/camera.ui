@@ -87,7 +87,7 @@
     "reflect-metadata": "^0.2.2",
     "semver": "^7.8.5",
     "socket.io": "^4.8.3",
-    "systeminformation": "^5.33.11",
+    "systeminformation": "^5.33.12",
     "tar": "^7.5.22",
     "tsyringe": "^4.10.0",
     "undici": "^8.10.2",
@@ -127,7 +127,7 @@
     "tail": "^2.2.6",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.70.0",
-    "updates": "^18.1.0",
+    "updates": "^18.1.1",
     "vitest": "^5.0.1"
   },
   "overrides": {
