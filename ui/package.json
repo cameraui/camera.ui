@@ -57,7 +57,7 @@
     "@capawesome/capacitor-badge": "^8.0.3",
     "@capgo/capacitor-updater": "^8.51.19",
     "@iconify/json": "^2.2.530",
-    "@primeuix/themes": "^2.0.3",
+    "@primeuix/themes": "^3.0.0",
     "@tanstack/ai": "^0.55.0",
     "@tanstack/ai-client": "^0.32.1",
     "@tanstack/ai-vue": "^0.24.0",
