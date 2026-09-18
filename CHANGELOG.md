@@ -6,9 +6,35 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Recordings rearrange smoothly.** Resizing the window or opening the filter sidebar made the page crawl, on fast machines too: the cards were rebuilt from scratch while the grid followed the new width. They now follow along without stutter, and scrolling through a long list got lighter as well.
+
 - **The camera settings show the codecs by their usual names.** A source lists what the camera itself sends, for example "H.264 · High · 5.1" or "AAC · 16 kHz", instead of internal names mixed with the audio formats camera.ui converts to.
 
+- **Remote access no longer downloads its tunnel program on first use.** camera.ui brings it along and keeps it on a tested version, so the first connection starts right away. Windows on ARM gets remote access at all now.
+
+- **A two-factor code can only be used once.** Right after setting up two-factor authentication, a second device needs the next code from the app instead of the one just entered.
+
+- **An update installs exactly the versions that were tested.** An update used to fetch the newest available version of every part camera.ui is built on, so an install could end up with something nobody had tried, in bad cases breaking the start. The server and the launcher now bring a fixed list with them.
+
 ### Fixed
+
+- **`cameraui logs` keeps showing new lines.** The log view went silent once the log file was trimmed, which happens every few hours, and only came back after the file had grown past its old size again.
+
+- **Contact sensors showed the wrong state.** A closed door was listed as open and an open one as closed. Automations were not affected, they always used the real state.
+
+- **A failed camera change no longer stops the server.** If one part of a camera change went wrong, applying the privacy zones for example, camera.ui shut itself down. The failure is written to the log now and the rest of the change is applied.
+
+- **Detections come back after unsnoozing a camera.** If the detection process did not come up again, the camera stayed silent until camera.ui was restarted, and the log said nothing about it. A process that does not report itself ready is now given up on, written to the log and started again.
+
+- **Signing in with a backup code works again.** The code came back as a server error instead of letting you in. The same happened when using one to switch two-factor authentication off or to generate fresh codes.
+
+- **An outage no longer washes out the whole timeline.** Where recordings or detections sit next to it, the marking of a camera that was down keeps to its own column instead of covering them. On an empty stretch it stays as visible as before, and its label now follows you through the whole outage while scrolling.
+
+- **Filtering recordings stays instant, however much you have recorded.** Picking a filter such as a door lock or a face made the page search through the whole history of every camera, which took seconds on a long history and sometimes ended without a result. The filter now goes straight to its entries. Comes with the NVR plugin update.
+
+- **A filter no longer reports "no recordings" when the search only took too long.** On a large history the filtered search could run past its time limit, and the page then claimed there was nothing recorded. It now tries once more by itself and says plainly when it failed, with a button to try again.
+
+- **The recordings page no longer opens into an empty screen.** It took several seconds on the first visit, with nothing to look at in the meantime. It now shows placeholders right away and the recordings arrive much faster. Comes with the NVR plugin update.
 
 - **A conversation with the assistant no longer dies for good.** After a run that was cut off, for example by closing the chat while it was still answering, every further question in that conversation came back as an error like "400 status code". The conversation repairs itself now, you no longer have to start a new one.
 
@@ -21,6 +47,12 @@ All notable changes to this project will be documented in this file.
 - **Live view recovers when the camera switches its codec.** After changing a camera from H.264 to H.265 or back in its own settings, open live views froze until you reloaded them. They now reconnect by themselves.
 
 - **Tapo cameras set to H.265 show a picture.** Live view and recordings stayed black, because the stream was always set up for H.264.
+
+- **The certificate covers your instance's IPv6 address.** Opening camera.ui over IPv6 warned about the certificate even with its root certificate installed, because only the IPv4 address was listed in it. Existing installs issue a matching certificate on the next start, the root certificate stays as it is.
+
+- **Installing a plugin no longer freezes on a stuck login shell.** The install could wait forever without a message, and every further install with it. It now carries on after a few seconds.
+
+- **Leftover processes are cleaned up on Windows too.** After a crash or a hard stop, old camera.ui processes kept running there and the start-up check passed them by. On Windows on ARM that check failed outright.
 
 ## [2.2.4]
 
