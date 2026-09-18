@@ -25,6 +25,26 @@ export interface RecordingsFilterState {
   onlyWithRecordings: boolean;
 }
 
+export const TOLERATED_ROWS = 2;
+
+export interface CuiRecordingsGridProps<T> {
+  items: T[];
+  minItemWidth: number;
+  aspectRatio?: number;
+  gap?: number;
+  hasMore?: boolean;
+  loadMore?: () => void | Promise<void>;
+  itemKey?: (item: T) => string | number;
+}
+
+export const CUI_RECORDINGS_GRID_DEFAULTS = {
+  aspectRatio: 1,
+  gap: 8,
+  hasMore: false,
+  loadMore: undefined,
+  itemKey: undefined,
+} satisfies Partial<CuiRecordingsGridProps<unknown>>;
+
 export interface RecordingCardProps {
   event: RecordedEvent;
   cameraName?: string;

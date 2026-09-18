@@ -2830,6 +2830,8 @@ export default {
       date: 'Date',
       download: 'Download recording',
       no_recordings: 'No recordings found',
+      load_failed: 'The recordings could not be loaded.',
+      load_failed_retry: 'Try again',
       recordings_unavailable: 'Recordings are unavailable, the NVR plugin is not running.',
       select: 'Select events',
       delete_selected_confirm: 'Delete {count} selected event(s)? Recorded video stays on disk until the normal cleanup removes it.',

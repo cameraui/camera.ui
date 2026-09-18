@@ -81,6 +81,9 @@ export default {
       loaderArr: [],
       spacerStyle: {},
       contentStyle: {},
+      // measured by an observer instead of read back from the element, see calculateNumItems
+      observedWidth: 0,
+      observedHeight: 0,
     };
   },
   element: null,
@@ -197,6 +200,7 @@ export default {
   },
   unmounted() {
     this.unbindResizeListener();
+    this.unbindSizeObserver();
 
     this.initialized = false;
   },
@@ -216,6 +220,7 @@ export default {
     viewInit() {
       if (isVisible(this.element)) {
         this.setContentEl(this.content);
+        this.bindSizeObserver();
         this.init();
         this.calculateAutoSize();
         this.bindResizeListener();
@@ -395,8 +400,12 @@ export default {
       const horizontal = this.isHorizontal();
       const itemSize = this.itemSize;
       const contentPos = this.getContentPosition();
-      const contentWidth = this.element ? this.element.offsetWidth - contentPos.left : 0;
-      const contentHeight = this.element ? this.element.offsetHeight - contentPos.top : 0;
+      // offsetWidth/offsetHeight right after writing styles forces a synchronous
+      // layout. The observer hands us the same numbers for free.
+      const measuredWidth = this.observedWidth || (this.element ? this.element.offsetWidth : 0);
+      const measuredHeight = this.observedHeight || (this.element ? this.element.offsetHeight : 0);
+      const contentWidth = measuredWidth ? measuredWidth - contentPos.left : 0;
+      const contentHeight = measuredHeight ? measuredHeight - contentPos.top : 0;
       const calculateNumItemsInViewport = (_contentSize, _itemSize) => Math.ceil(_contentSize / (_itemSize || _contentSize));
       const calculateNumToleratedItems = (_numItems) => Math.ceil(_numItems / 2);
       const numItemsInViewport = both
@@ -477,15 +486,25 @@ export default {
     getLast(last = 0, isCols) {
       return this.items ? Math.min(isCols ? (this.columns || this.items[0])?.length || 0 : this.items?.length || 0, last) : 0;
     },
+    // getComputedStyle forces a style recalculation, and this runs on every
+    // init — which, with a per-frame item size, means every frame of a window
+    // drag. The padding only changes with the stylesheet, so read it once.
     getContentPosition() {
       if (this.content) {
+        if (this.cachedContentPosition && this.cachedContentElement === this.content) {
+          return this.cachedContentPosition;
+        }
+
         const style = getComputedStyle(this.content);
         const left = parseFloat(style.paddingLeft) + Math.max(parseFloat(style.left) || 0, 0);
         const right = parseFloat(style.paddingRight) + Math.max(parseFloat(style.right) || 0, 0);
         const top = parseFloat(style.paddingTop) + Math.max(parseFloat(style.top) || 0, 0);
         const bottom = parseFloat(style.paddingBottom) + Math.max(parseFloat(style.bottom) || 0, 0);
 
-        return { left, right, top, bottom, x: left + right, y: top + bottom };
+        this.cachedContentElement = this.content;
+        this.cachedContentPosition = { left, right, top, bottom, x: left + right, y: top + bottom };
+
+        return this.cachedContentPosition;
       }
 
       return { left: 0, right: 0, top: 0, bottom: 0, x: 0, y: 0 };
@@ -779,6 +798,22 @@ export default {
 
         window.addEventListener('resize', this.resizeListener);
         window.addEventListener('orientationchange', this.resizeListener);
+      }
+    },
+    bindSizeObserver() {
+      if (this.sizeObserver || !this.element || typeof ResizeObserver === 'undefined') return;
+
+      this.sizeObserver = new ResizeObserver((entries) => {
+        const box = entries[0]?.borderBoxSize?.[0];
+        this.observedWidth = box ? box.inlineSize : (entries[0]?.contentRect.width ?? 0);
+        this.observedHeight = box ? box.blockSize : (entries[0]?.contentRect.height ?? 0);
+      });
+      this.sizeObserver.observe(this.element);
+    },
+    unbindSizeObserver() {
+      if (this.sizeObserver) {
+        this.sizeObserver.disconnect();
+        this.sizeObserver = null;
       }
     },
     unbindResizeListener() {

@@ -1,19 +1,19 @@
 <template>
   <div ref="containerRef" class="recordings-grid-root relative">
     <CuiVirtualScroller
-      v-if="rows.length > 0 && cellSize > 0"
+      v-if="rows.length > 0 && cellWidth > 0"
       :items="rows"
       :item-size="rowHeight"
       :scroll-height="scrollHeightPx"
+      :num-tolerated-items="TOLERATED_ROWS"
+      :item-key="resolveRowKey"
       orientation="vertical"
       class="recordings-scroll"
-      :num-tolerated-items="2"
-      :item-key="resolveRowKey"
       @scroll="onScroll"
     >
       <template #item="{ item: row }">
-        <div class="recordings-row" :style="{ height: `${rowHeight}px`, gap: `${gap}px` }">
-          <div v-for="cell in row" :key="keyFn(cell)" :style="{ width: `${cellSize}px`, height: `${cellHeight}px` }">
+        <div class="recordings-row">
+          <div v-for="cell in row" :key="resolveKey(cell)" class="recordings-cell">
             <slot name="item" :item="cell" />
           </div>
         </div>
@@ -27,95 +27,64 @@
 </template>
 
 <script setup lang="ts" generic="T">
-const props = withDefaults(
-  defineProps<{
-    items: T[];
-    minItemWidth: number;
-    aspectRatio?: number;
-    gap?: number;
-    hasMore?: boolean;
-    loadMore?: () => void | Promise<void>;
-    itemKey?: (item: T) => string | number;
-  }>(),
-  {
-    aspectRatio: 1,
-    gap: 8,
-    hasMore: false,
-    loadMore: undefined,
-    itemKey: undefined,
-  },
-);
+import { CUI_RECORDINGS_GRID_DEFAULTS, TOLERATED_ROWS } from './types.js';
+
+import type { CuiRecordingsGridProps } from './types.js';
+
+const props = withDefaults(defineProps<CuiRecordingsGridProps<T>>(), CUI_RECORDINGS_GRID_DEFAULTS);
 
 const containerRef = useTemplateRef<HTMLElement>('containerRef');
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
 
-// The underlying PrimeVue virtual scroller hard-codes its element height via
-// inline style (`setSize()` writes `height: Xpx` from offsetHeight) and only
-// recomputes on window.resize, NOT on parent flex-container size changes.
-// Worse, its own onResize reads the already-set inline height so it can never
-// grow back. Driving its `scrollHeight` prop from our ResizeObserver-backed
-// containerHeight forces setSize to use the true parent height and triggers
-// the scroller's internal `scrollHeight` watcher → init() on every change.
-const scrollHeightPx = computed<string | undefined>(() => (containerHeight.value > 0 ? `${containerHeight.value}px` : undefined));
+const scrollY = ref(0);
+const loadingMore = ref(false);
+
+let stagnantAtLength: number | null = null;
+let fillScheduled = false;
+
+const scrollHeightPx = computed(() => (containerHeight.value > 0 ? `${containerHeight.value}px` : undefined));
 
 const cols = computed(() => {
-  const w = containerWidth.value;
-  if (!w) return 0;
-  const gap = props.gap;
-  return Math.max(1, Math.floor((w + gap) / (props.minItemWidth + gap)));
+  const width = containerWidth.value;
+  if (!width) return 0;
+  return Math.max(1, Math.floor((width + props.gap) / (props.minItemWidth + props.gap)));
 });
 
-const cellSize = computed(() => {
-  const w = containerWidth.value;
-  const c = cols.value;
-  if (!w || !c) return 0;
-  return Math.floor((w - (c - 1) * props.gap) / c);
+const cellWidth = computed(() => {
+  const width = containerWidth.value;
+  const count = cols.value;
+  if (!width || !count) return 0;
+  return Math.floor((width - (count - 1) * props.gap) / count);
 });
 
-const cellHeight = computed(() => {
-  if (!cellSize.value) return 0;
-  return Math.floor(cellSize.value / props.aspectRatio);
-});
+const cellHeight = computed(() => (cellWidth.value ? Math.floor(cellWidth.value / props.aspectRatio) : 0));
 
-const rowHeight = computed(() => {
-  if (!cellHeight.value) return 0;
-  return cellHeight.value + props.gap;
-});
+const rowHeight = computed(() => (cellHeight.value ? cellHeight.value + props.gap : 0));
 
 const rows = computed<T[][]>(() => {
-  const c = cols.value;
-  if (!c) return [];
-  const out: T[][] = [];
-  for (let i = 0; i < props.items.length; i += c) {
-    out.push(props.items.slice(i, i + c));
+  const count = cols.value;
+  if (!count) return [];
+
+  const result: T[][] = [];
+  for (let index = 0; index < props.items.length; index += count) {
+    result.push(props.items.slice(index, index + count));
   }
-  return out;
+  return result;
 });
 
-function keyFn(item: T): string | number {
+function resolveKey(item: T): string | number {
   if (props.itemKey) return props.itemKey(item);
-  const anyItem = item as unknown as { id?: string | number; key?: string | number };
-  return anyItem.id ?? anyItem.key ?? JSON.stringify(item);
+  const candidate = item as unknown as { id?: string | number; key?: string | number };
+  return candidate.id ?? candidate.key ?? JSON.stringify(item);
 }
 
-// Row-level stable key for the virtual scroller. Using the first cell's
-// resolved key keeps slot VNodes (and therefore the RecordingCard instances
-// inside them) alive across scroll-induced range shifts — without this the
-// scroller keys rows by index, so scrolling by one row remounts every visible
-// card because each slot's `row` prop changes to a completely different row
-// array.
+// the first cell's key keeps the cards of a row alive while the rendered range
+// shifts; keyed by index the scroller would remount them on every scroll step
 function resolveRowKey(row: unknown): string | number | undefined {
-  const arr = row as T[] | undefined;
-  if (!arr || arr.length === 0) return undefined;
-  return keyFn(arr[0]);
+  const cells = row as T[] | undefined;
+  if (!cells || cells.length === 0) return undefined;
+  return resolveKey(cells[0]);
 }
-
-// Single load-more entry point. Two guards keep us out of trouble: we
-// serialize via an in-flight flag, and we remember the items.length at which
-// the last load resolved without growth — any further trigger at that same
-// length is a no-op until items actually change (filter swap, new NATS event).
-const loadingMore = ref(false);
-let stagnantAtLength: number | null = null;
 
 async function tryLoadMore(): Promise<void> {
   if (loadingMore.value || !props.hasMore || !props.loadMore) return;
@@ -131,32 +100,34 @@ async function tryLoadMore(): Promise<void> {
   }
 }
 
-const scrollY = ref(0);
-
 function onScroll(event: Event): void {
-  const el = event.target as HTMLElement | null;
-  if (!el) return;
-  scrollY.value = el.scrollTop;
-  // Trigger when the user is within 3 rows of the bottom. We read the scroll
-  // position directly instead of using @scroll-index-change because the
-  // latter only fires when the rendered range *index* crosses a threshold,
-  // which the tolerated-items buffering can swallow entirely on large grids.
-  const threshold = rowHeight.value * 3;
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
+  const element = event.target as HTMLElement | null;
+  if (!element) return;
+
+  scrollY.value = element.scrollTop;
+  if (element.scrollTop + element.clientHeight >= element.scrollHeight - rowHeight.value * 3) {
     tryLoadMore();
   }
 }
 
 function scrollToTop(): void {
-  const el = containerRef.value?.querySelector<HTMLElement>('.recordings-scroll');
-  el?.scrollTo({ top: 0, behavior: 'smooth' });
+  const element = containerRef.value?.querySelector<HTMLElement>('.recordings-scroll');
+  element?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Fallback: if the loaded rows don't fill the viewport, scroll events never
-// fire. Whenever content-height < viewport-height and we still have more
-// pages, request the next page. Debounced to nextTick so a burst of item
-// updates doesn't fan out RPCs.
-let fillScheduled = false;
+// as CSS variables, not as style bindings: a binding sits in every row and cell
+// and would re-render every card on each frame of a window resize
+watchEffect(() => {
+  const root = containerRef.value;
+  if (!root || !cellWidth.value) return;
+
+  root.style.setProperty('--cell-w', `${cellWidth.value}px`);
+  root.style.setProperty('--cell-h', `${cellHeight.value}px`);
+  root.style.setProperty('--cell-gap', `${props.gap}px`);
+});
+
+// rows that don't fill the viewport never produce a scroll event, so the next
+// page has to be asked for here
 watch(
   [() => props.items.length, containerHeight, rowHeight, () => props.hasMore],
   () => {
@@ -164,10 +135,8 @@ watch(
     fillScheduled = true;
     nextTick(() => {
       fillScheduled = false;
-      if (!props.hasMore) return;
-      const viewportH = containerHeight.value;
-      const contentH = rows.value.length * rowHeight.value;
-      if (viewportH > 0 && rowHeight.value > 0 && contentH < viewportH + rowHeight.value) {
+      if (!props.hasMore || !rowHeight.value || !containerHeight.value) return;
+      if (rows.value.length * rowHeight.value < containerHeight.value + rowHeight.value) {
         tryLoadMore();
       }
     });
@@ -190,6 +159,7 @@ defineExpose({ scrollToTop, scrollY });
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   scroll-snap-type: y proximity;
 }
@@ -201,6 +171,13 @@ defineExpose({ scrollToTop, scrollY });
 .recordings-row {
   display: flex;
   align-items: stretch;
+  height: calc(var(--cell-h) + var(--cell-gap));
+  gap: var(--cell-gap);
   scroll-snap-align: start;
+}
+
+.recordings-cell {
+  width: var(--cell-w);
+  height: var(--cell-h);
 }
 </style>

@@ -365,6 +365,7 @@ export const routes: RouteRecordRaw[] = [
         containerSettings: {
           showTitle: false,
           padding: false,
+          disableScroll: true,
         },
         showNavbar: true,
         showTopbar: true,

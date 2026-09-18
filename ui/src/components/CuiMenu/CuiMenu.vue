@@ -82,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import { closeOpenMenu, registerOpenMenu, releaseOpenMenu } from '@/common/menuRegistry.js';
 import { CUI_MENU_DEFAULTS } from './types.js';
 
 import type { Popover } from 'primevue';
@@ -168,17 +169,20 @@ function onClickItem(item: MenuItem) {
 }
 
 function onShow() {
+  registerOpenMenu(hide);
   isOpen.value = true;
   emit('show');
 }
 
 function onHide() {
+  releaseOpenMenu(hide);
   data.value = undefined;
   isOpen.value = false;
   emit('hide');
 }
 
 function toggleMenu(event: Event, target?: any, customData?: any) {
+  closeOpenMenu(hide);
   data.value = customData;
   menuRef.value?.toggle(event, target);
 }
@@ -188,6 +192,7 @@ function hide() {
 }
 
 function show(event: Event, target?: any) {
+  closeOpenMenu(hide);
   menuRef.value?.show(event, target);
 }
 

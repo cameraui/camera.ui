@@ -1,14 +1,20 @@
 <template>
-  <div ref="rootRef" class="recording-card relative group cursor-pointer" @click="handleClick" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+  <div
+    ref="rootRef"
+    class="recording-card relative group cursor-pointer"
+    @click.capture="closeForeignMenu"
+    @click="handleClick"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+  >
     <div
       class="bg-neutral-900 w-full rounded-xl overflow-hidden relative transition-shadow duration-200"
       :class="{ 'ring-2 ring-inset ring-primary/70': siblingActive }"
       style="aspect-ratio: 1/1"
     >
-      <Skeleton v-if="thumbnailState === 'loading'" width="100%" height="100%" class="rounded-xl" />
+      <div v-if="thumbnailState === 'loading'" class="card-skeleton absolute inset-0 rounded-xl" />
 
       <template v-else-if="displayUrl">
-        <img v-if="cropShown" :src="displayUrl" aria-hidden="true" class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-50 pointer-events-none" />
         <CuiImage
           :src="displayUrl"
           :alt="displayCameraName"
@@ -34,67 +40,52 @@
           <span v-if="semanticDisplay" :class="['text-[10px] font-bold text-white px-1.5 py-0.5 rounded-md shrink-0', semanticDisplay.color]">
             {{ semanticDisplay.label }}
           </span>
-          <Button
+          <button
             v-if="isAdmin && !selectionMode"
-            v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
-            rounded
-            text
-            severity="secondary"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            :title="isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite')"
+            type="button"
+            class="card-icon-button w-5 h-5 shrink-0"
             @click.stop="toggleFavorite"
             @mouseenter="stopPreview"
           >
-            <template #icon>
-              <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
-              <i-tabler:star v-else class="w-3 h-3 text-white" />
-            </template>
-          </Button>
-          <Button
+            <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
+            <i-tabler:star v-else class="w-3 h-3 text-white" />
+          </button>
+          <button
             v-if="cardMenuItems.length > 0 && !selectionMode"
-            v-tooltip.left="{ value: $t('views.recordings.more_actions') }"
-            rounded
-            text
-            severity="secondary"
-            :loading="isDownloading || reassignBusy"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            :title="$t('views.recordings.more_actions')"
+            type="button"
+            class="card-icon-button w-5 h-5 shrink-0"
+            :disabled="isDownloading || reassignBusy"
             @click.stop="openCardMenu"
             @mouseenter="stopPreview"
           >
-            <template #icon>
-              <i-tabler:dots-vertical class="w-3 h-3 text-white" />
-            </template>
-          </Button>
+            <i-svg-spinners:ring-resize v-if="isDownloading || reassignBusy" class="w-3 h-3 text-white" />
+            <i-tabler:dots-vertical v-else class="w-3 h-3 text-white" />
+          </button>
         </div>
         <p class="text-[10px] text-white/70">{{ formatDateTime }}</p>
       </div>
 
       <template v-if="carouselImages.length > 1">
-        <Button
-          rounded
-          text
-          severity="secondary"
-          class="carousel-nav !absolute left-1 top-1/2 -translate-y-1/2 z-[3] !w-7 !h-7 !p-0 bg-black/40 hover:!bg-black/60 transition-opacity duration-200"
+        <button
+          type="button"
+          class="card-icon-button carousel-nav absolute left-1 top-1/2 -translate-y-1/2 z-[3] w-7 h-7 transition-opacity duration-200"
           :aria-label="$t('views.recordings.prev_image')"
           @click.stop="stepImage(-1)"
           @mouseenter="stopPreview"
         >
-          <template #icon>
-            <i-mdi:chevron-left class="w-5 h-5 text-white" />
-          </template>
-        </Button>
-        <Button
-          rounded
-          text
-          severity="secondary"
-          class="carousel-nav !absolute right-1 top-1/2 -translate-y-1/2 z-[3] !w-7 !h-7 !p-0 bg-black/40 hover:!bg-black/60 transition-opacity duration-200"
+          <i-mdi:chevron-left class="w-5 h-5 text-white" />
+        </button>
+        <button
+          type="button"
+          class="card-icon-button carousel-nav absolute right-1 top-1/2 -translate-y-1/2 z-[3] w-7 h-7 transition-opacity duration-200"
           :aria-label="$t('views.recordings.next_image')"
           @click.stop="stepImage(1)"
           @mouseenter="stopPreview"
         >
-          <template #icon>
-            <i-mdi:chevron-right class="w-5 h-5 text-white" />
-          </template>
-        </Button>
+          <i-mdi:chevron-right class="w-5 h-5 text-white" />
+        </button>
       </template>
 
       <div
@@ -138,7 +129,7 @@
       </div>
 
       <div v-if="preview && isPreviewActive && preview.isLoading.value" class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
-        <ProgressSpinner class="w-[28px] h-[28px] m-0" stroke-width="6" />
+        <i-svg-spinners:ring-resize class="w-7 h-7 text-white" />
       </div>
 
       <div v-if="previewIndicator" class="absolute bottom-10 left-1/2 -translate-x-1/2 z-[4] pointer-events-none">
@@ -149,6 +140,7 @@
     </div>
 
     <CuiMenu
+      v-if="menuMounted"
       ref="cardMenuRef"
       :items="cardMenuItems"
       :popover="{
@@ -179,6 +171,7 @@ import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 import FaceEditIcon from '~icons/tabler/user-edit';
 
+import { closeOpenMenu } from '@/common/menuRegistry.js';
 import { extractErrorMessage } from '@/common/utils.js';
 import FaceReassignDialog from '@/components/CuiDialog/templates/FaceReassign/FaceReassign.vue';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
@@ -207,6 +200,7 @@ const TILE_PX = 30;
 const MORE_PX = 22;
 const CHECKBOX_PX = 28;
 const GROUP_GAP_PX = 8;
+const FOOTER_STEP_PX = 8;
 
 const { icons: eventIcons } = resolveEventIcons();
 
@@ -222,6 +216,7 @@ const rootRef = useTemplateRef<HTMLElement>('rootRef');
 const previewCanvasRef = useTemplateRef('previewCanvasRef');
 const footerRef = useTemplateRef<HTMLElement>('footerRef');
 const cardMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('cardMenuRef');
+const menuMounted = ref(false);
 const previewBlocked = ref(false);
 
 const longPress = useLongPressPreview(
@@ -236,8 +231,7 @@ const isDownloading = ref(false);
 const activeImageIndexRaw = ref(0);
 const favoriteOverride = ref<boolean | null>(null);
 const reassignBusy = ref(false);
-
-const { width: footerWidth } = useElementSize(footerRef);
+const footerWidth = ref(0);
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const isFavorite = computed(() => favoriteOverride.value ?? props.event.favorite ?? false);
@@ -389,6 +383,10 @@ const cardMenuItems = computed<MenuItem[]>(() => {
   return items;
 });
 
+function closeForeignMenu(): void {
+  closeOpenMenu(cardMenuRef.value?.hide);
+}
+
 function askAssistant(): void {
   const prompt = t('views.recordings.ask_assistant_prompt', {
     camera: props.cameraName ?? props.camera?.name ?? props.event.cameraId,
@@ -479,8 +477,12 @@ function handleClick(): void {
   emit('scrollToEvent', shownSegment.value?.firstSeen ?? eventAnchorTime(props.event));
 }
 
-function openCardMenu(event: MouseEvent): void {
+async function openCardMenu(event: MouseEvent): Promise<void> {
   stopPreview();
+  if (!menuMounted.value) {
+    menuMounted.value = true;
+    await nextTick();
+  }
   cardMenuRef.value?.toggleMenu(event);
 }
 
@@ -564,6 +566,12 @@ watch(
   },
 );
 
+useResizeObserver(footerRef, (entries) => {
+  const width = entries[0]?.contentRect.width ?? 0;
+  const stepped = Math.round(width / FOOTER_STEP_PX) * FOOTER_STEP_PX;
+  if (stepped !== footerWidth.value) footerWidth.value = stepped;
+});
+
 onMounted(() => {
   if (initialState === 'loading') {
     triggerLoad();
@@ -572,6 +580,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.card-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.6);
+  cursor: pointer;
+}
+
+.card-icon-button:hover {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.card-icon-button:disabled {
+  cursor: default;
+}
+
+.carousel-nav {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.carousel-nav:hover {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.card-skeleton {
+  background: var(--p-skeleton-background, rgb(255 255 255 / 0.06));
+  animation: card-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes card-skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .recording-card {
   contain: layout;
   -webkit-touch-callout: none;

@@ -1,7 +1,14 @@
 <template>
-  <div ref="cardRef" class="camera-event-card relative group cursor-pointer" @click="openEpisode" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+  <div
+    ref="cardRef"
+    class="camera-event-card relative group cursor-pointer"
+    @click.capture="closeForeignMenu"
+    @click="openEpisode"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+  >
     <div class="bg-neutral-900 rounded-xl overflow-hidden relative" :class="fluid ? 'w-full aspect-square' : 'w-[140px] h-[140px]'">
-      <Skeleton v-if="mosaicState === 'loading'" class="w-full h-full rounded-xl" width="100%" height="100%" />
+      <div v-if="mosaicState === 'loading'" class="card-skeleton absolute inset-0 rounded-xl" />
 
       <CuiImage
         v-else-if="mosaicUrl"
@@ -21,36 +28,29 @@
       <div v-if="fluid" class="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/80 to-transparent z-[3]">
         <div class="flex items-center gap-1.5">
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ title }}</p>
-          <Button
+          <button
             v-if="isAdmin && !clickDisabled"
-            v-tooltip.left="{ value: isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite') }"
-            rounded
-            text
-            severity="secondary"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            :title="isFavorite ? $t('views.recordings.unfavorite') : $t('views.recordings.favorite')"
+            type="button"
+            class="card-icon-button w-5 h-5 shrink-0"
             @click.stop="toggleFavorite"
             @mouseenter="stopPreview"
           >
-            <template #icon>
-              <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
-              <i-tabler:star v-else class="w-3 h-3 text-white" />
-            </template>
-          </Button>
-          <Button
+            <i-tabler:star-filled v-if="isFavorite" class="w-3 h-3 text-yellow-400" />
+            <i-tabler:star v-else class="w-3 h-3 text-white" />
+          </button>
+          <button
             v-if="!clickDisabled"
-            v-tooltip.left="{ value: $t('views.recordings.more_actions') }"
-            rounded
-            text
-            severity="secondary"
-            :loading="isDownloading"
-            class="!w-5 !h-5 !p-0 shrink-0 bg-black/60 hover:!bg-black/80"
+            :title="$t('views.recordings.more_actions')"
+            type="button"
+            class="card-icon-button w-5 h-5 shrink-0"
+            :disabled="isDownloading"
             @click.stop="openCardMenu"
             @mouseenter="stopPreview"
           >
-            <template #icon>
-              <i-tabler:dots-vertical class="w-3 h-3 text-white" />
-            </template>
-          </Button>
+            <i-svg-spinners:ring-resize v-if="isDownloading" class="w-3 h-3 text-white" />
+            <i-tabler:dots-vertical v-else class="w-3 h-3 text-white" />
+          </button>
         </div>
         <p class="text-[10px] text-white/70">{{ formatTime }}</p>
       </div>
@@ -66,7 +66,7 @@
       </div>
 
       <div v-if="preview && isPreviewActive && preview.isLoading.value" class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
-        <ProgressSpinner class="w-[28px] h-[28px] m-0" stroke-width="6" />
+        <i-svg-spinners:ring-resize class="w-7 h-7 text-white" />
       </div>
 
       <div v-if="previewIndicator" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-[4] pointer-events-none">
@@ -81,7 +81,7 @@
     </div>
 
     <CuiMenu
-      v-if="fluid"
+      v-if="fluid && menuMounted"
       ref="cardMenuRef"
       :items="cardMenuItems"
       :popover="{
@@ -100,6 +100,7 @@ import { EventHoverPreviewKey, thumbnailToUrl, useEventStore } from '@camera.ui/
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 
+import { closeOpenMenu } from '@/common/menuRegistry.js';
 import { extractErrorMessage } from '@/common/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
@@ -128,6 +129,7 @@ const preview = inject(EventHoverPreviewKey, undefined);
 const cardRef = useTemplateRef<HTMLElement>('cardRef');
 const previewCanvasRef = useTemplateRef<HTMLCanvasElement>('previewCanvasRef');
 const cardMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('cardMenuRef');
+const menuMounted = ref(false);
 const mosaicUrl = ref<string | undefined>(undefined);
 const mosaicState = ref<'loading' | 'loaded' | 'empty'>('loading');
 const isDownloading = ref(false);
@@ -201,6 +203,10 @@ async function triggerLoad(retries = 3): Promise<void> {
   mosaicState.value = 'empty';
 }
 
+function closeForeignMenu(): void {
+  closeOpenMenu(cardMenuRef.value?.hide);
+}
+
 function formatClock(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
@@ -243,8 +249,12 @@ function openEpisode(): void {
   dialogInstance = openEpisodePlayer(props.episode, props.cameraById);
 }
 
-function openCardMenu(event: MouseEvent): void {
+async function openCardMenu(event: MouseEvent): Promise<void> {
   stopPreview();
+  if (!menuMounted.value) {
+    menuMounted.value = true;
+    await nextTick();
+  }
   cardMenuRef.value?.toggleMenu(event);
 }
 
@@ -300,6 +310,35 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.card-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.6);
+  cursor: pointer;
+}
+
+.card-icon-button:hover {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.card-icon-button:disabled {
+  cursor: default;
+}
+
+.card-skeleton {
+  background: var(--p-skeleton-background, rgb(255 255 255 / 0.06));
+  animation: card-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes card-skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .camera-event-card {
   contain: layout;
 }

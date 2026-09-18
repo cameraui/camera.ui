@@ -1,28 +1,26 @@
 <template>
-  <Image :alt="alt" class="w-full h-full flex items-center justify-center">
-    <template #image>
-      <ProgressSpinner v-if="showSpinner" stroke-width="6" class="w-[50%] h-[50%] max-w-[30px] max-h-[30px]" />
+  <div class="w-full h-full flex items-center justify-center">
+    <div v-if="showSpinner" class="cui-image-spinner" />
 
-      <div v-show="!showSpinner" :class="imageContainerClass" :style="imageContainerStyle">
-        <img
-          v-if="!error && displayedUrl"
-          :src="displayedUrl"
-          :alt="alt"
-          decoding="async"
-          :style="[
-            {
-              width: formatWidth,
-              height: formatHeight,
-            },
-            imageStyle,
-          ]"
-          :class="imageClass"
-        />
+    <div v-show="!showSpinner" :class="imageContainerClass" :style="imageContainerStyle">
+      <img
+        v-if="!error && displayedUrl"
+        :src="displayedUrl"
+        :alt="alt"
+        decoding="async"
+        :style="[
+          {
+            width: formatWidth,
+            height: formatHeight,
+          },
+          imageStyle,
+        ]"
+        :class="imageClass"
+      />
 
-        <img v-if="error || !src" :src="fallbackUrl" :alt="alt" decoding="async" :style="{ width: formatWidth, height: formatHeight }" class="object-contain" />
-      </div>
-    </template>
-  </Image>
+      <img v-if="error || !src" :src="fallbackUrl" :alt="alt" decoding="async" :style="{ width: formatWidth, height: formatHeight }" class="object-contain" />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -110,6 +108,23 @@ defineExpose({
 </script>
 
 <style scoped>
+.cui-image-spinner {
+  width: 50%;
+  height: 50%;
+  max-width: 30px;
+  max-height: 30px;
+  border: 3px solid color-mix(in srgb, var(--text-color) 25%, transparent);
+  border-top-color: var(--p-primary-color);
+  border-radius: 50%;
+  animation: cui-image-spin 0.9s linear infinite;
+}
+
+@keyframes cui-image-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 img {
   -webkit-transition: opacity 0.3s ease;
   transition: opacity 0.3s ease;
@@ -122,7 +137,6 @@ img[v-show='false'] {
   opacity: 0;
 }
 
-/* Safari: prevent flash on initial load */
 @supports (-webkit-touch-callout: none) {
   img {
     -webkit-transition-delay: 0.016s;

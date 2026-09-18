@@ -2847,6 +2847,8 @@ export default {
       date: 'Datum',
       download: 'Aufnahme herunterladen',
       no_recordings: 'Keine Aufnahmen gefunden',
+      load_failed: 'Die Aufnahmen konnten nicht geladen werden.',
+      load_failed_retry: 'Erneut versuchen',
       recordings_unavailable: 'Aufnahmen nicht verfügbar, das NVR-Plugin läuft nicht.',
       select: 'Ereignisse auswählen',
       delete_selected_confirm: '{count} ausgewählte(s) Ereignis(se) löschen? Aufgenommenes Video bleibt bis zur normalen Bereinigung auf der Festplatte.',

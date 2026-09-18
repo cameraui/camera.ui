@@ -124,13 +124,28 @@
             </template>
           </CuiRecordingsGrid>
 
-          <div v-if="isLoading || semanticSearching" class="flex justify-center py-4">
+          <div
+            v-else-if="isLoading"
+            class="grid gap-2 flex-1 min-h-0 overflow-hidden content-start"
+            :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint ? 160 : 180}px, 1fr))` }"
+          >
+            <Skeleton v-for="index in 24" :key="`skeleton-${index}`" class="w-full rounded-xl" style="aspect-ratio: 1/1" height="auto" />
+          </div>
+
+          <div v-if="(isLoading && gridItems.length) || semanticSearching" class="flex justify-center py-4">
             <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
           </div>
 
           <div v-if="!displayEvents.length && !isLoading && !semanticSearching" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
             <i-mingcute:photo-album-fill class="w-12 h-12 text-muted" />
-            <span class="text-muted text-sm">{{ eventsUnavailable ? $t('views.recordings.recordings_unavailable') : $t('views.recordings.no_recordings') }}</span>
+            <span class="text-muted text-sm">{{ emptyStateText }}</span>
+            <Button
+              v-if="loadFailed && !eventsUnavailable"
+              severity="secondary"
+              class="cui-button-small"
+              :label="$t('views.recordings.load_failed_retry')"
+              @click="reloadEvents"
+            />
           </div>
         </div>
       </div>
@@ -400,6 +415,8 @@ const {
   loadMore,
   loadThumbnails,
   deleteEvents,
+  reset: reloadEvents,
+  loadFailed,
   pluginUnavailable: eventsUnavailable,
 } = useDetectionEvents({
   availableCameraIds: allCameraIds,
@@ -422,6 +439,13 @@ const semanticEventIds = computed(() => {
 });
 
 const isSemanticActive = computed(() => semanticHasSearched.value);
+
+const emptyStateText = computed(() => {
+  if (eventsUnavailable.value) return t('views.recordings.recordings_unavailable');
+  // a query that failed says nothing about what is recorded
+  if (loadFailed.value) return t('views.recordings.load_failed');
+  return t('views.recordings.no_recordings');
+});
 
 const displayEvents = computed(() => {
   let result = events.value.filter((e) => e.state === 'ended' || (e.segments?.length ?? 0) > 0);
