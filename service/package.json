@@ -12,11 +12,12 @@
   },
   "scripts": {
     "build": "rimraf dist && tsc",
+    "check": "tsc --noEmit && node ../scripts/check-imports.mjs service",
     "format": "prettier --write 'src/' --ignore-unknown --no-error-on-unmatched-pattern",
     "lint": "eslint --fix .",
     "test": "vitest run --passWithNoTests",
     "install-updates": "npm i --save",
-    "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build",
+    "prepublishOnly": "npm i --package-lock-only && node ../scripts/check-imports.mjs service && npm run lint && npm run format && npm run build",
     "prepack": "node ../scripts/shrinkwrap.mjs create",
     "postpack": "node ../scripts/shrinkwrap.mjs cleanup",
     "update": "updates -M npm,pypi,go,cargo,docker,make --update ./",
