@@ -31,7 +31,7 @@
         </span>
       </div>
     </div>
-    <div v-if="!editing && !busy" class="mt-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+    <div v-if="!editing && !busy" class="message-actions mt-1 flex gap-0.5">
       <Button
         v-tooltip.top="{ value: $t('views.assistant.edit_message') }"
         type="button"
@@ -169,9 +169,9 @@
       </Button>
     </div>
 
-    <div v-if="!streaming && (answerText || stopped)" class="mt-2 flex items-center gap-2">
+    <div v-if="!streaming && (answerText || stopped)" class="answer-footer mt-2 flex items-center gap-2">
       <span v-if="usageLine" v-tooltip.top="{ value: usageDetails }" class="cui-assistant-usage text-[11px] tabular-nums text-muted">{{ usageLine }}</span>
-      <div class="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <div class="message-actions flex gap-0.5">
         <CuiActionButton
           v-if="answerText"
           v-tooltip.top="{ value: $t('views.assistant.copy_answer') }"
@@ -414,6 +414,29 @@ async function copyAnswer(): Promise<void> {
 </script>
 
 <style scoped>
+.message-actions {
+  transition: opacity 0.2s;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .answer-footer {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .message-actions {
+    opacity: 0;
+  }
+
+  .group:hover .message-actions,
+  .message-actions:focus-within {
+    opacity: 1;
+  }
+}
+
 .cui-assistant-steps {
   background: var(--card-background);
   border: 1px solid var(--border-color);
