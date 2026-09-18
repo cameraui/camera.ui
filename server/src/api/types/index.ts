@@ -360,7 +360,6 @@ export interface TwoFactorPendingResponse {
 }
 
 export interface TwoFactorSetupResponse {
-  qrCode: string;
   secret: string;
 }
 

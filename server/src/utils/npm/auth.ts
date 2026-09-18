@@ -2,8 +2,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Options } from 'pacote';
-
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org/';
 
 function interpolateEnv(value: string): string {
@@ -44,7 +42,7 @@ function parseNpmrc(file: string): Record<string, string> {
   return config;
 }
 
-function nerfDart(registry: string): string {
+export function nerfDart(registry: string): string {
   try {
     const url = new URL(registry);
     return `//${url.host}${url.pathname}`;
@@ -53,7 +51,9 @@ function nerfDart(registry: string): string {
   }
 }
 
-export function resolveNpmOptions(): Options {
+export type NpmConfig = Record<string, string>;
+
+export function resolveNpmOptions(): NpmConfig {
   const merged: Record<string, string> = {
     ...parseNpmrc(join(homedir(), '.npmrc')),
     ...parseNpmrc(join(process.cwd(), '.npmrc')),

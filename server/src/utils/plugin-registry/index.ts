@@ -1,5 +1,6 @@
-import { TTLCache } from '@isaacs/ttlcache';
 import { satisfies } from 'semver';
+
+import { TtlCache } from '../ttl-cache.js';
 
 export interface CatalogEntry {
   displayName?: string;
@@ -30,8 +31,8 @@ const VERIFIED_TTL_MS = 60 * 60 * 1000;
 const BLOCKLIST_TTL_MS = 15 * 60 * 1000;
 const DOWNLOADS_TTL_MS = 6 * 60 * 60 * 1000;
 
-const listCache = new TTLCache<string, unknown>({ max: 8, ttl: CATALOG_TTL_MS });
-const downloadsCache = new TTLCache<string, number>({ max: 500, ttl: DOWNLOADS_TTL_MS });
+const listCache = new TtlCache<string, unknown>({ max: 8, ttl: CATALOG_TTL_MS });
+const downloadsCache = new TtlCache<string, number>({ max: 500, ttl: DOWNLOADS_TTL_MS });
 
 let lastGoodCatalog: Record<string, CatalogEntry> = {};
 let lastGoodVerified: Record<string, VerifiedEntry> = {};

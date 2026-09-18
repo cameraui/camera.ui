@@ -1,5 +1,29 @@
 import { fetchViableNetworkAddresses } from '@camera.ui/common/network';
-import forge from 'node-forge';
+import { AsnConvert } from '@peculiar/asn1-schema';
+import {
+  AlgorithmIdentifier,
+  Certificate as AsnCertificate,
+  Extension as AsnExtension,
+  Name as AsnName,
+  Extensions,
+  SubjectPublicKeyInfo,
+  TBSCertificate,
+  Validity,
+  Version,
+} from '@peculiar/asn1-x509';
+import {
+  AuthorityKeyIdentifierExtension,
+  BasicConstraintsExtension,
+  ExtendedKeyUsageExtension,
+  KeyUsageFlags,
+  KeyUsagesExtension,
+  Name,
+  PemConverter,
+  SubjectAlternativeNameExtension,
+  SubjectKeyIdentifierExtension,
+  X509Certificate,
+} from '@peculiar/x509';
+import { createHash, createPrivateKey, createSign, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { isIPv4, isIPv6 } from 'node:net';
 import { container } from 'tsyringe';
@@ -7,6 +31,8 @@ import { container } from 'tsyringe';
 import { ServerService } from '../services/server.service.js';
 import { DEFAULTS } from './constants.js';
 
+import type { Extension } from '@peculiar/x509';
+import type { KeyObject } from 'node:crypto';
 import type { ConfigService } from '../../services/config/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { DBServer } from '../database/types.js';
@@ -23,16 +49,85 @@ export interface Certificates extends Certificate {
   caPath: string;
 }
 
-const makeNumberPositive = (hexString: string): string => {
-  let mostSignificativeHexDigitAsInt = Number.parseInt(hexString[0], 16);
-  if (mostSignificativeHexDigitAsInt < 8) return hexString;
-  mostSignificativeHexDigitAsInt -= 8;
-  return mostSignificativeHexDigitAsInt.toString() + hexString.slice(1);
-};
+const SHA256_WITH_RSA = '1.2.840.113549.1.1.11';
+const EKU_SERVER_AUTH = '1.3.6.1.5.5.7.3.1';
+const EKU_CLIENT_AUTH = '1.3.6.1.5.5.7.3.2';
+const DER_NULL = new Uint8Array([0x05, 0x00]);
 
-const randomSerialNumber = (): string => {
-  return makeNumberPositive(forge.util.bytesToHex(forge.random.getBytesSync(20)));
-};
+function randomSerialNumber(): ArrayBuffer {
+  const serial = new Uint8Array(randomBytes(20));
+  serial[0] = serial[0] & 0x7f || 0x01;
+  return serial.buffer;
+}
+
+function signatureAlgorithm(): AlgorithmIdentifier {
+  return new AlgorithmIdentifier({ algorithm: SHA256_WITH_RSA, parameters: DER_NULL.buffer });
+}
+
+function keyIdentifierOf(publicKey: ArrayBuffer): string {
+  const info = AsnConvert.parse(publicKey, SubjectPublicKeyInfo);
+  return createHash('sha1').update(Buffer.from(info.subjectPublicKey)).digest('hex');
+}
+
+function distinguishedName(commonName: string, organizationalUnit?: string): string {
+  const parts = [`C=${DEFAULTS.C}`, `ST=${DEFAULTS.ST}`, `L=${DEFAULTS.L}`, `CN=${commonName}`, `O=${DEFAULTS.O}`];
+  if (organizationalUnit) {
+    parts.push(`OU=${organizationalUnit}`);
+  }
+  return parts.join(', ');
+}
+
+function subjectAltNames(customAddresses: string[]): SubjectAlternativeNameExtension {
+  const addresses = new Set(customAddresses);
+  addresses.add('127.0.0.1');
+
+  return new SubjectAlternativeNameExtension(
+    [...addresses].map((address) => ({ type: isIPv4(address) || isIPv6(address) ? ('ip' as const) : ('dns' as const), value: address })),
+  );
+}
+
+function issueCertificate(params: {
+  subject: string;
+  issuer: AsnName;
+  publicKey: ArrayBuffer;
+  signingKey: KeyObject;
+  notBefore: Date;
+  notAfter: Date;
+  extensions: Extension[];
+}): string {
+  const algorithm = signatureAlgorithm();
+  const tbs = new TBSCertificate({
+    version: Version.v3,
+    serialNumber: randomSerialNumber(),
+    signature: algorithm,
+    issuer: params.issuer,
+    validity: new Validity({ notBefore: params.notBefore, notAfter: params.notAfter }),
+    subject: AsnConvert.parse(new Name(params.subject).toArrayBuffer(), AsnName),
+    subjectPublicKeyInfo: AsnConvert.parse(params.publicKey, SubjectPublicKeyInfo),
+    extensions: new Extensions(params.extensions.map((extension) => AsnConvert.parse(extension.rawData, AsnExtension))),
+  });
+
+  const signature = createSign('sha256')
+    .update(Buffer.from(AsnConvert.serialize(tbs)))
+    .sign(params.signingKey);
+  const certificate = new AsnCertificate({
+    tbsCertificate: tbs,
+    signatureAlgorithm: algorithm,
+    signatureValue: new Uint8Array(signature).buffer,
+  });
+
+  return PemConverter.encode(AsnConvert.serialize(certificate), 'CERTIFICATE');
+}
+
+function generateRsaKey(): { privateKeyPem: string; privateKey: KeyObject; publicKey: ArrayBuffer } {
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+
+  return {
+    privateKeyPem: privateKey.export({ type: 'pkcs1', format: 'pem' }),
+    privateKey,
+    publicKey: new Uint8Array(publicKey.export({ type: 'spki', format: 'der' })).buffer,
+  };
+}
 
 const getCertNotBefore = (): Date => {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
@@ -76,105 +171,75 @@ const hostOfUrl = (value: string | undefined): string | undefined => {
   }
 };
 
-const isCertificateValid = (certPath: string): boolean => {
-  const cert = forge.pki.certificateFromPem(readFileSync(certPath, 'utf8'));
-  const now = new Date();
-  return now >= cert.validity.notBefore && now <= cert.validity.notAfter;
-};
+function readCertificate(certPath: string): X509Certificate {
+  return new X509Certificate(readFileSync(certPath, 'utf8'));
+}
 
-const getCertAltNames = (certPath: string): string[] => {
+function isCertificateValid(certPath: string): boolean {
+  const cert = readCertificate(certPath);
+  const now = new Date();
+  return now >= cert.notBefore && now <= cert.notAfter;
+}
+
+function getCertAltNames(certPath: string): string[] {
   try {
-    const cert = forge.pki.certificateFromPem(readFileSync(certPath, 'utf8'));
-    const extension: any = cert.getExtension('subjectAltName');
-    return ((extension?.altNames ?? []) as any[]).map((alt) => alt.ip ?? alt.value).filter(Boolean);
+    const extension = readCertificate(certPath).getExtension(SubjectAlternativeNameExtension);
+    return (extension?.names.items ?? []).map((name) => name.value).filter(Boolean);
   } catch {
     return [];
   }
-};
+}
 
-const isLegacyCertificate = (certPath: string): boolean => {
+function isLegacyCertificate(certPath: string): boolean {
   try {
-    const certPem = readFileSync(certPath, 'utf8');
-    const cert = forge.pki.certificateFromPem(certPem);
+    const subject = readCertificate(certPath).subjectName;
 
-    const subject = cert.subject.getField('O');
-    const ou = cert.subject.getField('OU');
-    const cn = cert.subject.getField('CN');
+    const organization = subject.getField('O')[0];
+    const unit = subject.getField('OU')[0];
+    const commonName = subject.getField('CN')[0];
 
-    return subject?.value === 'camera.ui' && ou?.value === 'cui' && cn && (cn.value === 'camera.ui root certificate' || cn.value.startsWith('camera.ui'));
+    return organization === 'camera.ui' && unit === 'cui' && !!commonName && (commonName === 'camera.ui root certificate' || commonName.startsWith('camera.ui'));
   } catch (error) {
     console.error('Error checking legacy certificate:', error);
     return false;
   }
-};
+}
 
 export class CertificateGeneration {
   static createRootCA(customAddresses: string[]): Certificate {
     const configService = container.resolve<ConfigService>('configService');
-    const serialNumber = randomSerialNumber();
 
-    const addresses: any[] = customAddresses.map((address) => ({
-      type: isIPv4(address) || isIPv6(address) ? 7 : 2,
-      ip: isIPv4(address) || isIPv6(address) ? address : undefined,
-      value: !(isIPv4(address) || isIPv6(address)) ? address : undefined,
-    }));
+    const { privateKeyPem, privateKey, publicKey } = generateRsaKey();
+    const keyId = keyIdentifierOf(publicKey);
+    const subject = distinguishedName(DEFAULTS.ROOT_CN, DEFAULTS.OU);
+    const notBefore = getCertNotBefore();
 
-    if (!addresses.some((addr) => addr.ip === '127.0.0.1')) {
-      addresses.push({ type: 7, ip: '127.0.0.1' });
-    }
+    const pemCert = issueCertificate({
+      subject,
+      issuer: AsnConvert.parse(new Name(subject).toArrayBuffer(), AsnName),
+      publicKey,
+      signingKey: privateKey,
+      notBefore,
+      notAfter: getCANotAfter(notBefore),
+      extensions: [
+        new BasicConstraintsExtension(true, undefined, true),
+        // prettier-ignore
+        new KeyUsagesExtension(
+          KeyUsageFlags.keyCertSign |
+          KeyUsageFlags.cRLSign |
+          KeyUsageFlags.digitalSignature |
+          KeyUsageFlags.nonRepudiation |
+          KeyUsageFlags.keyEncipherment |
+          KeyUsageFlags.dataEncipherment,
+          true,
+        ),
+        new SubjectKeyIdentifierExtension(keyId),
+        new AuthorityKeyIdentifierExtension(keyId),
+        subjectAltNames(customAddresses),
+      ],
+    });
 
-    const attributes = [
-      { shortName: 'C', value: DEFAULTS.C },
-      { shortName: 'ST', value: DEFAULTS.ST },
-      { shortName: 'L', value: DEFAULTS.L },
-      { shortName: 'CN', value: DEFAULTS.ROOT_CN },
-      { shortName: 'O', value: DEFAULTS.O },
-      { shortName: 'OU', value: DEFAULTS.OU },
-    ];
-
-    const extensions = [
-      { name: 'basicConstraints', cA: true, critical: true },
-      {
-        name: 'keyUsage',
-        critical: true,
-        keyCertSign: true,
-        cRLSign: true,
-        digitalSignature: true,
-        nonRepudiation: true,
-        keyEncipherment: true,
-        dataEncipherment: true,
-      },
-      {
-        name: 'nsCertType',
-        client: true,
-        server: true,
-        email: true,
-        objsign: true,
-        sslCA: true,
-        emailCA: true,
-        objCA: true,
-      },
-      { name: 'subjectKeyIdentifier' },
-      { name: 'authorityKeyIdentifier', keyIdentifier: true },
-      { name: 'subjectAltName', altNames: addresses },
-    ];
-
-    const { privateKey, publicKey } = forge.pki.rsa.generateKeyPair(2048);
-    const cert = forge.pki.createCertificate();
-
-    cert.publicKey = publicKey;
-    cert.serialNumber = serialNumber;
-    cert.validity.notBefore = getCertNotBefore();
-    cert.validity.notAfter = getCANotAfter(cert.validity.notBefore);
-
-    cert.setSubject(attributes);
-    cert.setIssuer(attributes);
-    cert.setExtensions(extensions);
-
-    cert.sign(privateKey, forge.md.sha256.create());
-
-    const pemCert = forge.pki.certificateToPem(cert);
-    const pemPrivateKey = forge.pki.privateKeyToPem(privateKey);
+    const pemPrivateKey = privateKeyPem;
 
     const rootCertFilePath = configService.ROOT_CERT_FILE;
     const rootPrivateKeyFilePath = configService.ROOT_KEY_FILE;
@@ -187,68 +252,32 @@ export class CertificateGeneration {
 
   static createHostCert(customAddresses: string[], rootCAObject: Certificate): Certificate {
     const configService = container.resolve<ConfigService>('configService');
-    const addresses: any[] = customAddresses.map((address) => ({
-      type: isIPv4(address) || isIPv6(address) ? 7 : 2,
-      ip: isIPv4(address) || isIPv6(address) ? address : undefined,
-      value: !(isIPv4(address) || isIPv6(address)) ? address : undefined,
-    }));
 
-    if (!addresses.some((addr) => addr.ip === '127.0.0.1')) {
-      addresses.push({ type: 7, ip: '127.0.0.1' });
-    }
+    const caCert = new X509Certificate(rootCAObject.cert);
+    const caKey = createPrivateKey(rootCAObject.key);
+    const caKeyId = caCert.getExtension(SubjectKeyIdentifierExtension)?.keyId ?? keyIdentifierOf(caCert.publicKey.rawData);
 
-    const keyPairs = forge.pki.rsa.generateKeyPair(2048);
+    const { privateKeyPem, publicKey } = generateRsaKey();
+    const notBefore = getCertNotBefore();
 
-    const caCert = forge.pki.certificateFromPem(rootCAObject.cert);
-    const caKey = forge.pki.privateKeyFromPem(rootCAObject.key);
+    const pemCert = issueCertificate({
+      subject: distinguishedName(DEFAULTS.CN),
+      issuer: AsnConvert.parse(caCert.subjectName.toArrayBuffer(), AsnName),
+      publicKey,
+      signingKey: caKey,
+      notBefore,
+      notAfter: getCertNotAfter(notBefore),
+      extensions: [
+        new BasicConstraintsExtension(false),
+        new KeyUsagesExtension(KeyUsageFlags.digitalSignature | KeyUsageFlags.keyEncipherment, true),
+        new ExtendedKeyUsageExtension([EKU_SERVER_AUTH, EKU_CLIENT_AUTH], true),
+        new SubjectKeyIdentifierExtension(keyIdentifierOf(publicKey)),
+        new AuthorityKeyIdentifierExtension(caKeyId),
+        subjectAltNames(customAddresses),
+      ],
+    });
 
-    const attributes = [
-      { shortName: 'C', value: DEFAULTS.C },
-      { shortName: 'ST', value: DEFAULTS.ST },
-      { shortName: 'L', value: DEFAULTS.L },
-      { shortName: 'CN', value: DEFAULTS.CN },
-      { shortName: 'O', value: DEFAULTS.O },
-    ];
-
-    const extensions = [
-      { name: 'basicConstraints', cA: false },
-      { name: 'nsCertType', server: true },
-      { name: 'subjectKeyIdentifier' },
-      {
-        name: 'authorityKeyIdentifier',
-        authorityCertIssuer: true,
-        serialNumber: caCert.serialNumber,
-      },
-      {
-        name: 'keyUsage',
-        critical: true,
-        digitalSignature: true,
-        keyEncipherment: true,
-      },
-      {
-        name: 'extKeyUsage',
-        critical: true,
-        serverAuth: true,
-        clientAuth: true,
-      },
-      { name: 'subjectAltName', altNames: addresses },
-    ];
-
-    const cert = forge.pki.createCertificate();
-
-    cert.publicKey = keyPairs.publicKey;
-    cert.serialNumber = randomSerialNumber();
-    cert.validity.notBefore = getCertNotBefore();
-    cert.validity.notAfter = getCertNotAfter(cert.validity.notBefore);
-
-    cert.setSubject(attributes);
-    cert.setIssuer(caCert.subject.attributes);
-    cert.setExtensions(extensions);
-
-    cert.sign(caKey, forge.md.sha256.create());
-
-    const pemCert = forge.pki.certificateToPem(cert);
-    const pemPrivateKey = forge.pki.privateKeyToPem(keyPairs.privateKey);
+    const pemPrivateKey = privateKeyPem;
 
     const certFilePath = configService.HOST_CERT_FILE;
     const privateKeyFilePath = configService.HOST_KEY_FILE;

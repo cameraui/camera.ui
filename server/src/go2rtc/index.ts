@@ -1,8 +1,8 @@
 import { sleep } from '@camera.ui/common/utils';
 import { API_EVENT } from '@camera.ui/sdk';
-import { strip } from 'ansicolor';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { stripVTControlCharacters } from 'node:util';
 import { container } from 'tsyringe';
 
 import { RUNTIME_STATUS } from '../services/config/types.js';
@@ -240,7 +240,7 @@ export class Go2Rtc {
   }
 
   private processLogger(line: string): void {
-    const blankLine = strip(line.replace(/([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(:|\.)\d{3} /, ''));
+    const blankLine = stripVTControlCharacters(line.replace(/([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(:|\.)\d{3} /, ''));
 
     if (this.isIgnorableString(blankLine)) {
       return;

@@ -452,7 +452,7 @@ const profileLoading = ref(false);
 
 const passwordLoading = ref(false);
 
-const setupData = ref<{ qrCode: string; secret: string } | null>(null);
+const setupData = ref<{ secret: string } | null>(null);
 const setupCode = ref('');
 
 const revokingId = ref<string | null>(null);

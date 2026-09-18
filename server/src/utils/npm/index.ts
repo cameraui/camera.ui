@@ -1,21 +1,17 @@
 import { getNpmPath } from '@camera.ui/common/node';
 import { IS_ELECTRON } from '@camera.ui/common/utils';
-import { TTLCache } from '@isaacs/ttlcache';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { platform } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import npmFetch from 'npm-registry-fetch';
-import pacote from 'pacote';
 import { gt, parse } from 'semver';
 
-import { resolveNpmOptions } from './auth.js';
+import { TtlCache } from '../ttl-cache.js';
+import { nerfDart } from './auth.js';
+import { extractTarball, fetchPackument, registryFor, resolveManifest, searchRegistry } from './registry.js';
 
-import type { AbbreviatedManifest, AbbreviatedPackument, Manifest, ManifestResult, Options, Packument, PackumentResult } from 'pacote';
-
-type FullPackument = Packument & PackumentResult & { description?: string };
-type AbbrPackument = AbbreviatedPackument & PackumentResult;
+import type { PackageManifest, Packument } from './registry.js';
 
 const __require = createRequire(import.meta.url);
 
@@ -39,20 +35,23 @@ export interface NpmSearchObject {
 const DEP_INSTALL_TIMEOUT_MS = 5 * 60 * 1000;
 const PACKUMENT_TTL_MS = 60 * 1000;
 
-const packumentCache = new TTLCache<string, AbbrPackument | FullPackument>({ ttl: PACKUMENT_TTL_MS, max: 200 });
+const packumentCache = new TtlCache<string, Packument>({ ttl: PACKUMENT_TTL_MS, max: 200 });
 
 interface PackumentOptions {
   full?: boolean;
   refresh?: boolean;
 }
 
-function npmOptions(extra?: Options): Options {
-  return { ...resolveNpmOptions(), ...extra };
+function parseSpec(spec: string): { name: string; wanted: string } {
+  const at = spec.lastIndexOf('@');
+  if (at <= 0) {
+    return { name: spec, wanted: 'latest' };
+  }
+
+  return { name: spec.slice(0, at), wanted: spec.slice(at + 1) || 'latest' };
 }
 
-export async function getPackument(name: string, options: PackumentOptions & { full: true }): Promise<FullPackument>;
-export async function getPackument(name: string, options?: PackumentOptions): Promise<AbbrPackument>;
-export async function getPackument(name: string, options?: PackumentOptions): Promise<AbbrPackument | FullPackument> {
+export async function getPackument(name: string, options?: PackumentOptions): Promise<Packument> {
   const full = options?.full ?? false;
   const key = `${full ? 'full' : 'abbr'}:${name}`;
 
@@ -63,9 +62,7 @@ export async function getPackument(name: string, options?: PackumentOptions): Pr
     }
   }
 
-  const packument: AbbrPackument | FullPackument = full
-    ? await pacote.packument(name, { ...npmOptions(), fullMetadata: true as const })
-    : await pacote.packument(name, npmOptions());
+  const packument = await fetchPackument(name, full);
 
   packumentCache.set(key, packument);
   return packument;
@@ -86,12 +83,11 @@ export async function getDistTags(name: string): Promise<Record<string, string>>
   return packument['dist-tags'] ?? {};
 }
 
-export async function getManifest(spec: string): Promise<AbbreviatedManifest & ManifestResult> {
-  return pacote.manifest(spec, npmOptions());
-}
+export async function getFullManifest(spec: string): Promise<PackageManifest> {
+  const { name, wanted } = parseSpec(spec);
+  const packument = await getPackument(name, { full: true });
 
-export async function getFullManifest(spec: string): Promise<Manifest & ManifestResult & { cameraui?: { protocolLevel?: number } }> {
-  return pacote.manifest(spec, { ...npmOptions(), fullMetadata: true as const });
+  return resolveManifest(packument, spec, wanted);
 }
 
 export async function getVersionsAndDistTags(name: string): Promise<{ versions: string[]; 'dist-tags': Record<string, string> }> {
@@ -124,15 +120,23 @@ export async function checkForUpdate(name: string, currentVersion: string, prere
 }
 
 export async function searchPackages(query: string, size = 250): Promise<NpmSearchObject[]> {
-  const result = (await npmFetch.json(`/-/v1/search?text=${encodeURIComponent(query)}&size=${size}`, npmOptions())) as {
-    objects?: { package: NpmSearchObject }[];
-  };
-
-  return (result.objects ?? []).map((entry) => entry.package);
+  return searchRegistry(query, size);
 }
 
 export async function extractPackage(spec: string, dest: string): Promise<void> {
-  await pacote.extract(spec, dest, npmOptions());
+  const { name, wanted } = parseSpec(spec);
+  const packument = await getPackument(name, { refresh: true });
+
+  await extractTarball(resolveManifest(packument, spec, wanted), dest);
+}
+
+function envRegistryToken(): NodeJS.ProcessEnv {
+  const token = [process.env.CAMERAUI_NPM_TOKEN, process.env.NPM_TOKEN].find(Boolean);
+  if (!token) {
+    return {};
+  }
+
+  return { [`npm_config_${nerfDart(registryFor())}:_authToken`]: token };
 }
 
 export interface ProcessTracker {
@@ -179,6 +183,7 @@ export function installDependencies(packageDir: string, allowScripts: boolean, o
       npm_config_color: 'always',
       FORCE_COLOR: '1',
       ...(bundledNpmCli && IS_ELECTRON ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
+      ...envRegistryToken(),
     };
 
     if (platform() !== 'win32' && basename(packageDir) === 'lib') {

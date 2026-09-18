@@ -1,12 +1,12 @@
 import { RPCClass, RPCMethod } from '@camera.ui/rpc';
 import { isDiscoveryProvider } from '@camera.ui/sdk/internal';
-import { TTLCache } from '@isaacs/ttlcache';
 import { container } from 'tsyringe';
 
 import { createCameraSchema } from '../api/schemas/cameras.schema.js';
 import { CamerasService } from '../api/services/cameras.service.js';
 import { PluginsService } from '../api/services/plugins.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
+import { TtlCache } from '../utils/ttl-cache.js';
 
 import type { DiscoveredCamera, JsonSchemaWithoutCallbacks } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
@@ -66,7 +66,7 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
   private go2rtcApi: Go2RtcApi;
   private logger: LoggerService;
 
-  private discoveredCamerasCache = new TTLCache<string, DiscoveredCameraInternal>({
+  private discoveredCamerasCache = new TtlCache<string, DiscoveredCameraInternal>({
     ttl: DISCOVERED_CACHE_TTL_MS,
     max: 500,
   });

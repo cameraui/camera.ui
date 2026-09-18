@@ -1,31 +1,29 @@
+import { Logger } from '@camera.ui/common/logger';
 import ansiRegex from 'ansi-regex';
-import { darkGray, red } from 'ansicolor';
 import { createReadStream, existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Tail } from 'tail';
 import { container } from 'tsyringe';
 
+import { paint } from '../../../utils/colors.js';
 import { setTerminalCols } from '../../utils/install-logger.js';
 
-import type { EventEmitter } from 'node:events';
+import type { LogEntry } from '@camera.ui/common/logger';
 import type { ReadStream } from 'node:fs';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
 import type { CameraUi } from '../../../main.js';
 import type { PluginManager } from '../../../plugins/index.js';
 import type { ConfigService } from '../../../services/config/index.js';
+import type { LogManager } from '../../../services/logger/logManager.js';
 import type { SocketNsp } from '../types.js';
 
-interface TailSubscriber {
+const MAIN_TARGET = 'main';
+
+interface LogSubscriber {
   socket: Socket;
   channel: string;
   filter?: string | number;
-}
-
-interface SharedTail {
-  tail: Tail & EventEmitter;
-  subscribers: Map<string, TailSubscriber>; // socketId -> subscriber
 }
 
 export class LogsNamespace {
@@ -35,7 +33,8 @@ export class LogsNamespace {
   private static readonly SYSTEM_SOURCES = new Set(['server', 'go2rtc', 'nats', 'tunnel']);
   private static readonly STARTUP_POLL_MS = 250;
 
-  private sharedTails = new Map<string, SharedTail>();
+  private subscribers = new Map<string, Map<string, LogSubscriber>>();
+  private logListener?: (entry: LogEntry) => void;
 
   private api: CameraUiAPI;
   private cameraui: CameraUi;
@@ -64,19 +63,19 @@ export class LogsNamespace {
 
   public getAllLogs(socket: Socket) {
     const emitTo = 'stdout';
-    this.tailLogFromFileNative(socket, this.configService.LOG_FILE, emitTo);
+    this.streamLog(socket, this.configService.LOG_FILE, emitTo, MAIN_TARGET);
   }
 
   public getSystemLog(socket: Socket, sourceId: string, options?: { sinceLastStart?: boolean }) {
     const emitTo = `stdout/system/${sourceId}`;
 
     if (!LogsNamespace.SYSTEM_SOURCES.has(sourceId)) {
-      socket.emit(emitTo, red(`Unknown log source "${sourceId}".\r\n`));
+      socket.emit(emitTo, paint('red', `Unknown log source "${sourceId}".\r\n`));
       return;
     }
 
     const logFile = join(this.configService.LOGS_PATH, `system-${sourceId}.log`);
-    this.tailLogFromFileNative(socket, logFile, emitTo, undefined, options);
+    this.streamLog(socket, logFile, emitTo, `system:${sourceId}`, undefined, options);
   }
 
   public async getCameraLog(socket: Socket, cameraName: string, options?: { sinceLastStart?: boolean }) {
@@ -84,11 +83,11 @@ export class LogsNamespace {
     const cameraController = await this.lookupAfterStartup(socket, emitTo, () => this.api.getCamera(cameraName));
 
     if (!cameraController) {
-      socket.emit(emitTo, red(`Camera "${cameraName}" not found.\r\n`));
+      socket.emit(emitTo, paint('red', `Camera "${cameraName}" not found.\r\n`));
       return;
     }
 
-    this.tailLogFromFileNative(socket, cameraController.logPath, emitTo, cameraController.camera.name, options);
+    this.streamLog(socket, cameraController.logPath, emitTo, `camera:${cameraController.id}`, cameraController.camera.name, options);
   }
 
   public async getPluginLog(socket: Socket, pluginName: string, options?: { sinceLastStart?: boolean }) {
@@ -96,11 +95,11 @@ export class LogsNamespace {
     const plugin = await this.lookupAfterStartup(socket, emitTo, () => this.pluginManager.plugins.get(pluginName));
 
     if (!plugin) {
-      socket.emit(emitTo, red(`Plugin "${pluginName}" not found.\r\n`));
+      socket.emit(emitTo, paint('red', `Plugin "${pluginName}" not found.\r\n`));
       return;
     }
 
-    this.tailLogFromFileNative(socket, plugin.logPath, emitTo, plugin.displayName, options);
+    this.streamLog(socket, plugin.logPath, emitTo, `plugin:${plugin.id}`, plugin.displayName, options);
   }
 
   private async lookupAfterStartup<T>(socket: Socket, channel: string, lookup: () => T | undefined): Promise<T | undefined> {
@@ -108,7 +107,7 @@ export class LogsNamespace {
     let found = lookup();
     if (found || ready()) return found;
 
-    socket.emit(channel, darkGray('Waiting for camera.ui to finish starting...\r\n'));
+    socket.emit(channel, paint('gray', 'Waiting for camera.ui to finish starting...\r\n'));
     while (!found && !ready() && !socket.disconnected) {
       await new Promise((resolve) => setTimeout(resolve, LogsNamespace.STARTUP_POLL_MS));
       found = lookup();
@@ -116,9 +115,9 @@ export class LogsNamespace {
     return found;
   }
 
-  private async tailLogFromFileNative(socket: Socket, logFile: string, channel: string, filter?: string | number, options?: { sinceLastStart?: boolean }) {
+  private async streamLog(socket: Socket, logFile: string, channel: string, target: string, filter?: string | number, options?: { sinceLastStart?: boolean }) {
     if (!existsSync(logFile)) {
-      socket.emit(channel, red(`\r\nNo log file exists at path: ${logFile}\r\n`));
+      socket.emit(channel, paint('red', `\r\nNo log file exists at path: ${logFile}\r\n`));
       return;
     }
 
@@ -142,9 +141,9 @@ export class LogsNamespace {
         this.handleLogStream(socket, channel, logStream, filter);
       }
 
-      this.setupTail(socket, logFile, channel, filter);
+      this.subscribe(socket, target, channel, filter);
     } catch (error: any) {
-      socket.emit(channel, red(`Failed to read log file: ${error.message}\r\n`));
+      socket.emit(channel, paint('red', `Failed to read log file: ${error.message}\r\n`));
     }
   }
 
@@ -201,71 +200,34 @@ export class LogsNamespace {
     });
 
     logStream.on('error', (error) => {
-      socket.emit(to, red(`Error reading log file: ${error.message}\r\n`));
+      socket.emit(to, paint('red', `Error reading log file: ${error.message}\r\n`));
       logStream.close();
     });
   }
 
-  private setupTail(socket: Socket, logFile: string, channel: string, filter?: string | number) {
-    const subscriber: TailSubscriber = { socket, channel, filter };
+  private subscribe(socket: Socket, target: string, channel: string, filter?: string | number) {
+    let subscribers = this.subscribers.get(target);
+    if (!subscribers) {
+      subscribers = new Map();
+      this.subscribers.set(target, subscribers);
+    }
 
-    let shared = this.sharedTails.get(logFile);
+    const alreadySubscribed = subscribers.has(socket.id);
+    subscribers.set(socket.id, { socket, channel, filter });
 
-    // socket already subscribed to this file - just refresh subscriber info
-    if (shared?.subscribers.has(socket.id)) {
-      shared.subscribers.set(socket.id, subscriber);
+    if (!this.listen(socket, channel)) {
+      return;
+    }
+    if (alreadySubscribed) {
       return;
     }
 
-    if (!shared) {
-      const tail = new Tail(logFile, {
-        fromBeginning: false,
-        useWatchFile: true,
-        fsWatchOptions: {
-          interval: 200,
-        },
-      }) as Tail & EventEmitter;
-
-      shared = {
-        tail,
-        subscribers: new Map(),
-      };
-
-      tail.on('line', (line: string) => {
-        const baseLine = line.toString().split(/\r?\n/).join('\r\n');
-        for (const sub of shared!.subscribers.values()) {
-          let processedLine = baseLine;
-          if (sub.filter !== undefined) {
-            processedLine = this.filterLine(processedLine, sub.filter);
-          }
-          sub.socket.emit(sub.channel, processedLine + '\r\n');
-        }
-      });
-
-      tail.on('error', (error: Error | string) => {
-        const baseError = error.toString().split(/\r?\n/).join('\r\n');
-        for (const sub of shared!.subscribers.values()) {
-          let errorLine = baseError;
-          if (sub.filter !== undefined) {
-            errorLine = this.filterLine(errorLine, sub.filter);
-          }
-          sub.socket.emit(sub.channel, red(errorLine + '\r\n'));
-        }
-      });
-
-      this.sharedTails.set(logFile, shared);
-    }
-
-    shared.subscribers.set(socket.id, subscriber);
-
     const cleanup = () => {
-      const sharedTail = this.sharedTails.get(logFile);
-      if (sharedTail) {
-        sharedTail.subscribers.delete(socket.id);
-
-        if (sharedTail.subscribers.size === 0) {
-          sharedTail.tail.unwatch();
-          this.sharedTails.delete(logFile);
+      const current = this.subscribers.get(target);
+      if (current) {
+        current.delete(socket.id);
+        if (current.size === 0) {
+          this.subscribers.delete(target);
         }
       }
 
@@ -275,6 +237,45 @@ export class LogsNamespace {
 
     socket.on('end', cleanup);
     socket.on('disconnect', cleanup);
+  }
+
+  private listen(socket: Socket, channel: string): boolean {
+    if (this.logListener) {
+      return true;
+    }
+
+    let logManager: LogManager;
+    try {
+      logManager = container.resolve<LogManager>('logManager');
+    } catch {
+      socket.emit(channel, paint('red', 'Live log output is not available yet.\r\n'));
+      return false;
+    }
+
+    this.logListener = (entry: LogEntry) => this.dispatch(entry);
+    logManager.on('log', this.logListener);
+
+    return true;
+  }
+
+  private dispatch(entry: LogEntry) {
+    if (this.subscribers.size === 0) {
+      return;
+    }
+
+    const targets = LogsNamespace.targetsFor(entry).filter((target) => this.subscribers.get(target)?.size);
+    if (targets.length === 0) {
+      return;
+    }
+
+    const line = Logger.formatWithColors(entry).split(/\r?\n/).join('\r\n');
+
+    for (const target of targets) {
+      for (const subscriber of this.subscribers.get(target)!.values()) {
+        const processed = subscriber.filter === undefined ? line : this.filterLine(line, subscriber.filter);
+        subscriber.socket.emit(subscriber.channel, processed + '\r\n');
+      }
+    }
   }
 
   private filterLine(line: string, filter: string | number): string {
@@ -302,5 +303,18 @@ export class LogsNamespace {
       count++;
       return count === n ? ' ' : match;
     });
+  }
+
+  private static targetsFor(entry: LogEntry): string[] {
+    const targets = [MAIN_TARGET];
+
+    if (entry.targetId && entry.targetType) {
+      targets.push(`${entry.targetType}:${entry.targetId}`);
+    }
+    if (entry.pluginId && !(entry.targetType === 'plugin' && entry.targetId === entry.pluginId)) {
+      targets.push(`plugin:${entry.pluginId}`);
+    }
+
+    return targets;
   }
 }

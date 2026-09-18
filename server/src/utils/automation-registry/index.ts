@@ -1,4 +1,4 @@
-import { TTLCache } from '@isaacs/ttlcache';
+import { TtlCache } from '../ttl-cache.js';
 
 export interface AutomationCatalogEntry {
   title: string;
@@ -17,8 +17,8 @@ const BASE_URL = 'https://raw.githubusercontent.com/cameraui/automations/main/';
 const CATALOG_TTL_MS = 60 * 60 * 1000;
 const BLUEPRINT_TTL_MS = 60 * 60 * 1000;
 
-const catalogCache = new TTLCache<string, unknown>({ max: 8, ttl: CATALOG_TTL_MS });
-const blueprintCache = new TTLCache<string, unknown>({ max: 100, ttl: BLUEPRINT_TTL_MS });
+const catalogCache = new TtlCache<string, unknown>({ max: 8, ttl: CATALOG_TTL_MS });
+const blueprintCache = new TtlCache<string, unknown>({ max: 100, ttl: BLUEPRINT_TTL_MS });
 
 let lastGoodCatalog: Record<string, AutomationCatalogEntry> = {};
 

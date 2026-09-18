@@ -6,8 +6,6 @@ import 'reflect-metadata';
 import './utils/env.js';
 
 import { IS_ELECTRON, SignalHandler, sleep } from '@camera.ui/common/utils';
-import { green } from 'ansicolor';
-import fkill from 'fkill';
 import { execSync } from 'node:child_process';
 import { container } from 'tsyringe';
 
@@ -35,9 +33,11 @@ import { LoggerService } from './services/logger/index.js';
 import { markShuttingDown, resetShuttingDown } from './shutdown-state.js';
 import { REPORT_DIR, WITH_REPORTS } from './utils/crash.js';
 import { initAppUpdateListener, reportStartError, requestServerUpdate, sendIPCMessage } from './utils/ipc.js';
+import { killProcesses } from './utils/process.js';
 import { WorkerAgent } from './workers/agent.js';
 import { WorkerManager } from './workers/manager.js';
 import { ensureWorkerPaired } from './workers/pairing.js';
+import { paint } from './utils/colors.js';
 
 const MASTER_LINK_TIMEOUT_MS = 15_000;
 
@@ -227,9 +227,9 @@ class CameraUi {
     await sleep(500);
 
     const processes = this.configService.processes;
-    await fkill(
+    await killProcesses(
       processes.map((process) => process.pid),
-      { force: true, silent: true },
+      { silent: true },
     );
 
     await Promise.allSettled([this.proxy.close()]);
@@ -269,7 +269,7 @@ class CameraUi {
       message: 'All plugins initialized',
     });
 
-    this.logger.log(green('All plugins initialized'));
+    this.logger.log(paint('green', 'All plugins initialized'));
   }
 
   private setStatus(status: 'loading' | 'ready'): void {
@@ -345,9 +345,9 @@ class CameraUiWorker {
     await sleep(1000);
 
     const processes = this.configService.processes;
-    await fkill(
+    await killProcesses(
       processes.map((p) => p.pid),
-      { force: true, silent: true },
+      { silent: true },
     );
   }
 

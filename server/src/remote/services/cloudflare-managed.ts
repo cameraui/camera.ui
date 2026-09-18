@@ -8,7 +8,7 @@ import { container } from 'tsyringe';
 
 import { RemoteService } from '../../api/services/remote.service.js';
 import { isShuttingDown } from '../../shutdown-state.js';
-import { cloudflaredBinaryPath, ensureCloudflaredBinary } from './cloudflaredBinary.js';
+import { cloudflaredBinaryPath, isCloudflaredInstalled, removeDownloadedCloudflared } from './cloudflaredBinary.js';
 import { TunnelConnections } from './tunnelConnections.js';
 
 import type { Logger } from '@camera.ui/common';
@@ -336,11 +336,15 @@ export class CloudflareManagedService {
   }
 
   private async ensureCloudflaredInstalled(): Promise<void> {
-    await ensureCloudflaredBinary(this.cloudflarePath);
+    if (!isCloudflaredInstalled()) {
+      throw new Error(`No cloudflared binary for ${process.platform}-${process.arch}`);
+    }
+
+    await removeDownloadedCloudflared(this.cloudflarePath);
   }
 
   private cloudflaredBinaryPath(): string {
-    return cloudflaredBinaryPath(this.cloudflarePath);
+    return cloudflaredBinaryPath();
   }
 
   private certPath(): string {

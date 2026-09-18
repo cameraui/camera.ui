@@ -1,23 +1,15 @@
-import { install } from 'cloudflared';
-import { existsSync } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
+import { cloudflaredPath, isCloudflaredAvailable } from '@camera.ui/cloudflared';
+import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export function cloudflaredBinaryPath(dir: string): string {
-  return join(dir, process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+export function cloudflaredBinaryPath(): string {
+  return cloudflaredPath();
 }
 
-export async function ensureCloudflaredBinary(dir: string): Promise<string> {
-  const binPath = cloudflaredBinaryPath(dir);
-  if (existsSync(binPath)) return binPath;
+export function isCloudflaredInstalled(): boolean {
+  return isCloudflaredAvailable();
+}
 
-  await mkdir(dir, { recursive: true });
-
-  const legacyPath = join(dir, 'cloudflared');
-  if (legacyPath !== binPath) {
-    await rm(legacyPath, { force: true }).catch(() => {});
-  }
-
-  await install(binPath);
-  return binPath;
+export async function removeDownloadedCloudflared(dir: string): Promise<void> {
+  await Promise.all([rm(join(dir, 'cloudflared'), { force: true }).catch(() => {}), rm(join(dir, 'cloudflared.exe'), { force: true }).catch(() => {})]);
 }

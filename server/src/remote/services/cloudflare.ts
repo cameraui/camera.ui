@@ -1,7 +1,6 @@
 import { API_EVENT } from '@camera.ui/sdk';
-import { strip } from 'ansicolor';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { container } from 'tsyringe';
@@ -9,12 +8,13 @@ import { container } from 'tsyringe';
 import { RemoteService } from '../../api/services/remote.service.js';
 import { isShuttingDown } from '../../shutdown-state.js';
 import { CloudflareManagedService } from './cloudflare-managed.js';
-import { cloudflaredBinaryPath, ensureCloudflaredBinary } from './cloudflaredBinary.js';
+import { cloudflaredBinaryPath, isCloudflaredInstalled, removeDownloadedCloudflared } from './cloudflaredBinary.js';
 import { TunnelConnections } from './tunnelConnections.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { ChildProcess } from 'node:child_process';
 import type { Interface } from 'node:readline';
+import { stripVTControlCharacters } from 'node:util';
 import type { CameraUiAPI } from '../../api.js';
 import type { DBCloudflareMode } from '../../api/database/types.js';
 import type { ConfigService } from '../../services/config/index.js';
@@ -36,8 +36,6 @@ export class CloudflareService {
   private manuallyKilled = false;
 
   private reconnectTimer?: NodeJS.Timeout;
-
-  private installPromise?: Promise<string>;
 
   private stdoutLine?: Interface;
   private stderrLine?: Interface;
@@ -132,18 +130,11 @@ export class CloudflareService {
   }
 
   private async ensureCloudflaredInstalled(): Promise<void> {
-    if (this.isCloudflaredInstalled()) return;
-    if (this.installPromise) {
-      await this.installPromise;
-      return;
+    if (!this.isCloudflaredInstalled()) {
+      throw new Error(`No cloudflared binary for ${process.platform}-${process.arch}`);
     }
-    this.logger.debug('Cloudflare: Installing cloudflared...');
-    this.installPromise = ensureCloudflaredBinary(this.cloudflarePath);
-    try {
-      await this.installPromise;
-    } finally {
-      this.installPromise = undefined;
-    }
+
+    await removeDownloadedCloudflared(this.cloudflarePath);
   }
 
   private reset(): void {
@@ -254,7 +245,7 @@ export class CloudflareService {
   }
 
   private processLogger(line: string): void {
-    const blankLine = strip(line.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?\s*/, ''));
+    const blankLine = stripVTControlCharacters(line.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?\s*/, ''));
 
     this.analyzeLogLine(blankLine);
 
@@ -283,10 +274,10 @@ export class CloudflareService {
   }
 
   private cloudflaredBinaryPath(): string {
-    return cloudflaredBinaryPath(this.cloudflarePath);
+    return cloudflaredBinaryPath();
   }
 
   private isCloudflaredInstalled(): boolean {
-    return existsSync(this.cloudflaredBinaryPath());
+    return isCloudflaredInstalled();
   }
 }

@@ -1,5 +1,4 @@
 import { PromiseTimeout } from '@camera.ui/common/utils';
-import { green } from 'ansicolor';
 import { dump as yamlDump } from 'js-yaml';
 import { constants, existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -8,6 +7,7 @@ import { isAbsolute, join } from 'node:path';
 import { container } from 'tsyringe';
 
 import { ConfigService } from '../../services/config/index.js';
+import { paint } from '../../utils/colors.js';
 import { FatalBootError } from '../../utils/ipc.js';
 import { checkDatabaseCorruption, checkOrphanedProcesses, checkPathPermissions, checkPathsExist, checkPortAvailability, cleanUpFiles } from './checks.js';
 
@@ -87,7 +87,7 @@ export class SelfCheck {
     if (nonCriticalIssues.length > 0) {
       this.logger.warn(`Self-check passed with non-critical warnings — see the report at ${reportPath}`);
     } else {
-      this.logger.log(green('Self-check passed successfully!'));
+      this.logger.log(paint('green', 'Self-check passed successfully!'));
     }
   }
 

@@ -1,13 +1,14 @@
 import { isProcessRunning } from '@camera.ui/common/node';
-import fkill from 'fkill';
 import { open } from 'lmdb';
 import { constants, existsSync } from 'node:fs';
 import { access, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
-import psList from 'ps-list';
 import { container } from 'tsyringe';
 
+import { killProcess, readProcessSnapshots } from '../../utils/process.js';
+
 import type { ConfigService } from '../../services/config/index.js';
+import type { ProcessSnapshot } from '../../utils/process.js';
 
 export interface PathExistenceResult {
   path: string;
@@ -73,10 +74,7 @@ async function isPortAvailable(port: number): Promise<boolean> {
   });
 }
 
-async function isOwnProcess(processInfo: ProcInfo): Promise<boolean> {
-  const processes = await psList();
-  const proc = processes.find((p) => p.pid === processInfo.pid);
-
+function isOwnProcess(processInfo: ProcInfo, proc: ProcessSnapshot | undefined): boolean {
   if (!proc) {
     return false;
   }
@@ -166,12 +164,28 @@ export async function checkPortAvailability(portsToCheck: number[]): Promise<Por
 export async function checkOrphanedProcesses(processInfos: ProcInfo[]): Promise<OrphanedProcessesResult[]> {
   const configService = container.resolve<ConfigService>('configService');
   const results: OrphanedProcessesResult[] = [];
+  const running = new Set(processInfos.filter((processInfo) => isProcessRunning(processInfo.pid)).map((processInfo) => processInfo.pid));
+
+  let snapshots = new Map<number, ProcessSnapshot>();
+  let snapshotError: Error | undefined;
+  if (running.size > 0) {
+    try {
+      snapshots = await readProcessSnapshots([...running]);
+    } catch (error) {
+      snapshotError = error as Error;
+    }
+  }
 
   for (const processInfo of processInfos) {
     try {
-      const isRunning = isProcessRunning(processInfo.pid);
+      if (snapshotError && running.has(processInfo.pid)) {
+        results.push({ processInfo, error: snapshotError });
+        continue;
+      }
+
+      const isRunning = running.has(processInfo.pid);
       if (isRunning) {
-        const isOwnProc = await isOwnProcess(processInfo);
+        const isOwnProc = isOwnProcess(processInfo, snapshots.get(processInfo.pid));
         if (isOwnProc) {
           const info: OrphanedProcessesResult = {
             processInfo,
@@ -179,7 +193,7 @@ export async function checkOrphanedProcesses(processInfos: ProcInfo[]): Promise<
           };
 
           try {
-            await fkill(processInfo.pid, { force: true });
+            await killProcess(processInfo.pid);
             info.killed = true;
           } catch (error) {
             info.killed = false;

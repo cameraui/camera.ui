@@ -1,4 +1,6 @@
-import { cyan, darkGray, green, red, yellow } from 'ansicolor';
+import { paint } from '../../utils/colors.js';
+
+import type { Color } from '../../utils/colors.js';
 
 const MIN_COLS = 24;
 const FALLBACK_COLS = 80;
@@ -34,10 +36,10 @@ export class InstallLogger {
   ) {}
 
   header(title: string, meta: Record<string, string>): void {
-    this.emit(cyan(`\r\n${title}\r\n`));
+    this.emit(paint('cyan', `\r\n${title}\r\n`));
 
     for (const [key, value] of Object.entries(meta)) {
-      this.emit(`${darkGray(key.padEnd(10))}${value}\r\n`);
+      this.emit(`${paint('gray', key.padEnd(10))}${value}\r\n`);
     }
 
     this.emit('\r\n');
@@ -46,21 +48,21 @@ export class InstallLogger {
   step(label: string): void {
     this.currentLabel = label;
     this.pendingStep = true;
-    this.emit(`${cyan('▸')} ${label}`);
+    this.emit(`${paint('cyan', '▸')} ${label}`);
   }
 
   progress(percent: number): void {
-    this.emit(`\r${this.row(`${percent} %`, cyan)}`);
+    this.emit(`\r${this.row(`${percent} %`, 'cyan')}`);
   }
 
   done(note = 'done'): void {
-    this.emit(`\r${this.row(note, green)}\r\n`);
+    this.emit(`\r${this.row(note, 'green')}\r\n`);
     this.pendingStep = false;
   }
 
   block(label: string): void {
     this.pendingStep = false;
-    this.emit(`${cyan('▸')} ${label}\r\n`);
+    this.emit(`${paint('cyan', '▸')} ${label}\r\n`);
   }
 
   sub(text: string): void {
@@ -94,24 +96,24 @@ export class InstallLogger {
   }
 
   warn(text: string): void {
-    this.emit(yellow(`${text}\r\n`));
+    this.emit(paint('yellow', `${text}\r\n`));
   }
 
   success(text: string): void {
     this.finishOpenStep();
-    this.emit(green(`\r\n✓ ${text}\r\n\r\n`));
+    this.emit(paint('green', `\r\n✓ ${text}\r\n\r\n`));
   }
 
   error(text: string): void {
     this.finishOpenStep(true);
-    this.emit(red(`\r\n✗ ${text}\r\n\r\n`));
+    this.emit(paint('red', `\r\n✗ ${text}\r\n\r\n`));
   }
 
-  private row(status: string, color: (value: string) => string): string {
+  private row(status: string, color: Color): string {
     const cols = Math.max(MIN_COLS, this.width() - 1);
     const used = 2 + this.currentLabel.length;
     const dots = Math.max(1, cols - used - status.length - 2);
-    return `${cyan('▸')} ${this.currentLabel} ${darkGray('·'.repeat(dots))} ${color(status)}`;
+    return `${paint('cyan', '▸')} ${this.currentLabel} ${paint('gray', '·'.repeat(dots))} ${paint(color, status)}`;
   }
 
   private finishOpenStep(failed = false): void {
@@ -119,7 +121,7 @@ export class InstallLogger {
       return;
     }
 
-    this.emit(`\r${this.row(failed ? 'failed' : 'done', failed ? red : green)}\r\n`);
+    this.emit(`\r${this.row(failed ? 'failed' : 'done', failed ? 'red' : 'green')}\r\n`);
     this.pendingStep = false;
   }
 }

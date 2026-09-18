@@ -1,6 +1,5 @@
 import { orderBy } from '@camera.ui/common/utils';
 import { canCreateCameras, canProvideSensorsToAnyCameras, hasInterface, PluginInterface, PluginRole } from '@camera.ui/sdk';
-import { TTLCache } from '@isaacs/ttlcache';
 import { pathExists, remove } from 'fs-extra/esm';
 import { createReadStream, truncate } from 'node:fs';
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -16,6 +15,7 @@ import { squarePng } from '../../utils/image.js';
 import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
 import { isPlatformCompatible } from '../../utils/platform.js';
 import { computeTrust, getBlock, getBlocklist, getCatalog, getVerified, getWeeklyDownloads, invalidateRegistry } from '../../utils/plugin-registry/index.js';
+import { TtlCache } from '../../utils/ttl-cache.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { PluginsService } from '../services/plugins.service.js';
 import { collectBulk, collectBulkParallel } from '../utils/bulk.js';
@@ -52,7 +52,7 @@ import type { SocketService } from '../websocket/index.js';
 import type { ServerNamespace } from '../websocket/nsp/server.js';
 
 const searchResultBlacklist = new Set(['camera.ui', 'homebridge-camera-ui']);
-const pluginLogoCache = new TTLCache<string, string>({ max: 100, ttl: 1000 * 60 * 60 * 24 });
+const pluginLogoCache = new TtlCache<string, string>({ max: 100, ttl: 1000 * 60 * 60 * 24 });
 
 function normalizeRepoUrl(url: string): string {
   let normalized = url.trim().replace(/^git\+/, '');
@@ -1157,7 +1157,7 @@ export class PluginsController {
 
       if (isInstalled) {
         plugin = isInstalled.info;
-        plugin.lastUpdated = pkg.time.modified;
+        plugin.lastUpdated = pkg.time?.modified;
 
         const block = getBlock(pkg.name, plugin.installedVersion, blocklist);
         if (block) {
@@ -1188,14 +1188,14 @@ export class PluginsController {
         isNode: true,
         publicPackage: true,
         latestVersion,
-        lastUpdated: pkg.time.modified,
+        lastUpdated: pkg.time?.modified,
         links: {
           npm: `https://www.npmjs.com/package/${pkg.name}`,
           homepage: pkg.homepage,
           repository: pkg.repository?.url,
           bugs: pkg.bugs?.url,
         },
-        author: pkg.maintainers[0]?.name,
+        author: pkg.maintainers?.[0]?.name,
         license: pkg.license,
         contract: {
           role: PluginRole.SensorProvider,

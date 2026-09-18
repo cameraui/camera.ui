@@ -1,14 +1,12 @@
 import { PromiseTimeout } from '@camera.ui/common/utils';
 import { API_EVENT } from '@camera.ui/sdk';
 import FastifyCors from '@fastify/cors';
-import FastifyFormbody from '@fastify/formbody';
 import FastifyHelmet from '@fastify/helmet';
 import FastifyHttpProxy from '@fastify/http-proxy';
 import FastifyMultipart from '@fastify/multipart';
 import FastifyStatic from '@fastify/static';
 import FastifySwagger from '@fastify/swagger';
 import FastifySwaggerUI from '@fastify/swagger-ui';
-import { green } from 'ansicolor';
 import Fastify, { LogController } from 'fastify';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { createWriteStream } from 'node:fs';
@@ -24,6 +22,7 @@ import { PROXY_SERVICE_URL, SHARE_SERVICE_URL } from '../services/config/constan
 import { ConfigService } from '../services/config/index.js';
 import { RUNTIME_STATUS } from '../services/config/types.js';
 import { MdnsService } from '../services/mdns/index.js';
+import { paint } from '../utils/colors.js';
 import { syncInterfaceCache } from '../utils/interface-cache.js';
 import { IngressSession } from './ingress.js';
 import { HeaderPlugin } from './plugins/header.plugin.js';
@@ -34,6 +33,7 @@ import { FastifyRoutes } from './routes/index.js';
 import { SharesService } from './services/shares.service.js';
 import { CertificateGeneration } from './utils/cert.js';
 import { customSecureContext, logCustomCertificate } from './utils/custom-cert.js';
+import { parseFormBody } from './utils/form-body.js';
 
 import type { FastifyCorsOptions } from '@fastify/cors';
 import type { FastifyHelmetOptions } from '@fastify/helmet';
@@ -103,6 +103,10 @@ export class Server {
     this.app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => {
       done(null, (body as Buffer).length > 0 ? body : undefined);
     });
+    this.app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_req, body, done) => {
+      done(null, parseFormBody(body as string));
+    });
+
     this.trackConnections(this.app.server);
     this.trackConnections(this.internalApp.server);
     this.setupListeners();
@@ -231,7 +235,7 @@ export class Server {
 
     await app.listen({ host, port });
     this.insecureApp = app;
-    this.logger.log(green(`camera.ui insecure (http) listener on http://${host}:${port}${ingress ? ' (ingress-trusted)' : ''}`));
+    this.logger.log(paint('green', `camera.ui insecure (http) listener on http://${host}:${port}${ingress ? ' (ingress-trusted)' : ''}`));
   }
 
   private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }): void {
@@ -253,14 +257,14 @@ export class Server {
     if (this.app) {
       this.app.addHook('onListen', async () => {
         const port = this.configService.config.port;
-        this.logger.log(green(`camera.ui v${ConfigService.VERSION} is listening on https://localhost:${port}`));
+        this.logger.log(paint('green', `camera.ui v${ConfigService.VERSION} is listening on https://localhost:${port}`));
 
         try {
           const defaultAdapter = await networkInterfaceDefault();
           const ifaces = await networkInterfaces();
           const lan = (Array.isArray(ifaces) ? ifaces : [ifaces]).find((i) => i.iface === defaultAdapter && i.ip4);
           if (lan?.ip4) {
-            this.logger.log(green(`camera.ui is reachable on your network at https://${lan.ip4}:${port}`));
+            this.logger.log(paint('green', `camera.ui is reachable on your network at https://${lan.ip4}:${port}`));
           }
         } catch {
           // ignore
@@ -299,7 +303,6 @@ export class Server {
     await this.app?.register(FastifyCors, this.corsOptions);
     await this.app?.register(ProxyPlugin, this.natsProxyOptions);
     await this.app?.register(ProxyPlugin, this.go2rtcProxyOptions);
-    await this.app?.register(FastifyFormbody);
     await this.app?.register(FastifyMultipart, this.multipartOptions);
     await this.app?.register(FastifyStatic, this.staticOptions);
     await this.app?.register(FastifySwagger, this.swaggerOptions);

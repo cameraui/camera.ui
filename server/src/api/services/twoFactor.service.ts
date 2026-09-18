@@ -1,17 +1,18 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { generateSecret, generateURI, verify } from 'otplib';
-import QRCode from 'qrcode';
 import { container } from 'tsyringe';
+
+import { generateTotpSecret, verifyTotp } from '../../utils/totp.js';
 
 import type { ConfigService } from '../../services/config/index.js';
 
 export class TwoFactorService {
-  private readonly ENCRYPTION_KEY: Buffer;
-  private readonly APP_NAME = 'camera.ui';
-
-  private verifyAttempts = new Map<string, { count: number; lastAttempt: Date }>();
   private static readonly MAX_ATTEMPTS = 5;
   private static readonly LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+
+  private readonly ENCRYPTION_KEY: Buffer;
+
+  private verifyAttempts = new Map<string, { count: number; lastAttempt: Date }>();
+  private acceptedTimeStep = new Map<string, number>();
 
   constructor() {
     const configService = container.resolve<ConfigService>('configService');
@@ -19,21 +20,22 @@ export class TwoFactorService {
   }
 
   public generateSecret(): string {
-    return generateSecret();
+    return generateTotpSecret();
   }
 
-  public async generateQRCode(username: string, secret: string): Promise<string> {
-    const otpauth = generateURI({
-      issuer: this.APP_NAME,
-      label: username,
-      secret,
-    });
-    return QRCode.toDataURL(otpauth);
-  }
+  public verifyToken(token: string, secret: string, userId: string): boolean {
+    const result = verifyTotp(token, secret);
+    if (!result.valid) {
+      return false;
+    }
 
-  public async verifyToken(token: string, secret: string): Promise<boolean> {
-    const result = await verify({ token, secret });
-    return result.valid;
+    const accepted = this.acceptedTimeStep.get(userId);
+    if (accepted !== undefined && result.timeStep! <= accepted) {
+      return false;
+    }
+
+    this.acceptedTimeStep.set(userId, result.timeStep!);
+    return true;
   }
 
   public generateBackupCodes(count = 10): string[] {

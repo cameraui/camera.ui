@@ -332,7 +332,6 @@ export class AuthController {
       }
 
       const secret = this.twoFactorService.generateSecret();
-      const qrCode = await this.twoFactorService.generateQRCode(user.username, secret);
 
       await this.userService.patchUser(user.username, {
         twoFactor: {
@@ -341,7 +340,7 @@ export class AuthController {
         },
       });
 
-      const response: TwoFactorSetupResponse = { qrCode, secret };
+      const response: TwoFactorSetupResponse = { secret };
       return reply.code(200).send(response);
     } catch (error: any) {
       return reply.code(500).send({
@@ -370,7 +369,7 @@ export class AuthController {
       }
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret);
-      const isValidCode = await this.twoFactorService.verifyToken(req.body.code, secret);
+      const isValidCode = this.twoFactorService.verifyToken(req.body.code, secret, user._id);
       if (!isValidCode) {
         return reply.code(401).send({
           statusCode: 401,
@@ -412,7 +411,7 @@ export class AuthController {
       }
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret!);
-      const isValidTotp = await this.twoFactorService.verifyToken(req.body.code, secret);
+      const isValidTotp = this.twoFactorService.verifyToken(req.body.code, secret, user._id);
       const isValidBackup = user.twoFactor.backupCodes && this.twoFactorService.verifyBackupCode(req.body.code, user.twoFactor.backupCodes) !== -1;
       const isValid = isValidTotp || isValidBackup;
 
@@ -453,7 +452,7 @@ export class AuthController {
       }
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret!);
-      const isValidCode = await this.twoFactorService.verifyToken(req.body.code, secret);
+      const isValidCode = this.twoFactorService.verifyToken(req.body.code, secret, user._id);
       if (!isValidCode) {
         return reply.code(401).send({
           statusCode: 401,
@@ -524,7 +523,7 @@ export class AuthController {
       }
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret!);
-      let isValid = await this.twoFactorService.verifyToken(req.body.code, secret);
+      let isValid = this.twoFactorService.verifyToken(req.body.code, secret, user._id);
 
       if (!isValid && user.twoFactor.backupCodes) {
         const backupIndex = this.twoFactorService.verifyBackupCode(req.body.code, user.twoFactor.backupCodes);

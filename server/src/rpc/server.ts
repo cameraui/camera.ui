@@ -1,6 +1,5 @@
 import { reservePorts } from '@camera.ui/common/camera';
 import { IS_DEV, sleep } from '@camera.ui/common/utils';
-import { strip } from 'ansicolor';
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -15,6 +14,7 @@ import { LeafConnection } from './leafConnection.js';
 import type { Logger } from '@camera.ui/common/logger';
 import type { ChildProcess } from 'node:child_process';
 import type { Interface } from 'node:readline';
+import { stripVTControlCharacters } from 'node:util';
 import type { SocketService } from '../api/websocket/index.js';
 import type { ServerRuntime } from '../api/websocket/types.js';
 import type { ConfigService } from '../services/config/index.js';
@@ -682,7 +682,7 @@ export class NATS {
   }
 
   private processLogger(line: string): void {
-    const blankLine = strip(line.replace(/\[(\d+)\] (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) /, ''));
+    const blankLine = stripVTControlCharacters(line.replace(/\[(\d+)\] (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) /, ''));
 
     this.leaf.observe(blankLine);
 
