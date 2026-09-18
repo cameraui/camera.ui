@@ -1719,6 +1719,7 @@ export default {
     },
     training_editor: {
       hint: 'Drag to draw a box, tap a box or its label to edit it, double tap to zoom. Label everything you see; verify with no boxes to mark a false alarm.',
+      hint_wrong: 'A wrong box counts too: correct or remove it and verify anyway, that is how the model learns what is not there.',
       plate_text: 'Plate text',
       sc_select: 'Select next box',
       sc_move: 'Move box',

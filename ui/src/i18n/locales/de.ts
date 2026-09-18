@@ -1730,6 +1730,7 @@ export default {
     },
     training_editor: {
       hint: 'Ziehen zeichnet eine Box, Tipp auf Box oder Label bearbeitet sie, Doppeltipp zoomt. Beschrifte alles Sichtbare; ohne Boxen bestätigen markiert einen Fehlalarm.',
+      hint_wrong: 'Eine falsche Box zählt auch: korrigiere oder entferne sie und bestätige trotzdem, so lernt das Modell, was dort nicht ist.',
       plate_text: 'Kennzeichen',
       sc_select: 'Nächste Box wählen',
       sc_move: 'Box verschieben',

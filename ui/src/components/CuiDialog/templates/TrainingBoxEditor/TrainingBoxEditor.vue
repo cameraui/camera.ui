@@ -164,11 +164,14 @@
       />
     </div>
 
-    <div class="flex items-center justify-center gap-1.5">
-      <span class="text-muted text-sm text-center">{{ $t('components.training_editor.hint') }}</span>
-      <Button v-if="hasFinePointer" severity="secondary" text rounded class="cui-icon-sm shrink-0" @click="showShortcuts = !showShortcuts">
-        <template #icon><i-mdi:help-circle-outline class="w-4 h-4" /></template>
-      </Button>
+    <div class="flex flex-col items-center gap-0.5">
+      <div class="flex items-center justify-center gap-1.5">
+        <span class="text-muted text-sm text-center">{{ $t('components.training_editor.hint') }}</span>
+        <Button v-if="hasFinePointer" severity="secondary" text rounded class="cui-icon-sm shrink-0" @click="showShortcuts = !showShortcuts">
+          <template #icon><i-mdi:help-circle-outline class="w-4 h-4" /></template>
+        </Button>
+      </div>
+      <span class="text-muted text-sm text-center">{{ $t('components.training_editor.hint_wrong') }}</span>
     </div>
 
     <div v-if="hasFinePointer && showShortcuts" class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 justify-center mx-auto text-sm text-muted">
