@@ -101,7 +101,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@primevue/auto-import-resolver": "4.5.5",
+    "@primevue/auto-import-resolver": "5.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
