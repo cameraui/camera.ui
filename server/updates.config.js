@@ -1,3 +1,3 @@
 export default {
-  exclude: ['typescript', 'eslint', 'fix-path'],
+  exclude: ['typescript', 'eslint', 'fix-path', '@peculiar/x509'],
 };

@@ -16,6 +16,8 @@
     "lint": "eslint --fix .",
     "install-updates": "npm i --save",
     "prepublishOnly": "npm i --package-lock-only && npm run lint && npm run format && npm run build",
+    "prepack": "node ../scripts/shrinkwrap.mjs create",
+    "postpack": "node ../scripts/shrinkwrap.mjs cleanup",
     "update": "updates -M npm,pypi,go,cargo,docker,make --update ./",
     "watch": "nodemon src/cameraui.ts -H ../.camera.ui run",
     "watch:alt": "CAMERA_UI_PORT=5443 nodemon src/cameraui.ts -H ../.camera.ui.alt run",
