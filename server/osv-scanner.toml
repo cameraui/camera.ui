@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "CVE-2026-22701"
+ignoreUntil = 2027-01-15
+reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui does not install"
+
+[[IgnoredVulns]]
+id = "CVE-2025-68146"
+ignoreUntil = 2027-01-15
+reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui does not install"
