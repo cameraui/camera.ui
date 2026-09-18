@@ -405,7 +405,7 @@ function saveEdit(): void {
 }
 
 function openImage(image: ToolResultImage): void {
-  openImageDialog({ data: { title: image.alt, src: image.src, hideConfirmButton: true, hideCancelButton: true } });
+  openImageDialog({ data: { title: image.alt, src: image.src } });
 }
 
 async function copyAnswer(): Promise<void> {

@@ -477,7 +477,8 @@ export function useCuiDialog() {
   }
 
   function openImageDialog(options: CustomDialogOptions<ContentImageProps>): DynamicDialogInstance {
-    const { data, ...rest } = options;
+    const data = { hideConfirmButton: true, hideCancelButton: false, ...options.data };
+    const { data: _ignored, ...rest } = options;
 
     const dialogProps: DynamicDialogOptions['props'] = structuredClone(DEFAULT_DIALOG_PROPS);
 

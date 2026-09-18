@@ -115,7 +115,7 @@ function pretty(value: unknown): string {
 }
 
 function openImage(image: ToolResultImage): void {
-  openImageDialog({ data: { title: displayName.value, src: image.src, hideConfirmButton: true, hideCancelButton: true } });
+  openImageDialog({ data: { title: displayName.value, src: image.src } });
 }
 </script>
 
