@@ -1,10 +1,9 @@
 import { sleep } from '@camera.ui/common/utils';
-import { outputFile } from 'fs-extra/esm';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
-import { chmod } from 'node:fs/promises';
+import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 import { BasePlatform } from './base.js';
 
@@ -236,7 +235,8 @@ export class FreeBSDInstaller extends BasePlatform {
       .filter((x) => x)
       .join('\n');
 
-    await outputFile(this.rcServicePath, rcFileContents);
+    await mkdir(dirname(this.rcServicePath), { recursive: true });
+    await writeFile(this.rcServicePath, rcFileContents);
     await chmod(this.rcServicePath, '755');
   }
 }

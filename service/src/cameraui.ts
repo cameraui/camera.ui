@@ -6,27 +6,26 @@ import { isPortInUse } from '@camera.ui/common/net';
 import { getUserHomeDir } from '@camera.ui/common/node';
 import { IS_DEV, IS_DOCKER, SignalHandler, sleep } from '@camera.ui/common/utils';
 import { program } from 'commander';
-import { mkdirp, pathExists, readJsonSync } from 'fs-extra/esm';
 import { request } from 'https';
 import { load } from 'js-yaml';
 import { execSync } from 'node:child_process';
 import { chownSync, createReadStream, existsSync, readFileSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import { arch, cpus, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ora from 'ora';
 import { networkInterfaceDefault, networkInterfaces } from 'systeminformation';
-import { Tail } from 'tail';
 
+import { followFile } from './follow-file.js';
 import { DarwinInstaller } from './installer/darwin.js';
 import { FreeBSDInstaller } from './installer/freebsd.js';
 import { LinuxInstaller } from './installer/linux.js';
 import { Win32Installer } from './installer/win32.js';
 import { CLILogger } from './logger.js';
 import { ServerManager } from './manager.js';
+import { Spinner } from './spinner.js';
 
-import type { PathLike } from 'fs-extra';
+import type { PathLike } from 'node:fs';
 import type { BasePlatform } from './installer/base.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -149,9 +148,9 @@ export class CameraUiCLI {
   }
 
   public async homePathCheck(): Promise<void> {
-    if (!(await pathExists(this.homePath))) {
+    if (!existsSync(this.homePath)) {
       this.logger(`Creating camera.ui home directory: ${this.homePath}`, 'info');
-      await mkdirp(this.homePath);
+      await mkdir(this.homePath, { recursive: true });
       await this.chownPath(this.homePath);
     }
 
@@ -181,10 +180,7 @@ export class CameraUiCLI {
     this.logger('Setup in progress. To view installation logs in real-time, run this in another terminal:', 'info');
     this.logger(`  ${logsCommand}`, 'info');
 
-    const spinner = ora({
-      text: 'Initializing UI (this may take a few minutes)...',
-      color: 'cyan',
-    }).start();
+    const spinner = new Spinner({ text: 'Initializing UI (this may take a few minutes)...' }).start();
 
     let dots = 0;
     const updateSpinner = setInterval(() => {
@@ -550,15 +546,7 @@ export class CameraUiCLI {
       logStream.close();
     });
 
-    const tail = new Tail(this.logPath, {
-      fromBeginning: false,
-      useWatchFile: true,
-      fsWatchOptions: {
-        interval: 100,
-      },
-    });
-
-    tail.on('line', console.log);
+    followFile(this.logPath, (line) => console.log(line));
   }
 
   private async statusCheck(): Promise<void> {
@@ -618,7 +606,7 @@ export class CameraUiCLI {
   }
 
   private showVersion(): void {
-    const pjson = readJsonSync(join(__dirname, '..', 'package.json'));
+    const pjson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
     console.log('v' + pjson.version);
     process.exit(0);
   }
@@ -638,9 +626,9 @@ export class CameraUiCLI {
   }
 
   private async storagePathCheck(): Promise<void> {
-    if (!(await pathExists(this.storagePath))) {
+    if (!existsSync(this.storagePath)) {
       this.logger(`Creating camera.ui storage directory: ${this.storagePath}`, 'info');
-      await mkdirp(this.storagePath);
+      await mkdir(this.storagePath, { recursive: true });
       await this.chownPath(this.storagePath);
     }
   }

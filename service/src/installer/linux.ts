@@ -1,9 +1,8 @@
 import { APP_CLI_NAME, sleep } from '@camera.ui/common';
 import { getNpmGlobalModulesDirectory } from '@camera.ui/common/node';
-import { mkdirp, pathExists } from 'fs-extra/esm';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { chmod, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -306,12 +305,12 @@ export class LinuxInstaller extends BasePlatform {
 
   private async createFirewallRules(): Promise<void> {
     // check ufw is present on the system (debian based linux)
-    if (await pathExists('/usr/sbin/ufw')) {
+    if (existsSync('/usr/sbin/ufw')) {
       return await this.createUfwRules();
     }
 
     // check firewall-cmd is present on the system (enterprise linux)
-    if (await pathExists('/usr/bin/firewall-cmd')) {
+    if (existsSync('/usr/bin/firewall-cmd')) {
       return await this.createFirewallCmdRules();
     }
   }
@@ -352,7 +351,7 @@ export class LinuxInstaller extends BasePlatform {
   }
 
   private async createRunPartsPath(): Promise<void> {
-    await mkdirp(this.runPartsPath);
+    await mkdir(this.runPartsPath, { recursive: true });
 
     const permissionScriptPath = resolve(this.runPartsPath, '10-fix-permissions');
     const permissionScript = [

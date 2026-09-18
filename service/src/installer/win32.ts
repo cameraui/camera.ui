@@ -1,7 +1,7 @@
 import { sleep } from '@camera.ui/common/utils';
-import { pathExists, remove } from 'fs-extra/esm';
 import { execSync } from 'node:child_process';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, existsSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { arch } from 'node:os';
 import { resolve } from 'node:path';
 import { Readable } from 'node:stream';
@@ -132,7 +132,7 @@ export class Win32Installer extends BasePlatform {
     const downloadUrl = `https://github.com/homebridge/nssm/releases/download/2.24-101-g897c7ad/${fileName}`;
     const nssmPath = resolve(this.cli.homePath, 'nssm.exe');
 
-    if (await pathExists(nssmPath)) {
+    if (existsSync(nssmPath)) {
       return nssmPath;
     }
 
@@ -156,7 +156,7 @@ export class Win32Installer extends BasePlatform {
       return nssmPath;
     } catch (error) {
       // cleanup
-      await remove(nssmPath);
+      await rm(nssmPath, { recursive: true, force: true });
       this.cli.logger(`Failed to download nssm: ${error.message}`, 'fail');
       throw error;
     }

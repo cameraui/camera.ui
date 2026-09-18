@@ -1,9 +1,9 @@
 import { Logger } from '@camera.ui/common';
-import { pathExists } from 'fs-extra/esm';
-import { createWriteStream, ftruncate, read } from 'node:fs';
+import { createWriteStream, existsSync, ftruncate, read } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import ora from 'ora';
+
+import { printSymbol } from './spinner.js';
 
 import type { WriteStream } from 'node:fs';
 
@@ -53,8 +53,7 @@ export class CLILogger {
         this.logger[loggingLevel](msg);
       }
     } else {
-      const oraLevel = level === 'debug' || level === 'raw' ? 'info' : level;
-      ora()[oraLevel](msg);
+      printSymbol(level === 'debug' || level === 'raw' ? 'info' : level, msg);
     }
   }
 
@@ -65,7 +64,7 @@ export class CLILogger {
   }
 
   private async truncateLog(): Promise<void> {
-    if (!(await pathExists(this.logPath))) {
+    if (!existsSync(this.logPath)) {
       return;
     }
 

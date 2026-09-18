@@ -1,7 +1,7 @@
 import { APP_SERVER_NAME, getNpmPath, IS_DEV } from '@camera.ui/common';
-import { mkdirp } from 'fs-extra/esm';
 import { fork, spawn } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import type { ForkOptions } from 'child_process';
@@ -116,7 +116,7 @@ export class ServerManager {
     }
 
     try {
-      await mkdirp(this.serverPath);
+      await mkdir(this.serverPath, { recursive: true });
       await this.cli.chownPath(this.serverPath);
 
       const backupModules = `${this.serverModulesPath}.bak`;
@@ -321,7 +321,7 @@ export class ServerManager {
 
     try {
       rmSync(stagingPath, { recursive: true, force: true });
-      await mkdirp(stagingPath);
+      await mkdir(stagingPath, { recursive: true });
       const seeded = await this.seedAllowScripts(stagingPath, version);
       await this.cli.chownPath(stagingPath);
 
