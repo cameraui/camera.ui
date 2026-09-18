@@ -1245,7 +1245,7 @@ export default {
         recording_on_selected: 'Enable recording for selected cameras',
         recording_off_selected: 'Disable recording for selected cameras',
         copied: 'Copied',
-        copy_stream_json: 'Copy stream details (JSON)',
+        copy_stream_json: 'Copy stream details',
         copy_all: 'Copy all',
         delete: 'Delete',
         delete_line: 'Delete line',

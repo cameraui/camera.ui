@@ -1249,7 +1249,7 @@ export default {
         contain: 'Objekt komplett in der Zone',
         cancel_selection: 'Auswahl abbrechen',
         copied: 'Kopiert',
-        copy_stream_json: 'Stream-Details kopieren (JSON)',
+        copy_stream_json: 'Stream-Details kopieren',
         select_cameras: 'Kameras auswählen',
         select_all: 'Alle Kameras auswählen',
         deselect_all: 'Alle Kameras abwählen',
