@@ -1,5 +1,4 @@
 import { Logger } from '@camera.ui/common/logger';
-import ansiRegex from 'ansi-regex';
 import { createReadStream, existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -25,6 +24,8 @@ interface LogSubscriber {
   channel: string;
   filter?: string | number;
 }
+
+const ANSI_SGR = '\\u001B\\[[0-9;]*m';
 
 export class LogsNamespace {
   public nsp: Namespace;
@@ -290,14 +291,14 @@ export class LogsNamespace {
     const escapeRegex = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const escapedCameraName = escapeRegex(cameraName);
     // single-space replacement avoids consecutive spaces
-    const regex = new RegExp(`\\s*(${ansiRegex().source})?\\[${escapedCameraName}\\](${ansiRegex().source})?\\s*`, 'g');
+    const regex = new RegExp(`\\s*(${ANSI_SGR})?\\[${escapedCameraName}\\](${ANSI_SGR})?\\s*`, 'g');
 
     return str.replace(regex, ' ');
   }
 
   private removeBracketedContent(str: string, n: number) {
     let count = 0;
-    const regex = new RegExp(`\\s*(${ansiRegex().source})?\\[[^\\]]+\\](${ansiRegex().source})?\\s*`, 'g');
+    const regex = new RegExp(`\\s*(${ANSI_SGR})?\\[[^\\]]+\\](${ANSI_SGR})?\\s*`, 'g');
 
     return str.replace(regex, (match) => {
       count++;
