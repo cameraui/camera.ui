@@ -670,7 +670,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         filter(([oldCamera, newCamera]) => !isEqual(oldCamera, newCamera, true)),
       )
       .subscribe(([oldCamera, newCamera]) => {
-        this.triggerProxyEvent('updated', newCamera);
+        this.applyChange('update event', () => this.triggerProxyEvent('updated', newCamera));
 
         try {
           const bus = container.resolve<InternalEventBus>('internalBus');
@@ -697,12 +697,14 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         }
 
         if (!isEqual(oldCamera.zones?.privacy, newCamera.zones?.privacy, true) || oldCamera.zones?.privacyFallback !== newCamera.zones?.privacyFallback) {
-          this.snapshotPrivacy.update(newCamera.zones);
-          this.remaskSnapshots();
+          this.applyChange('privacy zones', () => {
+            this.snapshotPrivacy.update(newCamera.zones);
+            return this.remaskSnapshots();
+          });
         }
 
         if (!isEqual(oldCamera.sources, newCamera.sources, true)) {
-          this.snapshots.retain(newCamera.sources.map((source) => source._id));
+          this.applyChange('sources', () => this.snapshots.retain(newCamera.sources.map((source) => source._id)));
         }
 
         if (oldCamera.name !== newCamera.name) {
@@ -710,34 +712,40 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
         }
 
         if (oldCamera.disabled !== newCamera.disabled) {
-          if (newCamera.disabled) {
-            this.onDisabled();
-          } else {
-            this.onEnabled();
-          }
+          this.applyChange(newCamera.disabled ? 'disable' : 'enable', () => (newCamera.disabled ? this.onDisabled() : this.onEnabled()));
         }
 
         if (!newCamera.disabled && oldCamera.disabled === newCamera.disabled && !isEqual(oldCamera.sources, newCamera.sources, true)) {
-          this.reconcilePreloads();
+          this.applyChange('preloads', () => this.reconcilePreloads());
         }
 
         // Snooze only affects FrameWorker/detections.
         if (oldCamera.detectionSettings?.snooze !== newCamera.detectionSettings?.snooze) {
-          if (newCamera.detectionSettings?.snooze) {
-            this.onSnoozed();
-          } else {
-            this.onUnsnoozed();
-          }
+          const snoozed = newCamera.detectionSettings?.snooze;
+          this.applyChange(snoozed ? 'snooze' : 'unsnooze', () => (snoozed ? this.onSnoozed() : this.onUnsnoozed()));
         }
 
         if (!newCamera.disabled) {
           const oldSettings = oldCamera.snapshotSettings;
           const newSettings = newCamera.snapshotSettings;
           if (oldSettings.mode !== newSettings.mode || oldSettings.interval !== newSettings.interval) {
-            this.startAutoRefresh();
+            this.applyChange('snapshot settings', () => this.startAutoRefresh());
           }
         }
       });
+  }
+
+  private applyChange(change: string, apply: () => unknown): void {
+    const failed = (error: unknown) => this.logger.error(`Failed to apply the ${change} change:`, error);
+
+    try {
+      const result = apply();
+      if (result instanceof Promise) {
+        result.catch(failed);
+      }
+    } catch (error) {
+      failed(error);
+    }
   }
 
   private readonly handleStreamState = (name: string, state: Go2RtcStreamState | undefined): void => {

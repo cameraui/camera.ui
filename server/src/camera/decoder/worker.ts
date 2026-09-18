@@ -37,6 +37,7 @@ import type { CameraController } from '../controller.js';
 import type { CoordinatorSourceUrl, FrameWorkerPerfSnapshot, ObjectBenchmarkResult, WorkerToMainMessage } from './types.js';
 
 const REMOTE_START_TIMEOUT_MS = 30_000;
+const READY_TIMEOUT_MS = 30_000;
 
 export class FrameWorker extends Subscribed {
   private readonly configService: ConfigService;
@@ -51,6 +52,8 @@ export class FrameWorker extends Subscribed {
   private process?: ChildProcess;
   private retryTimeout?: NodeJS.Timeout;
   private remoteStartTimeout?: NodeJS.Timeout;
+  private readyTimeout?: NodeJS.Timeout;
+  private settleStart?: (error?: Error) => void;
   private channel?: PrivateChannel;
   private namespaces: FrameWorkerNamespaces;
   private _status: PLUGIN_STATUS = PLUGIN_STATUS.UNKNOWN;
@@ -195,6 +198,8 @@ export class FrameWorker extends Subscribed {
     this.retryTimeout = undefined;
     clearTimeout(this.remoteStartTimeout);
     this.remoteStartTimeout = undefined;
+    clearTimeout(this.readyTimeout);
+    this.readyTimeout = undefined;
 
     await this.doStop();
     await this.channel?.close();
@@ -310,7 +315,11 @@ export class FrameWorker extends Subscribed {
           }
 
           if (property === 'detectionSettings') {
-            this.pushChildUpdate('detection settings', this.frameWorkerChildProxy.updateDetectionSettings(newData as CameraDetectionSettings));
+            const newSettings = newData as CameraDetectionSettings;
+            if (newSettings.snooze !== (oldData as CameraDetectionSettings).snooze) {
+              return;
+            }
+            this.pushChildUpdate('detection settings', this.frameWorkerChildProxy.updateDetectionSettings(newSettings));
             return;
           }
 
@@ -354,11 +363,23 @@ export class FrameWorker extends Subscribed {
 
   private startWorkerProcess(): Promise<void> {
     return new Promise<void>(async (resolve, reject) => {
+      this.settleStart = (error?: Error) => {
+        clearTimeout(this.readyTimeout);
+        this.readyTimeout = undefined;
+        this.settleStart = undefined;
+
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+
       try {
         this.setStatus(PLUGIN_STATUS.STARTING);
 
         this.channel = await this.proxyServer.proxy.privateChannel('frameworker-communication', this.namespaces.frameWorkerChild);
-        this.channel.on('message', this.handleWorkerMessage.bind(this, resolve));
+        this.channel.on('message', this.handleWorkerMessage.bind(this));
 
         // registers the camera in the master's desired state; undefined =
         // delegation not possible, fork locally
@@ -372,11 +393,28 @@ export class FrameWorker extends Subscribed {
         }
 
         this.isRemote = false;
+        this.armReadyTimeout();
         this.forkLocal();
       } catch (error) {
-        reject(error);
+        this.settleStart?.(error as Error);
       }
     });
+  }
+
+  private armReadyTimeout(): void {
+    clearTimeout(this.readyTimeout);
+
+    this.readyTimeout = setTimeout(() => {
+      if (!this.settleStart) {
+        return;
+      }
+
+      this.logger.error(`Frame Worker did not report ready within ${READY_TIMEOUT_MS / 1000}s`);
+      this.setStatus(PLUGIN_STATUS.ERROR);
+      this.process?.kill('SIGKILL');
+      this.settleStart?.(new Error('Frame Worker did not report ready'));
+      this.attemptRestart();
+    }, READY_TIMEOUT_MS);
   }
 
   private forkLocal(): void {
@@ -411,6 +449,7 @@ export class FrameWorker extends Subscribed {
       this.isRemote = false;
 
       try {
+        this.armReadyTimeout();
         this.forkLocal();
       } catch (error) {
         this.setStatus(PLUGIN_STATUS.ERROR);
@@ -483,6 +522,7 @@ export class FrameWorker extends Subscribed {
 
       this.setStatus(PLUGIN_STATUS.STOPPED);
       this.configService.removeProcessByPID(this.process?.pid);
+      this.settleStart?.(new Error(`Frame Worker exited before it was ready (${details})`));
       this.handleProcessExit();
     });
 
@@ -490,10 +530,11 @@ export class FrameWorker extends Subscribed {
     this.process.stderr?.on('data', (data) => this.handleLogData(data));
   }
 
-  private async handleWorkerMessage(resolve: (value: void | PromiseLike<void>) => void, message: WorkerToMainMessage): Promise<void> {
+  private async handleWorkerMessage(message: WorkerToMainMessage): Promise<void> {
     if (message.message === 'started') {
       clearTimeout(this.remoteStartTimeout);
       this.remoteStartTimeout = undefined;
+      this.armReadyTimeout();
 
       let source = this.getVideoSource();
       let audioSource = this.getAudioSource();
@@ -533,7 +574,7 @@ export class FrameWorker extends Subscribed {
         this.setStatus(PLUGIN_STATUS.ERROR);
         this.process?.kill('SIGKILL');
       }
-      resolve();
+      this.settleStart?.();
     }
   }
 
