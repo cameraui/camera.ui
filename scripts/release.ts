@@ -61,11 +61,13 @@ function git(cmd: string, opts: { capture?: boolean } = {}): string {
 }
 
 function bump(current: string, spec: 'major' | 'minor' | 'patch'): string {
-  const [major, minor, patch] = current.split('-')[0].split('.').map(Number);
+  const base = current.split('-')[0];
+  const [major, minor, patch] = base.split('.').map(Number);
   if ([major, minor, patch].some(Number.isNaN)) fail(`Cannot bump non-numeric version '${current}'.`);
   if (spec === 'major') return `${major + 1}.0.0`;
   if (spec === 'minor') return `${major}.${minor + 1}.0`;
-  return `${major}.${minor}.${patch + 1}`;
+  // a prerelease patches into the version it leads to: 2.2.5-beta.1 -> 2.2.5
+  return base === current ? `${major}.${minor}.${patch + 1}` : base;
 }
 
 async function confirm(question: string): Promise<boolean> {
