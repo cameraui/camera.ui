@@ -260,6 +260,7 @@ const drag = ref<DragState | null>(null);
 const draft = ref<DBTrainingCandidateBox | null>(null);
 const selectedIndex = ref(-1);
 const showShortcuts = ref(false);
+const busy = ref(false);
 const hasFinePointer = useMediaQuery('(any-pointer: fine)');
 const loupe = ref<{ x: number; y: number; tx: number; ty: number; frameW: number; frameH: number } | null>(null);
 let contentSwipe: { x: number; y: number; at: number } | null = null;
@@ -664,8 +665,15 @@ function nudgeSelected(dx: number, dy: number, resize: boolean): void {
 }
 
 async function verifyFromKeyboard(): Promise<void> {
-  const result = await save('verified');
-  if (result !== null) dialogRef.value.close({ status: 'confirm', data: result });
+  if (busy.value) return;
+
+  busy.value = true;
+  try {
+    const result = await save('verified');
+    if (result !== null) dialogRef.value.close({ status: 'confirm', data: result });
+  } finally {
+    busy.value = false;
+  }
 }
 
 watch(index, preloadNeighbors, { immediate: true });
@@ -728,6 +736,7 @@ onBeforeUnmount(() => {
 });
 
 defineExpose<CustomDialogComponent>({
+  isLoading: busy,
   onConfirm: () => save('verified'),
   onCancel: () => removeCurrent(),
 });

@@ -91,7 +91,7 @@
         background: 'var(--border-color)',
       }"
     >
-      <Button v-if="!hideCancelButton" v-bind="cancelProps" class="cui-button-medium" @click="onCancel" />
+      <Button v-if="!hideCancelButton" v-bind="cancelProps" :loading="isLoading" class="cui-button-medium" @click="onCancel" />
       <div class="ml-auto" />
       <Button v-if="!hideConfirmButton" v-bind="confirmProps" :loading="isLoading" :disabled="disabled" class="cui-button-medium" @click="onConfirm" />
     </div>
