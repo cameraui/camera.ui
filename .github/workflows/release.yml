@@ -74,6 +74,14 @@ jobs:
           git submodule update --init externals/sdk externals/common externals/rpc
           npm run link:python
 
+      - name: Verify registry signatures of the installed tree
+        working-directory: ${{ steps.r.outputs.dir }}
+        run: npm audit signatures
+
+      - name: Audit the dependencies users get
+        working-directory: ${{ steps.r.outputs.dir }}
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Publish to npm (provenance via OIDC)
         working-directory: ${{ steps.r.outputs.dir }}
         run: |
