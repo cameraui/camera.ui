@@ -5,21 +5,21 @@
       `cui-contact-sensor--${size}`,
       {
         'cui-contact-sensor--disabled': disabled,
-        'cui-contact-sensor--open': !detected,
-        'cui-contact-sensor--closed': detected,
+        'cui-contact-sensor--open': detected,
+        'cui-contact-sensor--closed': !detected,
       },
     ]"
   >
     <div class="cui-contact-sensor__header">
       <div class="cui-contact-sensor__icon">
-        <i-lucide:door-closed v-if="detected" class="cui-contact-sensor__icon-svg" :style="closedIconStyle" />
-        <i-lucide:door-open v-else class="cui-contact-sensor__icon-svg" :style="openIconStyle" />
+        <i-lucide:door-open v-if="detected" class="cui-contact-sensor__icon-svg" :style="openIconStyle" />
+        <i-lucide:door-closed v-else class="cui-contact-sensor__icon-svg" :style="closedIconStyle" />
       </div>
 
       <div class="cui-contact-sensor__info">
         <span v-if="label" class="cui-contact-sensor__label">{{ label }}</span>
         <span class="cui-contact-sensor__status" :class="statusClass">
-          {{ detected ? t('components.contact_sensor.closed') : t('components.contact_sensor.open') }}
+          {{ detected ? t('components.contact_sensor.open') : t('components.contact_sensor.closed') }}
         </span>
       </div>
 
@@ -49,9 +49,9 @@ const openIconStyle = computed<Record<string, string>>(() => ({
   filter: 'drop-shadow(0 0 8px rgba(251, 146, 60, 0.6))',
 }));
 
-const statusClass = computed(() => (detected.value ? 'cui-contact-sensor__status--closed' : 'cui-contact-sensor__status--open'));
+const statusClass = computed(() => (detected.value ? 'cui-contact-sensor__status--open' : 'cui-contact-sensor__status--closed'));
 
-const indicatorClass = computed(() => (detected.value ? 'cui-contact-sensor__indicator--closed' : 'cui-contact-sensor__indicator--open'));
+const indicatorClass = computed(() => (detected.value ? 'cui-contact-sensor__indicator--open' : 'cui-contact-sensor__indicator--closed'));
 </script>
 
 <style scoped>
