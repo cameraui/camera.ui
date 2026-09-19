@@ -3204,6 +3204,10 @@ export default {
       assistant_model_plugin_loading: 'The plugin is still getting its model ready.',
       assistant_model_plugin_none: 'This plugin offers no model right now.',
       assistant_model_context: 'Context {tokens} tokens.',
+      assistant_model_context_label: 'Context window (tokens)',
+      assistant_model_context_placeholder: 'From the general setting',
+      assistant_model_context_info:
+        'What this model can hold. Set it for a local or small model, then camera.ui keeps prompt, tools and history inside its window. Empty uses the context budget from the general settings.',
       assistant_provider_hint_ollama: 'Runs on your own hardware, nothing leaves the network.',
       assistant_provider_hint_openai_compatible: 'Any server with the OpenAI chat API, such as LM Studio, vLLM or llama.cpp.',
       assistant_provider_hint_openai: 'Cloud service, billed per token by OpenAI. The key is stored encrypted.',
@@ -3271,7 +3275,7 @@ export default {
       assistant_max_tool_calls_info: 'Stops a model that is stuck in a loop.',
       assistant_context_tokens_label: 'Context budget (tokens)',
       assistant_context_tokens_info:
-        'Older tool results and turns are dropped above this size. Ollama gets a context window of this size plus headroom, lower it on small hardware.',
+        'Older tool results and turns are dropped above this size. Ollama gets a context window of this size plus headroom, lower it on small hardware. A model with its own context window set uses that instead.',
       assistant_history_threads_label: 'Conversations kept per user',
       assistant_history_threads_info: 'The oldest conversations are removed first.',
       assistant_history_images_label: 'Pictures kept per conversation',

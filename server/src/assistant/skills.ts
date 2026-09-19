@@ -1,4 +1,6 @@
-import type { InlineSkillConfig } from '@tanstack/ai-skills';
+import { inlineSkill, renderCatalog } from '@tanstack/ai-skills';
+
+import type { InlineSkillConfig, SkillSource } from '@tanstack/ai-skills';
 
 // prettier-ignore
 const SKILLS: InlineSkillConfig[] = [
@@ -79,7 +81,7 @@ const SKILLS: InlineSkillConfig[] = [
   },
   {
     name: 'media-analysis',
-    description: 'Run a detector on a picture, an event or a file the user attached: objects, plates, faces, audio, video, description match.',
+    description: 'What a detector sees right now on a camera, on an event picture or in an attached file: objects, plates, faces, audio, video, description match.',
     instructions: [
       '# Media analysis',
       '',
@@ -108,4 +110,15 @@ const SKILLS: InlineSkillConfig[] = [
 
 export function skillsPrompt(): string {
   return ['Procedures for common tasks, follow the one that matches:', ...SKILLS.map((skill) => skill.instructions)].join('\n\n');
+}
+
+export function skillSources(): SkillSource[] {
+  return SKILLS.map((skill) => inlineSkill(skill));
+}
+
+export function skillCatalog(): string {
+  return renderCatalog(
+    SKILLS.map((skill) => ({ name: skill.name, description: skill.description })),
+    'other',
+  );
 }

@@ -47,5 +47,6 @@ export function modelInput(entry: AssistantModelView): AssistantModelInput {
     model: entry.model,
     sendImages: entry.sendImages,
     userAccess: entry.userAccess,
+    contextTokens: entry.contextTokens,
   };
 }

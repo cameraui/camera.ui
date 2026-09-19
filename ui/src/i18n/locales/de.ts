@@ -3182,6 +3182,10 @@ export default {
       assistant_model_plugin_loading: 'Das Plugin macht sein Modell noch bereit.',
       assistant_model_plugin_none: 'Dieses Plugin bietet gerade kein Modell an.',
       assistant_model_context: 'Kontext {tokens} Tokens.',
+      assistant_model_context_label: 'Kontextfenster (Tokens)',
+      assistant_model_context_placeholder: 'Aus der allgemeinen Einstellung',
+      assistant_model_context_info:
+        'Wie viel dieses Modell fasst. Bei einem lokalen oder kleinen Modell eintragen, dann hält camera.ui Prompt, Werkzeuge und Verlauf in seinem Fenster. Leer nimmt das Kontextbudget aus den allgemeinen Einstellungen.',
       assistant_provider_hint_ollama: 'Läuft auf eigener Hardware, nichts verlässt das Netzwerk.',
       assistant_provider_hint_openai_compatible: 'Jeder Server mit OpenAI-Chat-API, etwa LM Studio, vLLM oder llama.cpp.',
       assistant_provider_hint_openai: 'Cloud-Dienst, OpenAI rechnet pro Token ab. Der Schlüssel liegt verschlüsselt.',
@@ -3249,7 +3253,7 @@ export default {
       assistant_max_tool_calls_info: 'Stoppt ein Modell, das in einer Schleife hängt.',
       assistant_context_tokens_label: 'Kontextbudget (Tokens)',
       assistant_context_tokens_info:
-        'Über dieser Größe fallen ältere Werkzeugergebnisse und Runden weg. Ollama bekommt ein Kontextfenster in dieser Größe plus Reserve, auf kleiner Hardware niedriger setzen.',
+        'Über dieser Größe fallen ältere Werkzeugergebnisse und Runden weg. Ollama bekommt ein Kontextfenster in dieser Größe plus Reserve, auf kleiner Hardware niedriger setzen. Ein Modell mit eigenem Kontextfenster nimmt seins.',
       assistant_history_threads_label: 'Gespräche pro Nutzer',
       assistant_history_threads_info: 'Die ältesten Gespräche fallen zuerst weg.',
       assistant_history_images_label: 'Bilder pro Gespräch',

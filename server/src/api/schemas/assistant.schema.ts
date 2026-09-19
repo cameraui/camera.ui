@@ -17,6 +17,7 @@ export const assistantModelInputSchema = zod
     model: zod.string().trim().max(200, 'Model cannot be more than 200 characters'),
     sendImages: zod.boolean().optional(),
     userAccess: zod.boolean().optional(),
+    contextTokens: zod.number().int().min(1_000).max(400_000).nullable().optional(),
     retest: zod.boolean().optional(),
   })
   .strict();

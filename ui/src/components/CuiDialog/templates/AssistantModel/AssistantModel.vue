@@ -73,6 +73,21 @@
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_model_info') }}</Message>
     </div>
 
+    <div v-if="!pluginProvider" class="flex flex-col field-gap">
+      <label for="assistantModelContext" class="cui-label">{{ $t('views.settings.assistant_model_context_label') }}</label>
+      <InputNumber
+        v-model="contextTokens"
+        input-id="assistantModelContext"
+        :min="1000"
+        :max="400000"
+        :step="1000"
+        :use-grouping="false"
+        :placeholder="$t('views.settings.assistant_model_context_placeholder')"
+        fluid
+      />
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_model_context_info') }}</Message>
+    </div>
+
     <div class="flex flex-col field-gap">
       <label for="assistantModelName" class="cui-label">{{ $t('views.settings.assistant_model_name_label') }}</label>
       <InputText id="assistantModelName" v-model.trim="name" :placeholder="model.trim() || $t('views.settings.assistant_model_name_placeholder')" maxlength="40" fluid />
@@ -124,6 +139,7 @@ const apiKey = ref('');
 const model = ref(props.entry?.model ?? '');
 const name = ref(props.entry && props.entry.name !== props.entry.model ? props.entry.name : '');
 const sendImages = ref(props.entry?.sendImages ?? false);
+const contextTokens = ref<number | null>(props.entry?.contextTokens ?? null);
 const userAccess = ref(props.entry?.userAccess !== false);
 const keySource = ref<string>(NEW_KEY_SOURCE);
 const available = ref<string[]>([]);
@@ -191,6 +207,7 @@ function request(): AssistantModelInput {
     baseURL: showBaseUrl.value && baseURL.value ? baseURL.value : null,
     model: model.value.trim(),
     userAccess: userAccess.value,
+    contextTokens: pluginProvider.value ? null : (contextTokens.value ?? null),
   };
 }
 

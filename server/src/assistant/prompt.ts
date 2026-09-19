@@ -1,8 +1,11 @@
-import { skillsPrompt } from './skills.js';
+import { skillCatalog, skillsPrompt } from './skills.js';
 
+import type { PromptSections, RunPlan } from './budget.js';
 import type { AssistantRunContext } from './types.js';
 
 const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
+
+type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden'>;
 
 export interface PromptFacts {
   instanceName: string;
@@ -35,7 +38,37 @@ const CAPABILITIES = [
   'Home Assistant has an add-on, an integration, dashboard cards and sensor import (home-assistant/*).',
 ];
 
-export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts): string[] {
+// prettier-ignore
+const CAPABILITY_INDEX = [
+  'camera.ui covers cameras, live view, Camview, floor plan, zones and privacy masks, shares, sensors and accessories from plugins, PTZ and autotrack, ' +
+  'detection (motion, objects, faces, license plates, audio, semantic text search, AI descriptions, episodes, model training), recording with the NVR plugin, ' +
+  'notifications, automations, remote access, administration (users, security, backup, updates, logs, workers, instances) and plugins.',
+  'Anything about one of these, what it is or where it is set, comes from docs_search, never from memory.',
+].join('\n');
+
+// prettier-ignore
+const DISCOVERY_HINT =
+  'Only part of the tools are described in full. The rest is in the catalog of the discovery tool: fetch what a request needs from there before answering, ' +
+  'and do not settle for api_search while a tool for the subject exists. A procedure you loaded names its tools, fetch those as well.';
+
+const SKILL_HINT = 'When a request matches one of the procedures in the skill catalog, call load_skill with its name before the first tool.';
+
+function hiddenTools(names: string[]): string {
+  return `Tools you fetch with the discovery tool, by name: ${names.join(', ')}.`;
+}
+
+export function composePrompt(sections: PromptSections, plan?: PromptPlan): string[] {
+  const parts = [
+    sections.rules,
+    plan?.compactPrompt ? CAPABILITY_INDEX : sections.capabilities,
+    plan?.skillsOnDemand ? SKILL_HINT : sections.skills,
+    plan?.demoted ? DISCOVERY_HINT : '',
+    plan?.hidden.length ? hiddenTools(plan.hidden) : '',
+  ];
+  return [parts.filter((part) => part !== '').join('\n\n'), sections.dynamic];
+}
+
+export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): PromptSections {
   const now = new Date();
   const localTime = now.toLocaleString('en-GB', { timeZone: ctx.timezone, hour12: false });
   const cameraLines = facts.cameras.map((c) => `- ${c.name}${c.room ? ` (${c.room})` : ''}${c.online ? '' : ', offline'}`).join('\n');
@@ -63,8 +96,8 @@ export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts):
     'automations, sensors, zones, shares and everything else with a REST endpoint). Never guess a path.',
     '- Never conclude that a feature does not exist because a search returned nothing. Call docs_search to learn how it works and what ' +
     'it is called, then look for the tool again. If no tool covers it, say that you cannot do it from the chat and name the page in the app.',
-    '- Alerts and watching, automations, reports and recaps, clips and faces, media analysis and browser control have a procedure each, listed ' +
-    'after the capabilities. Follow it, it holds the tool order.',
+    '- Alerts and watching, automations, reports and recaps, clips and faces, media analysis and browser control have a procedure each. ' +
+    'It is either written out below or listed by name, then load_skill brings it. Follow it, it holds the tool order.',
     facts.terminal
       ? '- run_command runs one shell command on the server after the user allows it. Use it for host diagnostics the other tools cannot ' +
       'answer (disk, network, processes, container logs), prefer commands that only read, one command per call, and nothing that deletes ' +
@@ -90,12 +123,9 @@ export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts):
     ctx.sendImages
       ? '- Images from tools are visible to you. Describe what you actually see.'
       : '- Images from tools are shown to the user only, you receive text. Do not claim to see them.',
-    '',
-    'What camera.ui offers (docs page in brackets, read it with docs_read when the user asks how something works):',
-    ...CAPABILITIES,
-    '',
-    skillsPrompt(),
   ];
+
+  const capabilities = ['What camera.ui offers (docs page in brackets, read it with docs_read when the user asks how something works):', ...CAPABILITIES].join('\n');
 
   // prettier-ignore
   const dynamic = [
@@ -118,7 +148,13 @@ export function buildSystemPrompt(ctx: AssistantRunContext, facts: PromptFacts):
     dynamic.push('', 'Instructions from the user for this conversation:', ctx.instructions.trim());
   }
 
-  return [lines.join('\n'), dynamic.filter((line) => line !== undefined).join('\n')];
+  return {
+    rules: lines.join('\n'),
+    capabilities,
+    skills: skillsPrompt(),
+    skillCatalog: skillCatalog(),
+    dynamic: dynamic.filter((line) => line !== undefined).join('\n'),
+  };
 }
 
 export function languageName(code: string): string {

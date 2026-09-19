@@ -3,6 +3,7 @@ import { chat, chatParamsFromRequestBody, EventType, maxIterations, modelMessage
 import { clearToolResults, composeStrategies, evictOldest, withCompaction } from '@tanstack/ai-compaction';
 import { memoryMiddleware } from '@tanstack/ai-memory';
 import { withPersistence } from '@tanstack/ai-persistence';
+import { withSkills } from '@tanstack/ai-skills';
 import { toolCacheMiddleware } from '@tanstack/ai/middlewares';
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
@@ -14,6 +15,8 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
+import { planRun } from './budget.js';
+import { trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { repairHistory } from './history.js';
 import { ASK_USER_INTERRUPT } from './interrupts.js';
@@ -22,13 +25,14 @@ import { AssistantMemoryStore, memoryAdapter } from './memory.js';
 import { abortStaleRuns, lmdbPersistence } from './persistence.js';
 import { estimateCost, warmPrices } from './pricing.js';
 import { AssistantProfileStore } from './profiles.js';
-import { buildSystemPrompt } from './prompt.js';
+import { composePrompt, promptSections } from './prompt.js';
 import { createAdapter, listModels, providerNeedsKey } from './providers.js';
 import { modelOptionsFor } from './reasoning.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
 import { withEmptyTurnRetry } from './retry.js';
 import { AssistantScheduler, PUSH_BODY_MAX } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
+import { skillSources } from './skills.js';
 import { AssistantThreadStore, contentParts } from './threads.js';
 import { withToolNameRepair } from './tool-names.js';
 import { isBrowserTool } from './tools/index.js';
@@ -58,11 +62,12 @@ import type { SocketService } from '../api/websocket/index.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
+import type { PromptSections, RunPlan } from './budget.js';
 import type { ExternalServer } from './external.js';
 import type { AssistantQuestion } from './interrupts.js';
 import type { MemoryChange } from './memory.js';
 import type { AssistantAdapter } from './providers.js';
-import type { ToolImage } from './tools/shared.js';
+import type { CoreTool, ToolImage } from './tools/shared.js';
 import type {
   AssistantAccess,
   AssistantAskRequest,
@@ -109,8 +114,13 @@ const CACHED_TOOLS = [
 ];
 
 const USAGE_EVENT = 'assistant.usage';
-const CONTEXT_HEADROOM_TOKENS = 2_000;
+// what a model without a declared window is assumed to hold on top of the history budget
+const ASSUMED_HEADROOM_TOKENS = 16_384;
 const MIN_CONTEXT_TOKENS = 2_000;
+// a single tool result never takes more than this share of the history budget
+const TOOL_RESULT_SHARE = 3;
+// discovery costs a round of its own, so a plan that hides tools gets its rounds back
+const DISCOVERY_ITERATIONS = 4;
 const MODEL_REFRESH_MS = 5_000;
 const ASK_TIMEOUT_MS = 45_000;
 const ASK_TIMEOUT_MAX_MS = 300_000;
@@ -579,11 +589,14 @@ export class AssistantManager {
     }
 
     const adapter = this.chatAdapter(model, entry, ctx.language);
-    const contextBudget = this.contextBudget(settings, entry);
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
     const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
-    const tools = resume.length ? available.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : available;
+    const sections = promptSections(ctx, this.promptFacts(request.user));
+    const plan = this.plan(settings, entry, sections, available);
+    const planned = applyPlan(available, plan);
+    const tools = resume.length ? planned.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : planned;
+    const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
@@ -604,18 +617,22 @@ export class AssistantManager {
       tools,
       interrupts: [ASK_USER_INTERRUPT],
       context: ctx,
-      systemPrompts: [...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(request.user)), model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(
-        Boolean,
-      ),
-      agentLoopStrategy: maxIterations(settings.maxIterations + 1),
-      lazyToolsConfig: { includeDescription: 'first-sentence' },
+      systemPrompts: [...cachedPrompts(composePrompt(sections, plan), model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(Boolean),
+      agentLoopStrategy: maxIterations(settings.maxIterations + 1 + (plan.demoted ? DISCOVERY_ITERATIONS : 0)),
+      lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
       modelOptions: modelOptionsFor(model) as never,
       middleware: [
         withPersistence(persistence),
         settings.memoryEnabled ? this.memoryMiddleware : NO_MIDDLEWARE,
+        plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE,
         withCompaction({
           maxTokens: contextBudget,
-          strategy: composeStrategies(clearToolResults({ keepRecentToolResults: 6 }), evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) })),
+          strategyKey: `trim-clear-evict:${contextBudget}`,
+          strategy: composeStrategies(
+            trimToolResults({ maxChars: toolResultChars(contextBudget) }),
+            clearToolResults({ keepRecentToolResults: 6 }),
+            evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) }),
+          ),
         }),
         this.runMiddleware(model, ctx, thread._id, params.messages, stats),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
@@ -676,12 +693,15 @@ export class AssistantManager {
     };
 
     const disabledGroups = new Set(opts.profile?.disabledGroups ?? []);
-    const tools =
+    const available =
       entry.capabilities?.toolCalling === false
         ? []
         : this.registry.toolsFor(ctx.role).filter((tool) => !tool.needsApproval && !isBrowserTool(tool) && !disabledGroups.has(toolGroup(tool)));
+    const sections = promptSections(ctx, this.promptFacts(user));
+    const plan = this.plan(settings, entry, sections, available);
+    const tools = applyPlan(available, plan);
     const systemPrompts = [
-      ...cachedPrompts(buildSystemPrompt(ctx, this.promptFacts(user)), model.provider),
+      ...cachedPrompts(composePrompt(sections, plan), model.provider),
       // prettier-ignore
       'This run is scheduled and unattended: nobody reads along and nobody can confirm anything. ' +
       'Answer completely in one go, as a report the user reads later on the phone. No questions back, no markdown headings.',
@@ -710,8 +730,9 @@ export class AssistantManager {
         context: ctx,
         systemPrompts,
         agentLoopStrategy: maxIterations(settings.maxIterations),
+        lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
         modelOptions: modelOptionsFor(model) as never,
-        middleware: [countUsage(stats)],
+        middleware: [countUsage(stats), plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE],
         abortController,
       });
 
@@ -955,10 +976,19 @@ export class AssistantManager {
     return this.registry.modelProvider(provider)?.models.find((candidate) => candidate.id === model);
   }
 
-  private contextBudget(settings: AssistantSettings, entry: DBAssistantModel): number {
+  private plan(settings: AssistantSettings, entry: DBAssistantModel, sections: PromptSections, tools: CoreTool[]): RunPlan {
+    const plan = planRun(this.window(settings, entry), sections, tools);
+    if (plan.compactPrompt || plan.demoted) {
+      const steps = `${plan.demoted} tools behind discovery${plan.skillsOnDemand ? ', skills on demand' : ''}`;
+      this.logger.debug(`Assistant: ${entry.name} holds ${plan.window} tokens, the request takes ${plan.overheadTokens} (${steps})`);
+    }
+    return plan;
+  }
+
+  private window(settings: AssistantSettings, entry: DBAssistantModel): number {
     const spec = this.modelSpec(entry.provider, entry.model);
-    if (!spec) return settings.contextTokens;
-    return Math.max(MIN_CONTEXT_TOKENS, Math.min(settings.contextTokens, spec.contextTokens - CONTEXT_HEADROOM_TOKENS));
+    if (spec) return Math.max(MIN_CONTEXT_TOKENS, spec.contextTokens);
+    return entry.contextTokens ?? settings.contextTokens + ASSUMED_HEADROOM_TOKENS;
   }
 
   private baseAdapter(model: AssistantSettings, entry: DBAssistantModel, language: string): AssistantAdapter {
@@ -969,7 +999,15 @@ export class AssistantManager {
   }
 
   private modelSettings(settings: AssistantSettings, entry: DBAssistantModel): AssistantSettings {
-    return { ...settings, provider: entry.provider, baseURL: entry.baseURL, apiKey: entry.apiKey, model: entry.model, sendImages: sendsImages(entry) };
+    return {
+      ...settings,
+      provider: entry.provider,
+      baseURL: entry.baseURL,
+      apiKey: entry.apiKey,
+      model: entry.model,
+      sendImages: sendsImages(entry),
+      contextTokens: this.window(settings, entry),
+    };
   }
 
   private askSlot(pluginId: string): Promise<() => void> {
@@ -1117,6 +1155,17 @@ function imageParts(content: unknown): ToolImage[] {
     }
   }
   return images;
+}
+
+function applyPlan(tools: CoreTool[], plan: RunPlan): CoreTool[] {
+  return tools.map((tool) => {
+    const lazy = !plan.eagerTools.has(tool.name);
+    return lazy === Boolean(tool.lazy) ? tool : { ...tool, lazy };
+  });
+}
+
+function toolResultChars(contextBudget: number): number {
+  return Math.max(2_000, Math.floor((contextBudget / TOOL_RESULT_SHARE) * 4));
 }
 
 function cachedPrompts(prompts: string[], provider: string): SystemPrompt<never>[] {

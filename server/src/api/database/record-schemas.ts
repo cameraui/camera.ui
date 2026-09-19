@@ -314,6 +314,7 @@ export const dbAssistantSchema = zod.object({
         model: zod.string().default(''),
         sendImages: zod.boolean().default(false),
         userAccess: zod.boolean().default(true),
+        contextTokens: zod.number().int().min(1_000).max(400_000).nullable().default(null),
         capabilities: zod
           .object({
             toolCalling: zod.boolean(),

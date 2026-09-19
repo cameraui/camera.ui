@@ -202,6 +202,7 @@ export class AssistantService {
               model: input.model,
               sendImages: input.sendImages ?? existing?.sendImages ?? false,
               userAccess: input.userAccess ?? existing?.userAccess ?? true,
+              contextTokens: input.contextTokens === undefined ? (existing?.contextTokens ?? null) : input.contextTokens,
               capabilities: existing?.capabilities ?? null,
             };
           });

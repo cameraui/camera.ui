@@ -288,6 +288,7 @@ export interface DBAssistantModel {
   model: string;
   sendImages: boolean;
   userAccess: boolean;
+  contextTokens: number | null;
   capabilities: DBAssistantModelCapabilities | null;
 }
 
