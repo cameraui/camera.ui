@@ -521,6 +521,7 @@ declare module 'vue' {
     'ITabler:cameraBolt': typeof import('~icons/tabler/camera-bolt')['default']
     'ITabler:check': typeof import('~icons/tabler/check')['default']
     'ITabler:chevronLeft': typeof import('~icons/tabler/chevron-left')['default']
+    'ITabler:chevronRight': typeof import('~icons/tabler/chevron-right')['default']
     'ITabler:clockPlay': typeof import('~icons/tabler/clock-play')['default']
     'ITabler:cut': typeof import('~icons/tabler/cut')['default']
     'ITabler:dotsVertical': typeof import('~icons/tabler/dots-vertical')['default']

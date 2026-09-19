@@ -39,8 +39,8 @@
     <template v-if="faceStore.isLoading.value">
       <section ref="knownSkeletonRef" class="mb-6 p-px">
         <Skeleton height="16px" width="140px" class="mb-3" />
-        <div class="grid w-full gap-3 p-px" :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint ? '140px' : '160px'}, 1fr))` }">
-          <div v-for="i in knownSkeletonCount" :key="i" class="cui-card overflow-hidden">
+        <div class="flex gap-3 p-px overflow-hidden">
+          <div v-for="i in knownSkeletonCount" :key="i" class="cui-card overflow-hidden shrink-0" :style="{ width: `${KNOWN_CARD_WIDTH}px` }">
             <Skeleton class="aspect-square" width="100%" height="100%" />
             <div class="p-3">
               <Skeleton height="14px" width="70%" class="mb-1" />
@@ -66,20 +66,48 @@
             <span class="card-title m-0!">{{ $t('views.faces.known_faces') }} ({{ faceStore.knownFaces.value.length }})</span>
           </div>
 
-          <div
-            v-if="faceStore.knownFaces.value.length"
-            class="grid w-full gap-3 p-px"
-            :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint ? '140px' : '160px'}, 1fr))` }"
-          >
-            <CuiFaceCard
-              v-for="face in faceStore.knownFaces.value"
-              :key="face.name"
-              variant="known"
-              :thumbnail="thumbnailToUrl(face.thumbnail)"
-              :name="face.name"
-              :image-count="face.imageCount"
-              @click="openKnownFaceDetail(face)"
-            />
+          <div v-if="faceStore.knownFaces.value.length" class="relative">
+            <div ref="knownRowRef" class="flex gap-3 p-px overflow-x-auto overscroll-x-contain hide-scrollbar" @scroll="measureKnownRow">
+              <CuiFaceCard
+                v-for="face in faceStore.knownFaces.value"
+                :key="face.name"
+                class="shrink-0"
+                :style="{ width: `${KNOWN_CARD_WIDTH}px` }"
+                variant="known"
+                :thumbnail="thumbnailToUrl(face.thumbnail)"
+                :name="face.name"
+                :image-count="face.imageCount"
+                @click="openKnownFaceDetail(face)"
+              />
+            </div>
+
+            <Transition name="fade-2">
+              <Button
+                v-if="canScrollKnownLeft"
+                rounded
+                severity="secondary"
+                class="absolute left-1 top-1/2 -translate-y-1/2 cui-icon-md shadow-md z-2 opacity-70 hover:opacity-100 transition-opacity"
+                @click="scrollKnownRow(-1)"
+              >
+                <template #icon>
+                  <i-tabler:chevron-left width="100%" height="100%" />
+                </template>
+              </Button>
+            </Transition>
+
+            <Transition name="fade-2">
+              <Button
+                v-if="canScrollKnownRight"
+                rounded
+                severity="secondary"
+                class="absolute right-1 top-1/2 -translate-y-1/2 cui-icon-md shadow-md z-2 opacity-70 hover:opacity-100 transition-opacity"
+                @click="scrollKnownRow(1)"
+              >
+                <template #icon>
+                  <i-tabler:chevron-right width="100%" height="100%" />
+                </template>
+              </Button>
+            </Transition>
           </div>
 
           <div v-else class="text-muted text-sm">{{ $t('views.faces.no_known_faces') }}</div>
@@ -371,8 +399,13 @@ const faceStore = useFaceStore();
 
 const clustered = faceStore.clusteredUnknowns;
 
+const KNOWN_CARD_WIDTH = 160;
+const KNOWN_CARD_GAP = 12;
+
 const knownSkeletonRef = useTemplateRef<HTMLElement>('knownSkeletonRef');
+const knownRowRef = useTemplateRef<HTMLElement>('knownRowRef');
 const rescanning = ref(false);
+const knownRowScroll = reactive({ left: 0, max: 0 });
 
 const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
 
@@ -388,11 +421,28 @@ const selectedClusteredIds = computed(() => {
 
 const knownSkeletonCount = computed(() => {
   void windowWidth.value; // reactive on resize
-  const minSize = smBreakpoint.value ? 140 : 160;
-  const gap = 12; // gap-3
   const containerWidth = knownSkeletonRef.value?.clientWidth ?? windowWidth.value;
-  return Math.floor((containerWidth + gap) / (minSize + gap)) || 4;
+  return Math.floor((containerWidth + KNOWN_CARD_GAP) / (KNOWN_CARD_WIDTH + KNOWN_CARD_GAP)) || 4;
 });
+
+const canScrollKnownLeft = computed(() => knownRowScroll.left > 4);
+const canScrollKnownRight = computed(() => knownRowScroll.left < knownRowScroll.max - 4);
+
+function measureKnownRow(): void {
+  const row = knownRowRef.value;
+  if (!row) return;
+
+  knownRowScroll.left = row.scrollLeft;
+  knownRowScroll.max = row.scrollWidth - row.clientWidth;
+}
+
+function scrollKnownRow(direction: 1 | -1): void {
+  const row = knownRowRef.value;
+  if (!row) return;
+
+  const step = KNOWN_CARD_WIDTH + KNOWN_CARD_GAP;
+  row.scrollBy({ left: direction * Math.max(row.clientWidth - step, step), behavior: 'smooth' });
+}
 
 function groupSelectionState(faces: UnknownFace[]): 'none' | 'some' | 'all' {
   let count = 0;
@@ -674,6 +724,13 @@ async function clearUngrouped() {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   }
 }
+
+watch(
+  () => faceStore.knownFaces.value.length,
+  () => nextTick(measureKnownRow),
+);
+
+useResizeObserver(knownRowRef, measureKnownRow);
 </script>
 
 <style scoped></style>
