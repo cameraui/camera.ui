@@ -11,8 +11,9 @@
     ]"
     :style="!grouped ? { bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))` } : undefined"
     v-element-hover="[onHover, {}]"
+    v-tooltip.left="tooltipProps"
   >
-    <Button v-bind="buttonProps" v-tooltip.left="tooltipProps" rounded @click="$emit('click')" :label="label" class="shadow-lg">
+    <Button v-bind="buttonProps" rounded @click="$emit('click')" :label="label" class="shadow-lg">
       <template v-if="icon" #icon>
         <component :is="icon" v-bind="iconProps" />
       </template>

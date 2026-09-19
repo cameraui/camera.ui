@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col h-full min-h-0">
     <h1 v-if="!smBreakpoint" class="page-title">
       {{ $t('views.training.title') }}
     </h1>
@@ -24,6 +24,13 @@
           </InputIcon>
           <InputText v-model="searchQuery" :placeholder="t('views.training.search')" class="w-full" />
         </IconField>
+        <InputGroupAddon>
+          <Button severity="secondary" text :class="statusFilter === 'all' ? 'text-color' : 'text-primary'" @click="statusMenuRef?.toggleMenu($event)">
+            <template #icon>
+              <i-mdi:filter-variant class="w-4 h-4" />
+            </template>
+          </Button>
+        </InputGroupAddon>
         <InputGroupAddon>
           <Button severity="secondary" text class="text-color" @click="cameraMenuRef?.toggleMenu($event)">
             <template #icon>
@@ -78,96 +85,103 @@
       </template>
     </div>
 
-    <div v-if="candidates.isLoading.value && !candidates.data.value" class="grid w-full gap-3 p-px" :style="gridStyle">
-      <div v-for="i in 8" :key="i" class="cui-card overflow-hidden">
-        <Skeleton class="aspect-video" width="100%" height="100%" />
-        <div class="p-3">
-          <Skeleton height="14px" width="70%" class="mb-1" />
-          <Skeleton height="12px" width="40%" />
+    <div v-else-if="byCamera.length && !readyIds.length" class="cui-card h-auto! shrink-0 px-3 py-2 mb-4 flex items-center gap-3">
+      <i-mdi:information-outline class="w-5 h-5 text-primary shrink-0" />
+      <span class="flex-1 text-sm">{{ $t('views.training.verify_hint') }}</span>
+    </div>
+
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div v-if="candidates.isLoading.value && !candidates.data.value" class="grid w-full gap-3 p-px" :style="gridStyle">
+        <div v-for="i in 8" :key="i" class="cui-card overflow-hidden">
+          <Skeleton class="aspect-video" width="100%" height="100%" />
+          <div class="p-3">
+            <Skeleton height="14px" width="70%" class="mb-1" />
+            <Skeleton height="12px" width="40%" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <div v-else-if="filtered.length === 0" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
-      <i-material-symbols:model-training class="w-12 h-12 text-muted" />
-      <span class="text-muted text-sm text-center max-w-md">{{ $t('views.training.no_candidates') }}</span>
-    </div>
-
-    <template v-else>
-      <div class="grid w-full gap-3 p-px" :style="gridStyle">
-        <Card
-          v-for="candidate in gridItems"
-          :key="candidate.id"
-          class="cui-card cui-training-card overflow-hidden transition-shadow cursor-pointer hover:shadow-md aspect-[1.17] flex flex-col"
-          :pt="{ header: { class: 'flex-1 min-h-0 flex' }, body: { class: 'shrink-0', style: 'height: auto' } }"
-          @click="onCardClick(candidate)"
-        >
-          <template #header>
-            <div class="relative flex-1 min-h-0 overflow-hidden bg-black/5 dark:bg-black/30">
-              <CuiImage
-                class="absolute inset-0"
-                :src="imageUrl(candidate.id)"
-                :alt="cameraName(candidate.cameraId)"
-                image-container-class="w-full h-full"
-                :image-style="{ objectFit: 'cover' }"
-              />
-              <div class="absolute top-1.5 left-1.5 flex flex-wrap gap-1">
-                <span
-                  v-for="(count, label) in labelCounts(candidate)"
-                  :key="label"
-                  class="px-1.5 py-0.5 rounded text-xs font-medium text-white"
-                  :style="{ backgroundColor: detectionStyle(String(label)).color }"
-                >
-                  {{ labelText(String(label)) }} ×{{ count }}
-                </span>
-              </div>
-
-              <div v-if="candidate.upload" class="absolute bottom-1.5 left-1.5">
-                <Tag v-if="candidate.upload === 'failed'" v-tooltip.top="candidate.uploadError" severity="danger" :value="$t('views.training.upload_failed')" />
-                <Tag v-else-if="candidate.upload === 'uploading'" severity="info" :value="$t('views.training.upload_uploading')" />
-                <Tag v-else severity="secondary" :value="$t('views.training.upload_queued')" />
-              </div>
-
-              <div v-if="!selectionMode && !isLocked(candidate)" class="absolute top-1.5 right-1.5 dark-mode">
-                <Button
-                  v-tooltip.top="$t('views.training.delete_candidate')"
-                  severity="secondary"
-                  rounded
-                  size="small"
-                  class="cui-icon-sm text-white"
-                  @click.stop="removeCandidate(candidate)"
-                >
-                  <template #icon><i-mdi:trash-can-outline width="100%" height="100%" /></template>
-                </Button>
-              </div>
-            </div>
-          </template>
-          <template #content>
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 min-w-0">
-                <Checkbox
-                  v-if="selectionMode && !isLocked(candidate)"
-                  :model-value="selectedIds.has(candidate.id)"
-                  binary
-                  size="small"
-                  @click.stop
-                  @update:model-value="toggleSelection(candidate.id)"
-                />
-                <div class="min-w-0">
-                  <div class="font-medium truncate">{{ cameraName(candidate.cameraId) }}</div>
-                  <div class="text-xs text-muted">{{ formatRelativeTime(candidate.createdAt) }}</div>
-                </div>
-              </div>
-              <Tag :severity="statusSeverity(candidate.status)" :value="$t(`views.training.status_${candidate.status}`)" />
-            </div>
-          </template>
-        </Card>
+      <div v-else-if="filtered.length === 0" class="flex h-full flex-col items-center justify-center w-full gap-4 py-16">
+        <i-material-symbols:model-training class="w-12 h-12 text-muted" />
+        <span class="text-muted text-sm text-center max-w-md">{{ $t(filterActive ? 'views.training.no_matches' : 'views.training.no_candidates') }}</span>
       </div>
 
-      <div v-if="hasMore" ref="loadMoreRef" class="h-px" />
-    </template>
+      <template v-else>
+        <div class="grid w-full gap-3 p-px" :style="gridStyle">
+          <Card
+            v-for="candidate in gridItems"
+            :key="candidate.id"
+            class="cui-card cui-training-card overflow-hidden transition-shadow cursor-pointer hover:shadow-md aspect-[1.17] flex flex-col"
+            :pt="{ header: { class: 'flex-1 min-h-0 flex' }, body: { class: 'shrink-0', style: 'height: auto' } }"
+            @click="onCardClick(candidate)"
+          >
+            <template #header>
+              <div class="relative flex-1 min-h-0 overflow-hidden bg-black/5 dark:bg-black/30">
+                <CuiImage
+                  class="absolute inset-0"
+                  :src="imageUrl(candidate.id)"
+                  :alt="cameraName(candidate.cameraId)"
+                  image-container-class="w-full h-full"
+                  :image-style="{ objectFit: 'cover' }"
+                />
+                <div class="absolute top-1.5 left-1.5 flex flex-wrap gap-1">
+                  <span
+                    v-for="(count, label) in labelCounts(candidate)"
+                    :key="label"
+                    class="px-1.5 py-0.5 rounded text-xs font-medium text-white"
+                    :style="{ backgroundColor: detectionStyle(String(label)).color }"
+                  >
+                    {{ labelText(String(label)) }} ×{{ count }}
+                  </span>
+                </div>
 
-    <CuiFloatingButtonGroup v-if="filtered.length || selectionMode" :force-visible="selectionMode">
+                <div v-if="candidate.upload" class="absolute bottom-1.5 left-1.5">
+                  <Tag v-if="candidate.upload === 'failed'" v-tooltip.top="candidate.uploadError" severity="danger" :value="$t('views.training.upload_failed')" />
+                  <Tag v-else-if="candidate.upload === 'uploading'" severity="info" :value="$t('views.training.upload_uploading')" />
+                  <Tag v-else severity="secondary" :value="$t('views.training.upload_queued')" />
+                </div>
+
+                <div v-if="!selectionMode && !isLocked(candidate)" class="absolute top-1.5 right-1.5 dark-mode">
+                  <Button
+                    v-tooltip.top="$t('views.training.delete_candidate')"
+                    severity="secondary"
+                    rounded
+                    size="small"
+                    class="cui-icon-sm text-white"
+                    @click.stop="removeCandidate(candidate)"
+                  >
+                    <template #icon><i-mdi:trash-can-outline width="100%" height="100%" /></template>
+                  </Button>
+                </div>
+              </div>
+            </template>
+            <template #content>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <Checkbox
+                    v-if="selectionMode && !isLocked(candidate)"
+                    :model-value="selectedIds.has(candidate.id)"
+                    binary
+                    size="small"
+                    @click.stop
+                    @update:model-value="toggleSelection(candidate.id)"
+                  />
+                  <div class="min-w-0">
+                    <div class="font-medium truncate">{{ cameraName(candidate.cameraId) }}</div>
+                    <div class="text-xs text-muted">{{ formatRelativeTime(candidate.createdAt) }}</div>
+                  </div>
+                </div>
+                <Tag :severity="statusSeverity(candidate.status)" :value="$t(`views.training.status_${candidate.status}`)" />
+              </div>
+            </template>
+          </Card>
+        </div>
+
+        <div v-if="hasMore" ref="loadMoreRef" class="h-px" />
+      </template>
+    </div>
+
+    <CuiFloatingButtonGroup v-if="filtered.length || selectionMode" :force-visible="selectionMode" :scroll-y="scrollY">
       <template v-if="!selectionMode">
         <CuiFloatingButton
           grouped
@@ -176,6 +190,14 @@
           :icon="SelectIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          grouped
+          :tooltip-props="{ value: readyIds.length ? $t('views.training.submit_ready', readyIds.length) : $t('views.training.submit_disabled') }"
+          :button-props="{ class: 'text-white', disabled: !readyIds.length || submitCandidates.isPending.value }"
+          :icon="SubmitIcon"
+          :icon-props="{ width: '26px', height: '26px' }"
+          @click="confirmSubmit(readyIds)"
         />
       </template>
 
@@ -202,7 +224,7 @@
           :button-props="{ disabled: !selectedVerifiedIds.length || submitCandidates.isPending.value }"
           :icon="SubmitIcon"
           :icon-props="{ width: '100%', height: '100%' }"
-          @click="confirmSubmit"
+          @click="confirmSubmit(selectedVerifiedIds)"
         />
         <CuiFloatingButton
           grouped
@@ -215,6 +237,7 @@
       </template>
     </CuiFloatingButtonGroup>
 
+    <CuiMenu ref="statusMenuRef" :items="statusMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
     <CuiMenu ref="cameraMenuRef" :items="cameraMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
     <CuiMenu
       ref="settingsMenuRef"
@@ -265,10 +288,15 @@ const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: 
 const PAGE_SIZE = 40;
 
 const searchQuery = ref('');
+const statusFilter = useLocalStorage<'all' | 'new' | 'verified'>('cui-training-status-filter', 'all');
 const visibleCount = ref(PAGE_SIZE);
+const statusMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('statusMenuRef');
 const cameraMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('cameraMenuRef');
 const settingsMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('settingsMenuRef');
 const loadMoreRef = useTemplateRef<HTMLElement>('loadMoreRef');
+const scrollRef = useTemplateRef<HTMLElement>('scrollRef');
+
+const { y: scrollY } = useScroll(scrollRef);
 
 const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint.value ? '220px' : '260px'}, 1fr))` }));
 
@@ -307,11 +335,33 @@ const settingsMenuItems = computed<MenuItem[]>(() => [
   },
 ]);
 
-const filtered = computed(() => {
+const byCamera = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   if (!query) return candidates.data.value ?? [];
   return (candidates.data.value ?? []).filter((c) => cameraName(c.cameraId).toLowerCase().includes(query));
 });
+
+const filtered = computed(() => (statusFilter.value === 'all' ? byCamera.value : byCamera.value.filter((c) => c.status === statusFilter.value)));
+
+const statusCounts = computed(() => {
+  const counts = { all: byCamera.value.length, new: 0, verified: 0 };
+  for (const candidate of byCamera.value) counts[candidate.status]++;
+  return counts;
+});
+
+const statusMenuItems = computed<MenuItem[]>(() =>
+  (['all', 'new', 'verified'] as const).map((status) => ({
+    key: status,
+    label: t(`views.training.status_${status}`),
+    badge: String(statusCounts.value[status]),
+    active: statusFilter.value === status,
+    onClick: () => {
+      statusFilter.value = status;
+    },
+  })),
+);
+
+const filterActive = computed(() => statusFilter.value !== 'all' || searchQuery.value.trim() !== '');
 
 const gridItems = computed(() => filtered.value.slice(0, visibleCount.value));
 const hasMore = computed(() => filtered.value.length > gridItems.value.length);
@@ -336,6 +386,10 @@ const { selectionMode, selectedIds, allSelected, bulkBusy, enterSelectionMode, e
 );
 
 const selectedVerifiedIds = computed(() => [...selectedIds.value].filter((id) => candidates.data.value?.find((c) => c.id === id)?.status === 'verified'));
+
+// the status filter is a lens on the list, not a scope for the submit button:
+// verified frames stay submittable while the user works through the new ones
+const readyIds = computed(() => byCamera.value.filter((c) => c.status === 'verified' && !isLocked(c)).map((c) => c.id));
 
 function cameraName(cameraId: string): string {
   return camerasData.value?.result?.find((c) => c._id === cameraId)?.name ?? cameraId;
@@ -409,8 +463,7 @@ function openSubmissions(): void {
   });
 }
 
-function confirmSubmit(): void {
-  const ids = selectedVerifiedIds.value;
+function confirmSubmit(ids: string[]): void {
   if (!ids.length || submitCandidates.isPending.value) return;
 
   dialog.openTextDialog({
@@ -466,7 +519,7 @@ async function setEnabled(enabled: boolean): Promise<void> {
   await patchSettings.mutateAsync({ enabled });
 }
 
-watch(searchQuery, () => {
+watch([searchQuery, statusFilter], () => {
   visibleCount.value = PAGE_SIZE;
 });
 
