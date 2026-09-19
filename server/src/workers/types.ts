@@ -115,6 +115,7 @@ export interface WorkerHeartbeat {
 
 export interface WorkerSyncResponse {
   workloads: WorkloadSpec[];
+  updateChannel?: 'latest' | 'beta';
 }
 
 export interface WorkerManagerRPC {

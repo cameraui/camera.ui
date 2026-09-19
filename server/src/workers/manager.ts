@@ -574,7 +574,10 @@ export class WorkerManager {
       this.onWorkerOnline(heartbeat.agentId);
     }
 
-    return { workloads: this.desiredFor(heartbeat.agentId) };
+    return {
+      workloads: this.desiredFor(heartbeat.agentId),
+      updateChannel: this.configService.config.betaUpdates ? 'beta' : 'latest',
+    };
   }
 
   private desiredFor(agentId: string): WorkloadSpec[] {

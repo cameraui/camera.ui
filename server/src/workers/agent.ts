@@ -8,7 +8,7 @@ import { WorkersService } from '../api/services/workers.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { ConfigService } from '../services/config/index.js';
 import { REPORT_DIR, WITH_REPORTS } from '../utils/crash.js';
-import { announceUpdateChannel, canRequestServerUpdate, requestServerUpdate } from '../utils/ipc.js';
+import { announceUpdateChannel, canRequestServerUpdate, requestAppUpdateCheck, requestServerUpdate } from '../utils/ipc.js';
 import { collectSystemInfo } from '../utils/system-info.js';
 import { FrameDecodingHandler } from './capabilities/frame-decoding.js';
 import { PluginHostHandler } from './capabilities/plugin-host.js';
@@ -53,6 +53,7 @@ export class WorkerAgent implements WorkerAgentRPC {
   private syncQueued = false;
   private isClosed = false;
   private masterAnswers = true;
+  private appliedUpdateChannel?: 'latest' | 'beta';
 
   private closeHandler?: () => Promise<void>;
   private unsubscribeSync?: () => void;
@@ -231,10 +232,19 @@ export class WorkerAgent implements WorkerAgentRPC {
     this.runUpdate(version);
   }
 
+  private applyUpdateChannel(channel?: 'latest' | 'beta'): void {
+    if (!channel || channel === this.appliedUpdateChannel) return;
+
+    this.appliedUpdateChannel = channel;
+    announceUpdateChannel(channel === 'beta');
+    requestAppUpdateCheck();
+  }
+
   private async runUpdate(version = 'latest'): Promise<void> {
     this.report('log', `Updating to ${version}`);
 
     try {
+      this.appliedUpdateChannel = version.includes('-beta') ? 'beta' : 'latest';
       announceUpdateChannel(version.includes('-beta'));
       const output = await requestServerUpdate(version);
       for await (const line of output) {
@@ -297,6 +307,7 @@ export class WorkerAgent implements WorkerAgentRPC {
         this.logger.log('Master answers again');
       }
 
+      this.applyUpdateChannel(response?.updateChannel);
       await this.reconcile(response?.workloads ?? []);
     } finally {
       this.syncInFlight = false;
