@@ -250,7 +250,9 @@ export interface DBMqtt {
   };
 }
 
-export type DBAssistantProvider = 'openai-compatible' | 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'openrouter';
+export type DBAssistantBuiltinProvider = 'openai-compatible' | 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'openrouter';
+
+export type DBAssistantProvider = DBAssistantBuiltinProvider | (string & {});
 
 export type DBAssistantReasoning = 'default' | 'off' | 'low' | 'high';
 

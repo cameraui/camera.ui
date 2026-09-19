@@ -40,7 +40,7 @@ export class AssistantController {
 
   public async getInfo(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(this.service.info(req.locals.user?.role));
+      return reply.code(200).send(await this.service.info(req.locals.user?.role));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }

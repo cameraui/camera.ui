@@ -2,7 +2,9 @@ import * as zod from 'zod';
 
 import { LANGUAGES } from './users.schema.js';
 
-export const assistantProviderSchema = zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']);
+export const assistantBuiltinProviderSchema = zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']);
+
+export const assistantProviderSchema = zod.union([assistantBuiltinProviderSchema, zod.string().regex(/^plugin:[a-zA-Z0-9@/._-]{1,200}$/)]);
 
 export const assistantModelInputSchema = zod
   .object({

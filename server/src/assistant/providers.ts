@@ -5,11 +5,11 @@ import { createOpenaiChat } from '@tanstack/ai-openai';
 import { openaiCompatibleText } from '@tanstack/ai-openai/compatible';
 import { createOpenRouterText } from '@tanstack/ai-openrouter';
 
-import type { DBAssistantModel, DBAssistantProvider } from '../api/database/types.js';
+import type { DBAssistantBuiltinProvider, DBAssistantModel, DBAssistantProvider } from '../api/database/types.js';
 
 export type AssistantAdapter = ReturnType<typeof createOllamaChat>;
 
-const DEFAULT_BASE_URLS: Record<DBAssistantProvider, string | null> = {
+const DEFAULT_BASE_URLS: Record<DBAssistantBuiltinProvider, string | null> = {
   ollama: 'http://127.0.0.1:11434',
   'openai-compatible': 'http://127.0.0.1:1234/v1',
   openai: null,
@@ -21,7 +21,7 @@ const DEFAULT_BASE_URLS: Record<DBAssistantProvider, string | null> = {
 const MODELS_TIMEOUT_MS = 10_000;
 
 export function defaultBaseURL(provider: DBAssistantProvider): string | null {
-  return DEFAULT_BASE_URLS[provider];
+  return DEFAULT_BASE_URLS[provider as DBAssistantBuiltinProvider] ?? null;
 }
 
 export function providerNeedsKey(provider: DBAssistantProvider): boolean {
@@ -29,7 +29,7 @@ export function providerNeedsKey(provider: DBAssistantProvider): boolean {
 }
 
 export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'model'>, apiKey: string | null): AssistantAdapter {
-  const baseURL = nonEmpty(settings.baseURL) ?? DEFAULT_BASE_URLS[settings.provider] ?? undefined;
+  const baseURL = nonEmpty(settings.baseURL) ?? defaultBaseURL(settings.provider) ?? undefined;
   const key = apiKey ?? '';
 
   switch (settings.provider) {
@@ -43,13 +43,13 @@ export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'bas
       return createAnthropicChat(settings.model as never, key, baseURL ? { baseURL } : undefined) as unknown as AssistantAdapter;
     case 'gemini':
       return createGeminiChat(settings.model as never, key, baseURL ? { baseURL } : undefined) as unknown as AssistantAdapter;
-    case 'openrouter':
+    default:
       return createOpenRouterText(settings.model as never, key) as unknown as AssistantAdapter;
   }
 }
 
 export async function listModels(settings: Pick<DBAssistantModel, 'provider' | 'baseURL'>, apiKey: string | null): Promise<string[]> {
-  const baseURL = (nonEmpty(settings.baseURL) ?? DEFAULT_BASE_URLS[settings.provider] ?? '').replace(/\/+$/, '');
+  const baseURL = (nonEmpty(settings.baseURL) ?? defaultBaseURL(settings.provider) ?? '').replace(/\/+$/, '');
 
   switch (settings.provider) {
     case 'ollama': {
@@ -77,7 +77,7 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
       );
       return (data.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace(/^models\//, ''));
     }
-    case 'openrouter': {
+    default: {
       const data = await fetchJson<{ data?: { id: string }[] }>('https://openrouter.ai/api/v1/models', apiKey ? { Authorization: `Bearer ${apiKey}` } : {});
       return (data.data ?? []).map((m) => m.id);
     }

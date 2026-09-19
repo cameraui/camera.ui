@@ -1,4 +1,4 @@
-import type { AssistantToolReference, AssistantToolSpec } from '@camera.ui/sdk';
+import type { AssistantModelSpec, AssistantModelStatus, AssistantToolReference, AssistantToolSpec } from '@camera.ui/sdk';
 import type { Interrupt, JSONSchema, UIMessage } from '@tanstack/ai';
 import type { DBAssistant, DBAssistantAttachment, DBAssistantModel, DBAssistantProvider, DBAssistantUsageMonth, DBRoles } from '../api/database/types.js';
 
@@ -121,10 +121,19 @@ export interface AssistantExternalStatus {
   error?: string;
 }
 
+export interface AssistantModelProviderInfo {
+  provider: string;
+  pluginId: string;
+  pluginName: string;
+  models: AssistantModelSpec[];
+  status?: AssistantModelStatus;
+}
+
 export interface AssistantInfo {
   settings: AssistantMaskedSettings;
   status: AssistantStatus;
   plugins: { id: string; name: string }[];
+  modelProviders: AssistantModelProviderInfo[];
   tools: AssistantToolInfo[];
   external: AssistantExternalStatus[];
 }

@@ -36,7 +36,8 @@ export class AssistantService {
     this.dbs = container.resolve<Database>('dbs');
   }
 
-  public info(role?: DBRoles): AssistantInfo {
+  public async info(role?: DBRoles): Promise<AssistantInfo> {
+    await this.manager.refreshModelProviders();
     return this.manager.info(role);
   }
 

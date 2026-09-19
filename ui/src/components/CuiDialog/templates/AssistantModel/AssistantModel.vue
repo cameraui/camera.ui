@@ -5,15 +5,13 @@
       <Select
         v-model="provider"
         input-id="assistantModelProvider"
-        :options="ASSISTANT_PROVIDERS"
+        :options="providerOptions"
         option-label="label"
         option-value="value"
         fluid
         @change="onProviderChange"
       />
-      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-        $t(`views.settings.assistant_provider_hint_${provider.replace('-', '_')}`)
-      }}</Message>
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ providerHint }}</Message>
     </div>
 
     <div v-if="showBaseUrl" class="flex flex-col field-gap">
@@ -42,7 +40,23 @@
       </template>
     </div>
 
-    <div class="flex flex-col field-gap">
+    <div v-if="pluginProvider" class="flex flex-col field-gap">
+      <label for="assistantModelPluginModel" class="cui-label">{{ $t('views.settings.assistant_model_label') }}</label>
+      <Select
+        v-if="pluginModels.length"
+        v-model="model"
+        input-id="assistantModelPluginModel"
+        :options="pluginModels"
+        option-label="name"
+        option-value="id"
+        fluid
+        :invalid="invalid && !model.trim()"
+      />
+      <ProgressBar v-else-if="pluginProgress !== undefined" :value="pluginProgress" :show-value="false" class="!h-1" />
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ pluginModelHint }}</Message>
+    </div>
+
+    <div v-else class="flex flex-col field-gap">
       <label for="assistantModelModel" class="cui-label">{{ $t('views.settings.assistant_model_label') }}</label>
       <AutoComplete
         v-model="model"
@@ -99,7 +113,7 @@ const assistantQuery = new AssistantQuery();
 
 const props = defineProps<AssistantModelFormProps>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const toast = useCuiToast();
 
 const modelsMutation = assistantQuery.listAssistantModelsMutation();
@@ -116,14 +130,44 @@ const available = ref<string[]>([]);
 const suggestions = ref<string[]>([]);
 const invalid = ref(false);
 
-const needsKey = computed(() => ASSISTANT_KEY_PROVIDERS.includes(provider.value));
+const providerOptions = computed(() => [
+  ...ASSISTANT_PROVIDERS.map((entry) => ({ label: entry.label, value: entry.value as string })),
+  ...props.modelProviders.map((entry) => ({ label: t('views.settings.assistant_provider_plugin', { name: entry.pluginName }), value: entry.provider })),
+]);
+
+const pluginProvider = computed(() => props.modelProviders.find((entry) => entry.provider === provider.value));
+const pluginModels = computed(() => pluginProvider.value?.models ?? []);
+
+const pluginStatus = computed(() => pluginProvider.value?.status);
+const pluginProgress = computed(() => {
+  const progress = pluginStatus.value?.ready === false ? pluginStatus.value.progress : undefined;
+  return progress === undefined ? undefined : Math.round(progress * 100);
+});
+
+const pluginModelHint = computed(() => {
+  if (pluginStatus.value?.ready === false) return pluginStatus.value.message || t('views.settings.assistant_model_plugin_loading');
+  if (!pluginModels.value.length) return t('views.settings.assistant_model_plugin_none');
+
+  const spec = pluginModels.value.find((entry) => entry.id === model.value);
+  if (!spec) return t('views.settings.assistant_model_plugin_info');
+  const context = t('views.settings.assistant_model_context', { tokens: spec.contextTokens.toLocaleString(locale.value) });
+  return spec.note ? `${spec.note} ${context}` : context;
+});
+
+const providerHint = computed(() =>
+  pluginProvider.value ? t('views.settings.assistant_provider_hint_plugin') : t(`views.settings.assistant_provider_hint_${provider.value.replace('-', '_')}`),
+);
+
+const needsKey = computed(() => ASSISTANT_KEY_PROVIDERS.includes(provider.value) && !pluginProvider.value);
 const showBaseUrl = computed(() => provider.value === 'ollama' || provider.value === 'openai-compatible');
 const keptKey = computed(() => props.entry?.apiKeySet === true && props.entry.provider === provider.value);
 const keySources = computed(() => props.models.filter((entry) => entry._id !== props.entry?._id && entry.provider === provider.value && entry.apiKeySet));
+
 const keySourceOptions = computed(() => [
   { label: keptKey.value ? t('views.settings.assistant_api_key_stored') : t('views.settings.assistant_api_key_new'), value: NEW_KEY_SOURCE },
   ...keySources.value.map((entry) => ({ label: t('views.settings.assistant_api_key_from', { name: entry.name }), value: entry._id })),
 ]);
+
 const keyMissing = computed(() => needsKey.value && keySource.value === NEW_KEY_SOURCE && !apiKey.value && !keptKey.value);
 
 function defaultKeySource(): string {

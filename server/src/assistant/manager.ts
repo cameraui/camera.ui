@@ -35,6 +35,7 @@ import { isBrowserTool } from './tools/index.js';
 import { describeUploads, extractUploads, messagesForModel } from './uploads.js';
 import { AssistantUsageStore } from './usage.js';
 
+import type { AssistantModelSpec } from '@camera.ui/sdk';
 import type { ChatMiddleware, Interrupt, ModelMessage, StreamChunk, StreamDurability, SystemPrompt, UIMessage } from '@tanstack/ai';
 import type { MemoryAdapter, MemoryTurn } from '@tanstack/ai-memory';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -108,6 +109,9 @@ const CACHED_TOOLS = [
 ];
 
 const USAGE_EVENT = 'assistant.usage';
+const CONTEXT_HEADROOM_TOKENS = 2_000;
+const MIN_CONTEXT_TOKENS = 2_000;
+const MODEL_REFRESH_MS = 5_000;
 const ASK_TIMEOUT_MS = 45_000;
 const ASK_TIMEOUT_MAX_MS = 300_000;
 const ASK_CONCURRENCY = 4;
@@ -145,6 +149,7 @@ export class AssistantManager {
   private mcp: AssistantMcp;
   private runs = new Map<string, { userId: string; threadId: string; abort: AbortController; finishedAt?: number }>();
   private askSlots = new Map<string, { active: number; waiters: (() => void)[] }>();
+  private modelProvidersCheckedAt = 0;
   private memoryAdapter: MemoryAdapter;
   private memoryMiddleware: ChatMiddleware;
   private logger: LoggerService;
@@ -245,6 +250,13 @@ export class AssistantManager {
     };
   }
 
+  // the settings page asks for this on every open, the plugins answer from their own state
+  public async refreshModelProviders(): Promise<void> {
+    if (Date.now() - this.modelProvidersCheckedAt < MODEL_REFRESH_MS) return;
+    this.modelProvidersCheckedAt = Date.now();
+    await this.registry.refreshModels();
+  }
+
   public info(role?: DBRoles): AssistantInfo {
     const { apiKey: _apiKey, provider: _provider, baseURL: _baseURL, model: _model, sendImages: _sendImages, mcpServers, models, ...settings } = this.settings();
     const servers = mcpServers.map(({ token, ...server }) => ({ ...server, tokenSet: token !== null }));
@@ -256,6 +268,7 @@ export class AssistantManager {
         .listPlugins()
         .filter((plugin) => hasInterface(plugin.contract, PluginInterface.AssistantTools))
         .map((plugin) => ({ id: plugin.id, name: plugin.displayName })),
+      modelProviders: this.registry.modelProviders,
       tools: this.registry.describe(role).filter((tool) => settings.terminalEnabled ?? tool.group !== TERMINAL_GROUP),
       external: this.registry.externalStatus(this.externalServers(this.settings())),
     };
@@ -406,7 +419,7 @@ export class AssistantManager {
         : [];
 
     const base = {
-      adapter: createAdapter(model, this.decryptKey(entry)),
+      adapter: this.baseAdapter(model, entry, 'en'),
       systemPrompts: request.system ? [request.system] : [],
       messages: [{ role: 'user', content: [{ type: 'text', content: request.prompt }, ...images] }],
       modelOptions: modelOptionsFor(model) as never,
@@ -452,7 +465,8 @@ export class AssistantManager {
       return { ok: false, toolCalling: false, vision: null, latencyMs: 0, model, error: 'This provider needs an API key' };
     }
 
-    const adapter = createAdapter({ ...entry, model }, apiKey);
+    const spec = this.modelSpec(entry.provider, model);
+    const adapter = this.baseAdapter({ ...entry, model } as AssistantSettings, { ...entry, model } as DBAssistantModel, 'en');
     let toolCalled = false;
     const probe = toolDefinition({
       name: 'assistant_probe',
@@ -466,13 +480,20 @@ export class AssistantManager {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), TEST_TIMEOUT_MS);
 
+    const probeTools = spec?.toolCalling !== false;
+
     try {
       await this.drain(
         chat({
           adapter,
           systemPrompts: ['You are a connectivity probe. Follow the instruction literally.'],
-          messages: [{ role: 'user', content: 'Call the tool assistant_probe with value 42, then answer with the single word OK.' }],
-          tools: [probe],
+          messages: [
+            {
+              role: 'user',
+              content: probeTools ? 'Call the tool assistant_probe with value 42, then answer with the single word OK.' : 'Answer with the single word OK.',
+            },
+          ],
+          tools: probeTools ? [probe] : [],
           agentLoopStrategy: maxIterations(3),
           abortController: abort,
         }),
@@ -482,32 +503,34 @@ export class AssistantManager {
       return { ok: false, toolCalling: false, vision: null, latencyMs: Date.now() - started, model, error: describeError(error) };
     }
 
-    let vision: boolean | null = null;
+    let vision: boolean | null = spec?.vision === false ? false : null;
 
-    try {
-      await this.drain(
-        chat({
-          adapter,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', content: 'Answer with one word: what color is this image?' },
-                { type: 'image', source: { type: 'data', value: PROBE_IMAGE, mimeType: 'image/png' } },
-              ],
-            },
-          ],
-          agentLoopStrategy: maxIterations(1),
-          abortController: abort,
-        }),
-      );
-      vision = true;
-    } catch {
-      vision = false;
+    if (vision === null) {
+      try {
+        await this.drain(
+          chat({
+            adapter,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', content: 'Answer with one word: what color is this image?' },
+                  { type: 'image', source: { type: 'data', value: PROBE_IMAGE, mimeType: 'image/png' } },
+                ],
+              },
+            ],
+            agentLoopStrategy: maxIterations(1),
+            abortController: abort,
+          }),
+        );
+        vision = true;
+      } catch {
+        vision = false;
+      }
     }
 
     clearTimeout(timer);
-    return { ok: true, toolCalling: toolCalled, vision, latencyMs: Date.now() - started, model };
+    return { ok: true, toolCalling: probeTools && toolCalled, vision, latencyMs: Date.now() - started, model };
   }
 
   public async models(entry: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'apiKey'>, rawKey?: string | null): Promise<AssistantModelsResult> {
@@ -555,7 +578,8 @@ export class AssistantManager {
       throw Object.assign(new Error('The conversation changed since this device loaded it'), { statusCode: 409 });
     }
 
-    const adapter = this.chatAdapter(model, entry);
+    const adapter = this.chatAdapter(model, entry, ctx.language);
+    const contextBudget = this.contextBudget(settings, entry);
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
     const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
@@ -590,8 +614,8 @@ export class AssistantManager {
         withPersistence(persistence),
         settings.memoryEnabled ? this.memoryMiddleware : NO_MIDDLEWARE,
         withCompaction({
-          maxTokens: settings.contextTokens,
-          strategy: composeStrategies(clearToolResults({ keepRecentToolResults: 6 }), evictOldest({ keepRecentTokens: Math.floor(settings.contextTokens / 2) })),
+          maxTokens: contextBudget,
+          strategy: composeStrategies(clearToolResults({ keepRecentToolResults: 6 }), evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) })),
         }),
         this.runMiddleware(model, ctx, thread._id, params.messages, stats),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
@@ -680,7 +704,7 @@ export class AssistantManager {
 
     try {
       const stream = chat({
-        adapter: this.chatAdapter(model, entry),
+        adapter: this.chatAdapter(model, entry, ctx.language),
         messages: [{ id: `${Date.now()}-user`, role: 'user', parts: parts as never }],
         tools,
         context: ctx,
@@ -922,9 +946,26 @@ export class AssistantManager {
     return access ? (settings.models.find((entry) => entry._id === access.modelId) ?? defaultEntry(settings)) : undefined;
   }
 
-  private chatAdapter(model: AssistantSettings, entry: DBAssistantModel): AssistantAdapter {
-    const adapter = withEmptyTurnRetry(createAdapter(model, this.decryptKey(entry)), () => this.logger.debug(EMPTY_TURN_LOG));
+  private chatAdapter(model: AssistantSettings, entry: DBAssistantModel, language = 'en'): AssistantAdapter {
+    const adapter = withEmptyTurnRetry(this.baseAdapter(model, entry, language), () => this.logger.debug(EMPTY_TURN_LOG));
     return withToolNameRepair(adapter, (from, to) => this.logger.debug(`Assistant: repaired tool name ${from} to ${to}`));
+  }
+
+  private modelSpec(provider: string, model: string): AssistantModelSpec | undefined {
+    return this.registry.modelProvider(provider)?.models.find((candidate) => candidate.id === model);
+  }
+
+  private contextBudget(settings: AssistantSettings, entry: DBAssistantModel): number {
+    const spec = this.modelSpec(entry.provider, entry.model);
+    if (!spec) return settings.contextTokens;
+    return Math.max(MIN_CONTEXT_TOKENS, Math.min(settings.contextTokens, spec.contextTokens - CONTEXT_HEADROOM_TOKENS));
+  }
+
+  private baseAdapter(model: AssistantSettings, entry: DBAssistantModel, language: string): AssistantAdapter {
+    const provider = this.registry.modelProvider(entry.provider);
+    const spec = this.modelSpec(entry.provider, entry.model);
+    if (!provider || !spec) return createAdapter(model, this.decryptKey(entry));
+    return this.registry.modelAdapter(provider, spec, language) as unknown as AssistantAdapter;
   }
 
   private modelSettings(settings: AssistantSettings, entry: DBAssistantModel): AssistantSettings {

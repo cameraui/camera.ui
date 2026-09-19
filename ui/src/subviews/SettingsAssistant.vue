@@ -58,6 +58,7 @@
                     </div>
                     <div class="order-2 basis-full truncate text-muted md:order-3">{{ providerLabel(entry.provider) }} · {{ entry.model }}</div>
                     <div v-if="entry.capabilities?.error" class="order-4 basis-full text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
+                    <div v-if="providerStatus(entry.provider)" class="order-4 basis-full text-xs text-muted line-clamp-2">{{ providerStatus(entry.provider) }}</div>
                   </div>
                   <div class="hidden shrink-0 items-center gap-1 md:flex">
                     <Button
@@ -1080,7 +1081,17 @@ async function onSave(): Promise<void> {
 }
 
 function providerLabel(provider: DBAssistantProvider): string {
+  const plugin = info.value?.modelProviders.find((entry) => entry.provider === provider);
+  if (plugin) return t('views.settings.assistant_provider_plugin', { name: plugin.pluginName });
   return ASSISTANT_PROVIDERS.find((option) => option.value === provider)?.label ?? provider;
+}
+
+function providerStatus(provider: DBAssistantProvider): string | undefined {
+  const status = info.value?.modelProviders.find((entry) => entry.provider === provider)?.status;
+  if (!status || status.ready) return undefined;
+
+  const percent = typeof status.progress === 'number' ? ` (${Math.round(status.progress * 100)}%)` : '';
+  return `${status.message || t('views.settings.assistant_model_plugin_loading')}${percent}`;
 }
 
 async function saveModels(next: AssistantModelInput[]): Promise<AssistantInfo> {
@@ -1124,7 +1135,7 @@ function openModelDialog(entry?: AssistantModelView): void {
       title: entry ? t('views.settings.assistant_model_edit') : t('views.settings.assistant_model_add'),
       confirmText: t('components.form.button.save'),
       awaitConfirm: true,
-      contentProps: { entry: entry ? toRaw(entry) : undefined, models: toRaw(models.value) },
+      contentProps: { entry: entry ? toRaw(entry) : undefined, models: toRaw(models.value), modelProviders: toRaw(info.value?.modelProviders ?? []) },
     },
     onConfirm: async (input: AssistantModelInput) => {
       const next = entry ? models.value.map((model) => (model._id === entry._id ? input : modelInput(model))) : [...models.value.map(modelInput), input];
@@ -1138,11 +1149,13 @@ function reportTest(entry: AssistantModelView | undefined): void {
   const capabilities = entry?.capabilities;
   if (!capabilities) return;
 
+  const declaredSpec = info.value?.modelProviders.find((row) => row.provider === entry.provider)?.models.find((model) => model.id === entry.model);
+
   // prettier-ignore
   const detail = capabilities.error
     ? t('views.settings.assistant_test_failed', { message: capabilities.error })
     : !capabilities.toolCalling
-        ? t('views.settings.assistant_test_tools_missing')
+        ? t(declaredSpec?.toolCalling === false ? 'views.settings.assistant_test_tools_declared' : 'views.settings.assistant_test_tools_missing')
         : capabilities.vision === false
           ? t('views.settings.assistant_test_vision_missing')
           : '';

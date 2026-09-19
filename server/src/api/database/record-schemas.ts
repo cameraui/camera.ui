@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import * as zod from 'zod';
 
+import { assistantProviderSchema } from '../schemas/assistant.schema.js';
 import { pointsSchema } from '../schemas/cameras.schema.js';
 import {
   LANGUAGES,
@@ -307,7 +308,7 @@ export const dbAssistantSchema = zod.object({
       zod.object({
         _id: zod.string(),
         name: zod.string().default(''),
-        provider: zod.enum(['openai-compatible', 'ollama', 'openai', 'anthropic', 'gemini', 'openrouter']).default('ollama'),
+        provider: assistantProviderSchema.catch('ollama').default('ollama'),
         baseURL: zod.string().nullable().default(null),
         apiKey: zod.object({ encrypted: zod.string(), iv: zod.string() }).nullable().default(null),
         model: zod.string().default(''),

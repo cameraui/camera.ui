@@ -6,15 +6,17 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { ApiCatalog } from './api-catalog.js';
 import { DocsIndex } from './docs.js';
 import { ExternalMcpSource } from './external.js';
+import { PluginModelClient, pluginProviderName } from './plugin-models.js';
 import { PluginToolClient } from './plugin-tools.js';
 import { coreTools } from './tools/index.js';
 
-import type { AssistantToolResult, AssistantToolSpec } from '@camera.ui/sdk';
+import type { AssistantModelSpec, AssistantModelStatus, AssistantToolResult, AssistantToolSpec } from '@camera.ui/sdk';
 import type { DBRoles } from '../api/database/types.js';
 import type { InternalEventBus, InternalEventPayload } from '../internal-bus.js';
 import type { Plugin } from '../plugins/plugin.js';
 import type { LoggerService } from '../services/logger/index.js';
 import type { ExternalServer } from './external.js';
+import type { PluginTextAdapter } from './plugin-models.js';
 import type { CoreTool, ToolContext } from './tools/shared.js';
 import type { AssistantExternalStatus, AssistantToolInfo } from './types.js';
 
@@ -25,11 +27,21 @@ interface PluginEntry {
   tools: CoreTool[];
 }
 
+export interface PluginModelEntry {
+  pluginId: string;
+  pluginName: string;
+  provider: string;
+  models: AssistantModelSpec[];
+  status?: AssistantModelStatus;
+}
+
 export class AssistantToolRegistry {
   private core: CoreTool[] = [];
   private plugins = new Map<string, PluginEntry>();
+  private models = new Map<string, PluginModelEntry>();
   private external = new Map<string, ExternalMcpSource>();
   private client = new PluginToolClient();
+  private modelClient = new PluginModelClient();
   private api = new ApiCatalog();
   private docs = new DocsIndex();
   private logger: LoggerService;
@@ -41,6 +53,21 @@ export class AssistantToolRegistry {
   constructor() {
     this.logger = container.resolve<LoggerService>('logger');
     this.core = coreTools(this, this.api, this.docs);
+  }
+
+  public get modelProviders(): PluginModelEntry[] {
+    return Array.from(this.models.values()).filter((entry) => entry.models.length > 0 || entry.status?.ready === false);
+  }
+
+  public async refreshModels(): Promise<void> {
+    const plugins = new PluginsService();
+    await Promise.all(
+      Array.from(this.models.keys()).map(async (pluginId) => {
+        const plugin = plugins.getPluginById(pluginId);
+        if (plugin?.worker.isRunning()) await this.registerModels(plugin);
+        else this.models.delete(pluginId);
+      }),
+    );
   }
 
   public get pluginToolCount(): number {
@@ -57,6 +84,14 @@ export class AssistantToolRegistry {
 
   public get toolCount(): number {
     return this.core.length + this.pluginToolCount + this.externalToolCount;
+  }
+
+  public modelProvider(provider: string): PluginModelEntry | undefined {
+    return this.modelProviders.find((entry) => entry.provider === provider);
+  }
+
+  public modelAdapter(entry: PluginModelEntry, spec: AssistantModelSpec, language: string): PluginTextAdapter {
+    return this.modelClient.adapter(entry.pluginId, entry.pluginName, spec, language);
   }
 
   public loadApi(document: unknown): void {
@@ -92,7 +127,9 @@ export class AssistantToolRegistry {
     this.bus?.offEvent('plugin:error', this.onPluginStopped);
     this.bus?.offEvent('plugin:crashed', this.onPluginStopped);
     this.plugins.clear();
+    this.models.clear();
     await this.client.close();
+    await this.modelClient.close();
     await Promise.all(Array.from(this.external.values()).map((source) => source.close()));
     this.external.clear();
   }
@@ -155,7 +192,6 @@ export class AssistantToolRegistry {
     });
   }
 
-  // core tools borrow a plugin tool by its short name, the event picture of the nvr for example
   public async callPluginTool(name: string, input: unknown, ctx: ToolContext): Promise<AssistantToolResult | undefined> {
     for (const entry of this.plugins.values()) {
       if (entry.specs.some((spec) => spec.name === name)) return this.client.call(entry.pluginId, name, input, ctx);
@@ -164,6 +200,7 @@ export class AssistantToolRegistry {
   }
 
   public async registerPlugin(plugin: Plugin): Promise<void> {
+    if (hasInterface(plugin.contract, PluginInterface.AssistantModels)) await this.registerModels(plugin);
     if (!hasInterface(plugin.contract, PluginInterface.AssistantTools)) return;
 
     try {
@@ -180,6 +217,25 @@ export class AssistantToolRegistry {
 
   public unregisterPlugin(pluginId: string): void {
     this.plugins.delete(pluginId);
+    this.models.delete(pluginId);
+  }
+
+  private async registerModels(plugin: Plugin): Promise<void> {
+    try {
+      const [models, status] = await Promise.all([this.modelClient.fetchSpecs(plugin), this.modelClient.fetchStatus(plugin)]);
+      this.models.set(plugin.id, {
+        pluginId: plugin.id,
+        pluginName: plugin.displayName,
+        provider: pluginProviderName(plugin.pluginName),
+        models,
+        ...(status ? { status } : {}),
+      });
+      if (models.length) {
+        this.logger.debug(`Assistant: ${plugin.displayName} offers ${models.length} models (${models.map((m) => m.id).join(', ')})`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`Assistant: could not read models from ${plugin.displayName}: ${error.message}`);
+    }
   }
 
   private all(): CoreTool[] {
