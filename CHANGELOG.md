@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.5]
 
+### Added
+
+- **The assistant can use a model a plugin brings along.** Such a model shows up in the model dialog next to OpenAI, Ollama and the rest, with no key and no address to fill in. That covers models without a web interface and models that run on another machine in your house.
+
 ### Changed
 
 - **Recordings rearrange smoothly.** Resizing the window or opening the filter sidebar made the page crawl, on fast machines too: the cards were rebuilt from scratch while the grid followed the new width. They now follow along without stutter, and scrolling through a long list got lighter as well.
@@ -21,6 +25,8 @@ All notable changes to this project will be documented in this file.
 - **`cameraui logs` keeps showing new lines.** The log view went silent once the log file was trimmed, which happens every few hours, and only came back after the file had grown past its old size again.
 
 - **Contact sensors showed the wrong state.** A closed door was listed as open and an open one as closed. Automations were not affected, they always used the real state.
+
+- **A desktop app used as a worker follows the beta channel.** It kept looking for stable releases while the rest of the installation ran a beta, found no app update, and the updates page then had nothing to offer for it. It now takes the channel from the main instance and checks again right away.
 
 - **A failed camera change no longer stops the server.** If one part of a camera change went wrong, applying the privacy zones for example, camera.ui shut itself down. The failure is written to the log now and the rest of the change is applied.
 
