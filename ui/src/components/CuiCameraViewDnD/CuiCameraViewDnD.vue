@@ -242,7 +242,7 @@ function initGrid(): void {
       minRow: rows,
       cellHeight: cellH,
       margin: isRearrange ? 3 : 1,
-      float: !isMobile,
+      mode: isMobile ? 'top' : 'float',
       animate: false,
       staticGrid: !isRearrange,
       resizable: isMobile ? { handles: '' } : { handles: 'se' },
