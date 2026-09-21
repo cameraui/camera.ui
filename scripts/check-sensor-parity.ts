@@ -1,7 +1,16 @@
+import { readFileSync } from 'node:fs';
+
+import { assignmentsSchema } from '../server/src/api/schemas/cameras.schema.js';
+import {
+  getDetectionTypes,
+  getMultiProviderTypes,
+  getSingleProviderTypes,
+  getValidSensorTypes,
+  SENSOR_PROPERTY_MAP,
+  SENSOR_TYPE_CONFIG,
+} from '../server/src/sensors/types.js';
 import de from '../ui/src/i18n/locales/de.js';
 import en from '../ui/src/i18n/locales/en.js';
-import { assignmentsSchema } from '../server/src/api/schemas/cameras.schema.js';
-import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SENSOR_PROPERTY_MAP, SENSOR_TYPE_CONFIG } from '../server/src/sensors/types.js';
 
 const errors: string[] = [];
 
@@ -38,9 +47,35 @@ function checkAssignmentsSchema(): void {
   }
 }
 
+function checkPythonDetectionTypes(): void {
+  const source = readFileSync(new URL('../server/src/plugins/runtime/python/proxy/sensor.py', import.meta.url), 'utf8');
+  const body = /DETECTION_SENSOR_TYPES[^=]*=\s*frozenset\(\s*\{([\s\S]*?)\}/.exec(source)?.[1];
+  if (!body) {
+    errors.push('python runtime: DETECTION_SENSOR_TYPES not found in proxy/sensor.py');
+    return;
+  }
+
+  const byName = new Map(getValidSensorTypes().map((type) => [type.toLowerCase(), type]));
+  const listed = new Set<string>();
+  for (const [, name] of body.matchAll(/SensorType\.(\w+)/g)) {
+    const type = byName.get(name.toLowerCase());
+    if (type) listed.add(type);
+    else errors.push(`python runtime: unknown sensor type "SensorType.${name}"`);
+  }
+
+  const expected = new Set<string>(getDetectionTypes());
+  for (const type of expected) {
+    if (!listed.has(type)) errors.push(`python runtime: DETECTION_SENSOR_TYPES is missing "${type}"`);
+  }
+  for (const type of listed) {
+    if (!expected.has(type)) errors.push(`python runtime: DETECTION_SENSOR_TYPES has "${type}", which is not a detection type`);
+  }
+}
+
 checkI18n('en', en);
 checkI18n('de', de);
 checkAssignmentsSchema();
+checkPythonDetectionTypes();
 
 if (errors.length > 0) {
   console.error('Sensor parity check failed:');
