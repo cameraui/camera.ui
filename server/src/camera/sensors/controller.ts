@@ -1,6 +1,8 @@
+import { isEqual } from '@camera.ui/common/utils';
 import { container } from 'tsyringe';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
+import { DETECTION_SENSOR_TYPES } from '../../sensors/types.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type { SensorLike, SensorType } from '@camera.ui/sdk';
@@ -29,16 +31,16 @@ export class SensorController {
   }
 
   public async init(): Promise<void> {
-    // Coordinator-published write batches for detection-sensor properties —
-    // worker owns the state, we only mirror.
     const writeNs = NamespaceManager.sensorCameraViewNamespaces(this.cameraController.id);
     const writeUnsub = await this.proxy.subscribe<SensorWriteMessage>(writeNs.sensorWriteSubject, (msg) => {
       this.registry.getSensor(msg.sensorId)?.applyWriteBatch(msg.properties);
     });
     this.disposables.push(writeUnsub);
 
-    const settings = this.cameraController.onPropertyChange('detectionSettings').subscribe(({ newData }) => {
-      this.handleSensorTriggersChanged(newData.sensor?.triggers ?? []);
+    const settings = this.cameraController.onPropertyChange('detectionSettings').subscribe(({ oldData, newData }) => {
+      const triggers = newData.sensor?.triggers ?? [];
+      if (isEqual(oldData.sensor?.triggers ?? [], triggers, true)) return;
+      this.handleSensorTriggersChanged(triggers);
     });
     this.disposables.push(() => settings.dispose());
 
@@ -71,6 +73,11 @@ export class SensorController {
   }
 
   public onFrameWorkerStateChanged(oldState: boolean, newState: boolean): void {
+    if (oldState && !newState) {
+      this.clearDetectionState();
+      return;
+    }
+
     if (!oldState && newState) {
       const maxRetries = this.frameWorker.isRemoteWorker ? 5 : 1;
       this.registry.reconcileCamera(this.cameraController.id, maxRetries).catch((error: unknown) => {
@@ -121,7 +128,23 @@ export class SensorController {
     this.registry.updatePropertyValues(sensorId, properties);
   }
 
+  private clearDetectionState(): void {
+    for (const sensor of this.getAllSensors()) {
+      if (!DETECTION_SENSOR_TYPES.has(sensor.type) || sensor.assignedCameraIds.length > 1) continue;
+
+      const cleared: Record<string, unknown> = {};
+      if (sensor.getValue('detected') === true) {
+        cleared.detected = false;
+        cleared.detections = [];
+      }
+      if (sensor.getValue('blocked') === true) cleared.blocked = false;
+      if (Object.keys(cleared).length > 0) sensor.applyWriteBatch(cleared);
+    }
+  }
+
   private handleSensorTriggersChanged(triggers: string[]): void {
+    if (!this.cameraController.frameWorkerConnected) return;
+
     const activeSensorIds = triggers.filter((sensorId) => this.registry.isConnected(sensorId));
 
     this.detectionCoordinatorProxy.reconcileSensorTriggers(activeSensorIds).catch((error: unknown) => {
