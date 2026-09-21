@@ -5,6 +5,7 @@ import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
 const NO_AUDIO_FLAG = '#noAudio';
 const NO_BACKCHANNEL_FLAG = '#noBackchannel';
 const BACKCHANNEL_FLAG = '#backchannel=1';
+const BACKCHANNEL_OFF_FLAG = '#backchannel=0';
 const BACKCHANNEL_SCHEMES = ['rtsp://', 'rtsps://', 'cui://', 'onvif://'];
 
 export interface SourceUrlFlags {
@@ -28,17 +29,18 @@ export function applySourceUrlFlags(url: string, source: SourceUrlFlags): string
     url = url.replace(NO_AUDIO_FLAG, '');
   }
 
-  if (source.backchannelDisabled && !url.includes(NO_BACKCHANNEL_FLAG)) {
-    url += NO_BACKCHANNEL_FLAG;
-  } else if (!source.backchannelDisabled && url.includes(NO_BACKCHANNEL_FLAG)) {
-    url = url.replace(NO_BACKCHANNEL_FLAG, '');
+  if (source.backchannelDisabled) {
+    if (!url.includes(NO_BACKCHANNEL_FLAG)) url += NO_BACKCHANNEL_FLAG;
+    url = url.replace(BACKCHANNEL_FLAG, '');
+  } else if (url.includes(NO_BACKCHANNEL_FLAG)) {
+    url = url.replace(NO_BACKCHANNEL_FLAG, '').replace(BACKCHANNEL_OFF_FLAG, '');
   }
 
   url = applyNumberFlag(url, SOURCE_TIMEOUT_REGEX, 'timeout', source.timeout);
   url = applyNumberFlag(url, SOURCE_HANDSHAKE_TIMEOUT_REGEX, 'handshake_timeout', source.handshakeTimeout);
 
   if (BACKCHANNEL_SCHEMES.some((scheme) => url.startsWith(scheme)) && !SOURCE_BACKCHANNEL_REGEX.test(url)) {
-    url += BACKCHANNEL_FLAG;
+    url += source.backchannelDisabled ? BACKCHANNEL_OFF_FLAG : BACKCHANNEL_FLAG;
   }
 
   return url;
