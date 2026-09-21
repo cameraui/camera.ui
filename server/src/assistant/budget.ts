@@ -15,6 +15,7 @@ const ALWAYS_EAGER = ['show_report'];
 
 export interface PromptSections {
   rules: string;
+  toolless: string;
   capabilities: string;
   skills: string;
   skillCatalog: string;
@@ -23,6 +24,7 @@ export interface PromptSections {
 
 export interface RunPlan {
   window: number;
+  toolless: boolean;
   skillsOnDemand: boolean;
   compactPrompt: boolean;
   catalogDescriptions: 'first-sentence' | 'none';
@@ -43,6 +45,7 @@ export function planRun(window: number, sections: PromptSections, tools: CoreToo
   const allowance = Math.floor(window * OVERHEAD_SHARE);
   const plan: RunPlan = {
     window,
+    toolless: tools.length === 0,
     skillsOnDemand: false,
     compactPrompt: false,
     catalogDescriptions: 'first-sentence',
@@ -52,6 +55,12 @@ export function planRun(window: number, sections: PromptSections, tools: CoreToo
     overheadTokens: 0,
     historyTokens: 0,
   };
+
+  if (plan.toolless) {
+    plan.overheadTokens = estimateTokens(sections.toolless) + estimateTokens(sections.capabilities) + estimateTokens(sections.dynamic);
+    plan.historyTokens = Math.max(MIN_HISTORY_TOKENS, window - plan.overheadTokens - ANSWER_RESERVE_TOKENS);
+    return plan;
+  }
 
   const promptTokens = (): number =>
     estimateTokens(sections.rules) +

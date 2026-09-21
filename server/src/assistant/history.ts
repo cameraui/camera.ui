@@ -45,3 +45,32 @@ export function repairHistory(messages: readonly ModelMessage[]): ModelMessage[]
 
   return out;
 }
+
+export function flattenToolHistory(messages: readonly ModelMessage[]): ModelMessage[] {
+  const names = new Map<string, string>();
+  const out: ModelMessage[] = [];
+
+  for (const message of messages) {
+    if (message.role === 'assistant' && message.toolCalls?.length) {
+      for (const call of message.toolCalls) names.set(call.id, call.function.name);
+      const calls = message.toolCalls.map((call) => `Earlier in this run I used the tool ${call.function.name} with ${call.function.arguments}.`);
+      out.push({ role: 'assistant', content: [textOf(message), ...calls].filter((line) => line !== '').join('\n') });
+      continue;
+    }
+    if (message.role !== 'tool') {
+      out.push(message);
+      continue;
+    }
+
+    const label = `The tool ${names.get(message.toolCallId ?? '') ?? 'you used'} returned:`;
+    if (typeof message.content === 'string' || !message.content) out.push({ role: 'user', content: `${label} ${message.content ?? ''}` });
+    else out.push({ role: 'user', content: [{ type: 'text', content: label }, ...message.content] });
+  }
+
+  return out;
+}
+
+function textOf(message: ModelMessage): string {
+  if (typeof message.content === 'string') return message.content;
+  return (message.content ?? []).flatMap((part) => (part.type === 'text' ? [part.content] : [])).join('\n');
+}

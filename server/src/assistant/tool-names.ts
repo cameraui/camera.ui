@@ -16,7 +16,7 @@ export function withToolNameRepair(adapter: AssistantAdapter, onRepair: (from: s
         yield chunk;
         continue;
       }
-      const repaired = known.filter((name) => chunk.toolCallName.startsWith(name)).sort((a, b) => b.length - a.length)[0];
+      const repaired = known.filter((name) => chunk.toolCallName.startsWith(name)).sort((a, b) => b.length - a.length)[0] ?? sameLetters(known, chunk.toolCallName);
       if (!repaired) {
         yield chunk;
         continue;
@@ -27,4 +27,14 @@ export function withToolNameRepair(adapter: AssistantAdapter, onRepair: (from: s
   }
 
   return wrapChatStream(adapter, chatStream);
+}
+
+// small models drop or double an underscore: nvr_query_events, __lazy_tool__discovery__
+function sameLetters(known: string[], called: string): string | undefined {
+  const matches = known.filter((name) => letters(name) === letters(called));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function letters(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }

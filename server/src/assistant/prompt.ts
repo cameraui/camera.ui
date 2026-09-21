@@ -5,7 +5,7 @@ import type { AssistantRunContext } from './types.js';
 
 const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
 
-type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden'>;
+type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden' | 'toolless'>;
 
 export interface PromptFacts {
   instanceName: string;
@@ -42,7 +42,8 @@ const CAPABILITIES = [
 const CAPABILITY_INDEX = [
   'camera.ui covers cameras, live view, Camview, floor plan, zones and privacy masks, shares, sensors and accessories from plugins, PTZ and autotrack, ' +
   'detection (motion, objects, faces, license plates, audio, semantic text search, AI descriptions, episodes, model training), recording with the NVR plugin, ' +
-  'notifications, automations, remote access, administration (users, security, backup, updates, logs, workers, instances) and plugins.',
+  'notifications, automations, remote access (camera.ui Cloud, Cloudflare tunnel, custom domain, reverse proxy, certificates, pairing the apps), ' +
+  'administration (users, security, backup, updates, logs, workers, instances) and plugins.',
   'Anything about one of these, what it is or where it is set, comes from docs_search, never from memory.',
 ].join('\n');
 
@@ -53,11 +54,17 @@ const DISCOVERY_HINT =
 
 const SKILL_HINT = 'When a request matches one of the procedures in the skill catalog, call load_skill with its name before the first tool.';
 
+function plainCapabilities(capabilities: string): string {
+  return capabilities.replace(/^.*\n/, 'What camera.ui offers:\n');
+}
+
 function hiddenTools(names: string[]): string {
   return `Tools you fetch with the discovery tool, by name: ${names.join(', ')}.`;
 }
 
 export function composePrompt(sections: PromptSections, plan?: PromptPlan): string[] {
+  if (plan?.toolless) return [[sections.toolless, plainCapabilities(sections.capabilities)].join('\n\n'), sections.dynamic];
+
   const parts = [
     sections.rules,
     plan?.compactPrompt ? CAPABILITY_INDEX : sections.capabilities,
@@ -82,7 +89,20 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
     'camera.ui itself (how a feature works, where a setting lives) comes from docs_search first, not from memory. The tools are for camera.ui only.',
     'Relative dates like "yesterday" refer to the time zone given below. Pass times to tools as ISO 8601 with offset.',
     `Answer in ${languageName(ctx.language)}. Keep answers short and concrete, name cameras and times. Use markdown sparingly: short lists, no headings.`,
-    '',
+  ];
+
+  // prettier-ignore
+  const toolless = [
+    `You are the assistant of "${facts.instanceName}", a self-hosted camera.ui instance, talking to ${facts.userName} (role: ${ctx.role}).`,
+    'The model you run on cannot call tools, so in this conversation you see neither events nor recordings, sensors or settings, and you cannot change anything.',
+    'Answer from the conversation and from your own knowledge: explain, compare, draft text, help with cameras, home network and smart home.',
+    'When a question needs live data from the instance (what a camera saw, the state of a sensor, a setting), say that this model cannot look it up ' +
+    'and that an admin can pick a model with tools under Settings, Assistant. Never invent an observation, never write a tool call into the answer.',
+    `Answer in ${languageName(ctx.language)}. Keep answers short and concrete. Use markdown sparingly: short lists, no headings.`,
+  ];
+
+  // prettier-ignore
+  const rules = [
     'Rules:',
     '- Everything you say about events, people, vehicles or sensor states must come from a tool result. Never invent or guess an observation.',
     '- If a tool returns nothing, say that nothing was found.',
@@ -149,7 +169,8 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
   }
 
   return {
-    rules: lines.join('\n'),
+    rules: [...lines, '', ...rules].join('\n'),
+    toolless: toolless.join('\n'),
     capabilities,
     skills: skillsPrompt(),
     skillCatalog: skillCatalog(),

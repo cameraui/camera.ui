@@ -18,11 +18,12 @@ import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
 import { planRun } from './budget.js';
 import { trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
-import { repairHistory } from './history.js';
+import { flattenToolHistory, repairHistory } from './history.js';
 import { ASK_USER_INTERRUPT } from './interrupts.js';
 import { AssistantMcp } from './mcp.js';
 import { AssistantMemoryStore, memoryAdapter } from './memory.js';
 import { abortStaleRuns, lmdbPersistence } from './persistence.js';
+import { pluginOfProvider } from './plugin-models.js';
 import { estimateCost, warmPrices } from './pricing.js';
 import { AssistantProfileStore } from './profiles.js';
 import { composePrompt, promptSections } from './prompt.js';
@@ -144,7 +145,10 @@ const REPLAY_RETENTION_MS = 5 * 60_000;
 const NO_MIDDLEWARE: ChatMiddleware = { name: 'camera.ui-memory-off' };
 const SEARCH_TIMEOUT_MS = 45_000;
 const REFERENCE_KINDS = new Set(['event', 'episode', 'camera', 'download']);
-const FINAL_TURN_PROMPT = 'The tool budget of this run is used up. Answer now with what you already know and say plainly what you could not check.';
+// prettier-ignore
+const FINAL_TURN_PROMPT =
+  'The tool budget of this run is used up and no tool is available anymore. Write the answer now as plain text from what the tools already returned, ' +
+  'and say plainly what you could not check. Do not write a tool call or a tool name with arguments into the answer.';
 const TEST_TIMEOUT_MS = 45_000;
 const PROBE_IMAGE = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
 
@@ -428,16 +432,16 @@ export class AssistantManager {
         ? (request.images ?? []).map((img) => ({ type: 'image', source: { type: 'data', value: Buffer.from(img.data).toString('base64'), mimeType: img.mimeType } }))
         : [];
 
-    const base = {
-      adapter: this.baseAdapter(model, entry, 'en'),
-      systemPrompts: request.system ? [request.system] : [],
-      messages: [{ role: 'user', content: [{ type: 'text', content: request.prompt }, ...images] }],
-      modelOptions: modelOptionsFor(model) as never,
-      middleware: [countUsage(stats)],
-      abortController: abort,
-    };
-
     try {
+      const base = {
+        adapter: this.baseAdapter(model, entry, 'en', timeoutMs),
+        systemPrompts: request.system ? [request.system] : [],
+        messages: [{ role: 'user', content: [{ type: 'text', content: request.prompt }, ...images] }],
+        modelOptions: modelOptionsFor(model) as never,
+        middleware: [countUsage(stats)],
+        abortController: abort,
+      };
+
       if (request.outputSchema) {
         const json = await (chat({ ...base, outputSchema: request.outputSchema } as never) as unknown as Promise<unknown>);
         return { ok: true, text: JSON.stringify(json), json, usage: { promptTokens: stats.promptTokens, completionTokens: stats.completionTokens } };
@@ -476,7 +480,12 @@ export class AssistantManager {
     }
 
     const spec = this.modelSpec(entry.provider, model);
-    const adapter = this.baseAdapter({ ...entry, model } as AssistantSettings, { ...entry, model } as DBAssistantModel, 'en');
+    let adapter: AssistantAdapter;
+    try {
+      adapter = this.baseAdapter({ ...entry, model } as AssistantSettings, { ...entry, model } as DBAssistantModel, 'en', TEST_TIMEOUT_MS);
+    } catch (error: unknown) {
+      return { ok: false, toolCalling: false, vision: null, latencyMs: 0, model, error: describeError(error) };
+    }
     let toolCalled = false;
     const probe = toolDefinition({
       name: 'assistant_probe',
@@ -597,6 +606,7 @@ export class AssistantManager {
     const planned = applyPlan(available, plan);
     const tools = resume.length ? planned.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : planned;
     const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
+    const rounds = settings.maxIterations + (plan.demoted ? DISCOVERY_ITERATIONS : 0);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
@@ -618,7 +628,7 @@ export class AssistantManager {
       interrupts: [ASK_USER_INTERRUPT],
       context: ctx,
       systemPrompts: [...cachedPrompts(composePrompt(sections, plan), model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(Boolean),
-      agentLoopStrategy: maxIterations(settings.maxIterations + 1 + (plan.demoted ? DISCOVERY_ITERATIONS : 0)),
+      agentLoopStrategy: maxIterations(rounds + 1),
       lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
       modelOptions: modelOptionsFor(model) as never,
       middleware: [
@@ -634,7 +644,7 @@ export class AssistantManager {
             evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) }),
           ),
         }),
-        this.runMiddleware(model, ctx, thread._id, params.messages, stats),
+        this.runMiddleware({ ...model, maxIterations: rounds }, ctx, thread._id, params.messages, stats),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
         secretGuard(this.logger),
       ],
@@ -770,7 +780,7 @@ export class AssistantManager {
     const stats = newStats();
     try {
       const output = await chat({
-        adapter: createAdapter(model, this.decryptKey(entry)),
+        adapter: this.baseAdapter(model, entry, 'en'),
         systemPrompts: [searchPrompt(cameras, ctx.language === 'auto' ? 'en' : ctx.language, ctx.timezone)],
         messages: [{ role: 'user', content: text }],
         outputSchema: SEARCH_SCHEMA,
@@ -819,7 +829,7 @@ export class AssistantManager {
         const exhausted = ctx.iteration >= settings.maxIterations || stats.toolCalls >= settings.maxToolCalls;
         const providerMessages = messagesForModel(repairHistory(config.providerMessages ?? config.messages), settings.sendImages);
         if (!exhausted || !config.tools.length) return { providerMessages };
-        return { providerMessages, tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
+        return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
       },
       onBeforeToolCall: (_ctx, hook) => {
         stats.toolCalls += 1;
@@ -860,7 +870,7 @@ export class AssistantManager {
     let text = '';
     try {
       const stream = chat({
-        adapter: createAdapter(model, this.decryptKey(entry)),
+        adapter: this.baseAdapter(model, entry, 'en'),
         systemPrompts: [EXTRACT_PROMPT],
         messages: [
           {
@@ -991,11 +1001,12 @@ export class AssistantManager {
     return entry.contextTokens ?? settings.contextTokens + ASSUMED_HEADROOM_TOKENS;
   }
 
-  private baseAdapter(model: AssistantSettings, entry: DBAssistantModel, language: string): AssistantAdapter {
+  private baseAdapter(model: AssistantSettings, entry: DBAssistantModel, language: string, timeoutMs?: number): AssistantAdapter {
     const provider = this.registry.modelProvider(entry.provider);
     const spec = this.modelSpec(entry.provider, entry.model);
-    if (!provider || !spec) return createAdapter(model, this.decryptKey(entry));
-    return this.registry.modelAdapter(provider, spec, language) as unknown as AssistantAdapter;
+    if (provider && spec) return this.registry.modelAdapter(provider, spec, language, timeoutMs) as unknown as AssistantAdapter;
+    if (pluginOfProvider(entry.provider)) throw new Error(provider?.status?.message ?? `The plugin behind the model ${entry.name || entry.model} is not running`);
+    return createAdapter(model, this.decryptKey(entry));
   }
 
   private modelSettings(settings: AssistantSettings, entry: DBAssistantModel): AssistantSettings {

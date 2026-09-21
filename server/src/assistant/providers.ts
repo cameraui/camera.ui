@@ -43,8 +43,10 @@ export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'bas
       return createAnthropicChat(settings.model as never, key, baseURL ? { baseURL } : undefined) as unknown as AssistantAdapter;
     case 'gemini':
       return createGeminiChat(settings.model as never, key, baseURL ? { baseURL } : undefined) as unknown as AssistantAdapter;
-    default:
+    case 'openrouter':
       return createOpenRouterText(settings.model as never, key) as unknown as AssistantAdapter;
+    default:
+      throw new Error(`No adapter for the provider ${settings.provider}`);
   }
 }
 
@@ -77,10 +79,12 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
       );
       return (data.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace(/^models\//, ''));
     }
-    default: {
+    case 'openrouter': {
       const data = await fetchJson<{ data?: { id: string }[] }>('https://openrouter.ai/api/v1/models', apiKey ? { Authorization: `Bearer ${apiKey}` } : {});
       return (data.data ?? []).map((m) => m.id);
     }
+    default:
+      throw new Error(`No model list for the provider ${settings.provider}`);
   }
 }
 

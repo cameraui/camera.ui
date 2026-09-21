@@ -90,8 +90,8 @@ export class AssistantToolRegistry {
     return this.modelProviders.find((entry) => entry.provider === provider);
   }
 
-  public modelAdapter(entry: PluginModelEntry, spec: AssistantModelSpec, language: string): PluginTextAdapter {
-    return this.modelClient.adapter(entry.pluginId, entry.pluginName, spec, language);
+  public modelAdapter(entry: PluginModelEntry, spec: AssistantModelSpec, language: string, timeoutMs?: number): PluginTextAdapter {
+    return this.modelClient.adapter(entry.pluginId, entry.pluginName, spec, language, timeoutMs);
   }
 
   public loadApi(document: unknown): void {

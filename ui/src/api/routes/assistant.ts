@@ -24,6 +24,8 @@ import type { UIMessage } from '@tanstack/ai';
 import type { AxiosResponse } from 'axios';
 import type { ComputedRef, Ref } from 'vue';
 
+const MODEL_STATUS_POLL_MS = 5_000;
+
 export async function getAssistantInfo({ signal }: { signal: AbortSignal }): Promise<AssistantInfo> {
   const response: AxiosResponse<AssistantInfo> = await api.get('/assistant', { signal });
   return response.data;
@@ -173,6 +175,9 @@ export class AssistantQuery {
       queryKey: ['assistant'],
       queryFn: ({ signal }) => getAssistantInfo({ signal }),
       staleTime: 1000,
+      refetchInterval(query) {
+        if (query.state.data?.modelProviders.some((provider) => provider.status?.ready === false)) return MODEL_STATUS_POLL_MS;
+      },
     });
   }
 

@@ -75,15 +75,14 @@ export class PluginModelClient {
 
   public async fetchStatus(plugin: Plugin): Promise<AssistantModelStatus | undefined> {
     const proxy = plugin.worker.pluginProxy as Partial<AssistantModelProvider>;
-    // the method is optional, a plugin without it answers with an rpc error
     const status = await Promise.resolve(proxy.assistantModelStatus?.()).catch(() => undefined);
     if (!status || typeof status.ready !== 'boolean') return undefined;
     const progress = typeof status.progress === 'number' ? Math.min(Math.max(status.progress, 0), 1) : undefined;
     return { ready: status.ready, ...(status.message ? { message: String(status.message).slice(0, 200) } : {}), ...(progress !== undefined ? { progress } : {}) };
   }
 
-  public adapter(pluginId: string, pluginName: string, spec: AssistantModelSpec, language: string): PluginTextAdapter {
-    return new PluginTextAdapter(this, pluginId, pluginName, spec, language);
+  public adapter(pluginId: string, pluginName: string, spec: AssistantModelSpec, language: string, timeoutMs = DEFAULT_TIMEOUT_MS): PluginTextAdapter {
+    return new PluginTextAdapter(this, pluginId, pluginName, spec, language, timeoutMs);
   }
 
   public async close(): Promise<void> {
@@ -92,12 +91,32 @@ export class PluginModelClient {
     await client?.disconnect().catch(() => {});
   }
 
-  public async *generate(pluginId: string, request: AssistantModelRequest, language: string, timeoutMs: number): AsyncGenerator<AssistantModelChunk> {
+  public async *generate(
+    pluginId: string,
+    request: AssistantModelRequest,
+    language: string,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): AsyncGenerator<AssistantModelChunk> {
     const client = await this.ensureClient();
     const namespace = NamespaceManager.pluginNamespaces(pluginId).pluginChildRpc;
     const proxy = client.createProxy<AssistantModelProvider>(namespace);
-    for await (const chunk of proxy.assistantGenerate(request, { language, timeoutMs })) {
-      yield chunk;
+    const stream = proxy.assistantGenerate(request, { language, timeoutMs })[Symbol.asyncIterator]();
+
+    const aborted = new Promise<never>((_resolve, reject) => {
+      if (signal?.aborted) reject(new Error('The run was cancelled'));
+      signal?.addEventListener('abort', () => reject(new Error('The run was cancelled')), { once: true });
+    });
+    aborted.catch(() => {});
+
+    try {
+      while (true) {
+        const next = await Promise.race([stream.next(), aborted]);
+        if (next.done) return;
+        yield next.value;
+      }
+    } finally {
+      await stream.return?.(undefined).catch(() => {});
     }
   }
 
@@ -126,6 +145,7 @@ export class PluginTextAdapter extends BaseTextAdapter<string, Record<string, ne
     private readonly pluginName: string,
     private readonly spec: AssistantModelSpec,
     private readonly language: string,
+    private readonly timeoutMs: number,
   ) {
     super(undefined, spec.id);
   }
@@ -145,7 +165,7 @@ export class PluginTextAdapter extends BaseTextAdapter<string, Record<string, ne
     let usage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
 
     try {
-      for await (const chunk of this.models.generate(this.pluginId, this.request(options), this.language, DEFAULT_TIMEOUT_MS)) {
+      for await (const chunk of this.models.generate(this.pluginId, this.request(options), this.language, this.timeoutMs, signalOf(options))) {
         if (chunk.type === 'text') {
           if (!chunk.delta) continue;
           if (!textOpen) {
@@ -175,11 +195,15 @@ export class PluginTextAdapter extends BaseTextAdapter<string, Record<string, ne
   }
 
   public async structuredOutput(options: StructuredOutputOptions<Record<string, never>>): Promise<StructuredOutputResult<unknown>> {
-    const request = { ...this.request(options.chatOptions), outputSchema: options.outputSchema as Record<string, unknown> };
+    const schema = options.outputSchema as Record<string, unknown>;
+    const chat = this.request(options.chatOptions);
+    const request = this.spec.structuredOutput
+      ? { ...chat, outputSchema: schema }
+      : { ...chat, system: [...chat.system, `Answer with one JSON object and nothing else. It has to match this JSON schema:\n${JSON.stringify(schema)}`] };
     let text = '';
     let usage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
 
-    for await (const chunk of this.models.generate(this.pluginId, request, this.language, DEFAULT_TIMEOUT_MS)) {
+    for await (const chunk of this.models.generate(this.pluginId, request, this.language, this.timeoutMs, signalOf(options.chatOptions))) {
       if (chunk.type === 'text') text += chunk.delta;
       else if (chunk.type === 'usage')
         usage = { promptTokens: chunk.promptTokens, completionTokens: chunk.completionTokens, totalTokens: chunk.promptTokens + chunk.completionTokens };
@@ -244,6 +268,10 @@ export class PluginTextAdapter extends BaseTextAdapter<string, Record<string, ne
     yield { type: EventType.TOOL_CALL_ARGS, toolCallId: call.id, delta: args, args, ...base };
     yield { type: EventType.TOOL_CALL_END, toolCallId: call.id, toolCallName: call.name, toolName: call.name, input: call.arguments ?? {}, ...base };
   }
+}
+
+function signalOf(options: TextOptions<Record<string, never>>): AbortSignal | undefined {
+  return options.request?.signal ?? undefined;
 }
 
 function parseArguments(args: unknown): Record<string, unknown> {
