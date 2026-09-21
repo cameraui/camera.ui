@@ -2,11 +2,12 @@ import { convertSchemaToJsonSchema, renderLazyCatalogEntry } from '@tanstack/ai'
 
 import type { CoreTool } from './tools/shared.js';
 
-const CHARS_PER_TOKEN = 4;
+const CHARS_PER_TOKEN = 3;
 const OVERHEAD_SHARE = 0.35;
 const CATALOG_SHARE = 0.5;
 const ANSWER_RESERVE_TOKENS = 1_000;
 const MIN_HISTORY_TOKENS = 2_000;
+const HISTORY_SHARE = 0.8;
 const LOAD_SKILL_TOKENS = 120;
 
 const ENTRY_TOOLS = ['list_cameras', 'docs_search', 'list_tools', 'system_query', 'get_system_status', 'ask_user', 'api_search'];
@@ -58,7 +59,7 @@ export function planRun(window: number, sections: PromptSections, tools: CoreToo
 
   if (plan.toolless) {
     plan.overheadTokens = estimateTokens(sections.toolless) + estimateTokens(sections.capabilities) + estimateTokens(sections.dynamic);
-    plan.historyTokens = Math.max(MIN_HISTORY_TOKENS, window - plan.overheadTokens - ANSWER_RESERVE_TOKENS);
+    plan.historyTokens = historyBudget(window, plan.overheadTokens);
     return plan;
   }
 
@@ -84,8 +85,12 @@ export function planRun(window: number, sections: PromptSections, tools: CoreToo
 
   plan.hidden = plan.demoted ? tools.filter((tool) => !plan.eagerTools.has(tool.name)).map((tool) => tool.name) : [];
   plan.overheadTokens = overhead() + estimateTokens(plan.hidden.join(', '));
-  plan.historyTokens = Math.max(MIN_HISTORY_TOKENS, window - plan.overheadTokens - ANSWER_RESERVE_TOKENS);
+  plan.historyTokens = historyBudget(window, plan.overheadTokens);
   return plan;
+}
+
+function historyBudget(window: number, overhead: number): number {
+  return Math.max(MIN_HISTORY_TOKENS, Math.floor((window - overhead - ANSWER_RESERVE_TOKENS) * HISTORY_SHARE));
 }
 
 function demoteTools(plan: RunPlan, tools: CoreTool[], budget: number): void {
