@@ -1,5 +1,6 @@
 import { inlineSkill, renderCatalog } from '@tanstack/ai-skills';
 
+import type { ModelMessage } from '@tanstack/ai';
 import type { InlineSkillConfig, SkillSource } from '@tanstack/ai-skills';
 
 // prettier-ignore
@@ -121,4 +122,11 @@ export function skillCatalog(): string {
     SKILLS.map((skill) => ({ name: skill.name, description: skill.description })),
     'other',
   );
+}
+
+export function toolsNamedBySkills<T extends { name: string }>(messages: readonly ModelMessage[], candidates: T[]): T[] {
+  const loads = new Set(messages.flatMap((message) => (message.toolCalls ?? []).filter((call) => call.function.name === 'load_skill').map((call) => call.id)));
+  const procedures = messages.filter((message) => loads.has(message.toolCallId ?? '') && typeof message.content === 'string').map((message) => message.content);
+  if (!procedures.length) return [];
+  return candidates.filter((tool) => procedures.some((text) => (text as string).includes(tool.name.split('__').pop() ?? tool.name)));
 }

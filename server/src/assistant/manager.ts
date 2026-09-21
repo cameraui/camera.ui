@@ -34,7 +34,7 @@ import { withEmptyTurnRetry } from './retry.js';
 import { questionText, ROUTE_TIMEOUT_MS, ROUTED_TOOLS, routeTools } from './router.js';
 import { AssistantScheduler, PUSH_BODY_MAX } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
-import { skillSources } from './skills.js';
+import { skillSources, toolsNamedBySkills } from './skills.js';
 import { AssistantThreadStore, contentParts } from './threads.js';
 import { withToolNameRepair } from './tool-names.js';
 import { isBrowserTool } from './tools/index.js';
@@ -612,6 +612,7 @@ export class AssistantManager {
     const planned = applyPlan(available, plan);
     // a routed model gets the few tools that matter and no catalog: it calls what it sees and never opened one
     const offered = routed ? planned.filter((tool) => !tool.lazy) : planned;
+    const hiddenTools = planned.filter((tool) => tool.lazy).map((tool) => ({ ...tool, lazy: false }));
     const tools = resume.length ? offered.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : offered;
     const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed } : plan);
     const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
@@ -654,7 +655,7 @@ export class AssistantManager {
             keepQuestion(evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) })),
           ),
         }),
-        this.runMiddleware({ ...model, maxIterations: rounds }, ctx, thread._id, params.messages, stats, pictureLimit(contextBudget)),
+        this.runMiddleware({ ...model, maxIterations: rounds }, ctx, thread._id, params.messages, stats, pictureLimit(contextBudget), routed ? hiddenTools : []),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
         secretGuard(this.logger),
       ],
@@ -812,6 +813,7 @@ export class AssistantManager {
     incoming: (UIMessage | ModelMessage)[],
     stats: AssistantRunStats,
     maxPictures = Infinity,
+    skillTools: CoreTool[] = [],
   ): ChatMiddleware<AssistantRunContext, typeof ASK_USER_INTERRUPT> {
     const log = this.logger;
     const userId = runCtx.userId;
@@ -839,8 +841,14 @@ export class AssistantManager {
       onConfig: (ctx, config) => {
         const exhausted = ctx.iteration >= settings.maxIterations || stats.toolCalls >= settings.maxToolCalls;
         const providerMessages = messagesForModel(repairHistory(config.providerMessages ?? config.messages), settings.sendImages, maxPictures);
-        if (!exhausted || !config.tools.length) return { providerMessages };
-        return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
+        if (exhausted && config.tools.length) {
+          return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
+        }
+
+        // a routed run has no catalog, a procedure would otherwise name tools the model cannot reach
+        const offered = new Set(config.tools.map((tool) => tool.name));
+        const named = toolsNamedBySkills(providerMessages, skillTools).filter((tool) => !offered.has(tool.name));
+        return named.length ? { providerMessages, tools: [...config.tools, ...named] } : { providerMessages };
       },
       onBeforeToolCall: (_ctx, hook) => {
         stats.toolCalls += 1;
