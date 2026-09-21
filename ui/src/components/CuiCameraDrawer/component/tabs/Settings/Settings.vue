@@ -726,35 +726,29 @@
 
           <Field
             v-slot="{ errors }"
-            :model-value="cameraForm.detectionSettings.face?.matchThreshold"
-            name="detectionSettings.face.matchThreshold"
+            :model-value="cameraForm.detectionSettings.face?.matchSensitivity"
+            name="detectionSettings.face.matchSensitivity"
             as="div"
             class="flex flex-col field-gap"
           >
-            <label for="detectionSettings.face.matchThreshold" class="cui-label">{{ $t('components.form.label.face_match_threshold') }}</label>
-            <InputGroup>
-              <InputNumber
-                :model-value="cameraForm.detectionSettings.face?.matchThreshold"
-                :invalid="errors.length > 0"
-                :loading="isLoading"
-                show-buttons
-                :step="0.05"
-                :max-fraction-digits="2"
-                :min="0.3"
-                :max="0.95"
-                mode="decimal"
-                :use-grouping="false"
-                @value-change="(e) => (cameraForm.detectionSettings.face = { ...cameraForm.detectionSettings.face, matchThreshold: e ?? undefined })"
-                @input="(e) => (cameraForm.detectionSettings.face = { ...cameraForm.detectionSettings.face, matchThreshold: (e.value as any) ?? undefined })"
-              />
-            </InputGroup>
+            <label for="detectionSettings.face.matchSensitivity" class="cui-label">{{ $t('components.form.label.face_match_sensitivity') }}</label>
+            <Select
+              :model-value="cameraForm.detectionSettings.face?.matchSensitivity ?? 'balanced'"
+              :options="faceMatchSensitivities"
+              option-label="label"
+              option-value="value"
+              :invalid="errors.length > 0"
+              :loading="isLoading"
+              class="w-full"
+              @change="(e) => (cameraForm.detectionSettings.face = { ...cameraForm.detectionSettings.face, matchSensitivity: e.value })"
+            />
 
             <Transition name="fade">
-              <ErrorMessage name="detectionSettings.face.matchThreshold" class="cui-input-error" />
+              <ErrorMessage name="detectionSettings.face.matchSensitivity" class="cui-input-error" />
             </Transition>
 
             <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-              $t('components.form.hint.face_match_threshold')
+              $t('components.form.hint.face_match_sensitivity')
             }}</Message>
           </Field>
 
@@ -1957,6 +1951,10 @@ const motionResolutions = ref<MotionResolution[]>(['low', 'medium', 'high']);
 const recordingModes = ref<RecordingMode[]>(['continuous', 'event', 'adhoc']);
 const recordingSources = ref<RecordingSource[]>(['high', 'mid', 'low']);
 const notifySpeeds = ref<NotificationSpeed[]>(['immediate', 'balanced', 'best']);
+
+const faceMatchSensitivities = computed(() =>
+  (['strict', 'balanced', 'relaxed'] as const).map((value) => ({ label: t(`components.form.option.face_match_${value}`), value })),
+);
 
 const notifyAudioOptions = computed(() => [
   ...BASE_AUDIO_LABELS.filter((label) => label !== 'doorbell').map((label) => ({ label: t(audioLabelKey(label)), value: label as string })),

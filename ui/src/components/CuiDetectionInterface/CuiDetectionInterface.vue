@@ -85,6 +85,7 @@
 
 <script setup lang="ts">
 import PluginClipInterfaceDialog from '@/components/CuiDialog/templates/PluginClipInterface/PluginClipInterface.vue';
+import PluginFaceRecognitionDialog from '@/components/CuiDialog/templates/PluginFaceRecognition/PluginFaceRecognition.vue';
 import PluginMotionInterfaceDialog from '@/components/CuiDialog/templates/PluginMotionInterface/PluginMotionInterface.vue';
 import PluginObjectInterfaceDialog from '@/components/CuiDialog/templates/PluginObjectInterface/PluginObjectInterface.vue';
 import {
@@ -98,8 +99,11 @@ import {
 
 import type { PluginMotionInterfaceProps } from '@/components/CuiDialog/templates/PluginMotionInterface/types.js';
 import type { PluginObjectInterfaceProps } from '@/components/CuiDialog/templates/PluginObjectInterface/types.js';
+import type { NVRInterface } from '@camera.ui/nvr';
+import type { Promisify } from '@camera.ui/rpc';
 import type { AudioMetadata, ImageMetadata, JsonSchema } from '@camera.ui/sdk';
 import type { PluginClipInterfaceProps } from '../CuiDialog/templates/PluginClipInterface/types.js';
+import type { PluginFaceRecognitionProps } from '../CuiDialog/templates/PluginFaceRecognition/types.js';
 import type { CuiDetectionInterfaceEmits, CuiDetectionInterfaceProps } from './types.js';
 
 const DROP_LABEL_KEYS: Record<CuiDetectionInterfaceProps['type'], string> = {
@@ -107,6 +111,7 @@ const DROP_LABEL_KEYS: Record<CuiDetectionInterfaceProps['type'], string> = {
   audioDetection: 'drop_or_select_audio_to_detect',
   objectDetection: 'drop_or_select_image_to_detect_objects',
   faceDetection: 'drop_or_select_image_to_detect_faces',
+  faceRecognition: 'drop_or_select_image_to_recognize_face',
   licensePlateDetection: 'drop_or_select_image_to_detect_license_plates',
   classifierDetection: 'drop_or_select_image_to_classify',
   clipDetection: 'drop_or_select_image_for_semantic_search',
@@ -124,6 +129,7 @@ const dialog = useCuiDialog();
 const { type, pluginName } = toRefs(props);
 
 const { plugin: pluginProxy, isLoading: pluginLoading } = usePlugin(pluginName);
+const { plugin: nvrProxy } = usePlugin('@camera.ui/camera-ui-nvr');
 
 const fileInputRef = useTemplateRef('fileInputRef');
 const videoPlayerRef = useTemplateRef('videoPlayerRef');
@@ -148,6 +154,7 @@ const fileType = computed<'image' | 'video' | 'audio'>(() => {
   switch (type.value) {
     case 'objectDetection':
     case 'faceDetection':
+    case 'faceRecognition':
     case 'licensePlateDetection':
     case 'classifierDetection':
     case 'clipDetection':
@@ -208,6 +215,9 @@ async function loadInterfaceSchema(): Promise<void> {
         break;
       case 'faceDetection':
         schema = await pluginProxy.value.faceDetectionSettings?.();
+        break;
+      case 'faceRecognition':
+        schema = await pluginProxy.value.faceEmbeddingSettings?.();
         break;
       case 'licensePlateDetection':
         schema = await pluginProxy.value.licensePlateDetectionSettings?.();
@@ -460,6 +470,38 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
           contentProps: {
             src: mediaUrl,
             response,
+          },
+        },
+      });
+    } else if (type.value === 'faceRecognition') {
+      const responses = await pluginProxy.value.embedFaceImages?.([new Uint8Array(fileBuffer)], configData);
+      const embedding = responses?.[0]?.embedding;
+
+      if (!embedding?.length) {
+        toast.add({ severity: 'info', detail: t('components.face_recognition_interface.no_face'), life: 3000 });
+        return;
+      }
+      if (!nvrProxy.value) {
+        toast.add({ severity: 'info', detail: t('components.face_recognition_interface.needs_nvr'), life: 3000 });
+        return;
+      }
+
+      const embeddingModel = responses![0]!.embeddingModel;
+      dialog.openComponentDialog<PluginFaceRecognitionProps>(PluginFaceRecognitionDialog, {
+        data: {
+          title: t('components.dialog.title.result'),
+          hideConfirmButton: true,
+          contentProps: {
+            src: mediaUrl,
+            embeddingModel,
+            dimensions: embedding.length,
+            landmarks: responses![0]!.landmarks,
+            quality: responses![0]!.quality,
+            onMatch: async (sensitivity: string) => {
+              const nvr = nvrProxy.value as unknown as Promisify<NVRInterface>;
+              const matches = await nvr.matchFaces([embedding], embeddingModel, sensitivity);
+              return matches?.[0] ?? undefined;
+            },
           },
         },
       });

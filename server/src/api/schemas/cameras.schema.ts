@@ -149,9 +149,9 @@ export const detectionSettingsSchema = zod.object({
   face: zod
     .object({
       confidence: zod.number().min(0, 'Minimum 0').max(1, 'Maximum 1').default(0.5),
-      matchThreshold: zod.number().min(0.3, 'Minimum 0.3').max(0.95, 'Maximum 0.95').default(0.55),
+      matchSensitivity: zod.enum(['strict', 'balanced', 'relaxed']).default('balanced'),
     })
-    .default({ confidence: 0.5, matchThreshold: 0.55 }),
+    .default({ confidence: 0.5, matchSensitivity: 'balanced' }),
   licensePlate: zod
     .object({
       confidence: zod.number().min(0, 'Minimum 0').max(1, 'Maximum 1').default(0.3),
@@ -356,6 +356,7 @@ export const assignmentsSchema = zod
     battery: pluginInfo.optional(),
     cameraController: pluginInfo.optional(),
     clip: pluginInfo.optional(),
+    faceEmbedder: pluginInfo.optional(),
 
     classifier: pluginInfo.array().optional(),
 
@@ -542,7 +543,7 @@ export const createCameraBaseSchema = zod
       },
       face: {
         confidence: 0.5,
-        matchThreshold: 0.55,
+        matchSensitivity: 'balanced',
       },
       licensePlate: {
         confidence: 0.3,

@@ -23,6 +23,7 @@ export function deriveWorkerPerf(snapshot: FrameWorkerPerfSnapshot, pluginName: 
     licensePlate: per(snapshot.plateMs, snapshot.plateCount),
     classifier: per(snapshot.classifierMs, snapshot.classifierCount),
     clip: per(snapshot.clipMs, snapshot.clipCount),
+    faceEmbedder: per(snapshot.faceEmbedMs, snapshot.faceEmbedCount),
   };
 
   const detectors: Record<string, WorkerDetectorStats> = {};

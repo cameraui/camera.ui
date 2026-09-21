@@ -532,6 +532,7 @@ const analysisInferenceHeaders = computed<TableHeader[]>(() => {
     inferenceColumn('motion', t('views.metrics.col_motion'), t('views.metrics.info_motion'), true),
     inferenceColumn('object', t('views.metrics.col_object'), t('views.metrics.info_object')),
     inferenceColumn('face', t('views.metrics.col_face'), t('views.metrics.info_secondary')),
+    inferenceColumn('faceEmbedder', t('views.metrics.col_face_embed'), t('views.metrics.info_face_embed')),
     inferenceColumn('licensePlate', t('views.metrics.col_plate'), t('views.metrics.info_secondary')),
     inferenceColumn('classifier', t('views.metrics.col_classifier'), t('views.metrics.info_secondary')),
     inferenceColumn('clip', t('views.metrics.col_clip'), t('views.metrics.info_secondary')),

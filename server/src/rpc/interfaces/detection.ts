@@ -5,12 +5,15 @@ import type {
   ClassifierResult,
   ClipResult,
   Detection,
+  FaceDetection,
+  FaceEmbeddingResult,
   FaceResult,
   LicensePlateResult,
   ModelSpec,
   MotionResult,
   ObjectModelSpec,
   ObjectResult,
+  Point,
   SensorType,
   VideoFrameData,
 } from '@camera.ui/sdk';
@@ -36,10 +39,23 @@ export interface DetectionThumbnail {
   speed?: number;
 }
 
+export interface ServerFaceDetection extends FaceDetection {
+  embedding?: number[];
+  quality?: number;
+  landmarks?: Point[];
+  thumbnail?: Uint8Array;
+  thumbnailLandmarks?: Point[];
+}
+
+export interface ServerFaceResult {
+  detected: boolean;
+  detections: ServerFaceDetection[];
+}
+
 export interface DetectionResults {
   motion?: MotionResult;
   object?: ObjectResult;
-  face?: FaceResult;
+  face?: ServerFaceResult;
   faceEmbeddingModel?: string;
   licensePlate?: LicensePlateResult;
   classifiers?: Record<string, ClassifierResult>;
@@ -79,5 +95,6 @@ export interface DetectionPluginInterface {
   detectLicensePlates(frames: VideoFrameData[]): Promise<LicensePlateResult[]>;
   detectClassifications(frames: VideoFrameData[]): Promise<ClassifierResult[]>;
   detectEmbeddings(frames: VideoFrameData[]): Promise<ClipResult[]>;
+  embedFaces(frames: VideoFrameData[]): Promise<FaceEmbeddingResult[]>;
   detectAudio(audio: AudioFrameData): Promise<AudioResult>;
 }

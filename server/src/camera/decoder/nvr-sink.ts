@@ -1,5 +1,5 @@
 import type { RPCClient } from '@camera.ui/rpc';
-import type { BoundingBox, DetectionEvent, DetectionEventType, EventAttribute, EventDetection, EventSegment, LoggerService } from '@camera.ui/sdk';
+import type { BoundingBox, DetectionEvent, DetectionEventType, EventAttribute, EventDetection, EventSegment, LoggerService, Point } from '@camera.ui/sdk';
 import type { TraceTick } from './event-trace.js';
 
 export interface RecordedDetection extends EventDetection {
@@ -16,6 +16,7 @@ export interface RecordedAttribute extends EventAttribute {
   parentTrackId?: number;
   embedding?: number[];
   embeddingModel?: string;
+  landmarks?: Point[];
   clipEmbedding?: number[];
   clipEmbeddingModel?: string;
 }
@@ -52,7 +53,7 @@ export function leanEvent(event: RecordedEvent): DetectionEvent {
       ),
       attributes: attributes
         .filter((attribute) => attribute.type !== 'clip')
-        .map(({ parentTrackId: _parent, embedding: _e, embeddingModel: _em, clipEmbedding: _c, clipEmbeddingModel: _cm, ...attribute }) => attribute),
+        .map(({ parentTrackId: _parent, embedding: _e, embeddingModel: _em, landmarks: _l, clipEmbedding: _c, clipEmbeddingModel: _cm, ...attribute }) => attribute),
     })),
   };
 }

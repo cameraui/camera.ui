@@ -59,6 +59,7 @@ from plugins.runtime.python.namespaces import (
 )
 from plugins.runtime.python.proxy.limiter import registration_slot
 from plugins.runtime.python.proxy.sensor import (
+    DETECTION_SENSOR_TYPES,
     DetectionCoordinatorRPC,
     SensorRegistryInterface,
 )
@@ -72,20 +73,6 @@ if TYPE_CHECKING:
     from _camera_ui_tools.camera_ui_sdk.internal import SensorSourcePatch
     from plugins.runtime.python.proxy.sensor_manager import SensorManagerProxy
     from plugins.runtime.python.storage_controller import StorageController
-
-
-DETECTION_SENSOR_TYPES: frozenset[SensorType] = frozenset(
-    {
-        SensorType.Motion,
-        SensorType.Audio,
-        SensorType.Object,
-        SensorType.ObjectAssist,
-        SensorType.Face,
-        SensorType.LicensePlate,
-        SensorType.Classifier,
-        SensorType.Clip,
-    }
-)
 
 
 class CameraControllerInterface(Protocol):

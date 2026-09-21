@@ -34,6 +34,8 @@ export class PerfTracker {
   public plateCount = 0;
   public clipMs = 0;
   public clipCount = 0;
+  public faceEmbedMs = 0;
+  public faceEmbedCount = 0;
   public classifierMs = 0;
   public classifierCount = 0;
   public secondaryMs = 0;
@@ -146,6 +148,8 @@ export class PerfTracker {
       plateCount: this.plateCount,
       clipMs: this.clipMs,
       clipCount: this.clipCount,
+      faceEmbedMs: this.faceEmbedMs,
+      faceEmbedCount: this.faceEmbedCount,
       classifierMs: this.classifierMs,
       classifierCount: this.classifierCount,
       zoomTicks: this.zoomTicks,

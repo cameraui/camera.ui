@@ -111,6 +111,7 @@
                       <CuiDetectionInterface v-else-if="segment.name === 'object_detection'" :plugin-name="resolvedPluginName" type="objectDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'audio_detection'" :plugin-name="resolvedPluginName" type="audioDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'face_detection'" :plugin-name="resolvedPluginName" type="faceDetection" />
+                      <CuiDetectionInterface v-else-if="segment.name === 'face_recognition'" :plugin-name="resolvedPluginName" type="faceRecognition" />
                       <CuiDetectionInterface v-else-if="segment.name === 'license_plate_detection'" :plugin-name="resolvedPluginName" type="licensePlateDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'classifier_detection'" :plugin-name="resolvedPluginName" type="classifierDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'clip_detection'" :plugin-name="resolvedPluginName" type="clipDetection" />
@@ -185,6 +186,7 @@ import FaceIcon from '~icons/material-symbols/face';
 import MotionIcon from '~icons/material-symbols/motion-blur-rounded';
 import BellIcon from '~icons/mdi/bell';
 import SettingsIcon from '~icons/mdi/cog';
+import FaceRecognitionIcon from '~icons/mdi/face-recognition';
 import ClassifyIcon from '~icons/mingcute/classify-2-fill';
 import TextAaIcon from '~icons/ph/text-aa-fill';
 import PlateIcon from '~icons/solar/plate-bold';
@@ -431,6 +433,11 @@ watch(
     if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.FaceDetection)) {
       interfaceExist = true;
       newSegments.push({ name: 'face_detection', icon: FaceIcon, isInterface: true, tooltip: t('views.plugin.face_detection_tab_tooltip') });
+    }
+
+    if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.FaceEmbedding)) {
+      interfaceExist = true;
+      newSegments.push({ name: 'face_recognition', icon: FaceRecognitionIcon, isInterface: true, tooltip: t('views.plugin.face_recognition_tab_tooltip') });
     }
 
     if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.LicensePlateDetection)) {

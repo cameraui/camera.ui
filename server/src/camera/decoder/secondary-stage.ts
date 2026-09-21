@@ -17,20 +17,21 @@ import type {
   ClassifierResult,
   ClipResult,
   Detection,
-  FaceDetection,
   FaceResult,
   LicensePlateResult,
   ModelSpec,
+  Point,
   TrackedDetection,
   VideoFrameData,
 } from '@camera.ui/sdk';
 import type { Frame } from 'node-av/lib';
 import type { CoreManagerInterface } from '../../rpc/interfaces/core.js';
-import type { CroppedRegion, DetectionResults, DetectionThumbnail } from '../../rpc/interfaces/detection.js';
+import type { CroppedRegion, DetectionResults, DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
 import type { DetectionCoordinator } from './detection-coordinator.js';
 import type { DetectionPipeline } from './detection-pipeline.js';
 import type { TrackedClassifierDetection, TrackedClipEmbedding, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
 import type { ConsumerSpec, CropFit, FrameScaler, ScaleTarget } from './frame-scaler.js';
+import type { CropWindow } from './moment-crop.js';
 import type { PerfTracker } from './perf-tracker.js';
 import type { PluginRegistry } from './plugin-registry.js';
 
@@ -41,10 +42,28 @@ const SECONDARY_CONSUMERS: { type: SensorType; key: string; fit: CropFit }[] = [
 ];
 
 interface NvrFaceMatcher {
-  matchFaces(embeddings: number[][], embeddingModel: string, matchThreshold: number): Promise<({ identity: string } | null)[]>;
+  matchFaces(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<({ identity: string } | null)[]>;
+}
+
+const MIN_FACE_PX = 40;
+const FACE_CROP_PADDING = 0.25;
+const EMBED_EVERY_MS = 1_000;
+const GOOD_VECTORS_PER_TRACK = 3;
+const EMBEDDED_TRACKS_MAX = 256;
+const EMBEDDED_TRACK_IDLE_MS = 60_000;
+const UNTRACKED_IDLE_MS = 5_000;
+const UNTRACKED_GRID = 8;
+
+interface EmbeddedTrack {
+  attemptAt: number;
+  seen: number;
+  good: number;
+  identity?: string;
 }
 
 export class SecondaryStage {
+  private readonly embeddedTracks = new Map<string, EmbeddedTrack>();
+
   private nvrProxy?: Promisify<NvrFaceMatcher>;
   private nvrProxyPromise?: Promise<Promisify<NvrFaceMatcher> | undefined>;
 
@@ -61,6 +80,7 @@ export class SecondaryStage {
   public async detect(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[], results: DetectionResults): Promise<void> {
     const regionMap = await this.prepareSecondaryRegions(sourceFrame, scaler, objectDetections);
     await this.runAllSecondaries(regionMap, results);
+    await this.recognizeFaces(sourceFrame, scaler, results);
   }
 
   public async detectFullFrame(rawFrame: Frame, results: DetectionResults): Promise<Buffer | null> {
@@ -68,6 +88,7 @@ export class SecondaryStage {
 
     if (regionMap.size > 0) {
       await this.runAllSecondaries(regionMap, results);
+      await this.recognizeFaces(rawFrame, this.frameScaler, results);
     }
 
     try {
@@ -85,9 +106,16 @@ export class SecondaryStage {
     if (results.face?.detections) {
       const faceMinConfidence = settings.face?.confidence ?? 0;
       const faces = results.face.detections.filter((d) => d.confidence >= faceMinConfidence);
-      for (const [detection, jpeg] of await this.attributeCrops(sourceFrame, scaler, faces)) {
-        // enrichSegment persists unknown faces to the face store from this
-        detection.thumbnail ??= jpeg;
+      for (const [detection, jpeg, window] of await this.attributeCrops(sourceFrame, scaler, faces)) {
+        // enrichSegment persists unknown faces to the face store from this, the
+        // points travel along so the picture never has to be searched for its face again
+        if (!detection.thumbnail) {
+          detection.thumbnail = jpeg;
+          detection.thumbnailLandmarks = detection.landmarks?.map((point): Point => [
+            (point[0] * sourceFrame.width - window.x) / window.width,
+            (point[1] * sourceFrame.height - window.y) / window.height,
+          ]);
+        }
         thumbnails.push(this.attributeThumbnail(`face:${detection.identity ?? 'unknown'}`, detection, jpeg));
       }
     }
@@ -121,9 +149,9 @@ export class SecondaryStage {
     sourceFrame: Frame,
     scaler: FrameScaler,
     detections: T[],
-  ): Promise<[T, Buffer][]> {
+  ): Promise<[T, Buffer, CropWindow][]> {
     const format = momentFormat('card');
-    const crops: [T, Buffer][] = [];
+    const crops: [T, Buffer, CropWindow][] = [];
 
     for (const detection of detections) {
       const hint = detection.parentBox ? directionBetween(detection.box, detection.parentBox) : undefined;
@@ -131,7 +159,7 @@ export class SecondaryStage {
       if (!window) continue;
       try {
         const jpeg = await scaler.cropWindowToJPEG(sourceFrame, window, format.width, format.height, MOMENT_QUALITY);
-        if (jpeg) crops.push([detection, jpeg]);
+        if (jpeg) crops.push([detection, jpeg, window]);
       } catch (error) {
         this.logger.debug('Attribute crop failed:', error);
       }
@@ -164,9 +192,121 @@ export class SecondaryStage {
     ]);
 
     if (results.face?.detections.length) {
-      const facePlugin = this.plugins.get(SensorType.Face);
-      results.faceEmbeddingModel = (facePlugin?.modelSpec as ModelSpec | undefined)?.embeddingModel;
+      const embedPlugin = this.plugins.get(SensorType.FaceEmbedder);
+      results.faceEmbeddingModel = (embedPlugin?.modelSpec as ModelSpec | undefined)?.embeddingModel;
     }
+  }
+
+  private async embedFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
+    const faces = results.face?.detections ?? [];
+    const plugin = this.plugins.get(SensorType.FaceEmbedder);
+    if (!plugin || faces.length === 0) return;
+
+    const spec = plugin.modelSpec as ModelSpec | undefined;
+    const input = spec && isVideoInputSpec(spec.input) ? spec.input : undefined;
+    if (!input) return;
+
+    const wanted = faces.filter((face) => this.wantsEmbedding(face, sourceFrame));
+    if (wanted.length === 0) return;
+
+    const crops: VideoFrameData[] = [];
+    const pending: ServerFaceDetection[] = [];
+    const regions: CroppedRegion[] = [];
+    for (const face of wanted) {
+      const scaled = await scaler.cropAndScaleMulti(
+        sourceFrame,
+        face,
+        // a stretched face drifts away from its enrolled picture: same crop, cosine p10 0.35 stretched, 0.60 square
+        [{ key: 'faceEmbed', width: input.width, height: input.height, format: input.format, fit: 'expand' }],
+        FACE_CROP_PADDING,
+      );
+      const region = scaled.get('faceEmbed');
+      if (!region) continue;
+      crops.push({ ...region.frame, id: String(pending.length) });
+      pending.push(face);
+      regions.push(region);
+    }
+    if (crops.length === 0) return;
+
+    const started = Date.now();
+    const embedded = await PromiseTimeout(plugin.proxy.embedFaces(crops), DETECT_TIMEOUT_MS, undefined, `Face embedding timed out after ${DETECT_TIMEOUT_MS}ms`);
+    this.perf.faceEmbedMs += Date.now() - started;
+    this.perf.faceEmbedCount += crops.length;
+    if (!embedded) return;
+
+    for (let i = 0; i < pending.length && i < embedded.length; i++) {
+      const { embedding, landmarks, quality } = embedded[i] ?? {};
+      const good = !!embedding?.length;
+      if (good) {
+        pending[i].embedding = embedding;
+        pending[i].quality = quality;
+        pending[i].landmarks = landmarks?.map((point) => this.cropPointToFrame(point, regions[i]));
+      }
+      this.rememberAttempt(pending[i], good);
+    }
+  }
+
+  private async recognizeFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
+    if (!results.face?.detections.length) return;
+    await this.embedFaces(sourceFrame, scaler, results);
+    await this.resolveFaceIdentities(results.face.detections);
+    this.carryTrackIdentities(results.face.detections);
+  }
+
+  private wantsEmbedding(face: ServerFaceDetection, frame: Frame): boolean {
+    const shortest = Math.min(face.box.width * frame.width, face.box.height * frame.height);
+    if (shortest < MIN_FACE_PX) return false;
+
+    const now = Date.now();
+    const key = this.embedKey(face);
+    const seen = this.embeddedTracks.get(key);
+    // without a track a cell is all there is, and the next face in it may be someone else
+    if (!seen || (key.startsWith('u') && now - seen.seen > UNTRACKED_IDLE_MS)) {
+      this.embeddedTracks.delete(key);
+      return true;
+    }
+    seen.seen = now;
+    if (seen.identity || seen.good >= GOOD_VECTORS_PER_TRACK) return false;
+    return now - seen.attemptAt >= EMBED_EVERY_MS;
+  }
+
+  private rememberAttempt(face: ServerFaceDetection, good: boolean): void {
+    const now = Date.now();
+    const key = this.embedKey(face);
+    const seen = this.embeddedTracks.get(key);
+    this.embeddedTracks.set(key, { ...seen, attemptAt: now, seen: now, good: (seen?.good ?? 0) + (good ? 1 : 0) });
+
+    if (this.embeddedTracks.size <= EMBEDDED_TRACKS_MAX) return;
+    for (const [id, track] of this.embeddedTracks) {
+      if (now - track.seen > EMBEDDED_TRACK_IDLE_MS) this.embeddedTracks.delete(id);
+    }
+  }
+
+  private cropPointToFrame(point: Point, region: CroppedRegion): Point {
+    return [
+      (region.offset.x + point[0] * region.cropSize.width) / region.originalSize.width,
+      (region.offset.y + point[1] * region.cropSize.height) / region.originalSize.height,
+    ];
+  }
+
+  private carryTrackIdentities(faces: ServerFaceDetection[]): void {
+    const now = Date.now();
+    for (const face of faces) {
+      if ((face as TrackedFaceDetection).parentTrackId === undefined) continue;
+      const seen = this.embeddedTracks.get(this.embedKey(face));
+      if (!seen) continue;
+      seen.seen = now;
+      if (face.identity) seen.identity = face.identity;
+      else face.identity = seen.identity;
+    }
+  }
+
+  private embedKey(face: ServerFaceDetection): string {
+    const trackId = (face as TrackedFaceDetection).parentTrackId;
+    if (trackId !== undefined) return `t${trackId}`;
+    const cellX = Math.floor((face.box.x + face.box.width / 2) * UNTRACKED_GRID);
+    const cellY = Math.floor((face.box.y + face.box.height / 2) * UNTRACKED_GRID);
+    return `u${cellX}:${cellY}`;
   }
 
   private collectConsumers(requireFrames: boolean): ConsumerSpec[] {
@@ -294,7 +434,6 @@ export class SecondaryStage {
 
     if (type === SensorType.Face) {
       results.face = detections as FaceResult;
-      await this.resolveFaceIdentities(results.face.detections);
     } else if (type === SensorType.LicensePlate) {
       results.licensePlate = detections as LicensePlateResult;
     } else if (type === SensorType.Clip) {
@@ -451,12 +590,12 @@ export class SecondaryStage {
     return croppedRegions.map((r, i) => ({ ...r.frame, id: String(i), label: r.detection.label }));
   }
 
-  private async resolveFaceIdentities(faces: FaceDetection[]): Promise<void> {
+  private async resolveFaceIdentities(faces: ServerFaceDetection[]): Promise<void> {
     const withEmbeddings = faces.filter((f) => f.embedding?.length);
     if (!withEmbeddings.length) return;
 
-    const facePlugin = this.plugins.get(SensorType.Face);
-    const embeddingModel = (facePlugin?.modelSpec as ModelSpec | undefined)?.embeddingModel;
+    const embedPlugin = this.plugins.get(SensorType.FaceEmbedder);
+    const embeddingModel = (embedPlugin?.modelSpec as ModelSpec | undefined)?.embeddingModel;
     if (!embeddingModel) return;
 
     const nvr = await this.getNvrProxy();
@@ -464,7 +603,7 @@ export class SecondaryStage {
 
     try {
       const embeddings = withEmbeddings.map((f) => f.embedding!);
-      const matches = await nvr.matchFaces(embeddings, embeddingModel, this.coordinator.detectionSettings.face?.matchThreshold ?? 0);
+      const matches = await nvr.matchFaces(embeddings, embeddingModel, this.coordinator.detectionSettings.face?.matchSensitivity ?? 'balanced');
       for (let i = 0; i < withEmbeddings.length; i++) {
         if (matches[i]) {
           withEmbeddings[i].identity = matches[i]!.identity;

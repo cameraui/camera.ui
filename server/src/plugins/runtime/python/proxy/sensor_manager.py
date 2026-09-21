@@ -18,6 +18,7 @@ from _camera_ui_tools.camera_ui_sdk import (
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.proxy.limiter import registration_slot
 from plugins.runtime.python.proxy.sensor import (
+    DETECTION_SENSOR_TYPES,
     DetectionCoordinatorRPC,
     SensorProxy,
     SensorRegistryInterface,
@@ -39,19 +40,6 @@ if TYPE_CHECKING:
         SensorExposedChangedEvent,
         StoredSensorData,
     )
-
-DETECTION_SENSOR_TYPES: frozenset[SensorType] = frozenset(
-    {
-        SensorType.Motion,
-        SensorType.Audio,
-        SensorType.Object,
-        SensorType.ObjectAssist,
-        SensorType.Face,
-        SensorType.LicensePlate,
-        SensorType.Classifier,
-        SensorType.Clip,
-    }
-)
 
 
 def to_adopted(data: StoredSensorData) -> AdoptedSensor:

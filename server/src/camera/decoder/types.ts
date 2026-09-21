@@ -108,7 +108,9 @@ export interface FrameWorkerPerfCounters {
   plateMs: number;
   plateCount: number;
   clipMs: number;
+  faceEmbedMs: number;
   clipCount: number;
+  faceEmbedCount: number;
   classifierMs: number;
   classifierCount: number;
   secondaryMs: number;
@@ -120,7 +122,15 @@ export interface FrameWorkerPerfCounters {
   zoomWindows: number;
 }
 
-export const DETECTOR_METRIC_TYPES = [SensorType.Motion, SensorType.Object, SensorType.Face, SensorType.LicensePlate, SensorType.Classifier, SensorType.Clip] as const;
+export const DETECTOR_METRIC_TYPES = [
+  SensorType.Motion,
+  SensorType.Object,
+  SensorType.Face,
+  SensorType.FaceEmbedder,
+  SensorType.LicensePlate,
+  SensorType.Classifier,
+  SensorType.Clip,
+] as const;
 
 export interface DetectorTiming {
   handlerMs: number;

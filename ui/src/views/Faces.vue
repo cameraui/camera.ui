@@ -1,37 +1,15 @@
 <template>
-  <div class="flex flex-col">
+  <div ref="reindexAnchorRef" class="flex flex-col">
     <div v-if="!smBreakpoint" class="flex items-center justify-between">
       <h1 class="page-title">
         {{ $t('views.faces.title') }}
       </h1>
-      <Button
-        v-if="faceStore.knownFaces.value.length"
-        v-tooltip.bottom="{ value: $t('views.faces.rescan_events') }"
-        severity="secondary"
-        text
-        rounded
-        class="cui-icon-lg relative z-2"
-        :loading="rescanning"
-        @click="rescanFaces"
-      >
-        <template #icon>
-          <i-mdi:refresh width="100%" height="100%" />
-        </template>
-      </Button>
     </div>
 
     <CuiTopbarSlot position="left">
       <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
-        </template>
-      </Button>
-    </CuiTopbarSlot>
-
-    <CuiTopbarSlot position="right">
-      <Button v-if="faceStore.knownFaces.value.length" severity="secondary" class="cui-button p-2 text-color" text rounded :loading="rescanning" @click="rescanFaces">
-        <template #icon>
-          <i-mdi:refresh width="100%" height="100%" />
         </template>
       </Button>
     </CuiTopbarSlot>
@@ -297,6 +275,37 @@
       </template>
     </template>
 
+    <div
+      v-if="isAdmin && faceStore.knownFaces.value.length"
+      class="fixed z-10"
+      :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
+      :style="{
+        left: `calc(${reindexAnchorLeft}px + 0.75rem)`,
+        bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+        transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
+      }"
+    >
+      <Button
+        severity="secondary"
+        rounded
+        class="shadow-lg"
+        :disabled="reindexStatus?.running"
+        :label="
+          reindexChecking
+            ? $t('views.faces.reindex.checking')
+            : reindexStatus?.running
+              ? $t('views.faces.reindex.progress', { done: reindexStatus.done, total: reindexStatus.total })
+              : $t('views.faces.reindex.button')
+        "
+        @click="openReindexDialog"
+      >
+        <template #icon>
+          <SpinnerIcon v-if="reindexStatus?.running" />
+          <ReindexIcon v-else />
+        </template>
+      </Button>
+    </div>
+
     <CuiFloatingButtonGroup :force-visible="selectionMode">
       <template v-if="!selectionMode">
         <CuiFloatingButton
@@ -307,6 +316,15 @@
           :icon="SelectIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          v-if="faceStore.knownFaces.value.length"
+          grouped
+          :tooltip-props="{ value: $t('views.faces.rescan_events') }"
+          :button-props="{ severity: 'secondary', disabled: rescanning }"
+          :icon="rescanning ? SpinnerIcon : RescanIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="rescanFaces"
         />
         <CuiFloatingButton
           grouped
@@ -373,18 +391,22 @@
 </template>
 
 <script lang="ts" setup>
-import { thumbnailToUrl, useFaceStore } from '@camera.ui/nvr';
+import { thumbnailToUrl, useFaceStore, useFacesReindex } from '@camera.ui/nvr';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import AssignIcon from '~icons/mdi/account-plus';
 import CloseIcon from '~icons/mdi/close';
+import ReindexIcon from '~icons/mdi/database-refresh-outline';
 import TrashIcon from '~icons/mdi/delete-outline';
 import IgnoreIcon from '~icons/mdi/eye-off';
+import RescanIcon from '~icons/mdi/refresh';
+import SpinnerIcon from '~icons/svg-spinners/ring-resize';
 import SelectIcon from '~icons/tabler/dots-filled';
 import RemoveIcon from '~icons/tabler/minus';
 import PlusIcon from '~icons/typcn/plus';
 
 import FaceDetailDialog from '@/components/CuiDialog/templates/FaceDetail/FaceDetail.vue';
 import FaceNewPersonDialog from '@/components/CuiDialog/templates/FaceNewPerson/FaceNewPerson.vue';
+import FacesReindexDialog from '@/components/CuiDialog/templates/FacesReindex/FacesReindex.vue';
 import FaceUploadDialog from '@/components/CuiDialog/templates/FaceUpload/FaceUpload.vue';
 import { useCardSelection } from '@/composables/useCardSelection.js';
 
@@ -395,6 +417,7 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { width: windowWidth } = useSharedWindowSize();
+const { bottombarHeight } = useSharedCuiStates();
 const faceStore = useFaceStore();
 
 const clustered = faceStore.clusteredUnknowns;
@@ -404,7 +427,15 @@ const KNOWN_CARD_GAP = 12;
 
 const knownSkeletonRef = useTemplateRef<HTMLElement>('knownSkeletonRef');
 const knownRowRef = useTemplateRef<HTMLElement>('knownRowRef');
+const reindexAnchorRef = useTemplateRef<HTMLElement>('reindexAnchorRef');
+const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
 const rescanning = ref(false);
+const layoutReady = ref(false);
+
+const { status: reindexStatus, checking: reindexChecking } = useFacesReindex();
+const { y: windowScrollY } = useScroll(window, { throttle: 100 });
+const reindexScrollHidden = useScrollHide(() => windowScrollY.value);
+
 const knownRowScroll = reactive({ left: 0, max: 0 });
 
 const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
@@ -413,6 +444,10 @@ const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterS
   allUnknownFaces,
   (face) => face.id,
 );
+
+const isAdmin = computed(() => hasPermission(undefined, 'admin'));
+
+const reindexHidden = computed(() => reindexScrollHidden.value && !reindexStatus.value?.running);
 
 const selectedClusteredIds = computed(() => {
   const clusteredFaceIds = new Set(clustered.value.clusters.flatMap((cluster) => cluster.faces.map((face) => face.id)));
@@ -527,14 +562,24 @@ async function openKnownFaceDetail(face: FaceProfile) {
   });
 }
 
+function openReindexDialog(): void {
+  dialog.openComponentDialog(FacesReindexDialog, {
+    data: {
+      title: t('views.faces.reindex.title'),
+      contentProps: {},
+      confirmText: t('views.faces.reindex.start'),
+    },
+  });
+}
+
 function openUploadDialog() {
   dialog.openComponentDialog(FaceUploadDialog, {
     data: {
       title: t('views.faces.add_face'),
       confirmText: t('views.faces.enroll'),
       contentProps: {
-        onEnroll: async (name: string, imageData: Uint8Array, facePluginName: string) => {
-          await faceStore.enrollFace(name, imageData, facePluginName);
+        onEnroll: async (name: string, imageData: Uint8Array) => {
+          await faceStore.enrollFace(name, imageData);
           toast.add({ severity: 'success', detail: t('views.faces.face_enrolled'), life: 3000 });
           await faceStore.refresh(true);
         },
@@ -731,6 +776,12 @@ watch(
 );
 
 useResizeObserver(knownRowRef, measureKnownRow);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    layoutReady.value = true;
+  });
+});
 </script>
 
 <style scoped></style>

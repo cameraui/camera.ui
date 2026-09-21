@@ -1,10 +1,5 @@
 export interface FaceUploadProps {
-  onEnroll: (name: string, imageData: Uint8Array, facePluginName: string) => Promise<void>;
-}
-
-export interface FaceUploadPluginOption {
-  label: string;
-  value: string;
+  onEnroll: (name: string, imageData: Uint8Array) => Promise<void>;
 }
 
 export const FACE_UPLOAD_ACCEPTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];

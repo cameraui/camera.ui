@@ -6,11 +6,6 @@
     </div>
 
     <div>
-      <label class="cui-label">{{ $t('views.faces.face_plugin') }}</label>
-      <Select v-model="pluginName" :options="facePlugins" option-label="label" option-value="value" :placeholder="$t('views.faces.select_plugin')" class="w-full" />
-    </div>
-
-    <div>
       <label class="cui-label mb-1">Image</label>
       <div
         class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
@@ -36,34 +31,20 @@
 </template>
 
 <script setup lang="ts">
-import { hasInterface, PluginInterface } from '@camera.ui/sdk';
-
-import { PluginsQuery } from '@/api/routes/plugins.js';
 import { FACE_UPLOAD_ACCEPTED_FORMATS, FACE_UPLOAD_MAX_FILE_SIZE, FACE_UPLOAD_MAX_FILE_SIZE_MB } from './types.js';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { FaceUploadProps } from './types.js';
 
-const pluginsQuery = new PluginsQuery();
-
 const props = defineProps<FaceUploadProps>();
 
 const { t } = useI18n();
 
-const { data: extensions } = pluginsQuery.getPluginsExtensionsQuery({ page: 1, pageSize: -1 });
-
 const name = ref('');
-const pluginName = ref('');
 const preview = ref('');
 const rawBytes = ref<Uint8Array | null>(null);
 const error = ref('');
 const fileInput = ref<HTMLInputElement>();
-
-const facePlugins = computed(() => {
-  return (extensions.value?.result ?? [])
-    .filter((ext) => hasInterface(ext.contract, PluginInterface.FaceDetection))
-    .map((ext) => ({ label: ext.displayName, value: ext.pluginName }));
-});
 
 function triggerFileInput() {
   fileInput.value?.click();
@@ -112,20 +93,10 @@ function handleFile(file: File) {
   previewReader.readAsDataURL(file);
 }
 
-watch(
-  facePlugins,
-  (options) => {
-    if (!pluginName.value && options.length === 1) {
-      pluginName.value = options[0].value;
-    }
-  },
-  { immediate: true },
-);
-
 defineExpose<CustomDialogComponent>({
   onConfirm: async () => {
-    if (!name.value || !pluginName.value || !rawBytes.value) return null;
-    await props.onEnroll(name.value, rawBytes.value, pluginName.value);
+    if (!name.value || !rawBytes.value) return null;
+    await props.onEnroll(name.value, rawBytes.value);
     return true;
   },
 });

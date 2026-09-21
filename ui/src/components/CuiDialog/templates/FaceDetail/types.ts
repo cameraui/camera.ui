@@ -1,3 +1,5 @@
+export const FACE_DETAIL_FEW_PICTURES = 10;
+
 export interface FaceDetailFaceImage {
   id: string;
   src: string;

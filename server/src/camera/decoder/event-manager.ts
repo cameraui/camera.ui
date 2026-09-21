@@ -20,14 +20,13 @@ import type {
   DetectionPath,
   EventTrigger,
   EventTriggerType,
-  FaceDetection,
   LicensePlateDetection,
   LoggerService,
   Point,
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { TrainingCandidateBox } from '../../rpc/interfaces/core.js';
-import type { DetectionThumbnail } from '../../rpc/interfaces/detection.js';
+import type { DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
@@ -39,7 +38,7 @@ export interface TrackedSecondary {
   parentBox?: BoundingBox;
 }
 
-export interface TrackedFaceDetection extends FaceDetection, TrackedSecondary {}
+export interface TrackedFaceDetection extends ServerFaceDetection, TrackedSecondary {}
 export interface TrackedLicensePlateDetection extends LicensePlateDetection, TrackedSecondary {}
 export interface TrackedClassifierDetection extends ClassifierDetection, TrackedSecondary {}
 export interface TrackedClipEmbedding extends ClipEmbedding, TrackedSecondary {}
@@ -154,6 +153,8 @@ interface HeldAttribute {
   thumbnail?: Uint8Array;
   embedding?: number[];
   embeddingModel?: string;
+  landmarks?: Point[];
+  quality?: number;
   clipEmbedding?: number[];
   clipEmbeddingModel?: string;
 }
@@ -681,16 +682,19 @@ export class DetectionEventManager {
         const existingIdx = this.segmentFaceTrackIds.get(bucket);
         if (existingIdx !== undefined) {
           const existing = this.activeSegment.attributes[existingIdx];
-          if (existing && face.confidence > (existing.confidence ?? 0)) {
+          const held = this.heldAttributes[existingIdx];
+          // the sharpest face wins, not the one the detector was surest about
+          const better = face.quality !== undefined && held?.quality !== undefined ? face.quality > held.quality : face.confidence > (existing?.confidence ?? 0);
+          if (existing && better) {
             existing.confidence = face.confidence;
-            this.heldAttributes[existingIdx] = { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel: data.faceEmbeddingModel };
+            this.heldAttributes[existingIdx] = this.heldFace(face, data.faceEmbeddingModel);
           }
           continue;
         }
         this.segmentFaceTrackIds.set(bucket, this.activeSegment.attributes.length);
         this.pushAttribute(
           { type: 'face', label: 'unknown', confidence: face.confidence, parentTrackId: face.parentTrackId },
-          { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel: data.faceEmbeddingModel },
+          this.heldFace(face, data.faceEmbeddingModel),
         );
       }
     }
@@ -774,6 +778,10 @@ export class DetectionEventManager {
         );
       }
     }
+  }
+
+  private heldFace(face: TrackedFaceDetection, embeddingModel?: string): HeldAttribute {
+    return { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel, landmarks: face.thumbnailLandmarks, quality: face.quality };
   }
 
   private pushAttribute(attribute: RecordedAttribute, held?: HeldAttribute): void {
@@ -945,6 +953,7 @@ export class DetectionEventManager {
         if (held.embedding) {
           attribute.embedding = held.embedding;
           attribute.embeddingModel = held.embeddingModel;
+          attribute.landmarks = held.landmarks;
         }
         if (held.clipEmbedding) {
           attribute.clipEmbedding = held.clipEmbedding;

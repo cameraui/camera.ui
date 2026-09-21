@@ -18,8 +18,21 @@ from plugins.runtime.python.typings import (
     StoredSensorData,
 )
 
+DETECTION_SENSOR_TYPES: frozenset[SensorType] = frozenset(
+    {
+        SensorType.Motion,
+        SensorType.Audio,
+        SensorType.Object,
+        SensorType.ObjectAssist,
+        SensorType.Face,
+        SensorType.FaceEmbedder,
+        SensorType.LicensePlate,
+        SensorType.Classifier,
+        SensorType.Clip,
+    }
+)
 
-# Cross-process consumer proxy: caches sensor state from broadcasts, forwards Control writes via RPC.
+
 class SensorProxy(SensorLike):
     def __init__(self, data: StoredSensorData, proxy: RPCClient, owner_namespace: str) -> None:
         self._id = data["id"]

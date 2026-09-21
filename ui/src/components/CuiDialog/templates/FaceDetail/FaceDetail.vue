@@ -2,6 +2,10 @@
   <div>
     <div v-if="faceData.imageCount" class="text-sm text-muted mb-4">{{ faceData.imageCount }} {{ $t('views.faces.training_images') }}</div>
 
+    <Message v-if="faceData.images.length > 0 && faceData.images.length < FACE_DETAIL_FEW_PICTURES" severity="warn" size="small" class="mb-4" :closable="false">
+      {{ $t('views.faces.few_pictures_hint', { count: FACE_DETAIL_FEW_PICTURES }) }}
+    </Message>
+
     <div v-if="faceData.images.length" class="grid grid-cols-3 gap-2">
       <div v-for="(img, idx) in faceData.images" :key="idx" class="relative aspect-square rounded-2xl overflow-hidden bg-surface-100 dark:bg-surface-800">
         <img :src="img.src" class="w-full h-full object-cover" />
@@ -25,6 +29,8 @@
 </template>
 
 <script setup lang="ts">
+import { FACE_DETAIL_FEW_PICTURES } from './types.js';
+
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { FaceDetailProps } from './types.js';
 
