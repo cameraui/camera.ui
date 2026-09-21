@@ -1,3 +1,5 @@
+import { DISCOVERY_TOOL_NAME } from '@tanstack/ai';
+
 import { isPicturesMessage } from './uploads.js';
 
 import type { ModelMessage } from '@tanstack/ai';
@@ -6,6 +8,38 @@ import type { CompactionStrategy } from '@tanstack/ai-compaction';
 const CUT_NOTE = ' […] cut here, ask again for a narrower range to see the rest';
 const ESTIMATE_CHARS_PER_TOKEN = 4;
 const MARGIN_TOKENS = 16;
+const FETCHED_NOTE = '[tools fetched, they are in the tool list now]';
+const SKILL_TOOL = 'load_skill';
+
+export const PICTURE_TOKENS = 800;
+
+export function estimateMessage(message: ModelMessage): number {
+  const parts: unknown[] = Array.isArray(message.content) ? message.content : [message.content ?? ''];
+  const pictures = parts.filter(isData).length;
+  const text = parts.filter((part) => !isData(part)).map((part) => (typeof part === 'string' ? part : JSON.stringify(part)));
+  if (message.toolCalls?.length) text.push(JSON.stringify(message.toolCalls));
+  return Math.ceil(text.join('').length / ESTIMATE_CHARS_PER_TOKEN) + pictures * PICTURE_TOKENS;
+}
+
+export function clearDiscoveryResults(): CompactionStrategy {
+  return (messages) => {
+    const fetched = callIds(messages, DISCOVERY_TOOL_NAME);
+    const stale = (message: ModelMessage): boolean => message.role === 'tool' && fetched.has(message.toolCallId ?? '') && message.content !== FETCHED_NOTE;
+    return messages.some(stale) ? messages.map((message) => (stale(message) ? { ...message, content: FETCHED_NOTE } : message)) : null;
+  };
+}
+
+export function keepSkills(strategy: CompactionStrategy): CompactionStrategy {
+  return async (messages, ctx) => {
+    const next = await strategy(messages, ctx);
+    if (!next) return next;
+
+    // a second load_skill only answers "already loaded", a cleared procedure is gone for the run
+    const loaded = callIds(messages, SKILL_TOOL);
+    const original = new Map(messages.filter((message) => loaded.has(message.toolCallId ?? '')).map((message) => [message.toolCallId, message]));
+    return next.map((message) => (message.role === 'tool' ? (original.get(message.toolCallId) ?? message) : message));
+  };
+}
 
 export function trimToolResults(options: { maxChars: number }): CompactionStrategy {
   return (messages, ctx) => {
@@ -37,6 +71,14 @@ export function keepQuestion(strategy: CompactionStrategy): CompactionStrategy {
     // eviction starts at the oldest message, in a run of one question that is the question
     return [next[0], question, ...next.slice(1)];
   };
+}
+
+function isData(part: unknown): boolean {
+  return typeof (part as { source?: { value?: unknown } } | null)?.source?.value === 'string';
+}
+
+function callIds(messages: readonly ModelMessage[], toolName: string): Set<string> {
+  return new Set(messages.flatMap((message) => (message.toolCalls ?? []).filter((call) => call.function.name === toolName).map((call) => call.id)));
 }
 
 function largestResults(messages: ModelMessage[], minChars: number): number[] {

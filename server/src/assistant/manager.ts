@@ -16,7 +16,7 @@ import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
 import { planRun, promote } from './budget.js';
-import { keepQuestion, trimToolResults } from './compaction.js';
+import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
 import { ASK_USER_INTERRUPT } from './interrupts.js';
@@ -121,7 +121,6 @@ const ASSUMED_HEADROOM_TOKENS = 16_384;
 const MIN_CONTEXT_TOKENS = 2_000;
 // a single tool result never takes more than this share of the history budget
 const TOOL_RESULT_SHARE = 3;
-const PICTURE_TOKENS = 800;
 // discovery costs a round of its own, so a plan that hides tools gets its rounds back
 const DISCOVERY_ITERATIONS = 4;
 const MODEL_REFRESH_MS = 5_000;
@@ -646,10 +645,12 @@ export class AssistantManager {
         plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE,
         withCompaction({
           maxTokens: contextBudget,
-          strategyKey: `trim-clear-evict-question:${contextBudget}`,
+          estimateTokens: estimateMessage,
+          strategyKey: `discovery-trim-clear-evict:${contextBudget}`,
           strategy: composeStrategies(
+            clearDiscoveryResults(),
             trimToolResults({ maxChars: toolResultChars(contextBudget) }),
-            clearToolResults({ keepRecentToolResults: 6 }),
+            keepSkills(clearToolResults({ keepRecentToolResults: 6 })),
             keepQuestion(evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) })),
           ),
         }),
