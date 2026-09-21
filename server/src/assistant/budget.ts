@@ -2,12 +2,12 @@ import { convertSchemaToJsonSchema, renderLazyCatalogEntry } from '@tanstack/ai'
 
 import type { CoreTool } from './tools/shared.js';
 
-const CHARS_PER_TOKEN = 3;
+export const CHARS_PER_TOKEN = 3;
 const OVERHEAD_SHARE = 0.35;
 const CATALOG_SHARE = 0.5;
 const ANSWER_RESERVE_TOKENS = 1_000;
 const MIN_HISTORY_TOKENS = 2_000;
-const HISTORY_SHARE = 0.8;
+const HISTORY_SHARE = 0.9;
 const LOAD_SKILL_TOKENS = 120;
 
 const ENTRY_TOOLS = ['list_cameras', 'docs_search', 'list_tools', 'system_query', 'get_system_status', 'ask_user', 'api_search'];

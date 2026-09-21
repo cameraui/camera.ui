@@ -1,7 +1,5 @@
-import { chat, renderLazyCatalogEntry } from '@tanstack/ai';
+import { chat } from '@tanstack/ai';
 import * as zod from 'zod';
-
-import { estimateTokens } from './budget.js';
 
 import type { ChatMiddleware, ModelMessage, UIMessage } from '@tanstack/ai';
 import type { AssistantAdapter } from './providers.js';
@@ -10,21 +8,19 @@ import type { CoreTool } from './tools/shared.js';
 export const ROUTE_TIMEOUT_MS = 20_000;
 const MAX_PICKS = 4;
 const QUESTION_CHARS = 1_000;
-const CATALOG_SHARE = 0.25;
-const ACTIONS = /Actions: .*$/s;
+const ACTIONS = /Actions: (.*?)\.?$/s;
 
 export const ROUTED_TOOLS = ['docs_read', 'api_search', 'api_get', 'api_call'];
 
 // prettier-ignore
 const ROUTER_PROMPT =
   'You choose the tools an assistant of a camera system needs for one question. The assistant answers afterwards, you only choose. ' +
-  'Pick every tool the question needs, at most four, the most important first. Pick nothing when none of them fits.';
+  'Pick only the tools the question needs, the most important first. Most questions need one or two, never more than four. Pick nothing when none of them fits.';
 
 export async function routeTools(
   adapter: AssistantAdapter,
   question: string,
   hidden: CoreTool[],
-  window: number,
   middleware: ChatMiddleware<never>[],
   onError: (message: string) => void,
 ): Promise<string[] | null> {
@@ -36,7 +32,7 @@ export async function routeTools(
   try {
     const output = await (chat({
       adapter,
-      systemPrompts: [ROUTER_PROMPT, catalog(hidden, window)],
+      systemPrompts: [ROUTER_PROMPT, catalog(hidden)],
       messages: [{ role: 'user', content: question }],
       outputSchema: zod.object({ tools: zod.array(zod.enum(names as [string, ...string[]])).max(MAX_PICKS) }),
       middleware,
@@ -63,14 +59,8 @@ export function questionText(messages: readonly (UIMessage | ModelMessage)[]): s
     .slice(-QUESTION_CHARS);
 }
 
-function catalog(tools: CoreTool[], window: number): string {
-  const names = `Tools: ${tools.map((tool) => tool.name).join(', ')}`;
-  const described = tools.map((tool) => renderLazyCatalogEntry(tool.name, tool.description ?? '', 'first-sentence'));
-  // a tool that bundles actions is only recognisable by them
-  const detailed = described.map((entry, index) => [entry, ACTIONS.exec(tools[index].description ?? '')?.[0]].filter(Boolean).join(' '));
-
-  const limit = window * CATALOG_SHARE;
-  return [detailed, described].map((entries) => `Tools:\n${entries.join('\n')}`).find((text) => estimateTokens(text) <= limit) ?? names;
+function catalog(tools: CoreTool[]): string {
+  return `Tools: ${tools.map((tool) => [tool.name, ACTIONS.exec(tool.description ?? '')?.[1]].filter(Boolean).join(' with the actions ')).join(', ')}`;
 }
 
 function textOf(message: UIMessage | ModelMessage): string {

@@ -15,7 +15,7 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
-import { planRun, promote } from './budget.js';
+import { CHARS_PER_TOKEN, planRun, promote } from './budget.js';
 import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
@@ -1024,7 +1024,7 @@ export class AssistantManager {
   ): Promise<string[] | null> {
     const hidden = available.filter((tool) => !plan.eagerTools.has(tool.name) && !ROUTED_TOOLS.includes(tool.name));
     const adapter = this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS);
-    const picks = await routeTools(adapter, questionText(messages), hidden, plan.window, [countUsage(stats)], (message) =>
+    const picks = await routeTools(adapter, questionText(messages), hidden, [countUsage(stats)], (message) =>
       this.logger.debug(`Assistant: could not route tools for ${entry.name}: ${message}`),
     );
     if (picks?.length) this.logger.debug(`Assistant: routed ${picks.join(', ')} in front of ${entry.name}`);
@@ -1220,7 +1220,7 @@ function pictureLimit(contextBudget: number): number {
 }
 
 function toolResultChars(contextBudget: number): number {
-  return Math.max(2_000, Math.floor((contextBudget / TOOL_RESULT_SHARE) * 4));
+  return Math.max(2_000, Math.floor((contextBudget / TOOL_RESULT_SHARE) * CHARS_PER_TOKEN));
 }
 
 function cachedPrompts(prompts: string[], provider: string): SystemPrompt<never>[] {

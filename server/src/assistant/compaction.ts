@@ -1,12 +1,12 @@
 import { DISCOVERY_TOOL_NAME } from '@tanstack/ai';
 
+import { CHARS_PER_TOKEN } from './budget.js';
 import { isPicturesMessage } from './uploads.js';
 
 import type { ModelMessage } from '@tanstack/ai';
 import type { CompactionStrategy } from '@tanstack/ai-compaction';
 
 const CUT_NOTE = ' […] cut here, ask again for a narrower range to see the rest';
-const ESTIMATE_CHARS_PER_TOKEN = 4;
 const MARGIN_TOKENS = 16;
 const FETCHED_NOTE = '[tools fetched, they are in the tool list now]';
 const SKILL_TOOL = 'load_skill';
@@ -18,7 +18,7 @@ export function estimateMessage(message: ModelMessage): number {
   const pictures = parts.filter(isData).length;
   const text = parts.filter((part) => !isData(part)).map((part) => (typeof part === 'string' ? part : JSON.stringify(part)));
   if (message.toolCalls?.length) text.push(JSON.stringify(message.toolCalls));
-  return Math.ceil(text.join('').length / ESTIMATE_CHARS_PER_TOKEN) + pictures * PICTURE_TOKENS;
+  return Math.ceil(text.join('').length / CHARS_PER_TOKEN) + pictures * PICTURE_TOKENS;
 }
 
 export function clearDiscoveryResults(): CompactionStrategy {
@@ -45,7 +45,7 @@ export function trimToolResults(options: { maxChars: number }): CompactionStrate
   return (messages, ctx) => {
     const next = [...messages];
     const used = next.reduce((sum, message) => sum + ctx.estimate(message), 0);
-    let excess = (used - ctx.maxTokens + MARGIN_TOKENS) * ESTIMATE_CHARS_PER_TOKEN;
+    let excess = (used - ctx.maxTokens + MARGIN_TOKENS) * CHARS_PER_TOKEN;
 
     // the largest result gives way first and only as far as needed
     for (const index of largestResults(next, options.maxChars)) {
