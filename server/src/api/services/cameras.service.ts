@@ -452,7 +452,7 @@ export class CamerasService {
     const existing = this.findByName(cameraname);
     const plugin = this.pluginsService.getPluginByName(pluginNameOrId) ?? this.pluginsService.getPluginById(pluginNameOrId);
 
-    if (!existing || !plugin) return existing;
+    if (!existing || !plugin || plugin.contract.role === PluginRole.Service) return existing;
 
     const isNewPlugin = !existing.plugins.some((p) => p.name === plugin.pluginName);
     const pluginInfo = { id: plugin.id, name: plugin.pluginName };
@@ -513,7 +513,7 @@ export class CamerasService {
     const existing = this.findByName(cameraname);
     const plugin = this.pluginsService.getPluginByName(pluginNameOrId) ?? this.pluginsService.getPluginById(pluginNameOrId);
 
-    if (!existing || !plugin || existing.plugins.some((p) => p.name === plugin.pluginName)) {
+    if (!existing || !plugin || plugin.contract.role === PluginRole.Service || existing.plugins.some((p) => p.name === plugin.pluginName)) {
       return existing;
     }
 

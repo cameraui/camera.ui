@@ -177,7 +177,7 @@
 
 <script setup lang="ts">
 import { usePluginStorage } from '@camera.ui/browser';
-import { hasInterface, PluginInterface } from '@camera.ui/sdk';
+import { hasInterface, PluginInterface, PluginRole } from '@camera.ui/sdk';
 import { generateStorableConfig, PLUGIN_STATUS } from '@shared/types';
 import CctvIcon from '~icons/bxs/cctv';
 import AudioIcon from '~icons/lucide/audio-lines';
@@ -252,6 +252,7 @@ const pluginStatus = ref<PLUGIN_STATUS>(PLUGIN_STATUS.UNKNOWN);
 
 let pluginStatusScope: ReturnType<typeof effectScope> | undefined;
 
+const assignable = computed(() => plugin.value?.contract?.role !== PluginRole.Service);
 const isNvr = computed(() => !!pluginContract.value && hasInterface(pluginContract.value, PluginInterface.NVR));
 
 const isPluginRunning = computed(() => pluginStatus.value === PLUGIN_STATUS.READY || pluginStatus.value === PLUGIN_STATUS.STARTED);
@@ -405,7 +406,7 @@ watch(
 );
 
 watch(
-  [contract, pluginConfig, pluginContract, showSettingsTab, isPluginRunning],
+  [contract, pluginConfig, pluginContract, showSettingsTab, isPluginRunning, assignable],
   () => {
     const newSegments: SegmentItem[] = [];
 
@@ -459,7 +460,9 @@ watch(
       interfaceExist = true;
       newSegments.push({ name: 'notification', icon: BellIcon, isInterface: true, tooltip: t('views.plugin.notification_tab_tooltip') });
     }
-    newSegments.push({ name: 'cameras', icon: CctvIcon, isInterface: false, tooltip: t('views.plugin.cameras_tab_tooltip') });
+    if (assignable.value) {
+      newSegments.push({ name: 'cameras', icon: CctvIcon, isInterface: false, tooltip: t('views.plugin.cameras_tab_tooltip') });
+    }
 
     if (contract.value?.cameras.length) {
       // Check camera.plugins to determine if plugin is enabled for camera
@@ -474,7 +477,7 @@ watch(
         currentTab.value = 'settings';
       } else if (interfaceExist) {
         currentTab.value = segments.value.filter((segment) => segment.isInterface)[0].name;
-      } else {
+      } else if (assignable.value) {
         currentTab.value = 'cameras';
       }
     }
