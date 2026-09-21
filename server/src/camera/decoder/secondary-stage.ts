@@ -8,22 +8,12 @@ import { EVENT_THUMB_MAX_WIDTH } from './event-thumbnailer.js';
 import { directionBetween, MOMENT_QUALITY, momentFormat, momentWindow } from './moment-crop.js';
 import { MIN_PLATE_LENGTH, normalizePlateText } from './plate-vote.js';
 import { hasSecondaryModelSpec, isVideoInputSpec } from './plugin-registry.js';
+import { SideQueue } from './side-queue.js';
 import { DETECT_TIMEOUT_MS, ensureDetectionBoxes, FULL_FRAME_BOX } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type {
-  BoundingBox,
-  ClassifierResult,
-  ClipResult,
-  Detection,
-  FaceResult,
-  LicensePlateResult,
-  ModelSpec,
-  Point,
-  TrackedDetection,
-  VideoFrameData,
-} from '@camera.ui/sdk';
+import type { BoundingBox, ClassifierResult, Detection, FaceResult, LicensePlateResult, ModelSpec, Point, TrackedDetection, VideoFrameData } from '@camera.ui/sdk';
 import type { Frame } from 'node-av/lib';
 import type { CoreManagerInterface } from '../../rpc/interfaces/core.js';
 import type { CroppedRegion, DetectionResults, DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
@@ -38,7 +28,6 @@ import type { PluginRegistry } from './plugin-registry.js';
 const SECONDARY_CONSUMERS: { type: SensorType; key: string; fit: CropFit }[] = [
   { type: SensorType.Face, key: 'face', fit: 'expand' },
   { type: SensorType.LicensePlate, key: 'lpd', fit: 'stretch' },
-  { type: SensorType.Clip, key: 'clip', fit: 'expand' },
 ];
 
 interface NvrFaceMatcher {
@@ -53,6 +42,28 @@ const EMBEDDED_TRACKS_MAX = 256;
 const EMBEDDED_TRACK_IDLE_MS = 60_000;
 const UNTRACKED_IDLE_MS = 5_000;
 const UNTRACKED_GRID = 8;
+const CLIP_EVERY_MS = 10_000;
+const CLIP_AREA_FACTOR = 1.5;
+const CLIP_TIMEOUT_MS = 5_000;
+const FACE_TIMEOUT_MS = 5_000;
+const CLIP_FULL_FRAME_KEY = 'full';
+
+interface ClipTrack {
+  at: number;
+  area: number;
+}
+
+interface ClipJob {
+  region: CroppedRegion;
+  capturedAt: number;
+}
+
+interface FaceJob {
+  face: TrackedFaceDetection;
+  region: CroppedRegion;
+  capturedAt: number;
+  card?: { jpeg: Buffer; window: CropWindow; frameWidth: number; frameHeight: number };
+}
 
 interface EmbeddedTrack {
   attemptAt: number;
@@ -63,6 +74,28 @@ interface EmbeddedTrack {
 
 export class SecondaryStage {
   private readonly embeddedTracks = new Map<string, EmbeddedTrack>();
+  private readonly clipTracks = new Map<string, ClipTrack>();
+  private readonly clipQueue = new SideQueue<ClipJob>(
+    (jobs) => this.runClip(jobs),
+    CLIP_TIMEOUT_MS,
+    (error) => {
+      if (this.coordinator.running && !isNoRespondersError(error)) this.logger.error('CLIP detection error:', error);
+    },
+    (jobs) => {
+      for (const _job of jobs) this.coordinator.vectorJobSettled();
+    },
+  );
+
+  private readonly faceQueue = new SideQueue<FaceJob>(
+    (jobs) => this.runFaces(jobs),
+    FACE_TIMEOUT_MS,
+    (error) => {
+      if (this.coordinator.running && !isNoRespondersError(error)) this.logger.error('Face recognition error:', error);
+    },
+    (jobs) => {
+      for (const _job of jobs) this.coordinator.vectorJobSettled();
+    },
+  );
 
   private nvrProxy?: Promisify<NvrFaceMatcher>;
   private nvrProxyPromise?: Promise<Promisify<NvrFaceMatcher> | undefined>;
@@ -78,12 +111,14 @@ export class SecondaryStage {
   ) {}
 
   public async detect(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[], results: DetectionResults): Promise<void> {
+    await this.queueClip(sourceFrame, scaler, objectDetections);
     const regionMap = await this.prepareSecondaryRegions(sourceFrame, scaler, objectDetections);
     await this.runAllSecondaries(regionMap, results);
     await this.recognizeFaces(sourceFrame, scaler, results);
   }
 
   public async detectFullFrame(rawFrame: Frame, results: DetectionResults): Promise<Buffer | null> {
+    await this.queueFullFrameClip(rawFrame);
     const regionMap = await this.prepareFullFrameRegions(rawFrame);
 
     if (regionMap.size > 0) {
@@ -106,16 +141,8 @@ export class SecondaryStage {
     if (results.face?.detections) {
       const faceMinConfidence = settings.face?.confidence ?? 0;
       const faces = results.face.detections.filter((d) => d.confidence >= faceMinConfidence);
-      for (const [detection, jpeg, window] of await this.attributeCrops(sourceFrame, scaler, faces)) {
-        // enrichSegment persists unknown faces to the face store from this, the
-        // points travel along so the picture never has to be searched for its face again
-        if (!detection.thumbnail) {
-          detection.thumbnail = jpeg;
-          detection.thumbnailLandmarks = detection.landmarks?.map((point): Point => [
-            (point[0] * sourceFrame.width - window.x) / window.width,
-            (point[1] * sourceFrame.height - window.y) / window.height,
-          ]);
-        }
+      for (const [detection, jpeg] of await this.attributeCrops(sourceFrame, scaler, faces)) {
+        detection.thumbnail ??= jpeg;
         thumbnails.push(this.attributeThumbnail(`face:${detection.identity ?? 'unknown'}`, detection, jpeg));
       }
     }
@@ -188,7 +215,6 @@ export class SecondaryStage {
       this.runSecondaryDetection(SensorType.Face, results, () => this.runFaceDetection(regionMap.get('face') ?? [])),
       this.runSecondaryDetection(SensorType.LicensePlate, results, () => this.runLicensePlateDetection(regionMap.get('lpd') ?? [])),
       this.runSecondaryDetection(SensorType.Classifier, results, () => this.runClassifierDetections(regionMap)),
-      this.runSecondaryDetection(SensorType.Clip, results, () => this.runClipDetection(regionMap.get('clip') ?? [])),
     ]);
 
     if (results.face?.detections.length) {
@@ -197,22 +223,21 @@ export class SecondaryStage {
     }
   }
 
-  private async embedFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
-    const faces = results.face?.detections ?? [];
-    const plugin = this.plugins.get(SensorType.FaceEmbedder);
-    if (!plugin || faces.length === 0) return;
+  private async recognizeFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
+    if (!results.face?.detections.length) return;
+    await this.queueFaces(sourceFrame, scaler, results.face.detections);
+    this.carryTrackIdentities(results.face.detections);
+  }
 
-    const spec = plugin.modelSpec as ModelSpec | undefined;
+  private async queueFaces(sourceFrame: Frame, scaler: FrameScaler, faces: ServerFaceDetection[]): Promise<void> {
+    const plugin = this.plugins.get(SensorType.FaceEmbedder);
+    const spec = plugin?.modelSpec as ModelSpec | undefined;
     const input = spec && isVideoInputSpec(spec.input) ? spec.input : undefined;
     if (!input) return;
 
-    const wanted = faces.filter((face) => this.wantsEmbedding(face, sourceFrame));
-    if (wanted.length === 0) return;
+    for (const face of faces) {
+      if (!this.wantsEmbedding(face, sourceFrame)) continue;
 
-    const crops: VideoFrameData[] = [];
-    const pending: ServerFaceDetection[] = [];
-    const regions: CroppedRegion[] = [];
-    for (const face of wanted) {
       const scaled = await scaler.cropAndScaleMulti(
         sourceFrame,
         face,
@@ -222,35 +247,52 @@ export class SecondaryStage {
       );
       const region = scaled.get('faceEmbed');
       if (!region) continue;
-      crops.push({ ...region.frame, id: String(pending.length) });
-      pending.push(face);
-      regions.push(region);
-    }
-    if (crops.length === 0) return;
 
-    const started = Date.now();
-    const embedded = await PromiseTimeout(plugin.proxy.embedFaces(crops), DETECT_TIMEOUT_MS, undefined, `Face embedding timed out after ${DETECT_TIMEOUT_MS}ms`);
-    this.perf.faceEmbedMs += Date.now() - started;
-    this.perf.faceEmbedCount += crops.length;
-    if (!embedded) return;
+      const [crop] = await this.attributeCrops(sourceFrame, scaler, [face]);
+      const card = crop ? { jpeg: crop[1], window: crop[2], frameWidth: sourceFrame.width, frameHeight: sourceFrame.height } : undefined;
 
-    for (let i = 0; i < pending.length && i < embedded.length; i++) {
-      const { embedding, landmarks, quality } = embedded[i] ?? {};
-      const good = !!embedding?.length;
-      if (good) {
-        pending[i].embedding = embedding;
-        pending[i].quality = quality;
-        pending[i].landmarks = landmarks?.map((point) => this.cropPointToFrame(point, regions[i]));
-      }
-      this.rememberAttempt(pending[i], good);
+      this.markAttempt(face);
+      const job: FaceJob = { face: { ...(face as TrackedFaceDetection) }, region, capturedAt: Date.now(), card };
+      if (!this.faceQueue.push(this.embedKey(face), job)) this.coordinator.vectorJobStarted();
     }
   }
 
-  private async recognizeFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
-    if (!results.face?.detections.length) return;
-    await this.embedFaces(sourceFrame, scaler, results);
-    await this.resolveFaceIdentities(results.face.detections);
-    this.carryTrackIdentities(results.face.detections);
+  private async runFaces(jobs: FaceJob[]): Promise<void> {
+    const plugin = this.plugins.get(SensorType.FaceEmbedder);
+    if (!plugin || !this.coordinator.running) return;
+
+    const started = Date.now();
+    const embedded = await plugin.proxy.embedFaces(jobs.map((job, index) => ({ ...job.region.frame, id: String(index) })));
+    this.perf.faceEmbedMs += Date.now() - started;
+    this.perf.faceEmbedCount += jobs.length;
+
+    const faces: TrackedFaceDetection[] = [];
+    for (let i = 0; i < jobs.length; i++) {
+      const { face, region, card } = jobs[i];
+      const { embedding, landmarks, quality } = embedded[i] ?? {};
+      if (!embedding?.length) continue;
+
+      face.embedding = embedding;
+      face.quality = quality;
+      face.landmarks = landmarks?.map((point) => this.cropPointToFrame(point, region));
+      if (card) {
+        face.thumbnail = card.jpeg;
+        face.thumbnailLandmarks = face.landmarks?.map((point): Point => [
+          (point[0] * card.frameWidth - card.window.x) / card.window.width,
+          (point[1] * card.frameHeight - card.window.y) / card.window.height,
+        ]);
+      }
+      faces.push(face);
+    }
+
+    await this.resolveFaceIdentities(faces);
+    for (const face of faces) this.markGoodVector(face);
+    if (faces.length === 0 || !this.coordinator.running) return;
+
+    const embeddingModel = (plugin.modelSpec as ModelSpec | undefined)?.embeddingModel ?? '';
+    for (const job of jobs) {
+      if (job.face.embedding?.length) this.coordinator.acceptFaceVectors([job.face], embeddingModel, job.capturedAt);
+    }
   }
 
   private wantsEmbedding(face: ServerFaceDetection, frame: Frame): boolean {
@@ -270,16 +312,23 @@ export class SecondaryStage {
     return now - seen.attemptAt >= EMBED_EVERY_MS;
   }
 
-  private rememberAttempt(face: ServerFaceDetection, good: boolean): void {
+  private markAttempt(face: ServerFaceDetection): void {
     const now = Date.now();
     const key = this.embedKey(face);
     const seen = this.embeddedTracks.get(key);
-    this.embeddedTracks.set(key, { ...seen, attemptAt: now, seen: now, good: (seen?.good ?? 0) + (good ? 1 : 0) });
+    this.embeddedTracks.set(key, { good: 0, ...seen, attemptAt: now, seen: now });
 
     if (this.embeddedTracks.size <= EMBEDDED_TRACKS_MAX) return;
     for (const [id, track] of this.embeddedTracks) {
       if (now - track.seen > EMBEDDED_TRACK_IDLE_MS) this.embeddedTracks.delete(id);
     }
+  }
+
+  private markGoodVector(face: ServerFaceDetection): void {
+    const seen = this.embeddedTracks.get(this.embedKey(face));
+    if (!seen) return;
+    seen.good++;
+    if (face.identity && (face as TrackedFaceDetection).parentTrackId !== undefined) seen.identity = face.identity;
   }
 
   private cropPointToFrame(point: Point, region: CroppedRegion): Point {
@@ -386,37 +435,37 @@ export class SecondaryStage {
     const consumers = this.collectConsumers(true);
     if (consumers.length === 0) return result;
 
-    const frameWidth = rawFrame.width;
-    const frameHeight = rawFrame.height;
-    const fullFrameDetection: Detection = {
-      label: 'person',
-      confidence: 1.0,
-      box: { ...FULL_FRAME_BOX },
-    };
-
     for (const consumer of consumers) {
-      const letterboxed = await this.frameScaler.letterboxToSpec(rawFrame, consumer.input);
-      if (!letterboxed) continue;
-      const g = letterboxed.geometry;
-      const region: CroppedRegion = {
-        frame: this.frameScaler.toVideoFrameData(letterboxed.padded, `fullframe:${consumer.key}`),
-        detection: fullFrameDetection,
-        // a virtual crop covering frame plus fill bars, so the linear box
-        // mapping in transformBoxToOriginal un-letterboxes for free
-        offset: { x: (-g.padX / g.innerWidth) * frameWidth, y: (-g.padY / g.innerHeight) * frameHeight },
-        cropSize: { width: (g.targetWidth / g.innerWidth) * frameWidth, height: (g.targetHeight / g.innerHeight) * frameHeight },
-        originalSize: { width: frameWidth, height: frameHeight },
-      };
-      result.set(consumer.key, [region]);
+      const region = await this.fullFrameRegion(rawFrame, consumer.input, consumer.key);
+      if (region) result.set(consumer.key, [region]);
     }
 
     return result;
   }
 
+  private async fullFrameRegion(
+    rawFrame: Frame,
+    input: { width: number; height: number; format: ScaleTarget['format'] },
+    key: string,
+  ): Promise<CroppedRegion | undefined> {
+    const letterboxed = await this.frameScaler.letterboxToSpec(rawFrame, input);
+    if (!letterboxed) return undefined;
+    const g = letterboxed.geometry;
+    return {
+      frame: this.frameScaler.toVideoFrameData(letterboxed.padded, `fullframe:${key}`),
+      detection: { label: 'person', confidence: 1.0, box: { ...FULL_FRAME_BOX } },
+      // a virtual crop covering frame plus fill bars, so the linear box
+      // mapping in transformBoxToOriginal un-letterboxes for free
+      offset: { x: (-g.padX / g.innerWidth) * rawFrame.width, y: (-g.padY / g.innerHeight) * rawFrame.height },
+      cropSize: { width: (g.targetWidth / g.innerWidth) * rawFrame.width, height: (g.targetHeight / g.innerHeight) * rawFrame.height },
+      originalSize: { width: rawFrame.width, height: rawFrame.height },
+    };
+  }
+
   private async runSecondaryDetection(
-    type: SensorType.Face | SensorType.LicensePlate | SensorType.Classifier | SensorType.Clip,
+    type: SensorType.Face | SensorType.LicensePlate | SensorType.Classifier,
     results: DetectionResults,
-    fn: () => Promise<FaceResult | LicensePlateResult | ClipResult | { pluginId: string; result: ClassifierResult }[] | undefined>,
+    fn: () => Promise<FaceResult | LicensePlateResult | { pluginId: string; result: ClassifierResult }[] | undefined>,
   ): Promise<void> {
     let detections: Awaited<ReturnType<typeof fn>>;
     const startedAt = Date.now();
@@ -426,7 +475,7 @@ export class SecondaryStage {
       if (detections) this.trackTiming(type, Date.now() - startedAt);
     } catch (error) {
       if (!this.coordinator.running || isNoRespondersError(error)) return;
-      const logType = type === SensorType.Face ? 'Face' : type === SensorType.LicensePlate ? 'License plate' : type === SensorType.Clip ? 'CLIP' : 'Classifier';
+      const logType = type === SensorType.Face ? 'Face' : type === SensorType.LicensePlate ? 'License plate' : 'Classifier';
       this.logger.error(`${logType} detection error:`, error);
     }
 
@@ -436,10 +485,6 @@ export class SecondaryStage {
       results.face = detections as FaceResult;
     } else if (type === SensorType.LicensePlate) {
       results.licensePlate = detections as LicensePlateResult;
-    } else if (type === SensorType.Clip) {
-      results.clip = detections as ClipResult;
-      const clipPlugin = this.plugins.get(SensorType.Clip);
-      results.clipEmbeddingModel = (clipPlugin?.modelSpec as ModelSpec | undefined)?.embeddingModel;
     } else if (type === SensorType.Classifier) {
       results.classifiers ??= {};
       for (const { pluginId, result } of detections as { pluginId: string; result: ClassifierResult }[]) {
@@ -449,16 +494,13 @@ export class SecondaryStage {
     }
   }
 
-  private trackTiming(type: SensorType.Face | SensorType.LicensePlate | SensorType.Classifier | SensorType.Clip, ms: number): void {
+  private trackTiming(type: SensorType.Face | SensorType.LicensePlate | SensorType.Classifier, ms: number): void {
     if (type === SensorType.Face) {
       this.perf.faceMs += ms;
       this.perf.faceCount++;
     } else if (type === SensorType.LicensePlate) {
       this.perf.plateMs += ms;
       this.perf.plateCount++;
-    } else if (type === SensorType.Clip) {
-      this.perf.clipMs += ms;
-      this.perf.clipCount++;
     } else {
       this.perf.classifierMs += ms;
       this.perf.classifierCount++;
@@ -559,31 +601,79 @@ export class SecondaryStage {
     return settled.filter((r): r is { pluginId: string; result: ClassifierResult } => r !== undefined);
   }
 
-  private async runClipDetection(croppedRegions: CroppedRegion[]): Promise<ClipResult | undefined> {
-    const clipPlugin = this.plugins.get(SensorType.Clip);
-    if (!clipPlugin || croppedRegions.length === 0) return undefined;
+  private async queueClip(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[]): Promise<void> {
+    const target = this.clipTarget(false);
+    if (!target) return;
 
-    const batchResults = await PromiseTimeout(
-      clipPlugin.proxy.detectEmbeddings(this.prepareSecondaryFrames(croppedRegions)),
-      DETECT_TIMEOUT_MS,
-      undefined,
-      `CLIP detection timed out after ${DETECT_TIMEOUT_MS}ms`,
-    );
-    const allEmbeddings: TrackedClipEmbedding[] = [];
+    for (const detection of objectDetections) {
+      const label = detection.label.toLowerCase();
+      if (target.triggerLabels.length > 0 && !target.triggerLabels.some((l) => l.toLowerCase() === label)) continue;
 
-    for (let i = 0; i < batchResults.length; i++) {
-      if (batchResults[i].embeddings && batchResults[i].embeddings.length > 0) {
-        const parentTrackId = 'trackId' in croppedRegions[i].detection ? (croppedRegions[i].detection as TrackedDetection).trackId : undefined;
-        for (const emb of ensureDetectionBoxes(batchResults[i].embeddings)) {
-          const transformed = this.transformBoxToOriginal(emb.box, croppedRegions[i]);
-          allEmbeddings.push({ ...emb, box: transformed, parentTrackId });
-        }
+      const trackId = 'trackId' in detection ? (detection as TrackedDetection).trackId : undefined;
+      const key = trackId !== undefined ? `t${trackId}` : `l${label}`;
+      if (!this.clipDue(key, detection.box.width * detection.box.height)) continue;
+
+      const regions = await scaler.cropAndScaleMulti(sourceFrame, detection, [target.scale]);
+      const region = regions.get('clip');
+      if (region) this.pushClipJob(key, region);
+    }
+  }
+
+  private pushClipJob(key: string, region: CroppedRegion): void {
+    if (!this.clipQueue.push(key, { region, capturedAt: Date.now() })) this.coordinator.vectorJobStarted();
+  }
+
+  private async queueFullFrameClip(rawFrame: Frame): Promise<void> {
+    const target = this.clipTarget(true);
+    if (!target || !this.clipDue(CLIP_FULL_FRAME_KEY, 1)) return;
+
+    const region = await this.fullFrameRegion(rawFrame, target.scale, 'clip');
+    if (region) this.pushClipJob(CLIP_FULL_FRAME_KEY, region);
+  }
+
+  private clipTarget(requireFrames: boolean): { triggerLabels: string[]; scale: ScaleTarget } | undefined {
+    const plugin = this.plugins.get(SensorType.Clip);
+    if (!plugin || (requireFrames && !plugin.requiresFrames)) return undefined;
+    if (!hasSecondaryModelSpec(plugin.modelSpec) || !isVideoInputSpec(plugin.modelSpec.input)) return undefined;
+    const { input, triggerLabels } = plugin.modelSpec;
+    return { triggerLabels, scale: { key: 'clip', width: input.width, height: input.height, format: input.format, fit: 'expand' } };
+  }
+
+  private clipDue(key: string, area: number): boolean {
+    const now = Date.now();
+    const seen = this.clipTracks.get(key);
+    if (seen && area < seen.area * CLIP_AREA_FACTOR && now - seen.at < CLIP_EVERY_MS) return false;
+    this.clipTracks.set(key, { at: now, area: Math.max(area, seen?.area ?? 0) });
+
+    if (this.clipTracks.size > EMBEDDED_TRACKS_MAX) {
+      for (const [id, track] of this.clipTracks) {
+        if (now - track.at > EMBEDDED_TRACK_IDLE_MS) this.clipTracks.delete(id);
       }
     }
+    return true;
+  }
 
-    if (allEmbeddings.length === 0) return undefined;
+  private async runClip(jobs: ClipJob[]): Promise<void> {
+    const clipPlugin = this.plugins.get(SensorType.Clip);
+    if (!clipPlugin || !this.coordinator.running) return;
+
+    const started = Date.now();
+    const batchResults = await clipPlugin.proxy.detectEmbeddings(this.prepareSecondaryFrames(jobs.map((job) => job.region)));
+    this.perf.clipMs += Date.now() - started;
+    this.perf.clipCount++;
+    if (!this.coordinator.running) return;
+
     const embeddingModel = (clipPlugin.modelSpec as ModelSpec | undefined)?.embeddingModel ?? '';
-    return { embeddings: allEmbeddings, embeddingModel };
+    for (let i = 0; i < batchResults.length && i < jobs.length; i++) {
+      const { region, capturedAt } = jobs[i];
+      const parentTrackId = 'trackId' in region.detection ? (region.detection as TrackedDetection).trackId : undefined;
+      const embeddings = ensureDetectionBoxes(batchResults[i].embeddings ?? []).map((emb): TrackedClipEmbedding => ({
+        ...emb,
+        box: this.transformBoxToOriginal(emb.box, region),
+        parentTrackId,
+      }));
+      this.coordinator.acceptClipVectors(embeddings, embeddingModel, capturedAt);
+    }
   }
 
   private prepareSecondaryFrames(croppedRegions: CroppedRegion[]): VideoFrameData[] {

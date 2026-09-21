@@ -30,6 +30,7 @@ import type { DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfac
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
+import type { PerfTracker } from './perf-tracker.js';
 import type { SceneObservation, TrainingSubject } from './training-sink.js';
 import type { AnalysisStream } from './types.js';
 
@@ -172,6 +173,10 @@ interface ThumbnailCandidate {
 export class DetectionEventManager {
   private static readonly MAX_PLATE_THUMBNAILS = 16;
   private static readonly SEGMENT_LINGER_MS = 10_000;
+  // a vector can be ready before the snapshot of its own frame has opened the segment
+  private static readonly VECTOR_PARK_MS = 2_000;
+  private static readonly CLOSE_RECHECK_MS = 200;
+  private static readonly CLOSE_WAIT_MAX_MS = 8_000;
 
   private activeEvent: RecordedEvent | null = null;
   private activeSegment: RecordedSegment | null = null;
@@ -189,6 +194,10 @@ export class DetectionEventManager {
   private eventThumbnailAt = 0;
   private segmentClosePendingSince: number | null = null;
   private lingerTimer: NodeJS.Timeout | null = null;
+  private openVectorJobs = 0;
+  private lastSegmentClosedAt = 0;
+  private parkedVectors: { capturedAt: number; attach: () => void }[] = [];
+  private faceMinConfidence = 0;
 
   private eventThumbnail: Buffer | null = null;
   private needsEventThumbnail = false;
@@ -213,6 +222,7 @@ export class DetectionEventManager {
     private readonly cameraId: string,
     private readonly proxy: RPCClient,
     private readonly logger: LoggerService,
+    private readonly perf?: PerfTracker,
   ) {
     const ns = NamespaceManager.detectionEventNamespaces(cameraId);
     this.eventSubject = ns.detectionEventSubject;
@@ -314,13 +324,28 @@ export class DetectionEventManager {
       // this segment (detector flicker is not a new visit); lastSeen stays on
       // the last real detection, timer-driven so tickless cameras close too
       this.segmentClosePendingSince = now;
-      this.lingerTimer = setTimeout(() => {
-        this.lingerTimer = null;
-        if (this.segmentClosePendingSince === null) return;
-        this.segmentClosePendingSince = null;
-        this.closeSegment();
-        this.onSegmentClosedCallback?.();
-      }, DetectionEventManager.SEGMENT_LINGER_MS);
+      this.lingerTimer = setTimeout(() => this.closeLingeredSegment(Date.now()), DetectionEventManager.SEGMENT_LINGER_MS);
+    }
+  }
+
+  public vectorJobStarted(): void {
+    this.openVectorJobs++;
+    if (this.perf) this.perf.vectorJobs++;
+  }
+
+  public vectorJobSettled(): void {
+    this.openVectorJobs = Math.max(0, this.openVectorJobs - 1);
+  }
+
+  public acceptClipVectors(clips: TrackedClipEmbedding[], model: string, capturedAt: number): void {
+    for (const clip of clips) {
+      if (clip.embedding?.length) this.acceptVector(capturedAt, () => this.attachClip(clip, model));
+    }
+  }
+
+  public acceptFaceVectors(faces: TrackedFaceDetection[], model: string, capturedAt: number): void {
+    for (const face of faces) {
+      if (face.embedding?.length) this.acceptVector(capturedAt, () => this.attachFace(face, model));
     }
   }
 
@@ -365,6 +390,40 @@ export class DetectionEventManager {
 
   public hasActiveEvent(): boolean {
     return this.activeEvent !== null;
+  }
+
+  private acceptVector(capturedAt: number, attach: () => void): void {
+    if (capturedAt < this.lastSegmentClosedAt) {
+      if (this.perf) this.perf.vectorsDropped++;
+      return;
+    }
+    if (!this.activeSegment) {
+      this.dropStaleParkedVectors(Date.now());
+      this.parkedVectors.push({ capturedAt, attach });
+      if (this.perf) this.perf.vectorsParked++;
+      return;
+    }
+    attach();
+    if (this.perf) this.perf.vectorsAccepted++;
+  }
+
+  private closeLingeredSegment(dueAt: number): void {
+    this.lingerTimer = null;
+    if (this.segmentClosePendingSince === null) return;
+
+    const waited = Date.now() - dueAt;
+    if (this.openVectorJobs > 0 && waited < DetectionEventManager.CLOSE_WAIT_MAX_MS) {
+      this.lingerTimer = setTimeout(() => this.closeLingeredSegment(dueAt), DetectionEventManager.CLOSE_RECHECK_MS);
+      return;
+    }
+    if (waited >= DetectionEventManager.CLOSE_RECHECK_MS && this.perf) {
+      this.perf.closeDelays++;
+      this.perf.closeDelayMs += waited;
+    }
+
+    this.segmentClosePendingSince = null;
+    this.closeSegment();
+    this.onSegmentClosedCallback?.();
   }
 
   private startEvent(triggers: EventTrigger[], data: ProcessedDetectionData, now: number): void {
@@ -467,9 +526,30 @@ export class DetectionEventManager {
       this.updateThumbnails(data.thumbnails);
     }
 
+    this.attachParkedVectors(now);
     this.activeEvent.lastUpdate = now;
     this.updateTypes();
     this.publishSegment('segment-start');
+  }
+
+  private dropStaleParkedVectors(now: number): void {
+    const fresh = this.parkedVectors.filter((parked) => now - parked.capturedAt <= DetectionEventManager.VECTOR_PARK_MS);
+    if (this.perf) this.perf.vectorsDropped += this.parkedVectors.length - fresh.length;
+    this.parkedVectors = fresh;
+  }
+
+  private attachParkedVectors(now: number): void {
+    this.dropStaleParkedVectors(now);
+    const parked = this.parkedVectors;
+    this.parkedVectors = [];
+    for (const { capturedAt, attach } of parked) {
+      if (capturedAt >= this.lastSegmentClosedAt) {
+        attach();
+        if (this.perf) this.perf.vectorsAccepted++;
+      } else if (this.perf) {
+        this.perf.vectorsDropped++;
+      }
+    }
   }
 
   private upsertPlateAttribute(attrKey: string, label: string, confidence: number, parentTrackId: number | undefined): void {
@@ -519,6 +599,7 @@ export class DetectionEventManager {
 
     this.segmentIndex++;
     this.activeSegment = null;
+    this.lastSegmentClosedAt = Date.now();
   }
 
   private enrichTriggers(triggers: EventTrigger[], now: number): void {
@@ -667,37 +748,8 @@ export class DetectionEventManager {
       }
     }
 
-    for (const face of data.faces) {
-      if (face.confidence < (data.faceMinConfidence ?? 0)) continue;
-      if (face.identity) {
-        if (!this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity)) {
-          this.pushAttribute({ type: 'face', label: face.identity, parentTrackId: face.parentTrackId });
-        }
-      } else if (face.embedding?.length) {
-        // one slot per person, and one shared slot for faces the tracker could
-        // not attach to anyone: without a track there is nothing to tell two
-        // strangers apart by, and a slot per sighting would file the same face
-        // into the index on every tick
-        const bucket = face.parentTrackId !== undefined ? `t${face.parentTrackId}` : 'untracked';
-        const existingIdx = this.segmentFaceTrackIds.get(bucket);
-        if (existingIdx !== undefined) {
-          const existing = this.activeSegment.attributes[existingIdx];
-          const held = this.heldAttributes[existingIdx];
-          // the sharpest face wins, not the one the detector was surest about
-          const better = face.quality !== undefined && held?.quality !== undefined ? face.quality > held.quality : face.confidence > (existing?.confidence ?? 0);
-          if (existing && better) {
-            existing.confidence = face.confidence;
-            this.heldAttributes[existingIdx] = this.heldFace(face, data.faceEmbeddingModel);
-          }
-          continue;
-        }
-        this.segmentFaceTrackIds.set(bucket, this.activeSegment.attributes.length);
-        this.pushAttribute(
-          { type: 'face', label: 'unknown', confidence: face.confidence, parentTrackId: face.parentTrackId },
-          this.heldFace(face, data.faceEmbeddingModel),
-        );
-      }
-    }
+    this.faceMinConfidence = data.faceMinConfidence ?? 0;
+    for (const face of data.faces) this.attachFace(face, data.faceEmbeddingModel);
 
     this.plateVotingActive = data.plateVoting !== false;
 
@@ -764,20 +816,71 @@ export class DetectionEventManager {
     }
 
     for (const clip of data.clips) {
-      if (clip.embedding?.length) {
-        // one embedding per subject actually present, not per track: a
-        // re-numbered track is the same person and would otherwise land in the
-        // search index again, while two real people must keep both appearances
-        const stored = this.segmentClipLabels.get(clip.label) ?? 0;
-        const present = this.activeSegment.detections.find((d) => d.label === clip.label)?.maxCount ?? 1;
-        if (stored >= Math.max(1, present)) continue;
-        this.segmentClipLabels.set(clip.label, stored + 1);
-        this.pushAttribute(
-          { type: 'clip', label: clip.label, parentTrackId: clip.parentTrackId },
-          { clipEmbedding: clip.embedding, clipEmbeddingModel: data.clipEmbeddingModel },
-        );
-      }
+      if (clip.embedding?.length) this.attachClip(clip, data.clipEmbeddingModel);
     }
+  }
+
+  private attachFace(face: TrackedFaceDetection, model: string | undefined): void {
+    if (!this.activeSegment || face.confidence < this.faceMinConfidence) return;
+
+    if (face.identity) {
+      const named = this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity);
+      if (this.nameUnknownOfTrack(face, named)) return;
+      if (!named) this.pushAttribute({ type: 'face', label: face.identity, parentTrackId: face.parentTrackId });
+      return;
+    }
+    if (!face.embedding?.length) return;
+
+    // one slot per person, and one shared slot for faces the tracker could
+    // not attach to anyone: without a track there is nothing to tell two
+    // strangers apart by, and a slot per sighting would file the same face
+    // into the index on every tick
+    const bucket = face.parentTrackId !== undefined ? `t${face.parentTrackId}` : 'untracked';
+    const existingIdx = this.segmentFaceTrackIds.get(bucket);
+    if (existingIdx !== undefined) {
+      const existing = this.activeSegment.attributes[existingIdx];
+      const held = this.heldAttributes[existingIdx];
+      // the sharpest face wins, not the one the detector was surest about
+      const better = face.quality !== undefined && held?.quality !== undefined ? face.quality > held.quality : face.confidence > (existing?.confidence ?? 0);
+      if (existing && better) {
+        existing.confidence = face.confidence;
+        this.heldAttributes[existingIdx] = this.heldFace(face, model);
+      }
+      return;
+    }
+    this.segmentFaceTrackIds.set(bucket, this.activeSegment.attributes.length);
+    this.pushAttribute({ type: 'face', label: 'unknown', confidence: face.confidence, parentTrackId: face.parentTrackId }, this.heldFace(face, model));
+  }
+
+  private nameUnknownOfTrack(face: TrackedFaceDetection, named: boolean): boolean {
+    if (!this.activeSegment || !face.identity || face.parentTrackId === undefined) return false;
+    const bucket = `t${face.parentTrackId}`;
+    const index = this.segmentFaceTrackIds.get(bucket);
+    if (index === undefined) return false;
+    this.segmentFaceTrackIds.delete(bucket);
+
+    const unknown = this.activeSegment.attributes[index];
+    if (!unknown) return false;
+    if (!named) {
+      unknown.label = face.identity;
+      return true;
+    }
+    // the name already has its attribute: without a vector this one is not filed among the strangers
+    const held = this.heldAttributes[index];
+    if (held) this.heldAttributes[index] = { thumbnail: held.thumbnail };
+    return true;
+  }
+
+  private attachClip(clip: TrackedClipEmbedding, model: string | undefined): void {
+    if (!this.activeSegment) return;
+    // one embedding per subject actually present, not per track: a
+    // re-numbered track is the same person and would otherwise land in the
+    // search index again, while two real people must keep both appearances
+    const stored = this.segmentClipLabels.get(clip.label) ?? 0;
+    const present = this.activeSegment.detections.find((d) => d.label === clip.label)?.maxCount ?? 1;
+    if (stored >= Math.max(1, present)) return;
+    this.segmentClipLabels.set(clip.label, stored + 1);
+    this.pushAttribute({ type: 'clip', label: clip.label, parentTrackId: clip.parentTrackId }, { clipEmbedding: clip.embedding, clipEmbeddingModel: model });
   }
 
   private heldFace(face: TrackedFaceDetection, embeddingModel?: string): HeldAttribute {
@@ -933,6 +1036,8 @@ export class DetectionEventManager {
 
     const attributes = this.activeSegment?.attributes ?? [];
     const crops: (Uint8Array | undefined)[] = [];
+    // the face points travel with their picture, never on a later message
+    const landmarks: (Point[] | undefined)[] = [];
     let anyCrop = false;
 
     for (const [index, attribute] of attributes.entries()) {
@@ -942,9 +1047,11 @@ export class DetectionEventManager {
       if (crop?.length && this.shippedAttributes.get(index) !== crop) {
         this.shippedAttributes.set(index, crop);
         crops.push(crop);
+        landmarks.push(crop === held?.thumbnail ? held.landmarks : undefined);
         anyCrop = true;
       } else {
         crops.push(undefined);
+        landmarks.push(undefined);
       }
 
       // embeddings are write-only into the face and clip indexes, and the
@@ -953,7 +1060,6 @@ export class DetectionEventManager {
         if (held.embedding) {
           attribute.embedding = held.embedding;
           attribute.embeddingModel = held.embeddingModel;
-          attribute.landmarks = held.landmarks;
         }
         if (held.clipEmbedding) {
           attribute.clipEmbedding = held.clipEmbedding;
@@ -962,7 +1068,10 @@ export class DetectionEventManager {
       }
     }
 
-    if (anyCrop) attachments.attributes = crops;
+    if (anyCrop) {
+      attachments.attributes = crops;
+      if (landmarks.some((points) => points?.length)) attachments.attributeLandmarks = landmarks;
+    }
     return attachments;
   }
 

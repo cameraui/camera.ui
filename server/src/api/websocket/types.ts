@@ -41,6 +41,18 @@ export interface WorkerPerfStats {
   zoomWindows: number;
   objectsPerFrame: number;
   hitPercent: number;
+  objectFrames: number;
+  objectFps: number;
+  objectFrameMs: number;
+  objectSecondaryMs: number;
+  clipCalls: number;
+  faceEmbedCalls: number;
+  vectorJobs: number;
+  vectorsAccepted: number;
+  vectorsParked: number;
+  vectorsDropped: number;
+  closeDelays: number;
+  closeDelayMs: number;
   switches: number;
   minutes: number;
 }

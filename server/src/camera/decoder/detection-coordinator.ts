@@ -60,7 +60,14 @@ import type { CoordinatorSensorInfo, DetectionPluginInterface, DetectionResults 
 import type { CameraDeviceInterface } from '../../rpc/interfaces/device.js';
 import type { SensorWriteMessage } from '../../rpc/interfaces/sensor.js';
 import type { LineCrossingEvent, PipelineResult, ZoneConfig } from './detection-pipeline.js';
-import type { NormalizedDetectionZone, ProcessedDetectionData, SegmentMoment, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
+import type {
+  NormalizedDetectionZone,
+  ProcessedDetectionData,
+  SegmentMoment,
+  TrackedClipEmbedding,
+  TrackedFaceDetection,
+  TrackedLicensePlateDetection,
+} from './event-manager.js';
 import type { TraceTick } from './event-trace.js';
 import type { LetterboxGeometry } from './frame-scaler.js';
 import type { CropWindow, MomentFormatName, MomentTarget } from './moment-crop.js';
@@ -249,7 +256,7 @@ export class DetectionCoordinator {
       this.pipeline.updateLines(config.zones.lines, this.videoAspectRatio);
     }
 
-    this.eventManager = new DetectionEventManager(config.cameraId, this.proxy, this.logger);
+    this.eventManager = new DetectionEventManager(config.cameraId, this.proxy, this.logger, this.perf);
     this.eventManager.updateNvrRpc(config.nvrRpc);
     this.eventManager.onEventEnd(() => this.handleEventEnded());
     this.eventManager.onSegmentClosed(() => {
@@ -486,6 +493,22 @@ export class DetectionCoordinator {
     if (this.config.zones.lines.length > 0) {
       this.pipeline.updateLines(this.config.zones.lines, this.videoAspectRatio);
     }
+  }
+
+  public vectorJobStarted(): void {
+    this.eventManager.vectorJobStarted();
+  }
+
+  public vectorJobSettled(): void {
+    this.eventManager.vectorJobSettled();
+  }
+
+  public acceptClipVectors(embeddings: TrackedClipEmbedding[], embeddingModel: string, capturedAt: number): void {
+    this.eventManager.acceptClipVectors(embeddings, embeddingModel, capturedAt);
+  }
+
+  public acceptFaceVectors(faces: TrackedFaceDetection[], embeddingModel: string, capturedAt: number): void {
+    this.eventManager.acceptFaceVectors(faces, embeddingModel, capturedAt);
   }
 
   public async dispose(): Promise<void> {
@@ -1338,6 +1361,7 @@ export class DetectionCoordinator {
 
     while (this.loopRunning) {
       const tickStart = Date.now();
+      const objectFramesBefore = this.perf.framesWithObjects;
       let onMainStream = false;
       const snap = await this.frameSource.nextFrame(lastFrameId);
       if (!snap) break; // source stopped
@@ -1407,10 +1431,15 @@ export class DetectionCoordinator {
       else this.perf.idleTicks++;
       this.perf.report(this.logger);
 
-      const remaining = (this.mainStreamActive ? ACTIVE_TICK_MS : IDLE_TICK_MS) - (Date.now() - tickStart);
+      const workMs = Date.now() - tickStart;
+      const remaining = (this.mainStreamActive ? ACTIVE_TICK_MS : IDLE_TICK_MS) - workMs;
       if (remaining > 0) await sleep(remaining);
       const tickMs = Date.now() - tickStart;
       this.perf.loopMs += tickMs;
+      if (this.perf.framesWithObjects > objectFramesBefore) {
+        this.perf.objectWorkMs += workMs;
+        this.perf.objectLoopMs += tickMs;
+      }
       if (onMainStream) {
         this.perf.mainTicks++;
         this.perf.mainLoopMs += tickMs;
@@ -1834,11 +1863,6 @@ export class DetectionCoordinator {
           );
         }
       }
-    }
-    if (results.clip) {
-      // clip has no sensor, embeddings flow through the buffer only
-      this.currentDetectionState.clip = results.clip;
-      this.currentDetectionState.clipEmbeddingModel = results.clipEmbeddingModel;
     }
   }
 

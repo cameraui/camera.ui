@@ -43,6 +43,14 @@ export class PerfTracker {
   public faces = 0;
   public plates = 0;
   public framesWithObjects = 0;
+  public objectWorkMs = 0;
+  public objectLoopMs = 0;
+  public vectorJobs = 0;
+  public vectorsAccepted = 0;
+  public vectorsParked = 0;
+  public vectorsDropped = 0;
+  public closeDelays = 0;
+  public closeDelayMs = 0;
   public zoomTicks = 0;
   public zoomWindows = 0;
 
@@ -159,6 +167,14 @@ export class PerfTracker {
       faces: this.faces,
       plates: this.plates,
       framesWithObjects: this.framesWithObjects,
+      objectWorkMs: this.objectWorkMs,
+      objectLoopMs: this.objectLoopMs,
+      vectorJobs: this.vectorJobs,
+      vectorsAccepted: this.vectorsAccepted,
+      vectorsParked: this.vectorsParked,
+      vectorsDropped: this.vectorsDropped,
+      closeDelays: this.closeDelays,
+      closeDelayMs: this.closeDelayMs,
     };
   }
 

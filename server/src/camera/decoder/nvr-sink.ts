@@ -16,7 +16,6 @@ export interface RecordedAttribute extends EventAttribute {
   parentTrackId?: number;
   embedding?: number[];
   embeddingModel?: string;
-  landmarks?: Point[];
   clipEmbedding?: number[];
   clipEmbeddingModel?: string;
 }
@@ -37,6 +36,7 @@ export interface EventAttachments {
   strip?: Uint8Array;
   card?: Uint8Array;
   attributes?: (Uint8Array | undefined)[];
+  attributeLandmarks?: (Point[] | undefined)[];
   trace?: TraceTick[];
 }
 
@@ -53,7 +53,7 @@ export function leanEvent(event: RecordedEvent): DetectionEvent {
       ),
       attributes: attributes
         .filter((attribute) => attribute.type !== 'clip')
-        .map(({ parentTrackId: _parent, embedding: _e, embeddingModel: _em, landmarks: _l, clipEmbedding: _c, clipEmbeddingModel: _cm, ...attribute }) => attribute),
+        .map(({ parentTrackId: _parent, embedding: _e, embeddingModel: _em, clipEmbedding: _c, clipEmbeddingModel: _cm, ...attribute }) => attribute),
     })),
   };
 }

@@ -108,8 +108,8 @@ export interface FrameWorkerPerfCounters {
   plateMs: number;
   plateCount: number;
   clipMs: number;
-  faceEmbedMs: number;
   clipCount: number;
+  faceEmbedMs: number;
   faceEmbedCount: number;
   classifierMs: number;
   classifierCount: number;
@@ -118,6 +118,14 @@ export interface FrameWorkerPerfCounters {
   faces: number;
   plates: number;
   framesWithObjects: number;
+  objectWorkMs: number;
+  objectLoopMs: number;
+  vectorJobs: number;
+  vectorsAccepted: number;
+  vectorsParked: number;
+  vectorsDropped: number;
+  closeDelays: number;
+  closeDelayMs: number;
   zoomTicks: number;
   zoomWindows: number;
 }
