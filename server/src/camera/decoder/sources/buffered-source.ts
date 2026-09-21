@@ -49,6 +49,7 @@ export class BufferedSource implements AnalysisSource {
 
   private decoder?: Decoder;
   private filter?: FilterAPI;
+  private filterQueue: Promise<unknown> = Promise.resolve();
   private decodedThrough = -1;
 
   private cachedFrame?: Frame;
@@ -425,7 +426,13 @@ export class BufferedSource implements AnalysisSource {
     }
   }
 
-  private async normalize(frame: Frame): Promise<Frame> {
+  private normalize(frame: Frame): Promise<Frame> {
+    const run = this.filterQueue.then(() => this.runFilter(frame));
+    this.filterQueue = run;
+    return run;
+  }
+
+  private async runFilter(frame: Frame): Promise<Frame> {
     if (!this.filter) return frame;
 
     let outputs: Frame[];
