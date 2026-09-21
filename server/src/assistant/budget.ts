@@ -2,7 +2,8 @@ import { convertSchemaToJsonSchema, renderLazyCatalogEntry } from '@tanstack/ai'
 
 import type { CoreTool } from './tools/shared.js';
 
-export const CHARS_PER_TOKEN = 3;
+const LETTERS_PER_TOKEN = 4.5;
+const SYMBOLS_PER_TOKEN = 1.2;
 const OVERHEAD_SHARE = 0.35;
 const CATALOG_SHARE = 0.5;
 const ANSWER_RESERVE_TOKENS = 1_000;
@@ -39,8 +40,10 @@ export interface RunPlan {
 
 const costs = new WeakMap<object, { eager: number; catalog: number }>();
 
+// measured with Apple's tokenizer: prose 4.3 to 5.1 characters per token, JSON full of ids and timestamps 1.6
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN);
+  const letters = text.match(/[\p{L}\s]/gu)?.length ?? 0;
+  return Math.ceil(letters / LETTERS_PER_TOKEN + (text.length - letters) / SYMBOLS_PER_TOKEN);
 }
 
 export function planRun(window: number, sections: PromptSections, tools: CoreTool[]): RunPlan {
@@ -98,6 +101,10 @@ export function promote(plan: RunPlan, tools: CoreTool[], names: string[]): void
   }
   plan.hidden = plan.hidden.filter((name) => !plan.eagerTools.has(name));
   plan.historyTokens = historyBudget(plan.window, plan.overheadTokens);
+}
+
+export function toolTokens(tools: CoreTool[]): number {
+  return tools.reduce((sum, tool) => sum + toolCost(tool).eager, 0);
 }
 
 function historyBudget(window: number, overhead: number): number {

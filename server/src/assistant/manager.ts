@@ -15,7 +15,7 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
-import { CHARS_PER_TOKEN, planRun, promote } from './budget.js';
+import { planRun, promote, toolTokens } from './budget.js';
 import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
@@ -121,6 +121,9 @@ const ASSUMED_HEADROOM_TOKENS = 16_384;
 const MIN_CONTEXT_TOKENS = 2_000;
 // a single tool result never takes more than this share of the history budget
 const TOOL_RESULT_SHARE = 3;
+const MIN_TOOL_RESULT_TOKENS = 600;
+const SKILL_TOOLS_SHARE = 0.25;
+const SKILL_TOOLS_TOKENS = 1_200;
 // discovery costs a round of its own, so a plan that hides tools gets its rounds back
 const DISCOVERY_ITERATIONS = 4;
 const MODEL_REFRESH_MS = 5_000;
@@ -615,7 +618,10 @@ export class AssistantManager {
     const hiddenTools = planned.filter((tool) => tool.lazy).map((tool) => ({ ...tool, lazy: false }));
     const tools = resume.length ? offered.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : offered;
     const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed } : plan);
-    const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
+    // a procedure names tools the router did not pick, the room for them comes off the history
+    const skillRoom = routed && plan.skillsOnDemand ? Math.min(SKILL_TOOLS_TOKENS, Math.floor(plan.historyTokens * SKILL_TOOLS_SHARE)) : 0;
+    const skillTools = skillRoom ? this.skillTools(model, entry, params.messages, hiddenTools, skillRoom, stats) : undefined;
+    const contextBudget = Math.min(settings.contextTokens, plan.historyTokens - skillRoom);
     const rounds = settings.maxIterations + (plan.demoted && !routed ? DISCOVERY_ITERATIONS : 0);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
@@ -647,15 +653,15 @@ export class AssistantManager {
         withCompaction({
           maxTokens: contextBudget,
           estimateTokens: estimateMessage,
-          strategyKey: `discovery-trim-clear-evict:${contextBudget}`,
+          strategyKey: `discovery-trim-clear-evict-skills:${contextBudget}`,
           strategy: composeStrategies(
             clearDiscoveryResults(),
-            trimToolResults({ maxChars: toolResultChars(contextBudget) }),
+            trimToolResults({ maxTokens: toolResultTokens(contextBudget) }),
             keepSkills(clearToolResults({ keepRecentToolResults: 6 })),
-            keepQuestion(evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) })),
+            keepQuestion(keepSkills(evictOldest({ keepRecentTokens: Math.floor(contextBudget / 2) }))),
           ),
         }),
-        this.runMiddleware({ ...model, maxIterations: rounds }, ctx, thread._id, params.messages, stats, pictureLimit(contextBudget), routed ? hiddenTools : []),
+        this.runMiddleware({ ...model, maxIterations: rounds }, ctx, thread._id, params.messages, stats, pictureLimit(contextBudget), skillTools),
         toolCacheMiddleware({ ttl: TOOL_CACHE_TTL_MS, toolNames: CACHED_TOOLS }),
         secretGuard(this.logger),
       ],
@@ -813,7 +819,7 @@ export class AssistantManager {
     incoming: (UIMessage | ModelMessage)[],
     stats: AssistantRunStats,
     maxPictures = Infinity,
-    skillTools: CoreTool[] = [],
+    skillTools?: (messages: ModelMessage[]) => Promise<CoreTool[]>,
   ): ChatMiddleware<AssistantRunContext, typeof ASK_USER_INTERRUPT> {
     const log = this.logger;
     const userId = runCtx.userId;
@@ -838,16 +844,15 @@ export class AssistantManager {
         }
         return undefined;
       },
-      onConfig: (ctx, config) => {
+      onConfig: async (ctx, config) => {
         const exhausted = ctx.iteration >= settings.maxIterations || stats.toolCalls >= settings.maxToolCalls;
         const providerMessages = messagesForModel(repairHistory(config.providerMessages ?? config.messages), settings.sendImages, maxPictures);
         if (exhausted && config.tools.length) {
           return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
         }
 
-        // a routed run has no catalog, a procedure would otherwise name tools the model cannot reach
         const offered = new Set(config.tools.map((tool) => tool.name));
-        const named = toolsNamedBySkills(providerMessages, skillTools).filter((tool) => !offered.has(tool.name));
+        const named = ((await skillTools?.(config.messages)) ?? []).filter((tool) => !offered.has(tool.name));
         return named.length ? { providerMessages, tools: [...config.tools, ...named] } : { providerMessages };
       },
       onBeforeToolCall: (_ctx, hook) => {
@@ -1029,6 +1034,35 @@ export class AssistantManager {
     );
     if (picks?.length) this.logger.debug(`Assistant: routed ${picks.join(', ')} in front of ${entry.name}`);
     return picks;
+  }
+
+  private skillTools(
+    model: AssistantSettings,
+    entry: DBAssistantModel,
+    messages: (UIMessage | ModelMessage)[],
+    hidden: CoreTool[],
+    room: number,
+    stats: AssistantRunStats,
+  ): (history: ModelMessage[]) => Promise<CoreTool[]> {
+    const chosen = new Map<string, CoreTool[]>();
+
+    return async (history) => {
+      const named = toolsNamedBySkills(history, hidden);
+      const key = named.map((tool) => tool.name).join();
+      const known = chosen.get(key);
+      if (known || !named.length) return known ?? [];
+
+      let tools = named;
+      if (toolTokens(named) > room) {
+        const adapter = this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS);
+        const picks = await routeTools(adapter, questionText(messages), named, [countUsage(stats)], (message) =>
+          this.logger.debug(`Assistant: could not pick the tools of a procedure for ${entry.name}: ${message}`),
+        );
+        tools = picks ? named.filter((tool) => picks.includes(tool.name)) : named.filter((_, index) => toolTokens(named.slice(0, index + 1)) <= room);
+      }
+      chosen.set(key, tools);
+      return tools;
+    };
   }
 
   private routesTools(entry: DBAssistantModel): boolean {
@@ -1219,8 +1253,8 @@ function pictureLimit(contextBudget: number): number {
   return Math.max(1, Math.floor(contextBudget / 2 / PICTURE_TOKENS));
 }
 
-function toolResultChars(contextBudget: number): number {
-  return Math.max(2_000, Math.floor((contextBudget / TOOL_RESULT_SHARE) * CHARS_PER_TOKEN));
+function toolResultTokens(contextBudget: number): number {
+  return Math.max(MIN_TOOL_RESULT_TOKENS, Math.floor(contextBudget / TOOL_RESULT_SHARE));
 }
 
 function cachedPrompts(prompts: string[], provider: string): SystemPrompt<never>[] {

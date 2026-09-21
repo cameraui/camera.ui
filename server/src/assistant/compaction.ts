@@ -1,6 +1,6 @@
 import { DISCOVERY_TOOL_NAME } from '@tanstack/ai';
 
-import { CHARS_PER_TOKEN } from './budget.js';
+import { estimateTokens } from './budget.js';
 import { isPicturesMessage } from './uploads.js';
 
 import type { ModelMessage } from '@tanstack/ai';
@@ -10,6 +10,7 @@ const CUT_NOTE = ' […] cut here, ask again for a narrower range to see the res
 const MARGIN_TOKENS = 16;
 const FETCHED_NOTE = '[tools fetched, they are in the tool list now]';
 const SKILL_TOOL = 'load_skill';
+const PROCEDURES_LEAD = 'Procedures loaded earlier in this run, they still apply:';
 
 export const PICTURE_TOKENS = 800;
 
@@ -18,7 +19,7 @@ export function estimateMessage(message: ModelMessage): number {
   const pictures = parts.filter(isData).length;
   const text = parts.filter((part) => !isData(part)).map((part) => (typeof part === 'string' ? part : JSON.stringify(part)));
   if (message.toolCalls?.length) text.push(JSON.stringify(message.toolCalls));
-  return Math.ceil(text.join('').length / CHARS_PER_TOKEN) + pictures * PICTURE_TOKENS;
+  return estimateTokens(text.join('')) + pictures * PICTURE_TOKENS;
 }
 
 export function clearDiscoveryResults(): CompactionStrategy {
@@ -34,28 +35,33 @@ export function keepSkills(strategy: CompactionStrategy): CompactionStrategy {
     const next = await strategy(messages, ctx);
     if (!next) return next;
 
-    // a second load_skill only answers "already loaded", a cleared procedure is gone for the run
+    // a second load_skill only answers "already loaded", a procedure that left the history is gone for the run
     const loaded = callIds(messages, SKILL_TOOL);
     const original = new Map(messages.filter((message) => loaded.has(message.toolCallId ?? '')).map((message) => [message.toolCallId, message]));
-    return next.map((message) => (message.role === 'tool' ? (original.get(message.toolCallId) ?? message) : message));
+    const restored = next.map((message) => (message.role === 'tool' ? (original.get(message.toolCallId) ?? message) : message));
+
+    const evicted = [...original.values()].filter((message) => !restored.includes(message) && typeof message.content === 'string');
+    if (!evicted.length) return restored;
+    const procedures: ModelMessage = { role: 'user', content: `${PROCEDURES_LEAD}\n${evicted.map((message) => message.content as string).join('\n\n')}` };
+    return [restored[0], procedures, ...restored.slice(1)];
   };
 }
 
-export function trimToolResults(options: { maxChars: number }): CompactionStrategy {
+export function trimToolResults(options: { maxTokens: number }): CompactionStrategy {
   return (messages, ctx) => {
     const next = [...messages];
-    const used = next.reduce((sum, message) => sum + ctx.estimate(message), 0);
-    let excess = (used - ctx.maxTokens + MARGIN_TOKENS) * CHARS_PER_TOKEN;
+    let excess = next.reduce((sum, message) => sum + ctx.estimate(message), 0) - ctx.maxTokens + MARGIN_TOKENS;
 
     // the largest result gives way first and only as far as needed
-    for (const index of largestResults(next, options.maxChars)) {
+    for (const { index, tokens } of largestResults(next, options.maxTokens)) {
       if (excess <= 0) break;
       const content = next[index].content as string;
       const body = content.endsWith(CUT_NOTE) ? content.slice(0, -CUT_NOTE.length) : content;
-      const cut = body.slice(0, Math.max(options.maxChars, content.length - excess - CUT_NOTE.length)) + CUT_NOTE;
+      const keepTokens = Math.max(options.maxTokens, tokens - excess);
+      const cut = body.slice(0, Math.floor((body.length * keepTokens) / tokens)) + CUT_NOTE;
       if (cut.length >= content.length) continue;
 
-      excess -= content.length - cut.length;
+      excess -= tokens - estimateTokens(cut);
       next[index] = { ...next[index], content: cut };
     }
     return next.some((message, index) => message !== messages[index]) ? next : null;
@@ -81,10 +87,9 @@ function callIds(messages: readonly ModelMessage[], toolName: string): Set<strin
   return new Set(messages.flatMap((message) => (message.toolCalls ?? []).filter((call) => call.function.name === toolName).map((call) => call.id)));
 }
 
-function largestResults(messages: ModelMessage[], minChars: number): number[] {
+function largestResults(messages: ModelMessage[], minTokens: number): { index: number; tokens: number }[] {
   return messages
-    .map((message, index) => ({ index, size: message.role === 'tool' && typeof message.content === 'string' ? message.content.length : 0 }))
-    .filter((entry) => entry.size > minChars)
-    .sort((a, b) => b.size - a.size)
-    .map((entry) => entry.index);
+    .map((message, index) => ({ index, tokens: message.role === 'tool' && typeof message.content === 'string' ? estimateTokens(message.content) : 0 }))
+    .filter((entry) => entry.tokens > minTokens)
+    .sort((a, b) => b.tokens - a.tokens);
 }
