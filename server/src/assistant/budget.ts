@@ -16,6 +16,7 @@ const ALWAYS_EAGER = ['show_report'];
 
 export interface PromptSections {
   rules: string;
+  focused: string;
   toolless: string;
   capabilities: string;
   skills: string;

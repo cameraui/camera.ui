@@ -618,7 +618,7 @@ export class AssistantManager {
     // a routed model gets the few tools that matter and no catalog: it calls what it sees and never opened one
     const offered = routed ? planned.filter((tool) => !tool.lazy) : planned;
     const tools = resume.length ? offered.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : offered;
-    const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [] } : plan);
+    const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed } : plan);
     const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
     const rounds = settings.maxIterations + (plan.demoted && !routed ? DISCOVERY_ITERATIONS : 0);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);

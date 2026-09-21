@@ -5,7 +5,7 @@ import type { AssistantRunContext } from './types.js';
 
 const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
 
-type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden' | 'toolless'>;
+type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden' | 'toolless'> & { routed?: boolean };
 
 export interface PromptFacts {
   instanceName: string;
@@ -66,7 +66,7 @@ export function composePrompt(sections: PromptSections, plan?: PromptPlan): stri
   if (plan?.toolless) return [[sections.toolless, plainCapabilities(sections.capabilities)].join('\n\n'), sections.dynamic];
 
   const parts = [
-    sections.rules,
+    plan?.routed ? sections.focused : sections.rules,
     plan?.compactPrompt ? CAPABILITY_INDEX : sections.capabilities,
     plan?.skillsOnDemand ? SKILL_HINT : sections.skills,
     plan?.demoted ? DISCOVERY_HINT : '',
@@ -89,6 +89,20 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
     'camera.ui itself (how a feature works, where a setting lives) comes from docs_search first, not from memory. The tools are for camera.ui only.',
     'Relative dates like "yesterday" refer to the time zone given below. Pass times to tools as ISO 8601 with offset.',
     `Answer in ${languageName(ctx.language)}. Keep answers short and concrete, name cameras and times. Use markdown sparingly: short lists, no headings.`,
+  ];
+
+  // prettier-ignore
+  const focused = [
+    `You are the assistant of "${facts.instanceName}", a self-hosted camera.ui instance, talking to ${facts.userName} (role: ${ctx.role}).`,
+    `Answer in ${languageName(ctx.language)}. Short and concrete, name cameras and times.`,
+    '',
+    'Rules:',
+    '- Facts about cameras, events, people, sensors or the system come from a tool. Call the tool that fits before you answer, never guess.',
+    '- How a feature works or where a setting lives: call docs_search first, then answer from what it returns, not from your own knowledge.',
+    '- A change (sensor, automation, notification) happens through its tool, the user confirms it in the chat.',
+    '- If no tool fits or a tool returns nothing, say so plainly.',
+    '- Camera names below are the ones tools accept. Relative dates refer to the time zone below, pass times as ISO 8601 with offset.',
+    '- Never write a tool call or a tool name into the answer.',
   ];
 
   // prettier-ignore
@@ -170,6 +184,7 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
 
   return {
     rules: [...lines, '', ...rules].join('\n'),
+    focused: focused.join('\n'),
     toolless: toolless.join('\n'),
     capabilities,
     skills: skillsPrompt(),
