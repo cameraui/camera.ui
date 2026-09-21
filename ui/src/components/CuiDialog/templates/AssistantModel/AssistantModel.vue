@@ -101,6 +101,14 @@
       <ToggleSwitch v-model="userAccess" input-id="assistantModelUsers" class="ml-auto shrink-0" />
     </div>
 
+    <div class="flex items-center gap-4 cui-toggle-switch">
+      <div class="flex flex-col field-switch-gap">
+        <label for="assistantModelRouting" class="cui-label-switch">{{ $t('views.settings.assistant_model_routing') }}</label>
+        <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ $t('views.settings.assistant_model_routing_info') }}</Message>
+      </div>
+      <ToggleSwitch v-model="toolRouting" input-id="assistantModelRouting" class="ml-auto shrink-0" />
+    </div>
+
     <div v-if="entry" class="flex items-center gap-4 cui-toggle-switch">
       <div class="flex flex-col field-switch-gap">
         <label for="assistantModelImages" class="cui-label-switch">{{ $t('views.settings.assistant_send_images') }}</label>
@@ -140,6 +148,7 @@ const model = ref(props.entry?.model ?? '');
 const name = ref(props.entry && props.entry.name !== props.entry.model ? props.entry.name : '');
 const sendImages = ref(props.entry?.sendImages ?? false);
 const contextTokens = ref<number | null>(props.entry?.contextTokens ?? null);
+const toolRouting = ref(props.entry?.toolRouting ?? false);
 const userAccess = ref(props.entry?.userAccess !== false);
 const keySource = ref<string>(NEW_KEY_SOURCE);
 const available = ref<string[]>([]);
@@ -208,6 +217,7 @@ function request(): AssistantModelInput {
     model: model.value.trim(),
     userAccess: userAccess.value,
     contextTokens: pluginProvider.value ? null : (contextTokens.value ?? null),
+    toolRouting: toolRouting.value,
   };
 }
 
@@ -233,6 +243,14 @@ async function loadModels(): Promise<void> {
   available.value = result.models;
   suggestions.value = result.models;
 }
+
+watch(
+  () => pluginModels.value.find((spec) => spec.id === model.value),
+  (spec) => {
+    if (spec && props.entry?.toolRouting == null) toolRouting.value = spec.toolRouting === true;
+  },
+  { immediate: true },
+);
 
 onBeforeMount(() => {
   keySource.value = defaultKeySource();

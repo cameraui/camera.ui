@@ -15,7 +15,7 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
-import { planRun } from './budget.js';
+import { planRun, promote } from './budget.js';
 import { trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
@@ -31,6 +31,7 @@ import { createAdapter, listModels, providerNeedsKey } from './providers.js';
 import { modelOptionsFor } from './reasoning.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
 import { withEmptyTurnRetry } from './retry.js';
+import { questionText, ROUTE_TIMEOUT_MS, routeTools } from './router.js';
 import { AssistantScheduler, PUSH_BODY_MAX } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
 import { skillSources } from './skills.js';
@@ -603,16 +604,28 @@ export class AssistantManager {
     const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
     const sections = promptSections(ctx, this.promptFacts(request.user));
     const plan = this.plan(settings, entry, sections, available);
+    const stats = newStats();
+    const routed = !resume.length && this.routesTools(entry);
+    if (routed) {
+      const hidden = available.filter((tool) => !plan.eagerTools.has(tool.name));
+      const picks = await routeTools(this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS), questionText(params.messages), hidden, [countUsage(stats)], (message) =>
+        this.logger.debug(`Assistant: could not route tools for ${entry.name}: ${message}`),
+      );
+      promote(plan, available, picks);
+      if (picks.length) this.logger.debug(`Assistant: routed ${picks.join(', ')} in front of ${entry.name}`);
+    }
     const planned = applyPlan(available, plan);
-    const tools = resume.length ? planned.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : planned;
+    // a routed model gets the few tools that matter and no catalog: it calls what it sees and never opened one
+    const offered = routed ? planned.filter((tool) => !tool.lazy) : planned;
+    const tools = resume.length ? offered.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : offered;
+    const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [] } : plan);
     const contextBudget = Math.min(settings.contextTokens, plan.historyTokens);
-    const rounds = settings.maxIterations + (plan.demoted ? DISCOVERY_ITERATIONS : 0);
+    const rounds = settings.maxIterations + (plan.demoted && !routed ? DISCOVERY_ITERATIONS : 0);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
     const abortController = new AbortController();
     request.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
-    const stats = newStats();
     warmPrices(model.provider);
     const runId = params.runId ?? randomUUID();
     this.runs.set(runId, { userId: ctx.userId, threadId: thread._id, abort: abortController });
@@ -627,7 +640,7 @@ export class AssistantManager {
       tools,
       interrupts: [ASK_USER_INTERRUPT],
       context: ctx,
-      systemPrompts: [...cachedPrompts(composePrompt(sections, plan), model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(Boolean),
+      systemPrompts: [...cachedPrompts(prompt, model.provider), describeUploads(ctx.uploads, ctx.sendImages)].filter(Boolean),
       agentLoopStrategy: maxIterations(rounds + 1),
       lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
       modelOptions: modelOptionsFor(model) as never,
@@ -993,6 +1006,10 @@ export class AssistantManager {
       this.logger.debug(`Assistant: ${entry.name} holds ${plan.window} tokens, the request takes ${plan.overheadTokens} (${steps})`);
     }
     return plan;
+  }
+
+  private routesTools(entry: DBAssistantModel): boolean {
+    return entry.toolRouting ?? this.modelSpec(entry.provider, entry.model)?.toolRouting ?? false;
   }
 
   private window(settings: AssistantSettings, entry: DBAssistantModel): number {

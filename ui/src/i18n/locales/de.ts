@@ -3221,6 +3221,9 @@ export default {
       assistant_model_plugin_loading: 'Das Plugin macht sein Modell noch bereit.',
       assistant_model_plugin_none: 'Dieses Plugin bietet gerade kein Modell an.',
       assistant_model_context: 'Kontext {tokens} Tokens.',
+      assistant_model_routing: 'Werkzeuge vorab auswählen',
+      assistant_model_routing_info:
+        'Für kleine Modelle. Eine kurze Zusatzanfrage wählt die Werkzeuge, die eine Frage braucht, damit das Modell nur diese wenigen sieht statt eines langen Katalogs. Kostet etwa eine Sekunde pro Frage, große Modelle brauchen das nicht.',
       assistant_model_context_label: 'Kontextfenster (Tokens)',
       assistant_model_context_placeholder: 'Aus der allgemeinen Einstellung',
       assistant_model_context_info:

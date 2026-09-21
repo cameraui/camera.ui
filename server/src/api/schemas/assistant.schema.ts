@@ -18,6 +18,7 @@ export const assistantModelInputSchema = zod
     sendImages: zod.boolean().optional(),
     userAccess: zod.boolean().optional(),
     contextTokens: zod.number().int().min(1_000).max(400_000).nullable().optional(),
+    toolRouting: zod.boolean().nullable().optional(),
     retest: zod.boolean().optional(),
   })
   .strict();

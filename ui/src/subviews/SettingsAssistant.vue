@@ -56,7 +56,7 @@
                         class="text-[10px]"
                       />
                     </div>
-                    <div class="order-2 basis-full truncate text-muted md:order-3">{{ providerLabel(entry.provider) }} · {{ entry.model }}</div>
+                    <div class="order-2 basis-full truncate text-muted md:order-3">{{ providerLabel(entry.provider) }} · {{ modelLabel(entry) }}</div>
                     <div v-if="entry.capabilities?.error" class="order-4 basis-full text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
                     <div v-if="providerStatus(entry.provider)" class="order-4 basis-full text-xs text-muted line-clamp-2">{{ providerStatus(entry.provider) }}</div>
                   </div>
@@ -1084,6 +1084,11 @@ function providerLabel(provider: DBAssistantProvider): string {
   const plugin = info.value?.modelProviders.find((entry) => entry.provider === provider);
   if (plugin) return t('views.settings.assistant_provider_plugin', { name: plugin.pluginName });
   return ASSISTANT_PROVIDERS.find((option) => option.value === provider)?.label ?? provider;
+}
+
+function modelLabel(entry: AssistantModelView): string {
+  const spec = info.value?.modelProviders.find((row) => row.provider === entry.provider)?.models.find((model) => model.id === entry.model);
+  return spec?.name ?? entry.model;
 }
 
 function providerStatus(provider: DBAssistantProvider): string | undefined {

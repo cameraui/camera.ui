@@ -3243,6 +3243,9 @@ export default {
       assistant_model_plugin_loading: 'The plugin is still getting its model ready.',
       assistant_model_plugin_none: 'This plugin offers no model right now.',
       assistant_model_context: 'Context {tokens} tokens.',
+      assistant_model_routing: 'Pick the tools first',
+      assistant_model_routing_info:
+        'For small models. A short extra request picks the tools a question needs, so the model sees those few instead of a long catalog. Costs about a second per question, large models do not need it.',
       assistant_model_context_label: 'Context window (tokens)',
       assistant_model_context_placeholder: 'From the general setting',
       assistant_model_context_info:

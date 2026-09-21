@@ -203,6 +203,7 @@ export class AssistantService {
               sendImages: input.sendImages ?? existing?.sendImages ?? false,
               userAccess: input.userAccess ?? existing?.userAccess ?? true,
               contextTokens: input.contextTokens === undefined ? (existing?.contextTokens ?? null) : input.contextTokens,
+              toolRouting: input.toolRouting === undefined ? (existing?.toolRouting ?? null) : input.toolRouting,
               capabilities: existing?.capabilities ?? null,
             };
           });

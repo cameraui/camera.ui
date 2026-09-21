@@ -68,7 +68,13 @@ export class PluginModelClient {
         continue;
       }
       seen.add(spec.id);
-      valid.push({ ...spec, vision: spec.vision === true, toolCalling: spec.toolCalling === true, structuredOutput: spec.structuredOutput === true });
+      valid.push({
+        ...spec,
+        vision: spec.vision === true,
+        toolCalling: spec.toolCalling === true,
+        structuredOutput: spec.structuredOutput === true,
+        toolRouting: spec.toolRouting === true,
+      });
     }
     return valid;
   }
@@ -211,8 +217,8 @@ export class PluginTextAdapter extends BaseTextAdapter<string, Record<string, ne
     }
 
     // a model without native schema support answers in prose around the json
-    const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    return { data: JSON.parse(json || text), ...(usage ? { usage } : {}) } as StructuredOutputResult<unknown>;
+    const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || text;
+    return { data: JSON.parse(json), rawText: json, ...(usage ? { usage } : {}) };
   }
 
   private request(options: TextOptions<Record<string, never>>): AssistantModelRequest {

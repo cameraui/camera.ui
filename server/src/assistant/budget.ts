@@ -89,6 +89,16 @@ export function planRun(window: number, sections: PromptSections, tools: CoreToo
   return plan;
 }
 
+export function promote(plan: RunPlan, tools: CoreTool[], names: string[]): void {
+  for (const tool of tools) {
+    if (!names.includes(tool.name) || plan.eagerTools.has(tool.name)) continue;
+    plan.eagerTools.add(tool.name);
+    plan.overheadTokens += toolCost(tool).eager;
+  }
+  plan.hidden = plan.hidden.filter((name) => !plan.eagerTools.has(name));
+  plan.historyTokens = historyBudget(plan.window, plan.overheadTokens);
+}
+
 function historyBudget(window: number, overhead: number): number {
   return Math.max(MIN_HISTORY_TOKENS, Math.floor((window - overhead - ANSWER_RESERVE_TOKENS) * HISTORY_SHARE));
 }
