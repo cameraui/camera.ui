@@ -60,12 +60,15 @@ export class AssistantToolRegistry {
   }
 
   public async refreshModels(): Promise<void> {
-    const plugins = new PluginsService();
+    const providers = new PluginsService().listPlugins().filter((plugin) => hasInterface(plugin.contract, PluginInterface.AssistantModels));
+    const known = new Set(providers.map((plugin) => plugin.id));
+    for (const pluginId of this.models.keys()) if (!known.has(pluginId)) this.models.delete(pluginId);
+
+    // a plugin whose first answer failed never made it into the list, so the running ones are asked, not the listed ones
     await Promise.all(
-      Array.from(this.models.keys()).map(async (pluginId) => {
-        const plugin = plugins.getPluginById(pluginId);
-        if (plugin?.worker.isRunning()) await this.registerModels(plugin);
-        else this.models.delete(pluginId);
+      providers.map(async (plugin) => {
+        if (plugin.worker.isRunning()) await this.registerModels(plugin);
+        else this.models.delete(plugin.id);
       }),
     );
   }

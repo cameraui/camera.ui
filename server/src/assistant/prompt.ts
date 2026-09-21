@@ -5,7 +5,7 @@ import type { AssistantRunContext } from './types.js';
 
 const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
 
-type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden' | 'toolless'> & { routed?: boolean };
+type PromptPlan = Pick<RunPlan, 'compactPrompt' | 'skillsOnDemand' | 'demoted' | 'hidden' | 'toolless'> & { routed?: string[] };
 
 export interface PromptFacts {
   instanceName: string;
@@ -71,8 +71,13 @@ export function composePrompt(sections: PromptSections, plan?: PromptPlan): stri
     plan?.skillsOnDemand ? SKILL_HINT : sections.skills,
     plan?.demoted ? DISCOVERY_HINT : '',
     plan?.hidden.length ? hiddenTools(plan.hidden) : '',
+    plan?.routed?.length ? pickedTools(plan.routed) : '',
   ];
   return [parts.filter((part) => part !== '').join('\n\n'), sections.dynamic];
+}
+
+function pickedTools(names: string[]): string {
+  return `For this question these tools fit best: ${names.join(', ')}. Use them when the question needs data or an action.`;
 }
 
 export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): PromptSections {
@@ -100,7 +105,7 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
     '- Facts about cameras, events, people, sensors or the system come from a tool. Call the tool that fits before you answer, never guess.',
     '- How a feature works or where a setting lives: call docs_search first, then answer from what it returns, not from your own knowledge.',
     '- What is configured and has no tool of its own (users, sessions, automations, plugins, settings): api_search for the endpoint, then api_get to read it.',
-    '- A change (sensor, automation, notification) happens through its tool, the user confirms it in the chat.',
+    '- A change (sensor, automation, notification): call its tool right away. The app asks the user to confirm, never ask for permission yourself.',
     '- If no tool fits or a tool returns nothing, say so plainly.',
     '- Camera names below are the ones tools accept. Relative dates refer to the time zone below, pass times as ISO 8601 with offset.',
     '- Never write a tool call or a tool name into the answer.',

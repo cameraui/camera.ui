@@ -421,6 +421,7 @@ export class AssistantManager {
   public async ask(request: AssistantAskRequest): Promise<AssistantAskResult> {
     const settings = this.settings();
     const entry = this.pluginModel(request.pluginId);
+    await this.ensureModel(entry);
     if (!entry) return { ok: false, reason: 'not_allowed', message: `Plugin ${request.pluginId} may not use the assistant model, allow it under Settings, Assistant` };
     if (!settings.enabled || !entryConfigured(entry)) return { ok: false, reason: 'unconfigured', message: 'The assistant model is not configured' };
 
@@ -483,6 +484,7 @@ export class AssistantManager {
       return { ok: false, toolCalling: false, vision: null, latencyMs: 0, model, error: 'This provider needs an API key' };
     }
 
+    await this.ensureModel({ provider: entry.provider, model });
     const spec = this.modelSpec(entry.provider, model);
     let adapter: AssistantAdapter;
     try {
@@ -573,6 +575,7 @@ export class AssistantManager {
     const params = await chatParamsFromRequestBody(request.body);
     const forwarded = (params as { forwardedProps?: Record<string, unknown> }).forwardedProps ?? {};
     const entry = this.resolveModel(request.user, { modelId: pickString(forwarded.modelId), profileId: pickString(forwarded.profileId) })!;
+    await this.ensureModel(entry);
     const model = this.modelSettings(settings, entry);
     const ctx: AssistantRunContext = {
       userId: request.user._id,
@@ -617,7 +620,7 @@ export class AssistantManager {
     const offered = routed ? planned.filter((tool) => !tool.lazy) : planned;
     const hiddenTools = planned.filter((tool) => tool.lazy).map((tool) => ({ ...tool, lazy: false }));
     const tools = resume.length ? offered.map((tool) => (tool.lazy ? { ...tool, lazy: false } : tool)) : offered;
-    const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed } : plan);
+    const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed: picks } : plan);
     // a procedure names tools the router did not pick, the room for them comes off the history
     const skillRoom = routed && plan.skillsOnDemand ? Math.min(SKILL_TOOLS_TOKENS, Math.floor(plan.historyTokens * SKILL_TOOLS_SHARE)) : 0;
     const skillTools = skillRoom ? this.skillTools(model, entry, params.messages, hiddenTools, skillRoom, stats) : undefined;
@@ -709,6 +712,7 @@ export class AssistantManager {
     const settings = this.settings();
     if (!settings.enabled || this.status(user.role).state !== 'ready') throw new Error('The assistant is not ready');
     const entry = this.resolveModel(user, { profileId: opts.profile?._id })!;
+    await this.ensureModel(entry);
     const model = this.modelSettings(settings, entry);
 
     const ctx: AssistantRunContext = {
@@ -781,6 +785,7 @@ export class AssistantManager {
     const settings = this.settings();
     if (!settings.enabled || this.status(user.role).state !== 'ready') throw new Error('The assistant is not ready');
     const entry = this.resolveModel(user)!;
+    await this.ensureModel(entry);
     const model = this.modelSettings(settings, entry);
 
     const rooms = new RoomsService();
@@ -887,6 +892,7 @@ export class AssistantManager {
 
   private async extractFacts(userId: string, turn: MemoryTurn, existing: string[]): Promise<MemoryChange> {
     const entry = this.resolveModel({ _id: userId, role: new UsersService().findById(userId)?.role ?? 'user' });
+    await this.ensureModel(entry);
     if (!entry) return { add: [], remove: [] };
     const model = this.modelSettings(this.settings(), entry);
     const abort = new AbortController();
@@ -1073,6 +1079,12 @@ export class AssistantManager {
     const spec = this.modelSpec(entry.provider, entry.model);
     if (spec) return Math.max(MIN_CONTEXT_TOKENS, spec.contextTokens);
     return entry.contextTokens ?? settings.contextTokens + ASSUMED_HEADROOM_TOKENS;
+  }
+
+  // a plugin is asked for its models once when it starts, an answer from a bad moment must not outlive the next question
+  private async ensureModel(entry: Pick<DBAssistantModel, 'provider' | 'model'> | undefined): Promise<void> {
+    if (!entry || !pluginOfProvider(entry.provider) || this.modelSpec(entry.provider, entry.model)) return;
+    await this.refreshModelProviders();
   }
 
   private baseAdapter(model: AssistantSettings, entry: DBAssistantModel, language: string, timeoutMs?: number): AssistantAdapter {
