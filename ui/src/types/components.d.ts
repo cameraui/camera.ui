@@ -419,6 +419,7 @@ declare module 'vue' {
     'IMdi:informationOutline': typeof import('~icons/mdi/information-outline')['default']
     'IMdi:key': typeof import('~icons/mdi/key')['default']
     'IMdi:layersOutline': typeof import('~icons/mdi/layers-outline')['default']
+    'IMdi:layersPlus': typeof import('~icons/mdi/layers-plus')['default']
     'IMdi:license': typeof import('~icons/mdi/license')['default']
     'IMdi:lightbulbOn': typeof import('~icons/mdi/lightbulb-on')['default']
     'IMdi:lightbulbOutline': typeof import('~icons/mdi/lightbulb-outline')['default']

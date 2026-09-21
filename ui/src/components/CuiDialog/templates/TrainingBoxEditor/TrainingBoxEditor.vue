@@ -6,7 +6,20 @@
         <span class="font-medium truncate">{{ cameraName(current.cameraId) }}</span>
         <span class="text-muted shrink-0">{{ formatRelativeTime(current.createdAt) }}</span>
       </div>
-      <span class="text-muted tabular-nums shrink-0">{{ position }} / {{ totalCount }}</span>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <Button
+          v-if="previousBoxes.length > 0"
+          v-tooltip.bottom="$t('components.training_editor.ghosts_toggle')"
+          :severity="showGhosts ? 'primary' : 'secondary'"
+          text
+          rounded
+          class="cui-icon-sm"
+          @click="showGhosts = !showGhosts"
+        >
+          <template #icon><i-mdi:layers-plus class="w-4 h-4" /></template>
+        </Button>
+        <span class="text-muted tabular-nums">{{ position }} / {{ totalCount }}</span>
+      </div>
     </div>
 
     <div ref="stageRef" class="stage relative w-full bg-black rounded-lg shrink-0 overflow-hidden select-none">
@@ -62,6 +75,21 @@
               </g>
             </g>
             <rect
+              v-for="(ghost, i) in ghosts"
+              :key="`ghost-${i}`"
+              :x="pct(ghost.x)"
+              :y="pct(ghost.y)"
+              :width="pct(ghost.width)"
+              :height="pct(ghost.height)"
+              :stroke="styleFor(ghost.label).color"
+              fill="none"
+              stroke-opacity="0.75"
+              stroke-dasharray="3 5"
+              stroke-width="1.5"
+              vector-effect="non-scaling-stroke"
+              class="pointer-events-none"
+            />
+            <rect
               v-if="draft"
               :x="pct(draft.x)"
               :y="pct(draft.y)"
@@ -75,6 +103,22 @@
               vector-effect="non-scaling-stroke"
             />
           </svg>
+
+          <button
+            v-for="(ghost, i) in ghosts"
+            :key="`ghost-chip-${i}`"
+            v-tooltip.top="$t('components.training_editor.ghost_take')"
+            type="button"
+            class="ghost-chip"
+            :style="ghostChipStyle(ghost)"
+            @pointerdown.stop
+            @touchstart.stop
+            @mousedown.stop
+            @click.stop="adoptGhost(ghost)"
+          >
+            <i-mdi:plus class="w-3.5 h-3.5 shrink-0" />
+            <component :is="styleFor(ghost.label).icon" class="bbox-label-icon" />
+          </button>
 
           <div
             v-for="(box, i) in boxes"
@@ -180,7 +224,9 @@
       ><span>{{ $t('components.training_editor.sc_move') }}</span> <span><kbd>Shift</kbd> + <kbd>←↑→↓</kbd></span
       ><span>{{ $t('components.training_editor.sc_resize') }}</span> <span><kbd>S</kbd></span
       ><span>{{ $t('components.training_editor.sc_label') }}</span> <span><kbd>Del</kbd></span
-      ><span>{{ $t('components.training_editor.sc_delete') }}</span> <span><kbd>Esc</kbd></span
+      ><span>{{ $t('components.training_editor.sc_delete') }}</span> <span><kbd>V</kbd></span
+      ><span>{{ $t('components.training_editor.sc_ghosts') }}</span> <span><kbd>Shift</kbd> + <kbd>V</kbd></span
+      ><span>{{ $t('components.training_editor.sc_ghosts_all') }}</span> <span><kbd>Esc</kbd></span
       ><span>{{ $t('components.training_editor.sc_deselect') }}</span> <span><kbd>Space</kbd></span
       ><span>{{ $t('components.training_editor.sc_verify') }}</span> <span><kbd>←</kbd> / <kbd>→</kbd></span
       ><span>{{ $t('components.training_editor.sc_nav') }}</span>
@@ -237,6 +283,7 @@ const LOUPE_ZOOM = 2;
 const LOUPE_OFFSET = 80;
 const LOUPE_MAX_BOX_PX = 50;
 const NUDGE_STEP = 0.003;
+const GHOST_COVERED_IOU = 0.5;
 const edits = new Map<string, DBTrainingCandidateBox[]>();
 const removedIds = reactive(new Set<string>());
 const verifiedIds = reactive(new Set<string>());
@@ -267,6 +314,8 @@ let contentSwipe: { x: number; y: number; at: number } | null = null;
 const labelMenuIndex = ref(-1);
 const lastLabel = ref('person');
 const index = ref(startIndex);
+const previousBoxes = shallowRef<DBTrainingCandidateBox[]>([]);
+const showGhosts = ref(false);
 
 const {
   zoom: stageZoomLevel,
@@ -299,6 +348,11 @@ const selectedBox = computed<DBTrainingCandidateBox | undefined>(() => boxes.val
 const selectedPlateBox = computed(() => {
   const box = boxes.value[selectedIndex.value];
   return box?.label === 'license_plate' ? box : null;
+});
+
+const ghosts = computed(() => {
+  if (!showGhosts.value) return [];
+  return previousBoxes.value.filter((ghost) => !boxes.value.some((box) => iou(box, ghost) >= GHOST_COVERED_IOU));
 });
 
 const labelMenuItems = computed<MenuItem[]>(() => [
@@ -366,6 +420,27 @@ function labelStyle(box: DBTrainingCandidateBox): CSSProperties {
   else if (placement === 'below') style.top = pct(box.y + box.height);
   else style.top = `calc(${pct(box.y)} + 2px)`;
   return style;
+}
+
+function iou(a: DBTrainingCandidateBox, b: DBTrainingCandidateBox): number {
+  const width = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+  const height = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+  if (width <= 0 || height <= 0) return 0;
+  const overlap = width * height;
+  return overlap / (a.width * a.height + b.width * b.height - overlap);
+}
+
+function ghostChipStyle(ghost: DBTrainingCandidateBox): CSSProperties {
+  return { left: pct(ghost.x + ghost.width), top: pct(ghost.y + ghost.height), borderColor: styleFor(ghost.label).color };
+}
+
+function adoptGhost(ghost: DBTrainingCandidateBox): void {
+  boxes.value.push({ ...ghost, confidence: 1 });
+  selectedIndex.value = boxes.value.length - 1;
+}
+
+function adoptAllGhosts(): void {
+  for (const ghost of ghosts.value) boxes.value.push({ ...ghost, confidence: 1 });
 }
 
 function onImageLoad(event: Event): void {
@@ -557,6 +632,8 @@ function removeBox(boxIndex: number): void {
   if (boxIndex < 0 || boxIndex >= boxes.value.length) return;
   boxes.value.splice(boxIndex, 1);
   selectedIndex.value = -1;
+  labelMenuIndex.value = -1;
+  labelMenuRef.value?.hide();
 }
 
 function goTo(next: number, stashEdits = true): void {
@@ -567,6 +644,7 @@ function goTo(next: number, stashEdits = true): void {
       boxes.value.map((b) => ({ ...b })),
     );
   }
+  previousBoxes.value = boxes.value.map((b) => ({ ...b }));
   index.value = next;
   boxes.value = (edits.get(current.value.id) ?? current.value.boxes).map((b) => ({ ...b }));
   draft.value = null;
@@ -711,6 +789,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     labelMenuRef.value?.hide();
   } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedIndex.value >= 0) {
     removeBox(selectedIndex.value);
+  } else if (event.key === 'v' || event.key === 'V') {
+    if (event.shiftKey) adoptAllGhosts();
+    else if (previousBoxes.value.length > 0) showGhosts.value = !showGhosts.value;
   } else if (event.key === 's' || event.key === 'S') {
     cycleLabel(event.shiftKey ? -1 : 1);
   } else if (event.key === ' ' && !labelMenuRef.value?.isOpen) {
@@ -874,6 +955,24 @@ kbd {
 .bbox-label.label-inside {
   transform: translateY(0);
   border-radius: 6px;
+}
+
+.ghost-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 5px;
+  border: 1.5px dashed;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  transform: translate(-100%, -100%);
+  cursor: pointer;
+}
+
+.ghost-chip:hover {
+  background: rgba(0, 0, 0, 0.85);
 }
 
 .bbox-label-icon {
