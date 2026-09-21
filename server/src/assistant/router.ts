@@ -1,5 +1,7 @@
-import { chat } from '@tanstack/ai';
+import { chat, renderLazyCatalogEntry } from '@tanstack/ai';
 import * as zod from 'zod';
+
+import { estimateTokens } from './budget.js';
 
 import type { ChatMiddleware, ModelMessage, UIMessage } from '@tanstack/ai';
 import type { AssistantAdapter } from './providers.js';
@@ -8,6 +10,10 @@ import type { CoreTool } from './tools/shared.js';
 export const ROUTE_TIMEOUT_MS = 20_000;
 const MAX_PICKS = 4;
 const QUESTION_CHARS = 1_000;
+const CATALOG_SHARE = 0.25;
+const ACTIONS = /Actions: .*$/s;
+
+export const ROUTED_TOOLS = ['docs_read', 'api_search', 'api_get', 'api_call'];
 
 // prettier-ignore
 const ROUTER_PROMPT =
@@ -18,9 +24,10 @@ export async function routeTools(
   adapter: AssistantAdapter,
   question: string,
   hidden: CoreTool[],
+  window: number,
   middleware: ChatMiddleware<never>[],
   onError: (message: string) => void,
-): Promise<string[]> {
+): Promise<string[] | null> {
   const names = hidden.map((tool) => tool.name);
   if (!names.length || !question.trim()) return [];
 
@@ -29,7 +36,7 @@ export async function routeTools(
   try {
     const output = await (chat({
       adapter,
-      systemPrompts: [ROUTER_PROMPT, `Tools: ${names.join(', ')}`],
+      systemPrompts: [ROUTER_PROMPT, catalog(hidden, window)],
       messages: [{ role: 'user', content: question }],
       outputSchema: zod.object({ tools: zod.array(zod.enum(names as [string, ...string[]])).max(MAX_PICKS) }),
       middleware,
@@ -38,9 +45,8 @@ export async function routeTools(
     const picks = Array.isArray(output.tools) ? output.tools : [];
     return picks.filter((name): name is string => typeof name === 'string' && names.includes(name)).slice(0, MAX_PICKS);
   } catch (error: unknown) {
-    // routing is an aid, a run without it still has the catalog
     onError(error instanceof Error ? error.message : String(error));
-    return [];
+    return null;
   } finally {
     clearTimeout(timer);
   }
@@ -55,6 +61,16 @@ export function questionText(messages: readonly (UIMessage | ModelMessage)[]): s
     .filter((text) => text !== '')
     .join('\n')
     .slice(-QUESTION_CHARS);
+}
+
+function catalog(tools: CoreTool[], window: number): string {
+  const names = `Tools: ${tools.map((tool) => tool.name).join(', ')}`;
+  const described = tools.map((tool) => renderLazyCatalogEntry(tool.name, tool.description ?? '', 'first-sentence'));
+  // a tool that bundles actions is only recognisable by them
+  const detailed = described.map((entry, index) => [entry, ACTIONS.exec(tools[index].description ?? '')?.[0]].filter(Boolean).join(' '));
+
+  const limit = window * CATALOG_SHARE;
+  return [detailed, described].map((entries) => `Tools:\n${entries.join('\n')}`).find((text) => estimateTokens(text) <= limit) ?? names;
 }
 
 function textOf(message: UIMessage | ModelMessage): string {

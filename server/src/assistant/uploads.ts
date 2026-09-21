@@ -8,6 +8,8 @@ export const ATTACHMENT_PREFIX = 'attachment:';
 const LIMITS: Record<AssistantUploadKind, number> = { image: 12 * 1024 * 1024, audio: 25 * 1024 * 1024, video: 60 * 1024 * 1024 };
 const MAX_UPLOADS = 8;
 const KINDS = new Set<string>(['image', 'audio', 'video']);
+const PICTURES_LEAD = 'The pictures of the tool results above. Carry on with what was asked.';
+const PICTURE_LEFT_OUT = '[picture left out, the context window holds only the newest]';
 const DEFAULT_MIME: Record<AssistantUploadKind, string> = { image: 'image/jpeg', audio: 'audio/wav', video: 'video/mp4' };
 
 export interface DataPart {
@@ -61,12 +63,12 @@ export function markerFor(part: DataPart): DataPart {
   return { type: part.type, source: { type: 'url', value: `${ATTACHMENT_PREFIX}${attachmentKey(part.source!.value!)}` } };
 }
 
-export function messagesForModel(messages: ModelMessage[], sendImages: boolean): ModelMessage[] {
+export function messagesForModel(messages: ModelMessage[], sendImages: boolean, maxPictures = Infinity): ModelMessage[] {
   const out: ModelMessage[] = [];
   let pictures: DataPart[] = [];
   for (const message of answerAfterResults(messages)) {
     if (pictures.length && message.role !== 'tool') {
-      out.push({ role: 'user', content: pictures } as ModelMessage);
+      out.push(picturesMessage(pictures));
       pictures = [];
     }
     if (message.role === 'tool' && Array.isArray(message.content)) {
@@ -89,7 +91,28 @@ export function messagesForModel(messages: ModelMessage[], sendImages: boolean):
     }
     out.push({ ...message, content: content.length ? content : [{ type: 'text', content: '[attachment]' }] } as ModelMessage);
   }
-  if (pictures.length) out.push({ role: 'user', content: pictures } as ModelMessage);
+  if (pictures.length) out.push(picturesMessage(pictures));
+  return Number.isFinite(maxPictures) ? newestPictures(out, maxPictures) : out;
+}
+
+export function isPicturesMessage(message: ModelMessage): boolean {
+  const first = Array.isArray(message.content) ? (message.content[0] as { content?: unknown }) : undefined;
+  return first?.content === PICTURES_LEAD;
+}
+
+function picturesMessage(pictures: DataPart[]): ModelMessage {
+  return { role: 'user', content: [{ type: 'text', content: PICTURES_LEAD }, ...pictures] } as ModelMessage;
+}
+
+function newestPictures(messages: ModelMessage[], limit: number): ModelMessage[] {
+  let kept = 0;
+  const out = [...messages];
+  for (let index = out.length - 1; index >= 0; index--) {
+    const message = out[index];
+    if (!Array.isArray(message.content)) continue;
+    const parts = (message.content as DataPart[]).map((part) => (part.type !== 'image' || ++kept <= limit ? part : { type: 'text', content: PICTURE_LEFT_OUT }));
+    if (kept > limit) out[index] = { ...message, content: parts } as ModelMessage;
+  }
   return out;
 }
 
