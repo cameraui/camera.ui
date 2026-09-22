@@ -31,13 +31,14 @@ import { SensorRegistry } from './sensors/registry.js';
 import { ConfigService } from './services/config/index.js';
 import { LoggerService } from './services/logger/index.js';
 import { markShuttingDown, resetShuttingDown } from './shutdown-state.js';
+import { paint } from './utils/colors.js';
 import { REPORT_DIR, WITH_REPORTS } from './utils/crash.js';
-import { initAppUpdateListener, reportStartError, requestServerUpdate, sendIPCMessage } from './utils/ipc.js';
+import { acquireInstanceLock } from './utils/instance-lock.js';
+import { FatalBootError, initAppUpdateListener, reportStartError, requestServerUpdate, sendIPCMessage } from './utils/ipc.js';
 import { killProcesses } from './utils/process.js';
 import { WorkerAgent } from './workers/agent.js';
 import { WorkerManager } from './workers/manager.js';
 import { ensureWorkerPaired } from './workers/pairing.js';
-import { paint } from './utils/colors.js';
 
 const MASTER_LINK_TIMEOUT_MS = 15_000;
 
@@ -391,6 +392,15 @@ function reapTrackedProcessesOnExit(configService: ConfigService): void {
 
 async function launch(): Promise<void> {
   initAppUpdateListener();
+
+  const homeArg = isWorkerMode ? process.argv.find((arg) => !arg.startsWith('--') && arg !== process.argv[0] && arg !== process.argv[1]) : process.argv[2];
+  const homePath = ConfigService.resolveHomePath(homeArg);
+  if (!(await acquireInstanceLock(homePath))) {
+    const error = new FatalBootError(`Another camera.ui is already running with the home ${homePath}. Stop it first or start this one with a different home (-H).`);
+    console.error(error.message);
+    await reportStartError(error);
+    process.exit(1);
+  }
 
   if (isWorkerMode) {
     process.title = 'camera.ui-worker';

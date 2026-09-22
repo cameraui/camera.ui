@@ -171,15 +171,7 @@ export class ConfigService {
 
     this.logger = container.resolve<LoggerService>('logger');
 
-    if (!homePath) {
-      if (IS_DEV) {
-        this.HOME_PATH = join(__dirname, '..', '..', '..', '..', '.camera.ui');
-      } else {
-        this.HOME_PATH = join(getUserHomeDir(), '.camera.ui');
-      }
-    } else {
-      this.HOME_PATH = resolve(homePath);
-    }
+    this.HOME_PATH = ConfigService.resolveHomePath(homePath);
 
     const tmpBase = process.getuid ? `.camera.ui-${process.getuid()}` : '.camera.ui';
     this.TMP_PATH = join(tmpdir(), tmpBase, createHash('sha256').update(this.HOME_PATH).digest('hex').slice(0, 8));
@@ -225,6 +217,11 @@ export class ConfigService {
     this.migrateCertificates();
     this.read();
     this.logStart();
+  }
+
+  public static resolveHomePath(homePath?: string): string {
+    if (homePath) return resolve(homePath);
+    return IS_DEV ? join(__dirname, '..', '..', '..', '..', '.camera.ui') : join(getUserHomeDir(), '.camera.ui');
   }
 
   public static extractVersion(str: string): string | null {

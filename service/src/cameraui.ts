@@ -686,7 +686,7 @@ export class CameraUiCLI {
   private handleClose(code: number | null, signal: NodeJS.Signals | null): void {
     this.logger(`camera.ui Process Ended. Code: ${code}, Signal: ${signal}, Restarting: ${!this.abortRestart}`, 'info');
 
-    this.staleProcessCheck();
+    if (!this.worker && !this.serverManager.serverCrashed) this.staleProcessCheck();
 
     if (this.abortRestart || this.shuttingDown) {
       return;

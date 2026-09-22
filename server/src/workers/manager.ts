@@ -545,6 +545,10 @@ export class WorkerManager {
     }
 
     const wasOffline = !existing?.online;
+    const restarted = existing?.online === true && existing.pid !== undefined && existing.pid !== heartbeat.pid;
+    if (restarted) {
+      this.logger.log(`Worker restarted: ${heartbeat.name} (${heartbeat.agentId}), pid ${existing.pid} -> ${heartbeat.pid}`);
+    }
 
     const workerInfo: WorkerInfo = {
       agentId: heartbeat.agentId,
@@ -570,7 +574,7 @@ export class WorkerManager {
 
     this.workersService.rememberWorker(heartbeat.agentId, heartbeat.name).catch(() => {});
 
-    if (wasOffline) {
+    if (wasOffline || restarted) {
       this.onWorkerOnline(heartbeat.agentId);
     }
 
