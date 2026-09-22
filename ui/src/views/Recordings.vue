@@ -124,13 +124,18 @@
             </template>
           </CuiRecordingsGrid>
 
-          <div
+          <CuiRecordingsGrid
             v-else-if="isLoading"
-            class="grid gap-2 flex-1 min-h-0 overflow-hidden content-start"
-            :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint ? 160 : 180}px, 1fr))` }"
+            :items="SKELETON_ITEMS"
+            :min-item-width="smBreakpoint ? 160 : 180"
+            :gap="8"
+            :item-key="(index: number) => index"
+            class="flex-1 min-h-0 pointer-events-none"
           >
-            <Skeleton v-for="index in 24" :key="`skeleton-${index}`" class="w-full rounded-xl" style="aspect-ratio: 1/1" height="auto" />
-          </div>
+            <template #item>
+              <Skeleton width="100%" height="100%" class="rounded-xl" />
+            </template>
+          </CuiRecordingsGrid>
 
           <div v-if="(isLoading && gridItems.length) || semanticSearching" class="flex justify-center py-4">
             <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
@@ -312,6 +317,7 @@ const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: 
 const { data: currentUser } = usersQuery.getUserQuery(computed(() => authStore.user?.username ?? ''));
 
 const SIDEBAR_WIDTH = 288;
+const SKELETON_ITEMS = Array.from({ length: 24 }, (_, index) => index);
 const DEFAULT_FILTERS: RecordingsFilterState = {
   contentKind: 'all',
   favoritesOnly: false,
@@ -519,7 +525,6 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   }
   return items;
 });
-
 const gridItems = computed<UngroupedItem[]>(() => {
   if (episodesOnly.value) return [...episodeGridItems.value].sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
   if (ungrouped.value && ungroupedItems.value.length) return ungroupedItems.value;

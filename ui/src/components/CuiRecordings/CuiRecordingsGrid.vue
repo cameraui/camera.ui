@@ -161,7 +161,6 @@ defineExpose({ scrollToTop, scrollY });
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  scroll-snap-type: y proximity;
 }
 
 .recordings-scroll::-webkit-scrollbar {
@@ -173,7 +172,6 @@ defineExpose({ scrollToTop, scrollY });
   align-items: stretch;
   height: calc(var(--cell-h) + var(--cell-gap));
   gap: var(--cell-gap);
-  scroll-snap-align: start;
 }
 
 .recordings-cell {
