@@ -29,6 +29,7 @@ import { AssistantProfileStore } from './profiles.js';
 import { composePrompt, promptSections } from './prompt.js';
 import { createAdapter, listModels, providerNeedsKey } from './providers.js';
 import { modelOptionsFor } from './reasoning.js';
+import { RECAP_TOOL, recapCard } from './recap.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
 import { withEmptyTurnRetry } from './retry.js';
 import { questionText, ROUTE_TIMEOUT_MS, ROUTED_TOOLS, routeTools } from './router.js';
@@ -39,6 +40,7 @@ import { AssistantThreadStore, contentParts } from './threads.js';
 import { withToolNameRepair } from './tool-names.js';
 import { leanTools } from './tool-schema.js';
 import { isBrowserTool } from './tools/index.js';
+import { ASSISTANT_CARD_EVENT } from './tools/shared.js';
 import { describeUploads, extractUploads, messagesForModel } from './uploads.js';
 import { AssistantUsageStore } from './usage.js';
 
@@ -677,6 +679,7 @@ export class AssistantManager {
     });
 
     const attachments: Record<string, DBAssistantAttachment> = {};
+    const recap = tools.some((tool) => tool.name === 'show_report') ? { language: ctx.language, timezone: ctx.timezone } : undefined;
     const observed = this.collectAttachments(
       stream as AsyncIterable<StreamChunk>,
       attachments,
@@ -692,6 +695,7 @@ export class AssistantManager {
         if (run) run.finishedAt = Date.now();
         setTimeout(() => this.runs.delete(runId), REPLAY_RETENTION_MS).unref();
       },
+      recap,
     );
     return toServerSentEventsResponse(observed, { abortController, ...(request.durability ? { durability: { adapter: request.durability } } : {}) });
   }
@@ -951,11 +955,34 @@ export class AssistantManager {
     threadId: string,
     usage: () => AssistantUsageEvent,
     done: () => void,
+    recap?: { language: string; timezone: string },
   ): AsyncIterable<StreamChunk> {
+    const names = new Map<string, string>();
+    let summary: { toolCallId: string; card: DBAssistantCard } | undefined;
+    let carded = false;
     try {
       for await (const chunk of stream) {
         collectAttachment(chunk, attachments);
+        if (chunk.type === EventType.TOOL_CALL_START) names.set(chunk.toolCallId, chunk.toolCallName);
+        else if (recap && chunk.type === EventType.TOOL_CALL_RESULT && names.get(chunk.toolCallId) === RECAP_TOOL) {
+          // a later summary of an empty day must not replace one that had moments
+          const card = recapCard(chunk.content, recap.language, recap.timezone);
+          if (card) summary = { toolCallId: chunk.toolCallId, card };
+        } else if (chunk.type === EventType.CUSTOM && chunk.name === ASSISTANT_CARD_EVENT) carded = true;
+
         if (chunk.type === EventType.RUN_FINISHED && finishReasonOf(chunk) !== 'tool_calls') {
+          // many models answer a recap with a text list although the procedure asks for the card, the episodes are there to build it
+          if (summary && !carded) {
+            const event: StreamChunk = {
+              type: EventType.CUSTOM,
+              name: ASSISTANT_CARD_EVENT,
+              value: { toolCallId: summary.toolCallId, card: summary.card },
+              timestamp: Date.now(),
+            };
+            collectAttachment(event, attachments);
+            carded = true;
+            yield event;
+          }
           yield { type: EventType.CUSTOM, name: USAGE_EVENT, value: usage(), timestamp: Date.now() };
         }
         yield chunk;

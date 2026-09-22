@@ -2,22 +2,7 @@ import { convertSchemaToJsonSchema } from '@tanstack/ai';
 
 import type { CoreTool } from './tools/shared.js';
 
-const VALIDATION_KEYS = new Set([
-  'additionalProperties',
-  'minimum',
-  'maximum',
-  'exclusiveMinimum',
-  'exclusiveMaximum',
-  'minLength',
-  'maxLength',
-  'minItems',
-  'maxItems',
-  'format',
-  'pattern',
-  'title',
-  'default',
-  '$schema',
-]);
+const VALIDATION_KEYS = new Set(['additionalProperties', 'format', 'title', 'default', '$schema']);
 
 const PROPERTY_MAPS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
 

@@ -7,10 +7,12 @@ import type { CoreTool, ToolContext } from './shared.js';
 
 const DATA_FREE_TOOLS = new Set(['show_report', 'docs_search', 'docs_read', 'api_search', 'ask_user']);
 
+const clipped = (max: number) => zod.string().transform((text) => (text.length > max ? `${text.slice(0, max - 1)}…` : text));
+
 const item = zod.object({
-  label: zod.string().min(1).max(80).describe('What the row is about, for a moment what happened'),
-  value: zod.string().max(60).optional().describe('The number, state or time, short'),
-  note: zod.string().max(160).optional().describe('One short remark, e.g. camera or time'),
+  label: clipped(80).pipe(zod.string().min(1)).describe('What the row is about, for a moment what happened, at most 80 characters'),
+  value: clipped(60).optional().describe('The number, state or time, short'),
+  note: clipped(160).optional().describe('One short remark, e.g. camera or time'),
   severity: zod.enum(['ok', 'warn', 'error', 'info']).optional(),
   share: zod.number().min(0).max(1).optional().describe('Share of the total for a bar'),
   episodeId: zod.string().max(64).optional().describe('Episode id, the row opens it'),
@@ -24,10 +26,14 @@ const showReport = toolDefinition({
     'Call it once with all items, then add at most one sentence.',
   inputSchema: zod.object({
     kind: zod.enum(['day_recap', 'system_health', 'list']),
-    title: zod.string().min(1).max(80),
-    subtitle: zod.string().max(160).optional(),
-    items: zod.array(item).min(1).max(12),
-    footer: zod.string().max(200).optional(),
+    title: clipped(80).pipe(zod.string().min(1)),
+    subtitle: clipped(160).optional(),
+    items: zod
+      .array(item)
+      .min(1)
+      .transform((items) => items.slice(0, 12))
+      .describe('At most 12'),
+    footer: clipped(200).optional(),
   }),
   metadata: { interactive: true },
 }).server<ToolContext['context']>((card, ctx) => {
