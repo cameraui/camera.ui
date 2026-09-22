@@ -41,7 +41,10 @@
       <template v-else>
         <section class="mb-6 p-px">
           <div class="flex items-center justify-between mb-3">
-            <span class="card-title m-0!">{{ $t('views.faces.known_faces') }} ({{ faceStore.knownFaces.value.length }})</span>
+            <span class="flex items-center gap-2">
+              <span class="card-title m-0!">{{ $t('views.faces.known_faces') }}</span>
+              <Badge size="small" class="rounded-full px-1.5" :value="String(faceStore.knownFaces.value.length)" />
+            </span>
           </div>
 
           <div v-if="faceStore.knownFaces.value.length" class="relative">
@@ -93,7 +96,10 @@
 
         <section class="mb-6 p-px">
           <div class="flex items-center justify-between mb-3">
-            <span class="card-title m-0!">{{ $t('views.faces.unknown_faces') }} ({{ faceStore.unknownFaces.value.length }})</span>
+            <span class="flex items-center gap-2">
+              <span class="card-title m-0!">{{ $t('views.faces.unknown_faces') }}</span>
+              <Badge size="small" class="rounded-full px-1.5" :value="String(faceStore.unknownFaces.value.length)" />
+            </span>
           </div>
 
           <div class="flex flex-col gap-3">
@@ -202,7 +208,10 @@
                           <i-mdi:account-question class="w-5 h-5 text-muted" />
                         </div>
                         <span class="flex flex-col">
-                          <span class="font-medium">{{ $t('views.faces.ungrouped') }} ({{ clustered.ungrouped.length }})</span>
+                          <span class="flex items-center gap-2 font-medium">
+                            {{ $t('views.faces.ungrouped') }}
+                            <Badge size="small" class="rounded-full px-1.5" severity="secondary" :value="String(clustered.ungrouped.length)" />
+                          </span>
                           <span class="text-muted text-sm font-normal">{{ $t('views.faces.ungrouped_hint') }}</span>
                         </span>
                         <span class="ml-auto flex items-center gap-1 mr-2" @click.stop>
@@ -245,7 +254,10 @@
                           <i-mdi:eye-off class="w-5 h-5 text-muted" />
                         </div>
                         <span class="flex flex-col">
-                          <span class="font-medium">{{ $t('views.faces.ignored_faces') }} ({{ faceStore.ignoredFaces.value.length }})</span>
+                          <span class="flex items-center gap-2 font-medium">
+                            {{ $t('views.faces.ignored_faces') }}
+                            <Badge size="small" class="rounded-full px-1.5" severity="secondary" :value="String(faceStore.ignoredFaces.value.length)" />
+                          </span>
                           <span class="text-muted text-sm font-normal">{{ $t('views.faces.ignored_hint') }}</span>
                         </span>
                       </span>

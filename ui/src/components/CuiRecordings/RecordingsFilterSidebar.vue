@@ -315,7 +315,6 @@ const props = defineProps<RecordingsFilterSidebarProps>();
 const emit = defineEmits<RecordingsFilterSidebarEmits>();
 
 const { t } = useI18n();
-const { xlBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset, bottombarHeight } = useSharedCuiStates();
 
 const { icons: DETECTION_ICONS, generic: GENERIC_ICON } = resolveEventIcons();
@@ -499,7 +498,7 @@ onClickOutside(sidebarRef, (event) => {
   const target = event.target as HTMLElement;
   if (target.closest('#recordings-sidebar-toggle')) return;
   if (target.closest('[data-pc-section="overlay"], [data-pc-section="panel"], .p-connected-overlay')) return;
-  if (props.isOpen && (props.isOverlay || !xlBreakpoint.value)) {
+  if (props.isOpen && props.isOverlay) {
     emit('close');
   }
 });
