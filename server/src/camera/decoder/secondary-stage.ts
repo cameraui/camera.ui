@@ -72,6 +72,24 @@ interface EmbeddedTrack {
   identity?: string;
 }
 
+function keepOneFacePerTrack(faces: TrackedFaceDetection[]): void {
+  const heads = new Map<number, TrackedFaceDetection>();
+  for (const face of faces) {
+    if (face.parentTrackId === undefined) continue;
+    const head = heads.get(face.parentTrackId);
+    if (!head || centreY(face.box) < centreY(head.box)) heads.set(face.parentTrackId, face);
+  }
+  for (const face of faces) {
+    if (face.parentTrackId === undefined || heads.get(face.parentTrackId) === face) continue;
+    face.parentTrackId = undefined;
+    face.parentBox = undefined;
+  }
+}
+
+function centreY(box: BoundingBox): number {
+  return box.y + box.height / 2;
+}
+
 export class SecondaryStage {
   private readonly embeddedTracks = new Map<string, EmbeddedTrack>();
   private readonly clipTracks = new Map<string, ClipTrack>();
@@ -531,6 +549,7 @@ export class SecondaryStage {
     if (allFaces.length === 0) return { detected: false, detections: [] };
     // NMS only, the crops come from already zone-filtered object detections
     const deduped = this.pipeline.runNms(allFaces);
+    keepOneFacePerTrack(deduped);
     return { detected: deduped.length > 0, detections: deduped };
   }
 

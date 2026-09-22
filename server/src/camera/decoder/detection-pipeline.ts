@@ -6,6 +6,7 @@ import { iou } from './detection-window.js';
 import { worldTrace } from './event-trace.js';
 
 import type {
+  MergeContainment,
   Detection as RustDetection,
   DetectionLine as RustDetectionLine,
   DetectionZone as RustDetectionZone,
@@ -32,6 +33,7 @@ const NMS_IOU_THRESHOLD = 0.45;
 const NMS_CONFIDENCE_THRESHOLD = 0.25;
 const OBJECT_MERGE_IOU_THRESHOLD = 0.3;
 const OBJECT_MERGE_CLOSE_THRESHOLD = 0.0;
+const PERSON_MERGE_CONTAINMENT: MergeContainment = { labels: ['person'], minShare: 0.85 };
 const MOTION_MERGE_IOU_THRESHOLD = 0.01;
 const MOTION_MERGE_CLOSE_THRESHOLD = 0.1;
 const TRAINING_MIN_CONFIDENCE = 0.5;
@@ -389,6 +391,6 @@ export class DetectionPipeline {
     if (flat.length === 0) return [];
     const deduped = rustNms(flat, NMS_IOU_THRESHOLD);
     if (deduped.length === 0) return [];
-    return rustMerge(deduped, OBJECT_MERGE_IOU_THRESHOLD, OBJECT_MERGE_CLOSE_THRESHOLD);
+    return rustMerge(deduped, OBJECT_MERGE_IOU_THRESHOLD, OBJECT_MERGE_CLOSE_THRESHOLD, PERSON_MERGE_CONTAINMENT);
   }
 }
