@@ -1,5 +1,7 @@
 import { inlineSkill, renderCatalog } from '@tanstack/ai-skills';
 
+import { isPicturesMessage } from './uploads.js';
+
 import type { ModelMessage } from '@tanstack/ai';
 import type { InlineSkillConfig, SkillSource } from '@tanstack/ai-skills';
 
@@ -109,6 +111,19 @@ const SKILLS: InlineSkillConfig[] = [
   },
 ];
 
+// prettier-ignore
+const NEXT_STEPS: Record<string, { first: string; later: string }> = {
+  nvr__summarize_day: {
+    first:
+      'Do this now, in this order. 1. If the user asked for pictures: call nvr__get_event_image once per notable episode, with its id as returned. ' +
+      '2. Call show_report kind day_recap, one item per episode (label = what happened, value = day and time, note = camera, episodeId). ' +
+      '3. Add at most one short sentence. Never list the episodes as text.',
+    later:
+      'Now call show_report kind day_recap, one item per episode of the summary with its episodeId. ' +
+      'The user sees the pictures already, do not list the episodes as text.',
+  },
+};
+
 export function skillsPrompt(): string {
   return ['Procedures for common tasks, follow the one that matches:', ...SKILLS.map((skill) => skill.instructions)].join('\n\n');
 }
@@ -129,4 +144,35 @@ export function toolsNamedBySkills<T extends { name: string }>(messages: readonl
   const procedures = messages.filter((message) => loads.has(message.toolCallId ?? '') && typeof message.content === 'string').map((message) => message.content);
   if (!procedures.length) return [];
   return candidates.filter((tool) => procedures.some((text) => (text as string).includes(tool.name.split('__').pop() ?? tool.name)));
+}
+
+export function withNextSteps(messages: ModelMessage[], offered: ReadonlySet<string>): ModelMessage[] {
+  if (!offered.has('show_report')) return messages;
+
+  const asked = messages.findLastIndex((message) => message.role === 'user' && !isPicturesMessage(message));
+  const names = new Map<string, string>();
+  let source: string | undefined;
+  let sourceIndex = -1;
+  let last = -1;
+  for (let index = asked + 1; index < messages.length; index++) {
+    const message = messages[index];
+    for (const call of message.toolCalls ?? []) {
+      names.set(call.id, call.function.name);
+      if (call.function.name === 'show_report') return messages;
+    }
+    if (isPicturesMessage(message)) last = index;
+    if (message.role !== 'tool') continue;
+    last = index;
+    const name = names.get(message.toolCallId ?? '') ?? '';
+    if (NEXT_STEPS[name]) {
+      source = name;
+      sourceIndex = index;
+    }
+  }
+  if (!source) return messages;
+
+  const message = messages[last];
+  const step = last === sourceIndex ? NEXT_STEPS[source].first : NEXT_STEPS[source].later;
+  const content = Array.isArray(message.content) ? [...message.content, { type: 'text' as const, content: step }] : `${message.content ?? ''}\n\n${step}`;
+  return messages.map((entry, index) => (index === last ? { ...message, content } : entry));
 }

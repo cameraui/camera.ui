@@ -25,7 +25,7 @@ const QUERIES = {
   discovered_cameras: 'cameras found in the network, adopted or not, and whether a scan runs',
   rescan_cameras: 'scan the network for cameras again',
   camera_connection_schema: 'fields a discovered camera needs for adoption (args: discoveredId)',
-  discovered_sensors: 'sensors and accessories offered for adoption',
+  discovered_sensors: 'sensors and accessories a plugin offers that are not set up yet, without state (for sensors in use call list_sensors)',
   rescan_sensors: 'scan the sensor sources again',
   notifications: 'notification history of the user (args: limit, unseenOnly)',
   logs: 'last lines of a log: server, go2rtc, nats, tunnel, all, a camera or plugin name (args: source, lines, filter); admin',

@@ -116,6 +116,7 @@
             :thread-id="activeThreadId"
             :initial-messages="initialMessages"
             :initial-attachments="initialAttachments"
+            :initial-model-id="initialModelId"
             :initial-prompt="initialPrompt"
             :suggestions="suggestions"
             :approval-tools="approvalTools"
@@ -161,6 +162,7 @@ const conversationRef = useTemplateRef<InstanceType<typeof CuiAssistantConversat
 const activeThreadId = ref(newThreadId());
 const initialMessages = ref<UIMessage[]>([]);
 const initialAttachments = ref<Record<string, DBAssistantAttachment>>({});
+const initialModelId = ref<string | null>(null);
 const initialPrompt = ref<string | undefined>(typeof route.query.prompt === 'string' ? route.query.prompt : undefined);
 const threadLoading = ref(false);
 const sidebarState = ref<'opened' | 'closed'>(xlBreakpoint.value ? 'opened' : 'closed');
@@ -204,6 +206,7 @@ function closeSidebar(): void {
 function startNewThread(): void {
   initialMessages.value = [];
   initialAttachments.value = {};
+  initialModelId.value = null;
   initialPrompt.value = undefined;
   activeThreadId.value = newThreadId();
   if (sidebarIsOverlay.value) closeSidebar();
@@ -218,6 +221,7 @@ async function selectThread(threadId: string): Promise<void> {
     const thread = await getAssistantThread(threadId);
     initialMessages.value = thread.messages as UIMessage[];
     initialAttachments.value = thread.attachments;
+    initialModelId.value = thread.modelId ?? null;
     initialPrompt.value = undefined;
     activeThreadId.value = threadId;
   } finally {
@@ -233,6 +237,7 @@ async function removeThread(threadId: string): Promise<void> {
 async function onBranched(thread: DBAssistantThread): Promise<void> {
   initialMessages.value = thread.messages as UIMessage[];
   initialAttachments.value = thread.attachments;
+  initialModelId.value = thread.modelId ?? null;
   initialPrompt.value = undefined;
   activeThreadId.value = thread._id;
   await assistantQuery.queryClient.refetchQueries({ queryKey: ['assistant', 'threads'], exact: true });

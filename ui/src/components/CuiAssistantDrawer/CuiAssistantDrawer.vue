@@ -126,6 +126,7 @@
           :thread-id="drawer.threadId.value"
           :initial-messages="drawer.initialMessages.value"
           :initial-attachments="drawer.initialAttachments.value"
+          :initial-model-id="drawer.initialModelId.value"
           :initial-prompt="drawer.initialPrompt.value"
           :suggestions="suggestions"
           :approval-tools="approvalTools"

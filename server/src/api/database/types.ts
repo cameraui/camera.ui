@@ -439,6 +439,7 @@ export interface DBAssistantThreadMeta {
   updatedAt: number;
   messageCount: number;
   imageCount: number;
+  modelId?: string;
 }
 
 export interface DBAssistantThread extends DBAssistantThreadMeta {

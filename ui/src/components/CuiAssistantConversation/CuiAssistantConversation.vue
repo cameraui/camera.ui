@@ -426,7 +426,7 @@ const instructions = ref('');
 const profileId = ref<string | null>(null);
 const namingProfile = ref(false);
 const profileName = ref('');
-const modelId = ref<string | null>(null);
+const modelId = ref(props.initialModelId ?? null);
 
 const threadId = computed(() => props.threadId);
 

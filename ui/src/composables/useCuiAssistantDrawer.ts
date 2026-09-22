@@ -12,6 +12,7 @@ export const useCuiAssistantDrawer = createSharedComposable(() => {
   if (!mini.value || smBreakpoint.value) visible.value = false;
   const initialMessages = ref<UIMessage[]>([]);
   const initialAttachments = ref<Record<string, DBAssistantAttachment>>({});
+  const initialModelId = ref<string | null>(null);
   const initialPrompt = ref<string | undefined>();
 
   function open(prompt?: string): void {
@@ -31,6 +32,7 @@ export const useCuiAssistantDrawer = createSharedComposable(() => {
     initialPrompt.value = undefined;
     initialMessages.value = [];
     initialAttachments.value = {};
+    initialModelId.value = null;
     threadId.value = randomId();
   }
 
@@ -38,8 +40,9 @@ export const useCuiAssistantDrawer = createSharedComposable(() => {
     initialPrompt.value = undefined;
     initialMessages.value = thread.messages as UIMessage[];
     initialAttachments.value = thread.attachments;
+    initialModelId.value = thread.modelId ?? null;
     threadId.value = thread._id;
   }
 
-  return { visible, mini, threadId, initialMessages, initialAttachments, initialPrompt, open, close, toggle, reset, load };
+  return { visible, mini, threadId, initialMessages, initialAttachments, initialModelId, initialPrompt, open, close, toggle, reset, load };
 });

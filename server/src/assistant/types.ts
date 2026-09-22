@@ -168,6 +168,7 @@ export interface AssistantThreadSummary {
   createdAt: number;
   updatedAt: number;
   messageCount: number;
+  modelId?: string;
   runId?: string;
 }
 

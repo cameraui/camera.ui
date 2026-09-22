@@ -27,7 +27,7 @@ export function resolveCameraName(name: string): { id: string; name: string } | 
 
 const listCameras = toolDefinition({
   name: 'list_cameras',
-  description: 'List the cameras with room, online state and active detections (motion, person, face, plate, audio).',
+  description: 'List the cameras with room, online state and the detections they run (motion, person, face, plate, audio).',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(() => {
   const camerasService = new CamerasService();

@@ -133,9 +133,10 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
     '- Ids for events, episodes, cameras or automations must be copied from a tool result in this conversation. Never make one up.',
     '- For anything the specialized tools do not cover, use system_query and system_action (discovery and adoption, notification history, ' +
     'logs, updates, MQTT, process states) or api_search followed by api_get or api_call (plugins, workers, sessions, users, settings, ' +
-    'automations, sensors, zones, shares and everything else with a REST endpoint). Never guess a path.',
+    'automations, zones, shares and everything else with a REST endpoint). Never guess a path.',
     '- Never conclude that a feature does not exist because a search returned nothing. Call docs_search to learn how it works and what ' +
     'it is called, then look for the tool again. If no tool covers it, say that you cannot do it from the chat and name the page in the app.',
+    '- A recap of a day or a week and highlights end with a show_report card of kind day_recap, not with a text list.',
     '- Alerts and watching, automations, reports and recaps, clips and faces, media analysis and browser control have a procedure each. ' +
     'It is either written out below or listed by name, then load_skill brings it. Follow it, it holds the tool order.',
     facts.terminal

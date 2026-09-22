@@ -27,7 +27,7 @@ export class AssistantThreadStore {
 
   public list(userId: string): AssistantThreadSummary[] {
     return this.metas(userId)
-      .map((meta) => ({ id: meta._id, title: meta.title, createdAt: meta.createdAt, updatedAt: meta.updatedAt, messageCount: meta.messageCount }))
+      .map((meta) => ({ id: meta._id, title: meta.title, createdAt: meta.createdAt, updatedAt: meta.updatedAt, messageCount: meta.messageCount, modelId: meta.modelId }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
@@ -117,6 +117,7 @@ export class AssistantThreadStore {
     const source = this.get(userId, threadId);
     if (!source) return undefined;
     const id = await this.create(userId, source.title, source.messages.slice(0, until + 1), source.attachments);
+    if (source.modelId) await this.setModel(userId, id, source.modelId);
     return this.get(userId, id);
   }
 
@@ -139,6 +140,7 @@ export class AssistantThreadStore {
         updatedAt: now,
         messageCount: count,
         imageCount,
+        ...(meta?.modelId ? { modelId: meta.modelId } : {}),
       });
       this.dbs.assistantThreadMessagesDB.put(key, stored);
       if (!meta) this.pruneThreads(userId);
@@ -155,6 +157,12 @@ export class AssistantThreadStore {
       const imageCount = this.pruneImages(key, meta.imageCount + added);
       if (imageCount !== meta.imageCount) this.dbs.assistantThreadsDB.put(key, { ...meta, imageCount });
     });
+  }
+
+  public async setModel(userId: string, threadId: string, modelId: string): Promise<void> {
+    await this.dbs.commit(this.dbs.assistantThreadsDB, threadKey(userId, threadId), (current) =>
+      current && current.modelId !== modelId ? { ...current, modelId } : undefined,
+    );
   }
 
   public async rename(userId: string, threadId: string, title: string): Promise<DBAssistantThread | undefined> {

@@ -7,6 +7,7 @@ export interface CuiAssistantConversationProps {
   threadId: string;
   initialMessages: UIMessage[];
   initialAttachments?: Record<string, DBAssistantAttachment>;
+  initialModelId?: string | null;
   initialPrompt?: string;
   suggestions?: string[];
   approvalTools?: AssistantToolInfo[];

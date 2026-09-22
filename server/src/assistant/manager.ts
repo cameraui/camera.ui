@@ -34,7 +34,7 @@ import { withEmptyTurnRetry } from './retry.js';
 import { questionText, ROUTE_TIMEOUT_MS, ROUTED_TOOLS, routeTools } from './router.js';
 import { AssistantScheduler, PUSH_BODY_MAX } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
-import { skillSources, toolsNamedBySkills } from './skills.js';
+import { skillSources, toolsNamedBySkills, withNextSteps } from './skills.js';
 import { AssistantThreadStore, contentParts } from './threads.js';
 import { withToolNameRepair } from './tool-names.js';
 import { leanTools } from './tool-schema.js';
@@ -156,6 +156,7 @@ const REFERENCE_KINDS = new Set(['event', 'episode', 'camera', 'download']);
 const FINAL_TURN_PROMPT =
   'The tool budget of this run is used up and no tool is available anymore. Write the answer now as plain text from what the tools already returned, ' +
   'and say plainly what you could not check. Do not write a tool call or a tool name with arguments into the answer.';
+const DUPLICATE_CALL_RESULT = 'Same call as the one before in this answer, its result is above.';
 const TEST_TIMEOUT_MS = 45_000;
 const PROBE_IMAGE = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
 
@@ -631,6 +632,7 @@ export class AssistantManager {
     const rounds = settings.maxIterations + (plan.demoted && !routed ? DISCOVERY_ITERATIONS : 0);
     const thread = await this.threads.ensure(request.user._id, params.threadId || randomUUID(), params.messages);
     ctx.threadId = thread._id;
+    await this.threads.setModel(ctx.userId, thread._id, entry._id);
     await this.storeUploads(ctx, thread._id, params.messages.length - 1);
     const abortController = new AbortController();
     request.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
@@ -831,6 +833,7 @@ export class AssistantManager {
   ): ChatMiddleware<AssistantRunContext, typeof ASK_USER_INTERRUPT> {
     const log = this.logger;
     const userId = runCtx.userId;
+    const calls = new Set<string>();
 
     return {
       name: 'camera.ui-assistant',
@@ -861,9 +864,13 @@ export class AssistantManager {
 
         const offered = new Set(config.tools.map((tool) => tool.name));
         const named = ((await skillTools?.(config.messages)) ?? []).filter((tool) => !offered.has(tool.name));
-        return { providerMessages, tools: leanTools([...config.tools, ...named] as CoreTool[]) };
+        return { providerMessages: withNextSteps(providerMessages, offered), tools: leanTools([...config.tools, ...named] as CoreTool[]) };
       },
-      onBeforeToolCall: (_ctx, hook) => {
+      onBeforeToolCall: (ctx, hook) => {
+        // small models repeat the same call many times in one answer, every copy of the result would fill the window
+        const key = `${ctx.iteration}:${hook.toolName}:${JSON.stringify(hook.args ?? {})}`;
+        if (calls.has(key)) return { type: 'skip', result: DUPLICATE_CALL_RESULT };
+        calls.add(key);
         stats.toolCalls += 1;
         if (stats.toolCalls > settings.maxToolCalls) {
           return { type: 'skip', result: { error: `Tool call budget of ${settings.maxToolCalls} per run is used up, answer with what you have.` } };
