@@ -13,7 +13,7 @@ const LOAD_SKILL_TOKENS = 120;
 
 const ENTRY_TOOLS = ['list_cameras', 'docs_search', 'list_tools', 'system_query', 'get_system_status', 'ask_user', 'api_search'];
 const KEEP_EAGER = 4;
-const ALWAYS_EAGER = ['show_report'];
+export const ALWAYS_EAGER = ['show_report'];
 
 export interface PromptSections {
   rules: string;

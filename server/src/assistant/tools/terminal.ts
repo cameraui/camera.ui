@@ -13,17 +13,16 @@ const KILL_GRACE_MS = 2_000;
 const ENV_KEYS = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'TZ', 'USER', 'SystemRoot', 'COMSPEC'];
 
 const runCommandInput = zod.object({
-  command: zod.string().min(1).max(2000).describe('The shell command line, executed by the system shell'),
+  command: zod.string().min(1).max(2000).describe('The shell command line'),
   cwd: zod.string().min(1).max(500).optional().describe('Working directory, default: the server directory'),
-  timeoutSeconds: zod.number().int().min(1).max(MAX_TIMEOUT_S).optional().describe(`Kill the command after this many seconds, default ${DEFAULT_TIMEOUT_S}`),
+  timeoutSeconds: zod.number().int().min(1).max(MAX_TIMEOUT_S).optional().describe(`Seconds until the command is killed, default ${DEFAULT_TIMEOUT_S}`),
 });
 
 const runCommand = toolDefinition({
   name: 'run_command',
   description:
-    'Run one shell command on the server that hosts camera.ui and return its output and exit code. For host diagnostics the other tools cannot ' +
-    'answer: disk usage, network reachability of a camera, processes, container logs. One command per call, no interactive programs. ' +
-    'The user sees the exact command and confirms it before it runs.',
+    'Run one shell command on the camera.ui host for diagnostics the other tools cannot answer: disk usage, ping a camera, processes, container logs. ' +
+    'No interactive programs. The user confirms the exact command.',
   needsApproval: true,
   inputSchema: approvalSchema(runCommandInput),
   metadata: { adminOnly: true, group: 'terminal', chatOnly: true } satisfies CoreToolMetadata,

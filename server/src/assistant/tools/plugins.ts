@@ -30,12 +30,12 @@ interface Picture {
 
 const analyzeImageInput = zod.object({
   plugin: zod.string().describe('Plugin name from plugin_capabilities'),
-  method: zod.string().describe('Picture method from plugin_capabilities, e.g. testObjectDetection, testFaceDetection, testLicensePlateDetection, testClipEmbedding'),
+  method: zod.string().describe('Picture method from plugin_capabilities: testObjectDetection, testFaceDetection, testLicensePlateDetection, testClipEmbedding'),
   camera: zod.string().optional().describe('Camera name for a fresh snapshot'),
-  eventId: zod.string().optional().describe('Event or episode id from a recording tool, uses its picture (needs the NVR plugin)'),
+  eventId: zod.string().optional().describe('Event or episode id, uses its picture'),
   upload: zod.string().optional().describe('Id of a picture the user attached, e.g. upload-1'),
-  frames: zod.number().int().min(1).max(5).optional().describe('Snapshots to take one second apart and analyze one by one, only with camera'),
-  text: zod.string().optional().describe('For testClipEmbedding: a description in English the picture is compared with'),
+  frames: zod.number().int().min(1).max(5).optional().describe('Snapshots one second apart, only with camera'),
+  text: zod.string().optional().describe('testClipEmbedding only: English description to compare with'),
 });
 
 const analyzeAudioInput = zod.object({
@@ -45,17 +45,17 @@ const analyzeAudioInput = zod.object({
 
 const analyzeVideoInput = zod.object({
   plugin: zod.string().describe('Plugin name from plugin_capabilities'),
-  method: zod.string().describe('testMotionDetection for the whole clip, or a picture method that runs on frames taken from the clip'),
+  method: zod.string().describe('testMotionDetection for the whole clip, or a picture method for frames of it'),
   upload: zod.string().describe('Id of a video the user attached, e.g. upload-3'),
-  frames: zod.number().int().min(1).max(10).optional().describe('Frames spread over the clip for picture methods, default 5'),
+  frames: zod.number().int().min(1).max(10).optional().describe('Frames spread over the clip, default 5'),
 });
 
 export function createPluginTools(registry: AssistantToolRegistry): CoreTool[] {
   const pluginCapabilities = toolDefinition({
     name: 'plugin_capabilities',
     description:
-      'What every running plugin can do: its interfaces (object, face, license plate, audio, classifier and CLIP detection, discovery, NVR, notifier), ' +
-      'the detection methods analyze_image, analyze_audio and analyze_video can run on it, and the tools it adds to this chat. Call it first to pick plugin and method.',
+      'What every running plugin can do: detection (object, face, license plate, audio, classifier, CLIP), discovery, NVR, notifier, ' +
+      'the methods analyze_image, analyze_audio and analyze_video can run on it, and the tools it adds.',
     inputSchema: zod.object({}),
   }).server<ToolContext['context']>((_input, ctx) => {
     const tools = registry.describe(ctx.context.role);
@@ -76,9 +76,8 @@ export function createPluginTools(registry: AssistantToolRegistry): CoreTool[] {
   const analyzeImage = toolDefinition({
     name: 'analyze_image',
     description:
-      'Run a detection method of a plugin on a picture: a fresh camera snapshot, the picture of a recorded event, or a picture the user attached. ' +
-      'Returns what the detector found (labels with confidence and box, faces with identity, plate text, classifier labels) or, for testClipEmbedding ' +
-      'with a text, how well the picture matches that description. Several frames from a camera give a short live sequence, one result per frame.',
+      'Run a plugin detector on a picture: a live camera snapshot, an event picture or an attached picture. What does the object detection see right now, ' +
+      'does this picture show a face or a plate, how well does it match a text (testClipEmbedding).',
     inputSchema: analyzeImageInput,
   }).server<ToolContext['context']>(async (input, ctx) => {
     const target = resolve(input.plugin, input.method, 'image');
@@ -99,7 +98,7 @@ export function createPluginTools(registry: AssistantToolRegistry): CoreTool[] {
   const analyzeAudio = toolDefinition({
     name: 'analyze_audio',
     lazy: true,
-    description: 'Run the audio detection of a plugin on an audio file the user attached (wav, mp3, m4a, ogg) and return the sound labels it heard with their scores.',
+    description: 'Run the audio detection of a plugin on an attached audio file and return the sounds it heard.',
     inputSchema: analyzeAudioInput,
   }).server<ToolContext['context']>(async (input, ctx) => {
     const plugin = findPlugin(input.plugin);
@@ -121,9 +120,7 @@ export function createPluginTools(registry: AssistantToolRegistry): CoreTool[] {
   const analyzeVideo = toolDefinition({
     name: 'analyze_video',
     lazy: true,
-    description:
-      'Run a plugin detector on a video the user attached: testMotionDetection looks at the whole clip, a picture method (objects, faces, plates, CLIP) ' +
-      'runs on frames spread over the clip and returns one result per frame with its time offset.',
+    description: 'Run a plugin detector on an attached video: motion over the whole clip, or objects, faces, plates or CLIP on frames of it.',
     inputSchema: analyzeVideoInput,
   }).server<ToolContext['context']>(async (input, ctx) => {
     const upload = findUpload(ctx, input.upload, 'video');

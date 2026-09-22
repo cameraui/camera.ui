@@ -18,19 +18,13 @@ const sendNotificationInput = zod.object({
   title: zod.string().min(1).max(120),
   body: zod.string().max(1000).optional(),
   severity: zod.enum(['info', 'warn', 'error']).optional().describe('Default info'),
-  eventId: zod
-    .string()
-    .optional()
-    .describe('Attach the picture of this event, the id from query_events or get_event_image. Use it for a moment already found in the conversation.'),
-  camera: zod
-    .string()
-    .optional()
-    .describe('Attach a picture of this camera taken right now (name as returned by list_cameras). Only for the live picture, never for a past moment.'),
+  eventId: zod.string().optional().describe('Attach the picture of this event'),
+  camera: zod.string().optional().describe('Attach a live picture of this camera, never for a past moment'),
   videoUrl: zod
     .string()
     .regex(DOWNLOAD_PATH, 'videoUrl must be a downloadUrl from export_clip')
     .optional()
-    .describe('Attach a clip: the downloadUrl of export_clip called with push true. Pass the same eventId, so the push shows the picture of that moment.'),
+    .describe('Attach a clip: the downloadUrl of export_clip with push true, together with its eventId'),
 });
 
 export function createNotificationTools(registry: AssistantToolRegistry): CoreTool[] {
@@ -38,8 +32,7 @@ export function createNotificationTools(registry: AssistantToolRegistry): CoreTo
     name: 'send_notification',
     lazy: true,
     description:
-      'Send a push notification to the devices of the user you are talking to, for example a summary they asked to receive on their phone. ' +
-      'Pass eventId to attach the picture of a moment, camera for a picture taken right now, or videoUrl from export_clip for a short clip. Requires user confirmation.',
+      'Send a push notification to the phone of the user, for a test or a summary, with an event picture, a live picture or a clip. Requires user confirmation.',
     needsApproval: true,
     inputSchema: approvalSchema(sendNotificationInput),
   }).server<ToolContext['context']>(async (args, ctx) => {

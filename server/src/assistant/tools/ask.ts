@@ -8,9 +8,7 @@ import type { CoreTool, ToolContext } from './shared.js';
 
 const askUser = toolDefinition({
   name: 'ask_user',
-  description:
-    'Ask the user one short question with concrete options when the request is ambiguous (which camera, which time range, which of several matches). ' +
-    'The chat shows a small form instead of a text question; the answer comes back as text. Ask at most one question per turn.',
+  description: 'Ask the user one short question with options when the request is ambiguous: which camera, which time range, which match. At most one per turn.',
   inputSchema: zod.object({
     question: zod.string().min(1).max(300),
     kind: zod

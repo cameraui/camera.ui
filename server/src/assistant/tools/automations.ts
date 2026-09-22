@@ -28,9 +28,7 @@ const edgeSchema = zod.object({
 const automationCatalog = toolDefinition({
   name: 'automation_catalog',
   lazy: true,
-  description:
-    'Everything needed to build an automation: the node types with their fields, the cameras and writable sensors with their ids, ' +
-    'and the template variables each trigger provides. Call it before create_automation.',
+  description: 'Node types, cameras, writable sensors and template variables for building an automation. Call it before create_automation.',
   inputSchema: zod.object({}),
   metadata: { adminOnly: true },
 }).server<ToolContext['context']>(() => {
@@ -73,9 +71,7 @@ const createInput = zod.object({
 const createAutomation = toolDefinition({
   name: 'create_automation',
   lazy: true,
-  description:
-    'Create an automation from nodes and edges built with automation_catalog. The result is a real automation the user can open and edit. ' +
-    'Requires user confirmation.',
+  description: 'Create an automation from nodes and edges built with automation_catalog. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(createInput),
   metadata: { adminOnly: true },
@@ -109,7 +105,7 @@ const updateInput = zod.object({
 const updateAutomation = toolDefinition({
   name: 'update_automation',
   lazy: true,
-  description: 'Rename, enable, disable or rebuild an existing automation. Nodes and edges replace the whole flow when given. Requires user confirmation.',
+  description: 'Rename, enable, disable or rebuild an automation. Nodes and edges replace the whole flow. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(updateInput),
   metadata: { adminOnly: true },

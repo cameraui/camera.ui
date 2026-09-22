@@ -17,8 +17,8 @@ export function createApiTools(catalog: ApiCatalog): CoreTool[] {
   const apiSearch = toolDefinition({
     name: 'api_search',
     description:
-      'Find camera.ui REST endpoints by keyword (plugins, updates, workers, sessions, notifications, users, sensors, cameras and more). ' +
-      'Use it whenever no specialized tool covers a question, then call api_get or api_call with the path it returns. Path parameters look like :cameraname.',
+      'Find the REST endpoint for what has no tool of its own: users, sessions, plugins, updates, workers, settings. ' +
+      'Then read with api_get or change with api_call. Path parameters look like :cameraname.',
     inputSchema: zod.object({
       query: zod.string().min(1).describe('Keywords, e.g. "plugin update", "workers", "sessions"'),
     }),
@@ -45,11 +45,9 @@ export function createApiTools(catalog: ApiCatalog): CoreTool[] {
   const apiGet = toolDefinition({
     name: 'api_get',
     lazy: true,
-    description:
-      'Read data from a camera.ui REST endpoint found with api_search. Runs with the permissions of the current user. ' +
-      'Large answers are trimmed, so narrow the request with query parameters when possible.',
+    description: 'Read a camera.ui REST endpoint found with api_search. Large answers are trimmed, narrow them with query parameters.',
     inputSchema: zod.object({
-      path: zod.string().startsWith('/api/').describe('Concrete path with parameters filled in, e.g. /api/plugins or /api/cameras/Garden'),
+      path: zod.string().startsWith('/api/').describe('Path with parameters filled in, e.g. /api/cameras/Garden'),
       query: zod
         .record(zod.string(), zod.union([zod.string(), zod.number(), zod.boolean()]))
         .optional()
@@ -59,8 +57,8 @@ export function createApiTools(catalog: ApiCatalog): CoreTool[] {
 
   const apiCallInput = zod.object({
     method: zod.enum(['POST', 'PUT', 'PATCH', 'DELETE']),
-    path: zod.string().startsWith('/api/').describe('Concrete path with parameters filled in'),
-    body: zod.record(zod.string(), zod.unknown()).optional().describe('JSON body as the endpoint schema describes it'),
+    path: zod.string().startsWith('/api/').describe('Path with parameters filled in'),
+    body: zod.record(zod.string(), zod.unknown()).optional().describe('JSON body as the endpoint describes it'),
     query: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.boolean()])).optional(),
   });
 
@@ -68,8 +66,7 @@ export function createApiTools(catalog: ApiCatalog): CoreTool[] {
     name: 'api_call',
     lazy: true,
     description:
-      'Change something through a camera.ui REST endpoint found with api_search: update a plugin, clear notifications, restart a worker, edit a setting. ' +
-      'Runs with the permissions of the current user. Requires user confirmation.',
+      'Change something through a camera.ui REST endpoint found with api_search: update a plugin, restart a worker, edit a setting. Requires user confirmation.',
     needsApproval: true,
     inputSchema: approvalSchema(apiCallInput),
   }).server<ToolContext['context']>(async (args, ctx) => {

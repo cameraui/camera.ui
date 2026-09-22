@@ -22,24 +22,24 @@ import type { ConfigService } from '../../services/config/index.js';
 import type { CoreTool, ToolContext } from './shared.js';
 
 const QUERIES = {
-  discovered_cameras: 'cameras found in the network that are not adopted yet, the adopted ones, and whether a scan is running',
-  rescan_cameras: 'run a fresh network scan for cameras and return the result',
-  camera_connection_schema: 'fields a discovered camera needs before it can be adopted (args: discoveredId)',
-  discovered_sensors: 'sensors and accessories plugins offer for adoption',
-  rescan_sensors: 'rescan the sensor sources and return the result',
-  notifications: 'notification history of the current user, newest first (args: limit, unseenOnly)',
-  logs: 'last lines of a log: server, go2rtc, nats, tunnel, all, a camera name or a plugin name (args: source, lines, filter); admin only',
-  updates: 'available updates for camera.ui, the plugins and the worker (args: refresh to check the registry now); admin only',
-  mqtt_status: 'connection state of the MQTT broker; admin only',
-  runtime_status: 'run state of go2rtc, nats, every plugin process and the plugin install queue; admin only',
+  discovered_cameras: 'cameras found in the network, adopted or not, and whether a scan runs',
+  rescan_cameras: 'scan the network for cameras again',
+  camera_connection_schema: 'fields a discovered camera needs for adoption (args: discoveredId)',
+  discovered_sensors: 'sensors and accessories offered for adoption',
+  rescan_sensors: 'scan the sensor sources again',
+  notifications: 'notification history of the user (args: limit, unseenOnly)',
+  logs: 'last lines of a log: server, go2rtc, nats, tunnel, all, a camera or plugin name (args: source, lines, filter); admin',
+  updates: 'available updates for camera.ui, plugins and workers (args: refresh); admin',
+  mqtt_status: 'MQTT broker connection; admin',
+  runtime_status: 'run state of go2rtc, nats and every plugin process; admin',
 } as const;
 
 const ACTIONS = {
-  adopt_camera: 'adopt a discovered camera (args: discoveredId, credentials as camera_connection_schema describes); admin only',
-  adopt_sensor: 'adopt a discovered sensor (args: pluginId, sensorId); admin only',
-  mark_notifications_seen: 'mark every notification of the current user as seen',
-  clear_notifications: 'delete the notification history of the current user',
-  remove_notification: 'delete one notification by its tag (args: tag)',
+  adopt_camera: 'adopt a discovered camera (args: discoveredId, credentials from camera_connection_schema); admin',
+  adopt_sensor: 'adopt a discovered sensor (args: pluginId, sensorId); admin',
+  mark_notifications_seen: 'mark all notifications of the user as seen',
+  clear_notifications: 'delete the notification history of the user',
+  remove_notification: 'delete one notification (args: tag)',
 } as const;
 
 const SYSTEM_LOGS = new Set(['server', 'go2rtc', 'nats', 'tunnel']);
@@ -81,8 +81,8 @@ function text(args: Args, key: string): string | undefined {
 const systemQuery = toolDefinition({
   name: 'system_query',
   description:
-    'Read instance state the REST API does not expose: network discovery of cameras and sensors, the notification history, logs, ' +
-    `updates, MQTT and process states. Actions: ${describe(QUERIES)}.`,
+    'Show the notification history, discovered cameras and sensors waiting for adoption, a network scan, logs, ' +
+    `available updates, MQTT and process states. Actions: ${describe(QUERIES)}.`,
   inputSchema: zod.object({
     action: zod.enum(Object.keys(QUERIES) as [QueryName, ...QueryName[]]),
     args: zod.record(zod.string(), zod.unknown()).optional().describe('Arguments of the action'),
@@ -98,8 +98,8 @@ const systemAction = toolDefinition({
   name: 'system_action',
   lazy: true,
   description:
-    'Change instance state the REST API does not expose. Requires user confirmation. Never ask for a password in the chat: when a camera ' +
-    `needs one, send the user to the Cameras page of the app. Actions: ${describe(ACTIONS)}.`,
+    'Adopt a discovered camera or sensor, mark notifications as seen or clear them. Requires user confirmation. Never ask for a password in the chat, ' +
+    `send the user to the Cameras page instead. Actions: ${describe(ACTIONS)}.`,
   needsApproval: true,
   inputSchema: approvalSchema(systemActionInput),
   metadata: { adminOnly: true },

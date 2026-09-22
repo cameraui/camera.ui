@@ -21,6 +21,7 @@ export interface DocsHit {
 
 const DOCS_URL = 'https://docs.cameraui.com';
 const SNIPPET_CHARS = 280;
+const TOP_HIT_CHARS = 1_200;
 const STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'are', 'you', 'your', 'can', 'how', 'what', 'does', 'not', 'camera', 'cameraui']);
 
 interface IndexedSection extends DocsSection {
@@ -78,7 +79,7 @@ export class DocsIndex {
       const key = `${section.page}#${section.anchor}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      hits.push(toHit(section, snippet(section.text, terms)));
+      hits.push(toHit(section, hits.length ? snippet(section.text, terms) : snippet(section.text, [], TOP_HIT_CHARS)));
       if (hits.length >= limit) break;
     }
     return hits;
@@ -111,12 +112,12 @@ function anchorOf(heading: string): string {
     .replace(/\s+/g, '-');
 }
 
-function snippet(text: string, terms: string[]): string {
+function snippet(text: string, terms: string[], chars = SNIPPET_CHARS): string {
   const lower = text.toLowerCase();
   const first = Math.min(...terms.map((term) => lower.indexOf(term)).filter((index) => index >= 0), Number.POSITIVE_INFINITY);
   const start = Number.isFinite(first) ? Math.max(0, lower.lastIndexOf('. ', first) + 1) : 0;
   const slice = text
-    .slice(start, start + SNIPPET_CHARS)
+    .slice(start, start + chars)
     .replace(/\s+/g, ' ')
     .trim();
   return slice.length < text.length - start ? `${slice}…` : slice;

@@ -15,7 +15,7 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
-import { planRun, promote, toolTokens } from './budget.js';
+import { ALWAYS_EAGER, planRun, promote, toolTokens } from './budget.js';
 import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
@@ -37,6 +37,7 @@ import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
 import { skillSources, toolsNamedBySkills } from './skills.js';
 import { AssistantThreadStore, contentParts } from './threads.js';
 import { withToolNameRepair } from './tool-names.js';
+import { leanTools } from './tool-schema.js';
 import { isBrowserTool } from './tools/index.js';
 import { describeUploads, extractUploads, messagesForModel } from './uploads.js';
 import { AssistantUsageStore } from './usage.js';
@@ -858,7 +859,7 @@ export class AssistantManager {
 
         const offered = new Set(config.tools.map((tool) => tool.name));
         const named = ((await skillTools?.(config.messages)) ?? []).filter((tool) => !offered.has(tool.name));
-        return named.length ? { providerMessages, tools: [...config.tools, ...named] } : { providerMessages };
+        return { providerMessages, tools: leanTools([...config.tools, ...named] as CoreTool[]) };
       },
       onBeforeToolCall: (_ctx, hook) => {
         stats.toolCalls += 1;
@@ -1035,7 +1036,10 @@ export class AssistantManager {
   ): Promise<string[] | null> {
     const hidden = available.filter((tool) => !plan.eagerTools.has(tool.name) && !ROUTED_TOOLS.includes(tool.name));
     const adapter = this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS);
-    const picks = await routeTools(adapter, questionText(messages), hidden, [countUsage(stats)], (message) =>
+    const inFront = available.filter(
+      (tool) => tool.name === 'api_search' || (plan.eagerTools.has(tool.name) && !ROUTED_TOOLS.includes(tool.name) && !ALWAYS_EAGER.includes(tool.name)),
+    );
+    const picks = await routeTools(adapter, questionText(messages), hidden, inFront, [countUsage(stats)], (message) =>
       this.logger.debug(`Assistant: could not route tools for ${entry.name}: ${message}`),
     );
     if (picks?.length) this.logger.debug(`Assistant: routed ${picks.join(', ')} in front of ${entry.name}`);
@@ -1061,7 +1065,7 @@ export class AssistantManager {
       let tools = named;
       if (toolTokens(named) > room) {
         const adapter = this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS);
-        const picks = await routeTools(adapter, questionText(messages), named, [countUsage(stats)], (message) =>
+        const picks = await routeTools(adapter, questionText(messages), named, [], [countUsage(stats)], (message) =>
           this.logger.debug(`Assistant: could not pick the tools of a procedure for ${entry.name}: ${message}`),
         );
         tools = picks ? named.filter((tool) => picks.includes(tool.name)) : named.filter((_, index) => toolTokens(named.slice(0, index + 1)) <= room);

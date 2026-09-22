@@ -10,11 +10,10 @@ export function createDocsTools(docs: DocsIndex): CoreTool[] {
   const docsSearch = toolDefinition({
     name: 'docs_search',
     description:
-      'Search the camera.ui user documentation. Use it to learn how a feature works, what it is called and where it lives in the app ' +
-      '(discovery and adoption, zones, episodes, shares, workers, instances, backups, remote access, plugins, notifications, automations). ' +
-      'Call it before you claim that something does not exist or cannot be done. Query in English, a few keywords.',
+      'Search the camera.ui documentation: how a feature works, what it is called, where it lives in the app ' +
+      '(adoption, zones, episodes, shares, workers, instances, backups, remote access, HomeKit, plugins, notifications, automations, users, two factor).',
     inputSchema: zod.object({
-      query: zod.string().min(1).describe('Keywords in English, e.g. "discover camera adopt", "export recording", "two factor"'),
+      query: zod.string().min(1).describe('A few English keywords, e.g. "export recording"'),
     }),
   }).server<ToolContext['context']>(({ query }) => {
     const hits = docs.search(query);
@@ -25,10 +24,10 @@ export function createDocsTools(docs: DocsIndex): CoreTool[] {
   const docsRead = toolDefinition({
     name: 'docs_read',
     lazy: true,
-    description: 'Read a documentation page or one of its sections found with docs_search. Pass the page path, optionally a heading.',
+    description: 'Read a documentation page found with docs_search, whole or one section.',
     inputSchema: zod.object({
       page: zod.string().min(1).describe('Page path from docs_search, e.g. cameras/add-camera'),
-      heading: zod.string().optional().describe('Section heading to read, omit for the whole page'),
+      heading: zod.string().optional().describe('Heading of the section, omit for the whole page'),
     }),
   }).server<ToolContext['context']>(({ page, heading }) => {
     const result = docs.read(page, heading);

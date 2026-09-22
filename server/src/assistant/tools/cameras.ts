@@ -27,9 +27,7 @@ export function resolveCameraName(name: string): { id: string; name: string } | 
 
 const listCameras = toolDefinition({
   name: 'list_cameras',
-  description:
-    'List every camera with its room, online state and the detections currently active on it (motion, person, face, plate and so on). ' +
-    'Call this first when a question names a camera or a room.',
+  description: 'List the cameras with room, online state and active detections (motion, person, face, plate, audio).',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(() => {
   const camerasService = new CamerasService();
@@ -72,9 +70,9 @@ export async function takeSnapshot(camera: string): Promise<{ name: string; data
 
 const getCameraSnapshot = toolDefinition({
   name: 'get_camera_snapshot',
-  description: 'Take a fresh still image from a camera and show it to the user. Use it for "what does the garden look like right now" questions.',
+  description: 'Take a live snapshot of a camera and show it: what does the garden look like right now.',
   inputSchema: zod.object({
-    camera: zod.string().describe('Camera name as returned by list_cameras'),
+    camera: zod.string().describe('Camera name'),
   }),
 }).server<ToolContext['context']>(async ({ camera }, ctx) => {
   const snapshot = await takeSnapshot(camera);

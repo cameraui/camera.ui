@@ -10,18 +10,18 @@ const DATA_FREE_TOOLS = new Set(['show_report', 'docs_search', 'docs_read', 'api
 const item = zod.object({
   label: zod.string().min(1).max(80).describe('What the row is about, for a moment what happened'),
   value: zod.string().max(60).optional().describe('The number, state or time, short'),
-  note: zod.string().max(160).optional().describe('One short remark, for example the camera or the time'),
+  note: zod.string().max(160).optional().describe('One short remark, e.g. camera or time'),
   severity: zod.enum(['ok', 'warn', 'error', 'info']).optional(),
-  share: zod.number().min(0).max(1).optional().describe('Fraction of the total for a bar, when the items add up to something'),
-  episodeId: zod.string().max(64).optional().describe('Episode id from a tool result, the row then opens that episode'),
-  eventId: zod.string().max(64).optional().describe('Event id from a tool result, the row then opens that recording'),
+  share: zod.number().min(0).max(1).optional().describe('Share of the total for a bar'),
+  episodeId: zod.string().max(64).optional().describe('Episode id, the row opens it'),
+  eventId: zod.string().max(64).optional().describe('Event id, the row opens the recording'),
 });
 
 const showReport = toolDefinition({
   name: 'show_report',
   description:
-    'Show the user a structured card instead of a list in text: a day or week recap (events per camera, notable moments), a system health check ' +
-    '(cameras, workers, storage, plugins) or any short list of labelled values. Call it once with all items, then add at most one sentence.',
+    'Show a card instead of a text list: a day or week recap, a system health check or any short list of labelled values. ' +
+    'Call it once with all items, then add at most one sentence.',
   inputSchema: zod.object({
     kind: zod.enum(['day_recap', 'system_health', 'list']),
     title: zod.string().min(1).max(80),

@@ -12,9 +12,8 @@ const suggestSetting = toolDefinition({
   name: 'suggest_setting',
   lazy: true,
   description:
-    'Show the user a switch for an assistant setting that is off and would answer their request: terminalEnabled (shell commands on the server), ' +
-    'memoryEnabled (remembering facts about the user), sendImages (pictures go to the model). Admins flip it right in the chat, others see who ' +
-    'can. Call it instead of describing where the setting lives, then answer with what works without it.',
+    'Show a switch for an assistant setting that is off and would answer the request: terminalEnabled (shell commands), memoryEnabled (remember facts), ' +
+    'sendImages (pictures to the model). Call it instead of describing where the setting lives.',
   inputSchema: zod.object({
     setting: zod.enum(SETTING_KEYS),
   }),

@@ -17,16 +17,14 @@ function findSensor(sensors: SensorsService, idOrName: string): TransformedSenso
 
 const setSensorPropertyInput = zod.object({
   sensor: zod.string().describe('Sensor id or display name'),
-  property: zod.string().optional().describe('Property to set, defaults to the command property of the sensor'),
+  property: zod.string().optional().describe('Property to set, default: the command property'),
   value: zod.union([zod.boolean(), zod.number(), zod.string()]).describe('New value'),
 });
 
 const setSensorProperty = toolDefinition({
   name: 'set_sensor_property',
   lazy: true,
-  description:
-    'Change a writable sensor: switch a light or siren, arm a virtual switch, set a value. ' +
-    'Read the sensor first to learn its command property. Requires user confirmation.',
+  description: 'Switch a sensor: turn a light, siren or switch on or off, set a value. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(setSensorPropertyInput),
   metadata: { adminOnly: true },

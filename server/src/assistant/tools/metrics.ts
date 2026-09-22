@@ -17,9 +17,7 @@ function compact(info: ProcessInfo | undefined | null) {
 const getMetrics = toolDefinition({
   name: 'get_metrics',
   lazy: true,
-  description:
-    'Current load of the instance: CPU and memory of the host, the camera.ui server, the streaming engine, every plugin and every remote worker, ' +
-    'plus inference timings where a plugin reports them. Use it for "how busy is", "how much load", "is X slow" questions.',
+  description: 'Current load: CPU and memory of host, server, streaming engine, plugins and workers, plus inference timings. How busy is it, is something slow.',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(() => {
   const metrics = container.resolve<SocketService>('socketService').namespaces.get('/metrics') as MetricsNamespace | undefined;

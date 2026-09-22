@@ -15,7 +15,7 @@ function manager(): AssistantManager {
 const listScheduledPrompts = toolDefinition({
   name: 'list_scheduled_prompts',
   lazy: true,
-  description: 'List the prompts the assistant runs for this user on a schedule, for example a daily summary at 20:00, with their next run and the last result.',
+  description: 'List the scheduled prompts of the user, for example a daily summary at 20:00, with next run and last result.',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>((_input, ctx) => {
   const scheduler = manager().scheduler;
@@ -35,21 +35,16 @@ const listScheduledPrompts = toolDefinition({
 
 const saveInput = zod.object({
   title: zod.string().min(1).max(80).describe('Short title, also the push title, e.g. "Daily summary"'),
-  prompt: zod.string().min(1).max(2000).describe('The question the assistant answers each time, written as the user would ask it'),
-  cron: zod
-    .string()
-    .min(9)
-    .max(100)
-    .describe('Five field cron in the user time zone, e.g. "0 20 * * *" for 20:00 every day, "0 8 * * 1-5" weekdays at 08:00, "0 18 * * 0" Sundays at 18:00'),
-  deliver: zod.enum(['push', 'thread', 'both']).optional().describe('push = notification to the user devices (default), thread = saved conversation, both'),
+  prompt: zod.string().min(1).max(2000).describe('The question to answer each time, as the user would ask it'),
+  cron: zod.string().min(9).max(100).describe('Five field cron in the user time zone, e.g. "0 20 * * *" daily at 20:00, "0 8 * * 1-5" weekdays at 08:00'),
+  deliver: zod.enum(['push', 'thread', 'both']).optional().describe('push (default), thread = saved conversation, or both'),
 });
 
 const saveScheduledPrompt = toolDefinition({
   name: 'save_scheduled_prompt',
   lazy: true,
   description:
-    'Create a scheduled prompt: the assistant answers the prompt on the given schedule and delivers the answer as a push notification or a saved conversation. ' +
-    'Use it when the user wants a recurring report or check, for example a summary of the day every evening. Requires user confirmation.',
+    'Schedule a prompt the assistant answers regularly and delivers as push or saved conversation, for example a summary every evening. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(saveInput),
 }).server<ToolContext['context']>(async (args, ctx) => {
@@ -78,7 +73,7 @@ const saveScheduledPrompt = toolDefinition({
 const deleteScheduledPrompt = toolDefinition({
   name: 'delete_scheduled_prompt',
   lazy: true,
-  description: 'Delete one of the user scheduled prompts. Requires user confirmation.',
+  description: 'Delete a scheduled prompt. Requires user confirmation.',
   needsApproval: true,
   inputSchema: approvalSchema(zod.object({ id: zod.string().describe('Schedule id from list_scheduled_prompts') })),
 }).server<ToolContext['context']>(async (args, ctx) => {

@@ -10,6 +10,7 @@ import type { CoreTool } from './tools/shared.js';
 export const ROUTE_TIMEOUT_MS = 20_000;
 export const ROUTED_TOOLS = ['docs_read', 'api_search', 'api_get', 'api_call'];
 
+const UNPICKABLE = ['list_tools'];
 const SHORTLIST = 6;
 const MAX_PICKS = 3;
 const QUESTION_CHARS = 1_000;
@@ -29,6 +30,7 @@ export async function routeTools(
   adapter: AssistantAdapter,
   question: string,
   hidden: CoreTool[],
+  entry: CoreTool[],
   middleware: ChatMiddleware<never>[],
   onError: (message: string) => void,
 ): Promise<string[] | null> {
@@ -36,17 +38,23 @@ export async function routeTools(
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), ROUTE_TIMEOUT_MS);
-  const ask = <T>(systemPrompts: string[], outputSchema: zod.ZodType<T>): Promise<T> =>
-    chat({ adapter, systemPrompts, messages: [{ role: 'user', content: question }], outputSchema, middleware, abortController: abort } as never) as unknown as Promise<T>;
+  const ask = <T>(systemPrompts: string[], content: string, outputSchema: zod.ZodType<T>): Promise<T> =>
+    chat({ adapter, systemPrompts, messages: [{ role: 'user', content }], outputSchema, middleware, abortController: abort } as never) as unknown as Promise<T>;
 
   try {
-    const search = await ask([SEARCH_PROMPT], zod.object({ english: zod.string(), need: zod.string() }));
-    const shortlist = rankTools(`${search.english} ${search.need}`, hidden).slice(0, SHORTLIST);
+    const search = await ask([SEARCH_PROMPT], question, zod.object({ english: zod.string(), need: zod.string() }));
+    // the tools that are in front anyway are candidates too, or the pick points at a sibling of the right one
+    const shortlist = [...rankTools(`${search.english} ${search.need}`, hidden).slice(0, SHORTLIST), ...entry.filter((tool) => !UNPICKABLE.includes(tool.name))];
     if (!shortlist.length) return [];
 
     const names = shortlist.map((tool) => tool.name);
     const catalog = shortlist.map((tool) => renderLazyCatalogEntry(tool.name, tool.description ?? '', 'first-sentence')).join('\n');
-    const picked = await ask([PICK_PROMPT, `Tools:\n${catalog}`], zod.object({ tools: zod.array(zod.enum(names as [string, ...string[]])).max(MAX_PICKS) }));
+    // the catalog is English, the pick goes better with the question in the same language
+    const picked = await ask(
+      [PICK_PROMPT, `Tools:\n${catalog}`],
+      search.english.trim() || question,
+      zod.object({ tools: zod.array(zod.enum(names as [string, ...string[]])).max(MAX_PICKS) }),
+    );
     return picked.tools.filter((name) => names.includes(name)).slice(0, MAX_PICKS);
   } catch (error: unknown) {
     onError(error instanceof Error ? error.message : String(error));

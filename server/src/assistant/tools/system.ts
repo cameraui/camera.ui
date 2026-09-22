@@ -18,9 +18,7 @@ import type { CoreTool, ToolContext } from './shared.js';
 
 const getSystemStatus = toolDefinition({
   name: 'get_system_status',
-  description:
-    'Report the health of the instance: camera.ui version, host hardware, plugins with their run state, remote workers, ' +
-    'and which cameras are online or have stream problems. Use it for "is everything running" questions.',
+  description: 'Health of the instance: version, host, plugins with run state, workers, cameras online or with stream problems. Is everything running.',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(async (_input, ctx) => {
   const api = container.resolve<CameraUiAPI>('api');
@@ -61,9 +59,7 @@ const getSystemStatus = toolDefinition({
 const getFloorPlan = toolDefinition({
   name: 'get_floor_plan',
   lazy: true,
-  description:
-    'Describe the house layout: levels, rooms with their cameras, and which rooms connect through doors or stairs. ' +
-    'Use it to resolve "the camera in the kitchen" or "the room next to the entrance".',
+  description: 'The house layout: levels, rooms with their cameras and how rooms connect. Resolves the camera in the kitchen or the room next to the entrance.',
   inputSchema: zod.object({}),
 }).server<ToolContext['context']>(() => {
   const plan = new FloorPlanService().get();
@@ -88,7 +84,7 @@ const getFloorPlan = toolDefinition({
 export function createListToolsTool(registry: AssistantToolRegistry): CoreTool {
   return toolDefinition({
     name: 'list_tools',
-    description: 'List every tool you can call right now, including the ones plugins contribute, with a one line description each.',
+    description: 'List every tool available right now, with one line each.',
     inputSchema: zod.object({}),
   }).server<ToolContext['context']>((_input, ctx) => {
     return registry.describe(ctx.context.role).map((tool) => ({ name: tool.name, description: tool.description, needsConfirmation: tool.approval }));
