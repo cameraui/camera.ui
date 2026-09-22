@@ -58,6 +58,8 @@ export const MOMENT_RANK_ATTRIBUTE = 1;
 export interface SegmentMoment {
   strip: Buffer;
   card?: Buffer;
+  stripWindow?: BoundingBox;
+  cardWindow?: BoundingBox;
   capturedAt: number;
   shownAt?: number;
   score: number;
@@ -1258,7 +1260,11 @@ export class DetectionEventManager {
     this.logSegment(type);
 
     const moment = this.segmentMoment;
-    if (moment) this.activeSegment.thumbnailAt = moment.shownAt ?? moment.capturedAt;
+    if (moment) {
+      this.activeSegment.thumbnailAt = moment.shownAt ?? moment.capturedAt;
+      this.activeSegment.stripWindow = moment.stripWindow;
+      this.activeSegment.cardWindow = moment.cardWindow;
+    }
 
     const attachments = this.segmentAttachments(type === 'segment-end');
     // ticks ride every segment message: they reach the store while the

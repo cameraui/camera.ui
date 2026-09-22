@@ -22,6 +22,8 @@ export interface RecordedAttribute extends EventAttribute {
 
 export interface RecordedSegment extends Omit<EventSegment, 'detections' | 'attributes'> {
   thumbnailAt?: number;
+  stripWindow?: BoundingBox;
+  cardWindow?: BoundingBox;
   detections: RecordedDetection[];
   attributes: RecordedAttribute[];
 }
@@ -45,7 +47,7 @@ export function leanEvent(event: RecordedEvent): DetectionEvent {
 
   return {
     ...rest,
-    segments: segments.map(({ thumbnailAt: _segAt, detections, attributes, ...segment }) => ({
+    segments: segments.map(({ thumbnailAt: _segAt, stripWindow: _sw, cardWindow: _cw, detections, attributes, ...segment }) => ({
       ...segment,
       detections: detections.map(
         ({ box: _box, trackId: _trackId, zones: _zones, firstSeen: _f, lastSeen: _l, firstMovingSeen: _fm, lastMovingSeen: _lm, presentSince: _ps, ...detection }) =>

@@ -119,6 +119,8 @@ interface RenderedMoment {
   strip: Buffer;
   card?: Buffer;
   windows: Partial<Record<MomentFormatName, CropWindow>>;
+  stripWindow?: BoundingBox;
+  cardWindow?: BoundingBox;
 }
 
 const TRAINING_FRAME_MAX_WIDTH = 1280;
@@ -143,6 +145,14 @@ const MOTION_INTERVAL_MS = 200;
 const TICK_SLACK_MS = 20;
 const MAIN_STREAM_HOLD_MS = 5000;
 const EXTERNAL_FRAME_MAX_AGE_MS = 1000;
+
+function momentPictures(rendered: RenderedMoment): Pick<SegmentMoment, 'strip' | 'card' | 'stripWindow' | 'cardWindow'> {
+  return { strip: rendered.strip, card: rendered.card, stripWindow: rendered.stripWindow, cardWindow: rendered.cardWindow };
+}
+
+function normalizedWindow(window: CropWindow, frameWidth: number, frameHeight: number): BoundingBox {
+  return { x: window.x / frameWidth, y: window.y / frameHeight, width: window.width / frameWidth, height: window.height / frameHeight };
+}
 
 @RPCClass
 export class DetectionCoordinator {
@@ -1953,8 +1963,7 @@ export class DetectionCoordinator {
       if (!rendered) continue;
       const score = sighting.confidence * Math.sqrt(sighting.width * sighting.height);
       this.heldMoments.set(sighting.trackId, {
-        strip: rendered.strip,
-        card: rendered.card,
+        ...momentPictures(rendered),
         capturedAt: at,
         score,
         rank: MOMENT_RANK_OBJECT,
@@ -2028,7 +2037,7 @@ export class DetectionCoordinator {
     const rendered = await this.renderMoment(target, analysis);
     if (!rendered) return;
 
-    this.eventManager.offerMoment({ strip: rendered.strip, card: rendered.card, capturedAt: at, score: bestScore, rank: MOMENT_RANK_OBJECT, stream: 'low' });
+    this.eventManager.offerMoment({ ...momentPictures(rendered), capturedAt: at, score: bestScore, rank: MOMENT_RANK_OBJECT, stream: 'low' });
     // debugging
     await this.recordMoment(target, rendered, analysis, `${subject.label}-external`, bestScore, 'external', at);
   }
@@ -2041,7 +2050,7 @@ export class DetectionCoordinator {
     if (!rendered) return;
 
     const stream = analysis.isMainStream ? 'main' : 'low';
-    this.eventManager.offerMoment({ strip: rendered.strip, card: rendered.card, capturedAt: at, score, rank: MOMENT_RANK_OBJECT, stream });
+    this.eventManager.offerMoment({ ...momentPictures(rendered), capturedAt: at, score, rank: MOMENT_RANK_OBJECT, stream });
     // debugging
     await this.recordMoment(target, rendered, analysis, `${subject.label}-${subject.trackId}`, score, trigger, at);
   }
@@ -2100,7 +2109,7 @@ export class DetectionCoordinator {
     if (!rendered) return;
 
     const stream = analysis.isMainStream ? 'main' : 'low';
-    this.eventManager.offerMoment({ strip: rendered.strip, card: rendered.card, capturedAt: at, score: bestScore, rank: MOMENT_RANK_ATTRIBUTE, stream });
+    this.eventManager.offerMoment({ ...momentPictures(rendered), capturedAt: at, score: bestScore, rank: MOMENT_RANK_ATTRIBUTE, stream });
     // debugging
     await this.recordMoment(target, rendered, analysis, best.label.replace(':', '-'), bestScore, 'attributeFound', at);
   }
@@ -2109,6 +2118,8 @@ export class DetectionCoordinator {
     const start = Date.now();
     const rendered = new Map<MomentFormatName, Buffer>();
     const windows: Partial<Record<MomentFormatName, CropWindow>> = {};
+    // a card handed in was cut elsewhere, its window is not the one computed here
+    const cut = new Set<MomentFormatName>();
     if (card) rendered.set('card', card);
 
     try {
@@ -2118,7 +2129,10 @@ export class DetectionCoordinator {
         windows[format.name] = window;
         if (rendered.has(format.name)) continue;
         const jpeg = await analysis.scaler.cropWindowToJPEG(analysis.frame, window, format.width, format.height, MOMENT_QUALITY);
-        if (jpeg) rendered.set(format.name, jpeg);
+        if (jpeg) {
+          rendered.set(format.name, jpeg);
+          cut.add(format.name);
+        }
       }
     } catch (error) {
       this.logger.debug('Moment crop failed:', error);
@@ -2126,7 +2140,15 @@ export class DetectionCoordinator {
     this.perf.jpegMs += Date.now() - start;
 
     const strip = rendered.get('strip');
-    return strip ? { strip, card: rendered.get('card'), windows } : null;
+    if (!strip) return null;
+    const { width, height } = analysis.frame;
+    return {
+      strip,
+      card: rendered.get('card'),
+      windows,
+      stripWindow: windows.strip && cut.has('strip') ? normalizedWindow(windows.strip, width, height) : undefined,
+      cardWindow: windows.card && cut.has('card') ? normalizedWindow(windows.card, width, height) : undefined,
+    };
   }
 
   // debugging
