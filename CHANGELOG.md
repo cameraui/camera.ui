@@ -4,11 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.5]
 
+**New plugin: Apple LLM.** Brings Apple's on-device model into camera.ui as an assistant model. It answers on the Mac the plugin runs on and it can use the assistant's tools. Needs macOS 26 or newer on Apple Silicon with Apple Intelligence turned on, pictures need macOS 27. Which model answers depends on the Mac, and all of them hold only a short conversation: good for questions about your cameras and the documentation, weaker on long tasks with many steps.
+
+**Face recognition needs two steps after this update.** Update the detection plugins along with camera.ui, then pick the face recognition plugin for each camera under Plugins. Recognition stays off until both are done. The plugins fetch a new model on the first start.
+
 ### Added
+
+- **The training editor can reuse the boxes of the previous image.** A button in the editor (or `V`) shows them as dashed outlines, a tap on the plus takes one over, `Shift` + `V` takes all. Boxes that are already covered are left out.
+
+- **A model can be told how much context it holds.** Its dialog has a context window field, empty for the general budget. camera.ui then fits the request to it: the procedures and the feature list leave the prompt, tools the question did not start from are listed by name and fetched when the model asks for them. That makes a small local model usable, and it keeps a large installation with many plugins from filling the window with tool descriptions.
 
 - **The assistant can use a model a plugin brings along.** Such a model shows up in the model dialog next to OpenAI, Ollama and the rest, with no key and no address to fill in. That covers models without a web interface and models that run on another machine in your house.
 
+- **The assistant can tell you which sensors are on.** It lists the lights, switches, locks, doors and alarm systems you set up with their current state, and which cameras detect something right now.
+
+- **A conversation keeps its model.** Each conversation remembers which model answered it, and opening it again picks that model in the chat instead of the default.
+
+- **Small models can get their tools picked for them.** With "Pick the tools first" in the model dialog camera.ui asks the model first which tools a question needs and offers only those. That helps models that lose track in a long tool list, at the price of one extra call per question.
+
+- **Try face recognition from the plugin page.** A detection plugin has a new tab next to face detection: drop a picture and see who camera.ui takes it for and how sure it is, with the points the face was lined up on.
+
+- **The Faces view says when a person has too few pictures.** Below 10 pictures a person is often missed, their dialog now says so.
+
 ### Changed
+
+- **Recordings shows the total.** The sidebar reads "40 of 312 recordings" while more are still loading, counted in the cards you see, grouped or not. On the Apple TV the Today tile shows the real number of events on a busy day instead of stopping at 500. Comes with the NVR plugin update.
+
+- **The assistant asks less of the model per question.** Every tool describes itself in a sentence or two, and a documentation question comes back with the whole matching section instead of a short excerpt. A question costs about a quarter fewer tokens, and small models pick the right tool more often.
+
+- **Face recognition got its own step, and it recognizes far more.** A face is lined up on eyes, nose and mouth first, and one seen from the side or steeply from above gets no name instead of a wrong one. Boxes show up without waiting for it, and recognition can run on another machine than detection. Enrolled pictures are embedded again by themselves, pictures without a clear face are removed along the way.
+
+- **Face recognition is set by a step, not a number.** The camera setting used to ask for a similarity between 0.3 and 0.95, a number that only ever made sense for one recognition model. It is now Strict, Balanced or Relaxed, and camera.ui fills in what that means for the model in use. Every camera starts on Balanced, which is what the old default did.
+
+- **Named people stay on one line.** With more than a handful of faces the list of named people pushed everything below it off the screen. It now sits in a single row you scroll sideways, with arrows on both ends.
+
+- **Training: a submit button of its own and a filter for the list.** Verified frames could only be sent through the selection menu, which hardly anyone found. A submit button now sits below the selection button and sends everything verified, greyed out with a hint while nothing is verified yet, and a line above the list says what to do first. Next to the search field a filter picks all, new or verified, each with its count, and the list scrolls on its own while search and filter stay in place.
 
 - **Recordings rearrange smoothly.** Resizing the window or opening the filter sidebar made the page crawl, on fast machines too: the cards were rebuilt from scratch while the grid followed the new width. They now follow along without stutter, and scrolling through a long list got lighter as well.
 
@@ -22,9 +52,43 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The filter sidebar in Recordings stays open while you click through the recordings.** On medium-wide windows it closed with every click on a card.
+
+- **Two people close together are no longer counted as one.** Two children one behind the other or two people on a sofa could become a single person, with one name and one track for both.
+
+- **Episode cards show their picture as early as the events do.** They used to wait for every event thumbnail of the page and appeared a step later.
+
+- **The recordings list scrolls freely on the phone.** It used to catch on every row, which made a long swipe stutter.
+
+- **A face standing next to a recognized person no longer borrows that person's name.** Two people close together could end up with the same name on the recording card and in the face pictures.
+
+- **The detection trace no longer leaves the first pictures empty.** Opened in the middle of an event, the first seconds of the strip stayed blank and their pictures turned up ten seconds too early.
+
+- **A second camera.ui on the same folder refuses to start.** Two instances on one home emptied each other's temp folder, fought over the same worker identity and, on the way out, killed each other's processes. The second one now stops with a message naming the folder, and the launcher no longer treats the running instance as a leftover to kill.
+
+- **A worker that crashes and comes back keeps its plugins.** When a worker restarted within a few seconds the main instance never noticed, and a plugin that had dropped out in between stayed stopped until the plugin was restarted by hand. The main instance now sees the new process and hands the plugins back.
+
+- **Recaps of a day or a week come as a card again.** Most models answered with a text list and only the largest built the card with the moments. When a model still answers with text, camera.ui builds the card from the day's moments itself. A request for pictures now also brings the pictures of those moments.
+
+- **The assistant no longer stays silent after looking something up.** Some models fetched the data and then ended without a word until you asked again.
+
+- **A small model no longer fills its memory with your questions.** A model with a short window stored what you asked as facts about you, and those lines took room in every answer and steered them. Such a model now remembers only what you tell it to remember.
+
+- **Some cameras showed no picture on one of their streams for minutes after a start.** They accept a request for two-way audio they cannot serve and then send no video on that connection. camera.ui now notices and connects without it. "Disable two-way audio" on a source also stops the request itself, before it only hid the microphone button.
+
+- **Deleting a box with the keyboard closes its label menu.** The menu stayed open in the training editor after `Del`.
+
+- **The assistant lost the thread in long answers with pictures.** A few snapshots were enough to make it forget most of the conversation, and with a small model it could forget the question itself and answer with a greeting. Both are fixed, and a small model no longer stops after looking at pictures.
+
+- **The timeline card of a doorbell or lock event is no longer empty.** When such an event also had a person or another detection, its card showed a grey box and could hide the picture of the detection next to it. The card now shows the scene of the event.
+
+- **Snoozing a camera during an event no longer kills its detections.** A camera with its own motion sensor (ONVIF and similar) stayed silent after the snooze ended, until a full restart. Stopping or restarting the detection process mid-event had the same effect.
+
 - **`cameraui logs` keeps showing new lines.** The log view went silent once the log file was trimmed, which happens every few hours, and only came back after the file had grown past its old size again.
 
 - **Contact sensors showed the wrong state.** A closed door was listed as open and an open one as closed. Automations were not affected, they always used the real state.
+
+- **Detection settings no longer show the wrong plugin.** Switching between object, face and the other detection types in a camera's settings could bring up the settings of the camera's own plugin instead of the selected detector, and the next save then went to the wrong place.
 
 - **A desktop app used as a worker follows the beta channel.** It kept looking for stable releases while the rest of the installation ran a beta, found no app update, and the updates page then had nothing to offer for it. It now takes the channel from the main instance and checks again right away.
 
@@ -41,6 +105,10 @@ All notable changes to this project will be documented in this file.
 - **A filter no longer reports "no recordings" when the search only took too long.** On a large history the filtered search could run past its time limit, and the page then claimed there was nothing recorded. It now tries once more by itself and says plainly when it failed, with a button to try again.
 
 - **The recordings page no longer opens into an empty screen.** It took several seconds on the first visit, with nothing to look at in the meantime. It now shows placeholders right away and the recordings arrive much faster. Comes with the NVR plugin update.
+
+- **The assistant no longer ends a long question with an empty answer.** When a question needed more tool rounds than allowed, the run stopped without a word. It now sums up what the tools returned and says what it could not check.
+
+- **A model without tools says so instead of pretending.** Such a model was still told to work with tools, so small local models failed with an error or wrote tool calls into the answer. It now answers from the conversation and tells you that live data needs a model with tools.
 
 - **A conversation with the assistant no longer dies for good.** After a run that was cut off, for example by closing the chat while it was still answering, every further question in that conversation came back as an error like "400 status code". The conversation repairs itself now, you no longer have to start a new one.
 
