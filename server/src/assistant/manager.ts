@@ -134,6 +134,8 @@ const ASK_CONCURRENCY = 4;
 const EMPTY_TURN_LOG = 'Assistant: the model ended a turn without text or tool call, asking once more';
 const EXTRACT_TIMEOUT_MS = 30_000;
 const EXTRACT_MAX_CHARS = 1500;
+// a small model stores the questions themselves as facts and they crowd its window, only remembering on request stays
+const EXTRACT_MIN_CONTEXT_TOKENS = 16_000;
 
 // prettier-ignore
 const EXTRACT_PROMPT =
@@ -896,6 +898,7 @@ export class AssistantManager {
     await this.ensureModel(entry);
     if (!entry) return { add: [], remove: [] };
     const model = this.modelSettings(this.settings(), entry);
+    if (model.contextTokens < EXTRACT_MIN_CONTEXT_TOKENS) return { add: [], remove: [] };
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), EXTRACT_TIMEOUT_MS);
     let text = '';
