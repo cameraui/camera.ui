@@ -520,12 +520,11 @@ export class SecondaryStage {
     const allFaces: TrackedFaceDetection[] = [];
 
     for (let i = 0; i < batchResults.length; i++) {
-      const parent = croppedRegions[i].detection;
-      const parentTrackId = 'trackId' in parent ? (parent as TrackedDetection).trackId : undefined;
-
       for (const face of ensureDetectionBoxes(batchResults[i].detections)) {
         const transformed = this.transformBoxToOriginal(face.box, croppedRegions[i]);
-        allFaces.push({ ...face, box: transformed, parentTrackId, parentBox: parent.box });
+        const parent = this.faceParent(transformed, croppedRegions, i);
+        const parentTrackId = parent && 'trackId' in parent ? (parent as TrackedDetection).trackId : undefined;
+        allFaces.push({ ...face, box: transformed, parentTrackId, parentBox: parent?.box });
       }
     }
 
@@ -674,6 +673,21 @@ export class SecondaryStage {
       }));
       this.coordinator.acceptClipVectors(embeddings, embeddingModel, capturedAt);
     }
+  }
+
+  private faceParent(face: BoundingBox, regions: CroppedRegion[], cropIndex: number): Detection | undefined {
+    const cx = face.x + face.width / 2;
+    const cy = face.y + face.height / 2;
+    let best: Detection | undefined;
+    for (const { detection } of regions) {
+      const box = detection.box;
+      if (cx < box.x || cx > box.x + box.width || cy < box.y || cy > box.y + box.height) continue;
+      if (!best || box.width * box.height < best.box.width * best.box.height) best = detection;
+    }
+    if (best) return best;
+    const own = regions[cropIndex].detection;
+    const inside = cx >= own.box.x && cx <= own.box.x + own.box.width && cy <= own.box.y + own.box.height;
+    return inside ? own : undefined;
   }
 
   private prepareSecondaryFrames(croppedRegions: CroppedRegion[]): VideoFrameData[] {
