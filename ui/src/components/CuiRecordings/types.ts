@@ -70,6 +70,8 @@ export interface RecordingsFilterSidebarProps {
   isOpen: boolean;
   isOverlay: boolean;
   resultCount: number;
+  resultTotal?: number;
+  resultCapped?: boolean;
   semanticCount?: number;
   semanticSearchAvailable?: boolean;
   semanticSearchLoading?: boolean;

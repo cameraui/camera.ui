@@ -36,7 +36,10 @@
               @update:model-value="updateSearchDebounced($event as string)"
             />
           </span>
-          <span class="text-xs text-muted">{{ $t('views.recordings.result_count', { count: resultCount }) }}</span>
+          <span v-if="resultTotal !== undefined" class="text-xs text-muted">
+            {{ $t('views.recordings.result_count_of', { count: resultCount, total: resultCapped ? `${resultTotal}+` : resultTotal }) }}
+          </span>
+          <span v-else class="text-xs text-muted">{{ $t('views.recordings.result_count', { count: resultCount }) }}</span>
         </div>
 
         <div class="sidebar-divider" />

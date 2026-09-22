@@ -2891,6 +2891,7 @@ export default {
       only_with_recordings_hint: 'Hide events without saved footage',
       view_options: 'View options',
       result_count: '{count} recordings',
+      result_count_of: '{count} of {total} recordings',
       semantic_results: '{count} AI matches',
       events_count: '{count} events',
     },

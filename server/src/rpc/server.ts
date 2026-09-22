@@ -129,6 +129,7 @@ export class NATS {
                   'rpc.plugin.*.child.rpc.getInstanceId',
                   'rpc.plugin.*.child.rpc.getEvents',
                   'rpc.plugin.*.child.rpc.getCameraEvents',
+                  'rpc.plugin.*.child.rpc.getEventStats',
                   'rpc.plugin.*.child.rpc.getEventThumbnails',
                   'rpc.plugin.*.child.rpc.getEpisodes',
                   'rpc.plugin.*.child.rpc.getEpisodeMosaic',

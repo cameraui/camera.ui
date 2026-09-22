@@ -27,6 +27,8 @@
       :is-open="sidebarOpen"
       :is-overlay="sidebarIsOverlay"
       :result-count="gridItems.length"
+      :result-total="resultTotal"
+      :result-capped="stats?.capped"
       :semantic-count="isSemanticActive ? semanticEventIds.size : undefined"
       :semantic-search-available="semanticAvailable"
       :semantic-search-loading="semanticSearching"
@@ -354,6 +356,9 @@ const assistantSearching = ref(false);
 const assistantNote = ref('');
 const serverFilter = shallowRef<GetEventsOptions>({ hasDetections: true, withRecordingInfo: true, hasRecording: true });
 let _prevFilterJSON = JSON.stringify(serverFilter.value);
+// fixed when the range is picked: a cutoff that moved with the clock would
+// change the server filter on every filter edit and reload the list
+const rangeStartMs = ref<number>();
 const ungrouped = ref(false);
 const ungroupedItems = shallowRef<UngroupedItem[]>([]);
 const hoveredEventId = ref<string | null>(null);
@@ -418,6 +423,7 @@ const {
   events,
   isLoading,
   hasMore,
+  stats,
   loadMore,
   loadThumbnails,
   deleteEvents,
@@ -431,6 +437,7 @@ const {
   pageSize: 40,
   filter: serverFilter,
   withEpisodes: true,
+  withStats: true,
 });
 
 const semanticEventIds = computed(() => {
@@ -457,8 +464,8 @@ const displayEvents = computed(() => {
   let result = events.value.filter((e) => e.state === 'ended' || (e.segments?.length ?? 0) > 0);
   const f = filters.value;
 
-  if (f.timeRange && TIME_RANGE_MS[f.timeRange]) {
-    const cutoff = Date.now() - TIME_RANGE_MS[f.timeRange];
+  if (rangeStartMs.value !== undefined) {
+    const cutoff = rangeStartMs.value;
     result = result.filter((e) => e.startTime >= cutoff);
   }
 
@@ -482,6 +489,13 @@ const displayEvents = computed(() => {
 });
 
 const episodesOnly = computed(() => filters.value.contentKind === 'episodes');
+
+const contentFiltered = computed(() => {
+  const f = filters.value;
+  return (
+    f.search.trim() !== '' || f.eventTypes.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0 || f.sensorEvents.length > 0 || f.minConfidence !== 0.5
+  );
+});
 const assistantAvailable = computed(() => assistantStatus.value?.state === 'ready');
 
 const episodeGridItems = computed<UngroupedItem[]>(() => {
@@ -493,13 +507,11 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   if (!episodesOnly.value) {
     if (ungrouped.value || isSemanticActive.value) return [];
     if (f.gridRegions.length > 0) return [];
-    const contentFiltered =
-      f.search.trim() !== '' || f.eventTypes.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0 || f.sensorEvents.length > 0 || f.minConfidence !== 0.5;
-    if (contentFiltered) return [];
+    if (contentFiltered.value) return [];
   }
 
   const scope = cameraIds.value.length > 0 ? cameraIds.value : allCameraIds.value;
-  let cutoff = f.timeRange && TIME_RANGE_MS[f.timeRange] ? Date.now() - TIME_RANGE_MS[f.timeRange] : 0;
+  let cutoff = rangeStartMs.value ?? 0;
   let rangeEndMs = Infinity;
   if (f.timeRange === 'custom' && f.customDateRange) {
     cutoff = Math.max(cutoff, f.customDateRange[0].getTime());
@@ -534,6 +546,16 @@ const gridItems = computed<UngroupedItem[]>(() => {
     items.sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
   }
   return items;
+});
+
+const resultTotal = computed<number | undefined>(() => {
+  const s = stats.value;
+  const f = filters.value;
+  if (!s || !hasMore.value || isSemanticActive.value || f.gridRegions.length > 0 || (f.timeRange && rangeStartMs.value === undefined)) return undefined;
+  if (episodesOnly.value) return s.episodes;
+  if (ungrouped.value) return s.segments;
+  const withEpisodes = f.contentKind !== 'events' && !contentFiltered.value;
+  return s.total + (withEpisodes ? s.episodes : 0);
 });
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
@@ -728,6 +750,14 @@ watch(xlBreakpoint, (isXl) => {
 });
 
 watch(
+  () => filters.value.timeRange,
+  (range) => {
+    rangeStartMs.value = range && TIME_RANGE_MS[range] ? Date.now() - TIME_RANGE_MS[range] : undefined;
+  },
+  { immediate: true },
+);
+
+watch(
   filters,
   (f) => {
     const hasAnyContentFilter = f.eventTypes.length > 0 || f.sensorEvents.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0;
@@ -745,6 +775,7 @@ watch(
       withRecordingInfo: true,
       hasRecording: f.onlyWithRecordings || undefined,
       favoritesOnly: f.favoritesOnly || undefined,
+      startedSinceMs: rangeStartMs.value,
     };
 
     const nextJSON = JSON.stringify(next);

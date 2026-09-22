@@ -2908,6 +2908,7 @@ export default {
       only_with_recordings_hint: 'Blendet Ereignisse ohne gespeicherte Aufnahme aus',
       view_options: 'Ansichtsoptionen',
       result_count: '{count} Aufnahmen',
+      result_count_of: '{count} von {total} Aufnahmen',
       semantic_results: '{count} KI-Treffer',
       events_count: '{count} Ereignisse',
     },
