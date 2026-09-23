@@ -3221,7 +3221,8 @@ export default {
       assistant_enabled_info: 'Nutzer können in der Ansicht Assistent mit dieser Instanz chatten.',
       assistant_provider_label: 'Anbieter',
       assistant_provider_plugin: '{name} (Plugin)',
-      assistant_provider_hint_plugin: 'Die Modelle dieses Plugins. Es antwortet auf dem Rechner, auf dem es läuft, hier braucht es weder Schlüssel noch Adresse.',
+      assistant_provider_hint:
+        'Wo das Modell läuft: auf eigener Hardware, auf einem Server im Netzwerk, bei einem Cloud-Dienst mit Abrechnung pro Token oder in einem Plugin. Schlüssel werden verschlüsselt gespeichert.',
       assistant_model_plugin_info: 'Wähle eines der Modelle, die das Plugin anbietet.',
       assistant_model_plugin_loading: 'Das Plugin macht sein Modell noch bereit.',
       assistant_model_plugin_none: 'Dieses Plugin bietet gerade kein Modell an.',
@@ -3233,12 +3234,6 @@ export default {
       assistant_model_context_placeholder: 'Aus der allgemeinen Einstellung',
       assistant_model_context_info:
         'Wie viel dieses Modell fasst. Bei einem lokalen oder kleinen Modell eintragen, dann hält camera.ui Prompt, Werkzeuge und Verlauf in seinem Fenster. Leer nimmt das Kontextbudget aus den allgemeinen Einstellungen.',
-      assistant_provider_hint_ollama: 'Läuft auf eigener Hardware, nichts verlässt das Netzwerk.',
-      assistant_provider_hint_openai_compatible: 'Jeder Server mit OpenAI-Chat-API, etwa LM Studio, vLLM oder llama.cpp.',
-      assistant_provider_hint_openai: 'Cloud-Dienst, OpenAI rechnet pro Token ab. Der Schlüssel liegt verschlüsselt.',
-      assistant_provider_hint_anthropic: 'Cloud-Dienst, Anthropic rechnet pro Token ab. Der Schlüssel liegt verschlüsselt.',
-      assistant_provider_hint_gemini: 'Cloud-Dienst, Google rechnet pro Token ab. Der Schlüssel liegt verschlüsselt.',
-      assistant_provider_hint_openrouter: 'Ein Schlüssel für viele gehostete Modelle, OpenRouter rechnet pro Token ab. Der Schlüssel liegt verschlüsselt.',
       assistant_base_url_label: 'Server-URL',
       assistant_api_key_label: 'API-Schlüssel',
       assistant_api_key_keep_hint: 'Ein Schlüssel ist gespeichert. Leer lassen, um ihn zu behalten.',

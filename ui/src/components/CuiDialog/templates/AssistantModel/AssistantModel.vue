@@ -11,7 +11,7 @@
         fluid
         @change="onProviderChange"
       />
-      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ providerHint }}</Message>
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_provider_hint') }}</Message>
     </div>
 
     <div v-if="showBaseUrl" class="flex flex-col field-gap">
@@ -178,10 +178,6 @@ const pluginModelHint = computed(() => {
   const context = t('views.settings.assistant_model_context', { tokens: spec.contextTokens.toLocaleString(locale.value) });
   return spec.note ? `${spec.note} ${context}` : context;
 });
-
-const providerHint = computed(() =>
-  pluginProvider.value ? t('views.settings.assistant_provider_hint_plugin') : t(`views.settings.assistant_provider_hint_${provider.value.replace('-', '_')}`),
-);
 
 const needsKey = computed(() => ASSISTANT_KEY_PROVIDERS.includes(provider.value) && !pluginProvider.value);
 const showBaseUrl = computed(() => provider.value === 'ollama' || provider.value === 'openai-compatible');

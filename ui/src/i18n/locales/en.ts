@@ -3243,7 +3243,8 @@ export default {
       assistant_enabled_info: 'Users can chat with this instance in the Assistant view.',
       assistant_provider_label: 'Provider',
       assistant_provider_plugin: '{name} (plugin)',
-      assistant_provider_hint_plugin: 'The models of this plugin. It answers on the machine it runs on, no key and no address needed here.',
+      assistant_provider_hint:
+        'Where the model runs: on your own hardware, on a server in your network, in a cloud service billed per token, or in a plugin. Keys are stored encrypted.',
       assistant_model_plugin_info: 'Pick one of the models the plugin offers.',
       assistant_model_plugin_loading: 'The plugin is still getting its model ready.',
       assistant_model_plugin_none: 'This plugin offers no model right now.',
@@ -3255,12 +3256,6 @@ export default {
       assistant_model_context_placeholder: 'From the general setting',
       assistant_model_context_info:
         'What this model can hold. Set it for a local or small model, then camera.ui keeps prompt, tools and history inside its window. Empty uses the context budget from the general settings.',
-      assistant_provider_hint_ollama: 'Runs on your own hardware, nothing leaves the network.',
-      assistant_provider_hint_openai_compatible: 'Any server with the OpenAI chat API, such as LM Studio, vLLM or llama.cpp.',
-      assistant_provider_hint_openai: 'Cloud service, billed per token by OpenAI. The key is stored encrypted.',
-      assistant_provider_hint_anthropic: 'Cloud service, billed per token by Anthropic. The key is stored encrypted.',
-      assistant_provider_hint_gemini: 'Cloud service, billed per token by Google. The key is stored encrypted.',
-      assistant_provider_hint_openrouter: 'One key for many hosted models, billed per token by OpenRouter. The key is stored encrypted.',
       assistant_base_url_label: 'Server URL',
       assistant_api_key_label: 'API key',
       assistant_api_key_keep_hint: 'A key is stored. Leave empty to keep it.',
