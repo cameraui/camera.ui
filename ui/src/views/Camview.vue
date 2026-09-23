@@ -140,7 +140,7 @@
         }"
         :style="contentContainerStyle"
       >
-        <div v-if="isLoading" class="flex flex-col w-full h-full items-center justify-center">
+        <div v-if="viewPending" class="flex flex-col w-full h-full items-center justify-center">
           <ProgressSpinner v-if="true" class="w-[30px] h-[30px] m-0" stroke-width="5" />
         </div>
 
@@ -402,6 +402,9 @@ const cameraCardModels = reactive<CuiCameraCardModels>({
 });
 
 const isLoading = computed(() => camerasLoading.value || viewsLoading.value || removeViewPending.value || addViewPending.value || patchViewPending.value);
+const viewPending = computed(
+  () => (camerasLoading.value && !cameras.value) || (viewsLoading.value && !views.value) || removeViewPending.value || addViewPending.value || patchViewPending.value,
+);
 
 const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
 

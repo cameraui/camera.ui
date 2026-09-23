@@ -396,6 +396,14 @@ export class CamerasQuery {
     });
   }
 
+  public ensureCamerasList(pagination: PaginationQuery) {
+    return this._queryClient.query({
+      queryKey: ['camerasList', pagination],
+      queryFn: ({ signal }) => getCamerasFn({ parameter: pagination, signal }),
+      staleTime: 'static',
+    });
+  }
+
   public getCamerasQuery(pagination: PaginationQuery | Ref<PaginationQuery> | ComputedRef<PaginationQuery>) {
     return useQueryEnhanced({
       queryKey: ['camerasList', pagination],

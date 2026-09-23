@@ -8,8 +8,9 @@
       }"
       :style="{
         opacity: isDragging ? 0 : 1,
-        viewTransitionName: viewTransition ? `camera-card-${camera.name.replace(/[^a-zA-Z0-9-_]/g, '-')}` : undefined,
+        viewTransitionName: morphTarget ? 'camera-morph' : undefined,
       }"
+      :data-camera-morph="morphTarget || undefined"
       :draggable="canDrag && !isTouch"
       @dragstart="onNativeDragStart"
     >
@@ -93,6 +94,7 @@ const emit = defineEmits<CuiDraggableCameraCardEmits>();
 
 const { x: mouseX, y: mouseY } = useSharedMouse();
 const { isTouch } = useSharedCuiUserAgent();
+const routerStore = useRouterStore();
 
 const { camera, noDrag, viewTransition } = toRefs(props);
 
@@ -110,6 +112,7 @@ let lastSwapTime = 0;
 
 const canDrag = computed(() => !noDrag.value);
 const originalIndex = computed(() => props.findCard(camera.value._id).index);
+const morphTarget = computed(() => viewTransition.value && routerStore.morphCamera === camera.value.name);
 
 const [collect, drag] = useDrag(() => ({
   type: 'camera-card',

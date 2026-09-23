@@ -579,7 +579,6 @@ watch(timelapseDisabled, (disabled) => {
   if (disabled) trimTimelapse.value = 0;
 });
 
-// Stop playback cleanly when switching cameras (not on query-only changes like clearing startTs)
 onBeforeRouteUpdate((to, from) => {
   if (to.params.cameraname !== from.params.cameraname && nvrController.isActive.value) {
     nvrController.stop();
@@ -587,6 +586,8 @@ onBeforeRouteUpdate((to, from) => {
 });
 
 onMounted(() => {
+  camerasQuery.ensureCamerasList({ page: 1, pageSize: -1 }).catch(() => undefined);
+
   assistantActions.register({
     name: 'timeline.seek',
     description: 'Jump the recording of the open camera to a time. Args: { time: ISO 8601 with offset }.',

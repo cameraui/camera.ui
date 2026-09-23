@@ -112,9 +112,6 @@ const { isTouch } = useSharedCuiUserAgent();
 const { smBreakpoint, lgBreakpoint } = useSharedCuiBreakpoint();
 const nvrMaster = inject(NvrPlaybackKey, undefined);
 
-const routerStore = useRouterStore();
-const { routeFrom, routeTo } = storeToRefs(routerStore);
-
 const { editMode, rearrangeMode, viewSize, cards, cameraCardProps } = toRefs(props);
 
 const viewRef = useTemplateRef('viewRef');
@@ -149,9 +146,6 @@ const activeCameraCardProps = computed(() => {
   return (camera: DBCamera | undefined) => {
     const p = { ...toRaw(cameraCardProps.value) };
     if (camera) {
-      const routeFromMatch = routeFrom.value?.includes(`/cameras/${camera.name}`) ?? false;
-      const routeToMatch = routeTo.value?.includes(`/cameras/${camera.name}`) ?? false;
-      const enableViewTransition = p.viewTransition && (routeFromMatch || routeToMatch);
       const basePath = `/cameras/${camera.name}`;
       if (nvrMaster?.isActive.value) {
         const tsMs = Math.floor(nvrMaster.currentTimestamp.value / 1000);
@@ -159,7 +153,6 @@ const activeCameraCardProps = computed(() => {
       } else {
         p.routerLink = basePath;
       }
-      p.viewTransition = enableViewTransition;
     }
     return p;
   };

@@ -1,10 +1,5 @@
 <template>
-  <div
-    :style="{
-      viewTransitionName: viewTransition ? `camera-card-${cameraName.replace(/[^a-zA-Z0-9-_]/g, '-')}` : undefined,
-      viewTransitionClass: cameraIsInRouter && viewTransition ? 'active-transition' : undefined,
-    }"
-  >
+  <div :style="{ viewTransitionName: morphTarget ? 'camera-morph' : undefined }" :data-camera-morph="morphTarget || undefined">
     <Card class="cui-card" :pt="cardPt">
       <template #content>
         <Button
@@ -852,6 +847,7 @@ const streamingMode = defineModel<CuiCameraCardModels['streamingMode']>('streami
 
 const log = useLogger();
 const router = useRouter();
+const routerStore = useRouterStore();
 const drawer = useCuiCameraDrawer();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
@@ -947,7 +943,6 @@ const isHoveredZoom = useElementHover(playerContainerRef, { delayLeave: 0 });
 const playerContainer = useElementSize(playerContainerRef);
 const arBoxSize = useElementSize(arBoxRef);
 
-const cameraIsInRouter = ref(false);
 const userMediaStream = shallowRef<MediaStream>();
 const isAdapting = ref(false);
 const panValue = ref({ x: 0, y: 0 });
@@ -994,6 +989,7 @@ let isUnmounting = false;
 let releaseNvrContainer: (() => void) | null = null;
 
 const cameraName = computed(() => (typeof cameraInfo.value === 'string' ? cameraInfo.value : cameraInfo.value.name));
+const morphTarget = computed(() => viewTransition.value && routerStore.morphCamera === cameraName.value);
 const camera = computed<DBCamera | undefined>(() => (typeof cameraInfo.value === 'string' ? cameraObj.value : cameraInfo.value));
 
 const nvr = computed<NvrPlayback | undefined>(() => {
@@ -2337,7 +2333,6 @@ useEventListener(window, 'blur', () => {
 onKeyStroke('Escape', () => exitShortcutsEditMode());
 
 onBeforeMount(() => {
-  cameraIsInRouter.value = router.currentRoute.value.path.includes(cameraName.value);
   if (typeof cameraInfo.value === 'string') {
     camerasQuery.toggleQueryActivator('getCameraQuery', true);
   }

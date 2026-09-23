@@ -1383,6 +1383,56 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
 
 const scrollPositions = new Map<string, number>();
 
+const MORPH_MAX_WAIT_MS = 600;
+const MORPH_QUIET_MS = 150;
+
+function cameraMorphReady(queryClient: ReturnType<typeof useQueryClient>, scrollTop: number): Promise<void> {
+  return new Promise((resolve) => {
+    let navigated = false;
+    let settled = false;
+    let quietTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const observer = new MutationObserver(check);
+    const deadline = setTimeout(finish, MORPH_MAX_WAIT_MS);
+    const removeHook = router.afterEach(() => {
+      removeHook();
+      navigated = true;
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'data-camera-morph'] });
+      nextTick(check);
+    });
+
+    function check(): void {
+      if (!navigated || settled) return;
+      const target = Array.from(document.querySelectorAll<HTMLElement>('[data-camera-morph]')).find((el) => el.offsetWidth > 0);
+      if (target && !target.closest('[class*="-enter-"]')) {
+        settle(target);
+        return;
+      }
+      clearTimeout(quietTimer);
+      quietTimer = setTimeout(() => {
+        if (!queryClient.isFetching()) finish();
+      }, MORPH_QUIET_MS);
+    }
+
+    function settle(target: HTMLElement): void {
+      settled = true;
+      observer.disconnect();
+      clearTimeout(quietTimer);
+      window.scrollTo({ top: scrollTop, behavior: 'instant' });
+      const images = Array.from(target.querySelectorAll('img')).map((img) => img.decode().catch(() => undefined));
+      Promise.all(images).then(finish);
+    }
+
+    function finish(): void {
+      observer.disconnect();
+      clearTimeout(quietTimer);
+      clearTimeout(deadline);
+      removeHook();
+      resolve();
+    }
+  });
+}
+
 const router = createRouter({
   history: isCapacitor ? createWebHashHistory() : createWebHistory(runtimeBase()),
   routes,
@@ -1486,17 +1536,13 @@ router.beforeResolve(async (to, from) => {
     document.documentElement.dataset.menuDirection = direction;
   }
 
-  if (to.path === '/home') {
-    const queryClient = useQueryClient();
-    const cached = queryClient.getQueriesData({ queryKey: ['camerasList'] });
-    const hasData = cached.some(([, data]) => data != null);
-    if (!hasData) return;
-  }
-
   const hasMenuDirection = !!document.documentElement.dataset.menuDirection;
   const routerStore = useRouterStore();
   routerStore.isTransitioning = true;
-  const viewTransition = startViewTransition();
+
+  const queryClient = useQueryClient();
+  const scrollTop = scrollPositions.get(to.path) ?? 0;
+  const viewTransition = startViewTransition(fromInfo.group === 'main' ? () => cameraMorphReady(queryClient, scrollTop) : undefined);
   await viewTransition.captured;
 
   viewTransition.finished.finally(() => {

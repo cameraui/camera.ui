@@ -270,7 +270,7 @@ let lastDragEnd = 0;
 let consumedEpisodeLink: string | undefined;
 let consumedConsoleLink: string | undefined;
 
-const isLoading = computed(() => camerasLoading.value);
+const isLoading = computed(() => camerasLoading.value && !cameras.value);
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const dndBackend = computed(() => (isTouch.value ? TouchBackend : HTML5Backend));
 const dndOptions = computed(() => (isTouch.value ? { enableMouseEvents: true } : undefined));

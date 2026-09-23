@@ -16,15 +16,18 @@
   contain: layout style paint;
 }
 
-::view-transition-group(*.active-transition) {
+::view-transition-group(camera-morph) {
   z-index: 3 !important;
-  animation-duration: 120ms !important;
+  animation-duration: 340ms !important;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1) !important;
   animation-fill-mode: both !important;
 }
 
-::view-transition-old(*.active-transition),
-::view-transition-new(*.active-transition) {
-  animation-duration: 120ms !important;
+::view-transition-old(camera-morph),
+::view-transition-new(camera-morph) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 340ms !important;
   animation-fill-mode: both !important;
 }
 
