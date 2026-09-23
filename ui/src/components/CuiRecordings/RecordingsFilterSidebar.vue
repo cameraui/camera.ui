@@ -20,7 +20,10 @@
           class="content-kind-toggle"
           @update:model-value="updateFilter('contentKind', $event)"
         />
-        <span v-if="episodesOnly" class="text-xs text-muted">{{ $t('views.recordings.content_kind_episodes_hint') }}</span>
+        <template v-if="episodesOnly">
+          <span class="text-xs text-muted">{{ resultLabel }}</span>
+          <span class="text-xs text-muted">{{ $t('views.recordings.content_kind_episodes_hint') }}</span>
+        </template>
       </div>
 
       <div class="sidebar-divider" />
@@ -36,10 +39,7 @@
               @update:model-value="updateSearchDebounced($event as string)"
             />
           </span>
-          <span v-if="resultTotal !== undefined" class="text-xs text-muted">
-            {{ $t('views.recordings.result_count_of', { count: resultCount, total: resultCapped ? `${resultTotal}+` : resultTotal }) }}
-          </span>
-          <span v-else class="text-xs text-muted">{{ $t('views.recordings.result_count', { count: resultCount }) }}</span>
+          <span class="text-xs text-muted">{{ resultLabel }}</span>
         </div>
 
         <div class="sidebar-divider" />
@@ -357,6 +357,13 @@ const selectedCameraName = computed<string | undefined>(() => {
 });
 
 const episodesOnly = computed(() => props.filters.contentKind === 'episodes');
+
+const resultLabel = computed(() => {
+  const unit = episodesOnly.value ? 'episodes' : 'recordings';
+  if (props.resultTotal === undefined) return t(`views.recordings.result_count_${unit}`, { count: props.resultCount });
+  const total = props.resultCapped ? `${props.resultTotal}+` : props.resultTotal;
+  return t(`views.recordings.result_count_${unit}_of`, { count: props.resultCount, total });
+});
 
 const contentKindOptions = computed(() => [
   { label: t('views.recordings.content_kind_all'), value: 'all' as const },
