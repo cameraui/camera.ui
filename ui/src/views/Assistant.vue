@@ -94,7 +94,7 @@
         </div>
 
         <div class="h-full w-full flex flex-col" :class="{ 'pt-2': smBreakpoint, 'pt-[calc(40px+2rem)]': !smBreakpoint }">
-          <div v-if="infoLoading || threadLoading" class="flex flex-1 items-center justify-center">
+          <div v-if="infoPending || threadLoading" class="flex flex-1 items-center justify-center">
             <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
           </div>
 
@@ -149,6 +149,7 @@ const { t } = useI18n();
 const { smBreakpoint, mdBreakpoint, xlBreakpoint } = useSharedCuiBreakpoint();
 const { openTextDialog } = useCuiDialog();
 const notificationsSocket = useSocket('/notifications');
+const assistantDrawer = useCuiAssistantDrawer();
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
@@ -169,6 +170,7 @@ const sidebarState = ref<'opened' | 'closed'>(xlBreakpoint.value ? 'opened' : 'c
 const layoutReady = ref(false);
 
 const state = computed(() => info.value?.status.state ?? 'disabled');
+const infoPending = computed(() => !info.value && infoLoading.value);
 const isAdmin = computed(() => user.value?.role === 'admin' || user.value?.role === 'master');
 const approvalTools = computed(() => (info.value?.tools ?? []).filter((tool) => tool.approval));
 
@@ -286,6 +288,7 @@ function syncThreadQuery(): void {
 watch([activeThreadId, threads], syncThreadQuery);
 
 onMounted(async () => {
+  assistantDrawer.close();
   notificationsSocket.on<{ threadId: string }>('assistant-thread', (payload) => onThreadPosted(payload));
   const requested = typeof route.query.thread === 'string' ? route.query.thread : undefined;
   if (route.query.prompt !== undefined) {

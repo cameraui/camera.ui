@@ -1,7 +1,7 @@
 <template>
-  <div class="relative flex h-full min-h-0 flex-col">
-    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto px-4" :class="{ 'flex items-center justify-center pb-[8vh]': welcome }" @scroll.passive="onScroll">
-      <div v-if="welcome" class="w-full max-w-2xl py-6">
+  <div ref="rootRef" class="relative flex h-full min-h-0 flex-col">
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto px-4" :class="{ 'flex flex-col pb-[8vh]': welcome }" @scroll.passive="onScroll">
+      <div v-if="welcome" ref="welcomeRef" class="m-auto w-full max-w-2xl py-6">
         <div class="mb-7 flex flex-col items-center gap-3 text-center">
           <div class="cui-assistant-mark flex h-11 w-11 items-center justify-center rounded-xl">
             <i-mdi:robot-outline class="w-6 h-6 text-color" />
@@ -25,9 +25,28 @@
           :vision-missing="visionMissing"
           :compact="compact"
           :placeholder="$t('views.assistant.composer_placeholder')"
+          :tray-open="Boolean(tray)"
+          :style="{ '--cui-tray-max': `${trayMax}px` }"
           @send="send"
           @stop="chat.stop()"
         >
+          <template #tray>
+            <Transition name="cui-assistant-tray" :duration="220">
+              <CuiAssistantTray
+                v-if="tray"
+                v-model:instructions="instructions"
+                v-model:disabled-groups="disabledGroups"
+                v-model:model-id="modelId"
+                v-model:profile-id="profileId"
+                :panel="tray"
+                :groups="toolGroups"
+                :models="models"
+                :default-model-id="defaultEntry?._id"
+                @close="tray = null"
+                @refocus="composerRef?.focus()"
+              />
+            </Transition>
+          </template>
           <template #tools>
             <span class="relative shrink-0">
               <Button
@@ -37,7 +56,7 @@
                 text
                 rounded
                 :disabled="chat.busy.value"
-                @click="openPanel('tools', $event)"
+                @click="toggleTray('tools')"
               >
                 <template #icon>
                   <i-mdi:tune class="w-4 h-4" />
@@ -46,7 +65,7 @@
               <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
-              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openPanel('memory', $event)">
+              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="toggleTray('memory')">
                 <template #icon>
                   <i-mdi:brain class="w-4 h-4" />
                 </template>
@@ -132,24 +151,7 @@
       </div>
     </div>
 
-    <div v-if="!welcome" class="relative px-4 pb-3 pt-6">
-      <Button
-        v-if="!pinnedToBottom"
-        v-tooltip.top="{ value: $t('views.assistant.scroll_to_latest') }"
-        type="button"
-        rounded
-        severity="secondary"
-        class="cui-assistant-jump absolute left-1/2 top-0 z-[2] -translate-x-1/2 -translate-y-1/2"
-        data-keep-keyboard
-        @pointerdown.prevent
-        @mousedown.prevent
-        @click="jumpToBottom"
-      >
-        <template #icon>
-          <i-mdi:chevron-down class="w-4 h-4" />
-        </template>
-      </Button>
-
+    <div v-if="!welcome" ref="bottomRef" class="relative px-4 pb-3 pt-6">
       <div class="mx-auto w-full max-w-[720px]">
         <div v-if="chat.queue.value.length" class="mb-2 flex flex-col gap-1">
           <div v-for="item in chat.queue.value" :key="item.id" class="cui-assistant-queued flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] text-muted">
@@ -176,9 +178,48 @@
           :vision-missing="visionMissing"
           :compact="compact"
           :placeholder="$t('views.assistant.composer_placeholder')"
+          :tray-open="Boolean(tray)"
+          :style="{ '--cui-tray-max': `${trayMax}px` }"
           @send="send"
           @stop="chat.stop()"
         >
+          <template #above>
+            <Transition name="cui-assistant-fade">
+              <Button
+                v-if="!atBottom && !tray"
+                v-tooltip.top="{ value: $t('views.assistant.scroll_to_latest') }"
+                type="button"
+                rounded
+                severity="secondary"
+                class="cui-assistant-jump mb-2"
+                data-keep-keyboard
+                @pointerdown.prevent
+                @mousedown.prevent
+                @click="jumpToBottom"
+              >
+                <template #icon>
+                  <i-mdi:chevron-down class="w-4 h-4" />
+                </template>
+              </Button>
+            </Transition>
+          </template>
+          <template #tray>
+            <Transition name="cui-assistant-tray" :duration="220">
+              <CuiAssistantTray
+                v-if="tray"
+                v-model:instructions="instructions"
+                v-model:disabled-groups="disabledGroups"
+                v-model:model-id="modelId"
+                v-model:profile-id="profileId"
+                :panel="tray"
+                :groups="toolGroups"
+                :models="models"
+                :default-model-id="defaultEntry?._id"
+                @close="tray = null"
+                @refocus="composerRef?.focus()"
+              />
+            </Transition>
+          </template>
           <template #tools>
             <span class="relative shrink-0">
               <Button
@@ -188,7 +229,7 @@
                 text
                 rounded
                 :disabled="chat.busy.value"
-                @click="openPanel('tools', $event)"
+                @click="toggleTray('tools')"
               >
                 <template #icon>
                   <i-mdi:tune class="w-4 h-4" />
@@ -197,7 +238,7 @@
               <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
-              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openPanel('memory', $event)">
+              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="toggleTray('memory')">
                 <template #icon>
                   <i-mdi:brain class="w-4 h-4" />
                 </template>
@@ -209,318 +250,21 @@
         <div class="mt-2 text-center text-[11.5px] text-muted">{{ $t('views.assistant.disclaimer') }}</div>
       </div>
     </div>
-
-    <component :is="panelHost" ref="toolsPopover" v-bind="panelBinding('tools')">
-      <div class="flex flex-col gap-3" :class="sheetPanels ? 'w-full' : 'w-72'" @pointerdown="holdPanelFocus" @mousedown="holdPanelFocus">
-        <div class="flex items-center gap-2">
-          <span class="font-medium text-color" :class="sheetPanels ? 'text-base' : 'text-sm'">{{ $t('views.assistant.tools_title') }}</span>
-          <Button
-            v-if="sheetPanels"
-            type="button"
-            severity="secondary"
-            text
-            rounded
-            class="cui-icon-md ml-auto shrink-0"
-            :aria-label="$t('components.form.button.close')"
-            data-keep-keyboard
-            @pointerdown.prevent
-            @mousedown.prevent
-            @click="openSheet = null"
-          >
-            <template #icon>
-              <i-mdi:close class="w-4 h-4" />
-            </template>
-          </Button>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label for="assistantInstructions" class="text-xs text-muted">{{ $t('views.assistant.instructions_label') }}</label>
-          <Textarea
-            id="assistantInstructions"
-            v-model="instructions"
-            rows="2"
-            auto-resize
-            class="text-sm"
-            :placeholder="$t('views.assistant.instructions_placeholder')"
-          />
-        </div>
-        <template v-if="sheetPanels">
-          <div class="flex flex-col gap-1">
-            <span class="text-xs text-muted">{{ $t('views.assistant.tools_label') }}</span>
-            <div class="cui-assistant-options">
-              <button
-                v-for="group in toolGroups"
-                :key="group.id"
-                type="button"
-                class="cui-assistant-option"
-                :class="{ 'cui-assistant-option-on': enabledGroups.includes(group.id) }"
-                @click="toggleGroup(group.id)"
-              >
-                <span class="cui-assistant-option-mark cui-assistant-option-box"><i-mdi:check class="w-3.5 h-3.5" /></span>
-                <span class="min-w-0 flex-1 truncate">{{ group.label }}</span>
-                <span class="shrink-0 text-xs text-muted">{{ $t('views.assistant.tools_count', { n: group.count }) }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div v-if="models.length > 1" class="flex flex-col gap-1">
-            <span class="text-xs text-muted">{{ $t('views.assistant.model_label') }}</span>
-            <div class="cui-assistant-options">
-              <button
-                v-for="option in models"
-                :key="option._id"
-                type="button"
-                class="cui-assistant-option"
-                :class="{ 'cui-assistant-option-on': activeModel?._id === option._id }"
-                @click="modelId = option._id"
-              >
-                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
-                <span class="min-w-0 flex-1 truncate">{{ option.name }}</span>
-                <span class="flex shrink-0 gap-1">
-                  <Tag
-                    v-for="tag in warningTags(option)"
-                    :key="tag.key"
-                    :severity="tag.severity"
-                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
-                    class="text-[10px]"
-                  />
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <span class="text-xs text-muted">{{ $t('views.assistant.profiles_label') }}</span>
-            <div class="cui-assistant-options">
-              <button type="button" class="cui-assistant-option" :class="{ 'cui-assistant-option-on': !profileId }" @click="profileId = null">
-                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
-                <span class="min-w-0 flex-1 truncate">{{ $t('views.assistant.profile_none') }}</span>
-              </button>
-              <button
-                v-for="option in profiles ?? []"
-                :key="option._id"
-                type="button"
-                class="cui-assistant-option"
-                :class="{ 'cui-assistant-option-on': profileId === option._id }"
-                @click="pickProfile(option._id)"
-              >
-                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
-                <span class="min-w-0 flex-1 truncate">{{ option.name }}</span>
-                <span class="flex shrink-0 gap-1">
-                  <Tag
-                    v-for="tag in warningTags(profileModel(option))"
-                    :key="tag.key"
-                    :severity="tag.severity"
-                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
-                    class="text-[10px]"
-                  />
-                </span>
-              </button>
-            </div>
-            <div class="mt-1 flex gap-2">
-              <Button
-                type="button"
-                size="small"
-                severity="secondary"
-                outlined
-                class="flex-1"
-                :label="profileId ? $t('views.assistant.profile_update') : $t('views.assistant.profile_save')"
-                :loading="createProfileMutation.isPending.value || patchProfileMutation.isPending.value"
-                @click="profileId ? updateProfile() : saveAsProfile()"
-              />
-              <Button
-                v-if="profileId"
-                type="button"
-                size="small"
-                severity="secondary"
-                outlined
-                :label="$t('views.assistant.profile_delete')"
-                :loading="deleteProfileMutation.isPending.value"
-                @click="deleteProfile"
-              />
-            </div>
-          </div>
-        </template>
-
-        <div v-if="!sheetPanels" class="flex flex-col gap-1">
-          <label for="assistantTools" class="text-xs text-muted">{{ $t('views.assistant.tools_label') }}</label>
-          <MultiSelect
-            v-model="enabledGroups"
-            input-id="assistantTools"
-            :options="toolGroups"
-            option-label="label"
-            option-value="id"
-            :max-selected-labels="2"
-            :selected-items-label="$t('views.assistant.tools_selected', { n: enabledGroups.length })"
-            :placeholder="$t('views.assistant.tools_none')"
-            class="min-w-0"
-          >
-            <template #option="{ option }">
-              <div class="flex min-w-0 flex-1 items-center gap-2">
-                <span class="truncate">{{ option.label }}</span>
-                <span class="ml-auto shrink-0 text-xs text-muted">{{ $t('views.assistant.tools_count', { n: option.count }) }}</span>
-              </div>
-            </template>
-          </MultiSelect>
-        </div>
-        <div v-if="!sheetPanels && models.length > 1" class="flex flex-col gap-1">
-          <label for="assistantModel" class="text-xs text-muted">{{ $t('views.assistant.model_label') }}</label>
-          <Select v-model="modelId" input-id="assistantModel" :options="models" option-label="name" option-value="_id" class="min-w-0" :placeholder="defaultEntry?.name">
-            <template #option="{ option }">
-              <div class="flex min-w-0 flex-1 items-center gap-2">
-                <span class="truncate">{{ option.name }}</span>
-                <span class="ml-auto flex shrink-0 gap-1">
-                  <Tag
-                    v-for="tag in warningTags(option)"
-                    :key="tag.key"
-                    :severity="tag.severity"
-                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
-                    class="text-[10px]"
-                  />
-                </span>
-              </div>
-            </template>
-          </Select>
-        </div>
-        <div v-if="!sheetPanels" class="flex flex-col gap-1">
-          <label for="assistantProfile" class="text-xs text-muted">{{ $t('views.assistant.profiles_label') }}</label>
-          <InputGroup>
-            <Select
-              v-model="profileId"
-              input-id="assistantProfile"
-              :options="profiles ?? []"
-              option-label="name"
-              option-value="_id"
-              show-clear
-              class="min-w-0"
-              :placeholder="$t('views.assistant.profile_none')"
-              @update:model-value="applyProfile"
-            >
-              <template #option="{ option }">
-                <div class="flex min-w-0 flex-1 items-center gap-2">
-                  <span class="truncate">{{ option.name }}</span>
-                  <span class="ml-auto flex shrink-0 gap-1">
-                    <Tag
-                      v-for="tag in warningTags(profileModel(option))"
-                      :key="tag.key"
-                      :severity="tag.severity"
-                      :value="$t(`views.settings.assistant_capability_${tag.key}`)"
-                      class="text-[10px]"
-                    />
-                  </span>
-                </div>
-              </template>
-            </Select>
-            <InputGroupAddon class="!p-0">
-              <Button
-                v-tooltip.top="{ value: profileId ? $t('views.assistant.profile_update') : $t('views.assistant.profile_save') }"
-                type="button"
-                severity="secondary"
-                text
-                class="h-full rounded-none"
-                :loading="createProfileMutation.isPending.value || patchProfileMutation.isPending.value"
-                @click="profileId ? updateProfile() : saveAsProfile()"
-              >
-                <template #icon>
-                  <i-mdi:content-save-outline class="w-4 h-4" />
-                </template>
-              </Button>
-            </InputGroupAddon>
-            <InputGroupAddon v-if="profileId" class="!p-0">
-              <Button
-                v-tooltip.top="{ value: $t('views.assistant.profile_delete') }"
-                type="button"
-                severity="secondary"
-                text
-                class="h-full rounded-none"
-                :loading="deleteProfileMutation.isPending.value"
-                @click="deleteProfile"
-              >
-                <template #icon>
-                  <i-mdi:delete-outline class="w-4 h-4" />
-                </template>
-              </Button>
-            </InputGroupAddon>
-          </InputGroup>
-        </div>
-      </div>
-    </component>
-
-    <component :is="panelHost" ref="memoryPopover" v-bind="panelBinding('memory')">
-      <div class="flex flex-col gap-3" :class="sheetPanels ? 'w-full' : 'w-72'" @pointerdown="holdPanelFocus" @mousedown="holdPanelFocus">
-        <div class="flex items-center gap-2">
-          <span class="font-medium text-color" :class="sheetPanels ? 'text-base' : 'text-sm'">{{ $t('views.assistant.memory_title') }}</span>
-          <span v-if="memory?.length" class="text-xs tabular-nums text-muted" :class="{ 'ml-auto': !sheetPanels }">{{ memory.length }}</span>
-          <Button
-            v-if="sheetPanels"
-            type="button"
-            severity="secondary"
-            text
-            rounded
-            class="cui-icon-md ml-auto shrink-0"
-            :aria-label="$t('components.form.button.close')"
-            data-keep-keyboard
-            @pointerdown.prevent
-            @mousedown.prevent
-            @click="openSheet = null"
-          >
-            <template #icon>
-              <i-mdi:close class="w-4 h-4" />
-            </template>
-          </Button>
-        </div>
-        <div v-if="!memory?.length" class="text-xs text-muted">{{ $t('views.assistant.memory_empty') }}</div>
-        <div v-else class="flex flex-col overflow-y-auto" :class="{ 'max-h-64': !sheetPanels }">
-          <div v-for="fact in memory" :key="fact._id" class="cui-assistant-fact flex items-center gap-2 py-1.5 text-[13px] text-color">
-            <span class="min-w-0 flex-1 leading-snug">{{ fact.text }}</span>
-            <Button
-              v-tooltip.top="{ value: $t('views.assistant.memory_forget') }"
-              type="button"
-              severity="secondary"
-              text
-              rounded
-              class="cui-icon-md shrink-0 text-muted"
-              :loading="deleteMemoryFactMutation.isPending.value"
-              @click="deleteMemoryFactMutation.mutate(fact._id)"
-            >
-              <template #icon>
-                <i-mdi:close class="w-3 h-3" />
-              </template>
-            </Button>
-          </div>
-        </div>
-        <Button
-          v-if="memory?.length"
-          type="button"
-          size="small"
-          severity="secondary"
-          outlined
-          class="w-full"
-          :label="$t('views.assistant.memory_forget_all')"
-          :loading="deleteMemoryMutation.isPending.value"
-          @click="deleteMemoryMutation.mutate()"
-        />
-      </div>
-    </component>
   </div>
 </template>
 
 <script setup lang="ts">
-import Drawer from 'primevue/drawer';
-import Popover from 'primevue/popover';
-
 import { AssistantQuery, branchAssistantThread, getAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
-import { capabilityTags, defaultModel } from '@/common/assistantModels.js';
+import { defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
-import AssistantProfileName from '@/components/CuiDialog/templates/AssistantProfileName/AssistantProfileName.vue';
-import { PENDING_ANSWER } from './types.js';
+import { KEYBOARD_EASING, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
 
-import type { AssistantCapabilityTag } from '@/common/assistantModels.js';
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
 import type { ComposerSubmission } from '@/components/CuiAssistantComposer/types.js';
-import type { AssistantProfileNameProps } from '@/components/CuiDialog/templates/AssistantProfileName/types.js';
-import type { AssistantModelView, AssistantUsageEvent, DBAssistantProfile, DBAssistantThread } from '@shared/types';
+import type { AssistantTrayPanel } from '@/components/CuiAssistantTray/types.js';
+import type { AssistantUsageEvent, DBAssistantThread } from '@shared/types';
 import type { ContentPart, UIMessage } from '@tanstack/ai';
-import type { ConversationPanel, ConversationRow, CuiAssistantConversationEmits, CuiAssistantConversationProps, PanelHandle, ToolGroupOption } from './types.js';
+import type { ConversationRow, CuiAssistantConversationEmits, CuiAssistantConversationProps, ToolGroupOption } from './types.js';
 
 const assistantQuery = new AssistantQuery();
 
@@ -535,29 +279,26 @@ const emit = defineEmits<CuiAssistantConversationEmits>();
 
 const { t, locale } = useI18n();
 const toast = useCuiToast();
-const dialog = useCuiDialog();
-const { smBreakpoint } = useSharedCuiBreakpoint();
 const coarsePointer = useMediaQuery('(pointer: coarse)');
 
-const { data: profiles } = assistantQuery.listProfilesQuery();
-const createProfileMutation = assistantQuery.createProfileMutation();
-const patchProfileMutation = assistantQuery.patchProfileMutation();
-const deleteProfileMutation = assistantQuery.deleteProfileMutation();
-const { data: memory, refetch: refetchMemory } = assistantQuery.memoryQuery();
-const deleteMemoryFactMutation = assistantQuery.deleteMemoryFactMutation();
-const deleteMemoryMutation = assistantQuery.deleteMemoryMutation();
+const { data: memory } = assistantQuery.memoryQuery();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
 
 const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
 const contentRef = useTemplateRef<HTMLDivElement>('contentRef');
 const composerRef = useTemplateRef<InstanceType<typeof CuiAssistantComposer>>('composerRef');
-const toolsPopover = useTemplateRef<PanelHandle>('toolsPopover');
-const memoryPopover = useTemplateRef<PanelHandle>('memoryPopover');
+const welcomeRef = useTemplateRef<HTMLDivElement>('welcomeRef');
+const bottomRef = useTemplateRef<HTMLDivElement>('bottomRef');
 const pinnedToBottom = ref(true);
 const disabledGroups = ref<string[]>([]);
 const instructions = ref('');
 const profileId = ref<string | null>(null);
-const openSheet = ref<ConversationPanel | null>(null);
+const tray = ref<AssistantTrayPanel | null>(null);
+const rootRef = useTemplateRef<HTMLDivElement>('rootRef');
+const atBottom = ref(true);
+
+const { top: rootTop } = useElementBounding(rootRef);
+const { top: composerTop } = useElementBounding(computed(() => composerRef.value?.$el as HTMLElement | undefined));
 const modelId = ref(props.initialModelId ?? null);
 
 const threadId = computed(() => props.threadId);
@@ -576,8 +317,7 @@ const chat = useAssistantChat({
 });
 
 const welcome = computed(() => chat.messages.value.length === 0);
-const sheetPanels = computed(() => smBreakpoint.value || coarsePointer.value);
-const panelHost = computed(() => (sheetPanels.value ? Drawer : Popover));
+const trayMax = computed(() => Math.max(160, Math.round(composerTop.value - rootTop.value - 12)));
 
 const models = computed(() => info.value?.settings.models ?? []);
 const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
@@ -651,6 +391,30 @@ function onScroll(): void {
   const el = scrollRef.value;
   if (!el) return;
   pinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  measureBottom();
+}
+
+function toggleTray(panel: AssistantTrayPanel): void {
+  tray.value = tray.value === panel ? null : panel;
+}
+
+function measureBottom(): void {
+  const el = scrollRef.value;
+  if (!el) return;
+  atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
+}
+
+function followKeyboard(): () => void {
+  const moving = [welcomeRef.value, bottomRef.value, contentRef.value].filter((el): el is HTMLDivElement => Boolean(el));
+  const before = moving.map((el) => el.getBoundingClientRect().top);
+  return () => {
+    if (pinnedToBottom.value) scrollToBottom();
+    moving.forEach((el, index) => {
+      const shift = before[index] - el.getBoundingClientRect().top;
+      if (Math.abs(shift) < 1) return;
+      el.animate([{ transform: `translateY(${shift}px)` }, { transform: 'translateY(0)' }], { duration: KEYBOARD_MS, easing: KEYBOARD_EASING });
+    });
+  };
 }
 
 function jumpToBottom(): void {
@@ -662,122 +426,6 @@ function scrollToBottom(): void {
   const el = scrollRef.value;
   if (!el) return;
   el.scrollTop = el.scrollHeight;
-}
-
-function panelBinding(panel: ConversationPanel): Record<string, unknown> {
-  if (!sheetPanels.value) return {};
-  return {
-    visible: openSheet.value === panel,
-    'onUpdate:visible': (open: boolean) => {
-      openSheet.value = open ? panel : null;
-    },
-    position: 'bottom',
-    blockScroll: true,
-    showCloseIcon: false,
-    pt: { mask: { onPointerdown: keepFocus, onMousedown: keepFocus } },
-    class: 'cui-assistant-sheet',
-  };
-}
-
-function keepFocus(event: Event): void {
-  event.preventDefault();
-}
-
-function holdPanelFocus(event: Event): void {
-  if (!sheetPanels.value) return;
-  const target = event.target;
-  if (!(target instanceof Element) || isTextEntryElement(target) || target.closest('textarea, input')) return;
-  if (isTextEntryElement(document.activeElement)) event.preventDefault();
-}
-
-function toggleGroup(id: string): void {
-  enabledGroups.value = enabledGroups.value.includes(id) ? enabledGroups.value.filter((entry) => entry !== id) : [...enabledGroups.value, id];
-}
-
-function pickProfile(id: string): void {
-  profileId.value = id;
-  applyProfile(id);
-}
-
-function openPanel(panel: ConversationPanel, event: Event): void {
-  if (panel === 'memory') refetchMemory();
-  if (sheetPanels.value) {
-    openSheet.value = panel;
-    return;
-  }
-  (panel === 'tools' ? toolsPopover : memoryPopover).value?.toggle?.(event);
-}
-
-function closePanels(): void {
-  openSheet.value = null;
-  toolsPopover.value?.hide?.();
-  memoryPopover.value?.hide?.();
-}
-
-function applyProfile(id: string | null): void {
-  const profile = profiles.value?.find((entry) => entry._id === id);
-  if (!profile) return;
-  disabledGroups.value = [...profile.disabledGroups];
-  instructions.value = profile.instructions;
-  modelId.value = models.value.some((entry) => entry._id === profile.modelId) ? profile.modelId : null;
-}
-
-function profileModel(profile: DBAssistantProfile): AssistantModelView | undefined {
-  return models.value.find((entry) => entry._id === profile.modelId) ?? defaultEntry.value;
-}
-
-function warningTags(entry: AssistantModelView | undefined): AssistantCapabilityTag[] {
-  return entry ? capabilityTags(entry).filter((tag) => tag.severity !== 'success') : [];
-}
-
-function saveAsProfile(): void {
-  const typing = Boolean(document.activeElement?.closest('.cui-assistant-composer'));
-  if (!sheetPanels.value) closePanels();
-  dialog.openComponentDialog<AssistantProfileNameProps>(AssistantProfileName, {
-    data: {
-      title: t('views.assistant.profile_save'),
-      confirmText: t('components.form.button.save'),
-      contentProps: {},
-    },
-    onConfirm: async (name: string | null) => {
-      if (name) await createProfile(name);
-    },
-    onSettled: () => {
-      if (typing) composerRef.value?.focus();
-    },
-  });
-}
-
-async function createProfile(name: string): Promise<void> {
-  const profile = await createProfileMutation.mutateAsync({
-    name,
-    modelId: activeModel.value?._id ?? '',
-    disabledGroups: [...disabledGroups.value],
-    instructions: instructions.value.trim(),
-  });
-  profileId.value = profile._id;
-}
-
-async function updateProfile(): Promise<void> {
-  if (!profileId.value) return;
-  await patchProfileMutation.mutateAsync({
-    profileId: profileId.value,
-    patch: { modelId: activeModel.value?._id ?? '', disabledGroups: [...disabledGroups.value], instructions: instructions.value.trim() },
-  });
-}
-
-async function deleteProfile(): Promise<void> {
-  if (!profileId.value) return;
-  await deleteProfileMutation.mutateAsync(profileId.value);
-  profileId.value = null;
-}
-
-// the drawer stays in place while the page behind it scrolls, the popovers are placed against the page and would drift off their button
-function realignPopovers(): void {
-  if (sheetPanels.value) return;
-  for (const popover of [toolsPopover.value, memoryPopover.value]) {
-    if (popover?.visible) popover.alignOverlay?.();
-  }
 }
 
 function exchangeEnd(index: number): number {
@@ -893,11 +541,12 @@ watch(welcome, async () => {
   composerRef.value?.focus();
 });
 
-useEventListener(window, 'scroll', realignPopovers, { capture: true, passive: true });
-
 useResizeObserver([scrollRef, contentRef], () => {
   if (pinnedToBottom.value) scrollToBottom();
+  measureBottom();
 });
+
+onBeforeUnmount(onKeyboardInsetTransition(followKeyboard));
 
 onMounted(async () => {
   await nextTick();
@@ -962,78 +611,29 @@ defineExpose({ refreshFromStore });
   border-left: 2px solid var(--border-color-inner);
 }
 
-.cui-assistant-options {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-color-inner);
-  border-radius: 0.75rem;
+.cui-assistant-fade-enter-active,
+.cui-assistant-fade-leave-active {
+  transition: opacity 150ms ease;
 }
 
-.cui-assistant-option {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 2.75rem;
-  padding: 0.5rem 0.875rem;
-  font-size: 14px;
-  text-align: left;
-  color: var(--text-color);
-  background: transparent;
+.cui-assistant-fade-enter-from,
+.cui-assistant-fade-leave-to {
+  opacity: 0;
 }
 
-.cui-assistant-option + .cui-assistant-option {
-  border-top: 1px solid var(--border-color-inner);
+.cui-assistant-tray-enter-active,
+.cui-assistant-tray-leave-active {
+  transition: opacity 220ms ease;
 }
 
-.cui-assistant-option-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.125rem;
-  height: 1.125rem;
-  flex-shrink: 0;
-  color: var(--p-primary-color);
-  visibility: hidden;
-}
-
-.cui-assistant-option-box {
-  visibility: visible;
-  color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 0.3rem;
-}
-
-.cui-assistant-option-on .cui-assistant-option-mark {
-  visibility: visible;
-}
-
-.cui-assistant-option-on .cui-assistant-option-box {
-  color: var(--p-primary-contrast-color);
-  background: var(--p-primary-color);
-  border-color: var(--p-primary-color);
+.cui-assistant-tray-enter-from,
+.cui-assistant-tray-leave-to {
+  opacity: 0;
 }
 
 .cui-assistant-jump {
   border: 1px solid var(--border-color);
   background: var(--card-background);
   box-shadow: var(--shadow-sm);
-}
-</style>
-
-<style>
-.p-drawer.cui-assistant-sheet {
-  height: auto;
-  max-height: 85vh;
-  border-radius: 1rem 1rem 0 0;
-}
-
-.p-drawer.cui-assistant-sheet .p-drawer-header {
-  display: none;
-}
-
-.p-drawer.cui-assistant-sheet .p-drawer-content {
-  padding-top: 1rem;
-  padding-bottom: calc(var(--safe-area-inset-bottom) + 1rem);
 }
 </style>

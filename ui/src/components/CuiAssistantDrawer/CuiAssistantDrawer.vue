@@ -78,36 +78,38 @@
           <Button v-if="isAdmin" class="cui-button-small" :label="$t('views.assistant.open_settings')" @click="openSettings(closeCallback)" />
         </div>
 
-        <div v-else-if="view === 'history'" class="flex-1 min-h-0 overflow-y-auto pb-safe">
+        <div v-else-if="view === 'history'" class="flex flex-1 min-h-0 flex-col pb-safe">
           <div v-if="threadsLoading" class="flex items-center justify-center py-8">
             <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
           </div>
           <div v-else-if="!threads?.length" class="px-4 py-8 text-center text-sm text-muted">{{ $t('views.assistant.no_conversations') }}</div>
           <template v-else>
-            <div
-              v-for="thread in threads"
-              :key="thread.id"
-              class="cui-assistant-drawer-thread group flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left"
-              :class="{ 'cui-assistant-drawer-thread-active': thread.id === drawer.threadId.value }"
-              @click="selectThread(thread.id)"
-            >
-              <span class="min-w-0 flex-1 truncate text-[13.5px] text-color">{{ thread.title }}</span>
-              <span class="shrink-0 text-xs text-muted">{{ formatDate(thread.updatedAt) }}</span>
-              <Button
-                v-tooltip.left="{ value: $t('views.assistant.delete_conversation') }"
-                type="button"
-                severity="secondary"
-                text
-                rounded
-                class="cui-icon-sm shrink-0"
-                @click.stop="removeThread(thread.id)"
+            <div class="flex-1 min-h-0 overflow-y-auto">
+              <div
+                v-for="thread in threads"
+                :key="thread.id"
+                class="cui-assistant-drawer-thread group flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left"
+                :class="{ 'cui-assistant-drawer-thread-active': thread.id === drawer.threadId.value }"
+                @click="selectThread(thread.id)"
               >
-                <template #icon>
-                  <i-mdi:delete-outline width="100%" height="100%" />
-                </template>
-              </Button>
+                <span class="min-w-0 flex-1 truncate text-[13.5px] text-color">{{ thread.title }}</span>
+                <span class="shrink-0 text-xs text-muted">{{ formatDate(thread.updatedAt) }}</span>
+                <Button
+                  v-tooltip.left="{ value: $t('views.assistant.delete_conversation') }"
+                  type="button"
+                  severity="secondary"
+                  text
+                  rounded
+                  class="cui-icon-sm shrink-0"
+                  @click.stop="removeThread(thread.id)"
+                >
+                  <template #icon>
+                    <i-mdi:delete-outline width="100%" height="100%" />
+                  </template>
+                </Button>
+              </div>
             </div>
-            <div class="px-4 py-3">
+            <div class="shrink-0 border-t border-color px-4 py-3">
               <Button
                 type="button"
                 severity="danger"

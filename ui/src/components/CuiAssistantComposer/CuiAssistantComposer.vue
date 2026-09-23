@@ -1,5 +1,20 @@
 <template>
-  <div ref="rootRef" class="cui-assistant-composer rounded-2xl" data-keep-keyboard @pointerdown="holdFocus" @mousedown="holdFocus">
+  <div
+    ref="rootRef"
+    class="cui-assistant-composer relative rounded-2xl"
+    :class="{ 'cui-assistant-composer-joined': trayOpen }"
+    data-keep-keyboard
+    @pointerdown="holdFocus"
+    @mousedown="holdFocus"
+  >
+    <div class="cui-assistant-composer-above">
+      <slot name="above" />
+      <div class="cui-assistant-tray-slot" :class="{ 'cui-assistant-tray-slot-open': trayOpen }">
+        <div class="cui-assistant-tray-clip">
+          <slot name="tray" />
+        </div>
+      </div>
+    </div>
     <Textarea
       ref="inputRef"
       v-model="text"
@@ -113,6 +128,7 @@ const props = withDefaults(defineProps<CuiAssistantComposerProps>(), {
   disabled: false,
   placeholder: '',
   compact: false,
+  trayOpen: false,
 });
 
 const emit = defineEmits<CuiAssistantComposerEmits>();
@@ -298,6 +314,47 @@ defineExpose({ focus });
   box-shadow:
     var(--shadow-md),
     0 0 0 3px color-mix(in srgb, var(--p-primary-color) 12%, transparent);
+}
+
+.cui-assistant-composer-above {
+  position: absolute;
+  bottom: 100%;
+  left: -1px;
+  right: -1px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cui-assistant-composer-above > * {
+  pointer-events: auto;
+}
+
+.cui-assistant-tray-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  transition: grid-template-rows 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cui-assistant-tray-slot-open {
+  grid-template-rows: 1fr;
+}
+
+.cui-assistant-tray-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cui-assistant-composer-joined {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.cui-assistant-composer:focus-within :slotted(.cui-assistant-tray) {
+  border-color: var(--p-primary-color);
 }
 
 .cui-assistant-input,

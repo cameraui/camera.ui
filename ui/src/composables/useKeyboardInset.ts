@@ -2,7 +2,10 @@ import { isCapacitor } from '@/connection/index.js';
 
 const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'file', 'color', 'image']);
 
+export type KeyboardInsetTransition = () => (() => void) | void;
+
 const keyboardInset = ref(0);
+const transitions = new Set<KeyboardInsetTransition>();
 let registered = false;
 
 export function isTextEntryElement(element: Element | null): element is HTMLElement {
@@ -13,6 +16,15 @@ export function isTextEntryElement(element: Element | null): element is HTMLElem
 
 export function useKeyboardInset() {
   return { keyboardInset: readonly(keyboardInset) };
+}
+
+export function onKeyboardInsetTransition(transition: KeyboardInsetTransition): () => void {
+  transitions.add(transition);
+  document.documentElement.classList.add('cui-keyboard-flip');
+  return () => {
+    transitions.delete(transition);
+    if (!transitions.size) document.documentElement.classList.remove('cui-keyboard-flip');
+  };
 }
 
 export function registerKeyboardInset(): void {
@@ -96,8 +108,10 @@ export function registerKeyboardInset(): void {
 
 function setInset(px: number): void {
   if (px === keyboardInset.value) return;
+  const finish = [...transitions].map((transition) => transition());
   keyboardInset.value = px;
   document.documentElement.style.setProperty('--keyboard-inset', `${px}px`);
+  for (const done of finish) done?.();
 }
 
 function scrollFocusedIntoView(): void {

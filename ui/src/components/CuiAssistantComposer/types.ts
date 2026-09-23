@@ -4,6 +4,7 @@ export interface CuiAssistantComposerProps {
   placeholder?: string;
   compact?: boolean;
   visionMissing?: string;
+  trayOpen?: boolean;
 }
 
 export interface CuiAssistantComposerEmits {

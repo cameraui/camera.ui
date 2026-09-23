@@ -101,6 +101,7 @@ declare global {
   const onElementRemoval: typeof import('@vueuse/core').onElementRemoval
   const onErrorCaptured: typeof import('vue').onErrorCaptured
   const onKeyStroke: typeof import('@vueuse/core').onKeyStroke
+  const onKeyboardInsetTransition: typeof import('../composables/useKeyboardInset').onKeyboardInsetTransition
   const onLongPress: typeof import('@vueuse/core').onLongPress
   const onMessage: typeof import('../composables/firebase-messaging-stub').onMessage
   const onMounted: typeof import('vue').onMounted
@@ -507,6 +508,9 @@ declare global {
   export type { DownloadOptions } from '../composables/useFileDownload'
   import('../composables/useFileDownload')
   // @ts-ignore
+  export type { KeyboardInsetTransition } from '../composables/useKeyboardInset'
+  import('../composables/useKeyboardInset')
+  // @ts-ignore
   export type { NavLayoutGroup, NavLayoutEntry } from '../composables/useNavLayout'
   import('../composables/useNavLayout')
   // @ts-ignore
@@ -663,6 +667,7 @@ declare module 'vue' {
     readonly onElementRemoval: UnwrapRef<typeof import('@vueuse/core')['onElementRemoval']>
     readonly onErrorCaptured: UnwrapRef<typeof import('vue')['onErrorCaptured']>
     readonly onKeyStroke: UnwrapRef<typeof import('@vueuse/core')['onKeyStroke']>
+    readonly onKeyboardInsetTransition: UnwrapRef<typeof import('../composables/useKeyboardInset')['onKeyboardInsetTransition']>
     readonly onLongPress: UnwrapRef<typeof import('@vueuse/core')['onLongPress']>
     readonly onMessage: UnwrapRef<typeof import('../composables/firebase-messaging-stub')['onMessage']>
     readonly onMounted: UnwrapRef<typeof import('vue')['onMounted']>
