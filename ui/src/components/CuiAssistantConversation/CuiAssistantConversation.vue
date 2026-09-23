@@ -37,7 +37,7 @@
                 text
                 rounded
                 :disabled="chat.busy.value"
-                @click="toolsPopover?.toggle($event)"
+                @click="openPanel('tools', $event)"
               >
                 <template #icon>
                   <i-mdi:tune class="w-4 h-4" />
@@ -46,7 +46,7 @@
               <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
-              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openMemory($event)">
+              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openPanel('memory', $event)">
                 <template #icon>
                   <i-mdi:brain class="w-4 h-4" />
                 </template>
@@ -140,6 +140,9 @@
         rounded
         severity="secondary"
         class="cui-assistant-jump absolute left-1/2 top-0 z-[2] -translate-x-1/2 -translate-y-1/2"
+        data-keep-keyboard
+        @pointerdown.prevent
+        @mousedown.prevent
         @click="jumpToBottom"
       >
         <template #icon>
@@ -185,7 +188,7 @@
                 text
                 rounded
                 :disabled="chat.busy.value"
-                @click="toolsPopover?.toggle($event)"
+                @click="openPanel('tools', $event)"
               >
                 <template #icon>
                   <i-mdi:tune class="w-4 h-4" />
@@ -194,7 +197,7 @@
               <span v-if="disabledGroups.length" class="cui-assistant-badge">{{ enabledGroups.length }}</span>
             </span>
             <span class="relative shrink-0">
-              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openMemory($event)">
+              <Button v-tooltip.top="{ value: $t('views.assistant.memory_title') }" type="button" severity="secondary" text rounded @click="openPanel('memory', $event)">
                 <template #icon>
                   <i-mdi:brain class="w-4 h-4" />
                 </template>
@@ -207,9 +210,28 @@
       </div>
     </div>
 
-    <Popover ref="toolsPopover">
-      <div class="flex w-72 flex-col gap-3">
-        <span class="text-sm font-medium text-color">{{ $t('views.assistant.tools_title') }}</span>
+    <component :is="panelHost" ref="toolsPopover" v-bind="panelBinding('tools')">
+      <div class="flex flex-col gap-3" :class="sheetPanels ? 'w-full' : 'w-72'" @pointerdown="holdPanelFocus" @mousedown="holdPanelFocus">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-color" :class="sheetPanels ? 'text-base' : 'text-sm'">{{ $t('views.assistant.tools_title') }}</span>
+          <Button
+            v-if="sheetPanels"
+            type="button"
+            severity="secondary"
+            text
+            rounded
+            class="cui-icon-md ml-auto shrink-0"
+            :aria-label="$t('components.form.button.close')"
+            data-keep-keyboard
+            @pointerdown.prevent
+            @mousedown.prevent
+            @click="openSheet = null"
+          >
+            <template #icon>
+              <i-mdi:close class="w-4 h-4" />
+            </template>
+          </Button>
+        </div>
         <div class="flex flex-col gap-1">
           <label for="assistantInstructions" class="text-xs text-muted">{{ $t('views.assistant.instructions_label') }}</label>
           <Textarea
@@ -221,7 +243,105 @@
             :placeholder="$t('views.assistant.instructions_placeholder')"
           />
         </div>
-        <div class="flex flex-col gap-1">
+        <template v-if="sheetPanels">
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-muted">{{ $t('views.assistant.tools_label') }}</span>
+            <div class="cui-assistant-options">
+              <button
+                v-for="group in toolGroups"
+                :key="group.id"
+                type="button"
+                class="cui-assistant-option"
+                :class="{ 'cui-assistant-option-on': enabledGroups.includes(group.id) }"
+                @click="toggleGroup(group.id)"
+              >
+                <span class="cui-assistant-option-mark cui-assistant-option-box"><i-mdi:check class="w-3.5 h-3.5" /></span>
+                <span class="min-w-0 flex-1 truncate">{{ group.label }}</span>
+                <span class="shrink-0 text-xs text-muted">{{ $t('views.assistant.tools_count', { n: group.count }) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="models.length > 1" class="flex flex-col gap-1">
+            <span class="text-xs text-muted">{{ $t('views.assistant.model_label') }}</span>
+            <div class="cui-assistant-options">
+              <button
+                v-for="option in models"
+                :key="option._id"
+                type="button"
+                class="cui-assistant-option"
+                :class="{ 'cui-assistant-option-on': activeModel?._id === option._id }"
+                @click="modelId = option._id"
+              >
+                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
+                <span class="min-w-0 flex-1 truncate">{{ option.name }}</span>
+                <span class="flex shrink-0 gap-1">
+                  <Tag
+                    v-for="tag in warningTags(option)"
+                    :key="tag.key"
+                    :severity="tag.severity"
+                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
+                    class="text-[10px]"
+                  />
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-muted">{{ $t('views.assistant.profiles_label') }}</span>
+            <div class="cui-assistant-options">
+              <button type="button" class="cui-assistant-option" :class="{ 'cui-assistant-option-on': !profileId }" @click="profileId = null">
+                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
+                <span class="min-w-0 flex-1 truncate">{{ $t('views.assistant.profile_none') }}</span>
+              </button>
+              <button
+                v-for="option in profiles ?? []"
+                :key="option._id"
+                type="button"
+                class="cui-assistant-option"
+                :class="{ 'cui-assistant-option-on': profileId === option._id }"
+                @click="pickProfile(option._id)"
+              >
+                <span class="cui-assistant-option-mark"><i-mdi:check class="w-3.5 h-3.5" /></span>
+                <span class="min-w-0 flex-1 truncate">{{ option.name }}</span>
+                <span class="flex shrink-0 gap-1">
+                  <Tag
+                    v-for="tag in warningTags(profileModel(option))"
+                    :key="tag.key"
+                    :severity="tag.severity"
+                    :value="$t(`views.settings.assistant_capability_${tag.key}`)"
+                    class="text-[10px]"
+                  />
+                </span>
+              </button>
+            </div>
+            <div class="mt-1 flex gap-2">
+              <Button
+                type="button"
+                size="small"
+                severity="secondary"
+                outlined
+                class="flex-1"
+                :label="profileId ? $t('views.assistant.profile_update') : $t('views.assistant.profile_save')"
+                :loading="createProfileMutation.isPending.value || patchProfileMutation.isPending.value"
+                @click="profileId ? updateProfile() : saveAsProfile()"
+              />
+              <Button
+                v-if="profileId"
+                type="button"
+                size="small"
+                severity="secondary"
+                outlined
+                :label="$t('views.assistant.profile_delete')"
+                :loading="deleteProfileMutation.isPending.value"
+                @click="deleteProfile"
+              />
+            </div>
+          </div>
+        </template>
+
+        <div v-if="!sheetPanels" class="flex flex-col gap-1">
           <label for="assistantTools" class="text-xs text-muted">{{ $t('views.assistant.tools_label') }}</label>
           <MultiSelect
             v-model="enabledGroups"
@@ -242,7 +362,7 @@
             </template>
           </MultiSelect>
         </div>
-        <div v-if="models.length > 1" class="flex flex-col gap-1">
+        <div v-if="!sheetPanels && models.length > 1" class="flex flex-col gap-1">
           <label for="assistantModel" class="text-xs text-muted">{{ $t('views.assistant.model_label') }}</label>
           <Select v-model="modelId" input-id="assistantModel" :options="models" option-label="name" option-value="_id" class="min-w-0" :placeholder="defaultEntry?.name">
             <template #option="{ option }">
@@ -261,7 +381,7 @@
             </template>
           </Select>
         </div>
-        <div class="flex flex-col gap-1">
+        <div v-if="!sheetPanels" class="flex flex-col gap-1">
           <label for="assistantProfile" class="text-xs text-muted">{{ $t('views.assistant.profiles_label') }}</label>
           <InputGroup>
             <Select
@@ -298,7 +418,7 @@
                 text
                 class="h-full rounded-none"
                 :loading="createProfileMutation.isPending.value || patchProfileMutation.isPending.value"
-                @click="profileId ? updateProfile() : (namingProfile = true)"
+                @click="profileId ? updateProfile() : saveAsProfile()"
               >
                 <template #icon>
                   <i-mdi:content-save-outline class="w-4 h-4" />
@@ -321,29 +441,35 @@
               </Button>
             </InputGroupAddon>
           </InputGroup>
-          <div v-if="namingProfile" class="mt-1 flex items-center gap-1">
-            <InputText
-              v-model="profileName"
-              class="flex-1 min-w-0"
-              size="small"
-              :placeholder="$t('views.assistant.profile_name_placeholder')"
-              @keydown.enter.prevent="createProfile"
-              @keydown.esc="namingProfile = false"
-            />
-            <Button type="button" size="small" :label="$t('components.form.button.save')" :disabled="!profileName.trim()" @click="createProfile" />
-          </div>
         </div>
       </div>
-    </Popover>
+    </component>
 
-    <Popover ref="memoryPopover">
-      <div class="flex w-72 flex-col gap-3">
-        <div class="flex items-baseline gap-2">
-          <span class="text-sm font-medium text-color">{{ $t('views.assistant.memory_title') }}</span>
-          <span v-if="memory?.length" class="ml-auto text-xs tabular-nums text-muted">{{ memory.length }}</span>
+    <component :is="panelHost" ref="memoryPopover" v-bind="panelBinding('memory')">
+      <div class="flex flex-col gap-3" :class="sheetPanels ? 'w-full' : 'w-72'" @pointerdown="holdPanelFocus" @mousedown="holdPanelFocus">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-color" :class="sheetPanels ? 'text-base' : 'text-sm'">{{ $t('views.assistant.memory_title') }}</span>
+          <span v-if="memory?.length" class="text-xs tabular-nums text-muted" :class="{ 'ml-auto': !sheetPanels }">{{ memory.length }}</span>
+          <Button
+            v-if="sheetPanels"
+            type="button"
+            severity="secondary"
+            text
+            rounded
+            class="cui-icon-md ml-auto shrink-0"
+            :aria-label="$t('components.form.button.close')"
+            data-keep-keyboard
+            @pointerdown.prevent
+            @mousedown.prevent
+            @click="openSheet = null"
+          >
+            <template #icon>
+              <i-mdi:close class="w-4 h-4" />
+            </template>
+          </Button>
         </div>
         <div v-if="!memory?.length" class="text-xs text-muted">{{ $t('views.assistant.memory_empty') }}</div>
-        <div v-else class="flex max-h-64 flex-col overflow-y-auto">
+        <div v-else class="flex flex-col overflow-y-auto" :class="{ 'max-h-64': !sheetPanels }">
           <div v-for="fact in memory" :key="fact._id" class="cui-assistant-fact flex items-center gap-2 py-1.5 text-[13px] text-color">
             <span class="min-w-0 flex-1 leading-snug">{{ fact.text }}</span>
             <Button
@@ -374,23 +500,27 @@
           @click="deleteMemoryMutation.mutate()"
         />
       </div>
-    </Popover>
+    </component>
   </div>
 </template>
 
 <script setup lang="ts">
+import Drawer from 'primevue/drawer';
+import Popover from 'primevue/popover';
+
 import { AssistantQuery, branchAssistantThread, getAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
 import { capabilityTags, defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
+import AssistantProfileName from '@/components/CuiDialog/templates/AssistantProfileName/AssistantProfileName.vue';
 import { PENDING_ANSWER } from './types.js';
 
 import type { AssistantCapabilityTag } from '@/common/assistantModels.js';
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
 import type { ComposerSubmission } from '@/components/CuiAssistantComposer/types.js';
+import type { AssistantProfileNameProps } from '@/components/CuiDialog/templates/AssistantProfileName/types.js';
 import type { AssistantModelView, AssistantUsageEvent, DBAssistantProfile, DBAssistantThread } from '@shared/types';
 import type { ContentPart, UIMessage } from '@tanstack/ai';
-import type Popover from 'primevue/popover';
-import type { ConversationRow, CuiAssistantConversationEmits, CuiAssistantConversationProps, ToolGroupOption } from './types.js';
+import type { ConversationPanel, ConversationRow, CuiAssistantConversationEmits, CuiAssistantConversationProps, PanelHandle, ToolGroupOption } from './types.js';
 
 const assistantQuery = new AssistantQuery();
 
@@ -405,6 +535,9 @@ const emit = defineEmits<CuiAssistantConversationEmits>();
 
 const { t, locale } = useI18n();
 const toast = useCuiToast();
+const dialog = useCuiDialog();
+const { smBreakpoint } = useSharedCuiBreakpoint();
+const coarsePointer = useMediaQuery('(pointer: coarse)');
 
 const { data: profiles } = assistantQuery.listProfilesQuery();
 const createProfileMutation = assistantQuery.createProfileMutation();
@@ -418,14 +551,13 @@ const { data: info } = assistantQuery.getAssistantInfoQuery();
 const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
 const contentRef = useTemplateRef<HTMLDivElement>('contentRef');
 const composerRef = useTemplateRef<InstanceType<typeof CuiAssistantComposer>>('composerRef');
-const toolsPopover = useTemplateRef<InstanceType<typeof Popover>>('toolsPopover');
-const memoryPopover = useTemplateRef<InstanceType<typeof Popover>>('memoryPopover');
+const toolsPopover = useTemplateRef<PanelHandle>('toolsPopover');
+const memoryPopover = useTemplateRef<PanelHandle>('memoryPopover');
 const pinnedToBottom = ref(true);
 const disabledGroups = ref<string[]>([]);
 const instructions = ref('');
 const profileId = ref<string | null>(null);
-const namingProfile = ref(false);
-const profileName = ref('');
+const openSheet = ref<ConversationPanel | null>(null);
 const modelId = ref(props.initialModelId ?? null);
 
 const threadId = computed(() => props.threadId);
@@ -444,6 +576,8 @@ const chat = useAssistantChat({
 });
 
 const welcome = computed(() => chat.messages.value.length === 0);
+const sheetPanels = computed(() => smBreakpoint.value || coarsePointer.value);
+const panelHost = computed(() => (sheetPanels.value ? Drawer : Popover));
 
 const models = computed(() => info.value?.settings.models ?? []);
 const defaultEntry = computed(() => (info.value ? defaultModel(info.value.settings) : undefined));
@@ -530,9 +664,54 @@ function scrollToBottom(): void {
   el.scrollTop = el.scrollHeight;
 }
 
-function openMemory(event: Event): void {
-  memoryPopover.value?.toggle(event);
-  refetchMemory();
+function panelBinding(panel: ConversationPanel): Record<string, unknown> {
+  if (!sheetPanels.value) return {};
+  return {
+    visible: openSheet.value === panel,
+    'onUpdate:visible': (open: boolean) => {
+      openSheet.value = open ? panel : null;
+    },
+    position: 'bottom',
+    blockScroll: true,
+    showCloseIcon: false,
+    pt: { mask: { onPointerdown: keepFocus, onMousedown: keepFocus } },
+    class: 'cui-assistant-sheet',
+  };
+}
+
+function keepFocus(event: Event): void {
+  event.preventDefault();
+}
+
+function holdPanelFocus(event: Event): void {
+  if (!sheetPanels.value) return;
+  const target = event.target;
+  if (!(target instanceof Element) || isTextEntryElement(target) || target.closest('textarea, input')) return;
+  if (isTextEntryElement(document.activeElement)) event.preventDefault();
+}
+
+function toggleGroup(id: string): void {
+  enabledGroups.value = enabledGroups.value.includes(id) ? enabledGroups.value.filter((entry) => entry !== id) : [...enabledGroups.value, id];
+}
+
+function pickProfile(id: string): void {
+  profileId.value = id;
+  applyProfile(id);
+}
+
+function openPanel(panel: ConversationPanel, event: Event): void {
+  if (panel === 'memory') refetchMemory();
+  if (sheetPanels.value) {
+    openSheet.value = panel;
+    return;
+  }
+  (panel === 'tools' ? toolsPopover : memoryPopover).value?.toggle?.(event);
+}
+
+function closePanels(): void {
+  openSheet.value = null;
+  toolsPopover.value?.hide?.();
+  memoryPopover.value?.hide?.();
 }
 
 function applyProfile(id: string | null): void {
@@ -551,9 +730,25 @@ function warningTags(entry: AssistantModelView | undefined): AssistantCapability
   return entry ? capabilityTags(entry).filter((tag) => tag.severity !== 'success') : [];
 }
 
-async function createProfile(): Promise<void> {
-  const name = profileName.value.trim();
-  if (!name) return;
+function saveAsProfile(): void {
+  const typing = Boolean(document.activeElement?.closest('.cui-assistant-composer'));
+  if (!sheetPanels.value) closePanels();
+  dialog.openComponentDialog<AssistantProfileNameProps>(AssistantProfileName, {
+    data: {
+      title: t('views.assistant.profile_save'),
+      confirmText: t('components.form.button.save'),
+      contentProps: {},
+    },
+    onConfirm: async (name: string | null) => {
+      if (name) await createProfile(name);
+    },
+    onSettled: () => {
+      if (typing) composerRef.value?.focus();
+    },
+  });
+}
+
+async function createProfile(name: string): Promise<void> {
   const profile = await createProfileMutation.mutateAsync({
     name,
     modelId: activeModel.value?._id ?? '',
@@ -561,8 +756,6 @@ async function createProfile(): Promise<void> {
     instructions: instructions.value.trim(),
   });
   profileId.value = profile._id;
-  namingProfile.value = false;
-  profileName.value = '';
 }
 
 async function updateProfile(): Promise<void> {
@@ -581,8 +774,9 @@ async function deleteProfile(): Promise<void> {
 
 // the drawer stays in place while the page behind it scrolls, the popovers are placed against the page and would drift off their button
 function realignPopovers(): void {
-  for (const popover of [toolsPopover.value, memoryPopover.value] as unknown as ({ visible: boolean; alignOverlay: () => void } | null)[]) {
-    if (popover?.visible) popover.alignOverlay();
+  if (sheetPanels.value) return;
+  for (const popover of [toolsPopover.value, memoryPopover.value]) {
+    if (popover?.visible) popover.alignOverlay?.();
   }
 }
 
@@ -694,6 +888,7 @@ watch(
 );
 
 watch(welcome, async () => {
+  if (coarsePointer.value) return;
   await nextTick();
   composerRef.value?.focus();
 });
@@ -707,7 +902,7 @@ useResizeObserver([scrollRef, contentRef], () => {
 onMounted(async () => {
   await nextTick();
   scrollToBottom();
-  composerRef.value?.focus();
+  if (!coarsePointer.value) composerRef.value?.focus();
   if (props.initialPrompt) await send({ text: props.initialPrompt, attachments: [] });
 });
 
@@ -767,9 +962,78 @@ defineExpose({ refreshFromStore });
   border-left: 2px solid var(--border-color-inner);
 }
 
+.cui-assistant-options {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color-inner);
+  border-radius: 0.75rem;
+}
+
+.cui-assistant-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text-color);
+  background: transparent;
+}
+
+.cui-assistant-option + .cui-assistant-option {
+  border-top: 1px solid var(--border-color-inner);
+}
+
+.cui-assistant-option-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  color: var(--p-primary-color);
+  visibility: hidden;
+}
+
+.cui-assistant-option-box {
+  visibility: visible;
+  color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 0.3rem;
+}
+
+.cui-assistant-option-on .cui-assistant-option-mark {
+  visibility: visible;
+}
+
+.cui-assistant-option-on .cui-assistant-option-box {
+  color: var(--p-primary-contrast-color);
+  background: var(--p-primary-color);
+  border-color: var(--p-primary-color);
+}
+
 .cui-assistant-jump {
   border: 1px solid var(--border-color);
   background: var(--card-background);
   box-shadow: var(--shadow-sm);
+}
+</style>
+
+<style>
+.p-drawer.cui-assistant-sheet {
+  height: auto;
+  max-height: 85vh;
+  border-radius: 1rem 1rem 0 0;
+}
+
+.p-drawer.cui-assistant-sheet .p-drawer-header {
+  display: none;
+}
+
+.p-drawer.cui-assistant-sheet .p-drawer-content {
+  padding-top: 1rem;
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 1rem);
 }
 </style>

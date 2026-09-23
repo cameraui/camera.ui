@@ -1,5 +1,5 @@
 <template>
-  <div class="cui-assistant-composer rounded-2xl">
+  <div ref="rootRef" class="cui-assistant-composer rounded-2xl" data-keep-keyboard @pointerdown="holdFocus" @mousedown="holdFocus">
     <Textarea
       ref="inputRef"
       v-model="text"
@@ -126,6 +126,7 @@ const speechCtor =
 
 const voiceAvailable = Boolean(speechCtor) && window.isSecureContext;
 
+const rootRef = useTemplateRef<HTMLDivElement>('rootRef');
 const inputRef = useTemplateRef<{ $el: HTMLElement }>('inputRef');
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
 const text = ref('');
@@ -139,6 +140,12 @@ let attachErrorTimer: ReturnType<typeof setTimeout> | undefined;
 function textarea(): HTMLTextAreaElement | null {
   const el = inputRef.value?.$el;
   return (el?.tagName === 'TEXTAREA' ? el : el?.querySelector('textarea')) as HTMLTextAreaElement | null;
+}
+
+function holdFocus(event: Event): void {
+  const target = event.target;
+  if (!(target instanceof Element) || !target.closest('button')) return;
+  if (rootRef.value?.contains(document.activeElement) && isTextEntryElement(document.activeElement)) event.preventDefault();
 }
 
 function focus(): void {

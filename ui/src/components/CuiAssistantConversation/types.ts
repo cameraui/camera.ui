@@ -34,3 +34,12 @@ export interface ConversationRow {
   ids: string[];
   continuation: boolean;
 }
+
+export type ConversationPanel = 'tools' | 'memory';
+
+export interface PanelHandle {
+  visible?: boolean;
+  toggle?: (event: Event) => void;
+  hide?: () => void;
+  alignOverlay?: () => void;
+}

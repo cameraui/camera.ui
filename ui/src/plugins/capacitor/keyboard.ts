@@ -1,7 +1,9 @@
 import { isCapacitor } from '@/connection/index.js';
 
 const TAP_SLOP_PX = 10;
-const KEEP_FOCUS_SELECTOR = 'input, textarea, select, label, [contenteditable], [class*="-overlay"], .p-popover, .p-datepicker-panel, .xterm, .cui-terminal-toolbar';
+
+const KEEP_FOCUS_SELECTOR =
+  'input, textarea, select, label, [contenteditable], [class*="-overlay"], .p-popover, .p-datepicker-panel, .xterm, .cui-terminal-toolbar, [data-keep-keyboard]';
 
 export function registerKeyboard() {
   if (!isCapacitor) return;
