@@ -6,15 +6,15 @@
       class="pointer-events-auto"
       :class="[
         'absolute left-4 bottom-4 bg-black/70 rounded-full flex flex-col items-center justify-center border border-white/10 shadow-md',
-        size === 'small' ? 'w-12 h-36' : 'w-16 h-48',
+        size === 'small' ? 'w-12 h-24' : 'w-16 h-48',
       ]"
       @mousedown="activateZoom"
       @touchstart.prevent="activateZoom"
     >
-      <div class="absolute top-4 text-muted" :class="size === 'small' ? 'text-base' : 'text-lg'">
+      <div class="absolute text-muted" :class="size === 'small' ? 'top-1.5 text-sm' : 'top-4 text-lg'">
         <i-ic:round-plus />
       </div>
-      <div class="absolute bottom-4 text-muted" :class="size === 'small' ? 'text-base' : 'text-lg'">
+      <div class="absolute text-muted" :class="size === 'small' ? 'bottom-1.5 text-sm' : 'bottom-4 text-lg'">
         <i-ic:round-minus />
       </div>
       <div
@@ -97,34 +97,24 @@ const isZoomActive = ref(false);
 const zoomUIPosition = ref<ZoomLevel>(0);
 const zoomValue = ref<ZoomLevel>(0);
 const lastZoomValue = ref<ZoomLevel>(0);
-
 const isCommandInProgress = ref(false);
 const lastCommandTime = ref(0);
-
-// Track last sent command values to avoid sending duplicate commands
 const lastSentPanSpeed = ref(0);
 const lastSentTiltSpeed = ref(0);
 const lastSentZoomSpeed = ref(0);
-
-// Current direction/velocity values for continuous movement
 const currentPanDirection = ref(0);
 const currentTiltDirection = ref(0);
 const currentZoomDirection = ref(0);
-
-// Track which axis is currently active (for cameras that can only move on one axis at a time)
 const activeAxis = ref<'pan' | 'tilt' | 'none'>('none');
-
-// Accumulated incremental values for pan, tilt and zoom
 const accumulatedPan = ref(0);
 const accumulatedTilt = ref(0);
 const accumulatedZoom = ref(0);
-
 const animationFrameId = ref<number | null>(null);
 const lastUpdateTime = ref(Date.now());
 
 const isControlActive = computed(() => isPanTiltActive.value || isZoomActive.value);
 
-const maxZoomOffset = computed(() => (size.value === 'small' ? 45 : 60));
+const maxZoomOffset = computed(() => (size.value === 'small' ? 26 : 60));
 const knobOffset = computed(() => (size.value === 'small' ? 10 : 15));
 
 function roundToTwoDecimals(value: number): number {
@@ -138,7 +128,6 @@ function normalizeZoomValue(value: number): number {
 async function executeContinuousMove(velocity: PTZDirection): Promise<void> {
   const now = Date.now();
 
-  // If a command is already in progress and it hasn't been too long, skip this command
   if (isCommandInProgress.value && now - lastCommandTime.value < commandDebounceTime) {
     return;
   }

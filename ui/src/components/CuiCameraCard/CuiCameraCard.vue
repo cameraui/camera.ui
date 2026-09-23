@@ -78,7 +78,7 @@
             <div
               v-if="showPtz && !timelineState && !inStandby && !gridSearchActive && cameraDevice"
               key="ptz"
-              class="absolute top-0 left-0 right-0 z-7"
+              class="absolute top-0 left-0 right-0 z-7 pointer-events-none"
               :style="{ bottom: showControl ? '48px' : '0px', transition: 'bottom 0.2s ease' }"
             >
               <CuiPTZControl :camera-device />
@@ -179,7 +179,7 @@
             v-model:pan="panValue"
             v-model:zoom="zoomValue"
             data-native-pip-keep
-            :disabled="resizable || (expandableCard && !isExpanded) || !isHoveredZoom || timelineState || showPtz || inStandby || gridSearchActive || isDisabled"
+            :disabled="resizable || (expandableCard && !isExpanded) || !isHoveredZoom || timelineState || inStandby || gridSearchActive || isDisabled"
             :pan-enabled="zoomValue > 1"
             :enable-control-button="false"
             :dbl-click-enabled="false"
@@ -589,7 +589,7 @@
           </Transition>
 
           <Transition name="fade-2">
-            <div v-if="zoomMinimapStyle" class="zoom-minimap" :class="{ 'zoom-minimap-raised': showControl }">
+            <div v-if="zoomMinimapStyle" class="zoom-minimap" :class="{ 'zoom-minimap-raised': showControl, 'zoom-minimap-centered': showPtz }">
               <div class="zoom-minimap-viewport" :style="zoomMinimapStyle" />
             </div>
           </Transition>
@@ -990,7 +990,7 @@ const {
   enabled: resizable,
   zoom: zoomValue,
   pan: panValue,
-  canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !showPtz.value && !inStandby.value && !isDisabled.value,
+  canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !inStandby.value && !isDisabled.value,
   onDoubleTap: (clientX, clientY) => onDoubleClickZoom({ clientX, clientY, preventDefault: () => {}, stopPropagation: () => {} } as MouseEvent),
 });
 
@@ -1542,7 +1542,7 @@ function onDoubleClickZoom(event: MouseEvent) {
     return;
   }
   if (!doubleClickZoom.value) return;
-  if (!isHoveredZoom.value || timelineState.value || showPtz.value || inStandby.value || isDisabled.value) return;
+  if (!isHoveredZoom.value || timelineState.value || inStandby.value || isDisabled.value) return;
 
   event.preventDefault();
   event.stopPropagation();
@@ -2003,10 +2003,10 @@ watch(resizable, () => {
 });
 
 watch(
-  () => [timelineState.value, showPtz.value, inStandby.value, isDisabled.value],
-  ([timeline, ptz, standby, disabled]) => {
+  () => [timelineState.value, inStandby.value, isDisabled.value],
+  ([timeline, standby, disabled]) => {
     if (resizableInteracting.value || isMousePressed.value) return;
-    const shouldDisable = timeline || ptz || standby || disabled;
+    const shouldDisable = timeline || standby || disabled;
     if (shouldDisable && (zoomValue.value !== 1 || panValue.value.x !== 0 || panValue.value.y !== 0)) {
       isConstraining.value = true;
       zoomValue.value = 1;
@@ -2346,11 +2346,20 @@ html.cui-native-pip #video-container.native-pip .ar-box {
   z-index: 6;
   pointer-events: none;
   overflow: hidden;
-  transition: bottom 0.2s ease;
+  transition:
+    bottom 0.2s ease,
+    right 0.2s ease,
+    transform 0.2s ease;
 }
 
 .zoom-minimap-raised {
   bottom: 50px;
+}
+
+/* the ptz pad owns the bottom right corner */
+.zoom-minimap-centered {
+  right: 50%;
+  transform: translateX(50%);
 }
 
 .zoom-minimap-viewport {
