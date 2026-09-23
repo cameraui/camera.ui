@@ -2,8 +2,8 @@ import { API_EVENT, PluginRole, validateContractConsistency } from '@camera.ui/s
 import { outputFile, pathExists, readJson, remove } from 'fs-extra/esm';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import semver from 'semver';
 import { container } from 'tsyringe';
 
@@ -23,6 +23,7 @@ import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
 
 const KEEP_MARKER = '.cameraui-keep';
+const requireContract = createRequire(import.meta.url);
 
 export class PluginManager {
   public installedPythonVersions = new Set<string>();
@@ -87,7 +88,7 @@ export class PluginManager {
   }
 
   public static async loadContractFile(installPath: string): Promise<PluginContract | null> {
-    const possiblePaths = [join(installPath, 'contract.cjs'), join(installPath, 'bundle', 'contract.cjs')];
+    const possiblePaths = [resolve(installPath, 'contract.cjs'), resolve(installPath, 'bundle', 'contract.cjs')];
 
     for (const contractPath of possiblePaths) {
       if (!existsSync(contractPath)) {
@@ -95,8 +96,8 @@ export class PluginManager {
       }
 
       try {
-        const fileUrl = pathToFileURL(contractPath).href;
-        const module = await import(fileUrl);
+        delete requireContract.cache[requireContract.resolve(contractPath)];
+        const module = requireContract(contractPath) as { contract?: unknown; default?: unknown };
         const contract = module.contract ?? module.default;
 
         if (contract && PluginManager.isQualifiedPluginContract(contract)) {
