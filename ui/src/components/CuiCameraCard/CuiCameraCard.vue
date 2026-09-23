@@ -854,7 +854,6 @@ const toast = useCuiToast();
 const notificationsSocket = useNotificationsSocket();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { isPipSupported, isAndroid } = useSharedCuiUserAgent();
-const { height: windowHeight } = useSharedWindowSize();
 const { t } = useI18n();
 const { pressed: isMousePressed } = useMousePressed();
 
@@ -909,8 +908,6 @@ camerasQuery.toggleQueryActivator('getCameraQuery', false);
 const { data: cameraObj, isBusy: cameraLoading } = camerasQuery.getCameraQuery(typeof cameraInfo.value === 'string' ? cameraInfo.value : '');
 
 const DETECTION_INDICATOR_TIMEOUT = 2000;
-const DOUBLE_TAP_DELAY = 300;
-const DOUBLE_TAP_DISTANCE = 50;
 const UNIFIED_MAX_ZOOM = 5;
 const PLAYER_TINY_BREAKPOINT = 200;
 const PLAYER_FULL_BREAKPOINT = 350;
@@ -950,22 +947,7 @@ let panAtPointerDown = { x: 0, y: 0 };
 const zoomValue = ref(1);
 const lastZoom = ref(1);
 const isConstraining = ref(false);
-const isZoomingIn = ref(false);
 const internalExpanded = ref(false);
-const isResizing = ref(false);
-const resizeStartY = ref(0);
-const resizeStartZoom = ref(1);
-const isPanning = ref(false);
-const hasPanMoved = ref(false);
-const panStartPos = ref({ x: 0, y: 0 });
-const panStartValue = ref({ x: 0, y: 0 });
-const isPinching = ref(false);
-const pinchStartDistance = ref(0);
-const pinchStartZoom = ref(1);
-const pinchStartPan = ref({ x: 0, y: 0 });
-const pinchCenter = ref({ x: 0, y: 0 });
-const lastTapTime = ref(0);
-const lastTapPos = ref({ x: 0, y: 0 });
 const shortcutsVisible = ref(false);
 const shortcutsEditMode = ref(false);
 const ptzState = ref(false);
@@ -987,6 +969,30 @@ let isUserChangingResolution = false;
 let classifierWatchers: WatchHandle[] = [];
 let isUnmounting = false;
 let releaseNvrContainer: (() => void) | null = null;
+
+const {
+  zoomingIn: isZoomingIn,
+  interacting: resizableInteracting,
+  maxZoom: resizableMaxZoom,
+  containerStyle: resizableContainerStyle,
+  onTouchStart: onContentTouchStart,
+  onTouchMove: onContentTouchMove,
+  onTouchEnd: onContentTouchEnd,
+  onDoubleClick: onResizableDoubleClick,
+  onMouseDown: onContentMouseDown,
+  onWheel: onContentWheel,
+  onResizeStart,
+  onResizeTouchStart,
+} = useResizableZoom({
+  container: playerContainerRef,
+  content: arBoxRef,
+  aspectRatio: () => cameraAspectRatio.value,
+  enabled: resizable,
+  zoom: zoomValue,
+  pan: panValue,
+  canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !showPtz.value && !inStandby.value && !isDisabled.value,
+  onDoubleTap: (clientX, clientY) => onDoubleClickZoom({ clientX, clientY, preventDefault: () => {}, stopPropagation: () => {} } as MouseEvent),
+});
 
 const cameraName = computed(() => (typeof cameraInfo.value === 'string' ? cameraInfo.value : cameraInfo.value.name));
 const morphTarget = computed(() => viewTransition.value && routerStore.morphCamera === cameraName.value);
@@ -1207,39 +1213,12 @@ const arParsed = computed(() => {
   return { w: parseFloat(ratio[0]) || 16, h: parseFloat(ratio[1]) || 9 };
 });
 
-const baseVideoHeight = computed(() => {
-  const width = resizable.value ? playerContainer.width.value || 0 : playerContainer.width.value || 0;
-  if (!width) return 0;
-  const natural = width * (arParsed.value.h / arParsed.value.w);
-  if (resizable.value) return Math.min(natural, windowHeight.value * 0.5);
-  return natural;
-});
-const maxContainerHeight = computed(() => windowHeight.value * 0.6);
-
-const effectiveMaxZoom = computed(() => {
-  if (!resizable.value) return UNIFIED_MAX_ZOOM;
-  const parentWidth = playerContainer.width.value || 0;
-  if (!parentWidth) return UNIFIED_MAX_ZOOM;
-  const baseHeight = Math.min(parentWidth * (arParsed.value.h / arParsed.value.w), windowHeight.value * 0.5);
-  if (!baseHeight) return UNIFIED_MAX_ZOOM;
-  return Math.max(1, Math.min(UNIFIED_MAX_ZOOM, maxContainerHeight.value / baseHeight));
-});
-
-const resizableContainerHeight = computed(() => {
-  if (!resizable.value) return 0;
-  const parentWidth = playerContainer.width.value || 0;
-  if (!parentWidth) return 0;
-  const baseHeight = Math.min(parentWidth * (arParsed.value.h / arParsed.value.w), windowHeight.value * 0.5);
-  const zoomed = baseHeight * zoomValue.value;
-  return Math.min(zoomed, maxContainerHeight.value);
-});
+const effectiveMaxZoom = computed(() => (resizable.value ? resizableMaxZoom.value : UNIFIED_MAX_ZOOM));
 
 const videoContainerStyle = computed(() => {
   if (fillsCard.value) return { height: '100%' };
   if (cameraStream.isFullscreen.value || !resizable.value) return {};
-  const height = resizableContainerHeight.value;
-  if (!height) return {};
-  return { height: `${height}px` };
+  return resizableContainerStyle.value ?? {};
 });
 
 const videoContentSize = computed(() => ({
@@ -1557,232 +1536,13 @@ function toggleExpand() {
   emit('expand', next);
 }
 
-function onResizeStart(e: MouseEvent) {
-  if (!resizable.value) return;
-  isResizing.value = true;
-  resizeStartY.value = e.clientY;
-  resizeStartZoom.value = zoomValue.value;
-  document.addEventListener('mousemove', onResizeMove);
-  document.addEventListener('mouseup', onResizeEnd);
-}
-
-function onResizeTouchStart(e: TouchEvent) {
-  if (!resizable.value) return;
-  isResizing.value = true;
-  resizeStartY.value = e.touches[0].clientY;
-  resizeStartZoom.value = zoomValue.value;
-  document.addEventListener('touchmove', onResizeTouchMove, { passive: false });
-  document.addEventListener('touchend', onResizeTouchEnd);
-}
-
-function deltaToZoom(delta: number) {
-  const baseHeight = baseVideoHeight.value;
-  if (!baseHeight) return resizeStartZoom.value;
-  const zoomDelta = delta / baseHeight;
-  return Math.max(1, Math.min(effectiveMaxZoom.value, resizeStartZoom.value + zoomDelta));
-}
-
-function onResizeMove(e: MouseEvent) {
-  if (!isResizing.value) return;
-  const delta = e.clientY - resizeStartY.value;
-  const newZoom = deltaToZoom(delta);
-  zoomValue.value = newZoom;
-  lastZoom.value = newZoom;
-}
-
-function onResizeTouchMove(e: TouchEvent) {
-  if (!isResizing.value) return;
-  e.preventDefault();
-  const delta = e.touches[0].clientY - resizeStartY.value;
-  const newZoom = deltaToZoom(delta);
-  zoomValue.value = newZoom;
-  lastZoom.value = newZoom;
-}
-
-function onResizeEnd() {
-  isResizing.value = false;
-  document.removeEventListener('mousemove', onResizeMove);
-  document.removeEventListener('mouseup', onResizeEnd);
-}
-
-function onResizeTouchEnd() {
-  isResizing.value = false;
-  document.removeEventListener('touchmove', onResizeTouchMove);
-  document.removeEventListener('touchend', onResizeTouchEnd);
-}
-
-function getTouchDistance(touches: TouchList) {
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function getTouchCenter(touches: TouchList) {
-  return {
-    x: (touches[0].clientX + touches[1].clientX) / 2,
-    y: (touches[0].clientY + touches[1].clientY) / 2,
-  };
-}
-
-function onContentTouchStart(e: TouchEvent) {
-  if (!resizable.value) return;
-  hasPanMoved.value = false;
-
-  if (e.touches.length === 2) {
-    isPanning.value = false;
-    isPinching.value = true;
-    pinchStartDistance.value = getTouchDistance(e.touches);
-    pinchStartZoom.value = zoomValue.value;
-    pinchStartPan.value = { ...panValue.value };
-    pinchCenter.value = getTouchCenter(e.touches);
-    return;
-  }
-
-  if (e.touches.length === 1 && zoomValue.value > 1) {
-    isPanning.value = true;
-    panStartPos.value = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    panStartValue.value = { ...panValue.value };
-  }
-}
-
-function onContentTouchMove(e: TouchEvent) {
-  if (!resizable.value) return;
-
-  if (isPinching.value && e.touches.length === 2) {
-    e.preventDefault();
-    const currentDistance = getTouchDistance(e.touches);
-    const scale = currentDistance / pinchStartDistance.value;
-    const newZoom = Math.max(1, Math.min(effectiveMaxZoom.value, pinchStartZoom.value * scale));
-
-    if (newZoom > zoomValue.value) isZoomingIn.value = true;
-
-    if (playerContainerRef.value) {
-      const containerRect = playerContainerRef.value.getBoundingClientRect();
-      const center = getTouchCenter(e.touches);
-      const containerCenterX = containerRect.left + containerRect.width / 2;
-      const containerCenterY = containerRect.top + containerRect.height / 2;
-      const offsetX = center.x - containerCenterX;
-      const offsetY = center.y - containerCenterY;
-      const zoomRatio = newZoom / pinchStartZoom.value;
-      const newPan = {
-        x: pinchStartPan.value.x - offsetX * (zoomRatio - 1),
-        y: pinchStartPan.value.y - offsetY * (zoomRatio - 1),
-      };
-
-      zoomValue.value = newZoom;
-      lastZoom.value = newZoom;
-      panValue.value = constrainPanValues(newPan, newZoom);
-    } else {
-      zoomValue.value = newZoom;
-      lastZoom.value = newZoom;
-    }
-    return;
-  }
-
-  if (isPanning.value && e.touches.length === 1) {
-    const deltaX = e.touches[0].clientX - panStartPos.value.x;
-    const deltaY = e.touches[0].clientY - panStartPos.value.y;
-    const moveThreshold = 10;
-    if (Math.abs(deltaX) > moveThreshold || Math.abs(deltaY) > moveThreshold) {
-      hasPanMoved.value = true;
-    }
-    const newPan = { x: panStartValue.value.x + deltaX, y: panStartValue.value.y + deltaY };
-    panValue.value = constrainPanValues(newPan, zoomValue.value);
-  }
-}
-
-function onContentTouchEnd(e: TouchEvent) {
-  if (e.touches.length === 1 && isPinching.value) {
-    isPinching.value = false;
-    isZoomingIn.value = false;
-    if (zoomValue.value > 1) {
-      isPanning.value = true;
-      hasPanMoved.value = false;
-      panStartPos.value = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      panStartValue.value = { ...panValue.value };
-    }
-    return;
-  }
-
-  if (e.touches.length === 0 && e.changedTouches.length === 1 && !hasPanMoved.value && !isPinching.value) {
-    const touch = e.changedTouches[0];
-    const now = Date.now();
-    const tapPos = { x: touch.clientX, y: touch.clientY };
-    const timeDiff = now - lastTapTime.value;
-    const distDiff = Math.sqrt(Math.pow(tapPos.x - lastTapPos.value.x, 2) + Math.pow(tapPos.y - lastTapPos.value.y, 2));
-
-    if (timeDiff < DOUBLE_TAP_DELAY && distDiff < DOUBLE_TAP_DISTANCE) {
-      const syntheticEvent = { clientX: tapPos.x, clientY: tapPos.y, preventDefault: () => {}, stopPropagation: () => {} } as MouseEvent;
-      onDoubleClickZoom(syntheticEvent);
-      lastTapTime.value = 0;
-      lastTapPos.value = { x: 0, y: 0 };
-    } else {
-      lastTapTime.value = now;
-      lastTapPos.value = tapPos;
-    }
-  }
-
-  isPanning.value = false;
-  hasPanMoved.value = false;
-  isPinching.value = false;
-  isZoomingIn.value = false;
-}
-
-function onContentMouseDown(e: MouseEvent) {
-  if (!resizable.value || zoomValue.value <= 1) return;
-
-  document.removeEventListener('mousemove', onContentMouseMove);
-  document.removeEventListener('mouseup', onContentMouseUp);
-
-  isPanning.value = true;
-  panStartPos.value = { x: e.clientX, y: e.clientY };
-  panStartValue.value = { ...panValue.value };
-
-  document.addEventListener('mousemove', onContentMouseMove);
-  document.addEventListener('mouseup', onContentMouseUp);
-}
-
-function onContentMouseMove(e: MouseEvent) {
-  if (!isPanning.value) return;
-  const deltaX = e.clientX - panStartPos.value.x;
-  const deltaY = e.clientY - panStartPos.value.y;
-  const newPan = { x: panStartValue.value.x + deltaX, y: panStartValue.value.y + deltaY };
-  panValue.value = constrainPanValues(newPan, zoomValue.value);
-}
-
-function onContentMouseUp() {
-  isPanning.value = false;
-  document.removeEventListener('mousemove', onContentMouseMove);
-  document.removeEventListener('mouseup', onContentMouseUp);
-}
-
-function onContentWheel(e: WheelEvent) {
-  if (!resizable.value) return;
-  e.preventDefault();
-  const zoomDelta = -e.deltaY * 0.002;
-  let newZoom = Math.max(1, Math.min(effectiveMaxZoom.value, zoomValue.value + zoomDelta));
-  if (newZoom < 1.02) newZoom = 1;
-  if (newZoom === zoomValue.value) return;
-
-  const oldZoom = zoomValue.value;
-  if (newZoom <= 1) {
-    zoomValue.value = 1;
-    panValue.value = { x: 0, y: 0 };
-  } else if (newZoom < oldZoom && oldZoom > 1) {
-    // Proportionally shrink pan when zooming out — prevents stale offset
-    const scale = (newZoom - 1) / (oldZoom - 1);
-    const scaledPan = { x: panValue.value.x * scale, y: panValue.value.y * scale };
-    zoomValue.value = newZoom;
-    panValue.value = constrainPanValues(scaledPan, newZoom);
-  } else {
-    zoomValue.value = newZoom;
-  }
-  lastZoom.value = zoomValue.value;
-}
-
 function onDoubleClickZoom(event: MouseEvent) {
+  if (resizable.value) {
+    onResizableDoubleClick(event);
+    return;
+  }
   if (!doubleClickZoom.value) return;
-  if ((!resizable.value && !isHoveredZoom.value) || timelineState.value || showPtz.value || inStandby.value || isDisabled.value) return;
+  if (!isHoveredZoom.value || timelineState.value || showPtz.value || inStandby.value || isDisabled.value) return;
 
   event.preventDefault();
   event.stopPropagation();
@@ -1798,8 +1558,6 @@ function onDoubleClickZoom(event: MouseEvent) {
   } else {
     if (!playerContainerRef.value) return;
 
-    if (resizable.value) isZoomingIn.value = true;
-
     const containerRect = playerContainerRef.value.getBoundingClientRect();
     const clickX = event.clientX - containerRect.left;
     const clickY = event.clientY - containerRect.top;
@@ -1812,26 +1570,14 @@ function onDoubleClickZoom(event: MouseEvent) {
     zoomValue.value = maxZoom;
     lastZoom.value = maxZoom;
 
-    if (resizable.value) {
-      const maxPanX = Math.max(0, (containerRect.width * maxZoom - containerRect.width) / 2);
-      const maxPanY = 0;
-      panValue.value = {
-        x: Math.max(-maxPanX, Math.min(maxPanX, offsetX)),
-        y: Math.max(-maxPanY, Math.min(maxPanY, offsetY)),
-      };
-    } else {
-      const maxPan = getMaxPan(maxZoom);
-      panValue.value = {
-        x: Math.max(-maxPan.x, Math.min(maxPan.x, offsetX)),
-        y: Math.max(-maxPan.y, Math.min(maxPan.y, offsetY)),
-      };
-    }
+    const maxPan = getMaxPan(maxZoom);
+    panValue.value = {
+      x: Math.max(-maxPan.x, Math.min(maxPan.x, offsetX)),
+      y: Math.max(-maxPan.y, Math.min(maxPan.y, offsetY)),
+    };
   }
 
-  setTimeout(() => {
-    isConstraining.value = false;
-    isZoomingIn.value = false;
-  }, 200);
+  setTimeout(() => (isConstraining.value = false), 200);
 }
 
 function handleActivity(detections: Detection[]) {
@@ -2252,26 +1998,14 @@ watch(mdBreakpoint, () => {
 });
 
 watch(resizable, () => {
-  zoomValue.value = 1;
-  panValue.value = { x: 0, y: 0 };
   lastZoom.value = 1;
-  isPanning.value = false;
-  isResizing.value = false;
   isConstraining.value = false;
-  isZoomingIn.value = false;
-
-  document.removeEventListener('mousemove', onContentMouseMove);
-  document.removeEventListener('mouseup', onContentMouseUp);
-  document.removeEventListener('mousemove', onResizeMove);
-  document.removeEventListener('mouseup', onResizeEnd);
-  document.removeEventListener('touchmove', onResizeTouchMove);
-  document.removeEventListener('touchend', onResizeTouchEnd);
 });
 
 watch(
   () => [timelineState.value, showPtz.value, inStandby.value, isDisabled.value],
   ([timeline, ptz, standby, disabled]) => {
-    if (isPanning.value || isResizing.value || isMousePressed.value) return;
+    if (resizableInteracting.value || isMousePressed.value) return;
     const shouldDisable = timeline || ptz || standby || disabled;
     if (shouldDisable && (zoomValue.value !== 1 || panValue.value.x !== 0 || panValue.value.y !== 0)) {
       isConstraining.value = true;
@@ -2315,21 +2049,6 @@ watch(isDisabled, (disabled, wasDisabled) => {
   }
 });
 
-useEventListener(window, 'blur', () => {
-  if (isPanning.value) {
-    isPanning.value = false;
-    document.removeEventListener('mousemove', onContentMouseMove);
-    document.removeEventListener('mouseup', onContentMouseUp);
-  }
-  if (isResizing.value) {
-    isResizing.value = false;
-    document.removeEventListener('mousemove', onResizeMove);
-    document.removeEventListener('mouseup', onResizeEnd);
-    document.removeEventListener('touchmove', onResizeTouchMove);
-    document.removeEventListener('touchend', onResizeTouchEnd);
-  }
-});
-
 onKeyStroke('Escape', () => exitShortcutsEditMode());
 
 onBeforeMount(() => {
@@ -2347,13 +2066,6 @@ onBeforeUnmount(() => {
   unregisterAutoPipCandidate(randomId);
   releaseNvrContainer?.();
   releaseNvrContainer = null;
-  document.removeEventListener('mousemove', onResizeMove);
-  document.removeEventListener('mouseup', onResizeEnd);
-  document.removeEventListener('touchmove', onResizeTouchMove);
-  document.removeEventListener('touchend', onResizeTouchEnd);
-  document.removeEventListener('mousemove', onContentMouseMove);
-  document.removeEventListener('mouseup', onContentMouseUp);
-
   userMediaStream.value?.getTracks().forEach((track) => track.stop());
   userMediaStream.value = undefined;
 

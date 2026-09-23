@@ -8,6 +8,7 @@
         streaming-mode="auto"
         :camera-info="camera.name"
         flat-card
+        :resizable="mdBreakpoint"
         :card-props="{ pt: { root: { class: { '!rounded-md': true } } } }"
         :camera-name-overlay="false"
         :toolbar="false"

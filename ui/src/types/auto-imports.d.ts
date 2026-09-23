@@ -363,6 +363,7 @@ declare global {
   const useRafFn: typeof import('@vueuse/core').useRafFn
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useRegisterSW: typeof import('../composables/pwa-register-stub').useRegisterSW
+  const useResizableZoom: typeof import('../composables/useResizableZoom').useResizableZoom
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useRoute: typeof import('vue-router').useRoute
   const useRouteMeta: typeof import('../composables/useRouteMeta').useRouteMeta
@@ -522,6 +523,9 @@ declare global {
   // @ts-ignore
   export type { PushSyncStatus, PushSyncState } from '../composables/usePushRegistration'
   import('../composables/usePushRegistration')
+  // @ts-ignore
+  export type { ResizableZoomOptions } from '../composables/useResizableZoom'
+  import('../composables/useResizableZoom')
   // @ts-ignore
   export type { UseTabSwipeOptions } from '../composables/useTabSwipe'
   import('../composables/useTabSwipe')
@@ -928,6 +932,7 @@ declare module 'vue' {
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useRegisterSW: UnwrapRef<typeof import('../composables/pwa-register-stub')['useRegisterSW']>
+    readonly useResizableZoom: UnwrapRef<typeof import('../composables/useResizableZoom')['useResizableZoom']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouteMeta: UnwrapRef<typeof import('../composables/useRouteMeta')['useRouteMeta']>

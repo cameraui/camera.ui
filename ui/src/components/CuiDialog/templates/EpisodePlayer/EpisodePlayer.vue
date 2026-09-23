@@ -1,25 +1,41 @@
 <template>
   <div class="episode-player-container">
-    <div ref="stageRef" class="relative w-full overflow-hidden bg-black" :style="{ aspectRatio: stageAspect }">
+    <div
+      ref="stageRef"
+      class="relative w-full bg-black"
+      :class="mdBreakpoint && stageZoomingIn ? 'overflow-visible' : 'overflow-hidden'"
+      :style="(mdBreakpoint && stageContainerStyle) || { aspectRatio: stageAspect }"
+    >
       <VueZoomable
         v-model:pan="panValue"
         v-model:zoom="zoomValue"
+        :disabled="mdBreakpoint"
         :pan-enabled="zoomValue > 1"
         :enable-control-button="false"
         :dbl-click-enabled="false"
         :min-zoom="1"
         :max-zoom="MAX_ZOOM"
-        :selector="`[data-zoomable-content='${zoomId}']`"
+        :selector="mdBreakpoint ? 'disabled' : `[data-zoomable-content='${zoomId}']`"
         zoom-origin="pointer"
-        class="absolute inset-0"
-        :class="{ 'zoom-constraining': isConstraining, 'zoom-dragging': dragging }"
+        class="absolute inset-0 flex items-center justify-center"
+        :class="{ 'zoom-constraining': isConstraining, 'zoom-dragging': dragging, 'resizable-mode touch-none': mdBreakpoint }"
         @panned="onZoomPan"
         @zoom="onZoomPan"
-        @dblclick="resetZoom"
+        @dblclick="mdBreakpoint ? onStageDoubleClick($event) : resetZoom()"
         @pointerdown="onDragStart"
-        @touchstart="onDragStart"
+        @touchstart="onStageTouchStart"
+        @touchmove="onStageTouchMove"
+        @touchend="onStageTouchEnd"
+        @mousedown="onStageMouseDown"
+        @wheel="onStageWheel"
       >
-        <div :data-zoomable-content="zoomId" class="relative w-full h-full">
+        <div
+          ref="stageContentRef"
+          :data-zoomable-content="zoomId"
+          class="relative shrink-0"
+          :class="{ 'w-full h-full': !mdBreakpoint }"
+          :style="mdBreakpoint ? stageContentStyle : undefined"
+        >
           <div v-for="id in memberCameraIds" v-show="id === visibleCameraId" :key="id" :ref="(el) => setStageEl(id, el as HTMLElement | null)" class="absolute inset-0" />
         </div>
       </VueZoomable>
@@ -31,8 +47,8 @@
       </div>
 
       <Transition name="fade-2">
-        <div v-if="zoomMinimapStyle" class="zoom-minimap" :class="{ 'zoom-minimap-raised': showControl }">
-          <div class="zoom-minimap-viewport" :style="zoomMinimapStyle" />
+        <div v-if="minimapStyle" class="zoom-minimap" :class="{ 'zoom-minimap-raised': showControl }">
+          <div class="zoom-minimap-viewport" :style="minimapStyle" />
         </div>
       </Transition>
 
@@ -92,7 +108,15 @@
       </Transition>
     </div>
 
-    <div class="px-3 pt-3 pb-2">
+    <div class="relative px-3 pt-3 pb-2">
+      <div
+        v-if="mdBreakpoint"
+        class="absolute left-0 right-0 top-0 h-3 flex items-center justify-center cursor-ns-resize touch-none z-20"
+        @mousedown="onStageResizeStart"
+        @touchstart.passive="onStageResizeTouchStart"
+      >
+        <div class="w-9 h-1 rounded-full bg-surface-400/50" />
+      </div>
       <div
         ref="stripRef"
         class="relative h-[36px] rounded-lg bg-white/5 cursor-pointer select-none touch-none overflow-hidden"
@@ -151,6 +175,7 @@ const { t } = useI18n();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 const { openEpisodeTrace } = useEpisodeTraceDialog();
+const { mdBreakpoint } = useSharedCuiBreakpoint();
 
 const BLOCK_TAIL_MS = 2000;
 const BLOCK_HEAD_MS = 1500;
@@ -172,6 +197,7 @@ const firstBlockMs = blocks[0]?.startMs ?? props.episode.startTime;
 const lastBlockMs = blocks[blocks.length - 1]?.endMs ?? props.episode.endTime;
 
 const stageRef = useTemplateRef('stageRef');
+const stageContentRef = useTemplateRef('stageContentRef');
 const stripRef = useTemplateRef('stripRef');
 const blockIndex = ref(0);
 const playheadMs = ref(firstBlockMs);
@@ -193,6 +219,27 @@ const dragging = ref(false);
 const stageSize = useElementSize(stageRef);
 const isHovered = useElementHover(stageRef, { delayLeave: 1000 });
 const stripWidth = useElementSize(stripRef).width;
+const {
+  zoomingIn: stageZoomingIn,
+  containerStyle: stageContainerStyle,
+  contentStyle: stageContentStyle,
+  minimapStyle: stageMinimapStyle,
+  onTouchStart: onStageTouchStart,
+  onTouchMove: onStageTouchMove,
+  onTouchEnd: onStageTouchEnd,
+  onDoubleClick: onStageDoubleClick,
+  onMouseDown: onStageMouseDown,
+  onWheel: onStageWheel,
+  onResizeStart: onStageResizeStart,
+  onResizeTouchStart: onStageResizeTouchStart,
+} = useResizableZoom({
+  container: stageRef,
+  content: stageContentRef,
+  aspectRatio: () => stageAspect.value,
+  enabled: mdBreakpoint,
+  zoom: zoomValue,
+  pan: panValue,
+});
 
 const stageEls = new Map<string, HTMLElement>();
 const claimReleases: (() => void)[] = [];
@@ -259,6 +306,8 @@ const showSpinner = computed(() => !scrubbing.value && (master.loading.value || 
 const stageAspect = computed(() => {
   return props.cameraById.get(visibleCameraId.value)?.interfaceSettings.aspectRatio.replace(':', '/') ?? '16/9';
 });
+
+const minimapStyle = computed(() => (mdBreakpoint.value ? stageMinimapStyle.value : zoomMinimapStyle.value));
 
 const activeCameraName = computed(() => cameraName(visibleCameraId.value));
 
@@ -785,7 +834,8 @@ defineExpose({
   transition: transform 0.15s ease-out !important;
 }
 
-.zoom-dragging :deep(> *) {
+.zoom-dragging :deep(> *),
+.resizable-mode :deep(*) {
   transition: none !important;
 }
 
