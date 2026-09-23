@@ -329,6 +329,7 @@ export interface DBAssistantSchedule {
   timezone: string;
   language?: string;
   profileId?: string | null;
+  modelId?: string | null;
   deliver: DBAssistantScheduleDelivery;
   enabled: boolean;
   createdAt: number;

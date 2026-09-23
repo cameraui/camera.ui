@@ -482,6 +482,7 @@
                         :value="profileName(schedule.profileId) ?? $t('views.settings.assistant_schedule_profile_missing')"
                         class="text-[10px]"
                       />
+                      <Tag v-if="scheduleModelChoice(schedule)" severity="secondary" :value="modelName(scheduleModelChoice(schedule))" class="text-[10px]" />
                     </div>
                     <div class="basis-full text-muted line-clamp-2">{{ schedule.prompt }}</div>
                     <div class="basis-full text-xs text-muted">
@@ -498,51 +499,9 @@
                     </div>
                   </div>
                   <div class="shrink-0">
-                    <div class="hidden items-center gap-1 md:flex">
+                    <div>
                       <Button
-                        v-tooltip.top="{ value: $t('views.settings.assistant_schedule_run') }"
-                        type="button"
-                        severity="secondary"
-                        text
-                        rounded
-                        class="cui-icon-md"
-                        :loading="runScheduleMutation.isPending.value && runScheduleMutation.variables.value === schedule._id"
-                        @click="runScheduleMutation.mutate(schedule._id)"
-                      >
-                        <template #icon>
-                          <i-mdi:lightning-bolt-outline width="100%" height="100%" />
-                        </template>
-                      </Button>
-                      <Button
-                        v-tooltip.top="{ value: schedule.enabled ? $t('views.settings.assistant_schedule_pause') : $t('views.settings.assistant_schedule_resume') }"
-                        type="button"
-                        severity="secondary"
-                        text
-                        rounded
-                        class="cui-icon-md"
-                        @click="toggleSchedule(schedule)"
-                      >
-                        <template #icon>
-                          <i-mdi:pause v-if="schedule.enabled" width="100%" height="100%" />
-                          <i-mdi:play-outline v-else width="100%" height="100%" />
-                        </template>
-                      </Button>
-                      <Button
-                        v-tooltip.top="{ value: $t('views.settings.assistant_schedule_delete') }"
-                        type="button"
-                        severity="danger"
-                        text
-                        rounded
-                        class="cui-icon-md"
-                        @click="deleteScheduleMutation.mutate(schedule._id)"
-                      >
-                        <template #icon>
-                          <i-mdi:delete-outline width="100%" height="100%" />
-                        </template>
-                      </Button>
-                    </div>
-                    <div class="md:hidden">
-                      <Button
+                        v-tooltip.top="{ value: $t('views.settings.assistant_schedule_actions') }"
                         type="button"
                         severity="secondary"
                         text
@@ -577,18 +536,33 @@
                   <Textarea v-model="scheduleForm.prompt" rows="2" auto-resize :placeholder="$t('views.settings.assistant_schedule_prompt_placeholder')" />
                 </div>
 
-                <div v-if="profiles?.length" class="flex flex-col field-gap">
-                  <label for="scheduleProfile" class="cui-label">{{ $t('views.settings.assistant_schedule_profile_label') }}</label>
-                  <Select
-                    v-model="scheduleForm.profileId"
-                    input-id="scheduleProfile"
-                    :options="profiles"
-                    option-label="name"
-                    option-value="_id"
-                    show-clear
-                    fluid
-                    :placeholder="$t('views.settings.assistant_schedule_profile_none')"
-                  />
+                <div class="flex flex-col md:flex-row gap-6">
+                  <div v-if="profiles?.length" class="flex flex-col field-gap flex-1">
+                    <label for="scheduleProfile" class="cui-label">{{ $t('views.settings.assistant_schedule_profile_label') }}</label>
+                    <Select
+                      v-model="scheduleForm.profileId"
+                      input-id="scheduleProfile"
+                      :options="profiles"
+                      option-label="name"
+                      option-value="_id"
+                      show-clear
+                      fluid
+                      :placeholder="$t('views.settings.assistant_schedule_profile_none')"
+                    />
+                  </div>
+                  <div class="flex flex-col field-gap flex-1">
+                    <label for="scheduleModel" class="cui-label">{{ $t('views.settings.assistant_schedule_model_label') }}</label>
+                    <Select
+                      v-model="scheduleForm.modelId"
+                      input-id="scheduleModel"
+                      :options="models"
+                      option-label="name"
+                      option-value="_id"
+                      show-clear
+                      fluid
+                      :placeholder="scheduleModelFallback(scheduleForm.profileId)"
+                    />
+                  </div>
                 </div>
 
                 <div class="flex flex-col md:flex-row gap-6">
@@ -747,6 +721,7 @@
 
 <script setup lang="ts">
 import { LANGUAGES } from '@shared/types';
+import ModelIcon from '~icons/mdi/brain';
 import CopyIcon from '~icons/mdi/content-copy';
 import DeleteIcon from '~icons/mdi/delete-outline';
 import RunIcon from '~icons/mdi/lightning-bolt-outline';
@@ -761,10 +736,12 @@ import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@
 import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
+import AssistantScheduleModel from '@/components/CuiDialog/templates/AssistantScheduleModel/AssistantScheduleModel.vue';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
 import type { AssistantScheduleRow } from '@/api/routes/assistant.js';
 import type { AssistantModelFormProps } from '@/components/CuiDialog/templates/AssistantModel/types.js';
+import type { AssistantScheduleModelProps } from '@/components/CuiDialog/templates/AssistantScheduleModel/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { PassThrough } from '@primevue/core';
 import type {
@@ -833,6 +810,7 @@ const scheduleForm = ref<{
   cron: string;
   deliver: DBAssistantScheduleDelivery;
   profileId: string | null;
+  modelId: string | null;
 }>({
   title: '',
   prompt: '',
@@ -841,6 +819,7 @@ const scheduleForm = ref<{
   cron: '',
   deliver: 'push',
   profileId: null,
+  modelId: null,
 });
 const serverTokens = ref<Record<string, string>>({});
 const rowMenuItems = ref<MenuItem[]>([]);
@@ -968,9 +947,10 @@ async function onAddSchedule(): Promise<void> {
     language: locale.value,
     deliver: scheduleForm.value.deliver,
     profileId: scheduleForm.value.profileId,
+    modelId: scheduleForm.value.modelId,
     enabled: true,
   });
-  scheduleForm.value = { ...scheduleForm.value, title: '', prompt: '', cron: '', profileId: null };
+  scheduleForm.value = { ...scheduleForm.value, title: '', prompt: '', cron: '', profileId: null, modelId: null };
 }
 
 function toolDescription(description: string): string {
@@ -1128,6 +1108,7 @@ function openScheduleMenu(event: Event, schedule: AssistantScheduleRow): void {
     schedule.enabled
       ? { label: t('views.settings.assistant_schedule_pause'), icon: PauseIcon, onClick: () => toggleSchedule(schedule) }
       : { label: t('views.settings.assistant_schedule_resume'), icon: PlayIcon, onClick: () => toggleSchedule(schedule) },
+    { label: t('views.settings.assistant_schedule_model_change'), icon: ModelIcon, onClick: () => openScheduleModelDialog(schedule) },
     { ...DELETE_ITEM, label: t('views.settings.assistant_schedule_delete'), onClick: () => deleteScheduleMutation.mutate(schedule._id) },
   ];
   rowMenuRef.value?.toggleMenu(event);
@@ -1202,6 +1183,33 @@ function setPluginChoice(pluginId: string, modelId: string): void {
 
 function usageModelLabel(row: AssistantUsageRow): string {
   return models.value.find((model) => model.provider === row.provider && model.model === row.model)?.name ?? row.model;
+}
+
+function scheduleModelChoice(schedule: AssistantScheduleRow): string | null {
+  return models.value.some((model) => model._id === schedule.modelId) ? (schedule.modelId ?? null) : null;
+}
+
+function scheduleModelFallback(profileId: string | null | undefined): string | undefined {
+  const profile = profiles.value?.find((entry) => entry._id === profileId);
+  const name = (models.value.find((model) => model._id === profile?.modelId) ?? defaultEntry.value)?.name;
+  return name ? t('views.settings.assistant_schedule_model_default', { name }) : undefined;
+}
+
+function openScheduleModelDialog(schedule: AssistantScheduleRow): void {
+  dialog.openComponentDialog<AssistantScheduleModelProps>(AssistantScheduleModel, {
+    data: {
+      title: schedule.title,
+      confirmText: t('components.form.button.save'),
+      contentProps: { models: toRaw(models.value), modelId: schedule.modelId, fallback: scheduleModelFallback(schedule.profileId) },
+    },
+    onConfirm: ({ modelId }: { modelId: string | null }) => {
+      patchScheduleMutation.mutate({ scheduleId: schedule._id, patch: { modelId } });
+    },
+  });
+}
+
+function modelName(modelId: string | null): string | undefined {
+  return models.value.find((model) => model._id === modelId)?.name;
 }
 
 function profileName(profileId: string): string | undefined {

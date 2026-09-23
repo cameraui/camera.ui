@@ -716,11 +716,11 @@ export class AssistantManager {
   public async runPrompt(
     user: DBUser,
     prompt: string,
-    opts: { timezone?: string; language?: string; image?: ToolImage; instructions?: string; profile?: DBAssistantProfile },
+    opts: { timezone?: string; language?: string; image?: ToolImage; instructions?: string; profile?: DBAssistantProfile; modelId?: string },
   ): Promise<{ text: string; image?: ToolImage; attachments: Record<string, DBAssistantAttachment> }> {
     const settings = this.settings();
     if (!settings.enabled || this.status(user.role).state !== 'ready') throw new Error('The assistant is not ready');
-    const entry = this.resolveModel(user, { profileId: opts.profile?._id })!;
+    const entry = this.resolveModel(user, { modelId: opts.modelId, profileId: opts.profile?._id })!;
     await this.ensureModel(entry);
     const model = this.modelSettings(settings, entry);
 

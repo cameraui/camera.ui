@@ -124,6 +124,7 @@ export const createAssistantScheduleSchema = zod
     prompt: zod.string().trim().min(1, 'Prompt is required').max(2000, 'Prompt cannot be more than 2000 characters'),
     cron: zod.string().trim().min(9, 'Cron expression is required').max(100),
     profileId: zod.string().trim().max(64).nullable().optional(),
+    modelId: zod.string().trim().max(64).nullable().optional(),
     timezone: zod.string().trim().max(64).optional(),
     language: zod.string().trim().min(2).max(10).optional(),
     deliver: assistantScheduleDeliverySchema.default('push'),

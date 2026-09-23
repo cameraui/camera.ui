@@ -78,6 +78,8 @@ export class AssistantScheduler {
       cron: input.cron,
       timezone,
       language: input.language,
+      profileId: input.profileId ?? null,
+      modelId: input.modelId ?? null,
       deliver: input.deliver,
       enabled: input.enabled,
       createdAt: now,
@@ -165,7 +167,12 @@ export class AssistantScheduler {
       if (!user) throw new Error('The owner of this schedule no longer exists');
 
       const profile = current.profileId ? this.manager.profiles.get(user._id, current.profileId) : undefined;
-      const result = await this.manager.runPrompt(user, current.prompt, { timezone: current.timezone, language: current.language, profile });
+      const result = await this.manager.runPrompt(user, current.prompt, {
+        timezone: current.timezone,
+        language: current.language,
+        profile,
+        modelId: current.modelId ?? undefined,
+      });
       if (!result.text.trim()) throw new Error('The model returned no text');
 
       if (current.deliver !== 'thread') await this.push(current, result.text, result.image);
