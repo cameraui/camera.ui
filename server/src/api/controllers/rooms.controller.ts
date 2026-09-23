@@ -37,11 +37,12 @@ export class RoomsController {
     try {
       const room = this.service.byId(req.params.roomid);
       if (!room) return reply.code(404).send({ statusCode: 404, message: 'Room not found' });
+      const fallback = await this.service.fallback();
+      if (room.id === fallback.id) return reply.code(400).send({ statusCode: 400, message: 'The Default room takes the cameras of deleted rooms and cannot be deleted' });
 
       await this.floorPlanService.dropRoom(room.id);
       await this.service.remove(room.id);
 
-      const fallback = await this.service.fallback();
       for (const camera of this.camerasService.list()) {
         if (camera.roomId === room.id) await this.camerasService.assignRoom(camera._id, fallback.id);
       }

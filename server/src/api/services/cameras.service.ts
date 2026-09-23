@@ -343,6 +343,10 @@ export class CamerasService {
       this.dbs.syncCamerasToGo2RtcConfig();
     }
 
+    if (cameraOld.roomId !== camera.roomId) {
+      await this.dropMisplacedFloorPlanCamera(camera);
+    }
+
     for (const before of cameraOld.sources) {
       const source = camera.sources.find((s) => s._id === before._id);
       if (!source || !isEqual(before.urls, source.urls, true)) {
@@ -759,6 +763,11 @@ export class CamerasService {
 
     camera.roomId = room.id;
     camera.room = this.roomsService.label(room.id) ?? room.name;
+  }
+
+  private async dropMisplacedFloorPlanCamera(camera: DBCamera): Promise<void> {
+    const placement = this.floorPlanService.get().cameras.find((entry) => entry.cameraId === camera._id);
+    if (placement && placement.roomId !== camera.roomId) await this.floorPlanService.dropCameras([camera._id]);
   }
 
   private get go2rtcState(): Go2RtcState {

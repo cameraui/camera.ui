@@ -20,9 +20,9 @@
             </Transition>
           </Field>
 
-          <Field v-slot="{ errors }" :model-value="cameraForm.room" name="room" as="div" class="flex flex-col field-gap">
+          <Field v-slot="{ errors }" :model-value="cameraForm.roomId" name="roomId" as="div" class="flex flex-col field-gap">
             <label for="room" class="cui-label">{{ $t('components.form.label.room') }}</label>
-            <div class="flex gap-2">
+            <InputGroup>
               <Select
                 :model-value="cameraForm.roomId"
                 :options="roomOptions"
@@ -32,19 +32,28 @@
                 :option-group-children="roomsGrouped ? 'items' : undefined"
                 :invalid="errors.length > 0"
                 :loading="roomsLoading"
-                class="w-full"
+                class="min-w-0"
                 @update:model-value="(e) => (cameraForm.roomId = e)"
               />
-              <Button
-                v-tooltip.top="$t('components.form.button.create_room')"
-                severity="secondary"
-                outlined
-                class="shrink-0 h-[42px] w-[42px] p-0"
-                @click="openCreateRoomDialog"
-              >
-                <template #icon><i-mdi:plus class="w-4 h-4" /></template>
-              </Button>
-            </div>
+              <InputGroupAddon>
+                <Button v-tooltip.top="$t('components.form.button.create_room')" type="button" severity="secondary" text @click="openCreateRoomDialog">
+                  <template #icon><i-mdi:plus /></template>
+                </Button>
+              </InputGroupAddon>
+              <InputGroupAddon>
+                <Button
+                  v-tooltip.top="$t('components.form.button.delete_room')"
+                  type="button"
+                  severity="danger"
+                  text
+                  :disabled="!deletableRoom"
+                  :loading="deletingRoom"
+                  @click="confirmDeleteRoom"
+                >
+                  <template #icon><i-mdi:delete-outline /></template>
+                </Button>
+              </InputGroupAddon>
+            </InputGroup>
             <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.room') }}</Message>
           </Field>
 
@@ -1931,6 +1940,7 @@ const { sensors: allSensors } = useSensors(cameraDevice);
 
 const { data: roomCatalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
 const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
+const { mutateAsync: deleteRoom, isPending: deletingRoom } = roomsQuery.deleteRoomMutation();
 const { data: cameraExtensions } = camerasQuery.getCameraExtensionsQuery(cameraForm.value.name);
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
 const { mutateAsync: patchZoneConfig, isPending: zoneConfigPatching } = camerasQuery.patchZoneConfigQuery();
@@ -2085,6 +2095,8 @@ const roomsGrouped = computed(() => (roomCatalog.value?.levels.length ?? 0) > 0)
 
 const roomOptions = computed(() => buildRoomOptions(roomCatalog.value, t));
 
+const deletableRoom = computed(() => roomCatalog.value?.rooms.find((room) => room.id === cameraForm.value.roomId && room.name !== 'Default'));
+
 const isLoading = computed(() => parentLoading.value || removeLoading.value);
 
 function setDecoderHardware(hardware: FrameWorkerDecoderHardware) {
@@ -2145,6 +2157,23 @@ function openCreateRoomDialog() {
       if (!name) return;
       const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
       cameraForm.value.roomId = room.id;
+    },
+  });
+}
+
+function confirmDeleteRoom() {
+  const room = deletableRoom.value;
+  if (!room) return;
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      confirmText: t('components.form.button.remove'),
+      contentText: t('components.dialog.message.confirm_delete_room', { name: room.name }),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: async () => {
+      await deleteRoom(room.id);
+      if (cameraForm.value.roomId === room.id) cameraForm.value.roomId = props.camera?.roomId ?? null;
     },
   });
 }
