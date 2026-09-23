@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.6]
+
+### Added
+
+- **Rooms can be deleted from a camera's settings.** Next to the room there is now a delete button.
+
+- **Zooming grows the player in the event and episode dialog.** On phones the picture gets taller while you zoom in, like in the camera view.
+
+- **Scheduled prompts can have their own model.** Pick it when you create one or change it later in the menu of the scheduled prompt.
+
+### Fixed
+
+- **Changing a camera's room in its settings works.** The camera stayed in its old room, only the new room was created. A camera placed on the floor plan leaves the plan when it moves to another room, so drag it into its new room there.
+
+- **Opening a camera and going back animates every time.** The card now also flies back into Home or Camview when that page still had to load, or when camera.ui was opened right on the camera.
+
+- **Recordings counts episodes too.** In the Episodes tab the sidebar now shows how many episodes you see, like it does for events.
+
+- **A new scheduled prompt keeps its profile.** The profile picked when creating it was not saved, so it ran with the default model.
+
+- **The assistant chat works better on phones and tablets.** Conversation settings and memory open right above the text field, the same on every device, and choosing tools, model or profile no longer closes the keyboard. The keyboard also stays open when you jump to the latest message, and saving settings as a profile asks for the name in its own dialog. The keyboard no longer pops up by itself when the chat opens.
+
+- **An updated plugin starts without a restart of camera.ui.** After updating a detection plugin, camera.ui kept the plugin's old description and refused what the new version brings. The plugin stopped right after loading its models, and reinstalling did not help.
+
 ## [2.2.5]
 
 **New plugin: Apple LLM.** Brings Apple's on-device model into camera.ui as an assistant model. It answers on the Mac the plugin runs on and it can use the assistant's tools. Needs macOS 26 or newer on Apple Silicon with Apple Intelligence turned on, pictures need macOS 27. Which model answers depends on the Mac, and all of them hold only a short conversation: good for questions about your cameras and the documentation, weaker on long tasks with many steps.
