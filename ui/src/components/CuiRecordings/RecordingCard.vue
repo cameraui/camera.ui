@@ -181,7 +181,7 @@ import { resolveEventIcons } from '@/utils/eventIcons.js';
 import type { FaceReassignProps } from '@/components/CuiDialog/templates/FaceReassign/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { EventThumbnails } from '@camera.ui/nvr';
-import type { RecordingCardEmits, RecordingCardProps } from './types.js';
+import type { FaceTarget, RecordingCardEmits, RecordingCardProps } from './types.js';
 
 const props = defineProps<RecordingCardProps>();
 
@@ -231,6 +231,7 @@ const isDownloading = ref(false);
 const activeImageIndexRaw = ref(0);
 const favoriteOverride = ref<boolean | null>(null);
 const reassignBusy = ref(false);
+const focusFace = ref<FaceTarget>();
 const footerWidth = ref(0);
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
@@ -350,15 +351,18 @@ const previewIndicator = computed(() => {
   return '';
 });
 
-const activeFaceLabel = computed(() => {
+const faceTarget = computed<FaceTarget | undefined>(() => {
   const img = activeImage.value;
-  if (!img || img.type !== 'face') return undefined;
-  return img.label ? img.label : 'unknown';
+  if (img?.crop) return img.type === 'face' ? { seg: img.faceSeg ?? -1, label: img.label || 'unknown' } : undefined;
+  const seg = props.segIndex ?? primary.value?.segIndex;
+  if (activeImageIndex.value > 0 || seg === undefined) return undefined;
+  const faces = shownSegment.value?.attributes.filter((a) => a.type === 'face') ?? [];
+  return faces.length === 1 ? { seg, label: faces[0].label || 'unknown' } : undefined;
 });
 
 const cardMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
-  if (isAdmin.value && activeFaceLabel.value !== undefined) {
+  if (isAdmin.value && faceTarget.value) {
     items.push({
       key: 'reassign',
       label: t('views.recordings.reassign_face'),
@@ -406,6 +410,7 @@ function stepImage(delta: number): void {
   const len = carouselImages.value.length;
   if (!len) return;
   stopPreview();
+  focusFace.value = undefined;
   activeImageIndexRaw.value = (activeImageIndex.value + delta + len) % len;
 }
 
@@ -413,6 +418,7 @@ function onTileClick(index: number, event: MouseEvent): void {
   if (!carouselActive.value) return;
   event.stopPropagation();
   stopPreview();
+  focusFace.value = undefined;
   activeImageIndexRaw.value = index;
 }
 
@@ -487,8 +493,9 @@ async function openCardMenu(event: MouseEvent): Promise<void> {
 }
 
 function openFaceReassignDialog(): void {
-  const oldName = activeFaceLabel.value;
-  if (oldName === undefined) return;
+  const target = faceTarget.value;
+  if (!target) return;
+  const onCrop = Boolean(activeImage.value?.crop);
 
   dialog.openComponentDialog<FaceReassignProps>(FaceReassignDialog, {
     data: {
@@ -496,23 +503,24 @@ function openFaceReassignDialog(): void {
       confirmText: t('components.form.button.save'),
       contentProps: {
         cropUrl: activeImage.value?.url,
-        oldName,
+        oldName: target.label,
       },
     },
-    onConfirm: (newName: string) => reassignFace(newName),
+    onConfirm: (newName: string) => reassignFace(target, newName, onCrop),
   });
 }
 
-async function reassignFace(newName: string): Promise<void> {
-  const oldName = activeFaceLabel.value;
-  if (oldName === undefined || reassignBusy.value) return;
-  const seg = activeImage.value?.faceSeg ?? -1;
+async function reassignFace(target: FaceTarget, newName: string, onCrop: boolean): Promise<void> {
+  if (reassignBusy.value) return;
   const nvr = nvrPluginRef.value as { reassignEventFace?: (eventId: string, segIndex: number, oldName: string, newName: string) => Promise<number> } | undefined;
   if (!nvr?.reassignEventFace) return;
   reassignBusy.value = true;
   try {
-    const count = await nvr.reassignEventFace(props.event.id, seg, oldName, newName);
-    if (count > 0) invalidateEventThumbnails(props.event.id);
+    const count = await nvr.reassignEventFace(props.event.id, target.seg, target.label, newName);
+    if (count > 0) {
+      if (onCrop) focusFace.value = { seg: target.seg, label: newName || 'unknown' };
+      invalidateEventThumbnails(props.event.id);
+    }
     toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
@@ -552,6 +560,15 @@ async function handleDownload(): Promise<void> {
     isDownloading.value = false;
   }
 }
+
+watch(carouselImages, (images) => {
+  const focus = focusFace.value;
+  if (!focus) return;
+  const index = images.findIndex((img) => img.crop && img.faceSeg === focus.seg && img.label === focus.label);
+  if (index < 0) return;
+  activeImageIndexRaw.value = index;
+  focusFace.value = undefined;
+});
 
 watch(
   () => eventStore.storeVersion.value,

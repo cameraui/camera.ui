@@ -274,7 +274,7 @@ import ExportRecordings from '@/components/CuiDialog/templates/ExportRecordings/
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import RecordingsFilterSidebar from '@/components/CuiRecordings/RecordingsFilterSidebar.vue';
-import { buildUngroupedItems, ungroupedItemTime } from '@/components/CuiRecordings/ungrouped.js';
+import { buildUngroupedItems, newestFirst } from '@/components/CuiRecordings/ungrouped.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
@@ -505,7 +505,7 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   const f = filters.value;
 
   if (!episodesOnly.value) {
-    if (ungrouped.value || isSemanticActive.value) return [];
+    if (isSemanticActive.value) return [];
     if (f.gridRegions.length > 0) return [];
     if (contentFiltered.value) return [];
   }
@@ -538,12 +538,12 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   return items;
 });
 const gridItems = computed<UngroupedItem[]>(() => {
-  if (episodesOnly.value) return [...episodeGridItems.value].sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
-  if (ungrouped.value && ungroupedItems.value.length) return ungroupedItems.value;
-  const items: UngroupedItem[] = displayEvents.value.map((event) => ({ event, key: event.id }));
+  if (episodesOnly.value) return [...episodeGridItems.value].sort(newestFirst);
+  const items: UngroupedItem[] =
+    ungrouped.value && ungroupedItems.value.length ? [...ungroupedItems.value] : displayEvents.value.map((event) => ({ event, key: event.id }));
   if (episodeGridItems.value.length) {
     items.push(...episodeGridItems.value);
-    items.sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
+    items.sort(newestFirst);
   }
   return items;
 });
@@ -553,9 +553,10 @@ const resultTotal = computed<number | undefined>(() => {
   const f = filters.value;
   if (!s || !hasMore.value || isSemanticActive.value || f.gridRegions.length > 0 || (f.timeRange && rangeStartMs.value === undefined)) return undefined;
   if (episodesOnly.value) return s.episodes;
-  if (ungrouped.value) return s.segments;
+  const cards = ungrouped.value ? s.segments : s.total;
+  if (cards === undefined) return undefined;
   const withEpisodes = f.contentKind !== 'events' && !contentFiltered.value;
-  return s.total + (withEpisodes ? s.episodes : 0);
+  return cards + (withEpisodes ? s.episodes : 0);
 });
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
@@ -797,8 +798,8 @@ watch(
   { immediate: true },
 );
 
-watch([ungrouped, displayEvents], ([isUngrouped, events]) => {
-  ungroupedItems.value = isUngrouped ? buildUngroupedItems(events) : [];
+watch([ungrouped, displayEvents, isSemanticActive], ([isUngrouped, events, ranked]) => {
+  ungroupedItems.value = isUngrouped ? buildUngroupedItems(events, ranked) : [];
 });
 
 watch(

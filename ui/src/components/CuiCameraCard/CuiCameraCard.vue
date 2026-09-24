@@ -90,6 +90,7 @@
             name="overlay-actions"
             class="absolute top-[10px] z-9 flex items-center gap-1.5 pointer-events-none"
             :class="backButton ? 'left-16' : 'left-4'"
+            @before-leave="(el: Element) => holdLeaving(el, 'left')"
           >
             <div
               v-for="chip in detectionIconChips"
@@ -101,7 +102,12 @@
             </div>
           </TransitionGroup>
 
-          <TransitionGroup tag="div" name="overlay-actions" class="absolute top-[10px] right-4 z-9 flex items-center gap-2">
+          <TransitionGroup
+            tag="div"
+            name="overlay-actions"
+            class="absolute top-[10px] right-4 z-9 flex items-center gap-2"
+            @before-leave="(el: Element) => holdLeaving(el, 'right')"
+          >
             <div v-if="showPtzToolbar" key="ptz" class="flex items-center gap-1 rounded-full bg-black/40 p-1">
               <Button
                 v-if="hasPtzHome"
@@ -158,12 +164,10 @@
           </TransitionGroup>
 
           <Transition
-            enter-active-class="transition-all duration-300 ease-out"
-            enter-from-class="opacity-0 -translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition-all duration-200 ease-in"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 -translate-y-2"
+            enter-active-class="transition-opacity duration-300 ease-out"
+            enter-from-class="opacity-0"
+            leave-active-class="transition-opacity duration-200 ease-in"
+            leave-to-class="opacity-0"
           >
             <div v-if="showDescription && eventDescription" class="ai-description-overlay">
               <i-tabler:sparkles class="w-4 h-4 text-white/90 shrink-0 mt-0.5" />
@@ -1770,6 +1774,13 @@ function togglePtz() {
   ptzState.value = !ptzState.value;
 }
 
+function holdLeaving(el: Element, edge: 'left' | 'right'): void {
+  const node = el as HTMLElement;
+  const group = node.parentElement;
+  if (!group) return;
+  node.style[edge] = `${edge === 'left' ? node.offsetLeft : group.clientWidth - node.offsetLeft - node.offsetWidth}px`;
+}
+
 function toggleTimeline() {
   timelineState.value = !timelineState.value;
 }
@@ -2215,16 +2226,18 @@ html.cui-native-pip #video-container.native-pip .ar-box {
 </style>
 
 <style scoped>
-.overlay-actions-move,
+.overlay-actions-move {
+  transition: transform 0.2s ease;
+}
+
 .overlay-actions-enter-active,
 .overlay-actions-leave-active {
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
 .overlay-actions-enter-from,
 .overlay-actions-leave-to {
   opacity: 0;
-  transform: translateX(8px);
 }
 
 .overlay-actions-leave-active {

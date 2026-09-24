@@ -64,6 +64,11 @@ export interface RecordingCardEmits {
   openTrace: [atMs?: number];
 }
 
+export interface FaceTarget {
+  seg: number;
+  label: string;
+}
+
 export interface RecordingsFilterSidebarProps {
   filters: RecordingsFilterState;
   cameras: { id: string; name: string; room?: string }[];

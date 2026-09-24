@@ -257,7 +257,7 @@
 import { AssistantQuery, branchAssistantThread, getAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
 import { defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
-import { KEYBOARD_EASING, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
+import { KEYBOARD_EASING, KEYBOARD_GAP, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
 
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
 import type { ComposerSubmission } from '@/components/CuiAssistantComposer/types.js';
@@ -280,6 +280,7 @@ const emit = defineEmits<CuiAssistantConversationEmits>();
 const { t, locale } = useI18n();
 const toast = useCuiToast();
 const coarsePointer = useMediaQuery('(pointer: coarse)');
+const { keyboardInset } = useKeyboardInset();
 
 const { data: memory } = assistantQuery.memoryQuery();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
@@ -296,6 +297,9 @@ const profileId = ref<string | null>(null);
 const tray = ref<AssistantTrayPanel | null>(null);
 const rootRef = useTemplateRef<HTMLDivElement>('rootRef');
 const atBottom = ref(true);
+
+let welcomeRest: number | undefined;
+let keyboardFlips = 0;
 
 const { top: rootTop } = useElementBounding(rootRef);
 const { top: composerTop } = useElementBounding(computed(() => composerRef.value?.$el as HTMLElement | undefined));
@@ -389,7 +393,7 @@ function rowUsage(row: ConversationRow): AssistantUsageEvent | undefined {
 
 function onScroll(): void {
   const el = scrollRef.value;
-  if (!el) return;
+  if (!el || keyboardFlips) return;
   pinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   measureBottom();
 }
@@ -400,19 +404,54 @@ function toggleTray(panel: AssistantTrayPanel): void {
 
 function measureBottom(): void {
   const el = scrollRef.value;
-  if (!el) return;
+  if (!el || keyboardFlips) return;
   atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
+}
+
+function welcomeOffset(): number | undefined {
+  const container = scrollRef.value;
+  const block = welcomeRef.value;
+  if (!container || !block) return undefined;
+  return block.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+}
+
+function placeWelcome(): void {
+  const container = scrollRef.value;
+  const block = welcomeRef.value;
+  const composer = composerRef.value?.$el as HTMLElement | undefined;
+  if (!container || !block || !composer) return;
+  if (!keyboardInset.value || welcomeRest === undefined) {
+    block.style.removeProperty('margin-top');
+    return;
+  }
+  const composerBottom = composer.getBoundingClientRect().bottom - block.getBoundingClientRect().top;
+  const room = container.clientHeight - composerBottom - KEYBOARD_GAP;
+  block.style.marginTop = `${Math.max(0, Math.min(welcomeRest, room))}px`;
+  container.scrollTop = 0;
 }
 
 function followKeyboard(): () => void {
   const moving = [welcomeRef.value, bottomRef.value, contentRef.value].filter((el): el is HTMLDivElement => Boolean(el));
   const before = moving.map((el) => el.getBoundingClientRect().top);
+  if (!keyboardInset.value) welcomeRest = welcomeOffset();
   return () => {
-    if (pinnedToBottom.value) scrollToBottom();
-    moving.forEach((el, index) => {
+    if (welcome.value) placeWelcome();
+    else if (pinnedToBottom.value) scrollToBottom();
+    const flips = moving.flatMap((el, index) => {
       const shift = before[index] - el.getBoundingClientRect().top;
-      if (Math.abs(shift) < 1) return;
-      el.animate([{ transform: `translateY(${shift}px)` }, { transform: 'translateY(0)' }], { duration: KEYBOARD_MS, easing: KEYBOARD_EASING });
+      if (Math.abs(shift) < 1) return [];
+      return [
+        el
+          .animate([{ transform: `translateY(${shift}px)` }, { transform: 'translateY(0)' }], { duration: KEYBOARD_MS, easing: KEYBOARD_EASING })
+          .finished.catch(() => undefined),
+      ];
+    });
+    if (!flips.length) return;
+    keyboardFlips++;
+    Promise.all(flips).then(() => {
+      keyboardFlips--;
+      if (pinnedToBottom.value && !welcome.value) scrollToBottom();
+      measureBottom();
     });
   };
 }
@@ -420,11 +459,12 @@ function followKeyboard(): () => void {
 function jumpToBottom(): void {
   pinnedToBottom.value = true;
   scrollToBottom();
+  measureBottom();
 }
 
 function scrollToBottom(): void {
   const el = scrollRef.value;
-  if (!el) return;
+  if (!el || keyboardFlips) return;
   el.scrollTop = el.scrollHeight;
 }
 
@@ -535,14 +575,16 @@ watch(
   },
 );
 
-watch(welcome, async () => {
+watch(welcome, async (isWelcome) => {
+  if (!isWelcome) welcomeRest = undefined;
   if (coarsePointer.value) return;
   await nextTick();
   composerRef.value?.focus();
 });
 
-useResizeObserver([scrollRef, contentRef], () => {
-  if (pinnedToBottom.value) scrollToBottom();
+useResizeObserver([scrollRef, contentRef, welcomeRef], () => {
+  if (welcome.value) placeWelcome();
+  else if (pinnedToBottom.value) scrollToBottom();
   measureBottom();
 });
 

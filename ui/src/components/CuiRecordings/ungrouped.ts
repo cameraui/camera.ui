@@ -16,7 +16,11 @@ export function ungroupedItemTime(item: UngroupedItem): number {
   return item.event.thumbnailAt ?? item.event.startTime;
 }
 
-export function buildUngroupedItems(events: RecordedEvent[]): UngroupedItem[] {
+export function newestFirst(a: UngroupedItem, b: UngroupedItem): number {
+  return ungroupedItemTime(b) - ungroupedItemTime(a);
+}
+
+export function buildUngroupedItems(events: RecordedEvent[], keepOrder = false): UngroupedItem[] {
   const items: UngroupedItem[] = [];
   for (const event of events) {
     const segments = event.segments ?? [];
@@ -24,10 +28,11 @@ export function buildUngroupedItems(events: RecordedEvent[]): UngroupedItem[] {
       items.push({ event, key: event.id });
       continue;
     }
+    const moments: UngroupedItem[] = [];
     segments.forEach((segment, index) => {
-      if (segment) items.push({ event, key: `${event.id}:seg:${index}`, segIndex: index });
+      if (segment) moments.push({ event, key: `${event.id}:seg:${index}`, segIndex: index });
     });
+    items.push(...moments.sort(newestFirst));
   }
-  items.sort((a, b) => ungroupedItemTime(b) - ungroupedItemTime(a));
-  return items;
+  return keepOrder ? items : items.sort(newestFirst);
 }

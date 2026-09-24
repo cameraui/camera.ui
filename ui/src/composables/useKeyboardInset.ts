@@ -1,3 +1,4 @@
+import { isPageHeld, pinPage, unpinPage } from '@/common/pageScroll.js';
 import { isCapacitor } from '@/connection/index.js';
 
 const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'file', 'color', 'image']);
@@ -51,7 +52,11 @@ export function registerKeyboardInset(): void {
       const unpinScroll = (): void => {
         if (!pinned) return;
         pinned = false;
-        Keyboard.setScroll({ isDisabled: false });
+        Keyboard.setScroll({ isDisabled: false })
+          .catch(() => undefined)
+          .then(() => {
+            if (!pinned) unpinPage();
+          });
       };
 
       Keyboard.addListener('keyboardWillShow', (info) => {
@@ -71,9 +76,9 @@ export function registerKeyboardInset(): void {
       document.addEventListener('focusin', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (!isTextEntryElement(target)) return;
-        if (window.scrollY > 0) return;
         const inOverlay = target.closest('.p-dialog-mask, .p-drawer-mask, .cui-bottom-sheet');
-        if (!inOverlay && document.documentElement.scrollHeight > window.innerHeight + 1) return;
+        if (!inOverlay && !isPageHeld() && (window.scrollY > 0 || document.documentElement.scrollHeight > window.innerHeight + 1)) return;
+        pinPage();
         pinned = true;
         Keyboard.setScroll({ isDisabled: true });
       });

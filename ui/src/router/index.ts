@@ -58,6 +58,7 @@ import PluginsIconActive from '~icons/tabler/puzzle-filled';
 
 import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
+import { holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
 import { isCapacitor, isInCloudSession, useConnection } from '@/connection/index.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
@@ -1386,7 +1387,9 @@ const scrollPositions = new Map<string, number>();
 const MORPH_MAX_WAIT_MS = 600;
 const MORPH_QUIET_MS = 150;
 
-function cameraMorphReady(queryClient: ReturnType<typeof useQueryClient>, scrollTop: number): Promise<void> {
+let activeMorphs = 0;
+
+function cameraMorphReady(queryClient: ReturnType<typeof useQueryClient>): Promise<void> {
   return new Promise((resolve) => {
     let navigated = false;
     let settled = false;
@@ -1418,7 +1421,6 @@ function cameraMorphReady(queryClient: ReturnType<typeof useQueryClient>, scroll
       settled = true;
       observer.disconnect();
       clearTimeout(quietTimer);
-      window.scrollTo({ top: scrollTop, behavior: 'instant' });
       const images = Array.from(target.querySelectorAll('img')).map((img) => img.decode().catch(() => undefined));
       Promise.all(images).then(finish);
     }
@@ -1437,6 +1439,8 @@ const router = createRouter({
   history: isCapacitor ? createWebHashHistory() : createWebHistory(runtimeBase()),
   routes,
   scrollBehavior: async (to, from, savedPosition) => {
+    if (activeMorphs || isPageHeld()) return false;
+
     // Use browser's saved position if available
     if (savedPosition) {
       return savedPosition;
@@ -1491,7 +1495,7 @@ router.beforeEach(async (to, from) => {
   routerStore.routerLoading = true;
   routerStore.setRoutes(from.fullPath, to.fullPath);
 
-  scrollPositions.set(from.path, window.scrollY);
+  scrollPositions.set(from.path, pageScrollY());
 
   if (authStore.user) {
     if (to.path !== from.path) {
@@ -1523,10 +1527,16 @@ router.beforeEach(async (to, from) => {
 router.beforeResolve(async (to, from) => {
   const fromInfo = getTransitionInfo(from.path);
   const toInfo = getTransitionInfo(to.path);
+  // camera pages don't scroll, so a held page stays held between them and never trades margin for scroll
+  const keepHeld = toInfo?.group === 'main' && Boolean(toValue(to.meta.ui?.containerSettings?.disableScroll));
 
   if (!fromInfo || !toInfo || fromInfo.group !== toInfo.group || fromInfo.key === toInfo.key || fromInfo.ignore === toInfo.key || toInfo.ignore === fromInfo.key) {
+    if (!keepHeld) settlePage();
     return;
   }
+
+  const morph = fromInfo.group === 'main';
+  if (!morph) settlePage();
 
   if (fromInfo.group === 'menu' && fromInfo.depth !== undefined && toInfo.depth !== undefined) {
     if (window.innerWidth > 640) return; // desktop: no slide
@@ -1542,10 +1552,21 @@ router.beforeResolve(async (to, from) => {
 
   const queryClient = useQueryClient();
   const scrollTop = scrollPositions.get(to.path) ?? 0;
-  const viewTransition = startViewTransition(fromInfo.group === 'main' ? () => cameraMorphReady(queryClient, scrollTop) : undefined);
+  if (morph) {
+    scrollPositions.delete(to.path);
+    activeMorphs++;
+  }
+
+  const viewTransition = startViewTransition(morph ? () => cameraMorphReady(queryClient) : undefined);
   await viewTransition.captured;
+  // iOS misplaces morph frames when the document scroll changes inside the transition
+  if (morph) holdPageAt(scrollTop);
 
   viewTransition.finished.finally(() => {
+    if (morph) {
+      if (!keepHeld) settlePage(scrollTop);
+      activeMorphs--;
+    }
     routerStore.isTransitioning = false;
     if (hasMenuDirection) {
       delete document.documentElement.dataset.menuDirection;

@@ -3,6 +3,7 @@ import type { UIMessage } from '@tanstack/ai';
 
 export const KEYBOARD_EASING = 'cubic-bezier(0.38, 0.7, 0.125, 1)';
 export const KEYBOARD_MS = 280;
+export const KEYBOARD_GAP = 12;
 
 export const PENDING_ANSWER: UIMessage = { id: 'pending-answer', role: 'assistant', parts: [] };
 

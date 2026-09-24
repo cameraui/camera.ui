@@ -331,7 +331,7 @@ export default defineConfig(({ command }) => ({
     __UI_VERSION__: JSON.stringify(UI_VERSION),
   },
   resolve: {
-    dedupe: ['vue', 'primevue', '@primevue/core', '@primeuix/utils', '@vueuse/core'],
+    dedupe: ['vue', 'primevue', '@primevue/core', '@primeuix/utils', '@vueuse/core', 'vue-i18n', '@camera.ui/browser', '@camera.ui/logger', '@camera.ui/sdk'],
     alias: [
       ...(IS_MOBILE ? [{ find: 'virtual:pwa-register/vue', replacement: resolve(__dirname, './src/composables/pwa-register-stub.ts') }] : []),
       { find: /^firebase\/messaging$/, replacement: resolve(__dirname, './src/composables/firebase-messaging-stub.ts') },
