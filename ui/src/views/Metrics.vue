@@ -63,6 +63,7 @@
                 :pagination="{ page: showStreams ? tablePages.streams : tablePages.frameworker }"
                 :total-records="showStreams ? streamStats.length : frameworkerItems.length"
                 :empty-message="$t('views.metrics.no_cameras')"
+                :group-by="showStreams ? 'cameraName' : undefined"
                 @update:page="onPage($event, showStreams ? 'streams' : 'frameworker')"
               >
                 <template #actions>

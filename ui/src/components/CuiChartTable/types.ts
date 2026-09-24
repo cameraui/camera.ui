@@ -68,6 +68,7 @@ export interface CuiChartTableProps {
   pagination?: PaginationQuery;
   chartData?: Record<string, ChartData<'bar'>>;
   emptyMessage?: string;
+  groupBy?: string;
 }
 
 export const isHeaderCategory = (header: TableHeader): header is TableHeaderCategory => {
