@@ -126,6 +126,9 @@
             class="bbox-label cursor-move"
             :data-box-label="i"
             @pointerdown.stop="startMove(i, $event)"
+            @pointermove="onPointerMove"
+            @pointerup="onPointerUp"
+            @pointercancel="onPointerUp"
             @touchstart.stop
             @mousedown.stop
             :class="{
@@ -261,6 +264,8 @@ interface DragState {
   corner?: Corner;
   startX: number;
   startY: number;
+  clientX: number;
+  clientY: number;
   moved: boolean;
   origin: DBTrainingCandidateBox;
 }
@@ -274,7 +279,8 @@ const trainingSocket = useTrainingSocket();
 
 const corners: Corner[] = ['nw', 'ne', 'sw', 'se'];
 const MIN_SIZE = 0.01;
-const TAP_THRESHOLD = 0.006;
+const TAP_SLOP_PX = 4;
+const TOUCH_TAP_SLOP_PX = 10;
 const LABEL_SPACE_PX = 26;
 const SWIPE_MIN_PX = 60;
 const SWIPE_MAX_MS = 400;
@@ -457,8 +463,8 @@ function pointerPos(event: PointerEvent): { x: number; y: number } {
   };
 }
 
-function dragStart(event: PointerEvent, state: Omit<DragState, 'moved'>): void {
-  drag.value = { ...state, moved: false };
+function dragStart(event: PointerEvent, state: Omit<DragState, 'moved' | 'clientX' | 'clientY'>): void {
+  drag.value = { ...state, clientX: event.clientX, clientY: event.clientY, moved: false };
   svgRef.value?.setPointerCapture(event.pointerId);
 }
 
@@ -497,7 +503,8 @@ function onPointerMove(event: PointerEvent): void {
   const state = drag.value;
   if (!state) return;
   const { x, y } = pointerPos(event);
-  if (Math.hypot(x - state.startX, y - state.startY) > TAP_THRESHOLD) state.moved = true;
+  const slop = event.pointerType === 'touch' ? TOUCH_TAP_SLOP_PX : TAP_SLOP_PX;
+  if (Math.hypot(event.clientX - state.clientX, event.clientY - state.clientY) > slop) state.moved = true;
   if (event.pointerType === 'touch' && state.moved) {
     if (loupeWanted(state)) updateLoupe(event);
     else loupe.value = null;
