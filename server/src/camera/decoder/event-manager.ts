@@ -188,7 +188,6 @@ export class DetectionEventManager {
 
   private shippedSceneAt = 0;
   private attributeThumbnails = new Map<string, ThumbnailCandidate>();
-  private identifiedFaceTracks = new Set<number>();
   private heldAttributes: HeldAttribute[] = [];
   private shippedAttributes = new Map<number, Uint8Array>();
   private segmentMoment?: SegmentMoment;
@@ -824,53 +823,38 @@ export class DetectionEventManager {
 
   private attachFace(face: TrackedFaceDetection, model: string | undefined): void {
     if (!this.activeSegment || face.confidence < this.faceMinConfidence) return;
+    if (!face.identity && !face.embedding?.length) return;
 
-    if (face.identity) {
-      const named = this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity);
-      if (this.nameUnknownOfTrack(face, named)) return;
-      if (!named) this.pushAttribute({ type: 'face', label: face.identity, parentTrackId: face.parentTrackId });
+    // one face per track, named or not: two people the recognizer gave the same
+    // name stay two faces, each correctable on its own. Without a track there
+    // is nothing to tell faces apart by, so they share one slot per name, and a
+    // name a tracked face already carries is that person
+    const tracked = face.parentTrackId !== undefined;
+    if (!tracked && face.identity && this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity)) return;
+    const bucket = tracked ? `t${face.parentTrackId}` : `untracked:${face.identity ?? ''}`;
+    const index = this.segmentFaceTrackIds.get(bucket);
+    if (index === undefined) {
+      this.segmentFaceTrackIds.set(bucket, this.activeSegment.attributes.length);
+      this.pushAttribute({ type: 'face', label: face.identity ?? 'unknown', confidence: face.confidence, parentTrackId: face.parentTrackId }, this.heldFace(face, model));
       return;
     }
-    if (!face.embedding?.length) return;
 
-    // one slot per person, and one shared slot for faces the tracker could
-    // not attach to anyone: without a track there is nothing to tell two
-    // strangers apart by, and a slot per sighting would file the same face
-    // into the index on every tick
-    const bucket = face.parentTrackId !== undefined ? `t${face.parentTrackId}` : 'untracked';
-    const existingIdx = this.segmentFaceTrackIds.get(bucket);
-    if (existingIdx !== undefined) {
-      const existing = this.activeSegment.attributes[existingIdx];
-      const held = this.heldAttributes[existingIdx];
-      // the sharpest face wins, not the one the detector was surest about
-      const better = face.quality !== undefined && held?.quality !== undefined ? face.quality > held.quality : face.confidence > (existing?.confidence ?? 0);
-      if (existing && better) {
-        existing.confidence = face.confidence;
-        this.heldAttributes[existingIdx] = this.heldFace(face, model);
-      }
-      return;
-    }
-    this.segmentFaceTrackIds.set(bucket, this.activeSegment.attributes.length);
-    this.pushAttribute({ type: 'face', label: 'unknown', confidence: face.confidence, parentTrackId: face.parentTrackId }, this.heldFace(face, model));
+    const existing = this.activeSegment.attributes[index];
+    if (!existing) return;
+    if (face.identity && existing.label === 'unknown') existing.label = face.identity;
+    if (!this.betterFace(face, existing, this.heldAttributes[index])) return;
+    existing.confidence = face.confidence;
+    this.heldAttributes[index] = this.heldFace(face, model);
   }
 
-  private nameUnknownOfTrack(face: TrackedFaceDetection, named: boolean): boolean {
-    if (!this.activeSegment || !face.identity || face.parentTrackId === undefined) return false;
-    const bucket = `t${face.parentTrackId}`;
-    const index = this.segmentFaceTrackIds.get(bucket);
-    if (index === undefined) return false;
-    this.segmentFaceTrackIds.delete(bucket);
-
-    const unknown = this.activeSegment.attributes[index];
-    if (!unknown) return false;
-    if (!named) {
-      unknown.label = face.identity;
-      return true;
-    }
-    // the name already has its attribute: without a vector this one is not filed among the strangers
-    const held = this.heldAttributes[index];
-    if (held) this.heldAttributes[index] = { thumbnail: held.thumbnail };
-    return true;
+  // picture, vector and points travel as one sighting: a face without a vector
+  // never replaces one that has it, and the sharpest face wins, not the one the
+  // detector was surest about
+  private betterFace(face: TrackedFaceDetection, existing: RecordedAttribute, held: HeldAttribute | undefined): boolean {
+    const hasVector = Boolean(face.embedding?.length);
+    if (hasVector !== Boolean(held?.embedding?.length)) return hasVector;
+    if (Boolean(face.thumbnail) !== Boolean(held?.thumbnail)) return Boolean(face.thumbnail);
+    return face.quality !== undefined && held?.quality !== undefined ? face.quality > held.quality : face.confidence > (existing.confidence ?? 0);
   }
 
   private attachClip(clip: TrackedClipEmbedding, model: string | undefined): void {
@@ -966,15 +950,8 @@ export class DetectionEventManager {
   private updateThumbnails(thumbnails: DetectionThumbnail[]): void {
     for (const thumb of thumbnails) {
       const label = thumb.label;
-      if (!label.startsWith('face:') && !label.startsWith('plate:') && !label.startsWith('class:')) continue;
-      // once a track's face resolved to an identity, its earlier and later
-      // "unknown" crops are the same person, not a second thumbnail
-      if (label.startsWith('face:') && label !== 'face:unknown' && thumb.trackId !== undefined) {
-        this.identifiedFaceTracks.add(thumb.trackId);
-        const unknown = this.attributeThumbnails.get('face:unknown');
-        if (unknown?.trackId === thumb.trackId) this.attributeThumbnails.delete('face:unknown');
-      }
-      if (label === 'face:unknown' && thumb.trackId !== undefined && this.identifiedFaceTracks.has(thumb.trackId)) continue;
+      // faces hold their own picture per track (attachFace)
+      if (!label.startsWith('plate:') && !label.startsWith('class:')) continue;
       this.updateBestCandidate(this.attributeThumbnails, label, thumb);
       // a moving vehicle produces a distinct plate crop almost every frame, cap retention
       if (label.startsWith('plate:')) this.prunePlateThumbnails();
@@ -1078,7 +1055,9 @@ export class DetectionEventManager {
   }
 
   private attributeThumbnailFor(attribute: RecordedAttribute): Buffer | undefined {
-    const keys = [`face:${attribute.label}`, `plate:${attribute.label}`, `class:${attribute.label}`];
+    // the best picture of a name may show someone else who carries it
+    if (attribute.type === 'face') return undefined;
+    const keys = [`plate:${attribute.label}`, `class:${attribute.label}`];
     const directKey = `${attribute.type}:${attribute.label}`;
     if (!keys.includes(directKey)) keys.unshift(directKey);
 
@@ -1140,7 +1119,6 @@ export class DetectionEventManager {
     this.segmentMoment = undefined;
     this.pendingMoment = undefined;
     this.attributeThumbnails.clear();
-    this.identifiedFaceTracks.clear();
     this.heldAttributes = [];
     this.shippedAttributes.clear();
     this.segmentFaceTrackIds.clear();

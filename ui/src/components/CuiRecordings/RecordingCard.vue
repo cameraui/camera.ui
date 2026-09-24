@@ -180,7 +180,7 @@ import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { FaceReassignProps } from '@/components/CuiDialog/templates/FaceReassign/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
-import type { EventThumbnails } from '@camera.ui/nvr';
+import type { EventThumbnails, FaceReassignOptions } from '@camera.ui/nvr';
 import type { FaceTarget, RecordingCardEmits, RecordingCardProps } from './types.js';
 
 const props = defineProps<RecordingCardProps>();
@@ -267,18 +267,17 @@ const segPosition = computed(() => {
   return props.segIndex !== undefined && count > 1 ? `${props.segIndex + 1}/${count}` : undefined;
 });
 
-const carouselImages = computed<{ url: string; label?: string; type: string; crop: boolean; faceSeg?: number }[]>(() => {
+const carouselImages = computed<{ url: string; label?: string; type: string; crop: boolean; faceSeg?: number; attrIndex?: number }[]>(() => {
   const thumbs = loadedThumbs.value;
   const sceneUrl = primary.value?.url;
   if (!thumbs || !sceneUrl) return [];
 
-  const items: { url: string; label?: string; type: string; crop: boolean; faceSeg?: number }[] = [
+  const items: { url: string; label?: string; type: string; crop: boolean; faceSeg?: number; attrIndex?: number }[] = [
     { url: sceneUrl, label: primary.value?.label, type: primaryType.value, crop: false },
   ];
-  for (const tile of attributeThumbnails(thumbs, props.segIndex)) {
+  for (const tile of attributeThumbnails(thumbs, props.segIndex, props.event)) {
     if (items.some((item) => item.url === tile.url)) continue;
-    const segPart = tile.key.split(':')[0];
-    items.push({ url: tile.url, label: tile.label, type: tile.type, crop: true, faceSeg: /^\d+$/.test(segPart) ? Number(segPart) : -1 });
+    items.push({ url: tile.url, label: tile.label, type: tile.type, crop: true, faceSeg: tile.seg ?? -1, attrIndex: tile.attrIndex });
   }
   if (props.segIndex === undefined) {
     for (const key of Object.keys(thumbs.cards ?? thumbs.strips ?? {}).sort((a, b) => Number(a) - Number(b))) {
@@ -353,11 +352,12 @@ const previewIndicator = computed(() => {
 
 const faceTarget = computed<FaceTarget | undefined>(() => {
   const img = activeImage.value;
-  if (img?.crop) return img.type === 'face' ? { seg: img.faceSeg ?? -1, label: img.label || 'unknown' } : undefined;
+  if (img?.crop) return img.type === 'face' ? { seg: img.faceSeg ?? -1, label: img.label || 'unknown', attrIndex: img.attrIndex } : undefined;
   const seg = props.segIndex ?? primary.value?.segIndex;
   if (activeImageIndex.value > 0 || seg === undefined) return undefined;
-  const faces = shownSegment.value?.attributes.filter((a) => a.type === 'face') ?? [];
-  return faces.length === 1 ? { seg, label: faces[0].label || 'unknown' } : undefined;
+  const attributes = shownSegment.value?.attributes ?? [];
+  const faces = attributes.flatMap((attribute, index) => (attribute.type === 'face' ? [index] : []));
+  return faces.length === 1 ? { seg, label: attributes[faces[0]].label || 'unknown', attrIndex: faces[0] } : undefined;
 });
 
 const cardMenuItems = computed<MenuItem[]>(() => {
@@ -512,13 +512,15 @@ function openFaceReassignDialog(): void {
 
 async function reassignFace(target: FaceTarget, newName: string, onCrop: boolean): Promise<void> {
   if (reassignBusy.value) return;
-  const nvr = nvrPluginRef.value as { reassignEventFace?: (eventId: string, segIndex: number, oldName: string, newName: string) => Promise<number> } | undefined;
+  const nvr = nvrPluginRef.value as
+    { reassignEventFace?: (eventId: string, segIndex: number, oldName: string, newName: string, options?: FaceReassignOptions) => Promise<number> } | undefined;
   if (!nvr?.reassignEventFace) return;
   reassignBusy.value = true;
   try {
-    const count = await nvr.reassignEventFace(props.event.id, target.seg, target.label, newName);
+    const options = target.attrIndex !== undefined ? { attrIndex: target.attrIndex } : undefined;
+    const count = await nvr.reassignEventFace(props.event.id, target.seg, target.label, newName, options);
     if (count > 0) {
-      if (onCrop) focusFace.value = { seg: target.seg, label: newName || 'unknown' };
+      if (onCrop) focusFace.value = { seg: target.seg, label: newName || 'unknown', attrIndex: target.attrIndex };
       invalidateEventThumbnails(props.event.id);
     }
     toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
@@ -564,7 +566,9 @@ async function handleDownload(): Promise<void> {
 watch(carouselImages, (images) => {
   const focus = focusFace.value;
   if (!focus) return;
-  const index = images.findIndex((img) => img.crop && img.faceSeg === focus.seg && img.label === focus.label);
+  const index = images.findIndex(
+    (img) => img.crop && img.faceSeg === focus.seg && (focus.attrIndex !== undefined ? img.attrIndex === focus.attrIndex : img.label === focus.label),
+  );
   if (index < 0) return;
   activeImageIndexRaw.value = index;
   focusFace.value = undefined;

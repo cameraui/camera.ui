@@ -166,7 +166,7 @@ const carouselImages = computed<{ url: string; label?: string; type: string; cro
   if (!thumbs || !sceneUrl) return [];
 
   const items = [{ url: sceneUrl, label: primary.value?.label, type: primary.value?.type ?? getPrimaryType(props.event), crop: false }];
-  for (const tile of attributeThumbnails(thumbs, cardSegIndex.value)) {
+  for (const tile of attributeThumbnails(thumbs, cardSegIndex.value, props.event)) {
     if (items.some((item) => item.url === tile.url)) continue;
     items.push({ url: tile.url, label: tile.label, type: tile.type, crop: true });
   }

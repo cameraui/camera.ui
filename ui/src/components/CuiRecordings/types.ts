@@ -67,6 +67,7 @@ export interface RecordingCardEmits {
 export interface FaceTarget {
   seg: number;
   label: string;
+  attrIndex?: number;
 }
 
 export interface RecordingsFilterSidebarProps {
