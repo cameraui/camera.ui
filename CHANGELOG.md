@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.7]
+
+### Changed
+
+- **The Apple TV app opens your server right away.** With a single server it skips the server picker. With several, **Open at launch** in the app's settings makes one of them the start server; **Switch server** still leads back to the picker.
+
+### Fixed
+
+- **Live views on the Apple TV play smoothly.** With many cameras on screen, Camview in particular, the picture hitched every second or two, and now and then a live view jumped back a second and played it again. Muted tiles no longer process audio at all, which also takes load off the Apple TV.
+
+- **The month arrows of the timeline's date picker work on phones.** The picker opened under the status bar, now it opens in the middle of the screen.
+
+- **Opening a camera animates without a jump on iPhone.** When Home was scrolled, the card jumped to the top for a moment before it moved, and on the way back Home flashed at the top.
+
+- **Home shows the last snapshots right away.** Coming back from a camera, the cards showed a spinner for a moment although the snapshot was already there.
+
+- **The assistant stays in place when the keyboard opens on phones.** A new chat no longer slides up and jumps back, and the button to jump to the latest message no longer shows up while you are already at the bottom.
+
+- **Panels and dialogs hold still while you type on iPhone.** Over a scrolled page, the camera panel, the assistant panel and dialogs jumped when the keyboard opened or closed. Dropdowns in dialogs no longer jump when they open, stay open when you tap their search field, and move above the keyboard.
+
+- **Correcting a person on a recording card hits the right face.** With two people in one moment, the main picture carried only one name, and correcting it there renamed the other person and filed their face under the new name. The main picture now names everyone, like Azra +1, and after a correction the card stays on the face you corrected.
+
+- **Ungroup in Recordings keeps the episodes.** Turning it on hid every episode card, so cards seemed to go missing. With a semantic search it also sorted the results by time instead of by match.
+
+- **Server updates finish on slower machines.** An install that took longer than five minutes was reported as failed, and the new version only arrived with a manual restart. **Settings > System** also offers the restart again when an update is waiting for it.
+
 ## [2.2.6]
 
 ### Added
