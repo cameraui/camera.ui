@@ -10,7 +10,7 @@ export class ApiController {
 
   public welcome(_req: FastifyRequest, reply: FastifyReply): FastifyReply {
     const version = ConfigService.RUNNING_VERSION;
-    const installedVersion = ConfigService.VERSION;
+    const installedVersion = container.resolve<ConfigService>('configService').STAGED_VERSION ?? ConfigService.VERSION;
     const dbs = container.resolve<Database>('dbs');
     return reply.code(200).send({
       message: 'Welcome to camera.ui API',

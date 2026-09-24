@@ -1,5 +1,5 @@
 import { getUserHomeDir } from '@camera.ui/common/node';
-import { IS_DEV, IS_DOCKER, IS_ELECTRON, mergeWith, structuredClone } from '@camera.ui/common/utils';
+import { APP_SERVER_NAME, IS_DEV, IS_DOCKER, IS_ELECTRON, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { go2rtcPath } from '@camera.ui/go2rtc';
 import { natsServerPath } from '@camera.ui/nats';
 import { tunnelPath } from '@camera.ui/tunnel';
@@ -164,6 +164,16 @@ export class ConfigService {
       debugEnabled: this._go2rtcConfig.log?.level === 'debug' || this._go2rtcConfig.log?.level === 'trace',
       traceEnabled: this._go2rtcConfig.log?.level === 'trace',
     };
+  }
+
+  public get STAGED_VERSION(): string | undefined {
+    const serverPath = join(this.HOME_PATH, 'server');
+    if (existsSync(join(serverPath, '.staging.lock'))) return undefined;
+    try {
+      return readJsonSync(join(serverPath, '.staging', 'node_modules', APP_SERVER_NAME, 'package.json')).version;
+    } catch {
+      return undefined;
+    }
   }
 
   constructor(homePath?: string, options: ConfigServiceOptions = {}) {

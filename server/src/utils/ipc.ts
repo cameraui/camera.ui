@@ -3,8 +3,8 @@ import { IS_ELECTRON } from '@camera.ui/common/utils';
 import type { AppUpdateAvailableMessage, CLIMessage, IPCMessage } from '../types.js';
 
 const REPORT_TIMEOUT_MS = 1000;
-const UPDATE_TIMEOUT_MS = 5 * 60 * 1000;
-const ELECTRON_UPDATE_TIMEOUT_MS = 15 * 60 * 1000;
+const UPDATE_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const UPDATE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export interface AppUpdateState {
   version: string;
@@ -73,17 +73,15 @@ async function* streamUpdateOutput(): AsyncGenerator<string, void, unknown> {
   let updateFailed = false;
   let updateError: Error | null = null;
 
-  const timeoutMs = IS_ELECTRON ? ELECTRON_UPDATE_TIMEOUT_MS : UPDATE_TIMEOUT_MS;
-  const timer = setTimeout(() => {
-    if (resolver) {
-      rejector?.(new Error(`Update timeout after ${timeoutMs / 60_000} minutes`));
-    }
-  }, timeoutMs);
+  const totalTimer = setTimeout(() => fail(new Error(`Update timeout after ${UPDATE_TIMEOUT_MS / 60_000} minutes`)), UPDATE_TIMEOUT_MS);
+  let idleTimer = setTimeout(failStalled, UPDATE_IDLE_TIMEOUT_MS);
 
   const handler = (message: CLIMessage): void => {
     switch (message.type) {
       case 'UPDATE_OUTPUT':
       case 'UPDATE_ERROR': {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(failStalled, UPDATE_IDLE_TIMEOUT_MS);
         const result = { done: false, value: message.data };
         if (resolver) {
           resolver(result);
@@ -94,13 +92,7 @@ async function* streamUpdateOutput(): AsyncGenerator<string, void, unknown> {
         break;
       }
       case 'UPDATE_FAILED': {
-        updateFailed = true;
-        updateError = new Error(message.error ?? 'Update failed');
-        if (rejector) {
-          rejector(updateError);
-        }
-        process.removeListener('message', handler);
-        clearTimeout(timer);
+        fail(new Error(message.error ?? 'Update failed'));
         break;
       }
       case 'UPDATE_COMPLETE': {
@@ -112,11 +104,28 @@ async function* streamUpdateOutput(): AsyncGenerator<string, void, unknown> {
           messageQueue.push(result);
         }
         process.removeListener('message', handler);
-        clearTimeout(timer);
+        stopTimers();
         break;
       }
     }
   };
+
+  function fail(error: Error): void {
+    updateFailed = true;
+    updateError = error;
+    rejector?.(error);
+    process.removeListener('message', handler);
+    stopTimers();
+  }
+
+  function failStalled(): void {
+    fail(new Error(`Update stalled, no output for ${UPDATE_IDLE_TIMEOUT_MS / 60_000} minutes`));
+  }
+
+  function stopTimers(): void {
+    clearTimeout(totalTimer);
+    clearTimeout(idleTimer);
+  }
 
   process.on('message', handler);
 
@@ -150,7 +159,7 @@ async function* streamUpdateOutput(): AsyncGenerator<string, void, unknown> {
     }
   } finally {
     process.removeListener('message', handler);
-    clearTimeout(timer);
+    stopTimers();
   }
 }
 
