@@ -1,30 +1,55 @@
 let shift = 0;
 let pinned = false;
+let parked: number | undefined;
 
 export function pageScrollY(): number {
-  return window.scrollY - shift;
+  return parked ?? window.scrollY - shift;
 }
 
 export function isPageHeld(): boolean {
   return shift !== 0;
 }
 
+export function isPageParked(): boolean {
+  return parked !== undefined;
+}
+
 export function holdPageAt(scroll: number): void {
+  parked = undefined;
   apply(window.scrollY, scroll);
 }
 
 export function settlePage(scroll = pageScrollY()): void {
+  if (parked !== undefined) return;
   apply(pinned ? 0 : scroll, scroll);
 }
 
 export function pinPage(): void {
   pinned = true;
-  apply(0, pageScrollY());
+  if (parked === undefined) apply(0, pageScrollY());
 }
 
 export function unpinPage(): void {
   pinned = false;
   settlePage();
+}
+
+export function parkPage(): void {
+  if (parked !== undefined) return;
+  const scroll = pageScrollY();
+  apply(0, 0);
+  parked = scroll;
+}
+
+export function unparkPage(): void {
+  if (parked === undefined) return;
+  const scroll = parked;
+  parked = undefined;
+  settlePage(scroll);
+}
+
+export function dropParkedPage(): void {
+  parked = undefined;
 }
 
 function apply(documentScroll: number, scroll: number): void {

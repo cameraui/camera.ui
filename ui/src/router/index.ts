@@ -58,7 +58,7 @@ import PluginsIconActive from '~icons/tabler/puzzle-filled';
 
 import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
-import { holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
+import { dropParkedPage, holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
 import { isCapacitor, isInCloudSession, useConnection } from '@/connection/index.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
@@ -1496,6 +1496,7 @@ router.beforeEach(async (to, from) => {
   routerStore.setRoutes(from.fullPath, to.fullPath);
 
   scrollPositions.set(from.path, pageScrollY());
+  if (to.path !== from.path) dropParkedPage();
 
   if (authStore.user) {
     if (to.path !== from.path) {
