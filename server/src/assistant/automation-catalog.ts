@@ -140,7 +140,7 @@ export const AUTOMATION_CATALOG: CatalogNode[] = [
         name: 'prompt',
         type: 'string',
         required: true,
-        description: 'Question or task, templates allowed, e.g. "Look at the picture: is this a delivery? {{event.labels}}"',
+        description: 'Question or task, templates allowed, e.g. "Look at the picture: is this a delivery? {{event.types}}"',
       },
       { name: 'image', type: 'string', description: 'Use {{snapshot.base64}} after an action-snapshot to let the assistant see the picture' },
       { name: 'deliver', type: 'string', description: 'push (default) | thread | both | none' },
@@ -210,7 +210,17 @@ export const AUTOMATION_CATALOG: CatalogNode[] = [
 ];
 
 export const AUTOMATION_VARIABLES: Record<string, string[]> = {
-  'trigger-detection': ['{{event.id}}', '{{event.type}}', '{{event.label}}', '{{event.confidence}}', '{{event.faces}}', '{{event.plates}}', '{{event.cameraId}}'],
+  'trigger-detection': [
+    '{{event.id}}',
+    '{{event.type}}',
+    '{{event.types}}',
+    '{{event.label}}',
+    '{{event.confidence}}',
+    '{{event.state}}',
+    '{{event.faces}}',
+    '{{event.plates}}',
+    '{{event.cameraId}}',
+  ],
   'trigger-sensor': ['{{sensor.value}}', '{{sensor.previousValue}}', '{{sensor.property}}', '{{sensor.sensorType}}'],
   'trigger-system': [
     '{{system.pluginName}}',
