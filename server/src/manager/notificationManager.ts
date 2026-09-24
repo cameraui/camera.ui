@@ -155,6 +155,18 @@ export class NotificationManager {
     return true;
   }
 
+  public async removeById(userId: string, id: string): Promise<boolean> {
+    const next = await this.commitHistory(userId, (items) => {
+      const remaining = items.filter((n) => n.id !== id);
+      return remaining.length === items.length ? undefined : remaining;
+    });
+    if (!next) return false;
+
+    this.emitToUser(userId, 'history', next);
+    await this.dropImages([id]);
+    return true;
+  }
+
   public async removeByTagForAll(tag: string): Promise<void> {
     for (const user of this.usersService.list()) {
       await this.removeByTag(user._id, tag);

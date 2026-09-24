@@ -22,6 +22,7 @@ const state = reactive<NotificationsSocketState>({
 
 let scope: ReturnType<typeof effectScope> | null = null;
 let channel: SocketChannel | null = null;
+let badgeReady = false;
 
 function ensureChannel(): SocketChannel {
   if (channel) return channel;
@@ -45,9 +46,7 @@ function ensureChannel(): SocketChannel {
       forwardToDesktop(n);
     });
 
-    ch.on<StoredNotification[]>('history', (data) => {
-      state.notifications = data;
-    });
+    ch.on<StoredNotification[]>('history', takeServerList);
 
     ch.on<CastTarget[]>('castTargets', (data) => {
       state.castTargets = data;
@@ -58,17 +57,26 @@ function ensureChannel(): SocketChannel {
       fetchCastTargets();
     });
 
-    watch(
-      () => state.notifications.filter((n) => n.seenAt == null).length,
-      (count) => {
-        setNativeBadge(count);
-        setFaviconBadge(count > 0);
-      },
-      { immediate: true },
-    );
+    useTabVisibility().onTabVisible(() => fetchNotifications());
+
+    watch(() => state.notifications.filter((n) => n.seenAt == null).length, applyBadge);
   });
 
   return channel!;
+}
+
+function takeServerList(list: StoredNotification[]): void {
+  state.notifications = list;
+  badgeReady = true;
+  applyBadge();
+}
+
+// the iOS extension counts pushes up on its own, so every server list resets the badge even when the unread count did not change
+function applyBadge(): void {
+  if (!badgeReady) return;
+  const count = state.notifications.filter((n) => n.seenAt == null).length;
+  setNativeBadge(count);
+  setFaviconBadge(count > 0);
 }
 
 function forwardToDesktop(n: StoredNotification): void {
@@ -116,8 +124,7 @@ async function fetchCastTargets(): Promise<void> {
 async function fetchNotifications(): Promise<void> {
   if (!channel?.ready.value) return;
   try {
-    const data = await channel.request<StoredNotification[]>('get-notifications');
-    state.notifications = data;
+    takeServerList(await channel.request<StoredNotification[]>('get-notifications'));
   } catch {
     // server unreachable — silent; reconnect path will re-fetch
   }
@@ -136,6 +143,7 @@ export function useNotificationsSocket() {
     const index = state.notifications.findIndex((n) => n.id === notification.id);
     if (index !== -1) state.notifications.splice(index, 1);
     if (notification.tag) channel?.emit('remove-notification', notification.tag);
+    else channel?.emit('remove-notification-id', notification.id);
   }
 
   function clearNotifications(): void {
@@ -185,6 +193,9 @@ export function resetNotificationsSocket(): void {
   scope?.stop();
   scope = null;
   channel = null;
+  badgeReady = false;
   state.notifications = [];
   state.castTargets = [];
+  setNativeBadge(0);
+  setFaviconBadge(false);
 }

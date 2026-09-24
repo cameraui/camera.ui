@@ -21,6 +21,7 @@ export class NotificationsNamespace {
 
       socket.on('get-notifications', (_payload: unknown, callback?: (h: StoredNotification[]) => void) => this.getNotifications(socket, callback));
       socket.on('remove-notification', (tag: string) => this.removeNotification(socket, tag));
+      socket.on('remove-notification-id', (id: string) => this.removeNotificationById(socket, id));
       socket.on('clear-notifications', () => this.clearNotifications(socket));
       socket.on('mark-all-seen', () => this.markAllSeen(socket));
       socket.on('mark-seen', (id: string) => this.markSeen(socket, id));
@@ -47,6 +48,12 @@ export class NotificationsNamespace {
     const userId = this.userIdOf(socket);
     if (!userId || !tag) return;
     this.proxyServer.notificationManager.removeByTag(userId, tag);
+  }
+
+  public removeNotificationById(socket: Socket, id?: string): void {
+    const userId = this.userIdOf(socket);
+    if (!userId || !id) return;
+    this.proxyServer.notificationManager.removeById(userId, id);
   }
 
   public markAllSeen(socket: Socket): void {
