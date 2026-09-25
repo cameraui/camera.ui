@@ -481,32 +481,16 @@
                   </Button>
 
                   <Button
-                    v-if="showFsShortcutsButton && controlBarLayout.shortcuts.inline"
+                    v-if="showFullscreenMenu"
                     fluid
                     text
                     severity="contrast"
                     class="control-bar-btn"
-                    :class="{ active: shortcutsVisible }"
-                    @click="toggleShortcuts()"
+                    :class="{ '!text-primary': fullscreenMenuActive }"
+                    @click="fullscreenMenuRef?.toggleMenu($event)"
                   >
                     <template #icon>
-                      <i-lucide:layout-grid class="w-[18px] h-[18px]" />
-                    </template>
-                  </Button>
-
-                  <Button
-                    v-if="showFsTimelineButton && controlBarLayout.timeline.inline"
-                    :disabled="showPtz"
-                    fluid
-                    text
-                    severity="contrast"
-                    class="control-bar-btn"
-                    :class="{ active: timelineState }"
-                    @click="toggleTimeline"
-                  >
-                    <template #icon>
-                      <i-mingcute:timeline-fill v-if="timelineState" class="w-[18px] h-[18px]" />
-                      <i-mingcute:timeline-line v-else class="w-[18px] h-[18px]" />
+                      <i-lucide:more-vertical class="w-[18px] h-[18px]" />
                     </template>
                   </Button>
 
@@ -648,32 +632,6 @@
                     <i-fluent:picture-in-picture-16-regular v-if="!isPip" class="w-[18px] h-[18px] shrink-0" />
                     <i-fluent:picture-in-picture-16-filled v-else class="w-[18px] h-[18px] shrink-0" />
                     <span>{{ isPip ? $t('components.player.hide_pip') : $t('components.player.show_pip') }}</span>
-                  </button>
-
-                  <button
-                    v-if="showFsShortcutsButton && controlBarLayout.shortcuts.inMenu"
-                    class="more-menu-item"
-                    @click="
-                      toggleShortcuts();
-                      morePopoverRef?.hide();
-                    "
-                  >
-                    <i-lucide:layout-grid class="w-[18px] h-[18px] shrink-0" />
-                    <span>{{ $t('components.player.shortcuts') }}</span>
-                  </button>
-
-                  <button
-                    v-if="showFsTimelineButton && controlBarLayout.timeline.inMenu"
-                    :disabled="showPtz"
-                    class="more-menu-item"
-                    @click="
-                      toggleTimeline();
-                      morePopoverRef?.hide();
-                    "
-                  >
-                    <i-mingcute:timeline-fill v-if="timelineState" class="w-[18px] h-[18px] shrink-0" />
-                    <i-mingcute:timeline-line v-else class="w-[18px] h-[18px] shrink-0" />
-                    <span>{{ timelineState ? $t('components.player.hide_timeline') : $t('components.player.show_timeline') }}</span>
                   </button>
                 </div>
               </Popover>
@@ -870,6 +828,21 @@
     ></CuiMenu>
 
     <CuiMenu
+      ref="fullscreenMenuRef"
+      :items="fullscreenMenuItems"
+      :popover="{
+        appendTo: popoverAppendTarget,
+        pt: {
+          content: {
+            class: 'p-0! rounded-xl! overflow-hidden!',
+          },
+        },
+      }"
+      @show="controlBarPopoverOpen = true"
+      @hide="controlBarPopoverOpen = false"
+    ></CuiMenu>
+
+    <CuiMenu
       ref="ptzPresetMenuRef"
       :items="ptzPresetMenuItems"
       @show="controlBarPopoverOpen = true"
@@ -1019,6 +992,7 @@ const showDescription = ref(false);
 const streamMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('streamMenuRef');
 const castMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('castMenuRef');
 const ptzPresetMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('ptzPresetMenuRef');
+const fullscreenMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('fullscreenMenuRef');
 const detectionCanvasRef = useTemplateRef<InstanceType<typeof CuiBBoxPlayground>>('detectionCanvasRef');
 const playerContainerRef = useTemplateRef('playerContainerRef');
 const nativePipMode = ref(false);
@@ -1301,8 +1275,6 @@ const showPtzToolbar = computed(
 );
 const showDetectionIndicator = computed(() => detectionIndicatorOverlay.value && hasActiveDetection.value);
 const shortcutsAvailable = computed(() => showShortcuts.value || (fullscreenShortcuts.value && cameraStream.isFullscreen.value));
-const showFsShortcutsButton = computed(() => cameraStream.isFullscreen.value && shortcutsAvailable.value);
-const showFsTimelineButton = computed(() => cameraStream.isFullscreen.value && fullscreenTimeline.value);
 const timelineVisible = computed(
   () => timelineState.value && !showPtz.value && !inStandby.value && !gridSearchActive.value && (!cameraStream.isFullscreen.value || fullscreenTimeline.value),
 );
@@ -1496,7 +1468,8 @@ const showOpenCameraButton = computed(() => cardClickAction.value !== 'redirect'
 const popoverAppendTarget = computed<HTMLElement | 'body'>(() => topmostFullscreen.value ?? 'body');
 
 const controlBarLayout = computed(() => {
-  const full = isFullPlayer.value;
+  const fullscreen = cameraStream.isFullscreen.value;
+  const full = isFullPlayer.value || fullscreen;
   return {
     rewind: { inline: full, inMenu: !full },
     fastForward: { inline: full, inMenu: !full },
@@ -1504,11 +1477,60 @@ const controlBarLayout = computed(() => {
     speaker: { inline: full, inMenu: !full },
     expand: { inline: full, inMenu: !full },
     microphone: { inline: full, inMenu: !full },
-    pip: { inline: full, inMenu: !full },
-    shortcuts: { inline: full, inMenu: !full },
-    timeline: { inline: full, inMenu: !full },
+    pip: { inline: full && !fullscreen, inMenu: !full },
   };
 });
+
+const fullscreenMenuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [];
+
+  if (shortcutsAvailable.value) {
+    items.push({
+      key: 'shortcuts',
+      label: t('components.player.shortcuts'),
+      toggle: true,
+      toggleState: shortcutsVisible.value,
+      onClick: () => toggleShortcuts(),
+    });
+  }
+
+  if (fullscreenTimeline.value) {
+    items.push({
+      key: 'timeline',
+      label: t('views.camera.timeline'),
+      toggle: true,
+      toggleState: timelineState.value,
+      disabled: showPtz.value,
+      onClick: () => toggleTimeline(),
+    });
+  }
+
+  if (toolbarPipToggleButton.value) {
+    items.push({
+      key: 'pip-source',
+      label: t('components.form.label.pip_source'),
+      toggle: true,
+      toggleState: toolbarPipToggleActive.value,
+      onClick: () => emit('togglePip'),
+    });
+  }
+
+  if (controlPipButton.value) {
+    items.push({
+      key: 'picture-in-picture',
+      label: t('components.player.picture_in_picture'),
+      toggle: true,
+      toggleState: isPip.value,
+      disabled: !isPipSupported.value || isLoading.value || nvrPlaybackVisible.value,
+      onClick: () => togglePictureInPicture(),
+    });
+  }
+
+  return items;
+});
+
+const showFullscreenMenu = computed(() => cameraStream.isFullscreen.value && fullscreenMenuItems.value.length > 0);
+const fullscreenMenuActive = computed(() => fullscreenMenuItems.value.some((item) => item.toggle && item.toggleState));
 
 const hasMoreMenuItems = computed(() => {
   const l = controlBarLayout.value;
@@ -1519,9 +1541,7 @@ const hasMoreMenuItems = computed(() => {
     (l.speaker.inMenu && controlSpeakerButton.value) ||
     (l.expand.inMenu && expandableCard.value && !tapsForExpand.value) ||
     (l.microphone.inMenu && controlMicrophoneButton.value) ||
-    (l.pip.inMenu && controlPipButton.value) ||
-    (l.shortcuts.inMenu && showFsShortcutsButton.value) ||
-    (l.timeline.inMenu && showFsTimelineButton.value)
+    (l.pip.inMenu && controlPipButton.value)
   );
 });
 
@@ -2212,6 +2232,7 @@ defineExpose({
   streamHasIntercom,
   micButtonDisabled,
   isFullscreen: cameraStream.isFullscreen,
+  videoContainer: playerContainerRef,
   togglePlay,
   toggleSourceRole,
   togglePictureInPicture,

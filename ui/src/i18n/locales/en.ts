@@ -1387,6 +1387,7 @@ export default {
       playback_failed: 'Playback failed',
       open_camera: 'Open camera',
       options: 'Options',
+      picture_in_picture: 'Picture-in-Picture',
       ptz: 'PTZ',
       ptz_go_to_home: 'Go to home',
       ptz_presets: 'Presets',

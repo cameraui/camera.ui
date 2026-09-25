@@ -1,39 +1,45 @@
 <template>
-  <div class="cui-pip-wrapper" :style="{ '--pip-bottom': pipBottomOffset }">
-    <CuiCameraCard
-      v-if="!swapped || showPip"
-      ref="cardARef"
-      v-bind="propsA"
-      v-model:activity-mode="activityModeA"
-      v-model:source-role="sourceRole"
-      v-model:streaming-mode="streamingModeA"
-      :class="{
-        'pip-main-position': !swapped,
-        'pip-overlay-position cursor-pointer': swapped,
-      }"
-      @expand="onExpand"
-      @fullscreen="emit('fullscreen', $event)"
-      @stream-finished-loading="onStreamALoaded"
-      @toggle-pip="togglePip"
-      @click="swapped && swap()"
-    />
+  <div class="cui-pip-wrapper">
+    <Teleport :to="cardBRef?.videoContainer" :disabled="!(swapped && overlayInFullscreen)">
+      <CuiCameraCard
+        v-if="!swapped || showPip"
+        ref="cardARef"
+        v-bind="propsA"
+        v-model:activity-mode="activityModeA"
+        v-model:source-role="sourceRole"
+        v-model:streaming-mode="streamingModeA"
+        :class="{
+          'pip-main-position': !swapped,
+          'pip-overlay-position cursor-pointer': swapped,
+        }"
+        :style="{ '--pip-bottom': pipBottomOffset }"
+        @expand="onExpand"
+        @fullscreen="emit('fullscreen', $event)"
+        @stream-finished-loading="onStreamALoaded"
+        @toggle-pip="togglePip"
+        @click="swapped && swap()"
+      />
+    </Teleport>
 
-    <CuiCameraCard
-      v-if="hasPipSource && (swapped || showPip)"
-      ref="cardBRef"
-      v-bind="propsB"
-      v-model:activity-mode="activityModeB"
-      v-model:source-role="sourceRoleB"
-      v-model:streaming-mode="streamingModeB"
-      :class="{
-        'pip-main-position': swapped,
-        'pip-overlay-position cursor-pointer': !swapped,
-      }"
-      @fullscreen="emit('fullscreen', $event)"
-      @stream-finished-loading="onStreamBLoaded"
-      @toggle-pip="togglePip"
-      @click="!swapped && swap()"
-    />
+    <Teleport :to="cardARef?.videoContainer" :disabled="!(!swapped && overlayInFullscreen)">
+      <CuiCameraCard
+        v-if="hasPipSource && (swapped || showPip)"
+        ref="cardBRef"
+        v-bind="propsB"
+        v-model:activity-mode="activityModeB"
+        v-model:source-role="sourceRoleB"
+        v-model:streaming-mode="streamingModeB"
+        :class="{
+          'pip-main-position': swapped,
+          'pip-overlay-position cursor-pointer': !swapped,
+        }"
+        :style="{ '--pip-bottom': pipBottomOffset }"
+        @fullscreen="emit('fullscreen', $event)"
+        @stream-finished-loading="onStreamBLoaded"
+        @toggle-pip="togglePip"
+        @click="!swapped && swap()"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -253,10 +259,13 @@ const mainControlVisible = computed(() => {
 });
 
 const mainTimelineVisible = computed(() => activeCard.value?.timelineVisible ?? false);
+const mainFullscreen = computed(() => activeCard.value?.isFullscreen ?? false);
+// fullscreen only takes the main card's video area, the overlay has to move in there to stay visible
+const overlayInFullscreen = computed(() => mainFullscreen.value && showPip.value);
 
 // toolbar height (60px + border) + 8px base, raised further when player controls or the timeline are visible
 const pipBottomOffset = computed(() => {
-  const base = toolbar.value ? 68 : 8; // 60px toolbar + 8px gap, or just 8px
+  const base = toolbar.value && !mainFullscreen.value ? 68 : 8; // 60px toolbar + 8px gap, or just 8px
   const raised = mainControlVisible.value ? 48 : 0; // control bar ~48px
   const timeline = mainTimelineVisible.value ? HORIZONTAL_TIMELINE_HEIGHT : 0;
   return `${base + raised + timeline}px`;
@@ -304,11 +313,16 @@ const timelineTarget = computed(() => `#${swapped.value ? TIMELINE_CONTAINER_B :
 
 function swap() {
   if (!hasPipSource.value) return;
-  // the timeline belongs to the main card, the overlay never shows one
-  const timelineOpen = activeCard.value?.timelineState ?? false;
-  if (timelineOpen) activeCard.value?.toggleTimeline();
+  // timeline and fullscreen belong to the main card, the overlay never has either
+  const previous = activeCard.value;
+  const timelineOpen = previous?.timelineState ?? false;
+  const fullscreen = previous?.isFullscreen ?? false;
+  if (timelineOpen) previous?.toggleTimeline();
+  if (fullscreen) previous?.toggleFs();
   swapped.value = !swapped.value;
-  if (timelineOpen && !activeCard.value?.timelineState) activeCard.value?.toggleTimeline();
+  const next = activeCard.value;
+  if (fullscreen && !next?.isFullscreen) next?.toggleFs();
+  if (timelineOpen && !next?.timelineState) next?.toggleTimeline();
   emit('swap');
 }
 
