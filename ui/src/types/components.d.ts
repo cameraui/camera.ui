@@ -401,6 +401,7 @@ declare module 'vue' {
     'IMdi:eye': typeof import('~icons/mdi/eye')['default']
     'IMdi:eyeOff': typeof import('~icons/mdi/eye-off')['default']
     'IMdi:eyeOffOutline': typeof import('~icons/mdi/eye-off-outline')['default']
+    'IMdi:eyeOutline': typeof import('~icons/mdi/eye-outline')['default']
     'IMdi:faceRecognition': typeof import('~icons/mdi/face-recognition')['default']
     'IMdi:fastForward30': typeof import('~icons/mdi/fast-forward30')['default']
     'IMdi:fileVideoOutline': typeof import('~icons/mdi/file-video-outline')['default']
