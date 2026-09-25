@@ -6,6 +6,8 @@ export interface CuiDraggableCameraCardProps {
   viewTransition?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
+  editMode?: boolean;
+  hidden?: boolean;
   findCard: (id: string) => { index: number };
   moveCard: (id: string, atIndex: number) => void;
   snapshotRef: (el: any) => void;
@@ -15,6 +17,7 @@ export interface CuiDraggableCameraCardEmits {
   (e: 'refresh-snapshot'): void;
   (e: 'open-console'): void;
   (e: 'open-settings'): void;
+  (e: 'toggle-hidden'): void;
   (e: 'click'): void;
   (e: 'drag-end'): void;
 }

@@ -18,6 +18,22 @@
         <i-fluent:video-off-32-filled class="w-8 h-8 text-white/60" />
       </div>
 
+      <div v-else-if="hidden" class="absolute inset-0 z-2 bg-black/60 pointer-events-none" />
+
+      <Button
+        v-if="editMode && !selectionMode"
+        v-tooltip.right="{ value: hidden ? $t('components.form.tooltip.show_on_home') : $t('components.form.tooltip.hide_on_home') }"
+        severity="secondary"
+        rounded
+        class="dark-mode cui-icon-md absolute top-3 left-3 z-4"
+        @click.stop="$emit('toggle-hidden')"
+      >
+        <template #icon>
+          <i-mdi:eye-off-outline v-if="hidden" width="100%" height="100%" />
+          <i-mdi:eye-outline v-else width="100%" height="100%" />
+        </template>
+      </Button>
+
       <div v-if="selectionMode" class="absolute top-3 left-3 z-4 pointer-events-none">
         <div
           class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"

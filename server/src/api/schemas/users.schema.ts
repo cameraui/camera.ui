@@ -168,6 +168,10 @@ export const userPreferencesRecordings = zod.object({
   ungrouped: zod.boolean(),
 });
 
+export const userPreferencesHome = zod.object({
+  hiddenCameras: zod.string().trim().min(1).array().max(1000),
+});
+
 const navLayoutOrder = zod
   .object({
     main: zod.string().array(),
@@ -198,6 +202,7 @@ export const userPreferences = zod.object({
   camview: userPreferencesCamview,
   cameras: zod.record(zod.string().trim(), userPreferencesCameras),
   recordings: userPreferencesRecordings.optional(),
+  home: userPreferencesHome.optional(),
   navLayout: userPreferencesNavLayout.nullable().optional(),
 });
 

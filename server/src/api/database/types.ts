@@ -527,6 +527,9 @@ export interface DBUserPreferences {
   recordings?: {
     ungrouped: boolean;
   };
+  home?: {
+    hiddenCameras: string[];
+  };
 }
 
 export interface DBInstanceCredentials {

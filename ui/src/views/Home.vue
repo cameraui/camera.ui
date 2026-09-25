@@ -39,12 +39,16 @@
           </Button>
         </div>
 
+        <div v-else-if="!homeCameras.length" key="all-hidden" class="flex flex-1 min-h-0 items-center justify-center w-full py-16">
+          <span class="text-muted text-sm text-center max-w-[400px]">{{ $t('views.cameras.all_hidden') }}</span>
+        </div>
+
         <div v-else-if="viewMode === 'default'" key="defaultView">
           <div class="grid w-full gap-1" :style="{ gridTemplateColumns: gridColsFilled }">
             <DndProvider :backend="dndBackend" :options="dndOptions">
               <TransitionGroup name="list">
                 <CuiDraggableCameraCard
-                  v-for="camera in sortedCameras"
+                  v-for="camera in homeCameras"
                   :key="camera._id"
                   :camera="camera"
                   :find-card="findCard"
@@ -52,12 +56,15 @@
                   :no-drag="uiSettings.cameras.dragDisabled || selectionMode"
                   :selection-mode="selectionMode"
                   :selected="selectedIds.has(camera._id)"
+                  :edit-mode="editMode"
+                  :hidden="hiddenCameraIds.has(camera._id)"
                   :snapshot-ref="(el: any) => (snapshotRefs[camera.name] = el)"
                   class="shadow-lg rounded-xl transition-transform"
                   view-transition
                   @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
                   @open-console="openConsoleDialog(camera.name)"
                   @open-settings="drawer.open({ cameraName: camera.name })"
+                  @toggle-hidden="onToggleHidden(camera)"
                   @click="onCardClick(camera)"
                   @drag-end="onCardDragEnd"
                 />
@@ -83,12 +90,15 @@
                     :no-drag="uiSettings.cameras.dragDisabled || selectionMode"
                     :selection-mode="selectionMode"
                     :selected="selectedIds.has(camera._id)"
+                    :edit-mode="editMode"
+                    :hidden="hiddenCameraIds.has(camera._id)"
                     :snapshot-ref="(el: any) => (snapshotRefs[camera.name] = el)"
                     class="shadow-lg rounded-xl transition-transform"
                     view-transition
                     @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
                     @open-console="openConsoleDialog(camera.name)"
                     @open-settings="drawer.open({ cameraName: camera.name })"
+                    @toggle-hidden="onToggleHidden(camera)"
                     @click="onCardClick(camera)"
                     @drag-end="onCardDragEnd"
                   />
@@ -112,9 +122,8 @@
           @click="toggleViewMode"
         />
         <CuiFloatingButton
-          v-if="sortedCameras.length > 1"
           grouped
-          :tooltip-props="{ value: uiSettings.cameras.dragDisabled ? $t('components.form.tooltip.enable_drag') : $t('components.form.tooltip.disable_drag') }"
+          :tooltip-props="{ value: uiSettings.cameras.dragDisabled ? $t('components.form.tooltip.edit_layout') : $t('components.form.tooltip.lock_layout') }"
           :button-props="{ severity: uiSettings.cameras.dragDisabled ? 'secondary' : 'success' }"
           :icon="uiSettings.cameras.dragDisabled ? LockIcon : LockOpenIcon"
           :icon-props="{ width: '100%', height: '100%' }"
@@ -259,6 +268,8 @@ const {
   save: saveHiddenEventTypes,
 } = useHiddenEventTypes();
 
+const { hiddenIds: hiddenCameraIds, toggle: toggleCameraHidden } = useHiddenHomeCameras();
+
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
 
@@ -275,10 +286,11 @@ const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const dndBackend = computed(() => (isTouch.value ? TouchBackend : HTML5Backend));
 const dndOptions = computed(() => (isTouch.value ? { enableMouseEvents: true } : undefined));
 const viewMode = computed(() => uiSettings.value.cameras.viewMode ?? 'default');
+const editMode = computed(() => !uiSettings.value.cameras.dragDisabled);
 const gridCols = computed(() => `repeat(auto-fill, minmax(${smBreakpoint.value ? '100%' : '300px'}, 1fr))`);
 const gridColsFilled = computed(() => {
   const base = gridCols.value;
-  return sortedCameras.value.length < 2 ? `${base} 50%` : base;
+  return homeCameras.value.length < 2 ? `${base} 50%` : base;
 });
 
 const skeletonCount = computed(() => {
@@ -293,12 +305,15 @@ const sortedCameras = computed<DBCamera[]>(() => {
   return sortByOrder(cameras.value.result, uiSettings.value.cameras.order || []);
 });
 
+const homeCameras = computed(() => (editMode.value ? sortedCameras.value : sortedCameras.value.filter((camera) => !hiddenCameraIds.value.has(camera._id))));
+
 const groupedCameras = computed<CameraGroup[]>(() => {
   if (!cameras.value?.result) return [];
   const groupOrder = uiSettings.value.cameras.groupOrder || {};
 
   const groups = new Map<string, DBCamera[]>();
   for (const camera of cameras.value.result) {
+    if (!editMode.value && hiddenCameraIds.value.has(camera._id)) continue;
     const room = camera.room || 'Default';
     if (!groups.has(room)) groups.set(room, []);
     groups.get(room)!.push(camera);
@@ -387,7 +402,7 @@ const {
   exitSelectionMode,
   toggleSelectAll,
   toggleSelection,
-} = useCardSelection(sortedCameras, (camera) => camera._id);
+} = useCardSelection(homeCameras, (camera) => camera._id);
 
 const allSelectedDisabled = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.disabled));
 const allSelectedSnoozed = computed(() => selectedCameras.value.length > 0 && selectedCameras.value.every((camera) => camera.detectionSettings?.snooze));
@@ -407,6 +422,14 @@ function onCardClick(camera: DBCamera) {
   }
 
   toggleSelection(camera._id);
+}
+
+async function onToggleHidden(camera: DBCamera) {
+  try {
+    await toggleCameraHidden(camera._id);
+  } catch (error) {
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
+  }
 }
 
 async function runBulk(operation: () => Promise<BulkResult>, successDetail: string) {

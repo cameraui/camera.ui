@@ -59,6 +59,7 @@ export const dbUserSchema = zod.object({
         })
         .optional(),
       recordings: zod.object({ ungrouped: zod.boolean() }).optional(),
+      home: zod.object({ hiddenCameras: zod.string().array().default([]) }).optional(),
     })
     .default({ language: 'auto', camview: { views: [] }, cameras: {} }),
   twoFactor: zod

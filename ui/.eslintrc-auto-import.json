@@ -367,6 +367,7 @@
     "useGamepad": true,
     "useGeolocation": true,
     "useHiddenEventTypes": true,
+    "useHiddenHomeCameras": true,
     "useHostMenu": true,
     "useHttp": true,
     "useI18n": true,

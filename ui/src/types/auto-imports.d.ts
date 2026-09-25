@@ -289,6 +289,7 @@ declare global {
   const useGamepad: typeof import('@vueuse/core').useGamepad
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
   const useHiddenEventTypes: typeof import('../composables/useHiddenEventTypes').useHiddenEventTypes
+  const useHiddenHomeCameras: typeof import('../composables/useHiddenHomeCameras').useHiddenHomeCameras
   const useHostMenu: typeof import('../composables/useHostMenu').useHostMenu
   const useHttp: typeof import('../connection/composables/useHttp').useHttp
   const useI18n: typeof import('vue-i18n').useI18n
@@ -859,6 +860,7 @@ declare module 'vue' {
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
     readonly useHiddenEventTypes: UnwrapRef<typeof import('../composables/useHiddenEventTypes')['useHiddenEventTypes']>
+    readonly useHiddenHomeCameras: UnwrapRef<typeof import('../composables/useHiddenHomeCameras')['useHiddenHomeCameras']>
     readonly useHostMenu: UnwrapRef<typeof import('../composables/useHostMenu')['useHostMenu']>
     readonly useHttp: UnwrapRef<typeof import('../connection/composables/useHttp')['useHttp']>
     readonly useI18n: UnwrapRef<typeof import('vue-i18n')['useI18n']>
