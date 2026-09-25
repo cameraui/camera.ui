@@ -495,6 +495,7 @@
     "useThrottledRefHistory": true,
     "useTimeAgo": true,
     "useTimeAgoIntl": true,
+    "useTimelineLocale": true,
     "useTimeout": true,
     "useTimeoutFn": true,
     "useTimeoutPoll": true,

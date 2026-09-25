@@ -26,6 +26,7 @@
             :camera-card-props="{ ...activeCameraCardProps(cards[expandedIdx]?.lastDroppedCamera), expanded: true }"
             :camera-card-models
             @expand="(camera: DBCamera, expanded: boolean) => toggleFullScreenCard(camera, expandedIdx!, expanded)"
+            @fullscreen="(camera: DBCamera, active: boolean) => emit('fullscreen', camera, active)"
           />
         </div>
 
@@ -59,6 +60,7 @@
                   :camera-card-models
                   :on-drop="(camera: DBCamera) => emit('drop', idx, camera)"
                   @expand="(camera: DBCamera, expanded: boolean) => toggleFullScreenCard(camera, idx, expanded)"
+                  @fullscreen="(camera: DBCamera, active: boolean) => emit('fullscreen', camera, active)"
                   @drop="(camera: DBCamera) => emit('drop', idx, camera)"
                   @remove="(camera: DBCamera) => emit('remove', camera)"
                 />

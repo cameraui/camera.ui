@@ -62,7 +62,6 @@
 
 <script setup lang="ts">
 import { CuiTimeline, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
-import { usePrimeVue } from 'primevue';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 import SparklesIcon from '~icons/tabler/sparkles';
@@ -71,7 +70,7 @@ import { extractErrorMessage } from '@/common/utils.js';
 
 import type CuiCameraCard from '@/components/CuiCameraCard/CuiCameraCard.vue';
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
-import type { CuiTimelineLocale, EventDescription } from '@camera.ui/nvr';
+import type { EventDescription } from '@camera.ui/nvr';
 import type { StreamingRole } from '@camera.ui/sdk';
 import type { CameraStreamEventProps } from './types.js';
 
@@ -79,9 +78,8 @@ const props = defineProps<CameraStreamEventProps>();
 
 const log = useLogger();
 const toast = useCuiToast();
-const i18n = useI18n();
-const { t } = i18n;
-const primevue = usePrimeVue();
+const { t } = useI18n();
+const timelineLocaleSettings = useTimelineLocale();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const headerToggles = inject<Record<number, boolean>>('dialogHeaderToggles', {});
@@ -116,16 +114,6 @@ const hasCurrentEvent = computed(() => Boolean(cuiTimelineRef.value?.currentEven
 // edge drifting in/out of a recent event's range would otherwise make the
 // header buttons flicker. Default to `true` until the timeline reports.
 const isLive = computed(() => cuiTimelineRef.value?.isLive ?? true);
-const timelineLocaleSettings = computed<CuiTimelineLocale>(() => {
-  return {
-    locale: i18n.locale.value,
-    dayNames: primevue.config.locale?.dayNames,
-    dayNamesShort: primevue.config.locale?.dayNamesShort,
-    monthNames: primevue.config.locale?.monthNames,
-    monthNamesShort: primevue.config.locale?.monthNamesShort,
-  };
-});
-
 function openTrace(): void {
   const current = cuiTimelineRef.value?.currentEvent;
   const event = current ? eventStore.getEvent(current.id) : undefined;

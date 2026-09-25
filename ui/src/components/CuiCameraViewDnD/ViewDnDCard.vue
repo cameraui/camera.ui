@@ -11,6 +11,7 @@
         :camera-info="camera"
         class="w-full h-full"
         @expand="emit('expand', camera!, $event)"
+        @fullscreen="emit('fullscreen', camera!, $event)"
       />
       <div v-else-if="mode === 'rearrange'" class="w-full h-full bg-[#1a1a1a] flex items-center justify-center">
         <i-mdi:plus class="w-6 h-6 text-white/20" />

@@ -18,6 +18,7 @@ export interface CuiCameraCardEmits {
   (e: 'expand', expanded: boolean): void;
   (e: 'togglePip'): void;
   (e: 'muteChange', muted: boolean): void;
+  (e: 'fullscreen', active: boolean): void;
 }
 
 export interface CuiCameraCardProps {
@@ -37,6 +38,7 @@ export interface CuiCameraCardProps {
   cardClickAction?: 'redirect' | 'expand' | 'none';
   viewTransition?: boolean;
   cardBackgroundColor?: string;
+  timelineContainerId?: string;
 
   // Control Configuration
   control?: boolean;
@@ -47,6 +49,11 @@ export interface CuiCameraCardProps {
   controlPlayPauseButton?: boolean;
   controlRewindButton?: boolean;
   controlSpeakerButton?: boolean;
+
+  // Fullscreen Configuration
+  fullscreenShortcuts?: boolean;
+  fullscreenTimeline?: boolean;
+  embeddedTimeline?: boolean;
 
   // Subcontrol Configuration
   subcontrol?: boolean;
@@ -107,6 +114,7 @@ export const CAMERA_CARD_DEFAULTS: InferDefaults<CuiCameraCardProps> = {
   pipToggleButton: false,
   cardClickAction: 'redirect',
   viewTransition: false,
+  timelineContainerId: 'timeline-container',
 
   cameraNameOverlay: true,
   liveIndicatorOverlay: false,
@@ -136,6 +144,10 @@ export const CAMERA_CARD_DEFAULTS: InferDefaults<CuiCameraCardProps> = {
   controlPipButton: true,
   controlRewindButton: true,
   controlSpeakerButton: true,
+
+  fullscreenShortcuts: false,
+  fullscreenTimeline: false,
+  embeddedTimeline: false,
 
   subcontrol: true,
   subcontrolPtzButton: true,

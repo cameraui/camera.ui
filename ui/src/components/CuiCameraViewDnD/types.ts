@@ -42,6 +42,7 @@ export interface ViewDnDCardEmits {
   (e: 'drop', camera: DBCamera): void;
   (e: 'remove', camera: DBCamera): void;
   (e: 'expand', camera: DBCamera, expanded: boolean): void;
+  (e: 'fullscreen', camera: DBCamera, active: boolean): void;
 }
 
 export interface ViewDnDSidebarProps {
@@ -76,6 +77,7 @@ export interface CuiCameraViewDnDEmits {
   (e: 'remove', camera: DBCamera): void;
   (e: 'changeViewSize'): void;
   (e: 'expand', camera: DBCamera, expanded: boolean): void;
+  (e: 'fullscreen', camera: DBCamera, active: boolean): void;
   (e: 'rearrange', cameras: DBCamviewLayoutCamera[]): void;
 }
 

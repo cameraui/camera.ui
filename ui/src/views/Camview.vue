@@ -167,6 +167,7 @@
             @remove="removeCamera"
             @change-view-size="openDialog('editView')"
             @expand="expandCamera"
+            @fullscreen="onCameraFullscreen"
             @rearrange="rearrangeCamera"
           />
         </div>
@@ -179,7 +180,7 @@
         @before-leave="timelineSpaceOccupied = false"
       >
         <CuiTimeline
-          v-if="timelineState"
+          v-if="timelineState && !fullscreenCameraId"
           :camera-ids="timelineCameraIds"
           :event-camera-ids="viewCameraIds"
           :camera-names="cameraNameMap"
@@ -303,7 +304,6 @@
 
 <script setup lang="ts">
 import { CuiTimeline, useMultiNvrPlayback } from '@camera.ui/nvr';
-import { usePrimeVue } from 'primevue';
 import StreamingModeMseIcon from '~icons/cbi/iosfacetime';
 import ActivityModeActivityIcon from '~icons/fluent/pulse-24-filled';
 import SpeakerOnIcon from '~icons/heroicons/speaker-wave-16-solid';
@@ -336,7 +336,6 @@ import type { CamviewFormProps } from '@/components/CuiDialog/templates/CamviewF
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { CameraActivityMode, VideoStreamingMode } from '@camera.ui/browser';
-import type { CuiTimelineLocale } from '@camera.ui/nvr';
 import type { StreamingRole } from '@camera.ui/sdk';
 import type { DBCamera, DBCamviewCardFit, DBCamviewLayout, DBCamviewLayoutCamera, DBCamviewViewSize } from '@shared/types';
 import type { ButtonProps } from 'primevue';
@@ -356,9 +355,8 @@ const props = withDefaults(
   },
 );
 
-const i18n = useI18n();
-const { t } = i18n;
-const primevue = usePrimeVue();
+const { t } = useI18n();
+const timelineLocaleSettings = useTimelineLocale();
 const dialog = useCuiDialog();
 const { bottombarHeight } = useSharedCuiStates();
 const { smBreakpoint, lgBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
@@ -395,6 +393,7 @@ const streamingMode = ref<VideoStreamingMode>('auto');
 const cards = ref<CardState[]>([]);
 const cardFitOverride = ref<DBCamviewCardFit>();
 const expandedCameraId = ref<string | null>(null);
+const fullscreenCameraId = ref<string | null>(null);
 const cameraCardModels = reactive<CuiCameraCardModels>({
   sourceRole: sourceRole.value,
   activityMode: activityMode.value,
@@ -407,16 +406,6 @@ const viewPending = computed(
 );
 
 const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
-
-const timelineLocaleSettings = computed<CuiTimelineLocale>(() => {
-  return {
-    locale: i18n.locale.value,
-    dayNames: primevue.config.locale?.dayNames,
-    dayNamesShort: primevue.config.locale?.dayNamesShort,
-    monthNames: primevue.config.locale?.monthNames,
-    monthNamesShort: primevue.config.locale?.monthNamesShort,
-  };
-});
 
 const cardFit = computed<DBCamviewCardFit>(() => cardFitOverride.value ?? currentView.value?.cardFit ?? 'aspect');
 
@@ -442,6 +431,9 @@ const cameraCardProps = computed<Partial<CuiCameraCardProps>>(() => ({
   boundingBoxOverlay: false,
   cardClickAction: 'expand',
   viewTransition: true,
+  fullscreenShortcuts: true,
+  fullscreenTimeline: true,
+  embeddedTimeline: true,
   cardProps: {
     pt: {
       root: {
@@ -554,6 +546,11 @@ const timelineCameraIds = computed(() => {
   return id && viewCameraIds.value.includes(id) ? [id] : viewCameraIds.value;
 });
 
+const playbackCameraIds = computed(() => {
+  const id = fullscreenCameraId.value;
+  return id && viewCameraIds.value.includes(id) ? [id] : timelineCameraIds.value;
+});
+
 const cameraNameMap = computed(() => {
   const map: Record<string, string> = {};
   for (const cam of cameras.value?.result ?? []) map[cam._id] = cam.name;
@@ -563,7 +560,7 @@ const cameraNameMap = computed(() => {
 // CamView forces `sourceRole: 'low'` across all tiles: many parallel 4K streams
 // blow past iOS Safari's memory budget (decoded YUV frames ≈ 12 MB × buffer depth
 // per tile). Scrub quality keeps decode + memory manageable at 10+ tiles.
-const { master } = useMultiNvrPlayback(viewCameraIds, { sourceRole: 'low', activeIds: timelineCameraIds });
+const { master } = useMultiNvrPlayback(viewCameraIds, { sourceRole: 'low', activeIds: playbackCameraIds });
 
 // On re-open (timeline unmounts when minimized), seed CuiTimeline's scroll
 // position from the held master playback time so the playback/live gap
@@ -762,6 +759,11 @@ function rearrangeCamera(cameras: DBCamviewLayoutCamera[]): void {
 
 function expandCamera(camera: DBCamera, expanded: boolean): void {
   expandedCameraId.value = expanded ? camera._id : null;
+}
+
+function onCameraFullscreen(camera: DBCamera, active: boolean): void {
+  if (active) fullscreenCameraId.value = camera._id;
+  else if (fullscreenCameraId.value === camera._id) fullscreenCameraId.value = null;
 }
 
 function onTimelineEventSelect(payload: { timestamp: number; cameraId?: string }): void {

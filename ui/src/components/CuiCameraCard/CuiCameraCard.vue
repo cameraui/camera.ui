@@ -69,12 +69,29 @@
             </div>
 
             <div
-              v-show="timelineState && !showPtz && !inStandby && !gridSearchActive && !cameraStream.isFullscreen.value"
-              id="timeline-container"
+              v-show="timelineVisible"
+              :id="timelineContainerId"
               key="timeline"
-              class="absolute top-0 left-0 right-0 z-5"
+              class="timeline-container absolute top-0 left-0 right-0 z-5"
               :style="{ bottom: showControl ? '48px' : '0px', transition: 'bottom 0.2s ease' }"
-            ></div>
+            >
+              <CuiTimeline
+                v-if="embeddedTimelineShown"
+                :camera-ids="embeddedTimelineCameraIds"
+                :initial-timestamp="embeddedTimelineStart"
+                type="horizontal"
+                flat-card
+                transparent
+                dark-mode
+                :show-segments="false"
+                overlay-class="timeline-overlay !z-0"
+                :locale-settings="timelineLocale"
+                :md-breakpoint="mdBreakpoint"
+                class="absolute bottom-0 left-0 w-full h-[200px]"
+                card-class="h-[200px]"
+                @scrolling="timelineScroll"
+              />
+            </div>
 
             <div
               v-if="showPtz && !timelineState && !inStandby && !gridSearchActive && cameraDevice"
@@ -207,7 +224,7 @@
             <div ref="videoBoxRef" :data-zoomable-content="randomId" class="relative h-full min-w-0" :style="videoWrapperStyle">
               <div class="absolute inset-0 pointer-events-none" :class="showPtz || timelineState ? 'z-3' : 'z-7'">
                 <CuiShortcuts
-                  v-if="!inStandby && !isDisabled && showShortcuts"
+                  v-if="!inStandby && !isDisabled && shortcutsAvailable"
                   :camera-name
                   :visible="shortcutsVisible"
                   :editing="shortcutsEditMode"
@@ -215,17 +232,27 @@
                 />
 
                 <Button
-                  v-if="shortcutsVisible && !shortcutsEditMode && showShortcuts && !gridSearchActive && !timelineState && !showPtz && !inStandby && !isDisabled"
-                  v-tooltip.bottom="{ value: t('components.player.edit_shortcuts') }"
+                  v-if="
+                    shortcutsVisible &&
+                    (!shortcutsEditMode || cameraStream.isFullscreen.value) &&
+                    shortcutsAvailable &&
+                    !gridSearchActive &&
+                    !timelineState &&
+                    !showPtz &&
+                    !inStandby &&
+                    !isDisabled
+                  "
+                  v-tooltip.bottom="{ value: shortcutsEditMode ? t('components.player.finish_editing') : t('components.player.edit_shortcuts') }"
                   class="dark-mode pointer-events-auto absolute top-[10px] bg-black/20 hover:bg-black/40 active:bg-black/60"
                   :class="backButton ? 'left-16' : 'left-4'"
                   rounded
                   text
                   severity="contrast"
-                  @click="enterShortcutsEditMode"
+                  @click="shortcutsEditMode ? exitShortcutsEditMode() : enterShortcutsEditMode()"
                 >
                   <template #icon>
-                    <i-lucide:pencil width="100%" height="100%" />
+                    <i-lucide:check v-if="shortcutsEditMode" width="100%" height="100%" />
+                    <i-lucide:pencil v-else width="100%" height="100%" />
                   </template>
                 </Button>
               </div>
@@ -453,6 +480,36 @@
                     </template>
                   </Button>
 
+                  <Button
+                    v-if="showFsShortcutsButton && controlBarLayout.shortcuts.inline"
+                    fluid
+                    text
+                    severity="contrast"
+                    class="control-bar-btn"
+                    :class="{ active: shortcutsVisible }"
+                    @click="toggleShortcuts()"
+                  >
+                    <template #icon>
+                      <i-lucide:layout-grid class="w-[18px] h-[18px]" />
+                    </template>
+                  </Button>
+
+                  <Button
+                    v-if="showFsTimelineButton && controlBarLayout.timeline.inline"
+                    :disabled="showPtz"
+                    fluid
+                    text
+                    severity="contrast"
+                    class="control-bar-btn"
+                    :class="{ active: timelineState }"
+                    @click="toggleTimeline"
+                  >
+                    <template #icon>
+                      <i-mingcute:timeline-fill v-if="timelineState" class="w-[18px] h-[18px]" />
+                      <i-mingcute:timeline-line v-else class="w-[18px] h-[18px]" />
+                    </template>
+                  </Button>
+
                   <Button v-if="hasMoreMenuItems" fluid text severity="contrast" class="control-bar-btn" @click="morePopoverRef?.toggle($event)">
                     <template #icon>
                       <i-lucide:more-vertical class="w-[18px] h-[18px]" />
@@ -591,6 +648,32 @@
                     <i-fluent:picture-in-picture-16-regular v-if="!isPip" class="w-[18px] h-[18px] shrink-0" />
                     <i-fluent:picture-in-picture-16-filled v-else class="w-[18px] h-[18px] shrink-0" />
                     <span>{{ isPip ? $t('components.player.hide_pip') : $t('components.player.show_pip') }}</span>
+                  </button>
+
+                  <button
+                    v-if="showFsShortcutsButton && controlBarLayout.shortcuts.inMenu"
+                    class="more-menu-item"
+                    @click="
+                      toggleShortcuts();
+                      morePopoverRef?.hide();
+                    "
+                  >
+                    <i-lucide:layout-grid class="w-[18px] h-[18px] shrink-0" />
+                    <span>{{ $t('components.player.shortcuts') }}</span>
+                  </button>
+
+                  <button
+                    v-if="showFsTimelineButton && controlBarLayout.timeline.inMenu"
+                    :disabled="showPtz"
+                    class="more-menu-item"
+                    @click="
+                      toggleTimeline();
+                      morePopoverRef?.hide();
+                    "
+                  >
+                    <i-mingcute:timeline-fill v-if="timelineState" class="w-[18px] h-[18px] shrink-0" />
+                    <i-mingcute:timeline-line v-else class="w-[18px] h-[18px] shrink-0" />
+                    <span>{{ timelineState ? $t('components.player.hide_timeline') : $t('components.player.show_timeline') }}</span>
                   </button>
                 </div>
               </Popover>
@@ -814,7 +897,7 @@ import {
   useTopmostFullscreenElement,
 } from '@camera.ui/browser';
 import { mergeWith } from '@camera.ui/common/utils';
-import { NvrPlaybackKey, NvrPlaybackMapKey } from '@camera.ui/nvr';
+import { CuiTimeline, NvrPlaybackKey, NvrPlaybackMapKey } from '@camera.ui/nvr';
 import VueZoomable from 'vue-zoomable';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
@@ -864,6 +947,7 @@ const notificationsSocket = useNotificationsSocket();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { isPipSupported, isAndroid } = useSharedCuiUserAgent();
 const { t } = useI18n();
+const timelineLocale = useTimelineLocale();
 const { pressed: isMousePressed } = useMousePressed();
 
 const {
@@ -879,6 +963,7 @@ const {
   cardClickAction,
   viewTransition,
   cardBackgroundColor,
+  timelineContainerId,
   cameraNameOverlay,
   liveIndicatorOverlay,
   detectionIndicatorOverlay,
@@ -893,6 +978,9 @@ const {
   controlPlayPauseButton,
   controlRewindButton,
   controlSpeakerButton,
+  fullscreenShortcuts,
+  fullscreenTimeline,
+  embeddedTimeline,
   subcontrol,
   subcontrolPtzButton,
   toolbar,
@@ -970,6 +1058,7 @@ const initialHover = ref(true);
 const muted = ref(true);
 const micActive = ref(false);
 const timelineScrolling = ref(false);
+const embeddedTimelineStart = ref<number>();
 const bboxEnabled = ref(false);
 const controlBarPopoverOpen = ref(false);
 const morePopoverOpen = ref(false);
@@ -1006,6 +1095,7 @@ const {
 const cameraName = computed(() => (typeof cameraInfo.value === 'string' ? cameraInfo.value : cameraInfo.value.name));
 const morphTarget = computed(() => viewTransition.value && routerStore.morphCamera === cameraName.value);
 const camera = computed<DBCamera | undefined>(() => (typeof cameraInfo.value === 'string' ? cameraObj.value : cameraInfo.value));
+const cameraId = computed(() => camera.value?._id);
 
 const nvr = computed<NvrPlayback | undefined>(() => {
   if (props.nvrController) return props.nvrController as NvrPlayback;
@@ -1210,6 +1300,14 @@ const showPtzToolbar = computed(
   () => showControl.value && hasPtz.value && subcontrol.value && subcontrolPtzButton.value && isFullPlayer.value && !timelineState.value && !nvrPlaybackVisible.value,
 );
 const showDetectionIndicator = computed(() => detectionIndicatorOverlay.value && hasActiveDetection.value);
+const shortcutsAvailable = computed(() => showShortcuts.value || (fullscreenShortcuts.value && cameraStream.isFullscreen.value));
+const showFsShortcutsButton = computed(() => cameraStream.isFullscreen.value && shortcutsAvailable.value);
+const showFsTimelineButton = computed(() => cameraStream.isFullscreen.value && fullscreenTimeline.value);
+const timelineVisible = computed(
+  () => timelineState.value && !showPtz.value && !inStandby.value && !gridSearchActive.value && (!cameraStream.isFullscreen.value || fullscreenTimeline.value),
+);
+const embeddedTimelineShown = computed(() => embeddedTimeline.value && timelineVisible.value && Boolean(cameraId.value));
+const embeddedTimelineCameraIds = computed(() => (cameraId.value ? [cameraId.value] : []));
 
 const { icons: eventIconMap, generic: genericEventIcon } = resolveEventIcons();
 const detectionIconChips = computed(() => {
@@ -1407,6 +1505,8 @@ const controlBarLayout = computed(() => {
     expand: { inline: full, inMenu: !full },
     microphone: { inline: full, inMenu: !full },
     pip: { inline: full, inMenu: !full },
+    shortcuts: { inline: full, inMenu: !full },
+    timeline: { inline: full, inMenu: !full },
   };
 });
 
@@ -1419,7 +1519,9 @@ const hasMoreMenuItems = computed(() => {
     (l.speaker.inMenu && controlSpeakerButton.value) ||
     (l.expand.inMenu && expandableCard.value && !tapsForExpand.value) ||
     (l.microphone.inMenu && controlMicrophoneButton.value) ||
-    (l.pip.inMenu && controlPipButton.value)
+    (l.pip.inMenu && controlPipButton.value) ||
+    (l.shortcuts.inMenu && showFsShortcutsButton.value) ||
+    (l.timeline.inMenu && showFsTimelineButton.value)
   );
 });
 
@@ -2013,6 +2115,18 @@ watch(mdBreakpoint, () => {
   if (mdBreakpoint.value) timelineState.value = false;
 });
 
+watch(cameraStream.isFullscreen, (fullscreen) => {
+  emit('fullscreen', fullscreen);
+  if (fullscreen) return;
+  if (!toolbar.value || !toolbarTimelineButton.value) timelineState.value = false;
+  if (!toolbar.value || !toolbarShortcutsButton.value || !showShortcuts.value) toggleShortcuts(false);
+});
+
+watch(embeddedTimelineShown, (shown) => {
+  if (!shown) return;
+  embeddedTimelineStart.value = nvrPlaybackVisible.value && nvrCurrentTimestamp.value > 0 ? Math.floor(nvrCurrentTimestamp.value / 1000) : undefined;
+});
+
 watch(resizable, () => {
   lastZoom.value = 1;
   isConstraining.value = false;
@@ -2079,6 +2193,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isUnmounting = true;
+  if (cameraStream.isFullscreen.value) emit('fullscreen', false);
   unregisterAutoPipCandidate(randomId);
   releaseNvrContainer?.();
   releaseNvrContainer = null;
@@ -2113,6 +2228,7 @@ defineExpose({
   toggleZones,
   toggleTimeline,
   timelineState,
+  timelineVisible,
   timelineScroll,
   captureScreenshot,
 });
@@ -2302,7 +2418,7 @@ html.cui-native-pip #video-container.native-pip .ar-box {
   display: none;
 }
 
-#timeline-container::after {
+.timeline-container::after {
   content: '';
   position: absolute;
   top: 100%;

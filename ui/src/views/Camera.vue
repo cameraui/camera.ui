@@ -31,6 +31,7 @@
             :resizable="smBreakpoint"
             :control-microphone-button="!smBreakpoint"
             :toolbar-timeline-button="xmdBreakpoint"
+            fullscreen-timeline
             :toolbar-description-button="Boolean(nvrPluginRef)"
             :event-description="currentDescription"
             :current-event="currentTraceEvent"
@@ -115,33 +116,33 @@
       </Tabs>
     </CuiBottomSheet>
 
-    <Teleport :key="cameraName" :to="xmdBreakpoint ? '#timeline-container' : '#camera-sidebar'" defer>
+    <Teleport :key="cameraName" :to="horizontalTimeline ? (cameraCardRef?.timelineTarget ?? '#timeline-container') : '#camera-sidebar'" defer>
       <CuiTimeline
         ref="cuiTimelineRef"
         :key="cameraName"
         :camera-ids="cameraId ? [cameraId] : []"
         :loading="!isContentReady"
-        :flat-card="smBreakpoint || xmdBreakpoint"
-        :type="!xmdBreakpoint ? 'vertical' : 'horizontal'"
-        :show-segments="!smBreakpoint && !xmdBreakpoint"
+        :flat-card="smBreakpoint || horizontalTimeline"
+        :type="!horizontalTimeline ? 'vertical' : 'horizontal'"
+        :show-segments="!smBreakpoint && !horizontalTimeline"
         :show-zoom="true"
         :initial-timestamp="startTs"
         :class="{
-          'absolute bottom-0 left-0 w-full h-[200px]': xmdBreakpoint,
-          'h-full': !xmdBreakpoint,
+          'absolute bottom-0 left-0 w-full h-[200px]': horizontalTimeline,
+          'h-full': !horizontalTimeline,
         }"
         :card-class="{
-          'h-[200px]': xmdBreakpoint,
+          'h-[200px]': horizontalTimeline,
         }"
-        :transparent="xmdBreakpoint"
-        :dark-mode="xmdBreakpoint"
-        :overlay-class="xmdBreakpoint ? 'timeline-overlay !z-0' : undefined"
+        :transparent="horizontalTimeline"
+        :dark-mode="horizontalTimeline"
+        :overlay-class="horizontalTimeline ? 'timeline-overlay !z-0' : undefined"
         :locale-settings="timelineLocaleSettings"
         :trim-mode="exportMode || deleteMode"
         :trim-variant="deleteMode ? 'delete' : 'export'"
         :export-available="true"
-        :delete-available="isAdmin"
-        :ignore-bottom-safe-area="!xmdBreakpoint"
+        :delete-available="isAdmin && !cameraCardIsFullscreen"
+        :ignore-bottom-safe-area="!horizontalTimeline"
         :md-breakpoint="mdBreakpoint"
         :zone-filter-active="gridSearchActive"
         :zone-has-regions="gridSearchRegions.length > 0"
@@ -152,7 +153,7 @@
         @toggle-delete-mode="toggleDeleteMode"
       >
         <template #bottom-right>
-          <div class="flex gap-2 items-center" :class="xmdBreakpoint ? 'flex-row-reverse' : 'flex-col-reverse'">
+          <div class="flex gap-2 items-center" :class="horizontalTimeline ? 'flex-row-reverse' : 'flex-col-reverse'">
             <Button
               v-if="smBreakpoint && !exportMode && !deleteMode"
               v-tooltip.left="{ value: $t('components.player.intercom') }"
@@ -169,7 +170,7 @@
             </Button>
 
             <Button
-              v-if="smBreakpoint && !exportMode && !deleteMode"
+              v-if="smBreakpoint && !cameraCardIsFullscreen && !exportMode && !deleteMode"
               v-tooltip.left="{ value: $t('components.player.more') }"
               rounded
               severity="secondary"
@@ -195,7 +196,7 @@
                 :disabled="timelapseDisabled"
                 :label="trimTimelapse > 0 ? TIMELAPSE_OPTIONS[trimTimelapse] : undefined"
                 class="shadow-md pointer-events-auto !text-xs !font-semibold"
-                :class="xmdBreakpoint ? 'cui-button-small' : 'w-[42px] h-[42px]'"
+                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
                 @click="cycleTrimTimelapse"
               >
                 <template v-if="trimTimelapse === 0" #icon>
@@ -208,7 +209,7 @@
                 severity="success"
                 :loading="trimExporting"
                 class="shadow-md pointer-events-auto"
-                :class="xmdBreakpoint ? 'cui-button-small' : 'w-[42px] h-[42px]'"
+                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
                 @click="onTrimExport"
               >
                 <template #icon>
@@ -224,7 +225,7 @@
               severity="danger"
               :loading="rangeDeleting"
               class="shadow-md pointer-events-auto"
-              :class="xmdBreakpoint ? 'cui-button-small' : 'w-[42px] h-[42px]'"
+              :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
               @click="confirmRangeDelete"
             >
               <template #icon>
@@ -232,14 +233,14 @@
               </template>
             </Button>
 
-            <template v-if="smBreakpoint || xmdBreakpoint">
+            <template v-if="smBreakpoint || horizontalTimeline">
               <Button
                 v-tooltip.left="{ value: $t('components.form.tooltip.zoom_in') }"
                 rounded
                 severity="secondary"
                 :disabled="(cuiTimelineRef?.zoomLevel ?? 0) >= 8"
                 class="shadow-md pointer-events-auto"
-                :class="xmdBreakpoint ? 'cui-button-small' : 'w-[42px] h-[42px]'"
+                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
                 @click="cuiTimelineRef?.zoomIn()"
               >
                 <template #icon>
@@ -252,7 +253,7 @@
                 severity="secondary"
                 :disabled="(cuiTimelineRef?.zoomLevel ?? 0) <= 0"
                 class="shadow-md pointer-events-auto"
-                :class="xmdBreakpoint ? 'cui-button-small' : 'w-[42px] h-[42px]'"
+                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
                 @click="cuiTimelineRef?.zoomOut()"
               >
                 <template #icon>
@@ -269,7 +270,6 @@
 
 <script setup lang="ts">
 import { CuiTimeline, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
-import { usePrimeVue } from 'primevue';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
@@ -278,7 +278,7 @@ import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 
 import type CuiCameraPipCard from '@/components/CuiCameraPipCard/CuiCameraPipCard.vue';
-import type { CuiTimelineLocale, EventDescription, RecordedEvent } from '@camera.ui/nvr';
+import type { EventDescription, RecordedEvent } from '@camera.ui/nvr';
 import type { BoundingBox, StreamingRole } from '@camera.ui/sdk';
 
 const CuiCameraRecordings = asyncComponent(() => import('@/components/CuiCameraRecordings/CuiCameraRecordings.vue'));
@@ -293,7 +293,7 @@ const log = useLogger();
 const toast = useCuiToast();
 const dialog = useCuiDialog();
 const i18n = useI18n();
-const primevue = usePrimeVue();
+const timelineLocaleSettings = useTimelineLocale();
 const route = useRoute();
 const router = useRouter();
 const assistantActions = useAssistantActions();
@@ -331,6 +331,7 @@ const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 const cameraId = computed(() => camera.value?._id);
 
 const cameraCardIsFullscreen = computed(() => Boolean(cameraCardRef.value?.isFullscreen));
+const horizontalTimeline = computed(() => xmdBreakpoint.value || cameraCardIsFullscreen.value);
 
 const currentDescription = computed<EventDescription | undefined>(() => cuiTimelineRef.value?.currentEventDescription);
 
@@ -352,16 +353,6 @@ const startTs = computed(() => {
   const raw = route.query.startTs;
   const val = Number(raw);
   return raw && !isNaN(val) ? val : undefined;
-});
-
-const timelineLocaleSettings = computed<CuiTimelineLocale>(() => {
-  return {
-    locale: i18n.locale.value,
-    dayNames: primevue.config.locale?.dayNames,
-    dayNamesShort: primevue.config.locale?.dayNamesShort,
-    monthNames: primevue.config.locale?.monthNames,
-    monthNamesShort: primevue.config.locale?.monthNamesShort,
-  };
 });
 
 const trimDurationMs = computed(() => {
@@ -573,6 +564,10 @@ watch(
 
 watch(exportMode, (active) => {
   if (!active) trimTimelapse.value = 0;
+});
+
+watch(cameraCardIsFullscreen, (fullscreen) => {
+  if (fullscreen) deleteMode.value = false;
 });
 
 watch(timelapseDisabled, (disabled) => {

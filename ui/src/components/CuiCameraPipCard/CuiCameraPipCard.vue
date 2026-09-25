@@ -12,6 +12,7 @@
         'pip-overlay-position cursor-pointer': swapped,
       }"
       @expand="onExpand"
+      @fullscreen="emit('fullscreen', $event)"
       @stream-finished-loading="onStreamALoaded"
       @toggle-pip="togglePip"
       @click="swapped && swap()"
@@ -28,6 +29,7 @@
         'pip-main-position': swapped,
         'pip-overlay-position cursor-pointer': !swapped,
       }"
+      @fullscreen="emit('fullscreen', $event)"
       @stream-finished-loading="onStreamBLoaded"
       @toggle-pip="togglePip"
       @click="!swapped && swap()"
@@ -61,6 +63,10 @@ const sourceRole = defineModel<CuiCameraCardModels['sourceRole']>('sourceRole');
 const streamingMode = defineModel<CuiCameraCardModels['streamingMode']>('streamingMode');
 
 const { pipSourceRole, cameraInfo, toolbar } = toRefs(props);
+
+const HORIZONTAL_TIMELINE_HEIGHT = 200;
+const TIMELINE_CONTAINER_A = 'timeline-container';
+const TIMELINE_CONTAINER_B = 'timeline-container-pip';
 
 const overlayProps = {
   flatCard: true,
@@ -246,11 +252,14 @@ const mainControlVisible = computed(() => {
   return mainCard?.showControl ?? false;
 });
 
-// toolbar height (60px + border) + 8px base, raised further when player controls visible
+const mainTimelineVisible = computed(() => activeCard.value?.timelineVisible ?? false);
+
+// toolbar height (60px + border) + 8px base, raised further when player controls or the timeline are visible
 const pipBottomOffset = computed(() => {
   const base = toolbar.value ? 68 : 8; // 60px toolbar + 8px gap, or just 8px
   const raised = mainControlVisible.value ? 48 : 0; // control bar ~48px
-  return `${base + raised}px`;
+  const timeline = mainTimelineVisible.value ? HORIZONTAL_TIMELINE_HEIGHT : 0;
+  return `${base + raised + timeline}px`;
 });
 
 // Controllers stay fixed on their cards — Card A always uses mainNvr, Card B always uses pipNvrController.
@@ -267,7 +276,7 @@ const pipEnabled = computed(() => !nvrMap && hasPipSource.value);
 
 const propsA = computed(() => {
   const nvrCtrl = nvrMap ? undefined : mainNvr.value;
-  const base = { ...props, nvrController: nvrCtrl };
+  const base = { ...props, nvrController: nvrCtrl, timelineContainerId: TIMELINE_CONTAINER_A };
   if (swapped.value) {
     return { ...base, ...overlayProps };
   }
@@ -279,7 +288,7 @@ const propsA = computed(() => {
 });
 
 const propsB = computed(() => {
-  const base = { ...props, nvrController: pipNvrController };
+  const base = { ...props, nvrController: pipNvrController, timelineContainerId: TIMELINE_CONTAINER_B };
   if (swapped.value) {
     return {
       ...base,
@@ -291,10 +300,15 @@ const propsB = computed(() => {
 });
 
 const activeCard = computed(() => (swapped.value ? cardBRef.value : cardARef.value));
+const timelineTarget = computed(() => `#${swapped.value ? TIMELINE_CONTAINER_B : TIMELINE_CONTAINER_A}`);
 
 function swap() {
   if (!hasPipSource.value) return;
+  // the timeline belongs to the main card, the overlay never shows one
+  const timelineOpen = activeCard.value?.timelineState ?? false;
+  if (timelineOpen) activeCard.value?.toggleTimeline();
   swapped.value = !swapped.value;
+  if (timelineOpen && !activeCard.value?.timelineState) activeCard.value?.toggleTimeline();
   emit('swap');
 }
 
@@ -417,6 +431,7 @@ defineExpose({
   micButtonDisabled: computed(() => activeCard.value?.micButtonDisabled ?? true),
   isFullscreen: computed(() => activeCard.value?.isFullscreen ?? false),
   timelineState: computed(() => activeCard.value?.timelineState),
+  timelineTarget,
   timelineScroll,
   captureScreenshot,
 });
