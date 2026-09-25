@@ -379,6 +379,8 @@ export const assignmentsSchema = zod
     cameraController: pluginInfo.optional(),
     clip: pluginInfo.optional(),
     faceEmbedder: pluginInfo.optional(),
+    personEmbedder: pluginInfo.optional(),
+    segmenter: pluginInfo.optional(),
 
     classifier: pluginInfo.array().optional(),
 

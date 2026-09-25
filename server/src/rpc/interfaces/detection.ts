@@ -13,6 +13,7 @@ import type {
   MotionResult,
   ObjectModelSpec,
   ObjectResult,
+  PersonEmbeddingResult,
   Point,
   SensorType,
   VideoFrameData,
@@ -96,5 +97,6 @@ export interface DetectionPluginInterface {
   detectClassifications(frames: VideoFrameData[]): Promise<ClassifierResult[]>;
   detectEmbeddings(frames: VideoFrameData[]): Promise<ClipResult[]>;
   embedFaces(frames: VideoFrameData[]): Promise<FaceEmbeddingResult[]>;
+  embedPersons(frames: VideoFrameData[]): Promise<PersonEmbeddingResult[]>;
   detectAudio(audio: AudioFrameData): Promise<AudioResult>;
 }

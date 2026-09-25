@@ -47,6 +47,10 @@ const CLIP_AREA_FACTOR = 1.5;
 const CLIP_TIMEOUT_MS = 5_000;
 const FACE_TIMEOUT_MS = 5_000;
 const CLIP_FULL_FRAME_KEY = 'full';
+const PERSON_VECTORS_PER_TRACK = 3;
+const PERSON_EVERY_MS = 2_000;
+const MIN_PERSON_PX = 48;
+const PERSON_TIMEOUT_MS = 5_000;
 
 interface ClipTrack {
   at: number;
@@ -56,6 +60,17 @@ interface ClipTrack {
 interface ClipJob {
   region: CroppedRegion;
   capturedAt: number;
+}
+
+interface PersonJob {
+  region: CroppedRegion;
+  trackId: number;
+  capturedAt: number;
+}
+
+interface PersonTrack {
+  at: number;
+  taken: number;
 }
 
 interface FaceJob {
@@ -115,6 +130,18 @@ export class SecondaryStage {
     },
   );
 
+  private readonly personTracks = new Map<number, PersonTrack>();
+  private readonly personQueue = new SideQueue<PersonJob>(
+    (jobs) => this.runPersons(jobs),
+    PERSON_TIMEOUT_MS,
+    (error) => {
+      if (this.coordinator.running && !isNoRespondersError(error)) this.logger.error('Person re-identification error:', error);
+    },
+    (jobs) => {
+      for (const _job of jobs) this.coordinator.vectorJobSettled();
+    },
+  );
+
   private nvrProxy?: Promisify<NvrFaceMatcher>;
   private nvrProxyPromise?: Promise<Promisify<NvrFaceMatcher> | undefined>;
 
@@ -130,6 +157,7 @@ export class SecondaryStage {
 
   public async detect(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[], results: DetectionResults): Promise<void> {
     await this.queueClip(sourceFrame, scaler, objectDetections);
+    await this.queuePersons(sourceFrame, scaler, objectDetections);
     const regionMap = await this.prepareSecondaryRegions(sourceFrame, scaler, objectDetections);
     await this.runAllSecondaries(regionMap, results);
     await this.recognizeFaces(sourceFrame, scaler, results);
@@ -654,7 +682,9 @@ export class SecondaryStage {
     if (!plugin || (requireFrames && !plugin.requiresFrames)) return undefined;
     if (!hasSecondaryModelSpec(plugin.modelSpec) || !isVideoInputSpec(plugin.modelSpec.input)) return undefined;
     const { input, triggerLabels } = plugin.modelSpec;
-    return { triggerLabels, scale: { key: 'clip', width: input.width, height: input.height, format: input.format, fit: 'expand' } };
+    // the box padded with gray, not squared up with the picture around it: the
+    // surroundings pulled a black car's color to white
+    return { triggerLabels, scale: { key: 'clip', width: input.width, height: input.height, format: input.format, fit: 'letterbox' } };
   }
 
   private clipDue(key: string, area: number): boolean {
@@ -691,6 +721,60 @@ export class SecondaryStage {
         parentTrackId,
       }));
       this.coordinator.acceptClipVectors(embeddings, embeddingModel, capturedAt);
+    }
+  }
+
+  private async queuePersons(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[]): Promise<void> {
+    const plugin = this.plugins.get(SensorType.PersonEmbedder);
+    if (!plugin || !hasSecondaryModelSpec(plugin.modelSpec) || !isVideoInputSpec(plugin.modelSpec.input)) return;
+    const { input, triggerLabels } = plugin.modelSpec;
+    // re-ID wants the tight box, stretched like the model was trained, not a square with background
+    const target: ScaleTarget = { key: 'person', width: input.width, height: input.height, format: input.format, fit: 'stretch' };
+
+    for (const detection of objectDetections) {
+      const label = detection.label.toLowerCase();
+      if (triggerLabels.length > 0 && !triggerLabels.some((l) => l.toLowerCase() === label)) continue;
+      const trackId = 'trackId' in detection ? (detection as TrackedDetection).trackId : undefined;
+      if (trackId === undefined || !this.personDue(trackId, detection.box, sourceFrame)) continue;
+
+      const regions = await scaler.cropAndScaleMulti(sourceFrame, detection, [target], 0);
+      const region = regions.get('person');
+      if (!region) continue;
+      if (!this.personQueue.push(`t${trackId}`, { region, trackId, capturedAt: Date.now() })) this.coordinator.vectorJobStarted();
+    }
+  }
+
+  private personDue(trackId: number, box: BoundingBox, frame: Frame): boolean {
+    // a body half out of the side of the picture is someone walking in or out, its vector drags the track's mean off
+    if (box.height * frame.height < MIN_PERSON_PX || box.x < 0.01 || box.x + box.width > 0.99) return false;
+
+    const now = Date.now();
+    const seen = this.personTracks.get(trackId);
+    if (seen && (seen.taken >= PERSON_VECTORS_PER_TRACK || now - seen.at < PERSON_EVERY_MS)) return false;
+    this.personTracks.set(trackId, { at: now, taken: (seen?.taken ?? 0) + 1 });
+
+    if (this.personTracks.size > EMBEDDED_TRACKS_MAX) {
+      for (const [id, track] of this.personTracks) {
+        if (now - track.at > EMBEDDED_TRACK_IDLE_MS) this.personTracks.delete(id);
+      }
+    }
+    return true;
+  }
+
+  private async runPersons(jobs: PersonJob[]): Promise<void> {
+    const plugin = this.plugins.get(SensorType.PersonEmbedder);
+    if (!plugin || !this.coordinator.running) return;
+
+    const started = Date.now();
+    const embedded = await plugin.proxy.embedPersons(jobs.map((job, index) => ({ ...job.region.frame, id: String(index) })));
+    this.perf.personEmbedMs += Date.now() - started;
+    this.perf.personEmbedCount += jobs.length;
+    if (!this.coordinator.running) return;
+
+    for (let i = 0; i < jobs.length; i++) {
+      const { embedding, embeddingModel } = embedded[i] ?? {};
+      if (!embedding?.length || !embeddingModel) continue;
+      this.coordinator.acceptPersonVectors([{ trackId: jobs[i].trackId, embedding }], embeddingModel, jobs[i].capturedAt);
     }
   }
 

@@ -66,9 +66,19 @@
         {{ $t('components.detection_interface.interface_config') }}
       </h3>
 
-      <div v-if="!pluginInterfaceSchema?.length" class="flex items-center justify-center text-sm text-muted mt-5">
-        {{ $t('components.detection_interface.no_interface_config') }}
-      </div>
+      <template v-if="!pluginInterfaceSchema?.length">
+        <div class="flex items-center justify-center text-sm text-muted mt-5">
+          {{ $t('components.detection_interface.no_interface_config') }}
+        </div>
+        <Button
+          fluid
+          class="mt-7 cui-button-medium"
+          :loading="isLoading"
+          :disabled="actionButtonDisabled"
+          :label="$t('components.detection_interface.detect')"
+          @click="onFormSubmit({})"
+        />
+      </template>
 
       <CuiSchema
         v-else
@@ -84,10 +94,6 @@
 </template>
 
 <script setup lang="ts">
-import PluginClipInterfaceDialog from '@/components/CuiDialog/templates/PluginClipInterface/PluginClipInterface.vue';
-import PluginFaceRecognitionDialog from '@/components/CuiDialog/templates/PluginFaceRecognition/PluginFaceRecognition.vue';
-import PluginMotionInterfaceDialog from '@/components/CuiDialog/templates/PluginMotionInterface/PluginMotionInterface.vue';
-import PluginObjectInterfaceDialog from '@/components/CuiDialog/templates/PluginObjectInterface/PluginObjectInterface.vue';
 import {
   ACCEPTED_AUDIO_TYPES,
   ACCEPTED_MOTION_VIDEO_TYPES,
@@ -97,8 +103,20 @@ import {
   MAX_MOTION_FILE_SIZE,
 } from '@shared/types';
 
+import PluginClipInterfaceDialog from '@/components/CuiDialog/templates/PluginClipInterface/PluginClipInterface.vue';
+import PluginFaceRecognitionDialog from '@/components/CuiDialog/templates/PluginFaceRecognition/PluginFaceRecognition.vue';
+import PluginMotionInterfaceDialog from '@/components/CuiDialog/templates/PluginMotionInterface/PluginMotionInterface.vue';
+import PluginObjectInterfaceDialog from '@/components/CuiDialog/templates/PluginObjectInterface/PluginObjectInterface.vue';
+import PluginPersonEmbeddingDialog from '@/components/CuiDialog/templates/PluginPersonEmbedding/PluginPersonEmbedding.vue';
+import PluginSegmentationInterfaceDialog from '@/components/CuiDialog/templates/PluginSegmentationInterface/PluginSegmentationInterface.vue';
+import { cropImage } from '@/utils/imageCrop.js';
+import { segmentPicture } from '@/utils/segmentPicture.js';
+
 import type { PluginMotionInterfaceProps } from '@/components/CuiDialog/templates/PluginMotionInterface/types.js';
 import type { PluginObjectInterfaceProps } from '@/components/CuiDialog/templates/PluginObjectInterface/types.js';
+import type { PluginPersonEmbeddingProps } from '@/components/CuiDialog/templates/PluginPersonEmbedding/types.js';
+import type { PluginSegmentationInterfaceProps } from '@/components/CuiDialog/templates/PluginSegmentationInterface/types.js';
+import type { SimilarSearchRequest } from '@/components/CuiSimilarPicker/types.js';
 import type { NVRInterface } from '@camera.ui/nvr';
 import type { Promisify } from '@camera.ui/rpc';
 import type { AudioMetadata, ImageMetadata, JsonSchema } from '@camera.ui/sdk';
@@ -112,6 +130,8 @@ const DROP_LABEL_KEYS: Record<CuiDetectionInterfaceProps['type'], string> = {
   objectDetection: 'drop_or_select_image_to_detect_objects',
   faceDetection: 'drop_or_select_image_to_detect_faces',
   faceRecognition: 'drop_or_select_image_to_recognize_face',
+  personEmbedding: 'drop_or_select_image_of_person',
+  segmentation: 'drop_or_select_image_to_outline',
   licensePlateDetection: 'drop_or_select_image_to_detect_license_plates',
   classifierDetection: 'drop_or_select_image_to_classify',
   clipDetection: 'drop_or_select_image_for_semantic_search',
@@ -128,8 +148,9 @@ const dialog = useCuiDialog();
 
 const { type, pluginName } = toRefs(props);
 
-const { plugin: pluginProxy, isLoading: pluginLoading } = usePlugin(pluginName);
+const { plugin: pluginProxy, contract: pluginContract, isLoading: pluginLoading } = usePlugin(pluginName);
 const { plugin: nvrProxy } = usePlugin('@camera.ui/camera-ui-nvr');
+const { openSimilarSearch } = useSimilarSearchRoute();
 
 const fileInputRef = useTemplateRef('fileInputRef');
 const videoPlayerRef = useTemplateRef('videoPlayerRef');
@@ -155,6 +176,8 @@ const fileType = computed<'image' | 'video' | 'audio'>(() => {
     case 'objectDetection':
     case 'faceDetection':
     case 'faceRecognition':
+    case 'personEmbedding':
+    case 'segmentation':
     case 'licensePlateDetection':
     case 'classifierDetection':
     case 'clipDetection':
@@ -218,6 +241,12 @@ async function loadInterfaceSchema(): Promise<void> {
         break;
       case 'faceRecognition':
         schema = await pluginProxy.value.faceEmbeddingSettings?.();
+        break;
+      case 'personEmbedding':
+        schema = await pluginProxy.value.personEmbeddingSettings?.();
+        break;
+      case 'segmentation':
+        schema = await pluginProxy.value.segmentationSettings?.();
         break;
       case 'licensePlateDetection':
         schema = await pluginProxy.value.licensePlateDetectionSettings?.();
@@ -502,6 +531,52 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
               const matches = await nvr.matchFaces([embedding], embeddingModel, sensitivity);
               return matches?.[0] ?? undefined;
             },
+          },
+        },
+      });
+    } else if (type.value === 'personEmbedding') {
+      const responses = await pluginProxy.value.embedPersonImages?.([new Uint8Array(fileBuffer)], configData);
+      const result = responses?.[0];
+
+      if (!result?.embedding?.length) {
+        toast.add({ severity: 'info', detail: t('components.person_embedding_interface.no_vector'), life: 3000 });
+        return;
+      }
+
+      const crop = await cropImage(uploadedFiles.value[0], { x: 0, y: 0, width: 1, height: 1 });
+      const request: SimilarSearchRequest = { query: { label: 'person', personModel: result.embeddingModel, person: result.embedding }, objectLabel: 'person', crop };
+      dialog.openComponentDialog<PluginPersonEmbeddingProps>(PluginPersonEmbeddingDialog, {
+        data: {
+          title: t('components.dialog.title.result'),
+          hideConfirmButton: true,
+          contentProps: {
+            src: mediaUrl,
+            embeddingModel: result.embeddingModel,
+            dimensions: result.embedding.length,
+            onSearch: nvrProxy.value ? () => openSimilarSearch(request) : undefined,
+          },
+        },
+      });
+    } else if (type.value === 'segmentation') {
+      if (!pluginProxy.value.segmentImages) {
+        log.warn('No segmentation interface available');
+        return;
+      }
+
+      const objects = await segmentPicture(uploadedFiles.value[0], pluginProxy.value, pluginContract.value, configData);
+
+      if (!objects.some((object) => object.mask)) {
+        toast.add({ severity: 'info', detail: t('components.segmentation_interface.no_mask'), life: 3000 });
+        return;
+      }
+
+      dialog.openComponentDialog<PluginSegmentationInterfaceProps>(PluginSegmentationInterfaceDialog, {
+        data: {
+          title: t('components.dialog.title.result'),
+          hideConfirmButton: true,
+          contentProps: {
+            src: mediaUrl,
+            objects,
           },
         },
       });

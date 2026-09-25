@@ -256,6 +256,7 @@ declare global {
   const useDeviceOrientation: typeof import('@vueuse/core').useDeviceOrientation
   const useDevicePixelRatio: typeof import('@vueuse/core').useDevicePixelRatio
   const useDevicesList: typeof import('@vueuse/core').useDevicesList
+  const useDialogSidePanel: typeof import('../composables/useDialogSidePanel').useDialogSidePanel
   const useDisplayMedia: typeof import('@vueuse/core').useDisplayMedia
   const useDocumentVisibility: typeof import('@vueuse/core').useDocumentVisibility
   const useDraggable: typeof import('@vueuse/core').useDraggable
@@ -389,6 +390,8 @@ declare global {
   const useSharedMouse: typeof import('../composables/useSharedComposables').useSharedMouse
   const useSharedScreenOrientation: typeof import('../composables/useSharedComposables').useSharedScreenOrientation
   const useSharedWindowSize: typeof import('../composables/useSharedComposables').useSharedWindowSize
+  const useSimilarPick: typeof import('../composables/useSimilarPick').useSimilarPick
+  const useSimilarSearchRoute: typeof import('../composables/useSimilarSearchRoute').useSimilarSearchRoute
   const useSlots: typeof import('vue').useSlots
   const useSnapshot: typeof import('@camera.ui/browser').useSnapshot
   const useSocket: typeof import('../connection/composables/useSocket').useSocket
@@ -528,6 +531,9 @@ declare global {
   // @ts-ignore
   export type { ResizableZoomOptions } from '../composables/useResizableZoom'
   import('../composables/useResizableZoom')
+  // @ts-ignore
+  export type { SimilarPickEnd, UseSimilarPickOptions } from '../composables/useSimilarPick'
+  import('../composables/useSimilarPick')
   // @ts-ignore
   export type { UseTabSwipeOptions } from '../composables/useTabSwipe'
   import('../composables/useTabSwipe')
@@ -827,6 +833,7 @@ declare module 'vue' {
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>
     readonly useDevicesList: UnwrapRef<typeof import('@vueuse/core')['useDevicesList']>
+    readonly useDialogSidePanel: UnwrapRef<typeof import('../composables/useDialogSidePanel')['useDialogSidePanel']>
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>
@@ -960,6 +967,8 @@ declare module 'vue' {
     readonly useSharedMouse: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedMouse']>
     readonly useSharedScreenOrientation: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedScreenOrientation']>
     readonly useSharedWindowSize: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedWindowSize']>
+    readonly useSimilarPick: UnwrapRef<typeof import('../composables/useSimilarPick')['useSimilarPick']>
+    readonly useSimilarSearchRoute: UnwrapRef<typeof import('../composables/useSimilarSearchRoute')['useSimilarSearchRoute']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
     readonly useSnapshot: UnwrapRef<typeof import('@camera.ui/browser')['useSnapshot']>
     readonly useSocket: UnwrapRef<typeof import('../connection/composables/useSocket')['useSocket']>

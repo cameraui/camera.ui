@@ -26,6 +26,8 @@ DETECTION_SENSOR_TYPES: frozenset[SensorType] = frozenset(
         SensorType.ObjectAssist,
         SensorType.Face,
         SensorType.FaceEmbedder,
+        SensorType.PersonEmbedder,
+        SensorType.Segmenter,
         SensorType.LicensePlate,
         SensorType.Classifier,
         SensorType.Clip,

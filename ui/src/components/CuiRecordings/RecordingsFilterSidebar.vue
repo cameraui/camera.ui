@@ -28,26 +28,34 @@
 
       <div class="sidebar-divider" />
 
-      <template v-if="!episodesOnly">
-        <div class="flex flex-col gap-2">
-          <label class="sidebar-section-title">{{ $t('views.recordings.search') }}</label>
-          <span class="p-input-icon-left w-full">
-            <InputText
-              :model-value="filters.search"
-              :placeholder="$t('views.recordings.search_placeholder')"
-              class="w-full text-sm"
-              @update:model-value="updateSearchDebounced($event as string)"
-            />
-          </span>
-          <span class="text-xs text-muted">{{ resultLabel }}</span>
-        </div>
+      <div v-if="activeSearchMode" class="flex flex-col gap-2">
+        <label class="sidebar-section-title">{{ activeSearchMode.label }}</label>
+        <SelectButton
+          v-if="searchModeOptions.length > 1"
+          :model-value="activeSearchMode.value"
+          :options="searchModeOptions"
+          option-value="value"
+          data-key="value"
+          :allow-empty="false"
+          class="search-mode-toggle"
+          @update:model-value="searchMode = $event"
+        >
+          <template #option="{ option }">
+            <component :is="option.icon" v-tooltip.bottom="option.label" :aria-label="option.label" class="w-4 h-4" />
+          </template>
+        </SelectButton>
 
-        <div class="sidebar-divider" />
-        <div class="flex flex-col gap-2">
-          <label class="sidebar-section-title flex items-center gap-1.5">
-            <i-tabler:sparkles class="w-3.5 h-3.5" />
-            {{ $t('views.recordings.semantic_search') }}
-          </label>
+        <template v-if="activeSearchMode.value === 'text'">
+          <InputText
+            :model-value="filters.search"
+            :placeholder="$t('views.recordings.search_placeholder')"
+            class="w-full text-sm"
+            @update:model-value="updateSearchDebounced($event as string)"
+          />
+          <span class="text-xs text-muted">{{ resultLabel }}</span>
+        </template>
+
+        <template v-else-if="activeSearchMode.value === 'semantic'">
           <Textarea
             v-model="semanticInput"
             :placeholder="$t('views.recordings.semantic_search_placeholder')"
@@ -83,17 +91,9 @@
               <span class="text-xs font-mono w-8 text-right shrink-0">{{ Math.round(filters.minSemanticScore * 100) }}%</span>
             </div>
           </div>
-        </div>
+        </template>
 
-        <div class="sidebar-divider" />
-      </template>
-
-      <template v-if="assistantSearchAvailable">
-        <div class="flex flex-col gap-2">
-          <label class="sidebar-section-title flex items-center gap-1.5">
-            <i-mdi:robot-outline class="w-3.5 h-3.5" />
-            {{ $t('views.recordings.assistant_search') }}
-          </label>
+        <template v-else-if="activeSearchMode.value === 'assistant'">
           <InputText
             v-model="assistantInput"
             :placeholder="$t('views.recordings.assistant_search_placeholder')"
@@ -112,10 +112,23 @@
             @click="submitAssistantSearch"
           />
           <span v-if="assistantSearchNote" class="text-xs text-muted">{{ assistantSearchNote }}</span>
-        </div>
+        </template>
 
-        <div class="sidebar-divider" />
-      </template>
+        <label
+          v-else
+          class="image-drop"
+          :class="{ 'image-drop-over': imageDragOver }"
+          @dragover.prevent="imageDragOver = true"
+          @dragleave.prevent="imageDragOver = false"
+          @drop.prevent="onImageDrop"
+        >
+          <i-tabler:photo-search class="w-6 h-6" />
+          <span class="text-xs text-center">{{ $t('views.recordings.image_search_drop') }}</span>
+          <input type="file" accept="image/*" class="hidden" @change="onImageSelect" />
+        </label>
+      </div>
+
+      <div v-if="activeSearchMode" class="sidebar-divider" />
 
       <div v-if="roomOptions.length > 1" class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.rooms') }}</label>
@@ -290,25 +303,77 @@
             </label>
           </div>
         </div>
+
+        <div class="sidebar-divider" />
+
+        <div class="flex flex-col gap-2">
+          <button class="sidebar-section-title flex items-center justify-between w-full cursor-pointer" @click="toggleSection('vehicles')">
+            <span>{{ $t('views.recordings.vehicles') }}</span>
+            <component :is="sections.vehicles ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
+          </button>
+          <div v-if="sections.vehicles" class="flex flex-col gap-3">
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="color in vehicleColorOptions"
+                :key="color.value"
+                v-tooltip.top="{ value: color.label }"
+                class="vehicle-color"
+                :class="{ 'vehicle-color-active': filters.vehicleColors.includes(color.value) }"
+                :style="{ background: color.swatch }"
+                :aria-label="color.label"
+                :aria-pressed="filters.vehicleColors.includes(color.value)"
+                @click="toggleVehicleFilter('vehicleColors', color.value)"
+              />
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <Button
+                v-for="type in vehicleTypeOptions"
+                :key="type.value"
+                :label="type.label"
+                :severity="filters.vehicleTypes.includes(type.value) ? undefined : 'secondary'"
+                :outlined="!filters.vehicleTypes.includes(type.value)"
+                size="small"
+                class="text-xs"
+                @click="toggleVehicleFilter('vehicleTypes', type.value)"
+              />
+            </div>
+            <span class="text-xs text-muted">{{ $t('views.recordings.vehicle_filter_hint') }}</span>
+          </div>
+        </div>
       </template>
     </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { EVENT_TYPE_OTHER } from '@camera.ui/nvr';
+import { EVENT_TYPE_OTHER, VEHICLE_COLORS, VEHICLE_TYPES } from '@camera.ui/nvr';
 import { BASE_AUDIO_LABELS, DETECTION_ATTRIBUTES, DETECTION_LABELS, EVENT_TRIGGER_TYPES } from '@camera.ui/sdk';
+import RobotIcon from '~icons/mdi/robot-outline';
 import IconChevronDown from '~icons/tabler/chevron-down';
 import IconChevronUp from '~icons/tabler/chevron-up';
+import PhotoSearchIcon from '~icons/tabler/photo-search';
+import SearchIcon from '~icons/tabler/search';
+import SparklesIcon from '~icons/tabler/sparkles';
 
-import { attributeLabelKey, audioLabelKey, sensorLabelKey } from '@/common/eventLabels.js';
+import { attributeLabelKey, audioLabelKey, sensorLabelKey, vehicleColorKey, vehicleTypeKey } from '@/common/eventLabels.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
-import type { RecordingsFilterSidebarEmits, RecordingsFilterSidebarProps, RecordingsFilterState } from './types.js';
+import type { Component } from 'vue';
+import type { RecordingsFilterSidebarEmits, RecordingsFilterSidebarProps, RecordingsFilterState, RecordingsSearchMode } from './types.js';
 
 const SIDEBAR_WIDTH = 288;
 
 const NON_FILTER_LABELS = new Set(['motion', 'audio']);
+
+const VEHICLE_SWATCHES: Record<string, string> = {
+  white: '#f5f5f5',
+  gray: '#9ca3af',
+  yellow: '#facc15',
+  red: '#ef4444',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  black: '#111827',
+};
 
 const props = defineProps<RecordingsFilterSidebarProps>();
 
@@ -316,24 +381,23 @@ const emit = defineEmits<RecordingsFilterSidebarEmits>();
 
 const { t } = useI18n();
 const { topbarOffset, bottombarHeight } = useSharedCuiStates();
-
 const { icons: DETECTION_ICONS, generic: GENERIC_ICON } = resolveEventIcons();
-// Sensor event icons are already included in DETECTION_ICONS from resolveEventIcons()
-const sensorEventIcons = DETECTION_ICONS;
 
+const sensorEventIcons = DETECTION_ICONS;
 const chevronUp = IconChevronUp;
 const chevronDown = IconChevronDown;
 
 const sidebarRef = useTemplateRef('sidebarRef');
-
-// Local semantic search input — only emits on submit (Enter / button click)
 const semanticInput = ref(props.filters.semanticQuery ?? '');
 const assistantInput = ref('');
+const searchMode = ref<RecordingsSearchMode>(props.filters.semanticQuery ? 'semantic' : 'text');
+const imageDragOver = ref(false);
 
 const sections = reactive({
   eventTypes: true,
   attributes: true,
   sensorEvents: true,
+  vehicles: true,
 });
 
 const sidebarWidth = computed(() => (props.isOpen ? SIDEBAR_WIDTH : 0));
@@ -364,6 +428,19 @@ const resultLabel = computed(() => {
   const total = props.resultCapped ? `${props.resultTotal}+` : props.resultTotal;
   return t(`views.recordings.result_count_${unit}_of`, { count: props.resultCount, total });
 });
+
+const searchModeOptions = computed(() => {
+  const options: { value: RecordingsSearchMode; label: string; icon: Component }[] = [];
+  if (!episodesOnly.value) {
+    options.push({ value: 'text', label: t('views.recordings.search'), icon: SearchIcon });
+    options.push({ value: 'semantic', label: t('views.recordings.semantic_search'), icon: SparklesIcon });
+  }
+  if (props.assistantSearchAvailable) options.push({ value: 'assistant', label: t('views.recordings.assistant_search'), icon: RobotIcon });
+  if (props.imageSearchAvailable && !episodesOnly.value) options.push({ value: 'image', label: t('views.recordings.image_search'), icon: PhotoSearchIcon });
+  return options;
+});
+
+const activeSearchMode = computed(() => searchModeOptions.value.find((option) => option.value === searchMode.value) ?? searchModeOptions.value[0]);
 
 const contentKindOptions = computed(() => [
   { label: t('views.recordings.content_kind_all'), value: 'all' as const },
@@ -421,6 +498,12 @@ const attributeOptions = computed(() =>
   })),
 );
 
+const vehicleColorOptions = computed(() =>
+  VEHICLE_COLORS.map((color) => ({ label: t(vehicleColorKey(color)), value: color as string, swatch: VEHICLE_SWATCHES[color] })),
+);
+
+const vehicleTypeOptions = computed(() => VEHICLE_TYPES.map((type) => ({ label: t(vehicleTypeKey(type)), value: type as string })));
+
 function updateFilter<K extends keyof RecordingsFilterState>(key: K, value: RecordingsFilterState[K] | undefined): void {
   emit('update:filters', { ...props.filters, [key]: value });
 }
@@ -438,6 +521,22 @@ function submitAssistantSearch(): void {
   const text = assistantInput.value.trim();
   if (!text || props.assistantSearchLoading) return;
   emit('assistant-search', text);
+}
+
+function onImageDrop(event: DragEvent): void {
+  imageDragOver.value = false;
+  searchImage(event.dataTransfer?.files);
+}
+
+function onImageSelect(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  searchImage(input.files);
+  input.value = '';
+}
+
+function searchImage(files: FileList | null | undefined): void {
+  const image = Array.from(files ?? []).find((file) => file.type.startsWith('image/'));
+  if (image) emit('image-search', image);
 }
 
 function submitSemanticSearch(): void {
@@ -490,11 +589,15 @@ function toggleAttribute(attr: string): void {
   updateFilter('hasAttributes', current);
 }
 
+function toggleVehicleFilter(key: 'vehicleColors' | 'vehicleTypes', value: string): void {
+  const current = props.filters[key];
+  updateFilter(key, current.includes(value) ? current.filter((v) => v !== value) : [...current, value]);
+}
+
 function toggleSection(section: keyof typeof sections): void {
   sections[section] = !sections[section];
 }
 
-// Auto-clear when user empties the input after a search was submitted
 watch(semanticInput, (val) => {
   if (!val?.trim() && props.filters.semanticQuery) {
     updateFilter('semanticQuery', '');
@@ -574,8 +677,54 @@ defineExpose({
   }
 }
 
+.vehicle-color {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: box-shadow 150ms ease;
+}
+
+.vehicle-color-active {
+  box-shadow:
+    0 0 0 2px var(--subnavbar-background),
+    0 0 0 4px var(--p-primary-color);
+}
+
 .semantic-textarea {
   resize: vertical;
   min-height: 2.5rem;
+}
+
+:deep(.search-mode-toggle) {
+  display: flex;
+
+  .p-togglebutton {
+    flex: 1;
+    min-width: 0;
+    padding: 0.35rem 0.5rem;
+  }
+}
+
+.image-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 0.75rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 0.75rem;
+  color: var(--p-text-muted-color);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.image-drop:hover,
+.image-drop-over {
+  border-color: var(--p-primary-color);
+  color: var(--p-primary-color);
 }
 </style>

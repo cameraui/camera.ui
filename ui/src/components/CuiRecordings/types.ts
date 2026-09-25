@@ -1,5 +1,5 @@
 import type { GridRegion } from '@/components/CuiGridSearch/types.js';
-import type { EventThumbnails, RecordedEvent } from '@camera.ui/nvr';
+import type { EventThumbnails, RecordedEvent, SimilarResult } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
 
 export type RecordingsContentKind = 'all' | 'events' | 'episodes';
@@ -18,6 +18,8 @@ export interface RecordingsFilterState {
   eventTypes: string[];
   audioLabels: string[];
   hasAttributes: string[];
+  vehicleColors: string[];
+  vehicleTypes: string[];
   sensorEvents: string[];
   gridRegions: GridRegion[];
   minConfidence: number;
@@ -84,11 +86,28 @@ export interface RecordingsFilterSidebarProps {
   assistantSearchAvailable?: boolean;
   assistantSearchLoading?: boolean;
   assistantSearchNote?: string;
+  imageSearchAvailable?: boolean;
 }
+
+export type RecordingsSearchMode = 'text' | 'semantic' | 'assistant' | 'image';
 
 export interface RecordingsFilterSidebarEmits {
   'update:filters': [filters: RecordingsFilterState];
   'semantic-search': [query: string];
   'assistant-search': [text: string];
+  'image-search': [image: File];
+  close: [];
+}
+
+export interface SimilarSearchBarProps {
+  crop?: string;
+  objectLabel?: string;
+  result?: SimilarResult;
+  count: number;
+  searching: boolean;
+  licenseRequired: boolean;
+}
+
+export interface SimilarSearchBarEmits {
   close: [];
 }

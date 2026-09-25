@@ -1,3 +1,5 @@
+import type { FrameObject } from '@camera.ui/nvr';
+
 export const AUDIO_LABEL_I18N: Record<string, string> = {
   doorbell: 'views.recordings.audio_doorbell',
   glass_break: 'views.recordings.audio_glass_break',
@@ -61,4 +63,22 @@ export function sensorLabelKey(type: string): string {
 
 export function attributeLabelKey(attribute: string): string {
   return ATTRIBUTE_I18N[attribute] ?? `views.recordings.attr_${attribute}`;
+}
+
+export function vehicleColorKey(color: string): string {
+  return `views.recordings.vehicle_color_${color}`;
+}
+
+export function vehicleTypeKey(type: string): string {
+  return `views.recordings.vehicle_type_${type}`;
+}
+
+export function frameObjectText(object: FrameObject, t: (key: string) => string): string {
+  if (object.label === 'vehicle') {
+    const parts = [object.plate, object.color && t(vehicleColorKey(object.color)), object.vehicleType && t(vehicleTypeKey(object.vehicleType))].filter(Boolean);
+    if (parts.length) return parts.join(' · ');
+    return object.query ? t('components.similar.vehicle') : t('components.similar.no_vehicle_features');
+  }
+  if (object.name) return object.name;
+  return object.query ? t('components.similar.unknown_face') : t('components.similar.no_face');
 }

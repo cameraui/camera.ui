@@ -16,7 +16,7 @@ export interface JpegCrop {
   jpeg: Buffer;
 }
 
-export type CropFit = 'stretch' | 'expand';
+export type CropFit = 'stretch' | 'expand' | 'letterbox';
 
 export interface ConsumerSpec {
   key: string;
@@ -112,15 +112,7 @@ export class FrameScaler {
       return { padded: inner, inner, geometry };
     }
 
-    const channels = spec.format === 'gray' ? 1 : 3;
-    const data = Buffer.alloc(spec.width * spec.height * channels, LETTERBOX_FILL);
-    const rowBytes = inner.width * channels;
-
-    for (let y = 0; y < inner.height; y++) {
-      const target = ((geometry.padY + y) * spec.width + geometry.padX) * channels;
-      inner.data.copy(data, target, y * rowBytes, (y + 1) * rowBytes);
-    }
-
+    const data = this.padInto(inner, spec.width, spec.height, geometry.padX, geometry.padY);
     return { padded: { data, width: spec.width, height: spec.height, format: spec.format }, inner, geometry };
   }
 
@@ -252,7 +244,13 @@ export class FrameScaler {
     if (!baseCrop) return results;
 
     for (const t of targets) {
-      const fitted = t.fit === 'expand' ? this.expandCropToAspect(baseCrop, frame.width, frame.height, t.width / t.height) : baseCrop;
+      // nv12 is semi-planar, padding it row by row would tear the chroma plane apart
+      const fit = t.fit === 'letterbox' && t.format === 'nv12' ? 'expand' : t.fit;
+      if (fit === 'letterbox') {
+        results.set(t.key, await this.letterboxCrop(frame, detection, baseCrop, t));
+        continue;
+      }
+      const fitted = fit === 'expand' ? this.expandCropToAspect(baseCrop, frame.width, frame.height, t.width / t.height) : baseCrop;
       const crop = this.quantizeCrop(fitted, frame.width, frame.height);
       const data = await this.withScaler(crop.width, t.width, (scaler) =>
         scaler.toBuffer(frame, { crop, resize: { width: t.width, height: t.height }, format: t.format }),
@@ -335,6 +333,39 @@ export class FrameScaler {
   public dispose(): void {
     this.disposed = true;
     this.clearCache();
+  }
+
+  private async letterboxCrop(frame: Frame, detection: Detection, baseCrop: ScalerCrop, t: ScaleTarget): Promise<CroppedRegion> {
+    const crop = this.quantizeCrop(baseCrop, frame.width, frame.height);
+    const ratio = Math.min(t.width / crop.width, t.height / crop.height);
+    const innerWidth = Math.min(t.width, Math.max(2, Math.round((crop.width * ratio) / 2) * 2));
+    const innerHeight = Math.min(t.height, Math.max(2, Math.round((crop.height * ratio) / 2) * 2));
+    const data = await this.withScaler(crop.width, innerWidth, (scaler) =>
+      scaler.toBuffer(frame, { crop, resize: { width: innerWidth, height: innerHeight }, format: t.format }),
+    );
+    const padX = Math.floor((t.width - innerWidth) / 2);
+    const padY = Math.floor((t.height - innerHeight) / 2);
+    const padded = padX === 0 && padY === 0 ? data : this.padInto({ data, width: innerWidth, height: innerHeight, format: t.format }, t.width, t.height, padX, padY);
+
+    return {
+      frame: { id: `crop:${detection.label}:${t.key}`, data: padded, width: t.width, height: t.height, format: t.format },
+      detection,
+      // a virtual crop covering the box plus the fill bars, so boxes found in
+      // the padded picture map back to the frame linearly
+      offset: { x: crop.x - (padX / innerWidth) * crop.width, y: crop.y - (padY / innerHeight) * crop.height },
+      cropSize: { width: (t.width / innerWidth) * crop.width, height: (t.height / innerHeight) * crop.height },
+      originalSize: { width: frame.width, height: frame.height },
+    };
+  }
+
+  private padInto(inner: ScaledFrame, width: number, height: number, padX: number, padY: number): Buffer {
+    const channels = inner.format === 'gray' ? 1 : 3;
+    const data = Buffer.alloc(width * height * channels, LETTERBOX_FILL);
+    const rowBytes = inner.width * channels;
+    for (let y = 0; y < inner.height; y++) {
+      inner.data.copy(data, ((padY + y) * width + padX) * channels, y * rowBytes, (y + 1) * rowBytes);
+    }
+    return data;
   }
 
   private expandCropToAspect(crop: ScalerCrop, frameWidth: number, frameHeight: number, aspect: number): ScalerCrop {

@@ -160,6 +160,8 @@ const showBackButton = ref(false);
 const dialogTitle = ref(title.value);
 const hasDragged = ref(false);
 
+provide('dialogTitle', dialogTitle);
+
 let stepper: ReturnType<typeof useCuiDialogStepper> | undefined;
 
 const { style, x, y } = useDraggable(dialogHeader, {

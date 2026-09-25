@@ -29,7 +29,7 @@ import type { TrainingCandidateBox } from '../../rpc/interfaces/core.js';
 import type { DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
-import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedSegment } from './nvr-sink.js';
+import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedPersonEmbedding, RecordedSegment } from './nvr-sink.js';
 import type { PerfTracker } from './perf-tracker.js';
 import type { SceneObservation, TrainingSubject } from './training-sink.js';
 import type { AnalysisStream } from './types.js';
@@ -43,6 +43,11 @@ export interface TrackedFaceDetection extends ServerFaceDetection, TrackedSecond
 export interface TrackedLicensePlateDetection extends LicensePlateDetection, TrackedSecondary {}
 export interface TrackedClassifierDetection extends ClassifierDetection, TrackedSecondary {}
 export interface TrackedClipEmbedding extends ClipEmbedding, TrackedSecondary {}
+
+export interface TrackedPersonEmbedding {
+  trackId: number;
+  embedding: number[];
+}
 
 export interface NormalizedDetectionZone {
   name: string;
@@ -112,6 +117,13 @@ const CLIP_ATTRIBUTE = 'clip';
 const MIN_MOVING_SPEED = 0.05;
 const STATIONARY_SPEED_THRESHOLD = 0.002;
 
+function unitVector(values: number[]): number[] {
+  let norm = 0;
+  for (const value of values) norm += value * value;
+  norm = Math.sqrt(norm) || 1;
+  return values.map((value) => value / norm);
+}
+
 function zoneHit(box: BoundingBox, zone: NormalizedDetectionZone): boolean {
   if (zone.match === 'anchor') return boxAnchorInPolygon(box, zone.points);
   if (zone.match === 'contain') return boxInsidePolygon(box, zone.points);
@@ -162,6 +174,11 @@ interface HeldAttribute {
   clipEmbeddingModel?: string;
 }
 
+interface HeldPerson {
+  sum: number[];
+  model: string;
+}
+
 interface ThumbnailCandidate {
   jpeg: Buffer;
   score: number;
@@ -179,6 +196,7 @@ export class DetectionEventManager {
   private static readonly VECTOR_PARK_MS = 2_000;
   private static readonly CLOSE_RECHECK_MS = 200;
   private static readonly CLOSE_WAIT_MAX_MS = 8_000;
+  private static readonly PERSON_TRACKS_MAX = 256;
 
   private activeEvent: RecordedEvent | null = null;
   private activeSegment: RecordedSegment | null = null;
@@ -210,6 +228,7 @@ export class DetectionEventManager {
   private plateVotingActive = true;
   private segmentClassifierTrackIds = new Map<string, number>();
   private segmentClipLabels = new Map<string, number>();
+  private trackPersonVectors = new Map<number, HeldPerson>();
 
   private readonly eventSubject: string;
   private readonly nvr: NvrSink;
@@ -347,6 +366,12 @@ export class DetectionEventManager {
   public acceptFaceVectors(faces: TrackedFaceDetection[], model: string, capturedAt: number): void {
     for (const face of faces) {
       if (face.embedding?.length) this.acceptVector(capturedAt, () => this.attachFace(face, model));
+    }
+  }
+
+  public acceptPersonVectors(persons: TrackedPersonEmbedding[], model: string, capturedAt: number): void {
+    for (const person of persons) {
+      if (person.embedding.length) this.acceptVector(capturedAt, () => this.attachPerson(person, model));
     }
   }
 
@@ -869,6 +894,29 @@ export class DetectionEventManager {
     this.pushAttribute({ type: 'clip', label: clip.label, parentTrackId: clip.parentTrackId }, { clipEmbedding: clip.embedding, clipEmbeddingModel: model });
   }
 
+  private attachPerson(person: TrackedPersonEmbedding, model: string): void {
+    const held = this.trackPersonVectors.get(person.trackId);
+    this.trackPersonVectors.delete(person.trackId);
+    if (held?.model === model && held.sum.length === person.embedding.length) {
+      for (let i = 0; i < held.sum.length; i++) held.sum[i] += person.embedding[i];
+      this.trackPersonVectors.set(person.trackId, held);
+    } else {
+      this.trackPersonVectors.set(person.trackId, { sum: [...person.embedding], model });
+    }
+    if (this.trackPersonVectors.size > DetectionEventManager.PERSON_TRACKS_MAX) {
+      this.trackPersonVectors.delete(this.trackPersonVectors.keys().next().value!);
+    }
+  }
+
+  private segmentPersonEmbeddings(): RecordedPersonEmbedding[] | undefined {
+    const embeddings: RecordedPersonEmbedding[] = [];
+    for (const trackId of this.segmentTrackPaths.keys()) {
+      const held = this.trackPersonVectors.get(trackId);
+      if (held) embeddings.push({ trackId, embedding: unitVector(held.sum), embeddingModel: held.model });
+    }
+    return embeddings.length ? embeddings : undefined;
+  }
+
   private heldFace(face: TrackedFaceDetection, embeddingModel?: string): HeldAttribute {
     return { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel, landmarks: face.thumbnailLandmarks, quality: face.quality };
   }
@@ -1046,6 +1094,8 @@ export class DetectionEventManager {
         }
       }
     }
+
+    if (withEmbeddings && this.activeSegment) this.activeSegment.personEmbeddings = this.segmentPersonEmbeddings();
 
     if (anyCrop) {
       attachments.attributes = crops;

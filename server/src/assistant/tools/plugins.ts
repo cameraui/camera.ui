@@ -1,10 +1,11 @@
+/* eslint-disable @stylistic/max-len */
 import { PromiseTimeout } from '@camera.ui/common/utils';
 import { hasInterface } from '@camera.ui/sdk';
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
 import { PluginsService } from '../../api/services/plugins.service.js';
-import { PLUGIN_METHOD_REGISTRY } from '../../automations/pluginMethodRegistry.js';
+import { buildArgsFromRegistry, PLUGIN_METHOD_REGISTRY } from '../../automations/pluginMethodRegistry.js';
 import { toWav, videoFrames } from '../media.js';
 import { takeSnapshot } from './cameras.js';
 import { toolError, withImages } from './shared.js';
@@ -30,7 +31,11 @@ interface Picture {
 
 const analyzeImageInput = zod.object({
   plugin: zod.string().describe('Plugin name from plugin_capabilities'),
-  method: zod.string().describe('Picture method from plugin_capabilities: testObjectDetection, testFaceDetection, testLicensePlateDetection, testClipEmbedding'),
+  method: zod
+    .string()
+    .describe(
+      'Picture method from plugin_capabilities: testObjectDetection, testFaceDetection, testLicensePlateDetection, testClipEmbedding, embedFaceImages, embedPersonImages, segmentImages',
+    ),
   camera: zod.string().optional().describe('Camera name for a fresh snapshot'),
   eventId: zod.string().optional().describe('Event or episode id, uses its picture'),
   upload: zod.string().optional().describe('Id of a picture the user attached, e.g. upload-1'),
@@ -206,7 +211,8 @@ function resolve(pluginName: string, methodId: string, type: PluginMethodParamTy
 }
 
 async function runOnPicture(target: Target, picture: Picture, textVector?: number[], text?: string): Promise<Record<string, unknown>> {
-  const raw = await PromiseTimeout(target.method(picture.data, { width: 0, height: 0 }, {}), CALL_TIMEOUT_MS, undefined, `${target.def.id} timed out`);
+  const args = buildArgsFromRegistry(target.def.id, { imageData: picture.data, config: {} });
+  const raw = await PromiseTimeout(target.method(...args), CALL_TIMEOUT_MS, undefined, `${target.def.id} timed out`);
   const result = compact(raw) as Record<string, unknown>;
   if (textVector) {
     const vectors = ((raw as { embeddings?: { embedding?: number[] }[] })?.embeddings ?? []).map((e) => e.embedding).filter(Array.isArray);

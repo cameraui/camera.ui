@@ -47,6 +47,7 @@ export interface WorkerPerfStats {
   objectSecondaryMs: number;
   clipCalls: number;
   faceEmbedCalls: number;
+  personEmbedCalls: number;
   vectorJobs: number;
   vectorsAccepted: number;
   vectorsParked: number;

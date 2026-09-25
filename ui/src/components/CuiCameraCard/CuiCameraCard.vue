@@ -256,7 +256,11 @@
               </div>
 
               <div class="absolute inset-0 z-3 pointer-events-none">
-                <CuiBBoxPlayground v-if="boundingBoxOverlay && !inStandby && !nvrPlaybackVisible && !isDisabled" ref="detectionCanvasRef" :classes="bboxClasses" />
+                <CuiBBoxPlayground
+                  v-if="boundingBoxOverlay && !inStandby && !nvrPlaybackVisible && !isDisabled && !similarPicking"
+                  ref="detectionCanvasRef"
+                  :classes="bboxClasses"
+                />
 
                 <CuiPolygon
                   v-if="zoneState && !inStandby && !isDisabled"
@@ -280,6 +284,8 @@
                 />
 
                 <CuiHeatmap v-if="heatmapEnabled && camera && !isDisabled" :camera-id="camera._id" />
+
+                <CuiSimilarPicker v-if="similarPicking && camera" :camera :frame="similarFrame" @pick="onSimilarPick" @close="closeSimilarPick" />
               </div>
 
               <div v-if="nvrNoData || nvrLicenseRequired || codecUnsupported || nvrPlaybackFailed" class="absolute inset-0 z-3 pointer-events-none overflow-hidden">
@@ -419,6 +425,21 @@
 
                 <div class="flex items-center gap-0.5 pointer-events-auto">
                   <Button
+                    v-if="canSearchSimilar && controlBarLayout.search.inline"
+                    v-tooltip.top="{ value: $t('components.similar.search') }"
+                    fluid
+                    text
+                    severity="contrast"
+                    class="control-bar-btn"
+                    :class="{ '!text-primary': similarPicking }"
+                    @click="toggleSimilarPick"
+                  >
+                    <template #icon>
+                      <i-tabler:zoom-scan class="w-[18px] h-[18px]" />
+                    </template>
+                  </Button>
+
+                  <Button
                     v-if="controlSpeakerButton && controlBarLayout.speaker.inline"
                     :disabled="!streamHasSound || isLoading"
                     fluid
@@ -546,6 +567,19 @@
 
               <Popover ref="morePopoverRef" class="more-menu-popover" :append-to="popoverAppendTarget" @show="morePopoverOpen = true" @hide="morePopoverOpen = false">
                 <div class="flex flex-col">
+                  <button
+                    v-if="canSearchSimilar && controlBarLayout.search.inMenu"
+                    class="more-menu-item"
+                    :class="{ 'more-menu-item-active': similarPicking }"
+                    @click="
+                      toggleSimilarPick();
+                      morePopoverRef?.hide();
+                    "
+                  >
+                    <i-tabler:zoom-scan class="w-[18px] h-[18px] shrink-0" />
+                    <span>{{ $t('components.similar.search') }}</span>
+                  </button>
+
                   <button
                     v-if="controlRewindButton && controlBarLayout.rewind.inMenu"
                     :disabled="!nvr"
@@ -981,6 +1015,7 @@ const UNIFIED_MAX_ZOOM = 5;
 const PLAYER_TINY_BREAKPOINT = 200;
 const PLAYER_FULL_BREAKPOINT = 350;
 const HORIZONTAL_TIMELINE_HEIGHT = 200;
+const JUMP_FRAME_TIMEOUT_MS = 10_000;
 
 const randomId = randomLetter();
 const speedOptions = [0.25, 0.5, 1, 2, 4, 8];
@@ -1041,6 +1076,29 @@ let isUserChangingResolution = false;
 let classifierWatchers: WatchHandle[] = [];
 let isUnmounting = false;
 let releaseNvrContainer: (() => void) | null = null;
+let pausedForPick: 'live' | 'playback' | undefined;
+let similarFrameAt = 0;
+let followingJump = false;
+
+const {
+  picking: similarPicking,
+  frame: similarFrame,
+  start: startSimilarPick,
+  retake: retakeSimilarPick,
+  close: closeSimilarPick,
+  pick: onSimilarPick,
+} = useSimilarPick({
+  capture: () => (nvrPlaybackVisible.value ? nvr.value?.captureSnapshot() : cameraStream.captureScreenshot()),
+  privacyZones: () => cameraPrivacyZones.value,
+  onPick: (request) => props.onSearchSimilar?.(request),
+  onClose: (end) => {
+    const paused = pausedForPick;
+    pausedForPick = undefined;
+    if (end !== 'leave') return;
+    if (paused === 'live') cameraStream.play();
+    else if (paused === 'playback') nvr.value?.resume();
+  },
+});
 
 const {
   zoomingIn: isZoomingIn,
@@ -1232,6 +1290,7 @@ const gridSearchActive = computed(() => !!gridSearch?.active.value);
 const infoText = computed<string | undefined>(() => undefined);
 const hovered = computed(() => (isHovered.value || initialHover.value) && control.value && !shortcutsEditMode.value);
 const isDisabled = computed(() => camera.value?.disabled === true);
+const canSearchSimilar = computed(() => props.onSearchSimilar !== undefined && Boolean(camera.value?.assignments?.object) && !isDisabled.value);
 const isSnoozed = computed(() => camera.value?.detectionSettings?.snooze === true);
 const isLoading = computed(() => {
   if (isDisabled.value) return false;
@@ -1489,6 +1548,7 @@ const controlBarLayout = computed(() => {
     expand: { inline: full, inMenu: !full },
     microphone: { inline: full, inMenu: !full },
     pip: { inline: full, inMenu: !full },
+    search: { inline: full, inMenu: !full },
   };
 });
 
@@ -1541,7 +1601,8 @@ const hasMoreMenuItems = computed(() => {
     (l.speaker.inMenu && controlSpeakerButton.value) ||
     (l.expand.inMenu && expandableCard.value && !tapsForExpand.value) ||
     (l.microphone.inMenu && controlMicrophoneButton.value) ||
-    (l.pip.inMenu && controlPipButton.value)
+    (l.pip.inMenu && controlPipButton.value) ||
+    (l.search.inMenu && canSearchSimilar.value)
   );
 });
 
@@ -1858,6 +1919,7 @@ async function togglePictureInPicture() {
 }
 
 function togglePlay() {
+  if (similarPicking.value) closeSimilarPick('stop');
   if (nvrMode.value !== 'idle') {
     if (nvrMode.value === 'play') {
       nvr.value?.pause();
@@ -1928,6 +1990,22 @@ function toggleFastForward() {
   nvr.value.seek(nvr.value.currentTimestamp.value + 30_000_000);
 }
 
+function toggleSimilarPick() {
+  if (similarPicking.value) {
+    closeSimilarPick();
+    return;
+  }
+  if (nvrMode.value === 'play') {
+    nvr.value?.pause();
+    pausedForPick = 'playback';
+  } else if (!nvrPlaybackVisible.value && !cameraStream.paused.value) {
+    cameraStream.pause();
+    pausedForPick = 'live';
+  }
+  similarFrameAt = nvrCurrentTimestamp.value;
+  void startSimilarPick();
+}
+
 function timelineScroll(scrolling: boolean) {
   timelineScrolling.value = scrolling;
 }
@@ -1967,6 +2045,54 @@ watch(
   playerContainerRef,
   (el) => {
     cameraStream.fullscreenElement.value = el ?? undefined;
+  },
+  { immediate: true },
+);
+
+async function followSimilarJump(): Promise<void> {
+  const player = nvr.value;
+  if (followingJump || !player) return;
+  followingJump = true;
+  try {
+    await until(() => player.frameTimestamp.value > 0).toBe(true, { timeout: JUMP_FRAME_TIMEOUT_MS });
+    if (!similarPicking.value) return;
+    if (player.mode.value === 'play') {
+      player.pause();
+      pausedForPick = 'playback';
+    }
+    similarFrameAt = nvrCurrentTimestamp.value;
+    await retakeSimilarPick();
+  } finally {
+    followingJump = false;
+  }
+}
+
+watch(nvrMode, (mode) => {
+  if (!similarPicking.value) return;
+  if (mode === 'play') void followSimilarJump();
+  else if (mode === 'idle' && !cameraStream.paused.value) closeSimilarPick('stop');
+});
+
+watch(
+  () => cameraStream.paused.value,
+  (paused) => {
+    if (!paused && similarPicking.value && !nvrPlaybackVisible.value) closeSimilarPick('stop');
+  },
+);
+
+watch(nvrCurrentTimestamp, (ts) => {
+  if (!similarPicking.value || !nvrPlaybackVisible.value || nvrMode.value === 'play' || followingJump) return;
+  if (Math.abs(ts - similarFrameAt) <= 1_000_000) return;
+  similarFrameAt = ts;
+  if (pausedForPick === 'live') pausedForPick = undefined;
+  void retakeSimilarPick();
+});
+
+watch(
+  [nvr, () => cameraStream.paused.value && !nvrPlaybackVisible.value],
+  ([player, livePaused], [previous]) => {
+    if (previous && previous !== player) previous.livePausedAt.value = null;
+    if (player) player.livePausedAt.value = livePaused ? (player.livePausedAt.value ?? Date.now()) : null;
   },
   { immediate: true },
 );
@@ -2217,6 +2343,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isUnmounting = true;
+  if (nvr.value) nvr.value.livePausedAt.value = null;
   if (cameraStream.isFullscreen.value) emit('fullscreen', false);
   unregisterAutoPipCandidate(randomId);
   releaseNvrContainer?.();

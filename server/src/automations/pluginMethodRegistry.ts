@@ -18,11 +18,12 @@ export interface PluginMethodDef {
   settingsMethod?: string;
 }
 
-export type PluginMethodArg = { param: string } | { fixed: unknown } | { frame: string } | { audioFrame: string };
+export type PluginMethodArg = { param: string } | { fixed: unknown } | { frame: string } | { audioFrame: string } | { images: string } | { wholePicture: string };
 
 const IMAGE_METADATA: PluginMethodArg = { fixed: { width: 0, height: 0 } };
 const AUDIO_METADATA: PluginMethodArg = { fixed: { mimeType: 'audio/wav' } };
 const CONFIG_PARAM: PluginMethodArg = { param: 'config' };
+const WHOLE_PICTURE = { x: 0, y: 0, width: 1, height: 1 };
 
 export const PLUGIN_METHOD_REGISTRY: Partial<Record<PluginInterface, PluginMethodDef[]>> = {
   [PluginInterface.ObjectDetection]: [
@@ -55,6 +56,33 @@ export const PLUGIN_METHOD_REGISTRY: Partial<Record<PluginInterface, PluginMetho
       params: [{ name: 'frameData', labelKey: 'components.automation_nodes.param_frame', type: 'image', placeholder: '', binary: true }],
       args: [{ frame: 'frameData' }, CONFIG_PARAM],
       settingsMethod: 'faceDetectionSettings',
+    },
+  ],
+  [PluginInterface.FaceEmbedding]: [
+    {
+      id: 'embedFaceImages',
+      labelKey: 'components.automation_nodes.method_embed_faces',
+      params: [{ name: 'imageData', labelKey: 'components.automation_nodes.param_image', type: 'image', placeholder: '', binary: true }],
+      args: [{ images: 'imageData' }, CONFIG_PARAM],
+      settingsMethod: 'faceEmbeddingSettings',
+    },
+  ],
+  [PluginInterface.PersonEmbedding]: [
+    {
+      id: 'embedPersonImages',
+      labelKey: 'components.automation_nodes.method_embed_persons',
+      params: [{ name: 'imageData', labelKey: 'components.automation_nodes.param_image', type: 'image', placeholder: '', binary: true }],
+      args: [{ images: 'imageData' }, CONFIG_PARAM],
+      settingsMethod: 'personEmbeddingSettings',
+    },
+  ],
+  [PluginInterface.Segmentation]: [
+    {
+      id: 'segmentImages',
+      labelKey: 'components.automation_nodes.method_segment',
+      params: [{ name: 'imageData', labelKey: 'components.automation_nodes.param_image', type: 'image', placeholder: '', binary: true }],
+      args: [{ wholePicture: 'imageData' }, CONFIG_PARAM],
+      settingsMethod: 'segmentationSettings',
     },
   ],
   [PluginInterface.LicensePlateDetection]: [
@@ -173,6 +201,8 @@ export function buildArgsFromRegistry(methodId: string, resolvedParams: Record<s
       const format = (resolvedParams[`${arg.audioFrame}.format`] ?? resolvedParams['audio.format'] ?? 'pcm16') as string;
       return { data, sampleRate, channels, format };
     }
+    if ('images' in arg) return [resolvedParams[arg.images]];
+    if ('wholePicture' in arg) return [{ image: resolvedParams[arg.wholePicture], box: WHOLE_PICTURE }];
     return resolvedParams[arg.param];
   });
 }

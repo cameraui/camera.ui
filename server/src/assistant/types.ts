@@ -188,6 +188,8 @@ export interface AssistantSearchFilters {
   timeRange: '1h' | '1d' | '1w' | '1m' | null;
   eventTypes: string[];
   hasAttributes: string[];
+  vehicleColors: string[];
+  vehicleTypes: string[];
   sensorEvents: string[];
   audioLabels: string[];
   search: string;

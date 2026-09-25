@@ -1,7 +1,17 @@
 import type { AudioMetadata, ImageMetadata } from '@camera.ui/sdk';
 
 export interface CuiDetectionInterfaceProps {
-  type: 'objectDetection' | 'motionDetection' | 'audioDetection' | 'faceDetection' | 'faceRecognition' | 'licensePlateDetection' | 'classifierDetection' | 'clipDetection';
+  type:
+    | 'objectDetection'
+    | 'motionDetection'
+    | 'audioDetection'
+    | 'faceDetection'
+    | 'faceRecognition'
+    | 'personEmbedding'
+    | 'segmentation'
+    | 'licensePlateDetection'
+    | 'classifierDetection'
+    | 'clipDetection';
   pluginName: string;
 }
 

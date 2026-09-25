@@ -29,7 +29,9 @@ import SmokeIcon from '~icons/mdi/smoke-detector';
 import ColdIcon from '~icons/mdi/snowflake';
 import TemperatureIcon from '~icons/mdi/thermometer';
 import SwitchIcon from '~icons/mdi/toggle-switch-outline';
+import SegmenterIcon from '~icons/mdi/vector-polygon';
 import VibrationIcon from '~icons/mdi/vibrate';
+import PersonEmbedderIcon from '~icons/mdi/walk';
 import LeakIcon from '~icons/mdi/water-alert-outline';
 import HumidityIcon from '~icons/mdi/water-percent';
 import AudioIcon from '~icons/mdi/waveform';
@@ -42,6 +44,8 @@ export const SENSOR_TYPE_ICONS: Record<SensorType, Component> = {
   [SensorType.Audio]: AudioIcon,
   [SensorType.Face]: FaceIcon,
   [SensorType.FaceEmbedder]: FaceEmbedderIcon,
+  [SensorType.PersonEmbedder]: PersonEmbedderIcon,
+  [SensorType.Segmenter]: SegmenterIcon,
   [SensorType.LicensePlate]: LicensePlateIcon,
   [SensorType.Classifier]: ClassifierIcon,
   [SensorType.Clip]: ClipIcon,

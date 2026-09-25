@@ -111,6 +111,8 @@ export interface FrameWorkerPerfCounters {
   clipCount: number;
   faceEmbedMs: number;
   faceEmbedCount: number;
+  personEmbedMs: number;
+  personEmbedCount: number;
   classifierMs: number;
   classifierCount: number;
   secondaryMs: number;
@@ -135,6 +137,7 @@ export const DETECTOR_METRIC_TYPES = [
   SensorType.Object,
   SensorType.Face,
   SensorType.FaceEmbedder,
+  SensorType.PersonEmbedder,
   SensorType.LicensePlate,
   SensorType.Classifier,
   SensorType.Clip,

@@ -67,6 +67,7 @@ import type {
   TrackedClipEmbedding,
   TrackedFaceDetection,
   TrackedLicensePlateDetection,
+  TrackedPersonEmbedding,
 } from './event-manager.js';
 import type { TraceTick } from './event-trace.js';
 import type { LetterboxGeometry } from './frame-scaler.js';
@@ -519,6 +520,10 @@ export class DetectionCoordinator {
 
   public acceptFaceVectors(faces: TrackedFaceDetection[], embeddingModel: string, capturedAt: number): void {
     this.eventManager.acceptFaceVectors(faces, embeddingModel, capturedAt);
+  }
+
+  public acceptPersonVectors(persons: TrackedPersonEmbedding[], embeddingModel: string, capturedAt: number): void {
+    this.eventManager.acceptPersonVectors(persons, embeddingModel, capturedAt);
   }
 
   public async dispose(): Promise<void> {

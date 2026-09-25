@@ -12,6 +12,8 @@ export interface SearchCamera {
 }
 
 const OTHER_EVENT_TYPE = '__other__';
+const VEHICLE_COLORS = ['white', 'gray', 'yellow', 'red', 'green', 'blue', 'black'] as const;
+const VEHICLE_TYPES = ['car', 'van', 'truck', 'bus', 'motorcycle', 'bicycle'] as const;
 
 export const SEARCH_SCHEMA = zod.object({
   contentKind: zod.enum(['all', 'events', 'episodes']),
@@ -21,6 +23,8 @@ export const SEARCH_SCHEMA = zod.object({
   timeRange: zod.enum(['1h', '1d', '1w', '1m', 'none']),
   eventTypes: zod.array(zod.enum([...OBJECT_DETECTION_LABELS, 'other'] as const)),
   attributes: zod.array(zod.enum(DETECTION_ATTRIBUTES)),
+  vehicleColors: zod.array(zod.enum(VEHICLE_COLORS)),
+  vehicleTypes: zod.array(zod.enum(VEHICLE_TYPES)),
   sensorEvents: zod.array(zod.enum(EVENT_TRIGGER_TYPES)),
   audioLabels: zod.array(zod.enum(BASE_AUDIO_LABELS)),
   search: zod.string(),
@@ -46,11 +50,13 @@ export function searchPrompt(cameras: SearchCamera[], language: string, timezone
     '- cameras and rooms: exact names from the lists above, empty when the wish names none. A camera named by its room goes into cameras.',
     '- timeRange: the smallest of 1h, 1d, 1w, 1m that covers the wish (yesterday needs 1w, last month 1m), none when no time is given.',
     '- eventTypes: what was detected, person, vehicle, animal or other. attributes: face for recognized people, license_plate for plates.',
+    '- vehicleColors and vehicleTypes: the color and the kind of a vehicle the wish names, the closest allowed value ' +
+    '(silver is gray, a pickup is a truck), empty otherwise.',
     '- sensorEvents: the trigger when the wish is about one (doorbell, contact, motion, audio, line-crossing and so on). ' +
     'audioLabels only together with audio in sensorEvents.',
     '- search: words that name a person, a plate or a description text, empty otherwise.',
-    '- semanticQuery: when the wish describes a scene beyond the labels above (a color, an action, an object like a parcel), ' +
-    'an English scene description ("a blue car in the driveway"), empty otherwise.',
+    '- semanticQuery: when the wish describes a scene beyond the fields above (clothing, an action, an object like a parcel), ' +
+    'an English scene description ("a person carrying a parcel to the door"), empty otherwise.',
     '- favoritesOnly: only when the wish asks for favorites or starred recordings.',
     `- note: one short sentence in ${languageName(language)} about the part of the wish the filters cannot express ` +
     '(an exact day, a name of a person unknown here), empty otherwise.',
@@ -67,6 +73,8 @@ export function toSearchResult(output: SearchOutput, cameras: SearchCamera[]): A
     timeRange: output.timeRange === 'none' ? null : output.timeRange,
     eventTypes: output.eventTypes.map((type) => (type === 'other' ? OTHER_EVENT_TYPE : type)),
     hasAttributes: output.attributes,
+    vehicleColors: output.vehicleColors,
+    vehicleTypes: output.vehicleTypes,
     sensorEvents: output.sensorEvents,
     audioLabels: output.sensorEvents.includes('audio') ? output.audioLabels : [],
     search: output.search.trim(),

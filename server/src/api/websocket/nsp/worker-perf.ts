@@ -24,6 +24,7 @@ export function deriveWorkerPerf(snapshot: FrameWorkerPerfSnapshot, pluginName: 
     classifier: per(snapshot.classifierMs, snapshot.classifierCount),
     clip: per(snapshot.clipMs, snapshot.clipCount),
     faceEmbedder: per(snapshot.faceEmbedMs, snapshot.faceEmbedCount),
+    personEmbedder: per(snapshot.personEmbedMs, snapshot.personEmbedCount),
   };
 
   const detectors: Record<string, WorkerDetectorStats> = {};
@@ -67,6 +68,7 @@ export function deriveWorkerPerf(snapshot: FrameWorkerPerfSnapshot, pluginName: 
     objectSecondaryMs: per(snapshot.secondaryMs, snapshot.framesWithObjects),
     clipCalls: snapshot.clipCount,
     faceEmbedCalls: snapshot.faceEmbedCount,
+    personEmbedCalls: snapshot.personEmbedCount,
     vectorJobs: snapshot.vectorJobs,
     vectorsAccepted: snapshot.vectorsAccepted,
     vectorsParked: snapshot.vectorsParked,

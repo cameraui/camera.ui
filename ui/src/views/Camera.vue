@@ -7,7 +7,8 @@
   >
     <div class="w-full h-full flex flex-col lg:flex-row gap-0 lg:gap-2 relative">
       <div
-        class="w-full flex flex-col gap-2"
+        ref="cameraColumnRef"
+        class="w-full flex flex-col"
         :class="{
           'h-full': !smBreakpoint,
           // 'h-[50%]': smBreakpoint,
@@ -17,9 +18,11 @@
         }"
       >
         <div
+          ref="cameraPaneRef"
           :class="{
-            'flex max-h-[60%]': !smBreakpoint,
+            flex: !smBreakpoint,
           }"
+          :style="smBreakpoint ? undefined : { maxHeight: `${cameraShare * 100}%` }"
         >
           <CuiCameraPipCard
             ref="cameraCardRef"
@@ -37,12 +40,25 @@
             :current-event="currentTraceEvent"
             @open-trace="openTraceAtPlayhead"
             :pip-camera="pipCameraQuery"
+            :on-search-similar="nvrPluginRef ? showSimilarResults : undefined"
             @open-camera="openPipCamera"
             :camera-name-overlay="false"
             show-shortcuts
             view-transition
             class="flex-1 h-full min-w-0"
           />
+        </div>
+
+        <div
+          v-if="!smBreakpoint"
+          class="group relative z-10 h-3 -my-0.5 shrink-0 flex items-center justify-center cursor-ns-resize touch-none select-none"
+          @pointerdown="onSplitStart"
+          @pointermove="onSplitMove"
+          @pointerup="onSplitEnd"
+          @pointercancel="onSplitEnd"
+          @dblclick="cameraShare = CAMERA_SHARE_DEFAULT"
+        >
+          <div class="w-9 h-1 rounded-full bg-surface-400/50 group-hover:bg-surface-400" />
         </div>
 
         <Card
@@ -57,7 +73,7 @@
             <div v-if="!isContentReady" class="h-full flex items-center justify-center">
               <ProgressSpinner class="w-[32px] h-[32px]" stroke-width="4" />
             </div>
-            <Tabs v-else value="0" lazy class="h-full flex flex-col">
+            <Tabs v-else v-model:value="cameraTab" lazy class="h-full flex flex-col">
               <TabList class="shrink-0">
                 <Tab value="0" class="pt-0 text-sm">{{ $t('views.camera.recordings') }}</Tab>
                 <Tab value="1" class="pt-0 text-sm">{{ $t('views.camera.cameras') }}</Tab>
@@ -66,7 +82,16 @@
 
               <TabPanels class="camera-tab-panels px-0 pb-0 flex-1 min-h-0">
                 <TabPanel value="0" class="!overflow-hidden">
-                  <CuiCameraRecordings v-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" @scroll-to-event="onScrollToEvent" />
+                  <CuiSimilarResults
+                    v-if="similarRequest"
+                    :request="similarRequest"
+                    class="h-full"
+                    @open="openSimilarMatch"
+                    @close="closeSimilarResults"
+                    @show-all="showAllSimilar"
+                    @shown="(keys: string[]) => (similarShown = keys)"
+                  />
+                  <CuiCameraRecordings v-else-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" @scroll-to-event="onScrollToEvent" />
                 </TabPanel>
                 <TabPanel value="1">
                   <CuiCameraTable :active-camera="cameraName" />
@@ -98,7 +123,7 @@
     </div>
 
     <CuiBottomSheet v-if="smBreakpoint && isContentReady" v-model="showMobileSheet" height="70vh" max-height="85vh">
-      <Tabs :key="cameraName" value="0" lazy class="h-full flex flex-col">
+      <Tabs :key="cameraName" v-model:value="cameraTab" lazy class="h-full flex flex-col">
         <TabList class="shrink-0 w-full mt-5">
           <Tab value="0" class="pt-0 text-sm flex-1">{{ $t('views.camera.recordings') }}</Tab>
           <Tab value="1" class="pt-0 text-sm flex-1">{{ $t('views.camera.cameras') }}</Tab>
@@ -106,7 +131,16 @@
         </TabList>
         <TabPanels class="mobile-sheet-panels px-0 pb-0 flex-1 min-h-0">
           <TabPanel value="0" class="h-full !overflow-hidden">
-            <CuiCameraRecordings v-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" compact @scroll-to-event="onScrollToEvent" />
+            <CuiSimilarResults
+              v-if="similarRequest"
+              :request="similarRequest"
+              class="h-full"
+              @open="openSimilarMatch"
+              @close="closeSimilarResults"
+              @show-all="showAllSimilar"
+              @shown="(keys: string[]) => (similarShown = keys)"
+            />
+            <CuiCameraRecordings v-else-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" compact @scroll-to-event="onScrollToEvent" />
           </TabPanel>
           <TabPanel value="1" class="h-full overflow-auto">
             <CuiCameraTable :active-camera="cameraName" />
@@ -129,6 +163,7 @@
         :show-segments="!smBreakpoint && !horizontalTimeline"
         :show-zoom="true"
         :initial-timestamp="startTs"
+        :only-events="similarRequest ? similarShown : undefined"
         :class="{
           'absolute bottom-0 left-0 w-full h-[200px]': horizontalTimeline,
           'h-full': !horizontalTimeline,
@@ -280,6 +315,8 @@ import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 
 import type CuiCameraPipCard from '@/components/CuiCameraPipCard/CuiCameraPipCard.vue';
+import type { SimilarSearchRequest } from '@/components/CuiSimilarPicker/types.js';
+import type { SimilarResultOpen } from '@/components/CuiSimilarResults/types.js';
 import type { EventDescription, RecordedEvent } from '@camera.ui/nvr';
 import type { BoundingBox, StreamingRole } from '@camera.ui/sdk';
 
@@ -300,6 +337,7 @@ const route = useRoute();
 const router = useRouter();
 const assistantActions = useAssistantActions();
 const { openEventTrace } = useEventTraceDialog();
+const { openSimilarSearch, openOnCamera, cameraSearch, forgetCameraSearch } = useSimilarSearchRoute();
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
@@ -311,10 +349,17 @@ const cameraName = computed(() => route.params.cameraname as string);
 const { data: camera } = camerasQuery.getCameraQuery(cameraName);
 
 const TIMELAPSE_OPTIONS = ['Off', '1m', '2m', '3m', '5m'] as const;
+const CAMERA_SHARE_DEFAULT = 0.6;
+const CAMERA_SHARE_MIN = 0.2;
+const TABS_MIN_HEIGHT = 160;
 
 const cameraCardRef = useTemplateRef<InstanceType<typeof CuiCameraPipCard>>('cameraCardRef');
 const cuiTimelineRef = useTemplateRef<InstanceType<typeof CuiTimeline>>('cuiTimelineRef');
 const timelineRef = useTemplateRef('timelineRef');
+const cameraColumnRef = useTemplateRef('cameraColumnRef');
+const cameraPaneRef = useTemplateRef('cameraPaneRef');
+const cameraShare = useLocalStorage('cui-camera-view-share', CAMERA_SHARE_DEFAULT);
+const similarRequest = shallowRef<SimilarSearchRequest | undefined>(cameraSearch());
 const isContentReady = ref(!routerStore.isTransitioning);
 const wasTimelineActive = ref(false);
 const showMobileSheet = ref(false);
@@ -327,6 +372,10 @@ const trimExporting = ref(false);
 const rangeDeleting = ref(false);
 const exportMode = ref(false);
 const deleteMode = ref(false);
+const similarShown = ref<string[]>();
+const cameraTab = ref('0');
+
+let splitFrom: { y: number; height: number } | undefined;
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 
@@ -423,8 +472,49 @@ function onTimelineScroll(scrolling: boolean) {
   }
 }
 
+function onSplitStart(e: PointerEvent): void {
+  const pane = cameraPaneRef.value;
+  if (!pane) return;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  splitFrom = { y: e.clientY, height: pane.offsetHeight };
+}
+
+function onSplitMove(e: PointerEvent): void {
+  const column = cameraColumnRef.value?.clientHeight;
+  if (!splitFrom || !column) return;
+  const share = (splitFrom.height + e.clientY - splitFrom.y) / column;
+  cameraShare.value = Math.min(Math.max(share, CAMERA_SHARE_MIN), 1 - TABS_MIN_HEIGHT / column);
+}
+
+function onSplitEnd(): void {
+  splitFrom = undefined;
+}
+
 function onScrollToEvent(timestamp: number) {
   cuiTimelineRef.value?.scrollToEvent(timestamp);
+}
+
+function showSimilarResults(request: SimilarSearchRequest): void {
+  similarRequest.value = request;
+  similarShown.value = undefined;
+}
+
+function closeSimilarResults(): void {
+  similarRequest.value = undefined;
+  similarShown.value = undefined;
+  forgetCameraSearch();
+}
+
+function openSimilarMatch({ event, camera: matchCamera, timestamp }: SimilarResultOpen): void {
+  if (event.cameraId === cameraId.value) {
+    onScrollToEvent(timestamp);
+    return;
+  }
+  if (matchCamera && similarRequest.value) openOnCamera(matchCamera.name, timestamp, similarRequest.value);
+}
+
+function showAllSimilar(): void {
+  if (similarRequest.value) openSimilarSearch(similarRequest.value);
 }
 
 async function onTrimExport() {
@@ -541,6 +631,21 @@ watch(
     // a later deep link on the same page must move the timeline too, only the first mount centres on it by itself
     cuiTimelineRef.value?.scrollToTime(ts);
     router.replace({ query: { ...route.query, startTs: undefined } });
+  },
+  { immediate: true },
+);
+
+watch(cameraName, () => {
+  similarRequest.value = cameraSearch();
+  if (!similarRequest.value) similarShown.value = undefined;
+});
+
+watch(
+  similarRequest,
+  (request) => {
+    if (!request) return;
+    cameraTab.value = '0';
+    if (smBreakpoint.value) showMobileSheet.value = true;
   },
   { immediate: true },
 );

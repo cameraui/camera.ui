@@ -109,9 +109,11 @@
 
                       <CuiDetectionInterface v-else-if="segment.name === 'motion_detection'" :plugin-name="resolvedPluginName" type="motionDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'object_detection'" :plugin-name="resolvedPluginName" type="objectDetection" />
+                      <CuiDetectionInterface v-else-if="segment.name === 'segmentation'" :plugin-name="resolvedPluginName" type="segmentation" />
                       <CuiDetectionInterface v-else-if="segment.name === 'audio_detection'" :plugin-name="resolvedPluginName" type="audioDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'face_detection'" :plugin-name="resolvedPluginName" type="faceDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'face_recognition'" :plugin-name="resolvedPluginName" type="faceRecognition" />
+                      <CuiDetectionInterface v-else-if="segment.name === 'person_embedding'" :plugin-name="resolvedPluginName" type="personEmbedding" />
                       <CuiDetectionInterface v-else-if="segment.name === 'license_plate_detection'" :plugin-name="resolvedPluginName" type="licensePlateDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'classifier_detection'" :plugin-name="resolvedPluginName" type="classifierDetection" />
                       <CuiDetectionInterface v-else-if="segment.name === 'clip_detection'" :plugin-name="resolvedPluginName" type="clipDetection" />
@@ -187,6 +189,8 @@ import MotionIcon from '~icons/material-symbols/motion-blur-rounded';
 import BellIcon from '~icons/mdi/bell';
 import SettingsIcon from '~icons/mdi/cog';
 import FaceRecognitionIcon from '~icons/mdi/face-recognition';
+import SegmentationIcon from '~icons/mdi/vector-polygon';
+import PersonEmbeddingIcon from '~icons/mdi/walk';
 import ClassifyIcon from '~icons/mingcute/classify-2-fill';
 import TextAaIcon from '~icons/ph/text-aa-fill';
 import PlateIcon from '~icons/solar/plate-bold';
@@ -426,6 +430,11 @@ watch(
       newSegments.push({ name: 'object_detection', icon: ObjectIcon, isInterface: true, tooltip: t('views.plugin.object_detection_tab_tooltip') });
     }
 
+    if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.Segmentation)) {
+      interfaceExist = true;
+      newSegments.push({ name: 'segmentation', icon: SegmentationIcon, isInterface: true, tooltip: t('views.plugin.segmentation_tab_tooltip') });
+    }
+
     if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.AudioDetection)) {
       interfaceExist = true;
       newSegments.push({ name: 'audio_detection', icon: AudioIcon, isInterface: true, tooltip: t('views.plugin.audio_detection_tab_tooltip') });
@@ -439,6 +448,11 @@ watch(
     if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.FaceEmbedding)) {
       interfaceExist = true;
       newSegments.push({ name: 'face_recognition', icon: FaceRecognitionIcon, isInterface: true, tooltip: t('views.plugin.face_recognition_tab_tooltip') });
+    }
+
+    if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.PersonEmbedding)) {
+      interfaceExist = true;
+      newSegments.push({ name: 'person_embedding', icon: PersonEmbeddingIcon, isInterface: true, tooltip: t('views.plugin.person_embedding_tab_tooltip') });
     }
 
     if (isPluginRunning.value && pluginContract.value && hasInterface(pluginContract.value, PluginInterface.LicensePlateDetection)) {

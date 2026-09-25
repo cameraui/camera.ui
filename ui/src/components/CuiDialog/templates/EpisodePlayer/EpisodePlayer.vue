@@ -1,5 +1,6 @@
 <template>
-  <div class="episode-player-container">
+  <CameraStreamEvent v-if="matchView" ref="matchViewRef" :camera="matchView.camera" :event-timestamp="matchView.timestamp" :similar-request="matchView.request" />
+  <div v-else class="episode-player-container" :class="{ 'with-similar': similarRequest && !mdBreakpoint }">
     <div
       ref="stageRef"
       class="relative w-full bg-black"
@@ -37,6 +38,14 @@
           :style="mdBreakpoint ? stageContentStyle : undefined"
         >
           <div v-for="id in memberCameraIds" v-show="id === visibleCameraId" :key="id" :ref="(el) => setStageEl(id, el as HTMLElement | null)" class="absolute inset-0" />
+          <CuiSimilarPicker
+            v-if="similarPicking && visibleCamera"
+            class="z-[3]"
+            :camera="visibleCamera"
+            :frame="similarFrame"
+            @pick="onSimilarPick"
+            @close="closeSimilarPick"
+          />
         </div>
       </VueZoomable>
 
@@ -81,6 +90,21 @@
             </div>
 
             <div class="flex-1" />
+
+            <Button
+              v-if="canSearchSimilar"
+              v-tooltip.top="{ value: t('components.similar.search') }"
+              fluid
+              text
+              severity="contrast"
+              class="control-bar-btn"
+              :class="{ '!text-primary': similarPicking }"
+              @click="toggleSimilarPick"
+            >
+              <template #icon>
+                <i-tabler:zoom-scan class="w-[18px] h-[18px]" />
+              </template>
+            </Button>
 
             <Button
               v-if="availableAngle || angleCameraId"
@@ -146,6 +170,15 @@
       <i-tabler:sparkles class="w-4 h-4 shrink-0 mt-0.5 text-color" />
       <p class="flex-1 min-w-0 text-xs text-muted text-wrap">{{ episode.description.description }}</p>
     </div>
+
+    <CuiSimilarResults
+      v-if="similarRequest"
+      :request="similarRequest"
+      :class="mdBreakpoint ? 'similar-below' : 'similar-side'"
+      @open="openSimilarMatch"
+      @close="similarRequest = undefined"
+      @show-all="showAllSimilar"
+    />
   </div>
 </template>
 
@@ -156,8 +189,15 @@ import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 
 import { extractErrorMessage, randomLetter } from '@/common/utils.js';
+import { SIMILAR_PANEL_WIDTH } from '@/components/CuiSimilarResults/types.js';
 
+import type CameraStreamEventView from '@/components/CuiDialog/templates/CameraStreamEvent/CameraStreamEvent.vue';
+import type { SimilarSearchRequest } from '@/components/CuiSimilarPicker/types.js';
+import type { SimilarResultOpen } from '@/components/CuiSimilarResults/types.js';
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
+import type { DBCamera } from '@shared/types';
+import type { DynamicDialogInstance } from 'primevue/dynamicdialogoptions';
+import type { Ref } from 'vue';
 import type { EpisodePlayerProps } from './types.js';
 
 interface TimelineBlock {
@@ -172,9 +212,14 @@ const props = defineProps<EpisodePlayerProps>();
 const log = useLogger();
 const toast = useCuiToast();
 const { t } = useI18n();
+
+const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
+const dialogTitle = inject<Ref<string> | undefined>('dialogTitle', undefined);
+
 const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
 const { openEpisodeTrace } = useEpisodeTraceDialog();
+const { openSimilarSearch } = useSimilarSearchRoute();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 
 const BLOCK_TAIL_MS = 2000;
@@ -182,9 +227,12 @@ const BLOCK_HEAD_MS = 1500;
 const BLOCK_GAP_MS = 10000;
 const SLICE_MIN_MS = 4000;
 const PRELOAD_AHEAD_MS = 4000;
+const similarPanelWidth = `${SIMILAR_PANEL_WIDTH}px`;
 const HANDOFF_WAIT_MS = 1200;
 const TRANSITION_MAX_MS = 1500;
 const PRELOAD_RESYNC_MS = 3000;
+const JUMP_FRAME_TOLERANCE_MS = 5000;
+const JUMP_FRAME_TIMEOUT_MS = 10_000;
 
 const memberCameraIds = [...new Set(props.episode.members.map((m) => m.cameraId))];
 const angleBlocks = (props.episode.blocks ?? []).filter((block) => block.secondAngle);
@@ -215,6 +263,14 @@ const isDownloading = ref(false);
 const initialHover = ref(true);
 const transitioning = ref(false);
 const dragging = ref(false);
+const similarRequest = shallowRef<SimilarSearchRequest>();
+const matchView = shallowRef<{ camera: DBCamera; timestamp: number; request: SimilarSearchRequest }>();
+const matchViewRef = useTemplateRef<InstanceType<typeof CameraStreamEventView>>('matchViewRef');
+let pausedForPick = false;
+let similarFrameMs = 0;
+let followingJump = false;
+
+useDialogSidePanel(() => Boolean(similarRequest.value), SIMILAR_PANEL_WIDTH);
 
 const stageSize = useElementSize(stageRef);
 const isHovered = useElementHover(stageRef, { delayLeave: 1000 });
@@ -299,7 +355,28 @@ const activeIds = computed(() => {
 
 const { master, controllers } = useMultiNvrPlayback(ref(memberCameraIds), { activeIds, sourceRole: 'auto' });
 
+const {
+  picking: similarPicking,
+  frame: similarFrame,
+  start: startSimilarPick,
+  retake: retakeSimilarPick,
+  close: closeSimilarPick,
+  pick: onSimilarPick,
+} = useSimilarPick({
+  capture: () => controllers.value.get(visibleCameraId.value)?.captureSnapshot(),
+  privacyZones: () => visibleCamera.value?.zones?.privacy ?? [],
+  onPick: (request) => {
+    similarRequest.value = request;
+  },
+  onClose: (end) => {
+    if (pausedForPick && end === 'leave') master.resume();
+    pausedForPick = false;
+  },
+});
+
 const isPlaying = computed(() => master.mode.value === 'play');
+const visibleCamera = computed(() => props.cameraById.get(visibleCameraId.value));
+const canSearchSimilar = computed(() => Boolean(nvrPluginRef.value && visibleCamera.value?.assignments?.object));
 const showControl = computed(() => isHovered.value || initialHover.value);
 const showSpinner = computed(() => !scrubbing.value && (master.loading.value || master.mode.value === 'idle'));
 
@@ -598,7 +675,58 @@ function seekTo(posMs: number, forcePlay = false): void {
   }
 }
 
+function openSimilarMatch({ event, camera, timestamp }: SimilarResultOpen): void {
+  const block = blocks.find((b) => b.cameraId === event.cameraId && timestamp >= b.startMs && timestamp <= b.endMs);
+  if (block) {
+    seekTo(block.offsetMs + timestamp - block.startMs);
+    return;
+  }
+  if (!camera || !similarRequest.value) return;
+  matchView.value = { camera, timestamp, request: similarRequest.value };
+  similarRequest.value = undefined;
+  master.stop();
+  if (dialogTitle) dialogTitle.value = camera.name;
+}
+
+function showAllSimilar(): void {
+  if (!similarRequest.value) return;
+  const request = similarRequest.value;
+  dialogRef.value.close();
+  openSimilarSearch(request);
+}
+
+function toggleSimilarPick(): void {
+  if (similarPicking.value) {
+    closeSimilarPick();
+    return;
+  }
+  if (master.mode.value === 'play') {
+    master.pause();
+    pausedForPick = true;
+  }
+  similarFrameMs = playheadMs.value;
+  void startSimilarPick();
+}
+
+async function followSimilarJump(): Promise<void> {
+  if (followingJump) return;
+  followingJump = true;
+  try {
+    const target = playheadMs.value;
+    await until(() => {
+      const ctrl = controllers.value.get(visibleCameraId.value);
+      return Boolean(ctrl && ctrl.frameTimestamp.value > 0 && Math.abs(ctrl.frameTimestamp.value / 1000 - target) < JUMP_FRAME_TOLERANCE_MS);
+    }).toBe(true, { timeout: JUMP_FRAME_TIMEOUT_MS });
+    if (!similarPicking.value) return;
+    similarFrameMs = playheadMs.value;
+    await retakeSimilarPick();
+  } finally {
+    followingJump = false;
+  }
+}
+
 function togglePlay(): void {
+  if (similarPicking.value) closeSimilarPick('stop');
   const mode = master.mode.value;
   if (mode === 'play') {
     master.pause();
@@ -688,6 +816,7 @@ async function handleDownload(): Promise<void> {
 }
 
 function resolveGoTo(): string | undefined {
+  if (matchView.value) return matchViewRef.value?.resolveGoTo();
   const camera = props.cameraById.get(activeCameraId.value);
   if (!camera) return undefined;
   return `/cameras/${camera.name}?startTs=${Math.floor(playheadMs.value)}`;
@@ -758,6 +887,18 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => master.mode.value,
+  (mode) => {
+    if (similarPicking.value && (mode === 'play' || mode === 'idle')) closeSimilarPick('stop');
+  },
+);
+
+watch([playheadMs, visibleCameraId], ([ms], [, previousCamera]) => {
+  if (!similarPicking.value || master.mode.value === 'play') return;
+  if (visibleCameraId.value !== previousCamera || Math.abs(ms - similarFrameMs) > 1000) void followSimilarJump();
+});
+
 useIntervalFn(() => {
   trySyncVisibleCamera();
   resyncPreload();
@@ -805,12 +946,33 @@ defineExpose({
 
 <style scoped>
 .episode-player-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
   contain: inline-size;
+}
+
+.with-similar {
+  padding-right: v-bind(similarPanelWidth);
+}
+
+.similar-side {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: v-bind(similarPanelWidth);
+  padding-top: 0.5rem;
+  border-left: 1px solid var(--border-color);
+}
+
+.similar-below {
+  height: 360px;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
 }
 
 .control-bar-btn {

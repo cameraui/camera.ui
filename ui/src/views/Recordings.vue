@@ -35,9 +35,11 @@
       :assistant-search-available="assistantAvailable"
       :assistant-search-loading="assistantSearching"
       :assistant-search-note="assistantNote"
+      :image-search-available="similarAvailable"
       @update:filters="onFilterUpdate"
       @semantic-search="onSemanticSearch"
       @assistant-search="onAssistantSearch"
+      @image-search="openImageSearch"
       @close="closeSidebar"
     />
 
@@ -45,7 +47,20 @@
       <div v-if="sidebarOpen && sidebarIsOverlay" class="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black/50 z-1" @click="closeSidebar" />
     </Teleport>
 
-    <main ref="reindexAnchorRef" class="relative w-full h-full" :style="{ paddingLeft: mainPaddingLeft, transition: layoutReady ? 'padding-left 200ms' : undefined }">
+    <main
+      ref="reindexAnchorRef"
+      class="relative w-full h-full"
+      :style="{ paddingLeft: mainPaddingLeft, transition: layoutReady ? 'padding-left 200ms' : undefined }"
+      @dragenter="onImageDragEnter"
+      @dragleave="onImageDragLeave"
+      @dragover.prevent
+      @drop.prevent="onImageDrop"
+    >
+      <div v-if="imageDrags > 0" class="image-drop-overlay">
+        <i-tabler:photo-search class="w-10 h-10" />
+        <span class="text-sm font-semibold">{{ $t('views.recordings.image_drop_overlay') }}</span>
+      </div>
+
       <div class="w-full h-full relative">
         <div v-if="!smBreakpoint" class="w-full flex flex-row h-[calc(40px+1rem)] py-2 items-center fixed z-10">
           <div class="ml-2" />
@@ -93,13 +108,24 @@
             'pt-[calc(40px+2rem)]': !smBreakpoint,
           }"
         >
+          <SimilarSearchBar
+            v-if="isSimilarActive"
+            :crop="similarRequest?.crop"
+            :object-label="similarRequest?.objectLabel"
+            :result="similarResult"
+            :count="similarItems.length"
+            :searching="similarSearching || !similarAvailable"
+            :license-required="similarLicenseRequired"
+            @close="closeSimilarSearch"
+          />
+
           <CuiRecordingsGrid
             v-if="gridItems.length"
             ref="gridRef"
             :items="gridItems"
             :min-item-width="smBreakpoint ? 160 : 180"
             :gap="8"
-            :has-more="hasMore"
+            :has-more="hasMore && !isSimilarActive"
             :load-more="loadMore"
             :item-key="(item: UngroupedItem) => item.key"
             class="flex-1 min-h-0"
@@ -111,7 +137,7 @@
                 :event="item.event"
                 :camera-name="cameraMap.get(item.event.cameraId)"
                 :camera="cameraById.get(item.event.cameraId)"
-                :load-thumbnails="loadThumbnails"
+                :load-thumbnails="loadCardThumbnails"
                 :semantic-score="semanticEventIds.get(item.event.id)"
                 :seg-index="item.segIndex"
                 :selection-mode="selectionMode && item.event.state === 'ended'"
@@ -127,7 +153,7 @@
           </CuiRecordingsGrid>
 
           <CuiRecordingsGrid
-            v-else-if="isLoading"
+            v-else-if="listLoading"
             :items="SKELETON_ITEMS"
             :min-item-width="smBreakpoint ? 160 : 180"
             :gap="8"
@@ -139,15 +165,15 @@
             </template>
           </CuiRecordingsGrid>
 
-          <div v-if="(isLoading && gridItems.length) || semanticSearching" class="flex justify-center py-4">
+          <div v-if="(listLoading && gridItems.length) || semanticSearching" class="flex justify-center py-4">
             <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
           </div>
 
-          <div v-if="!displayEvents.length && !isLoading && !semanticSearching" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
+          <div v-if="showEmptyState" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
             <i-mingcute:photo-album-fill class="w-12 h-12 text-muted" />
             <span class="text-muted text-sm">{{ emptyStateText }}</span>
             <Button
-              v-if="loadFailed && !eventsUnavailable"
+              v-if="loadFailed && !eventsUnavailable && !isSimilarActive && !filterNeedsLicense"
               severity="secondary"
               class="cui-button-small"
               :label="$t('views.recordings.load_failed_retry')"
@@ -192,7 +218,7 @@
     <CuiFloatingButtonGroup v-if="availableCameras.length" :force-visible="selectionMode" :scroll-y="gridRef?.scrollY ?? 0">
       <template v-if="!selectionMode">
         <CuiFloatingButton
-          v-if="isAdmin && displayEvents.length"
+          v-if="isAdmin && displayEvents.length && !isSimilarActive"
           grouped
           :tooltip-props="{ value: $t('views.recordings.select') }"
           :button-props="{ severity: 'secondary' }"
@@ -255,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { EventHoverPreviewKey, useClipReindex, useDetectionEvents, useEventHoverPreview, useEventStore, useSemanticSearch } from '@camera.ui/nvr';
+import { EventHoverPreviewKey, useClipReindex, useDetectionEvents, useEventHoverPreview, useEventStore, useSemanticSearch, useSimilarSearch } from '@camera.ui/nvr';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
 import ReindexIcon from '~icons/mdi/database-refresh-outline';
@@ -271,16 +297,18 @@ import { UsersQuery } from '@/api/routes/users.js';
 import CameraEventDialog from '@/components/CuiDialog/templates/CameraStreamEvent/CameraStreamEvent.vue';
 import ClipReindexDialog from '@/components/CuiDialog/templates/ClipReindex/ClipReindex.vue';
 import ExportRecordings from '@/components/CuiDialog/templates/ExportRecordings/ExportRecordings.vue';
+import SimilarImageSearchDialog from '@/components/CuiDialog/templates/SimilarImageSearch/SimilarImageSearch.vue';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import RecordingsFilterSidebar from '@/components/CuiRecordings/RecordingsFilterSidebar.vue';
 import { buildUngroupedItems, newestFirst } from '@/components/CuiRecordings/ungrouped.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
+import type { SimilarImageSearchProps } from '@/components/CuiDialog/templates/SimilarImageSearch/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { RecordingsFilterState } from '@/components/CuiRecordings/types.js';
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
-import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
+import type { EventThumbnails, GetEventsOptions, RecordedEvent, SimilarOptions } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
 
 const assistantQuery = new AssistantQuery();
@@ -293,6 +321,7 @@ const { bottombarHeight } = useSharedCuiStates();
 const { status: reindexStatus, checking: reindexChecking } = useClipReindex();
 
 const { openEventTrace } = useEventTraceDialog();
+const { request: similarRequest, closeSimilarSearch } = useSimilarSearchRoute();
 const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
 const toast = useCuiToast();
 const { t, locale } = useI18n();
@@ -314,6 +343,15 @@ const {
   clear: clearSemantic,
 } = useSemanticSearch();
 
+const {
+  result: similarResult,
+  isSearching: similarSearching,
+  isAvailable: similarAvailable,
+  licenseRequired: similarLicenseRequired,
+  search: runSimilarSearch,
+  clear: clearSimilar,
+} = useSimilarSearch();
+
 const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
 const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
 const { data: currentUser } = usersQuery.getUserQuery(computed(() => authStore.user?.username ?? ''));
@@ -334,6 +372,8 @@ const DEFAULT_FILTERS: RecordingsFilterState = {
   eventTypes: [],
   audioLabels: [],
   hasAttributes: [],
+  vehicleColors: [],
+  vehicleTypes: [],
   sensorEvents: [],
   gridRegions: [],
   minConfidence: 0.5,
@@ -349,24 +389,23 @@ const TIME_RANGE_MS: Record<string, number> = {
 
 const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number }>('gridRef');
 const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
+const reindexAnchorRef = useTemplateRef<HTMLElement>('reindexAnchorRef');
+const serverFilter = shallowRef<GetEventsOptions>({ hasDetections: true, withRecordingInfo: true, hasRecording: true });
+const ungroupedItems = shallowRef<UngroupedItem[]>([]);
 const sidebarState = ref<'opened' | 'closed'>('closed');
 const layoutReady = ref(false);
 const filters = ref<RecordingsFilterState>({ ...DEFAULT_FILTERS });
 const assistantSearching = ref(false);
 const assistantNote = ref('');
-const serverFilter = shallowRef<GetEventsOptions>({ hasDetections: true, withRecordingInfo: true, hasRecording: true });
-let _prevFilterJSON = JSON.stringify(serverFilter.value);
-// fixed when the range is picked: a cutoff that moved with the clock would
-// change the server filter on every filter edit and reload the list
+const imageDrags = ref(0);
 const rangeStartMs = ref<number>();
 const ungrouped = ref(false);
-const ungroupedItems = shallowRef<UngroupedItem[]>([]);
 const hoveredEventId = ref<string | null>(null);
-const reindexAnchorRef = useTemplateRef<HTMLElement>('reindexAnchorRef');
-
-const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
 
 let ungroupedTouched = false;
+let _prevFilterJSON = JSON.stringify(serverFilter.value);
+
+const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
 
 const sidebarOpen = computed(() => {
   if (xlBreakpoint.value) return true;
@@ -429,6 +468,7 @@ const {
   deleteEvents,
   reset: reloadEvents,
   loadFailed,
+  licenseRequired: filterNeedsLicense,
   pluginUnavailable: eventsUnavailable,
 } = useDetectionEvents({
   availableCameraIds: allCameraIds,
@@ -453,7 +493,49 @@ const semanticEventIds = computed(() => {
 
 const isSemanticActive = computed(() => semanticHasSearched.value);
 
+const isSimilarActive = computed(() => Boolean(similarRequest.value));
+
+const similarEvents = computed(() => new Map((similarResult.value?.events ?? []).map((event) => [event.id, event])));
+
+const similarItems = computed<UngroupedItem[]>(() => {
+  const items: UngroupedItem[] = [];
+  const seen = new Set<string>();
+  for (const match of similarResult.value?.matches ?? []) {
+    const event = similarEvents.value.get(match.eventId);
+    if (!event) continue;
+    const segIndex = match.segment >= 0 && event.segments[match.segment] ? match.segment : undefined;
+    const key = segIndex === undefined ? event.id : `${event.id}:seg:${segIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({ event, key, segIndex });
+  }
+  return items;
+});
+
+const similarOptions = computed<SimilarOptions>(() => {
+  const f = filters.value;
+  const scoped = cameraIds.value.length ? cameraIds.value : f.rooms.length ? roomCameraIds.value : [];
+  const custom = f.timeRange === 'custom' ? f.customDateRange : null;
+  return {
+    cameraIds: scoped.length ? scoped : undefined,
+    startMs: custom ? custom[0].getTime() : rangeStartMs.value,
+    endMs: custom ? custom[1].getTime() : undefined,
+  };
+});
+
+const listLoading = computed(() => (isSimilarActive.value ? similarSearching.value : isLoading.value));
+
+const showEmptyState = computed(() => {
+  if (isSimilarActive.value) {
+    const result = similarResult.value;
+    return Boolean(result) && result?.mode !== 'none' && !similarItems.value.length && !similarSearching.value;
+  }
+  return !displayEvents.value.length && !isLoading.value && !semanticSearching.value;
+});
+
 const emptyStateText = computed(() => {
+  if (isSimilarActive.value) return t('views.recordings.similar_empty');
+  if (filterNeedsLicense.value) return t('views.recordings.vehicle_filter_license');
   if (eventsUnavailable.value) return t('views.recordings.recordings_unavailable');
   // a query that failed says nothing about what is recorded
   if (loadFailed.value) return t('views.recordings.load_failed');
@@ -493,7 +575,14 @@ const episodesOnly = computed(() => filters.value.contentKind === 'episodes');
 const contentFiltered = computed(() => {
   const f = filters.value;
   return (
-    f.search.trim() !== '' || f.eventTypes.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0 || f.sensorEvents.length > 0 || f.minConfidence !== 0.5
+    f.search.trim() !== '' ||
+    f.eventTypes.length > 0 ||
+    f.audioLabels.length > 0 ||
+    f.hasAttributes.length > 0 ||
+    f.vehicleColors.length > 0 ||
+    f.vehicleTypes.length > 0 ||
+    f.sensorEvents.length > 0 ||
+    f.minConfidence !== 0.5
   );
 });
 const assistantAvailable = computed(() => assistantStatus.value?.state === 'ready');
@@ -538,6 +627,7 @@ const episodeGridItems = computed<UngroupedItem[]>(() => {
   return items;
 });
 const gridItems = computed<UngroupedItem[]>(() => {
+  if (isSimilarActive.value) return similarItems.value;
   if (episodesOnly.value) return [...episodeGridItems.value].sort(newestFirst);
   const items: UngroupedItem[] =
     ungrouped.value && ungroupedItems.value.length ? [...ungroupedItems.value] : displayEvents.value.map((event) => ({ event, key: event.id }));
@@ -697,10 +787,55 @@ function onSemanticSearch(query: string): void {
   runSemanticSearch(query);
 }
 
+function loadCardThumbnails(eventId: string, startMs: number): Promise<EventThumbnails | null> {
+  const matched = similarEvents.value.get(eventId);
+  if (matched && !eventStore.getEvent(eventId)) return eventStore.loadThumbnails(eventId, matched.cameraId, startMs);
+  return loadThumbnails(eventId, startMs);
+}
+
+function vehicleAttributeLabels(f: RecordingsFilterState): Record<string, string[]> | undefined {
+  if (!f.vehicleColors.length && !f.vehicleTypes.length) return undefined;
+  const labels: Record<string, string[]> = {};
+  if (f.vehicleColors.length) labels.color = f.vehicleColors;
+  if (f.vehicleTypes.length) labels.vehicle_type = f.vehicleTypes;
+  return labels;
+}
+
 function openTraceDialog(event: RecordedEvent, atMs?: number): void {
   const camera = cameraById.value.get(event.cameraId);
   if (!camera) return;
   openEventTrace(event, camera, atMs);
+}
+
+function openImageSearch(image: File): void {
+  dialog.openComponentDialog<SimilarImageSearchProps>(SimilarImageSearchDialog, {
+    data: {
+      title: t('components.similar.image_search_title'),
+      hideConfirmButton: true,
+      contentProps: { image },
+    },
+    dialogSize: {
+      desktop: { width: '720px' },
+    },
+  });
+}
+
+function isFileDrag(event: DragEvent): boolean {
+  return Boolean(event.dataTransfer?.types.includes('Files'));
+}
+
+function onImageDragEnter(event: DragEvent): void {
+  if (similarAvailable.value && isFileDrag(event)) imageDrags.value++;
+}
+
+function onImageDragLeave(event: DragEvent): void {
+  if (isFileDrag(event)) imageDrags.value = Math.max(0, imageDrags.value - 1);
+}
+
+function onImageDrop(event: DragEvent): void {
+  imageDrags.value = 0;
+  const image = Array.from(event.dataTransfer?.files ?? []).find((file) => file.type.startsWith('image/'));
+  if (image && similarAvailable.value) openImageSearch(image);
 }
 
 function openRecordingDialog(event: RecordedEvent, timestamp: number): void {
@@ -768,6 +903,7 @@ watch(
       triggers: f.sensorEvents.length > 0 ? f.sensorEvents : undefined,
       triggerLabels: f.audioLabels.length > 0 ? f.audioLabels : undefined,
       attributes: f.hasAttributes.length > 0 ? f.hasAttributes : undefined,
+      attributeLabels: vehicleAttributeLabels(f),
       filterLogicTriggers: hasAnyContentFilter ? f.filterLogicTriggers : undefined,
       filterLogicAttributes: hasAnyContentFilter ? f.filterLogicAttributes : undefined,
       search: f.search || undefined,
@@ -798,6 +934,15 @@ watch(
   { immediate: true },
 );
 
+watch(
+  [similarRequest, () => JSON.stringify(similarOptions.value), similarAvailable],
+  ([request, , available]) => {
+    if (!request) clearSimilar();
+    else if (available) void runSimilarSearch(request.query, similarOptions.value);
+  },
+  { immediate: true },
+);
+
 watch([ungrouped, displayEvents, isSemanticActive], ([isUngrouped, events, ranked]) => {
   ungroupedItems.value = isUngrouped ? buildUngroupedItems(events, ranked) : [];
 });
@@ -817,3 +962,20 @@ onMounted(() => {
   });
 });
 </script>
+
+<style scoped>
+.image-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--p-content-background) 80%, transparent);
+  border: 2px dashed var(--p-primary-color);
+  color: var(--p-primary-color);
+  pointer-events: none;
+}
+</style>
