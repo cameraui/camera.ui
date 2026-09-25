@@ -72,7 +72,8 @@
               v-show="timelineState && !showPtz && !inStandby && !gridSearchActive && !cameraStream.isFullscreen.value"
               id="timeline-container"
               key="timeline"
-              class="absolute inset-0 z-5"
+              class="absolute top-0 left-0 right-0 z-5"
+              :style="{ bottom: showControl ? '48px' : '0px', transition: 'bottom 0.2s ease' }"
             ></div>
 
             <div
@@ -330,7 +331,11 @@
           </div>
 
           <Transition name="fade-2">
-            <div v-if="showControl && !timelineState" class="absolute bottom-0 inset-x-0 z-6 dark-mode pointer-events-none" :class="{ 'control-bar-tiny': isTinyPlayer }">
+            <div
+              v-if="showControl"
+              class="absolute bottom-0 inset-x-0 z-6 dark-mode pointer-events-none"
+              :class="{ 'control-bar-tiny': isTinyPlayer, 'control-bar-docked': timelineState }"
+            >
               <div class="control-bar-gradient" />
               <div class="relative flex items-center gap-1 px-3 pb-3 pt-8">
                 <div class="flex items-center gap-0.5 pointer-events-auto">
@@ -2291,6 +2296,21 @@ html.cui-native-pip #video-container.native-pip .ar-box {
   height: 28px !important;
   min-width: 28px !important;
   border-radius: 4px !important;
+}
+
+.control-bar-docked .control-bar-gradient {
+  display: none;
+}
+
+#timeline-container::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: #000;
+  pointer-events: none;
 }
 
 .control-bar-tiny .control-bar-btn :deep(svg) {
