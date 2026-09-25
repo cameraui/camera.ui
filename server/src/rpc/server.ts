@@ -495,18 +495,15 @@ export class NATS {
       const rl = createInterface({ input: proc.stdout, terminal: false });
       const rlErr = createInterface({ input: proc.stderr, terminal: false });
       const onLine = (line: string) => {
+        this.logLine(`leaf-acceptor: ${this.stripLine(line)}`);
         if (settled) return;
         if (line.includes(SERVER_READY_MESSAGE)) {
           settled = true;
           this.logger.log(`Leaf-acceptor ready (PID: ${proc.pid})`);
           resolve();
-          rl.close();
-          rlErr.close();
         } else if (line.includes(SERVER_ERROR_MESSAGE)) {
           settled = true;
           reject(new Error('Error starting Nats leaf-acceptor!'));
-          rl.close();
-          rlErr.close();
         }
       };
       rl.on('line', onLine);
@@ -683,10 +680,16 @@ export class NATS {
   }
 
   private processLogger(line: string): void {
-    const blankLine = stripVTControlCharacters(line.replace(/\[(\d+)\] (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) /, ''));
-
+    const blankLine = this.stripLine(line);
     this.leaf.observe(blankLine);
+    this.logLine(blankLine);
+  }
 
+  private stripLine(line: string): string {
+    return stripVTControlCharacters(line.replace(/\[(\d+)\] (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) /, ''));
+  }
+
+  private logLine(blankLine: string): void {
     if (this.isIgnorableString(blankLine)) {
       return;
     }
