@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.8]
+
+### Fixed
+
+- **Every face in a recording has its own picture.** With several people in one moment, a name could come without a picture, so that face could not be corrected, or a picture showed a different person than the name under it. Each face now keeps its own picture, also when two people got the same name, and a correction changes only the face you picked and trains recognition with exactly that picture. Needs the NVR plugin update.
+
+- **Reinstalling a detection plugin no longer stops detection.** Cameras kept asking the plugin from before the reinstall, so only motion came through and the plugin's settings on the camera loaded without end. Cameras now follow the reinstalled plugin, and it keeps its sensors. Setups already hit by this recover with the update.
+
+- **A plugin that does not answer can be switched off on the camera.** Its chip stayed greyed out for as long as its settings kept trying to load.
+
+- **The assistant's cost estimates use current prices.** Claude Sonnet 5, Claude Opus 4.5 and several Gemini models showed a wrong price, and newer models such as GPT-6, GPT-5.6, GPT-5.5 or Claude Opus 5.5 were counted at the price of an older one. They now have their own prices, and a model not listed yet shows no estimate instead of a wrong one.
+
+- **OpenRouter answers get through a rate limit.** A busy model, free ones in particular, made the answer fail right away. The assistant now tries again for up to half a minute.
+
+- **A conversation that fails to load says so.** It used to open empty, as if it had no messages.
+
 ## [2.2.7]
 
 ### Changed
