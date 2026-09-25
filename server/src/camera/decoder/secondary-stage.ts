@@ -5,6 +5,7 @@ import { SensorType } from '@camera.ui/sdk';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { detectionRecord } from './debug/detection-record.js';
 import { EVENT_THUMB_MAX_WIDTH } from './event-thumbnailer.js';
+import { faceParent, FaceTrackNames, keepOneFacePerTrack } from './face-tracks.js';
 import { directionBetween, MOMENT_QUALITY, momentFormat, momentWindow } from './moment-crop.js';
 import { MIN_PLATE_LENGTH, normalizePlateText } from './plate-vote.js';
 import { hasSecondaryModelSpec, isVideoInputSpec } from './plugin-registry.js';
@@ -16,7 +17,7 @@ import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type { BoundingBox, ClassifierResult, Detection, FaceResult, LicensePlateResult, ModelSpec, Point, TrackedDetection, VideoFrameData } from '@camera.ui/sdk';
 import type { Frame } from 'node-av/lib';
 import type { CoreManagerInterface } from '../../rpc/interfaces/core.js';
-import type { CroppedRegion, DetectionResults, DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
+import type { CroppedRegion, DetectionResults, DetectionThumbnail, ServerFaceDetection, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { DetectionCoordinator } from './detection-coordinator.js';
 import type { DetectionPipeline } from './detection-pipeline.js';
 import type { TrackedClassifierDetection, TrackedClipEmbedding, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
@@ -34,14 +35,9 @@ interface NvrFaceMatcher {
   matchFaces(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<({ identity: string } | null)[]>;
 }
 
-const MIN_FACE_PX = 40;
 const FACE_CROP_PADDING = 0.25;
-const EMBED_EVERY_MS = 1_000;
-const GOOD_VECTORS_PER_TRACK = 3;
 const EMBEDDED_TRACKS_MAX = 256;
 const EMBEDDED_TRACK_IDLE_MS = 60_000;
-const UNTRACKED_IDLE_MS = 5_000;
-const UNTRACKED_GRID = 8;
 const CLIP_EVERY_MS = 10_000;
 const CLIP_AREA_FACTOR = 1.5;
 const CLIP_TIMEOUT_MS = 5_000;
@@ -80,33 +76,8 @@ interface FaceJob {
   card?: { jpeg: Buffer; window: CropWindow; frameWidth: number; frameHeight: number };
 }
 
-interface EmbeddedTrack {
-  attemptAt: number;
-  seen: number;
-  good: number;
-  identity?: string;
-}
-
-function keepOneFacePerTrack(faces: TrackedFaceDetection[]): void {
-  const heads = new Map<number, TrackedFaceDetection>();
-  for (const face of faces) {
-    if (face.parentTrackId === undefined) continue;
-    const head = heads.get(face.parentTrackId);
-    if (!head || centreY(face.box) < centreY(head.box)) heads.set(face.parentTrackId, face);
-  }
-  for (const face of faces) {
-    if (face.parentTrackId === undefined || heads.get(face.parentTrackId) === face) continue;
-    face.parentTrackId = undefined;
-    face.parentBox = undefined;
-  }
-}
-
-function centreY(box: BoundingBox): number {
-  return box.y + box.height / 2;
-}
-
 export class SecondaryStage {
-  private readonly embeddedTracks = new Map<string, EmbeddedTrack>();
+  private readonly faceNames = new FaceTrackNames();
   private readonly clipTracks = new Map<string, ClipTrack>();
   private readonly clipQueue = new SideQueue<ClipJob>(
     (jobs) => this.runClip(jobs),
@@ -258,8 +229,8 @@ export class SecondaryStage {
 
   private async runAllSecondaries(regionMap: Map<string, CroppedRegion[]>, results: DetectionResults): Promise<void> {
     await Promise.allSettled([
-      this.runSecondaryDetection(SensorType.Face, results, () => this.runFaceDetection(regionMap.get('face') ?? [])),
-      this.runSecondaryDetection(SensorType.LicensePlate, results, () => this.runLicensePlateDetection(regionMap.get('lpd') ?? [])),
+      this.runSecondaryDetection(SensorType.Face, results, () => this.runFaceDetection(regionMap.get('face') ?? [], results)),
+      this.runSecondaryDetection(SensorType.LicensePlate, results, () => this.runLicensePlateDetection(regionMap.get('lpd') ?? [], results)),
       this.runSecondaryDetection(SensorType.Classifier, results, () => this.runClassifierDetections(regionMap)),
     ]);
 
@@ -272,7 +243,7 @@ export class SecondaryStage {
   private async recognizeFaces(sourceFrame: Frame, scaler: FrameScaler, results: DetectionResults): Promise<void> {
     if (!results.face?.detections.length) return;
     await this.queueFaces(sourceFrame, scaler, results.face.detections);
-    this.carryTrackIdentities(results.face.detections);
+    this.faceNames.carry(results.face.detections);
   }
 
   private async queueFaces(sourceFrame: Frame, scaler: FrameScaler, faces: ServerFaceDetection[]): Promise<void> {
@@ -282,7 +253,7 @@ export class SecondaryStage {
     if (!input) return;
 
     for (const face of faces) {
-      if (!this.wantsEmbedding(face, sourceFrame)) continue;
+      if (!this.faceNames.wantsVector(face, sourceFrame)) continue;
 
       const scaled = await scaler.cropAndScaleMulti(
         sourceFrame,
@@ -297,9 +268,9 @@ export class SecondaryStage {
       const [crop] = await this.attributeCrops(sourceFrame, scaler, [face]);
       const card = crop ? { jpeg: crop[1], window: crop[2], frameWidth: sourceFrame.width, frameHeight: sourceFrame.height } : undefined;
 
-      this.markAttempt(face);
+      this.faceNames.markAttempt(face);
       const job: FaceJob = { face: { ...(face as TrackedFaceDetection) }, region, capturedAt: Date.now(), card };
-      if (!this.faceQueue.push(this.embedKey(face), job)) this.coordinator.vectorJobStarted();
+      if (!this.faceQueue.push(this.faceNames.key(face), job)) this.coordinator.vectorJobStarted();
     }
   }
 
@@ -332,7 +303,12 @@ export class SecondaryStage {
     }
 
     await this.resolveFaceIdentities(faces);
-    for (const face of faces) this.markGoodVector(face);
+    for (const face of faces) {
+      face.matched = face.identity;
+      const named = this.faceNames.markVector(face);
+      // without a track there is nothing to gather votes on, the face keeps its own match
+      if (face.parentTrackId !== undefined) face.identity = named;
+    }
     if (faces.length === 0 || !this.coordinator.running) return;
 
     const embeddingModel = (plugin.modelSpec as ModelSpec | undefined)?.embeddingModel ?? '';
@@ -341,67 +317,11 @@ export class SecondaryStage {
     }
   }
 
-  private wantsEmbedding(face: ServerFaceDetection, frame: Frame): boolean {
-    const shortest = Math.min(face.box.width * frame.width, face.box.height * frame.height);
-    if (shortest < MIN_FACE_PX) return false;
-
-    const now = Date.now();
-    const key = this.embedKey(face);
-    const seen = this.embeddedTracks.get(key);
-    // without a track a cell is all there is, and the next face in it may be someone else
-    if (!seen || (key.startsWith('u') && now - seen.seen > UNTRACKED_IDLE_MS)) {
-      this.embeddedTracks.delete(key);
-      return true;
-    }
-    seen.seen = now;
-    if (seen.identity || seen.good >= GOOD_VECTORS_PER_TRACK) return false;
-    return now - seen.attemptAt >= EMBED_EVERY_MS;
-  }
-
-  private markAttempt(face: ServerFaceDetection): void {
-    const now = Date.now();
-    const key = this.embedKey(face);
-    const seen = this.embeddedTracks.get(key);
-    this.embeddedTracks.set(key, { good: 0, ...seen, attemptAt: now, seen: now });
-
-    if (this.embeddedTracks.size <= EMBEDDED_TRACKS_MAX) return;
-    for (const [id, track] of this.embeddedTracks) {
-      if (now - track.seen > EMBEDDED_TRACK_IDLE_MS) this.embeddedTracks.delete(id);
-    }
-  }
-
-  private markGoodVector(face: ServerFaceDetection): void {
-    const seen = this.embeddedTracks.get(this.embedKey(face));
-    if (!seen) return;
-    seen.good++;
-    if (face.identity && (face as TrackedFaceDetection).parentTrackId !== undefined) seen.identity = face.identity;
-  }
-
   private cropPointToFrame(point: Point, region: CroppedRegion): Point {
     return [
       (region.offset.x + point[0] * region.cropSize.width) / region.originalSize.width,
       (region.offset.y + point[1] * region.cropSize.height) / region.originalSize.height,
     ];
-  }
-
-  private carryTrackIdentities(faces: ServerFaceDetection[]): void {
-    const now = Date.now();
-    for (const face of faces) {
-      if ((face as TrackedFaceDetection).parentTrackId === undefined) continue;
-      const seen = this.embeddedTracks.get(this.embedKey(face));
-      if (!seen) continue;
-      seen.seen = now;
-      if (face.identity) seen.identity = face.identity;
-      else face.identity = seen.identity;
-    }
-  }
-
-  private embedKey(face: ServerFaceDetection): string {
-    const trackId = (face as TrackedFaceDetection).parentTrackId;
-    if (trackId !== undefined) return `t${trackId}`;
-    const cellX = Math.floor((face.box.x + face.box.width / 2) * UNTRACKED_GRID);
-    const cellY = Math.floor((face.box.y + face.box.height / 2) * UNTRACKED_GRID);
-    return `u${cellX}:${cellY}`;
   }
 
   private collectConsumers(requireFrames: boolean): ConsumerSpec[] {
@@ -553,7 +473,7 @@ export class SecondaryStage {
     }
   }
 
-  private async runFaceDetection(croppedRegions: CroppedRegion[]): Promise<FaceResult | undefined> {
+  private async runFaceDetection(croppedRegions: CroppedRegion[], results: DetectionResults): Promise<FaceResult | undefined> {
     const facePlugin = this.plugins.get(SensorType.Face);
     if (!facePlugin || croppedRegions.length === 0) return undefined;
 
@@ -568,20 +488,22 @@ export class SecondaryStage {
     for (let i = 0; i < batchResults.length; i++) {
       for (const face of ensureDetectionBoxes(batchResults[i].detections)) {
         const transformed = this.transformBoxToOriginal(face.box, croppedRegions[i]);
-        const parent = this.faceParent(transformed, croppedRegions, i);
+        const parent = faceParent(transformed, croppedRegions, i);
         const parentTrackId = parent && 'trackId' in parent ? (parent as TrackedDetection).trackId : undefined;
         allFaces.push({ ...face, box: transformed, parentTrackId, parentBox: parent?.box });
       }
     }
 
     if (allFaces.length === 0) return { detected: false, detections: [] };
-    // NMS only, the crops come from already zone-filtered object detections
-    const deduped = this.pipeline.runNms(allFaces);
-    keepOneFacePerTrack(deduped);
-    return { detected: deduped.length > 0, detections: deduped };
+    // NMS only, the crops come from already zone-filtered object detections;
+    // faces under the user threshold are never recognized or reported
+    const { kept, weak } = this.pipeline.splitFaces(this.pipeline.runNms(allFaces));
+    this.suggest(results, this.pipeline.trainingSuggestionsFor(weak, 'face'));
+    keepOneFacePerTrack(kept);
+    return { detected: kept.length > 0, detections: kept };
   }
 
-  private async runLicensePlateDetection(croppedRegions: CroppedRegion[]): Promise<LicensePlateResult | undefined> {
+  private async runLicensePlateDetection(croppedRegions: CroppedRegion[], results: DetectionResults): Promise<LicensePlateResult | undefined> {
     const lpdPlugin = this.plugins.get(SensorType.LicensePlate);
     if (!lpdPlugin || croppedRegions.length === 0) return undefined;
 
@@ -603,8 +525,14 @@ export class SecondaryStage {
 
     if (allPlates.length === 0) return { detected: false, detections: [] };
     // NMS only, the crops come from already zone-filtered object detections
-    const deduped = this.pipeline.runNms(allPlates);
-    return { detected: deduped.length > 0, detections: deduped };
+    const { kept, weak } = this.pipeline.splitPlates(this.pipeline.runNms(allPlates));
+    this.suggest(results, this.pipeline.trainingSuggestionsFor(weak, 'license_plate'));
+    return { detected: kept.length > 0, detections: kept };
+  }
+
+  private suggest(results: DetectionResults, suggestions: TrainingSuggestion[]): void {
+    if (suggestions.length === 0) return;
+    results.trainingSuggestions = [...(results.trainingSuggestions ?? []), ...suggestions];
   }
 
   private async runClassifierDetections(regionMap: Map<string, CroppedRegion[]>): Promise<{ pluginId: string; result: ClassifierResult }[]> {
@@ -776,21 +704,6 @@ export class SecondaryStage {
       if (!embedding?.length || !embeddingModel) continue;
       this.coordinator.acceptPersonVectors([{ trackId: jobs[i].trackId, embedding }], embeddingModel, jobs[i].capturedAt);
     }
-  }
-
-  private faceParent(face: BoundingBox, regions: CroppedRegion[], cropIndex: number): Detection | undefined {
-    const cx = face.x + face.width / 2;
-    const cy = face.y + face.height / 2;
-    let best: Detection | undefined;
-    for (const { detection } of regions) {
-      const box = detection.box;
-      if (cx < box.x || cx > box.x + box.width || cy < box.y || cy > box.y + box.height) continue;
-      if (!best || box.width * box.height < best.box.width * best.box.height) best = detection;
-    }
-    if (best) return best;
-    const own = regions[cropIndex].detection;
-    const inside = cx >= own.box.x && cx <= own.box.x + own.box.width && cy <= own.box.y + own.box.height;
-    return inside ? own : undefined;
   }
 
   private prepareSecondaryFrames(croppedRegions: CroppedRegion[]): VideoFrameData[] {

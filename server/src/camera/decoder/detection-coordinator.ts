@@ -56,7 +56,7 @@ import type {
   ZoneLabel,
 } from '@camera.ui/sdk';
 import type { Frame } from 'node-av/lib';
-import type { CoordinatorSensorInfo, DetectionPluginInterface, DetectionResults } from '../../rpc/interfaces/detection.js';
+import type { CoordinatorSensorInfo, DetectionPluginInterface, DetectionResults, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { CameraDeviceInterface } from '../../rpc/interfaces/device.js';
 import type { SensorWriteMessage } from '../../rpc/interfaces/sensor.js';
 import type { LineCrossingEvent, PipelineResult, ZoneConfig } from './detection-pipeline.js';
@@ -685,6 +685,7 @@ export class DetectionCoordinator {
               if (results.thumbnails && results.thumbnails.length > 0) {
                 snapshot.thumbnails = results.thumbnails;
               }
+              if (results.trainingSuggestions) snapshot.trainingSuggestions = results.trainingSuggestions;
               await this.attachTrainingFrame(snapshot, analysis);
               this.eventManager.processResults(snapshot);
             } else {
@@ -1544,6 +1545,7 @@ export class DetectionCoordinator {
     let objectDetections: Detection[] = [];
     let staticDetections: TrackedDetection[] = [];
     let trainingExtras: Detection[] = [];
+    let trainingSuggestions: TrainingSuggestion[] = [];
     const results: DetectionResults = { timestamp: t0 };
     let trace: TraceTick | undefined;
 
@@ -1677,6 +1679,7 @@ export class DetectionCoordinator {
           results.object = { detected: objectDetections.length > 0, detections: visibleTracks };
           staticDetections = pipelineResult.staticTracks;
           trainingExtras = pipelineResult.trainingExtras;
+          trainingSuggestions = pipelineResult.trainingSuggestions;
           if (pipelineResult.crossings.length > 0) results.lineCrossings = pipelineResult.crossings;
 
           // incl. extrapolated tracks, otherwise a single missed detector
@@ -1750,6 +1753,8 @@ export class DetectionCoordinator {
     const snapshot = this.buildSnapshot(t0);
     if (staticDetections.length > 0) snapshot.staticObjects = staticDetections;
     if (trainingExtras.length > 0) snapshot.trainingExtras = trainingExtras;
+    const suggestions = [...trainingSuggestions, ...(results.trainingSuggestions ?? [])];
+    if (suggestions.length > 0) snapshot.trainingSuggestions = suggestions;
     if (results.thumbnails && results.thumbnails.length > 0) {
       snapshot.thumbnails = results.thumbnails;
     }
@@ -2371,7 +2376,9 @@ export class DetectionCoordinator {
 
     try {
       const inferStart = Date.now();
-      const boxed = await this.assistDetections(assist, frame, scaler, reported);
+      // the plugin delivers from its floor: only boxes above the user threshold
+      // may replace the camera's report
+      const boxed = this.pipeline.aboveThreshold(await this.assistDetections(assist, frame, scaler, reported));
       this.perf.assistMs += Date.now() - inferStart;
       this.perf.assistCount++;
       const reportedLabels = new Set(reported.map((d) => d.label.toLowerCase()));

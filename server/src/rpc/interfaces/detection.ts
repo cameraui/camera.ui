@@ -2,6 +2,7 @@ import type {
   AudioFrameData,
   AudioModelSpec,
   AudioResult,
+  BoundingBox,
   ClassifierResult,
   ClipResult,
   Detection,
@@ -30,6 +31,12 @@ export interface CroppedRegion {
   originalSize: { width: number; height: number };
 }
 
+export interface TrainingSuggestion {
+  label: string;
+  box: BoundingBox;
+  confidence: number;
+}
+
 export interface DetectionThumbnail {
   label: string;
   jpeg: Buffer;
@@ -41,6 +48,7 @@ export interface DetectionThumbnail {
 }
 
 export interface ServerFaceDetection extends FaceDetection {
+  matched?: string;
   embedding?: number[];
   quality?: number;
   landmarks?: Point[];
@@ -66,6 +74,7 @@ export interface DetectionResults {
   cascadeTriggered?: boolean;
   thumbnails?: DetectionThumbnail[];
   lineCrossings?: LineCrossingEvent[];
+  trainingSuggestions?: TrainingSuggestion[];
   timestamp: number;
 }
 

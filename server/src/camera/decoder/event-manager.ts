@@ -26,7 +26,7 @@ import type {
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
 import type { TrainingCandidateBox } from '../../rpc/interfaces/core.js';
-import type { DetectionThumbnail, ServerFaceDetection } from '../../rpc/interfaces/detection.js';
+import type { DetectionThumbnail, ServerFaceDetection, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
 import type { TraceTick } from './event-trace.js';
 import type { EventAttachments, RecordedAttribute, RecordedEvent, RecordedPersonEmbedding, RecordedSegment } from './nvr-sink.js';
@@ -102,6 +102,7 @@ export interface ProcessedDetectionData {
   trainingFrame?: Buffer;
   trainingSubjects?: TrainingSubject[];
   trainingExtras?: Detection[];
+  trainingSuggestions?: TrainingSuggestion[];
   staticObjects?: Detection[];
   lineCrossings?: LineCrossingEvent[];
   timestamp: number;
@@ -165,6 +166,7 @@ function jpegInfo(jpeg: Buffer): string {
 }
 
 interface HeldAttribute {
+  matched?: string;
   thumbnail?: Uint8Array;
   embedding?: number[];
   embeddingModel?: string;
@@ -866,16 +868,20 @@ export class DetectionEventManager {
 
     const existing = this.activeSegment.attributes[index];
     if (!existing) return;
-    if (face.identity && existing.label === 'unknown') existing.label = face.identity;
+    // a track's slot carries the name the track settled on last, a vector may also take it back
+    if (tracked && (face.identity || face.embedding?.length)) existing.label = face.identity ?? 'unknown';
+    else if (face.identity && existing.label === 'unknown') existing.label = face.identity;
     if (!this.betterFace(face, existing, this.heldAttributes[index])) return;
     existing.confidence = face.confidence;
     this.heldAttributes[index] = this.heldFace(face, model);
   }
 
-  // picture, vector and points travel as one sighting: a face without a vector
-  // never replaces one that has it, and the sharpest face wins, not the one the
-  // detector was surest about
   private betterFace(face: TrackedFaceDetection, existing: RecordedAttribute, held: HeldAttribute | undefined): boolean {
+    // picture, vector and points travel as one sighting: the picture shows a face
+    // read as the name the slot carries, a face without a vector never replaces one
+    // that has it, and the sharpest face wins, not the one the detector was surest about
+    const fits = (matched?: string) => (matched ?? 'unknown') === existing.label;
+    if (fits(face.matched) !== fits(held?.matched)) return fits(face.matched);
     const hasVector = Boolean(face.embedding?.length);
     if (hasVector !== Boolean(held?.embedding?.length)) return hasVector;
     if (Boolean(face.thumbnail) !== Boolean(held?.thumbnail)) return Boolean(face.thumbnail);
@@ -918,7 +924,7 @@ export class DetectionEventManager {
   }
 
   private heldFace(face: TrackedFaceDetection, embeddingModel?: string): HeldAttribute {
-    return { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel, landmarks: face.thumbnailLandmarks, quality: face.quality };
+    return { thumbnail: face.thumbnail, embedding: face.embedding, embeddingModel, landmarks: face.thumbnailLandmarks, quality: face.quality, matched: face.matched };
   }
 
   private pushAttribute(attribute: RecordedAttribute, held?: HeldAttribute): void {

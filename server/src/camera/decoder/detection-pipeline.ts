@@ -4,6 +4,7 @@ import { boxInsidePolygon, normalizePolygon } from '../utils/filter.js';
 import { detectionRecord } from './debug/detection-record.js';
 import { iou } from './detection-window.js';
 import { worldTrace } from './event-trace.js';
+import { MIN_PLATE_LENGTH, normalizePlateText } from './plate-vote.js';
 
 import type {
   MergeContainment,
@@ -20,6 +21,7 @@ import type {
   Detection,
   DetectionLabel,
   DetectionLine,
+  LicensePlateDetection,
   MotionZone,
   ObjectZone,
   Point,
@@ -27,6 +29,7 @@ import type {
   TrackedDetection,
   ZoneLabel,
 } from '@camera.ui/sdk';
+import type { TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { TraceTick } from './event-trace.js';
 
 const NMS_IOU_THRESHOLD = 0.45;
@@ -36,7 +39,9 @@ const OBJECT_MERGE_CLOSE_THRESHOLD = 0.0;
 const PERSON_MERGE_CONTAINMENT: MergeContainment = { labels: ['person'], minShare: 0.85 };
 const MOTION_MERGE_IOU_THRESHOLD = 0.01;
 const MOTION_MERGE_CLOSE_THRESHOLD = 0.1;
-const TRAINING_MIN_CONFIDENCE = 0.5;
+const FACE_CONFIDENCE = 0.5;
+const PLATE_CONFIDENCE = 0.3;
+const PLATE_OCR_CONFIDENCE = 0.9;
 const TRAINING_COVERED_IOU = 0.5;
 export const PAN_TO_IMAGE_RATIO = 4.0;
 
@@ -57,6 +62,7 @@ export interface PipelineResult {
   tracked: PresentTrackedDetection[];
   staticTracks: TrackedDetection[];
   trainingExtras: Detection[];
+  trainingSuggestions: TrainingSuggestion[];
   crossings: LineCrossingEvent[];
   created: number[];
   removed: number[];
@@ -208,8 +214,10 @@ export class DetectionPipeline {
   private whitelist: Set<string> | null = null;
   private trainingMasks: Point[][] = [];
   private stillSince = new Map<number, number>();
+  private settings: CameraDetectionSettings;
 
   constructor(zones: ZoneConfig, settings: CameraDetectionSettings) {
+    this.settings = settings;
     this.world = new CameraWorld();
     const rustZones = toRustZones(zones);
     this.world.setZones(rustZones);
@@ -285,10 +293,13 @@ export class DetectionPipeline {
       if (t.trackId !== undefined) boxLookup.set(t.trackId, t.box);
     }
 
+    const training = this.collectTraining(rawDetections, tracked, staticTracks);
+
     return {
       tracked,
       staticTracks,
-      trainingExtras: this.collectTrainingExtras(rawDetections, tracked, staticTracks),
+      trainingExtras: training.extras,
+      trainingSuggestions: training.suggestions,
       crossings: result.crossings.map((c) => fromRustCrossing(c, boxLookup)),
       created: result.created,
       removed: result.removed,
@@ -359,10 +370,44 @@ export class DetectionPipeline {
     return lower === 'motion' || this.whitelist.has(lower);
   }
 
+  public threshold(label: string): number {
+    const lower = label.toLowerCase();
+    if (lower === 'face') return this.settings.face?.confidence ?? FACE_CONFIDENCE;
+    if (lower === 'license_plate') return this.settings.licensePlate?.confidence ?? PLATE_CONFIDENCE;
+    const confidences: Record<string, number> = this.settings.object.confidences;
+    const values = Object.values(confidences);
+    return confidences[lower] ?? (values.length > 0 ? Math.min(...values) : 0.5);
+  }
+
+  public aboveThreshold<T extends { label: string; confidence: number }>(detections: T[]): T[] {
+    return detections.filter((d) => d.confidence >= this.threshold(d.label));
+  }
+
+  public splitFaces<T extends { confidence: number }>(faces: T[]): { kept: T[]; weak: T[] } {
+    const threshold = this.threshold('face');
+    return { kept: faces.filter((f) => f.confidence >= threshold), weak: faces.filter((f) => f.confidence < threshold) };
+  }
+
+  public splitPlates<T extends LicensePlateDetection>(plates: T[]): { kept: T[]; weak: T[] } {
+    const threshold = this.threshold('license_plate');
+    const ocrConfidence = this.settings.licensePlate?.ocrConfidence ?? PLATE_OCR_CONFIDENCE;
+    const minLength = this.settings.licensePlate?.minLength ?? MIN_PLATE_LENGTH;
+    const readable = (plate: T) =>
+      normalizePlateText(plate.plateText ?? '').length >= minLength && (plate.ocrConfidence === undefined || plate.ocrConfidence >= ocrConfidence);
+    const kept = plates.filter((p) => p.confidence >= threshold && readable(p));
+    return { kept, weak: plates.filter((p) => !kept.includes(p)) };
+  }
+
+  public trainingSuggestionsFor(items: { box: BoundingBox; confidence: number }[], label: string): TrainingSuggestion[] {
+    return items.filter((item) => !this.masked(item.box)).map((item) => ({ label, box: item.box, confidence: item.confidence }));
+  }
+
   private applyConfidences(settings: CameraDetectionSettings): void {
+    this.settings = settings;
     const values = Object.values(settings.object.confidences);
     this.world.setMinConfidence(values.length > 0 ? Math.min(...values) : 0.5);
-    this.world.setMinConfidences(settings.object.confidences);
+    // faces and plates pass the same zone filter, each at its own threshold
+    this.world.setMinConfidences({ ...settings.object.confidences, face: this.threshold('face'), license_plate: this.threshold('license_plate') });
   }
 
   private allowedByWhitelist<T extends { label: string }>(detections: T[]): T[] {
@@ -370,20 +415,31 @@ export class DetectionPipeline {
     return detections.filter((detection) => this.objectLabelAllowed(detection.label));
   }
 
-  private collectTrainingExtras(rawDetections: Detection[], tracked: TrackedDetection[], staticTracks: TrackedDetection[]): Detection[] {
-    const candidates = rawDetections.filter((d) => d.confidence >= TRAINING_MIN_CONFIDENCE);
-    if (candidates.length === 0) return [];
-    const output = [...tracked, ...staticTracks];
-    const extras: Detection[] = [];
-    for (const flat of this.runNmsAndMergeFlat(candidates)) {
-      const detection = fromRustDetection(flat);
-      const box = detection.box;
-      if (!box) continue;
-      if (this.trainingMasks.some((mask) => boxInsidePolygon(box, mask))) continue;
-      if (output.some((t) => t.label === detection.label && iou(t.box, box) >= TRAINING_COVERED_IOU)) continue;
-      extras.push(detection);
-    }
-    return extras;
+  private collectTraining(
+    rawDetections: Detection[],
+    tracked: TrackedDetection[],
+    staticTracks: TrackedDetection[],
+  ): { extras: Detection[]; suggestions: TrainingSuggestion[] } {
+    const flat = rawDetections.map(toRustDetection).filter((d) => d.confidence >= NMS_CONFIDENCE_THRESHOLD);
+    if (flat.length === 0) return { extras: [], suggestions: [] };
+
+    const kept = rustNms(flat, NMS_IOU_THRESHOLD);
+    const strong = kept.filter((d) => d.confidence >= this.threshold(d.label));
+    const weak = kept.filter((d) => d.confidence < this.threshold(d.label));
+    const covered = (detection: Detection, by: Detection[]) => by.some((t) => t.label === detection.label && iou(t.box, detection.box) >= TRAINING_COVERED_IOU);
+
+    const output: Detection[] = [...tracked, ...staticTracks];
+    const merged = strong.length === 0 ? [] : rustMerge(strong, OBJECT_MERGE_IOU_THRESHOLD, OBJECT_MERGE_CLOSE_THRESHOLD, PERSON_MERGE_CONTAINMENT);
+    const extras = merged.map(fromRustDetection).filter((d) => !this.masked(d.box) && !covered(d, output));
+    const suggestions = weak
+      .map(fromRustDetection)
+      .filter((d) => !this.masked(d.box) && !covered(d, [...output, ...extras]))
+      .map((d) => ({ label: d.label, box: d.box, confidence: d.confidence }));
+    return { extras, suggestions };
+  }
+
+  private masked(box: BoundingBox): boolean {
+    return this.trainingMasks.some((mask) => boxInsidePolygon(box, mask));
   }
 
   private runNmsAndMergeFlat(rawDetections: Detection[]): RustDetection[] {
