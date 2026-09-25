@@ -140,7 +140,12 @@ function withPipSources(values: Record<string, any>): Record<string, any> {
     ...values,
     sources: values.sources.map((source: { _id?: string }, index: number) => {
       const formSource = cameraForm.value?.sources.find((s) => s._id && s._id === source._id) ?? cameraForm.value?.sources[index];
-      return { ...source, childSourceId: formSource?.childSourceId ?? null };
+      return {
+        ...source,
+        childSourceId: formSource?.childSourceId ?? null,
+        childCameraId: formSource?.childCameraId ?? null,
+        childCameraRole: formSource?.childCameraRole ?? null,
+      };
     }),
   };
 }

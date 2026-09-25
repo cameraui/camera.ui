@@ -90,6 +90,7 @@ export interface CuiCameraCardProps {
 
   // PiP Configuration
   pipSourceRole?: StreamingRole;
+  pipCamera?: string;
   pipToggleButton?: boolean;
 
   isolatedStream?: boolean;

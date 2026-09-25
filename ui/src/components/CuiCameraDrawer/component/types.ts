@@ -1,4 +1,5 @@
 import type { ReactiveCameraDevice } from '@camera.ui/browser';
+import type { StreamingRole } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { DBCamera } from '@shared/types';
 
@@ -51,5 +52,16 @@ export interface OverviewRow {
 
 export interface ChildSourceOption {
   label: string;
-  value: string | undefined;
+  value: string;
+}
+
+export interface ChildSourceGroup {
+  label: string;
+  items: ChildSourceOption[];
+}
+
+export interface ChildSourceSelection {
+  childSourceId: string | null;
+  childCameraId: string | null;
+  childCameraRole: StreamingRole | null;
 }

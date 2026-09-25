@@ -308,6 +308,8 @@
                 :options="getChildSourceOptions(i)"
                 option-label="label"
                 option-value="value"
+                option-group-label="label"
+                option-group-children="items"
                 :invalid="errors.length > 0"
                 :loading
                 :placeholder="$t('components.form.label.none')"
@@ -373,12 +375,15 @@
 <script setup lang="ts">
 import { ErrorMessage, Field } from 'vee-validate';
 
+import { CamerasQuery } from '@/api/routes/cameras.js';
 import { isGeneratedUrl } from '@/common/cameraSources';
 
-import type { CameraRole } from '@camera.ui/sdk';
+import type { CameraRole, StreamingRole } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { DBCamera } from '@shared/types';
-import type { CameraOptionsTabEmits, CameraOptionsTabProps, ChildSourceOption } from '../../types.js';
+import type { CameraOptionsTabEmits, CameraOptionsTabProps, ChildSourceGroup, ChildSourceSelection } from '../../types.js';
+
+const camerasQuery = new CamerasQuery();
 
 const props = defineProps<CameraOptionsTabProps>();
 
@@ -392,6 +397,11 @@ const { t } = useI18n();
 const dialog = useCuiDialog();
 const { camera, loading } = toRefs(props);
 
+const { data: cameras } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
+
+const OWN_SOURCE_PREFIX = 'source:';
+const CAMERA_SOURCE_PREFIX = 'camera:';
+
 const sourceRoles = ref<CameraRole[]>(['high-resolution', 'mid-resolution', 'low-resolution', 'snapshot']);
 
 function isSavedSource(source: CameraInputSettings): boolean {
@@ -402,36 +412,47 @@ function getSourceName(source: CameraInputSettings): string {
   return source.name.replace(/ /g, '_').toLowerCase();
 }
 
-function getChildSourceOptions(currentSourceIndex: number): ChildSourceOption[] {
-  const options: ChildSourceOption[] = [{ label: t('components.form.label.none'), value: undefined }];
+function getChildSourceOptions(currentSourceIndex: number): ChildSourceGroup[] {
   const currentSource = cameraForm.value.sources[currentSourceIndex];
-  const currentCamera = cameraForm.value;
+  const groups: ChildSourceGroup[] = [];
 
-  for (const source of currentCamera.sources) {
-    if (source.role === 'snapshot') continue;
-    if (source._id === currentSource._id) continue;
-    if (!source.name || !source._id) continue;
+  const ownItems = cameraForm.value.sources
+    .filter((source) => source.role !== 'snapshot' && source._id && source.name && source._id !== currentSource._id)
+    .map((source) => ({ label: source.name, value: `${OWN_SOURCE_PREFIX}${source._id}` }));
+  if (ownItems.length) groups.push({ label: cameraForm.value.name, items: ownItems });
 
-    options.push({
-      label: source.name,
-      value: source._id,
-    });
+  const others = (cameras.value?.result ?? []).filter((other) => other._id !== camera.value._id).sort((a, b) => a.name.localeCompare(b.name));
+  for (const other of others) {
+    // roles stay put when a source is renamed, its id does not
+    const items = other.sources
+      .filter((source) => source.role !== 'snapshot')
+      .map((source) => ({ label: source.name, value: `${CAMERA_SOURCE_PREFIX}${other._id}:${source.role}` }));
+    if (items.length) groups.push({ label: other.name, items });
   }
 
-  return options;
+  return groups;
 }
 
 function getChildSourceValue(sourceIndex: number): string | undefined {
-  return cameraForm.value.sources[sourceIndex].childSourceId;
+  const source = cameraForm.value.sources[sourceIndex];
+  if (source.childCameraId && source.childCameraRole) return `${CAMERA_SOURCE_PREFIX}${source.childCameraId}:${source.childCameraRole}`;
+  if (source.childSourceId) return `${OWN_SOURCE_PREFIX}${source.childSourceId}`;
+  return undefined;
 }
 
 function setChildSource(sourceIndex: number, value: string | undefined | null): void {
-  if (value === undefined || value === null) {
-    // Explicitly set to null so it's included in the PATCH request
-    (cameraForm.value.sources[sourceIndex] as any).childSourceId = null;
-  } else {
-    cameraForm.value.sources[sourceIndex].childSourceId = value;
+  // null instead of undefined, so a cleared field still reaches the PATCH request
+  const selection: ChildSourceSelection = { childSourceId: null, childCameraId: null, childCameraRole: null };
+
+  if (value?.startsWith(OWN_SOURCE_PREFIX)) {
+    selection.childSourceId = value.slice(OWN_SOURCE_PREFIX.length);
+  } else if (value?.startsWith(CAMERA_SOURCE_PREFIX)) {
+    const [cameraId, role] = value.slice(CAMERA_SOURCE_PREFIX.length).split(':');
+    selection.childCameraId = cameraId;
+    selection.childCameraRole = role as StreamingRole;
   }
+
+  Object.assign(cameraForm.value.sources[sourceIndex], selection);
 }
 
 function addSource(i: number): void {

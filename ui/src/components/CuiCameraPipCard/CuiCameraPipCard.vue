@@ -24,6 +24,7 @@
     <Teleport :to="cardARef?.videoContainer" :disabled="!(!swapped && overlayInFullscreen)">
       <CuiCameraCard
         v-if="hasPipSource && (swapped || showPip)"
+        :key="pipCameraId ?? 'own'"
         ref="cardBRef"
         v-bind="propsB"
         v-model:activity-mode="activityModeB"
@@ -68,7 +69,7 @@ const activityMode = defineModel<CuiCameraCardModels['activityMode']>('activityM
 const sourceRole = defineModel<CuiCameraCardModels['sourceRole']>('sourceRole');
 const streamingMode = defineModel<CuiCameraCardModels['streamingMode']>('streamingMode');
 
-const { pipSourceRole, cameraInfo, toolbar } = toRefs(props);
+const { pipSourceRole, pipCamera, cameraInfo, toolbar } = toRefs(props);
 
 const HORIZONTAL_TIMELINE_HEIGHT = 200;
 const TIMELINE_CONTAINER_A = 'timeline-container';
@@ -96,7 +97,7 @@ const overlayProps = {
 const cardARef = useTemplateRef<InstanceType<typeof CuiCameraCard>>('cardARef');
 const cardBRef = useTemplateRef<InstanceType<typeof CuiCameraCard>>('cardBRef');
 const swapped = ref(false);
-const showPip = ref(false);
+const showPip = ref(Boolean(pipCamera.value));
 const activityModeA = ref<CameraActivityMode>(activityMode.value ?? 'always-on');
 const streamingModeA = ref<VideoStreamingMode | undefined>(streamingMode.value);
 const activityModeB = ref<CuiCameraCardModels['activityMode']>('always-on');
@@ -112,6 +113,20 @@ const cameraName = computed(() => {
 
 const { camera: cameraDevice } = useCameraById(cameraName);
 
+// Use sourceRole directly (not cardARef.activeResolution) to avoid dependency on
+// Card A's reactive state. cardARef.activeResolution changes during PiP swap when
+// nvrController changes, causing hasPipSource to flicker → follower stop/restart → visual revert.
+const mainSource = computed(() => {
+  const mainRole = sourceRole.value ?? 'high-resolution';
+  return cameraDevice.value?.camera.value?.sources.find((s) => s.role === mainRole);
+});
+
+const linkedPipCamera = computed(() => (mainSource.value?.childCameraRole ? mainSource.value.childCameraId : undefined));
+const pipCameraRef = computed(() => pipCamera.value ?? (pipSourceRole.value ? undefined : linkedPipCamera.value));
+const { camera: pipCameraDevice } = useCameraById(() => pipCameraRef.value ?? '');
+const pipCameraId = computed(() => (pipCameraRef.value ? pipCameraDevice.value?.id : undefined));
+const pipCameraName = computed(() => (pipCameraRef.value ? pipCameraDevice.value?.camera.value?.name : undefined));
+
 // Card B needs its own NVR controller to avoid hijacking Card A's canvas.
 // The follower mirrors the main controller's scrub/play/pause/seek calls.
 // In CamView (multi-camera), NvrPlaybackMapKey provides per-camera controllers.
@@ -121,6 +136,7 @@ const nvrMap = inject(NvrPlaybackMapKey, undefined);
 const nvrDirect = inject(NvrPlaybackKey, undefined);
 const hasNvr = Boolean(nvrMap || nvrDirect);
 const cameraId = computed(() => cameraDevice.value?.id ?? '');
+const pipNvrCameraId = computed(() => pipCameraId.value ?? cameraId.value);
 
 // Reactive — in CamView the map populates after mount.
 const mainNvr = computed<NvrPlayback | undefined>(() => {
@@ -130,7 +146,7 @@ const mainNvr = computed<NvrPlayback | undefined>(() => {
   }
   return nvrDirect;
 });
-const pipNvrController = createNvrPlayback(cameraId, { managed: true, sourceRole: 'scrub' });
+const pipNvrController = createNvrPlayback(pipNvrCameraId, { managed: true, sourceRole: 'scrub' });
 
 // Sync follower with main controller — only when PiP is visible and has a source.
 // Without this guard, the follower creates duplicate backend sessions (scrub + play)
@@ -207,18 +223,16 @@ const pipSourceRoleResolved = computed<StreamingRole | undefined>(() => {
     return pipSourceRole.value;
   }
 
-  const sources = cameraDevice.value?.camera.value?.sources;
-  if (!sources?.length) return undefined;
+  if (pipCameraRef.value) {
+    if (!pipCameraName.value) return undefined;
+    return pipCamera.value ? 'low-resolution' : mainSource.value?.childCameraRole;
+  }
 
-  // Use sourceRole directly (not cardARef.activeResolution) to avoid dependency on
-  // Card A's reactive state. cardARef.activeResolution changes during PiP swap when
-  // nvrController changes, causing hasPipSource to flicker → follower stop/restart → visual revert.
-  const mainRole = sourceRole.value ?? 'high-resolution';
+  const main = mainSource.value;
+  if (!main) return undefined;
 
-  const mainSource = sources.find((s) => s.role === mainRole);
-  if (!mainSource?.childSourceId) return undefined;
-
-  const childSource = sources.find((s) => s._id === mainSource.childSourceId);
+  if (!main.childSourceId) return undefined;
+  const childSource = cameraDevice.value?.camera.value?.sources.find((s) => s._id === main.childSourceId);
   return childSource?.role as StreamingRole | undefined;
 });
 
@@ -297,7 +311,7 @@ const propsA = computed(() => {
 });
 
 const propsB = computed(() => {
-  const base = { ...props, nvrController: pipNvrController, timelineContainerId: TIMELINE_CONTAINER_B };
+  const base = { ...props, cameraInfo: pipCameraName.value ?? props.cameraInfo, nvrController: pipNvrController, timelineContainerId: TIMELINE_CONTAINER_B };
   if (swapped.value) {
     return {
       ...base,
@@ -313,6 +327,11 @@ const timelineTarget = computed(() => `#${swapped.value ? TIMELINE_CONTAINER_B :
 
 function swap() {
   if (!hasPipSource.value) return;
+  // another camera takes over the whole view, timeline and recordings included
+  if (pipCameraName.value) {
+    emit('openCamera', pipCameraName.value);
+    return;
+  }
   // timeline and fullscreen belong to the main card, the overlay never has either
   const previous = activeCard.value;
   const timelineOpen = previous?.timelineState ?? false;

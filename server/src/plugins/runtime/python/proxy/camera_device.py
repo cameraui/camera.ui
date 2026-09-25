@@ -39,6 +39,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     SensorType,
     SnapshotSettings,
     SnapshotUrlOptions,
+    StreamingRole,
     StreamUrls,
     Subject,
     distinct_until_changed,
@@ -102,6 +103,8 @@ class CameraSourceImpl(CameraSource):
         self.muted: bool | None = source.get("muted")
         self.urls: StreamUrls = source["urls"]
         self.childSourceId: str | None = source.get("childSourceId")
+        self.childCameraId: str | None = source.get("childCameraId")
+        self.childCameraRole: StreamingRole | None = source.get("childCameraRole")
 
     async def snapshot(self, forceNew: bool | None = None) -> bytes | None:
         return await self._parent._snapshot(self._id, forceNew)  # pyright: ignore[reportPrivateUsage]

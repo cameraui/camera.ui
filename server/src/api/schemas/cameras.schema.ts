@@ -303,6 +303,17 @@ export const inputSchema = zod
       .nullish()
       .transform((value) => value ?? undefined)
       .optional(),
+    childCameraId: zod
+      .string()
+      .trim()
+      .min(1, 'Child Camera ID is required')
+      .nullish()
+      .transform((value) => value ?? undefined)
+      .optional(),
+    childCameraRole: streamingSourceRole
+      .nullish()
+      .transform((value) => value ?? undefined)
+      .optional(),
   })
   .strict()
   .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
@@ -331,6 +342,17 @@ export const patchInputSchema = zod
       .string()
       .trim()
       .min(1, 'Child Source ID is required')
+      .nullish()
+      .transform((value) => value ?? undefined)
+      .optional(),
+    childCameraId: zod
+      .string()
+      .trim()
+      .min(1, 'Child Camera ID is required')
+      .nullish()
+      .transform((value) => value ?? undefined)
+      .optional(),
+    childCameraRole: streamingSourceRole
       .nullish()
       .transform((value) => value ?? undefined)
       .optional(),

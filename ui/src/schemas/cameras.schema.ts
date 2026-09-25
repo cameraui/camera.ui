@@ -10,6 +10,7 @@ import {
   patchCameraSchema,
   privacyZoneSchema,
   refineUniqueSourceNames,
+  streamingSourceRole,
 } from '@shared/types';
 import * as zod from 'zod';
 
@@ -36,6 +37,8 @@ export const inputSchema = zod
     timeout: zod.number().int().min(5).max(120).nullish(),
     handshakeTimeout: zod.number().int().min(1).max(60).nullish(),
     childSourceId: zod.string().trim().nullish(),
+    childCameraId: zod.string().trim().nullish(),
+    childCameraRole: streamingSourceRole.nullish(),
   })
   .strict()
   .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));

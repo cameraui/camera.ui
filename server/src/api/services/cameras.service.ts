@@ -759,6 +759,8 @@ export class CamerasService {
         handshakeTimeout: source.handshakeTimeout,
         ...getSourceCodecInfo(source._id),
         childSourceId: source.childSourceId,
+        childCameraId: source.childCameraId,
+        childCameraRole: source.childCameraRole,
         urls: {
           ws: this.generateWsUrls(camera, source),
           rtsp: this.generateRTSPUrls(camera, source),

@@ -3,4 +3,5 @@ export interface CuiCameraPipCardEmits {
   (e: 'expand', expanded: boolean): void;
   (e: 'streamFinishedLoading', state: boolean): void;
   (e: 'fullscreen', active: boolean): void;
+  (e: 'openCamera', cameraName: string): void;
 }

@@ -36,6 +36,8 @@
             :event-description="currentDescription"
             :current-event="currentTraceEvent"
             @open-trace="openTraceAtPlayhead"
+            :pip-camera="pipCameraQuery"
+            @open-camera="openPipCamera"
             :camera-name-overlay="false"
             show-shortcuts
             view-transition
@@ -269,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { CuiTimeline, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
+import { CuiTimeline, playheadUs, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
@@ -355,6 +357,8 @@ const startTs = computed(() => {
   return raw && !isNaN(val) ? val : undefined;
 });
 
+const pipCameraQuery = computed(() => (typeof route.query.pip === 'string' && route.query.pip ? route.query.pip : undefined));
+
 const trimDurationMs = computed(() => {
   const tl = cuiTimelineRef.value;
   if (!tl?.trimStartMs || !tl?.trimEndMs) return 0;
@@ -364,6 +368,12 @@ const trimDurationMs = computed(() => {
 const timelapseDisabled = computed(() => trimDurationMs.value < 60 * 60 * 1000);
 
 provide(GridSearchKey, { active: gridSearchActive, regions: gridSearchRegions });
+
+function openPipCamera(name: string): void {
+  const query: Record<string, string> = { pip: cameraName.value };
+  if (nvrController.mode.value !== 'idle') query.startTs = String(Math.floor(playheadUs(nvrController) / 1000));
+  router.push({ path: `/cameras/${name}`, query, state: { pipFullscreen: cameraCardIsFullscreen.value } });
+}
 
 function openTraceAtPlayhead(): void {
   const event = currentTraceEvent.value;
@@ -564,6 +574,13 @@ watch(
 
 watch(exportMode, (active) => {
   if (!active) trimTimelapse.value = 0;
+});
+
+watch(cameraCardRef, (card) => {
+  if (!card || !window.history.state?.pipFullscreen) return;
+  // a reload must not bring the fullscreen back
+  window.history.replaceState({ ...window.history.state, pipFullscreen: false }, '');
+  if (!card.isFullscreen) card.toggleFs();
 });
 
 watch(cameraCardIsFullscreen, (fullscreen) => {
