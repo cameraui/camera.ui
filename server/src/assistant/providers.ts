@@ -20,6 +20,15 @@ const DEFAULT_BASE_URLS: Record<DBAssistantBuiltinProvider, string | null> = {
 
 const MODELS_TIMEOUT_MS = 10_000;
 
+const OPENROUTER_RETRY = {
+  retryCodes: ['429', '5XX'],
+  retryConfig: {
+    strategy: 'backoff' as const,
+    backoff: { initialInterval: 1_000, maxInterval: 10_000, exponent: 2, maxElapsedTime: 30_000 },
+    retryConnectionErrors: true,
+  },
+};
+
 export function defaultBaseURL(provider: DBAssistantProvider): string | null {
   return DEFAULT_BASE_URLS[provider as DBAssistantBuiltinProvider] ?? null;
 }
@@ -44,7 +53,7 @@ export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'bas
     case 'gemini':
       return createGeminiChat(settings.model as never, key, baseURL ? { baseURL } : undefined) as unknown as AssistantAdapter;
     case 'openrouter':
-      return createOpenRouterText(settings.model as never, key) as unknown as AssistantAdapter;
+      return createOpenRouterText(settings.model as never, key, OPENROUTER_RETRY) as unknown as AssistantAdapter;
     default:
       throw new Error(`No adapter for the provider ${settings.provider}`);
   }

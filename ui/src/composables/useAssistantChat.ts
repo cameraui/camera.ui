@@ -127,6 +127,7 @@ async function navigate(
 }
 
 export function useAssistantChat(options: UseAssistantChatOptions) {
+  const { t } = useI18n();
   const router = useRouter();
   const actions = useAssistantActions();
 
@@ -182,7 +183,9 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   const connection = {
     ...transport,
     hydrate: async (threadId: string) => {
-      const result = await hydrateAssistantThread(threadId);
+      const result = await hydrateAssistantThread(threadId).catch(() => {
+        throw new Error(t('views.assistant.thread_load_failed'));
+      });
       seedAttachments(result.attachments);
       return result;
     },

@@ -2087,6 +2087,7 @@ export default {
       scroll_to_latest: 'Jump to the latest',
       paused_elsewhere: 'This conversation is waiting for a decision in another window or on another device.',
       thread_reloaded: 'This conversation continued on another device, it now shows the latest state.',
+      thread_load_failed: 'This conversation could not be loaded. Open it again to retry.',
       memory_title: 'What the assistant remembers about you',
       memory_empty: 'Nothing yet. Facts you mention or ask it to remember show up here.',
       memory_forget: 'Forget',

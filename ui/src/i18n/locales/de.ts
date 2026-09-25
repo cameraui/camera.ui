@@ -2101,6 +2101,7 @@ export default {
       scroll_to_latest: 'Zum Ende springen',
       paused_elsewhere: 'Dieses Gespräch wartet in einem anderen Fenster oder auf einem anderen Gerät auf eine Entscheidung.',
       thread_reloaded: 'Dieses Gespräch ging auf einem anderen Gerät weiter und zeigt jetzt den aktuellen Stand.',
+      thread_load_failed: 'Dieses Gespräch konnte nicht geladen werden. Öffne es erneut, um es noch einmal zu versuchen.',
       memory_title: 'Was der Assistent über dich weiß',
       memory_empty: 'Noch nichts. Fakten, die du erwähnst oder ihn merken lässt, erscheinen hier.',
       memory_forget: 'Vergessen',
