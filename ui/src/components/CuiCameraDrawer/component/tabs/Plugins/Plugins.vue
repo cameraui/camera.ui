@@ -24,7 +24,7 @@
             v-for="extension in cameraTabPlugins"
             :key="extension.pluginName"
             size="small"
-            :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+            :disabled="!isPluginEnabled(extension.pluginName) || loading"
             :value="extension.pluginName"
           >
             {{ extension.displayName }}
@@ -63,7 +63,7 @@
             v-for="extension in hubExtensions"
             :key="extension.pluginName"
             size="small"
-            :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+            :disabled="!isPluginEnabled(extension.pluginName) || loading"
             :value="extension.pluginName"
           >
             {{ extension.displayName }}
@@ -114,7 +114,7 @@
               :key="extension.pluginName"
               size="small"
               filter
-              :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+              :disabled="!isPluginEnabled(extension.pluginName) || loading"
               :value="extension.pluginName"
             >
               {{ extension.displayName }}
@@ -175,7 +175,7 @@
               :key="extension.pluginName"
               size="small"
               filter
-              :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+              :disabled="!isPluginEnabled(extension.pluginName) || loading"
               :value="extension.pluginName"
             >
               {{ extension.displayName }}
@@ -226,7 +226,7 @@
               :key="extension.pluginName"
               size="small"
               filter
-              :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+              :disabled="!isPluginEnabled(extension.pluginName) || loading"
               :value="extension.pluginName"
             >
               {{ extension.displayName }}
@@ -310,7 +310,7 @@
               :key="extension.pluginName"
               size="small"
               filter
-              :disabled="!isPluginEnabled(extension.pluginName) || configPatchLoading"
+              :disabled="!isPluginEnabled(extension.pluginName) || loading"
               :value="extension.pluginName"
             >
               {{ extension.displayName }}
