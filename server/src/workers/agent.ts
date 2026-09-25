@@ -1,4 +1,5 @@
 import { Logger } from '@camera.ui/common/logger';
+import { fetchViableNetworkAddresses } from '@camera.ui/common/network';
 import { isEqual, SignalHandler } from '@camera.ui/common/utils';
 import { createRPCClient } from '@camera.ui/rpc';
 import { processes } from 'systeminformation';
@@ -371,6 +372,7 @@ export class WorkerAgent implements WorkerAgentRPC {
       capabilities: this.capabilities,
       version: ConfigService.RUNNING_VERSION,
       platform: { os: process.platform, arch: process.arch },
+      addresses: fetchViableNetworkAddresses(),
       system: this.system,
       pid: process.pid,
       cpuLoad: this.cpuLoad,

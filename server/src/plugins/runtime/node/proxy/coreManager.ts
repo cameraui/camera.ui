@@ -82,7 +82,7 @@ export class CoreManagerProxy implements CoreManager {
   }
 
   public async getServerAddresses(): Promise<string[]> {
-    return await this.#coreManagerProxy.getServerAddresses();
+    return await this.#coreManagerProxy.getServerAddresses(this.#plugin.id);
   }
 
   public async getCloudServerId(): Promise<string> {

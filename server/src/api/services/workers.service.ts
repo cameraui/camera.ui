@@ -83,6 +83,25 @@ export class WorkersService {
     });
   }
 
+  public getWorkerServerAddresses(agentId: string): string[] {
+    return this.listKnownWorkers().find((worker) => worker.agentId === agentId)?.serverAddresses ?? [];
+  }
+
+  public async setWorkerServerAddresses(agentId: string, serverAddresses: string[]): Promise<void> {
+    if (!this.listKnownWorkers().some((worker) => worker.agentId === agentId)) {
+      throw new Error(`Worker ${agentId} is unknown`);
+    }
+
+    await this.commitSettings((settings) => {
+      const known = settings.knownWorkers?.find((worker) => worker.agentId === agentId);
+      if (!known) return undefined;
+
+      known.serverAddresses = serverAddresses;
+
+      return settings;
+    });
+  }
+
   public async forgetWorker(agentId: string): Promise<void> {
     await this.commitSettings((settings) => {
       if (!settings.knownWorkers?.length) return undefined;

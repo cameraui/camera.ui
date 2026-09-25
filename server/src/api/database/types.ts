@@ -105,6 +105,7 @@ export interface DBKnownWorker {
   agentId: string;
   name: string;
   displayName?: string;
+  serverAddresses?: string[];
   lastSeen: number;
 }
 

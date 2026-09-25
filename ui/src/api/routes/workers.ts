@@ -1,6 +1,6 @@
 import { axiosInstance as api } from '..';
 
-import type { CamerasResponse, PatchWorkersConfigInput, WorkerInfo, WorkerPairingResponse, WorkersConfigResponse } from '@shared/types';
+import type { CamerasResponse, PatchWorkerInput, PatchWorkersConfigInput, WorkerInfo, WorkerPairingResponse, WorkersConfigResponse } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
@@ -36,8 +36,8 @@ export async function updateWorker({ agentId, version }: { agentId: string; vers
   await api.post(`/workers/${agentId}/update`, version ? { version } : {});
 }
 
-export async function renameWorker({ agentId, name }: { agentId: string; name: string }): Promise<void> {
-  await api.patch(`/workers/${agentId}`, { name });
+export async function patchWorker({ agentId, ...patch }: PatchWorkerInput & { agentId: string }): Promise<void> {
+  await api.patch(`/workers/${agentId}`, patch);
 }
 
 export async function assignCameraToWorker({ cameraId, agentId }: { cameraId: string; agentId: string }): Promise<AckResponse> {
@@ -137,9 +137,9 @@ export class WorkersQuery {
     });
   }
 
-  public renameWorkerQuery() {
+  public patchWorkerQuery() {
     return useMutation({
-      mutationFn: renameWorker,
+      mutationFn: patchWorker,
       onError: (error) => {
         this.toast.add({ severity: 'error', detail: error, life: 3000 });
       },

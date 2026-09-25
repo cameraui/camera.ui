@@ -105,7 +105,7 @@ class CoreManagerProxy(CoreManager):
         return await self.__core_manager_proxy.getFFmpegPath()
 
     async def getServerAddresses(self) -> list[str]:
-        return await self.__core_manager_proxy.getServerAddresses()
+        return await self.__core_manager_proxy.getServerAddresses(self.__plugin["id"])
 
     async def getCloudServerId(self) -> str:
         return await self.__core_manager_proxy.getCloudServerId()

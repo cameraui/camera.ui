@@ -1125,9 +1125,9 @@ export interface WorkerUpdateRequest {
   Body?: { version?: string };
 }
 
-export interface WorkerRenameRequest {
+export interface WorkerPatchRequest {
   Params: { agentId: string };
-  Body: { name: string };
+  Body: { name?: string; serverAddresses?: string[] };
 }
 
 export interface WorkerAssignRequest {

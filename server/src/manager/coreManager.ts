@@ -6,6 +6,7 @@ import { PluginsService } from '../api/services/plugins.service.js';
 import { RemoteService } from '../api/services/remote.service.js';
 import { RoomsService } from '../api/services/rooms.service.js';
 import { ServerService } from '../api/services/server.service.js';
+import { WorkersService } from '../api/services/workers.service.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { PluginInterface } from '@camera.ui/sdk';
@@ -33,6 +34,7 @@ export class CoreManager implements CoreManagerInterface {
   private remoteService: RemoteService;
   private roomsService: RoomsService;
   private floorPlanService: FloorPlanService;
+  private workersService: WorkersService;
 
   private namespaces = NamespaceManager.coreManagerNamespaces();
   private closeProxy?: () => Promise<void>;
@@ -43,6 +45,7 @@ export class CoreManager implements CoreManagerInterface {
     this.remoteService = new RemoteService();
     this.roomsService = new RoomsService();
     this.floorPlanService = new FloorPlanService();
+    this.workersService = new WorkersService();
     this.configService = container.resolve<ConfigService>('configService');
     this.proxyServer = container.resolve<ProxyServer>('proxy');
   }
@@ -119,7 +122,11 @@ export class CoreManager implements CoreManagerInterface {
   }
 
   @RPCMethod
-  public async getServerAddresses(): Promise<string[]> {
+  public async getServerAddresses(pluginId?: string): Promise<string[]> {
+    if (pluginId && this.pluginService.getPluginProcessById(pluginId)?.isRemoteWorker) {
+      const agentId = this.pluginService.getPluginDbById(pluginId)?.workerAgentId;
+      return agentId ? this.workersService.getWorkerServerAddresses(agentId) : [];
+    }
     return this.serverService.info().serverAddresses ?? [];
   }
 

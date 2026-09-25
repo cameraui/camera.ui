@@ -34,7 +34,7 @@ export interface CoreManagerInterface {
   ingestTrainingCandidate(payload: TrainingCandidateIngest): Promise<TrainingIngestResult>;
   getTrainingCollectionEnabled(): Promise<boolean>;
   getFFmpegPath(): Promise<string>;
-  getServerAddresses(): Promise<string[]>;
+  getServerAddresses(pluginId?: string): Promise<string[]>;
   getCloudServerId(): Promise<string>;
   getPlugin(pluginName: string): Promise<HostPluginInfo | undefined>;
   getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]>;

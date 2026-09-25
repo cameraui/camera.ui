@@ -7,7 +7,7 @@ import {
   assignPluginSchema,
   pairWorkerSchema,
   patchWorkersConfigSchema,
-  renameWorkerSchema,
+  patchWorkerSchema,
   unassignCameraSchema,
   unassignPluginSchema,
   updateWorkerSchema,
@@ -139,12 +139,12 @@ export const WorkersRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
     url: '/:agentId',
     method: 'PATCH',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
-    handler: workersController.renameWorker.bind(workersController),
+    handler: workersController.patchWorker.bind(workersController),
     schema: {
       tags: ['Workers'],
-      summary: 'Rename a worker',
+      summary: 'Rename a worker or set the addresses its plugins use',
       params: agentParamsSchema,
-      body: renameWorkerSchema,
+      body: patchWorkerSchema,
     },
   });
 

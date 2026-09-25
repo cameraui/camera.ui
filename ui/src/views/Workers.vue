@@ -234,10 +234,10 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { WorkersQuery } from '@/api/routes/workers.js';
 import { copyToClipboard as copy } from '@/common/utils.js';
-import RenameWorkerDialog from '@/components/CuiDialog/templates/RenameWorker/RenameWorker.vue';
+import EditWorkerDialog from '@/components/CuiDialog/templates/EditWorker/EditWorker.vue';
 
 import type { TableHeader } from '@/components/CuiChartTable/types.js';
-import type { RenameWorkerProps } from '@/components/CuiDialog/templates/RenameWorker/types.js';
+import type { EditWorkerProps, EditWorkerResult } from '@/components/CuiDialog/templates/EditWorker/types.js';
 import type { PassThrough } from '@primevue/core';
 import type { CameraUiPlugin, DBCamera, WorkerInfo, WorkerPairingResponse } from '@shared/types';
 import type { ChartData } from 'chart.js';
@@ -268,7 +268,7 @@ const { mutateAsync: createPairing, isPending: generatingCode } = workersQuery.c
 const { mutateAsync: removeWorkerMutation } = workersQuery.removeWorkerQuery();
 const { mutateAsync: assignPlugin } = workersQuery.assignPluginQuery();
 const { mutateAsync: unassignPlugin } = workersQuery.unassignPluginQuery();
-const { mutateAsync: renameWorkerMutation } = workersQuery.renameWorkerQuery();
+const { mutateAsync: patchWorkerMutation } = workersQuery.patchWorkerQuery();
 const { data: apiInfo } = apiQuery.apiInfoQuery();
 
 const assignmentTablePt: PassThrough<DataTablePassThroughOptions> = {
@@ -436,8 +436,8 @@ const workerHeaders = computed<TableHeader[]>(() => [
       {
         icon: EditIcon,
         buttonProps: { severity: 'secondary' },
-        tooltip: () => t('views.workers.rename_worker'),
-        action: (item: WorkerInfo) => handleRenameWorker(item),
+        tooltip: () => t('views.workers.edit_worker'),
+        action: (item: WorkerInfo) => handleEditWorker(item),
       },
       {
         icon: UpdateIcon,
@@ -507,18 +507,31 @@ const workerChartData = computed<Record<string, ChartData<'bar'>>>(() => {
   }, {});
 });
 
-function handleRenameWorker(worker: WorkerInfo) {
-  dialog.openComponentDialog<RenameWorkerProps>(RenameWorkerDialog, {
+function handleEditWorker(worker: WorkerInfo) {
+  const currentAddresses = worker.serverAddresses ?? [];
+
+  dialog.openComponentDialog<EditWorkerProps>(EditWorkerDialog, {
     data: {
-      title: t('views.workers.rename_worker'),
+      title: t('views.workers.edit_worker'),
       confirmText: t('views.workers.save'),
       contentProps: {
         currentName: worker.name,
+        addresses: worker.addresses ?? [],
+        serverAddresses: currentAddresses,
       },
     },
-    onConfirm: async (newName: string | null) => {
-      if (!newName || newName === worker.name) return;
-      await renameWorkerMutation({ agentId: worker.agentId, name: newName });
+    onConfirm: async (result: EditWorkerResult | null) => {
+      if (!result) return;
+
+      const nameChanged = result.name !== worker.name;
+      const addressesChanged = result.serverAddresses.length !== currentAddresses.length || result.serverAddresses.some((address) => !currentAddresses.includes(address));
+      if (!nameChanged && !addressesChanged) return;
+
+      await patchWorkerMutation({
+        agentId: worker.agentId,
+        name: nameChanged ? result.name : undefined,
+        serverAddresses: addressesChanged ? result.serverAddresses : undefined,
+      });
     },
   });
 }

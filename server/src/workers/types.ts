@@ -1,3 +1,4 @@
+import type { UsableNetworkAddress } from '@camera.ui/common/network';
 import type { SystemInfo } from '../utils/system-info.js';
 
 export enum WorkerCapability {
@@ -87,6 +88,8 @@ export interface WorkerInfo {
   versionMismatch?: boolean;
   update?: WorkerUpdateState;
   platform?: WorkerPlatform;
+  addresses?: UsableNetworkAddress[];
+  serverAddresses?: string[];
   system?: SystemInfo;
   pid?: number;
   cpuLoad?: string;
@@ -104,6 +107,7 @@ export interface WorkerHeartbeat {
   capabilities: WorkerCapability[];
   version: string;
   platform: WorkerPlatform;
+  addresses?: UsableNetworkAddress[];
   system?: SystemInfo;
   pid: number;
   cpuLoad: string;
@@ -132,5 +136,6 @@ export interface KnownWorker {
   agentId: string;
   name: string;
   displayName?: string;
+  serverAddresses?: string[];
   lastSeen: number;
 }

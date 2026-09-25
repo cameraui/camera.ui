@@ -1,4 +1,5 @@
 import { Logger } from '@camera.ui/common/logger';
+import { isEqual } from '@camera.ui/common/utils';
 import { container } from 'tsyringe';
 
 import { CamerasService } from '../api/services/cameras.service.js';
@@ -356,6 +357,27 @@ export class WorkerManager {
     }
   }
 
+  public async setServerAddresses(agentId: string, serverAddresses: string[]): Promise<void> {
+    const previous = this.workersService.getWorkerServerAddresses(agentId);
+    await this.workersService.setWorkerServerAddresses(agentId, serverAddresses);
+
+    const worker = this.workers.get(agentId);
+    if (worker) {
+      worker.serverAddresses = serverAddresses;
+      this.emitWorkerUpdate(worker);
+    }
+
+    if (isEqual(previous, serverAddresses, true)) return;
+
+    const pluginsService = new PluginsService();
+    for (const plugin of pluginsService.listByAgentId(agentId)) {
+      if (!pluginsService.getPluginProcessByName(plugin.pluginName)?.isRemoteWorker) continue;
+
+      this.logger.log(`Server addresses of worker ${worker?.name ?? agentId} changed, restarting plugin ${plugin.pluginName}`);
+      this.restartPluginWorker(plugin.pluginName);
+    }
+  }
+
   public async removeWorker(agentId: string): Promise<void> {
     this.logger.log(`Removing worker ${agentId}`);
 
@@ -560,6 +582,8 @@ export class WorkerManager {
       version: heartbeat.version,
       versionMismatch,
       platform: heartbeat.platform,
+      addresses: heartbeat.addresses,
+      serverAddresses: this.workersService.getWorkerServerAddresses(heartbeat.agentId),
       system: heartbeat.system,
       pid: heartbeat.pid,
       cpuLoad: heartbeat.cpuLoad,
@@ -599,6 +623,7 @@ export class WorkerManager {
       this.workers.set(known.agentId, {
         agentId: known.agentId,
         name: known.displayName ?? known.name,
+        serverAddresses: known.serverAddresses,
         online: false,
         lastHeartbeat: known.lastSeen,
         cameras: [],

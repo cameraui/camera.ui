@@ -3654,7 +3654,8 @@ export default {
       platform: 'Platform',
       remove: 'Remove',
       remove_worker: 'Remove Worker',
-      rename_worker: 'Rename Worker',
+      edit_worker: 'Edit Worker',
+      server_addresses_hint: "Which of the worker's IP addresses the plugins running on it use, for example HomeKit. Empty means all of them.",
       remove_worker_confirm:
         'Remove "{name}"? Its credentials are revoked and the connection is dropped, assigned cameras fall back to this machine. The internal message broker restarts briefly.',
       version: 'Version',

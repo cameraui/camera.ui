@@ -609,7 +609,7 @@
                     <MultiSelect
                       v-bind="field"
                       :model-value="serverInfoForm.serverAddresses"
-                      :options="serverInfo?.availableAddresses || []"
+                      :options="addressOptions"
                       :invalid="errors.length > 0"
                       :loading="isLoading"
                       :max-selected-labels="2"
@@ -738,6 +738,12 @@ const isLoading = computed(() => {
     registrationStatusLoading.value ||
     unregisterLoading.value
   );
+});
+
+const addressOptions = computed(() => {
+  const available = serverInfo.value?.availableAddresses ?? [];
+  const missing = (serverInfo.value?.serverAddresses ?? []).filter((address) => !available.some((option) => option.address === address));
+  return [...available, ...missing.map((address) => ({ address }))];
 });
 
 const directEffective = computed(() => Boolean(remoteInfoForm.value?.enabled || remoteInfoForm.value?.directEnabled));

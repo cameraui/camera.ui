@@ -3678,7 +3678,8 @@ export default {
       platform: 'Plattform',
       remove: 'Entfernen',
       remove_worker: 'Worker entfernen',
-      rename_worker: 'Worker umbenennen',
+      edit_worker: 'Worker bearbeiten',
+      server_addresses_hint: 'Welche IP-Adressen des Workers die Plugins auf ihm nutzen, zum Beispiel HomeKit. Leer heißt alle.',
       remove_worker_confirm:
         '"{name}" entfernen? Die Zugangsdaten werden widerrufen und die Verbindung gekappt, zugewiesene Kameras laufen wieder auf dieser Maschine. Der interne Message-Broker startet kurz neu.',
       version: 'Version',
