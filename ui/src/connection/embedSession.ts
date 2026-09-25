@@ -3,6 +3,7 @@ import { sleep } from '@camera.ui/common/utils';
 import { homeOrigin } from '@/common/base.js';
 
 import type { Endpoint, Tokens } from '@camera.ui/transport';
+import type { NavLayoutSettings } from '@shared/types';
 import type { Connection, LoginUserData } from './types.js';
 
 const EMBED_TOKEN_TTL_MS = 10 * 365 * 24 * 60 * 60 * 1000;
@@ -30,6 +31,7 @@ interface EmbedUser {
   role?: string;
   firstLogin?: boolean;
   avatar?: string;
+  navLayout?: NavLayoutSettings | null;
 }
 
 export interface ConsumeEmbedSessionOptions {
@@ -53,6 +55,7 @@ export async function consumeEmbedSession(connection: Connection, options: Consu
     role: user.role,
     firstLogin: user.firstLogin,
     avatar: user.avatar,
+    navLayout: user.navLayout,
   });
   return true;
 }
