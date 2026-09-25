@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { NamespaceManager } from '../../rpc/namespaces.js';
+import { jpegSize } from '../../utils/image.js';
 import { boxAnchorInPolygon, boxInsidePolygon, boxIntersectsPolygon } from '../utils/filter.js';
 import { detectionRecord } from './debug/detection-record.js';
 import { EventTraceCollector } from './event-trace.js';
@@ -25,6 +26,7 @@ import type {
   Point,
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage } from '@camera.ui/sdk/internal';
+import type { TrainingBoxSource } from '../../api/database/types.js';
 import type { TrainingCandidateBox } from '../../rpc/interfaces/core.js';
 import type { DetectionThumbnail, ServerFaceDetection, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { LineCrossingEvent } from './detection-pipeline.js';
@@ -103,6 +105,7 @@ export interface ProcessedDetectionData {
   trainingSubjects?: TrainingSubject[];
   trainingExtras?: Detection[];
   trainingSuggestions?: TrainingSuggestion[];
+  trainingDetector?: string;
   staticObjects?: Detection[];
   lineCrossings?: LineCrossingEvent[];
   timestamp: number;
@@ -141,26 +144,8 @@ function mayAlert(label: string, box: BoundingBox | undefined, hits: Set<string>
 }
 
 function jpegInfo(jpeg: Buffer): string {
-  let i = 2;
-  while (i + 9 < jpeg.length) {
-    if (jpeg[i] !== 0xff) {
-      i++;
-      continue;
-    }
-    const marker = jpeg[i + 1];
-    if (marker === 0xff) {
-      i++;
-      continue;
-    }
-    // SOF0-SOF15 carry the frame size, skip DHT (C4), JPG (C8), DAC (CC)
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-      const height = jpeg.readUInt16BE(i + 5);
-      const width = jpeg.readUInt16BE(i + 7);
-      return `${width}x${height}/${Math.round(jpeg.length / 1024)}kb`;
-    }
-    i += 2 + jpeg.readUInt16BE(i + 2);
-  }
-  return `?x?/${Math.round(jpeg.length / 1024)}kb`;
+  const size = jpegSize(jpeg);
+  return `${size ? `${size.width}x${size.height}` : '?x?'}/${Math.round(jpeg.length / 1024)}kb`;
 }
 
 interface HeldAttribute {
@@ -1165,40 +1150,25 @@ export class DetectionEventManager {
 
   private offerTrainingCandidate(scene: Buffer, data: ProcessedDetectionData, capturedAt: number): void {
     if (!this.activeEvent) return;
-    const boxes: TrainingCandidateBox[] = data.objects
-      .filter((o) => o.box && !isFullFrameBox(o.box))
-      .map((o) => ({ label: o.label, confidence: o.confidence, x: o.box.x, y: o.box.y, width: o.box.width, height: o.box.height }));
-    const facesFresh = data.facesAt !== undefined && capturedAt - data.facesAt <= SECONDARY_FRESH_MS;
-    const platesFresh = data.platesAt !== undefined && capturedAt - data.platesAt <= SECONDARY_FRESH_MS;
-    if (facesFresh) {
-      for (const face of data.faces) {
-        if (face.box && !isFullFrameBox(face.box)) {
-          boxes.push({ label: 'face', confidence: face.confidence, x: face.box.x, y: face.box.y, width: face.box.width, height: face.box.height });
-        }
+    const boxes: TrainingCandidateBox[] = [];
+    const add = (items: { label: string; confidence: number; box?: BoundingBox }[], source: TrainingBoxSource, label?: string) => {
+      for (const item of items) {
+        if (!item.box || isFullFrameBox(item.box)) continue;
+        const { x, y, width, height } = item.box;
+        boxes.push({ label: label ?? item.label, x, y, width, height, source, score: item.confidence });
       }
-    }
-    if (platesFresh) {
-      for (const plate of data.plates) {
-        if (plate.box && !isFullFrameBox(plate.box)) {
-          boxes.push({ label: 'license_plate', confidence: plate.confidence, x: plate.box.x, y: plate.box.y, width: plate.box.width, height: plate.box.height });
-        }
-      }
-    }
+    };
+    add(data.objects, 'object');
+    if (data.facesAt !== undefined && capturedAt - data.facesAt <= SECONDARY_FRESH_MS) add(data.faces, 'face', 'face');
+    if (data.platesAt !== undefined && capturedAt - data.platesAt <= SECONDARY_FRESH_MS) add(data.plates, 'plate', 'license_plate');
     // an unlabeled parked object in a training image teaches "background",
     // so suppressed static tracks ride along as pre-annotations
-    for (const still of data.staticObjects ?? []) {
-      if (still.box && !isFullFrameBox(still.box)) {
-        boxes.push({ label: still.label, confidence: still.confidence, x: still.box.x, y: still.box.y, width: still.box.width, height: still.box.height });
-      }
-    }
+    add(data.staticObjects ?? [], 'static');
     // same reason for sightings the event pipeline dropped (zones, label
     // selection, track birth): visible in the picture all the same
-    for (const extra of data.trainingExtras ?? []) {
-      if (extra.box && !isFullFrameBox(extra.box)) {
-        boxes.push({ label: extra.label, confidence: extra.confidence, x: extra.box.x, y: extra.box.y, width: extra.box.width, height: extra.box.height });
-      }
-    }
-    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, data.trainingSubjects ?? []);
+    add(data.trainingExtras ?? [], 'extra');
+    add(data.trainingSuggestions ?? [], 'suggestion');
+    this.training.consider(this.activeEvent.id, scene, boxes, capturedAt, data.trainingSubjects ?? [], data.trainingDetector);
   }
 
   private sceneObservations(data: ProcessedDetectionData, now: number): SceneObservation[] {

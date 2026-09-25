@@ -115,7 +115,7 @@ watch(
   [() => props.request, isAvailable],
   ([request, available]) => {
     breadth.value = 100;
-    if (available) void search(request.query, {});
+    if (available) search(request.query, {});
   },
   { immediate: true },
 );

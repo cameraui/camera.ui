@@ -1,6 +1,6 @@
 import { assertResponseOk, cloudFetch } from '../instance.js';
 
-import type { DBTrainingCandidateBox } from '../../../api/database/types.js';
+import type { TrainingBoxSource } from '../../../api/database/types.js';
 import type { CloudCredentialStore } from '../credentialStore.js';
 
 interface TrainSubmissionCreateResponse {
@@ -10,10 +10,40 @@ interface TrainSubmissionCreateResponse {
   max_image_bytes: number;
 }
 
+export type TrainBoxEdit = 'moved' | 'resized' | 'relabeled';
+
+export interface TrainSubmissionBox {
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text?: string;
+  source: TrainingBoxSource;
+  score?: number;
+  edited?: TrainBoxEdit[];
+}
+
+export interface TrainSubmissionDocument {
+  v: 2;
+  captured_at: number;
+  meta: {
+    camera_key: string;
+    frame: { width: number; height: number };
+    detector?: { plugin: string; plugin_version?: string };
+    app_version: string;
+    taxonomy: number;
+    review_ms?: number;
+  };
+  boxes: TrainSubmissionBox[];
+  rejected: TrainSubmissionBox[] | null;
+  dismissed: TrainSubmissionBox[] | null;
+}
+
 export interface CloudTrainSubmission {
   id: string;
   status: string;
-  labels: DBTrainingCandidateBox[];
+  labels: { label: string; x: number; y: number; width: number; height: number }[];
   image_bytes: number;
   created_at: string;
   used_in_wave?: string;
@@ -31,11 +61,11 @@ const LIST_PAGE_SIZE = 30;
 export class TrainRoute {
   constructor(private credentialStore: CloudCredentialStore) {}
 
-  public async submit(boxes: DBTrainingCandidateBox[], capturedAt: number, image: Buffer): Promise<string> {
+  public async submit(document: TrainSubmissionDocument, image: Buffer): Promise<string> {
     const createRes = await this.fetchCloud()('/api/v1/train/submissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ boxes, captured_at: capturedAt }),
+      body: JSON.stringify(document),
     });
     await assertResponseOk(createRes);
     const created = (await createRes.json()) as TrainSubmissionCreateResponse;

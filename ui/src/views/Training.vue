@@ -439,8 +439,8 @@ function openEditor(candidate: DBTrainingCandidate): void {
         startId: candidate.id,
         cameraName,
         imageUrl,
-        onSave: async (id: string, boxes: DBTrainingCandidateBox[], status: DBTrainingCandidate['status']) => {
-          await patchCandidate.mutateAsync({ id, patch: { boxes, status } });
+        onSave: async (id: string, boxes: DBTrainingCandidateBox[], status: DBTrainingCandidate['status'], reviewMs: number) => {
+          await patchCandidate.mutateAsync({ id, patch: { boxes, status, reviewMs: Math.min(Math.round(reviewMs), 3_600_000) } });
         },
         onDelete: async (id: string) => {
           await deleteCandidate.mutateAsync(id);

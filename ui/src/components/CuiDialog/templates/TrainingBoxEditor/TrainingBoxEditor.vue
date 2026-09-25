@@ -90,6 +90,21 @@
               class="pointer-events-none"
             />
             <rect
+              v-for="suggestion in suggestions"
+              :key="`suggestion-${suggestion.proposal}`"
+              :x="pct(suggestion.x)"
+              :y="pct(suggestion.y)"
+              :width="pct(suggestion.width)"
+              :height="pct(suggestion.height)"
+              :stroke="styleFor(suggestion.label).color"
+              fill="none"
+              stroke-dasharray="1 4"
+              stroke-linecap="round"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+              class="pointer-events-none"
+            />
+            <rect
               v-if="draft"
               :x="pct(draft.x)"
               :y="pct(draft.y)"
@@ -110,7 +125,7 @@
             v-tooltip.top="$t('components.training_editor.ghost_take')"
             type="button"
             class="ghost-chip"
-            :style="ghostChipStyle(ghost)"
+            :style="chipStyle(ghost)"
             @pointerdown.stop
             @touchstart.stop
             @mousedown.stop
@@ -118,6 +133,23 @@
           >
             <i-mdi:plus class="w-3.5 h-3.5 shrink-0" />
             <component :is="styleFor(ghost.label).icon" class="bbox-label-icon" />
+          </button>
+
+          <button
+            v-for="suggestion in suggestions"
+            :key="`suggestion-chip-${suggestion.proposal}`"
+            v-tooltip.top="$t('components.training_editor.suggestion_take')"
+            type="button"
+            class="ghost-chip"
+            :style="chipStyle(suggestion)"
+            @pointerdown.stop
+            @touchstart.stop
+            @mousedown.stop
+            @click.stop="takeSuggestion(suggestion)"
+          >
+            <i-mdi:plus class="w-3.5 h-3.5 shrink-0" />
+            <component :is="styleFor(suggestion.label).icon" class="bbox-label-icon" />
+            <span class="bbox-label-confidence">{{ Math.round((suggestion.score ?? 0) * 100) }}%</span>
           </button>
 
           <div
@@ -141,7 +173,7 @@
             <component :is="styleFor(box.label).icon" class="bbox-label-icon" />
             <span class="bbox-label-text">{{ labelText(box.label) }}</span>
             <span v-if="box.text" class="bbox-label-confidence">{{ box.text }}</span>
-            <span v-else-if="box.confidence < 1" class="bbox-label-confidence">{{ Math.round(box.confidence * 100) }}%</span>
+            <span v-else-if="box.score !== undefined" class="bbox-label-confidence">{{ Math.round(box.score * 100) }}%</span>
           </div>
         </div>
       </VueZoomable>
@@ -322,6 +354,7 @@ const lastLabel = ref('person');
 const index = ref(startIndex);
 const previousBoxes = shallowRef<DBTrainingCandidateBox[]>([]);
 const showGhosts = ref(false);
+let shownAt = Date.now();
 
 const {
   zoom: stageZoomLevel,
@@ -359,6 +392,11 @@ const selectedPlateBox = computed(() => {
 const ghosts = computed(() => {
   if (!showGhosts.value) return [];
   return previousBoxes.value.filter((ghost) => !boxes.value.some((box) => iou(box, ghost) >= GHOST_COVERED_IOU));
+});
+
+const suggestions = computed(() => {
+  const taken = new Set(boxes.value.map((box) => box.proposal));
+  return (current.value.proposals ?? []).flatMap((box, proposal) => (box.source === 'suggestion' && !taken.has(proposal) ? [{ ...box, proposal }] : []));
 });
 
 const labelMenuItems = computed<MenuItem[]>(() => [
@@ -436,17 +474,26 @@ function iou(a: DBTrainingCandidateBox, b: DBTrainingCandidateBox): number {
   return overlap / (a.width * a.height + b.width * b.height - overlap);
 }
 
-function ghostChipStyle(ghost: DBTrainingCandidateBox): CSSProperties {
-  return { left: pct(ghost.x + ghost.width), top: pct(ghost.y + ghost.height), borderColor: styleFor(ghost.label).color };
+function chipStyle(box: DBTrainingCandidateBox): CSSProperties {
+  return { left: pct(box.x + box.width), top: pct(box.y + box.height), borderColor: styleFor(box.label).color };
+}
+
+function copied({ label, x, y, width, height, text }: DBTrainingCandidateBox): DBTrainingCandidateBox {
+  return { label, x, y, width, height, ...(text ? { text } : {}), source: 'copied' };
 }
 
 function adoptGhost(ghost: DBTrainingCandidateBox): void {
-  boxes.value.push({ ...ghost, confidence: 1 });
+  boxes.value.push(copied(ghost));
   selectedIndex.value = boxes.value.length - 1;
 }
 
 function adoptAllGhosts(): void {
-  for (const ghost of ghosts.value) boxes.value.push({ ...ghost, confidence: 1 });
+  for (const ghost of ghosts.value) boxes.value.push(copied(ghost));
+}
+
+function takeSuggestion(suggestion: DBTrainingCandidateBox): void {
+  boxes.value.push({ ...suggestion });
+  selectedIndex.value = boxes.value.length - 1;
 }
 
 function onImageLoad(event: Event): void {
@@ -472,7 +519,7 @@ function onPointerDown(event: PointerEvent): void {
   labelMenuRef.value?.hide();
   if (stageZoomLevel.value > 1 || !event.isPrimary) return;
   const { x, y } = pointerPos(event);
-  dragStart(event, { mode: 'draw', index: -1, startX: x, startY: y, origin: { label: lastLabel.value, confidence: 1, x, y, width: 0, height: 0 } });
+  dragStart(event, { mode: 'draw', index: -1, startX: x, startY: y, origin: { label: lastLabel.value, source: 'drawn', x, y, width: 0, height: 0 } });
 }
 
 function startMove(index: number, event: PointerEvent): void {
@@ -513,7 +560,7 @@ function onPointerMove(event: PointerEvent): void {
   if (state.mode === 'draw') {
     if (state.moved) {
       const rect = normalizedRect(state.startX, state.startY, x, y);
-      draft.value = rect.width >= MIN_SIZE && rect.height >= MIN_SIZE ? { label: lastLabel.value, confidence: 1, ...rect } : null;
+      draft.value = rect.width >= MIN_SIZE && rect.height >= MIN_SIZE ? { label: lastLabel.value, source: 'drawn', ...rect } : null;
     }
     return;
   }
@@ -624,7 +671,6 @@ function setLabel(label: string): void {
   const box = boxes.value[labelMenuIndex.value];
   if (!box) return;
   box.label = label;
-  box.confidence = 1;
   lastLabel.value = label;
 }
 
@@ -662,14 +708,18 @@ function goTo(next: number, stashEdits = true): void {
   sunkBoxes.clear();
   labelMenuRef.value?.hide();
   resetStageZoom();
+  shownAt = Date.now();
 }
 
 async function save(status: DBTrainingCandidate['status']): Promise<null | undefined> {
+  const reviewMs = Date.now() - shownAt;
   await props.onSave(
     current.value.id,
     boxes.value.map((b) => ({ ...b })),
     status,
+    reviewMs,
   );
+  shownAt = Date.now();
   edits.set(
     current.value.id,
     boxes.value.map((b) => ({ ...b })),
@@ -733,7 +783,6 @@ function cycleLabel(direction: 1 | -1): void {
   const labels = TRAINING_LABELS as readonly string[];
   const next = labels[(labels.indexOf(box.label) + direction + labels.length) % labels.length];
   box.label = next;
-  box.confidence = 1;
   lastLabel.value = next;
 }
 

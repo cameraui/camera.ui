@@ -1,5 +1,4 @@
 import type { Notification, NotifierDevice } from '@camera.ui/sdk';
-import type { DBTrainingCandidateBox } from '../api/database/types.js';
 
 export type NotificationSourceKind = 'plugin' | 'system' | 'automation';
 
@@ -74,9 +73,17 @@ export interface TrainingCandidatesChanged {
   removed?: string[];
 }
 
+export interface TrainingSubmissionBox {
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface TrainingSubmission {
   id: string;
-  labels: DBTrainingCandidateBox[];
+  labels: TrainingSubmissionBox[];
   imageBytes: number;
   createdAt: string;
   usedInWave?: string;

@@ -1,18 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-
 import { container } from 'tsyringe';
+
+import { PluginsService } from '../api/services/plugins.service.js';
+import { ConfigService } from '../services/config/index.js';
+import { buildTrainSubmission, withProvenance } from './trainingSubmission.js';
 
 import type { LoggerService } from '@camera.ui/sdk';
 import type { Database } from '../api/database/index.js';
-import type { DBTrainingCandidate, DBTrainingSettings } from '../api/database/types.js';
+import type { DBTrainingCandidate, DBTrainingCandidateBox, DBTrainingCandidateMeta, DBTrainingSettings } from '../api/database/types.js';
 import type { SocketService } from '../api/websocket/index.js';
 import type { TrainingNamespace } from '../api/websocket/nsp/training.js';
 import type { CloudApi } from '../remote/api/index.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { TrainingCandidateIngest, TrainingIngestResult } from '../rpc/interfaces/core.js';
-import type { ConfigService } from '../services/config/index.js';
 import type { TrainingSubmissionPage, TrainingSubmitProgress, TrainingSubmitResult } from './types.js';
 
 const DEFAULT_SETTINGS: DBTrainingSettings = { enabled: true, perCameraLimit: 200, minIntervalSeconds: 10, retentionDays: 14 };
@@ -80,11 +82,14 @@ export class TrainingCandidateManager {
     return this.dbs.trainingCandidatesDB.get(id) ? join(this.imagesDir, `${id}.jpg`) : null;
   }
 
-  public async update(id: string, patch: Pick<Partial<DBTrainingCandidate>, 'boxes' | 'status'>): Promise<DBTrainingCandidate | undefined> {
+  public async update(id: string, patch: Pick<Partial<DBTrainingCandidate>, 'boxes' | 'status' | 'reviewMs'>): Promise<DBTrainingCandidate | undefined> {
     if (!this.dbs.trainingCandidatesDB.get(id)) return undefined;
-    await this.dbs.commit(this.dbs.trainingCandidatesDB, id, (candidate) =>
-      candidate ? { ...candidate, ...patch, upload: undefined, uploadError: undefined } : undefined,
-    );
+    await this.dbs.commit(this.dbs.trainingCandidatesDB, id, (candidate) => {
+      if (!candidate) return undefined;
+      const boxes = patch.boxes?.map((box) => withProvenance(box, candidate.proposals)) ?? candidate.boxes;
+      const reviewMs = patch.reviewMs !== undefined ? (candidate.reviewMs ?? 0) + patch.reviewMs : candidate.reviewMs;
+      return { ...candidate, boxes, status: patch.status ?? candidate.status, reviewMs, upload: undefined, uploadError: undefined };
+    });
     const updated = this.dbs.trainingCandidatesDB.get(id);
     this.emitChanged(updated?.cameraId);
     return updated;
@@ -159,6 +164,7 @@ export class TrainingCandidateManager {
     this.lastIngestAt.set(payload.cameraId, payload.capturedAt);
 
     const id = randomUUID();
+    const proposals: DBTrainingCandidateBox[] = payload.boxes.map(({ label, x, y, width, height, source, score }) => ({ label, x, y, width, height, source, score }));
     await writeFile(join(this.imagesDir, `${id}.jpg`), payload.scene);
     this.dbs.trainingCandidatesDB.put(id, {
       id,
@@ -166,7 +172,9 @@ export class TrainingCandidateManager {
       eventId: payload.eventId,
       createdAt: payload.capturedAt,
       status: 'new',
-      boxes: payload.boxes,
+      boxes: proposals.flatMap((box, proposal) => (box.source === 'suggestion' ? [] : [{ ...box, proposal }])),
+      proposals,
+      meta: { appVersion: ConfigService.RUNNING_VERSION, detector: this.detector(payload.detectorPluginId) },
     });
 
     const evicted = await this.enforceCameraLimit(payload.cameraId, settings.perCameraLimit);
@@ -231,7 +239,8 @@ export class TrainingCandidateManager {
       let removed: string[] | undefined;
       try {
         const image = await readFile(join(this.imagesDir, `${id}.jpg`));
-        await cloudApi.trainRoute.submit(candidate.boxes, candidate.createdAt, image);
+        const instanceId = this.dbs.settingsDB.get('settings')?.instanceId ?? '';
+        await cloudApi.trainRoute.submit(buildTrainSubmission(candidate, image, instanceId, ConfigService.RUNNING_VERSION), image);
         await this.dbs.trainingCandidatesDB.remove(id);
         await unlink(join(this.imagesDir, `${id}.jpg`)).catch(() => {});
         removed = [id];
@@ -263,6 +272,11 @@ export class TrainingCandidateManager {
         await this.dbs.commit(this.dbs.trainingCandidatesDB, id, (c) => (c ? { ...c, upload: undefined } : undefined));
       }
     }
+  }
+
+  private detector(pluginId?: string): DBTrainingCandidateMeta['detector'] {
+    const plugin = pluginId ? new PluginsService().getPluginById(pluginId) : undefined;
+    return plugin ? { plugin: plugin.pluginName, pluginVersion: plugin.info.installedVersion } : undefined;
   }
 
   private emitSubmitProgress(active: boolean): void {

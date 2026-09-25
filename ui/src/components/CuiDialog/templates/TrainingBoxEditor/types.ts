@@ -5,7 +5,7 @@ export interface TrainingBoxEditorProps {
   startId: string;
   cameraName: (cameraId: string) => string;
   imageUrl: (id: string) => string;
-  onSave: (id: string, boxes: DBTrainingCandidateBox[], status: DBTrainingCandidate['status']) => Promise<void>;
+  onSave: (id: string, boxes: DBTrainingCandidateBox[], status: DBTrainingCandidate['status'], reviewMs: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 

@@ -1791,8 +1791,9 @@ export default {
       no_cameras: 'Keine Kameras verfügbar',
     },
     training_editor: {
-      hint: 'Ziehen zeichnet eine Box, Tipp auf Box oder Label bearbeitet sie, Doppeltipp zoomt. Beschrifte alles Sichtbare; ohne Boxen bestätigen markiert einen Fehlalarm.',
-      hint_wrong: 'Eine falsche Box zählt auch: korrigiere oder entferne sie und bestätige trotzdem, so lernt das Modell, was dort nicht ist.',
+      hint: 'Ziehen zeichnet eine Box, Tipp auf Box oder Label bearbeitet sie, Doppeltipp zoomt. Beschrifte alles Sichtbare, auch geparkte und angeschnittene Fahrzeuge.',
+      hint_wrong:
+        'Korrigiere oder entferne falsche Boxen und bestätige trotzdem, eine Person auf Plakat oder Bildschirm ist keine Person. Ohne Boxen bestätigen markiert einen Fehlalarm.',
       plate_text: 'Kennzeichen',
       sc_select: 'Nächste Box wählen',
       sc_move: 'Box verschieben',
@@ -1806,6 +1807,7 @@ export default {
       sc_ghosts_all: 'Alle übernehmen',
       ghosts_toggle: 'Boxen des vorherigen Bildes zeigen',
       ghost_take: 'Übernehmen',
+      suggestion_take: 'Unsichere Erkennung übernehmen',
       verify: 'Bestätigen',
       remove_box: 'Box entfernen',
       removed_meanwhile: 'Dieses Bild wurde inzwischen entfernt.',

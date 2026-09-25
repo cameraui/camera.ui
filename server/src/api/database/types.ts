@@ -66,15 +66,24 @@ export interface DBTrainingSettings {
   retentionDays: number;
 }
 
+export type TrainingBoxSource = 'object' | 'static' | 'extra' | 'face' | 'plate' | 'suggestion' | 'drawn' | 'copied';
+
 export interface DBTrainingCandidateBox {
   label: string;
-  confidence: number;
   // normalized top-left box
   x: number;
   y: number;
   width: number;
   height: number;
   text?: string;
+  source: TrainingBoxSource;
+  score?: number;
+  proposal?: number;
+}
+
+export interface DBTrainingCandidateMeta {
+  appVersion: string;
+  detector?: { plugin: string; pluginVersion?: string };
 }
 
 export interface DBTrainingCandidate {
@@ -84,6 +93,9 @@ export interface DBTrainingCandidate {
   createdAt: number;
   status: 'new' | 'verified';
   boxes: DBTrainingCandidateBox[];
+  proposals?: DBTrainingCandidateBox[];
+  meta?: DBTrainingCandidateMeta;
+  reviewMs?: number;
   submittedAt?: number;
   upload?: 'queued' | 'uploading' | 'failed';
   uploadError?: string;

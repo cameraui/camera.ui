@@ -1,5 +1,5 @@
 import type { PluginInfo, PluginInterface } from '@camera.ui/sdk';
-import type { DBFloorPlan, DBRoomCatalog } from '../../api/database/types.js';
+import type { DBFloorPlan, DBRoomCatalog, TrainingBoxSource } from '../../api/database/types.js';
 import type { AssistantAccess, AssistantAskRequest, AssistantAskResult, AssistantPost } from '../../assistant/types.js';
 
 export interface HostPluginInfo extends PluginInfo {
@@ -13,11 +13,12 @@ export interface FloorPlan {
 
 export interface TrainingCandidateBox {
   label: string;
-  confidence: number;
   x: number;
   y: number;
   width: number;
   height: number;
+  source: TrainingBoxSource;
+  score: number;
 }
 
 export interface TrainingCandidateIngest {
@@ -26,6 +27,7 @@ export interface TrainingCandidateIngest {
   capturedAt: number;
   boxes: TrainingCandidateBox[];
   scene: Uint8Array;
+  detectorPluginId?: string;
 }
 
 export type TrainingIngestResult = 'stored' | 'skip' | 'disabled';

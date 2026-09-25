@@ -1780,8 +1780,8 @@ export default {
       no_cameras: 'No cameras available',
     },
     training_editor: {
-      hint: 'Drag to draw a box, tap a box or its label to edit it, double tap to zoom. Label everything you see; verify with no boxes to mark a false alarm.',
-      hint_wrong: 'A wrong box counts too: correct or remove it and verify anyway, that is how the model learns what is not there.',
+      hint: 'Drag to draw a box, tap a box or its label to edit it, double tap to zoom. Label everything you see, parked and cut-off vehicles too.',
+      hint_wrong: 'Correct or remove wrong boxes and verify anyway, a person on a poster or screen is not a person. Verify with no boxes to mark a false alarm.',
       plate_text: 'Plate text',
       sc_select: 'Select next box',
       sc_move: 'Move box',
@@ -1795,6 +1795,7 @@ export default {
       sc_ghosts_all: 'Take over all of them',
       ghosts_toggle: 'Show boxes of the previous image',
       ghost_take: 'Take over',
+      suggestion_take: 'Add unsure detection',
       verify: 'Verify',
       remove_box: 'Remove box',
       removed_meanwhile: 'This picture was removed in the meantime.',

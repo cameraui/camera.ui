@@ -938,7 +938,7 @@ watch(
   [similarRequest, () => JSON.stringify(similarOptions.value), similarAvailable],
   ([request, , available]) => {
     if (!request) clearSimilar();
-    else if (available) void runSimilarSearch(request.query, similarOptions.value);
+    else if (available) runSimilarSearch(request.query, similarOptions.value);
   },
   { immediate: true },
 );

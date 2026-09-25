@@ -3,12 +3,14 @@ import * as zod from 'zod';
 const boxSchema = zod
   .object({
     label: zod.string().trim().min(1).max(64),
-    confidence: zod.number().min(0).max(1),
     x: zod.number().min(0).max(1),
     y: zod.number().min(0).max(1),
     width: zod.number().min(0).max(1),
     height: zod.number().min(0).max(1),
     text: zod.string().trim().max(16).optional(),
+    source: zod.enum(['object', 'static', 'extra', 'face', 'plate', 'suggestion', 'drawn', 'copied']),
+    score: zod.number().min(0).max(1).optional(),
+    proposal: zod.number().int().min(0).optional(),
   })
   .strict();
 
@@ -33,6 +35,7 @@ export const trainingCandidatePatchSchema = zod
   .object({
     boxes: boxSchema.array().max(128).optional(),
     status: zod.enum(['new', 'verified']).optional(),
+    reviewMs: zod.number().int().min(0).max(3_600_000).optional(),
   })
   .strict();
 

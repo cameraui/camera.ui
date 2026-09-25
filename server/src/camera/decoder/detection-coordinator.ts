@@ -1931,6 +1931,7 @@ export class DetectionCoordinator {
       if (jpeg) {
         snapshot.trainingFrame = jpeg;
         snapshot.trainingSubjects = subjects;
+        snapshot.trainingDetector = this.plugins.get(SensorType.Object)?.pluginId;
       }
     } catch (error) {
       this.logger.debug('Training frame capture error:', error);

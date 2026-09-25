@@ -35,6 +35,7 @@ interface HeldCandidate {
   boxes: TrainingCandidateBox[];
   capturedAt: number;
   score: number;
+  detectorPluginId?: string;
 }
 
 export class TrainingSink {
@@ -90,7 +91,7 @@ export class TrainingSink {
     return subjects.some((s) => this.isNovel(s, now));
   }
 
-  public consider(eventId: string, scene: Uint8Array, boxes: TrainingCandidateBox[], capturedAt: number, subjects: TrainingSubject[]): void {
+  public consider(eventId: string, scene: Uint8Array, boxes: TrainingCandidateBox[], capturedAt: number, subjects: TrainingSubject[], detectorPluginId?: string): void {
     if (boxes.length === 0 || !this.wantsFrame(eventId, subjects)) return;
 
     if (this.held && this.held.eventId !== eventId) this.flush();
@@ -101,10 +102,11 @@ export class TrainingSink {
       this.held.boxes = boxes;
       this.held.capturedAt = capturedAt;
       this.held.score = score;
+      this.held.detectorPluginId = detectorPluginId;
       return;
     }
 
-    this.held = { eventId, scene, boxes, capturedAt, score };
+    this.held = { eventId, scene, boxes, capturedAt, score, detectorPluginId };
     this.holdTimer = setTimeout(() => this.flush(), HOLD_WINDOW_MS);
   }
 
@@ -169,7 +171,14 @@ export class TrainingSink {
     this.lastFlushAt = Date.now();
 
     this.core()
-      .ingestTrainingCandidate({ cameraId: this.cameraId, eventId: held.eventId, capturedAt: held.capturedAt, boxes: held.boxes, scene: held.scene })
+      .ingestTrainingCandidate({
+        cameraId: this.cameraId,
+        eventId: held.eventId,
+        capturedAt: held.capturedAt,
+        boxes: held.boxes,
+        scene: held.scene,
+        detectorPluginId: held.detectorPluginId,
+      })
       .then((result) => {
         if (result === 'stored') {
           if (this.sentEventId !== held.eventId) this.eventSamples = 0;
@@ -180,6 +189,8 @@ export class TrainingSink {
           // in this picture triggers again until its spot changes
           const now = Date.now();
           for (const box of held.boxes) {
+            // a suggestion is no label, its spot stays free for a confident sighting
+            if (box.source === 'suggestion') continue;
             const spot = this.matchSpot(box.label, box, now);
             if (spot) {
               spot.box = { x: box.x, y: box.y, width: box.width, height: box.height };

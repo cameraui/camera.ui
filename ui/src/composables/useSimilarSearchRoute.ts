@@ -11,7 +11,7 @@ export function useSimilarSearchRoute() {
   });
 
   function openSimilarSearch(next: SimilarSearchRequest): void {
-    void router.push({
+    router.push({
       path: '/recordings',
       query: { similar: Date.now().toString(36) },
       state: { similar: JSON.parse(JSON.stringify(next)) },
@@ -21,11 +21,11 @@ export function useSimilarSearchRoute() {
   function closeSimilarSearch(): void {
     const query = { ...route.query };
     delete query.similar;
-    void router.replace({ query });
+    router.replace({ query });
   }
 
   function openOnCamera(cameraName: string, timestamp: number, next: SimilarSearchRequest): void {
-    void router.push({
+    router.push({
       path: `/cameras/${cameraName}`,
       query: { startTs: String(timestamp) },
       state: { similar: JSON.parse(JSON.stringify(next)) },

@@ -107,7 +107,7 @@ watch(
   () => props.frame,
   (frame) => {
     clickAt.value = undefined;
-    if (frame) void load(frame);
+    if (frame) load(frame);
     else clear();
   },
   { immediate: true },

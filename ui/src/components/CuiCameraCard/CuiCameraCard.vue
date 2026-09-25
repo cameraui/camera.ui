@@ -2003,7 +2003,7 @@ function toggleSimilarPick() {
     pausedForPick = 'live';
   }
   similarFrameAt = nvrCurrentTimestamp.value;
-  void startSimilarPick();
+  startSimilarPick();
 }
 
 function timelineScroll(scrolling: boolean) {
@@ -2069,7 +2069,7 @@ async function followSimilarJump(): Promise<void> {
 
 watch(nvrMode, (mode) => {
   if (!similarPicking.value) return;
-  if (mode === 'play') void followSimilarJump();
+  if (mode === 'play') followSimilarJump();
   else if (mode === 'idle' && !cameraStream.paused.value) closeSimilarPick('stop');
 });
 
@@ -2085,7 +2085,7 @@ watch(nvrCurrentTimestamp, (ts) => {
   if (Math.abs(ts - similarFrameAt) <= 1_000_000) return;
   similarFrameAt = ts;
   if (pausedForPick === 'live') pausedForPick = undefined;
-  void retakeSimilarPick();
+  retakeSimilarPick();
 });
 
 watch(
