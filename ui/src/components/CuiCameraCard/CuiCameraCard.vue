@@ -69,31 +69,6 @@
             </div>
 
             <div
-              v-show="timelineVisible"
-              :id="timelineContainerId"
-              key="timeline"
-              class="timeline-container absolute top-0 left-0 right-0 z-5"
-              :style="{ bottom: showControl ? '48px' : '0px', transition: 'bottom 0.2s ease' }"
-            >
-              <CuiTimeline
-                v-if="embeddedTimelineShown"
-                :camera-ids="embeddedTimelineCameraIds"
-                :initial-timestamp="embeddedTimelineStart"
-                type="horizontal"
-                flat-card
-                transparent
-                dark-mode
-                :show-segments="false"
-                overlay-class="timeline-overlay !z-0"
-                :locale-settings="timelineLocale"
-                :md-breakpoint="mdBreakpoint"
-                class="absolute bottom-0 left-0 w-full h-[200px]"
-                card-class="h-[200px]"
-                @scrolling="timelineScroll"
-              />
-            </div>
-
-            <div
               v-if="showPtz && !timelineState && !inStandby && !gridSearchActive && cameraDevice"
               key="ptz"
               class="absolute top-0 left-0 right-0 z-7 pointer-events-none"
@@ -102,6 +77,29 @@
               <CuiPTZControl :camera-device />
             </div>
           </TransitionGroup>
+
+          <Teleport :to="topmostFullscreen" :disabled="!timelineAtScreenBottom">
+            <Transition name="fade">
+              <div v-show="timelineVisible" :id="timelineContainerId" class="timeline-container absolute top-0 left-0 right-0 z-5" :style="timelineContainerStyle">
+                <CuiTimeline
+                  v-if="embeddedTimelineShown"
+                  :camera-ids="embeddedTimelineCameraIds"
+                  :initial-timestamp="embeddedTimelineStart"
+                  type="horizontal"
+                  flat-card
+                  transparent
+                  dark-mode
+                  :show-segments="false"
+                  overlay-class="timeline-overlay !z-0"
+                  :locale-settings="timelineLocale"
+                  :md-breakpoint="mdBreakpoint"
+                  class="absolute bottom-0 left-0 w-full h-[200px]"
+                  card-class="h-[200px]"
+                  @scrolling="timelineScroll"
+                />
+              </div>
+            </Transition>
+          </Teleport>
 
           <TransitionGroup
             tag="div"
@@ -222,7 +220,7 @@
             @wheel="onContentWheel"
           >
             <div ref="videoBoxRef" :data-zoomable-content="randomId" class="relative h-full min-w-0" :style="videoWrapperStyle">
-              <div class="absolute inset-0 pointer-events-none" :class="showPtz || timelineState ? 'z-3' : 'z-7'">
+              <div class="absolute inset-0 pointer-events-none" :class="showPtz || timelineOverVideo ? 'z-3' : 'z-7'">
                 <CuiShortcuts
                   v-if="!inStandby && !isDisabled && shortcutsAvailable"
                   :camera-name
@@ -237,7 +235,7 @@
                     (!shortcutsEditMode || cameraStream.isFullscreen.value) &&
                     shortcutsAvailable &&
                     !gridSearchActive &&
-                    !timelineState &&
+                    !timelineOverVideo &&
                     !showPtz &&
                     !inStandby &&
                     !isDisabled
@@ -361,7 +359,7 @@
             <div
               v-if="showControl"
               class="absolute bottom-0 inset-x-0 z-6 dark-mode pointer-events-none"
-              :class="{ 'control-bar-tiny': isTinyPlayer, 'control-bar-docked': timelineState }"
+              :class="{ 'control-bar-tiny': isTinyPlayer, 'control-bar-docked': timelineOverVideo }"
             >
               <div class="control-bar-gradient" />
               <div class="relative flex items-center gap-1 px-3 pb-3 pt-8">
@@ -918,6 +916,7 @@ const dialog = useCuiDialog();
 const toast = useCuiToast();
 const notificationsSocket = useNotificationsSocket();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
+const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 const { isPipSupported, isAndroid } = useSharedCuiUserAgent();
 const { t } = useI18n();
 const timelineLocale = useTimelineLocale();
@@ -981,6 +980,7 @@ const DETECTION_INDICATOR_TIMEOUT = 2000;
 const UNIFIED_MAX_ZOOM = 5;
 const PLAYER_TINY_BREAKPOINT = 200;
 const PLAYER_FULL_BREAKPOINT = 350;
+const HORIZONTAL_TIMELINE_HEIGHT = 200;
 
 const randomId = randomLetter();
 const speedOptions = [0.25, 0.5, 1, 2, 4, 8];
@@ -1006,7 +1006,7 @@ const nvrMap = inject(NvrPlaybackMapKey, undefined);
 const nvrDirect = inject(NvrPlaybackKey, undefined);
 const gridSearch = inject(GridSearchKey, undefined);
 
-const isHovered = useElementHover(playerContainerRef, { delayLeave: 1000 });
+const isHovered = useElementHover(() => (control.value ? playerContainerRef.value : null), { delayLeave: 1000 });
 const isHoveredZoom = useElementHover(playerContainerRef, { delayLeave: 0 });
 const playerContainer = useElementSize(playerContainerRef);
 const arBoxSize = useElementSize(arBoxRef);
@@ -1278,6 +1278,18 @@ const shortcutsAvailable = computed(() => showShortcuts.value || (fullscreenShor
 const timelineVisible = computed(
   () => timelineState.value && !showPtz.value && !inStandby.value && !gridSearchActive.value && (!cameraStream.isFullscreen.value || fullscreenTimeline.value),
 );
+// with room for it below the centered video (phones in portrait) the timeline moves to the bottom of the screen
+const timelineAtScreenBottom = computed(() => {
+  if (!cameraStream.isFullscreen.value) return false;
+  const videoHeight = (windowWidth.value * arParsed.value.h) / arParsed.value.w;
+  return windowHeight.value - videoHeight >= 2 * HORIZONTAL_TIMELINE_HEIGHT;
+});
+const timelineOverVideo = computed(() => timelineVisible.value && !timelineAtScreenBottom.value);
+const timelineContainerStyle = computed(() =>
+  timelineAtScreenBottom.value
+    ? { top: 'auto', bottom: 'var(--safe-area-inset-bottom, 0px)', height: `${HORIZONTAL_TIMELINE_HEIGHT}px` }
+    : { bottom: showControl.value ? '48px' : '0px', transition: 'bottom 0.2s ease' },
+);
 const embeddedTimelineShown = computed(() => embeddedTimeline.value && timelineVisible.value && Boolean(cameraId.value));
 const embeddedTimelineCameraIds = computed(() => (cameraId.value ? [cameraId.value] : []));
 
@@ -1468,8 +1480,7 @@ const showOpenCameraButton = computed(() => cardClickAction.value !== 'redirect'
 const popoverAppendTarget = computed<HTMLElement | 'body'>(() => topmostFullscreen.value ?? 'body');
 
 const controlBarLayout = computed(() => {
-  const fullscreen = cameraStream.isFullscreen.value;
-  const full = isFullPlayer.value || fullscreen;
+  const full = isFullPlayer.value || cameraStream.isFullscreen.value;
   return {
     rewind: { inline: full, inMenu: !full },
     fastForward: { inline: full, inMenu: !full },
@@ -1477,7 +1488,7 @@ const controlBarLayout = computed(() => {
     speaker: { inline: full, inMenu: !full },
     expand: { inline: full, inMenu: !full },
     microphone: { inline: full, inMenu: !full },
-    pip: { inline: full && !fullscreen, inMenu: !full },
+    pip: { inline: full, inMenu: !full },
   };
 });
 
@@ -1512,17 +1523,6 @@ const fullscreenMenuItems = computed<MenuItem[]>(() => {
       toggle: true,
       toggleState: toolbarPipToggleActive.value,
       onClick: () => emit('togglePip'),
-    });
-  }
-
-  if (controlPipButton.value) {
-    items.push({
-      key: 'picture-in-picture',
-      label: t('components.player.picture_in_picture'),
-      toggle: true,
-      toggleState: isPip.value,
-      disabled: !isPipSupported.value || isLoading.value || nvrPlaybackVisible.value,
-      onClick: () => togglePictureInPicture(),
     });
   }
 
@@ -2135,6 +2135,10 @@ watch(mdBreakpoint, () => {
   if (mdBreakpoint.value) timelineState.value = false;
 });
 
+watch(control, (enabled) => {
+  if (!enabled) isHovered.value = false;
+});
+
 watch(cameraStream.isFullscreen, (fullscreen) => {
   emit('fullscreen', fullscreen);
   if (fullscreen) return;
@@ -2249,7 +2253,7 @@ defineExpose({
   toggleZones,
   toggleTimeline,
   timelineState,
-  timelineVisible,
+  timelineOverVideo,
   timelineScroll,
   captureScreenshot,
 });

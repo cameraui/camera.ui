@@ -1400,7 +1400,6 @@ export default {
       playback_failed: 'Wiedergabe fehlgeschlagen',
       open_camera: 'Kamera öffnen',
       options: 'Optionen',
-      picture_in_picture: 'Bild-in-Bild',
       ptz: 'PTZ',
       ptz_go_to_home: 'Zurück zur Startposition',
       ptz_presets: 'Positionen',

@@ -11,6 +11,7 @@
         :class="{
           'pip-main-position': !swapped,
           'pip-overlay-position cursor-pointer': swapped,
+          'pip-overlay-fullscreen': swapped && overlayInFullscreen,
         }"
         :style="{ '--pip-bottom': pipBottomOffset }"
         @expand="onExpand"
@@ -33,6 +34,7 @@
         :class="{
           'pip-main-position': swapped,
           'pip-overlay-position cursor-pointer': !swapped,
+          'pip-overlay-fullscreen': !swapped && overlayInFullscreen,
         }"
         :style="{ '--pip-bottom': pipBottomOffset }"
         @fullscreen="emit('fullscreen', $event)"
@@ -272,7 +274,7 @@ const mainControlVisible = computed(() => {
   return mainCard?.showControl ?? false;
 });
 
-const mainTimelineVisible = computed(() => activeCard.value?.timelineVisible ?? false);
+const mainTimelineOverVideo = computed(() => activeCard.value?.timelineOverVideo ?? false);
 const mainFullscreen = computed(() => activeCard.value?.isFullscreen ?? false);
 // fullscreen only takes the main card's video area, the overlay has to move in there to stay visible
 const overlayInFullscreen = computed(() => mainFullscreen.value && showPip.value);
@@ -281,7 +283,7 @@ const overlayInFullscreen = computed(() => mainFullscreen.value && showPip.value
 const pipBottomOffset = computed(() => {
   const base = toolbar.value && !mainFullscreen.value ? 68 : 8; // 60px toolbar + 8px gap, or just 8px
   const raised = mainControlVisible.value ? 48 : 0; // control bar ~48px
-  const timeline = mainTimelineVisible.value ? HORIZONTAL_TIMELINE_HEIGHT : 0;
+  const timeline = mainTimelineOverVideo.value ? HORIZONTAL_TIMELINE_HEIGHT : 0;
   return `${base + raised + timeline}px`;
 });
 
@@ -498,6 +500,11 @@ defineExpose({
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   border: 2px solid var(--p-surface-300);
   transition: bottom 0.2s ease;
+}
+
+.pip-overlay-fullscreen {
+  width: 22%;
+  min-width: 96px;
 }
 
 :deep(.dark) .pip-overlay-position {
