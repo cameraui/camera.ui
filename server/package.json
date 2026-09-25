@@ -38,7 +38,7 @@
   "dependencies": {
     "@bjia56/portable-python": "^0.1.166",
     "@camera.ui/cloudflared": "^2026.9.1-cui.1",
-    "@camera.ui/common": "~0.0.58-beta.2",
+    "@camera.ui/common": "~0.0.58",
     "@camera.ui/go2rtc": "^1.9.14-cui.47",
     "@camera.ui/nats": "^2.15.0",
     "@camera.ui/rpc": "^1.0.12",
