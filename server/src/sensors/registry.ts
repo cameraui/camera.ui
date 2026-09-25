@@ -672,7 +672,24 @@ export class SensorRegistry {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       if (record.type === sensor.type && record.name === sensor.name) return record;
     }
+    return this.adoptFromFormerPlugin(sensor, pluginId);
+  }
+
+  private adoptFromFormerPlugin(sensor: SensorJSON, pluginId: string): DBSensor | undefined {
+    const owner = this.getPluginContract(pluginId)?.name;
+    if (!owner || !sensor.nativeId) return undefined;
+
+    for (const record of this.records.values()) {
+      if (record.nativeId !== sensor.nativeId || record.pluginInfo.name !== owner || this.pluginRecordExists(record.pluginInfo.id)) continue;
+      this.logger.debug(`Sensor "${record.displayName ?? record.name}" moves from the removed plugin id "${record.pluginInfo.id}" to "${pluginId}"`);
+      record.pluginInfo = { id: pluginId, name: owner };
+      return record;
+    }
     return undefined;
+  }
+
+  private pluginRecordExists(pluginId: string): boolean {
+    return pluginId === VIRTUAL_SENSOR_OWNER_ID || this.dbs.pluginsDB.get(pluginId) !== undefined;
   }
 
   private disconnectSensor(sensorId: string): void {
@@ -743,6 +760,18 @@ export class SensorRegistry {
       if (this.runtime.has(record._id)) this.disconnectSensor(record._id);
       await this.deleteSensor(record._id).catch((error: unknown) =>
         this.logger.warn(`Failed to delete sensor "${record.displayName ?? record.name}" of a removed camera:`, error),
+      );
+    }
+
+    for (const record of Array.from(this.records.values())) {
+      if (!record.nativeId || this.pluginRecordExists(record.pluginInfo.id)) continue;
+      const successor = Array.from(this.records.values()).some(
+        (other) =>
+          other !== record && other.nativeId === record.nativeId && other.pluginInfo.name === record.pluginInfo.name && this.pluginRecordExists(other.pluginInfo.id),
+      );
+      if (!successor) continue;
+      await this.deleteSensor(record._id).catch((error: unknown) =>
+        this.logger.warn(`Failed to delete sensor "${record.displayName ?? record.name}" left behind by a reinstall:`, error),
       );
     }
   }

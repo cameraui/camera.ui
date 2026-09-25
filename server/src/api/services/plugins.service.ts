@@ -129,7 +129,7 @@ export class PluginsService {
     if (existing) return existing;
 
     const pluginData: DBPlugin = {
-      _id: oldId ?? uuidv4(),
+      _id: oldId ?? this.formerPluginId(pluginName) ?? uuidv4(),
       pluginName,
     };
 
@@ -267,6 +267,11 @@ export class PluginsService {
 
   public installingPlugins(): PluginsProgress[] {
     return [...manageQueue];
+  }
+
+  private formerPluginId(pluginName: string): string | undefined {
+    const id = new CamerasService().formerPluginId(pluginName);
+    return id && !this.getPluginDbById(id) ? id : undefined;
   }
 
   private async runManage(log: InstallLogger, entry: PluginsProgress, targetDir: string, pluginId?: string, opts: { restart?: boolean } = {}): Promise<string> {

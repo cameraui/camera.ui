@@ -51,6 +51,16 @@ function withSourceTransportDefaults<T extends { urls: string[]; timeout?: numbe
   };
 }
 
+function pluginReferences(camera: DBCamera): AssignedPlugin[] {
+  const references: AssignedPlugin[] = [...camera.plugins];
+  if (camera.pluginInfo) references.push(camera.pluginInfo);
+  for (const assignment of Object.values(camera.assignments ?? {})) {
+    if (Array.isArray(assignment)) references.push(...assignment);
+    else if (assignment && typeof assignment === 'object' && 'name' in assignment) references.push(assignment);
+  }
+  return references;
+}
+
 @registry([
   {
     token: 'dbs',
@@ -154,7 +164,9 @@ export class CamerasService {
   }
 
   public async cleanupNonExistentPlugins(): Promise<void> {
-    const existingPluginNames = new Set<string>(this.pluginsService.listPlugins().map((p) => p.pluginName));
+    const plugins = this.pluginsService.listPlugins();
+    const existingPluginNames = new Set<string>(plugins.map((p) => p.pluginName));
+    const idsByName = new Map(plugins.map((p) => [p.pluginName, p.id]));
     const cameraIds = [...this.dbs.camerasDB.getRange()].map(({ value }) => value._id);
 
     await Promise.all(
@@ -163,6 +175,7 @@ export class CamerasService {
           if (!current) return undefined;
 
           let processedCamera = this.migrateAssignments(current);
+          const relinked = this.relinkPluginIds(processedCamera, idsByName);
 
           const { camera: afterNonExistent, modified: mod1 } = this.cleanupPlugins(processedCamera, existingPluginNames);
           processedCamera = afterNonExistent;
@@ -170,10 +183,28 @@ export class CamerasService {
           const { camera: afterDeselected, modified: mod2 } = this.cleanupDeselectedPluginAssignments(processedCamera);
           processedCamera = afterDeselected;
 
-          return mod1 || mod2 ? processedCamera : undefined;
+          return relinked || mod1 || mod2 ? processedCamera : undefined;
         }),
       ),
     );
+  }
+
+  public async relinkPlugin(pluginName: string, pluginId: string): Promise<void> {
+    const idsByName = new Map([[pluginName, pluginId]]);
+    const cameraIds = [...this.dbs.camerasDB.getRange()].map(({ value }) => value._id);
+
+    for (const cameraId of cameraIds) {
+      const camera = await this.dbs.commit(this.dbs.camerasDB, cameraId, (current) => (current && this.relinkPluginIds(current, idsByName) ? current : undefined));
+      if (camera) this.api.updateCamera(this.transformCamera(camera));
+    }
+  }
+
+  public formerPluginId(pluginName: string): string | undefined {
+    for (const { value } of this.dbs.camerasDB.getRange()) {
+      const reference = pluginReferences(value).find((ref) => ref.name === pluginName && ref.id !== VIRTUAL_SENSOR_OWNER_ID);
+      if (reference) return reference.id;
+    }
+    return undefined;
   }
 
   public listByPluginId(pluginId: string): DBCamera[] {
@@ -990,6 +1021,18 @@ export class CamerasService {
     }
 
     return { camera, modified };
+  }
+
+  private relinkPluginIds(camera: DBCamera, idsByName: Map<string, string>): boolean {
+    let modified = false;
+    for (const reference of pluginReferences(camera)) {
+      const id = idsByName.get(reference.name);
+      if (id && reference.id !== id && reference.id !== VIRTUAL_SENSOR_OWNER_ID) {
+        reference.id = id;
+        modified = true;
+      }
+    }
+    return modified;
   }
 
   private cleanupPlugins(camera: DBCamera, existingPluginNames: Set<string>): { camera: DBCamera; modified: boolean } {

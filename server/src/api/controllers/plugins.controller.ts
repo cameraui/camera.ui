@@ -997,6 +997,7 @@ export class PluginsController {
 
     if (!plugin) {
       plugin = await this.pluginManager.loadPlugin(installPath);
+      await this.camerasService.relinkPlugin(plugin.pluginName, plugin.id);
 
       this.logger.log(`Plugin installed: ${plugin.pluginName}.${plugin.displayName} (${plugin.info.installedVersion})`);
 
