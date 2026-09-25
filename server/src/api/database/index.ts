@@ -218,6 +218,7 @@ export class Database {
     await this.prepareDatabases();
     await this.ensureIngressUser();
     await this.ensureMaster();
+    await this.resetMasterPassword();
     await this.migrationRunner.migrate();
     await this.backfillSchemaDefaults();
     this.syncCamerasToGo2RtcConfig();
@@ -417,15 +418,38 @@ export class Database {
     await this.usersDB.put(master._id, master);
   }
 
-  private generateMaster(): DBUser {
-    const salt = randomBytes(16).toString('base64');
-    const hash = createHmac('sha512', salt).update('admin').digest('base64');
+  private async resetMasterPassword(): Promise<void> {
+    const markerFile = [this.configService.RESET_PASSWORD_FILE, `${this.configService.RESET_PASSWORD_FILE}.txt`].find((file) => existsSync(file));
+    if (!markerFile) {
+      return;
+    }
 
+    for (const { key, value: user } of this.usersDB.getRange()) {
+      if (user.role !== 'master' || user.username === INGRESS_USERNAME) continue;
+
+      await this.commit(this.usersDB, key, (current) => {
+        if (!current) return undefined;
+        const next: DBUser = { ...current, password: hashPassword('admin'), firstLogin: true };
+        delete next.twoFactor;
+        return next;
+      });
+
+      for (const { key: tokenKey, value: token } of this.tokensDB.getRange()) {
+        if (token.user_id === user._id && token.type !== 'api') await this.tokensDB.remove(tokenKey);
+      }
+
+      this.logger.attention(`Password of "${user.username}" reset to "admin" and two-factor login turned off. A new password is required at the next login.`);
+    }
+
+    await unlink(markerFile);
+  }
+
+  private generateMaster(): DBUser {
     return {
       _id: randomUUID(),
       avatar: 'logo-256.png',
       username: 'admin',
-      password: salt + '$' + hash,
+      password: hashPassword('admin'),
       role: 'master',
       firstLogin: true,
       preferences: {
@@ -452,14 +476,11 @@ export class Database {
   }
 
   private generateIngressUser(): DBUser {
-    const salt = randomBytes(16).toString('base64');
-    const hash = createHmac('sha512', salt).update(randomBytes(32).toString('base64')).digest('base64');
-
     return {
       _id: randomUUID(),
       avatar: 'logo-256.png',
       username: INGRESS_USERNAME,
-      password: salt + '$' + hash,
+      password: hashPassword(randomBytes(32).toString('base64')),
       role: 'master',
       firstLogin: false,
       preferences: {
@@ -470,4 +491,9 @@ export class Database {
       },
     };
   }
+}
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('base64');
+  return salt + '$' + createHmac('sha512', salt).update(password).digest('base64');
 }

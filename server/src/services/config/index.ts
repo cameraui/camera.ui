@@ -96,6 +96,7 @@ export class ConfigService {
   readonly BACKUP_INFO_FILE: string;
   readonly DEFAULTS_INSTALLED_FILE: string;
   readonly RESTORE_RESET_IDENTITY_FILE: string;
+  readonly RESET_PASSWORD_FILE: string;
 
   readonly UI_PORT = parseInt(process.env.CAMERA_UI_UI_PORT!);
 
@@ -194,6 +195,7 @@ export class ConfigService {
     this.BACKUP_INFO_FILE = join(this.STORAGE_PATH, 'camera.ui.backup.json');
     this.DEFAULTS_INSTALLED_FILE = join(this.STORAGE_PATH, '.camera.ui.defaults-installed');
     this.RESTORE_RESET_IDENTITY_FILE = join(this.STORAGE_PATH, '.restore-reset-identity');
+    this.RESET_PASSWORD_FILE = join(this.STORAGE_PATH, 'reset-password');
     this.DATABASE_PATH = join(this.STORAGE_PATH, 'database');
     this.USERS_STORAGE_PATH = join(this.STORAGE_PATH, 'users');
     this.INTERFACE_CACHE_PATH = join(this.STORAGE_PATH, 'interface');
