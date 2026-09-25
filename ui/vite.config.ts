@@ -318,9 +318,15 @@ export default defineConfig(({ command }) => ({
               cleanupOutdatedCaches: true,
               globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,jpg,jpeg,mp4,txt,woff2,ttf}'],
               globIgnores: ['ha/**'],
-              navigateFallback: 'index.html',
-              navigateFallbackAllowlist: [/^(?!\/api)/],
-              navigateFallbackDenylist: [/[?&]session=/],
+              navigateFallback: null,
+              directoryIndex: null,
+              runtimeCaching: [
+                {
+                  urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/api') && !/[?&]session=/.test(url.search),
+                  handler: 'NetworkOnly',
+                  options: { precacheFallback: { fallbackURL: 'index.html' } },
+                },
+              ],
             },
           }),
         ]),

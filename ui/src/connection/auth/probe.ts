@@ -7,6 +7,37 @@ import type { ProbeContext, Tokens } from '@camera.ui/transport';
 import type { AuthApi, ProbeFn } from '../types.js';
 import type { RefreshCoordinator } from './refresh.js';
 
+const PROXY_RELOAD_FLAG = 'cui-proxy-login-reload';
+
+async function redirectedByLoginProxy(endpoint: string, signal: AbortSignal): Promise<boolean> {
+  try {
+    if (new URL(endpoint).origin !== window.location.origin) return false;
+    const response = await fetch(`${endpoint}/api/auth/check`, { redirect: 'manual', cache: 'no-store', signal });
+    return response.type === 'opaqueredirect';
+  } catch {
+    return false;
+  }
+}
+
+function reloadForProxyLogin(): boolean {
+  try {
+    if (sessionStorage.getItem(PROXY_RELOAD_FLAG)) return false;
+    sessionStorage.setItem(PROXY_RELOAD_FLAG, '1');
+  } catch {
+    return false;
+  }
+  window.location.reload();
+  return true;
+}
+
+function clearProxyReload(): void {
+  try {
+    sessionStorage.removeItem(PROXY_RELOAD_FLAG);
+  } catch {
+    // ignore
+  }
+}
+
 export function createProbe(api: AuthApi, refresh: RefreshCoordinator): ProbeFn {
   return async (ctx: ProbeContext): Promise<Tokens> => {
     const endpoint = ctx.endpoint.url;
@@ -14,6 +45,7 @@ export function createProbe(api: AuthApi, refresh: RefreshCoordinator): ProbeFn 
 
     try {
       await api.authCheck(endpoint, accessToken, ctx.signal);
+      clearProxyReload();
       // 200 without tokens shouldn't happen — auth/check requires Bearer.
       // If it does, treat as needs-auth so the UI drives a fresh login.
       if (!ctx.lastTokens?.access) throw makeProbeFailure('needs-auth', 'no tokens');
@@ -27,6 +59,11 @@ export function createProbe(api: AuthApi, refresh: RefreshCoordinator): ProbeFn 
       if (ctx.signal.aborted) throw err;
       if (isCancellationError(err)) throw makeProbeFailure('aborted', 'request canceled');
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+
+      if (typeof status === 'number') clearProxyReload();
+      else if ((await redirectedByLoginProxy(endpoint, ctx.signal)) && reloadForProxyLogin()) {
+        throw makeProbeFailure('transient', 'login proxy redirect, reloading');
+      }
 
       // No tokens path: we hit the server purely to confirm reachability +
       // surface the fastest-responding endpoint to the probeLoop race. Any
