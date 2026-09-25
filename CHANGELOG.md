@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.8]
 
+### Added
+
+- **Shortcuts, timeline and PiP in fullscreen.** In fullscreen the dots in the control bar switch the shortcuts, the timeline and the PiP source. This works in the camera view and for a single Camview tile, whose timeline shows only that camera. On a phone held upright, the timeline sits at the bottom of the screen.
+
+- **The PiP source can be another camera.** **PiP Source** in a camera's sources now also lists the streams of your other cameras, grouped by camera. That fits a second lens, such as the tele lens of a dual-lens camera. Clicking the small picture opens that camera with its timeline and recordings, at the same moment during playback, and the camera you came from becomes the small picture.
+
+- **Cameras can be hidden on Home.** With **Edit layout**, an eye on each card hides the camera from Home or shows it again. The choice belongs to your account, and the camera keeps streaming, detecting and recording.
+
 ### Fixed
 
 - **Every face in a recording has its own picture.** With several people in one moment, a name could come without a picture, so that face could not be corrected, or a picture showed a different person than the name under it. Each face now keeps its own picture, also when two people got the same name, and a correction changes only the face you picked and trains recognition with exactly that picture. Needs the NVR plugin update.
@@ -17,6 +25,16 @@ All notable changes to this project will be documented in this file.
 - **OpenRouter answers get through a rate limit.** A busy model, free ones in particular, made the answer fail right away. The assistant now tries again for up to half a minute.
 
 - **A conversation that fails to load says so.** It used to open empty, as if it had no messages.
+
+- **Plugins on a worker use the worker's own addresses.** They got the server addresses of the main server, which do not exist on the worker, so HomeKit on a worker always fell back to all interfaces. **Edit Worker** in the workers list now picks the addresses for each worker.
+
+- **Home Assistant's internal network is no longer offered as a server address.** Settings > Remote > Network listed 172.30.32.1, which phones and Apple devices cannot reach. Without a selected address, the apps and local discovery also got it. An address you picked earlier stays in the list until you remove it.
+
+- **The player keeps its controls with the timeline open.** On tablets the timeline lay over the video and the control bar disappeared. The control bar now sits below the timeline.
+
+- **The PiP source no longer covers the timeline.** It moves up when the timeline opens. After swapping the two pictures, the timeline stays on the large one instead of moving into the small one.
+
+- **The camera.ui panel in Home Assistant keeps your menu layout.** It showed the default menu and ignored the order you set in camera.ui.
 
 ## [2.2.7]
 
