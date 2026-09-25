@@ -3,6 +3,8 @@ import { SensorType } from '@camera.ui/sdk';
 import type { BoundingBox, LoadedModel, MotionResolution, StreamingRole } from '@camera.ui/sdk';
 import type { SystemInfo } from '../../utils/system-info.js';
 
+const MOVING_SPEED = 0.03;
+
 export type PixelFormat = 'yuv420p' | 'rgb24' | 'nv12';
 
 export type AnalysisStream = 'low' | 'main';
@@ -19,6 +21,10 @@ export function isFullFrameBox(box: BoundingBox): boolean {
 
 export function touchesFrameEdge(box: BoundingBox): boolean {
   return box.x <= 0.005 || box.y <= 0.005 || box.x + box.width >= 0.995 || box.y + box.height >= 0.995;
+}
+
+export function isMovingTrack(detection: { trackSpeed?: number }): boolean {
+  return (detection.trackSpeed ?? 0) >= MOVING_SPEED && (detection as { stationarySince?: number }).stationarySince === undefined;
 }
 
 export function isTrainingSubject(detection: { box?: BoundingBox }): boolean {

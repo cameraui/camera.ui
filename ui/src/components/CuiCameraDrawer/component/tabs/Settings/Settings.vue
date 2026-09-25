@@ -1411,10 +1411,10 @@
               <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.ptz_autotrack_tracking_speed') }}</Message>
             </Field>
 
-            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1800" name="ptzAutotrack.leadMs" as="div" class="flex flex-col field-gap">
+            <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1500" name="ptzAutotrack.leadMs" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_ms') }}</label>
               <InputNumber
-                :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1800"
+                :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1500"
                 :min="0"
                 :max="4000"
                 :step="100"

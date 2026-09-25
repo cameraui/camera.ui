@@ -7,7 +7,7 @@ import { EventTraceCollector } from './event-trace.js';
 import { leanEvent, NvrSink } from './nvr-sink.js';
 import { MAX_UNTRACKED_PLATES, normalizePlateText, PlateVoteTracker } from './plate-vote.js';
 import { TrainingSink } from './training-sink.js';
-import { isFullFrameBox } from './types.js';
+import { isFullFrameBox, isMovingTrack } from './types.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type {
@@ -115,8 +115,6 @@ export interface ProcessedDetectionData {
 const UPDATE_THROTTLE_MS = 1000;
 const MOMENT_IMPROVEMENT = 1.25;
 const CLIP_ATTRIBUTE = 'clip';
-const MIN_MOVING_SPEED = 0.05;
-const STATIONARY_SPEED_THRESHOLD = 0.002;
 
 function unitVector(values: number[]): number[] {
   let norm = 0;
@@ -187,8 +185,6 @@ interface ThumbnailCandidate {
   area: number;
   onEdge: boolean;
   hasAttribute: boolean;
-  trackId?: number;
-  speed?: number;
 }
 
 export class DetectionEventManager {
@@ -658,7 +654,7 @@ export class DetectionEventManager {
         { count: number; bestScore: number; bestBox?: BoundingBox; bestTrackId?: number; moving?: boolean; anyMoving: boolean; presentSince?: number }
       >();
       for (const obj of data.objects) {
-        const t = obj as { trackId?: number; trackSpeed?: number; stationarySince?: number; presentSince?: number; label: string; confidence: number; box: BoundingBox };
+        const t = obj as { trackId?: number; trackSpeed?: number; presentSince?: number; label: string; confidence: number; box: BoundingBox };
         if (t.trackId !== undefined && obj.box) {
           const cx = obj.box.x + obj.box.width / 2;
           const cy = obj.box.y + obj.box.height / 2;
@@ -670,8 +666,7 @@ export class DetectionEventManager {
             this.segmentTrackPaths.set(t.trackId, { enterX: cx, enterY: cy, exitX: cx, exitY: cy });
           }
         }
-        // a settled track's box jitter clears the speed floor; settled is not moving
-        const moving = t.trackSpeed !== undefined ? t.trackSpeed >= STATIONARY_SPEED_THRESHOLD && t.stationarySince === undefined : undefined;
+        const moving = t.trackSpeed !== undefined ? isMovingTrack(t) : undefined;
         const entry = labelCounts.get(obj.label);
         if (entry) {
           entry.count++;
@@ -1029,8 +1024,6 @@ export class DetectionEventManager {
       area: thumb.area,
       onEdge: thumb.onEdge,
       hasAttribute: true,
-      trackId: thumb.trackId,
-      speed: thumb.speed,
     };
 
     if (!current) {
@@ -1038,23 +1031,9 @@ export class DetectionEventManager {
       return;
     }
 
-    const cm = DetectionEventManager.isMoving(candidate);
-    const currM = DetectionEventManager.isMoving(current);
-
-    if (cm && !currM) {
-      this.logger.trace(`Thumbnail ${key}: prefer moving track#${candidate.trackId} (speed=${candidate.speed?.toFixed(4)}) over static track#${current.trackId}`);
-      map.set(key, candidate);
-      return;
-    }
-    if (!cm && currM) return;
-
     if (!candidate.onEdge && (candidate.area > current.area || candidate.score > current.score)) {
       map.set(key, candidate);
     }
-  }
-
-  private static isMoving(c: ThumbnailCandidate): boolean {
-    return (c.speed ?? 0) >= MIN_MOVING_SPEED;
   }
 
   private segmentAttachments(withEmbeddings: boolean): EventAttachments {

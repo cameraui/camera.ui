@@ -26,7 +26,16 @@ import { PtzAutotracker } from './ptz/autotracker.js';
 import { SecondaryStage } from './secondary-stage.js';
 import { BufferedSource } from './sources/buffered-source.js';
 import { FrameSource } from './sources/frame-source.js';
-import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, isTrainingSubject, MOTION_WIDTH_MAP, touchesFrameEdge } from './types.js';
+import {
+  DETECT_TIMEOUT_MS,
+  DETECTOR_METRIC_TYPES,
+  ensureDetectionBoxes,
+  isFullFrameBox,
+  isMovingTrack,
+  isTrainingSubject,
+  MOTION_WIDTH_MAP,
+  touchesFrameEdge,
+} from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { RPCClient } from '@camera.ui/rpc';
@@ -130,7 +139,6 @@ const TRAINING_FRAME_QUALITY = 80;
 const MOMENT_EVENTS = new Set(['objectEntered', 'objectWoke', 'objectRecovered', 'bestShotUpdated']);
 const WITNESS_WINDOW_MS = 3000;
 const HELD_MOMENT_MS = 4000;
-const MOMENT_MOVING_SPEED = 0.05;
 const MOMENT_ATTRIBUTE_MIN_AREA = 600;
 
 const DEFAULT_CASCADE_TIMEOUT = 10;
@@ -318,7 +326,6 @@ export class DetectionCoordinator {
       proxy: this.proxy,
       cameraId: this.config.cameraId,
       settings: this.config.ptzAutotrack,
-      getFps: () => this.targetFps,
       onSuppressionActivated: () => this.handleSuppressionActivated(),
     });
 
@@ -824,10 +831,6 @@ export class DetectionCoordinator {
 
   private get motionResolution() {
     return this.config.detectionSettings.motion.resolution;
-  }
-
-  private get targetFps(): number {
-    return this.frameSource.fps;
   }
 
   private get videoAspectRatio(): number {
@@ -1682,8 +1685,8 @@ export class DetectionCoordinator {
           trainingSuggestions = pipelineResult.trainingSuggestions;
           if (pipelineResult.crossings.length > 0) results.lineCrossings = pipelineResult.crossings;
 
-          // incl. extrapolated tracks, otherwise a single missed detector
-          // frame flips the autotracker into LOST/REACQUIRE churn
+          // incl. extrapolated tracks, they keep the target's id through a
+          // missed detector frame
           this.ptzAutotracker.handleObjectDetections(pipelineResult.tracked);
 
           // live tracks anchor the next tick's window; a track that just died
@@ -2054,7 +2057,7 @@ export class DetectionCoordinator {
 
   private async captureMoment(subject: WorldObject, score: number, trigger: string, tracked: TrackedDetection[], analysis: AnalysisFrame, at: number): Promise<void> {
     const box: BoundingBox = { x: subject.x, y: subject.y, width: subject.width, height: subject.height };
-    const moving = tracked.filter((d) => (d.trackSpeed ?? 0) >= MOMENT_MOVING_SPEED).map((d) => d.box);
+    const moving = tracked.filter(isMovingTrack).map((d) => d.box);
     const target: MomentTarget = { subject: box, base: unionBox([box, ...moving]), hint: directionOf(subject.velocityX, subject.velocityY) };
     const rendered = await this.renderMoment(target, analysis);
     if (!rendered) return;

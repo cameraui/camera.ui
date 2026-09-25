@@ -19,7 +19,7 @@ const MIN_PULSE_MS = 250;
 const MAX_PULSE_MS = 1000;
 
 const MIN_COMMAND_INTERVAL_MS = 200;
-const STATIONARY_SPEED_THRESHOLD = 0.006;
+const STILL_SPEED = 0.03;
 const MAX_LEAD_DISPLACEMENT = 0.45;
 const AIM_CONFIRM_FRAMES = 3;
 const AIM_IMMEDIATE_ERROR = 0.25;
@@ -30,10 +30,16 @@ const EDGE_TOUCH_MARGIN = 0.02;
 const EDGE_ERR_FLOOR = 0.3;
 const POST_STOP_MOTION_SETTLE_MS = 1200;
 const MOVE_WATCHDOG_MS = 5000;
+const TARGET_MISS_GRACE_MS = 3000;
+const CONTINUATION_GATE = 0.08;
+const CONTINUATION_MAX_S = 6;
+const CONTINUATION_GATE_MAX = 0.3;
+const AIM_VELOCITY_ALPHA = 0.3;
+const AIM_VELOCITY_MAX_GAP_S = 3;
 const EXTERNAL_COOLDOWN_MS = 45_000;
 
 const DEFAULT_SPEED_GAIN = 2.0;
-const DEFAULT_LEAD_MS = 1800;
+const DEFAULT_LEAD_MS = 1500;
 const DEFAULT_PAN_RATE = 0.85;
 
 type MoveStrategy = 'relative' | 'absolute' | 'velocity';
@@ -81,7 +87,6 @@ export interface PtzAutotrackerDeps {
   proxy: RPCClient;
   cameraId: string;
   settings?: PtzAutotrackSettings;
-  getFps?: () => number;
   onSuppressionActivated: () => void;
 }
 
@@ -95,6 +100,9 @@ export class PtzAutotracker {
   private activeTrackId?: number;
   private targetCentered = false;
   private lostSinceTs = 0;
+  private missingSince = 0;
+  private aim?: { x: number; y: number; at: number; vx: number; vy: number; shiftX: number; shiftY: number; label: string; width: number; height: number };
+  private companions = new Set<number>();
   private lastCommandAt = 0;
   private stopTimer?: NodeJS.Timeout;
   private moveWatchdog?: NodeJS.Timeout;
@@ -197,7 +205,7 @@ export class PtzAutotracker {
 
     switch (this.state) {
       case 'idle':
-        this.stepIdle(targets, settings);
+        this.stepIdle(targets, settings, now);
         return;
       case 'active':
         this.stepActive(ptz, targets, settings, now);
@@ -247,7 +255,6 @@ export class PtzAutotracker {
     let bestArea = -1;
     for (const t of targets) {
       if (typeof t.trackId !== 'number') continue;
-      if (t.trackLost) continue;
       // too small to be worth turning the camera for, and usually noise
       if (minSize > 0 && t.box.height < minSize) continue;
       const area = t.box.width * t.box.height;
@@ -259,48 +266,112 @@ export class PtzAutotracker {
     return best;
   }
 
-  private follow(target: TrackedDetection): void {
+  private follow(target: TrackedDetection, now: number): void {
     this.activeTrackId = target.trackId;
+    this.missingSince = 0;
+    this.aim = undefined;
+    this.companions.clear();
+    this.observe(target, now);
     this.targetCentered = false;
     this.state = 'active';
   }
 
-  private stepIdle(targets: readonly TrackedDetection[], settings: PtzAutotrackSettings): void {
+  private observe(target: TrackedDetection, now: number): void {
+    const x = target.box.x + target.box.width / 2;
+    const y = target.box.y + target.box.height / 2;
+    const prev = this.aim;
+    let vx = prev?.vx ?? target.trackVelocity?.x ?? 0;
+    let vy = prev?.vy ?? target.trackVelocity?.y ?? 0;
+    // the target's own motion is the picture displacement minus what our moves shifted
+    if (prev) {
+      const dt = (now - prev.at) / 1000;
+      if (dt >= 0.05 && dt <= AIM_VELOCITY_MAX_GAP_S) {
+        vx += ((x - prev.x - prev.shiftX) / dt - vx) * AIM_VELOCITY_ALPHA;
+        vy += ((y - prev.y - prev.shiftY) / dt - vy) * AIM_VELOCITY_ALPHA;
+      }
+    }
+    this.aim = { x, y, at: now, vx, vy, shiftX: 0, shiftY: 0, label: target.label, width: target.box.width, height: target.box.height };
+  }
+
+  private shifted(pan: number, tilt: number): void {
+    if (!this.aim) return;
+    this.aim.shiftX -= pan;
+    this.aim.shiftY += tilt;
+  }
+
+  private continuation(targets: readonly TrackedDetection[], now: number): TrackedDetection | undefined {
+    const aim = this.aim;
+    if (!aim) return undefined;
+    const dt = (now - aim.at) / 1000;
+    if (dt > CONTINUATION_MAX_S) return undefined;
+    const px = aim.x + aim.shiftX + aim.vx * dt;
+    const py = aim.y + aim.shiftY + aim.vy * dt;
+    const gateX = Math.min(CONTINUATION_GATE_MAX, Math.max(aim.width * 1.5, CONTINUATION_GATE) + Math.abs(aim.vx) * dt * 2 + Math.abs(aim.shiftX) * 0.3);
+    const gateY = Math.min(CONTINUATION_GATE_MAX, Math.max(aim.height * 0.5, CONTINUATION_GATE) + Math.abs(aim.vy) * dt * 2 + Math.abs(aim.shiftY) * 0.3);
+    let best: TrackedDetection | undefined;
+    let bestDist = Infinity;
+    for (const t of targets) {
+      if (typeof t.trackId !== 'number' || t.trackId === this.activeTrackId || t.label !== aim.label || this.companions.has(t.trackId)) continue;
+      const dx = Math.abs(t.box.x + t.box.width / 2 - px) / gateX;
+      const dy = Math.abs(t.box.y + t.box.height / 2 - py) / gateY;
+      if (dx > 1 || dy > 1) continue;
+      const dist = Math.hypot(dx, dy);
+      if (dist < bestDist) {
+        best = t;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  private stepIdle(targets: readonly TrackedDetection[], settings: PtzAutotrackSettings, now: number): void {
     const best = this.pickLargestFresh(targets, settings.minTargetSize ?? 0);
     if (!best) return;
     this.deps.logger.trace(`[autotracker] following ${best.label}#${best.trackId}`);
-    this.follow(best);
+    this.follow(best, now);
   }
 
   private stepActive(ptz: PtzSensorInfo, targets: readonly TrackedDetection[], settings: PtzAutotrackSettings, now: number): void {
-    const target = targets.find((t) => t.trackId === this.activeTrackId);
+    let target = targets.find((t) => t.trackId === this.activeTrackId);
     if (!target) {
+      // a pan or a gap can give the same person a new id: the track where the
+      // target should be by now takes over at once
+      target = this.continuation(targets, now);
+      if (target) {
+        this.deps.logger.trace(`[autotracker] target #${this.activeTrackId} continues as #${target.trackId}`);
+        this.activeTrackId = target.trackId;
+      }
+    }
+    if (!target) {
+      // nobody there: hold the pose through the gap instead of handing the
+      // camera to another person; blind time while the camera moves never counts
+      this.missingSince ||= now;
+      if (now - this.missingSince < TARGET_MISS_GRACE_MS) return;
       this.deps.logger.trace(`[autotracker] lost target #${this.activeTrackId}`);
       this.state = 'lost';
       this.lostSinceTs = now;
+      this.missingSince = 0;
       return;
     }
-
-    // extrapolated boxes drift off-frame over a long miss, wait for a real match
-    if (target.trackLost) {
-      return;
+    this.missingSince = 0;
+    this.observe(target, now);
+    for (const t of targets) {
+      if (typeof t.trackId === 'number' && t.trackId !== target.trackId) this.companions.add(t.trackId);
     }
 
     const cx = target.box.x + target.box.width * 0.5;
     const cy = target.box.y + target.box.height * 0.5;
 
-    // lead across the camera's move+settle blind window; velocity is per frame
-    const leadMs = settings.leadMs ?? DEFAULT_LEAD_MS;
-    const fps = this.deps.getFps?.() ?? 10;
-    const blindFrames = (leadMs / 1000) * fps;
-    const velocity = target.trackVelocity;
-    // the estimate never quite reaches zero when someone stops, and 18 blind
-    // frames turn that leftover into a phantom half a frame wide, so fade the
+    // lead across the camera's move+settle blind window, in real time: the
+    // velocity is frame widths per second, neither stream fps nor tick rate enter
+    const leadSec = (settings.leadMs ?? DEFAULT_LEAD_MS) / 1000;
+    const vx = this.aim?.vx ?? 0;
+    const vy = this.aim?.vy ?? 0;
+    // the estimate never quite reaches zero when someone stops, so fade the
     // prediction out with the speed instead of trusting it at face value
-    const trackSpeed = target.trackSpeed ?? 0;
-    const leadScale = clamp((trackSpeed - STATIONARY_SPEED_THRESHOLD) / STATIONARY_SPEED_THRESHOLD, 0, 1);
-    const leadX = clamp((velocity?.x ?? 0) * blindFrames * leadScale, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
-    const leadY = clamp((velocity?.y ?? 0) * blindFrames * leadScale, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
+    const leadScale = clamp((Math.hypot(vx, vy) - STILL_SPEED) / STILL_SPEED, 0, 1);
+    const leadX = clamp(vx * leadSec * leadScale, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
+    const leadY = clamp(vy * leadSec * leadScale, -MAX_LEAD_DISPLACEMENT, MAX_LEAD_DISPLACEMENT);
 
     let errX = cx + leadX - 0.5;
     let errY = cy + leadY - 0.5;
@@ -359,6 +430,7 @@ export class PtzAutotracker {
       this.lastCommandAt = now;
       this.rememberMove(Math.sign(move.pan), Math.sign(move.tilt));
       this.sendRelativeMove(ptz, { panDelta: move.pan, tiltDelta: move.tilt, zoomDelta: 0 });
+      this.shifted(move.pan, move.tilt);
       this.deps.logger.trace(`[autotracker] relative move err=(${errX.toFixed(2)},${errY.toFixed(2)})`);
       return;
     }
@@ -382,6 +454,7 @@ export class PtzAutotracker {
         // clamped axes stay dir 0: the clamp is not an end-stop
         this.rememberMove(panProgress ? Math.sign(move.pan) : 0, tiltProgress ? Math.sign(move.tilt) : 0);
         this.sendAbsoluteMove(ptz, target);
+        this.shifted((target.pan - this.currentPose.pan) * PAN_TO_IMAGE_RATIO, (target.tilt - this.currentPose.tilt) * PAN_TO_IMAGE_RATIO);
         this.deps.logger.trace(`[autotracker] absolute move to (${target.pan.toFixed(3)},${target.tilt.toFixed(3)}) err=(${errX.toFixed(2)},${errY.toFixed(2)})`);
         return;
       }
@@ -409,6 +482,7 @@ export class PtzAutotracker {
     const finalTilt = absY === 0 ? 0 : -Math.sign(errY) * (absY === domErr ? domSpeed : minorSpeed(absY));
 
     this.sendVelocity(ptz, { panSpeed: finalPan, tiltSpeed: finalTilt, zoomSpeed: 0 });
+    this.shifted(finalPan * panRate * pulseSec, finalTilt * panRate * pulseSec);
     this.lastCommandAt = now;
     this.deps.logger.trace(
       `[autotracker] move pan=${finalPan.toFixed(2)} tilt=${finalTilt.toFixed(2)} pulse=${Math.round(pulseMs)}ms err=(${errX.toFixed(2)},${errY.toFixed(2)})`,
@@ -543,10 +617,10 @@ export class PtzAutotracker {
 
     // same person under a new id after detector churn, or a new person:
     // beats staring at an empty spot until the home timeout
-    const successor = this.pickLargestFresh(targets, settings.minTargetSize ?? 0);
+    const successor = this.continuation(targets, now) ?? this.pickLargestFresh(targets, settings.minTargetSize ?? 0);
     if (successor) {
       this.deps.logger.trace(`[autotracker] reacquired ${successor.label}#${successor.trackId} (was #${this.activeTrackId})`);
-      this.follow(successor);
+      this.follow(successor, now);
       return;
     }
 
@@ -619,6 +693,9 @@ export class PtzAutotracker {
     this.activeTrackId = undefined;
     this.targetCentered = false;
     this.lostSinceTs = 0;
+    this.missingSince = 0;
+    this.aim = undefined;
+    this.companions.clear();
     this.lastCommandAt = 0;
     this.lastStopIssuedAt = 0;
     this.ownMoveUntil = 0;

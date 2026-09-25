@@ -43,8 +43,6 @@ export interface DetectionThumbnail {
   score: number;
   area: number;
   onEdge: boolean;
-  trackId?: number;
-  speed?: number;
 }
 
 export interface ServerFaceDetection extends FaceDetection {
