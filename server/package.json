@@ -51,7 +51,7 @@
     "@fastify/helmet": "^13.1.1",
     "@fastify/http-proxy": "^11.6.2",
     "@fastify/multipart": "^10.1.2",
-    "@fastify/static": "^10.1.4",
+    "@fastify/static": "^10.1.5",
     "@fastify/swagger": "^9.9.0",
     "@fastify/swagger-ui": "^6.1.1",
     "@homebridge/ciao": "npm:@seydx/ciao@1.3.10",
