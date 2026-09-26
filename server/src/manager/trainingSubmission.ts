@@ -32,6 +32,8 @@ export function buildTrainSubmission(candidate: DBTrainingCandidate, image: Uint
       app_version: candidate.meta?.appVersion ?? appVersion,
       taxonomy: TAXONOMY,
       ...(candidate.reviewMs !== undefined ? { review_ms: Math.min(Math.round(candidate.reviewMs), MAX_REVIEW_MS) } : {}),
+      ...(candidate.meta?.selection ? { selection: candidate.meta.selection } : {}),
+      ...(candidate.meta?.selectionScore !== undefined ? { selection_score: Math.round(candidate.meta.selectionScore * 10000) / 10000 } : {}),
     },
     boxes: candidate.boxes.map((box) => wireBox(box, box.proposal !== undefined ? proposals?.[box.proposal] : undefined)),
     rejected: unused ? unused.filter((box) => box.source !== 'suggestion').map((box) => wireBox(box)) : null,

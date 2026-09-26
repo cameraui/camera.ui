@@ -19,10 +19,6 @@ export function isFullFrameBox(box: BoundingBox): boolean {
   return box.x <= 0 && box.y <= 0 && box.width >= 1 && box.height >= 1;
 }
 
-export function touchesFrameEdge(box: BoundingBox): boolean {
-  return box.x <= 0.005 || box.y <= 0.005 || box.x + box.width >= 0.995 || box.y + box.height >= 0.995;
-}
-
 export function isMovingTrack(detection: { trackSpeed?: number }): boolean {
   return (detection.trackSpeed ?? 0) >= MOVING_SPEED && (detection as { stationarySince?: number }).stationarySince === undefined;
 }

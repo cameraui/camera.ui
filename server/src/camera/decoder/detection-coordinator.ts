@@ -26,16 +26,8 @@ import { PtzAutotracker } from './ptz/autotracker.js';
 import { SecondaryStage } from './secondary-stage.js';
 import { BufferedSource } from './sources/buffered-source.js';
 import { FrameSource } from './sources/frame-source.js';
-import {
-  DETECT_TIMEOUT_MS,
-  DETECTOR_METRIC_TYPES,
-  ensureDetectionBoxes,
-  isFullFrameBox,
-  isMovingTrack,
-  isTrainingSubject,
-  MOTION_WIDTH_MAP,
-  touchesFrameEdge,
-} from './types.js';
+import { trainingValue } from './training-sink.js';
+import { DETECT_TIMEOUT_MS, DETECTOR_METRIC_TYPES, ensureDetectionBoxes, isFullFrameBox, isMovingTrack, isTrainingSubject, MOTION_WIDTH_MAP } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { RPCClient } from '@camera.ui/rpc';
@@ -135,6 +127,7 @@ interface RenderedMoment {
 
 const TRAINING_FRAME_MAX_WIDTH = 1280;
 const TRAINING_ATTRIBUTE_BONUS = 0.2;
+const TRAINING_SUGGESTION_WEIGHT = 0.5;
 const TRAINING_FRAME_QUALITY = 80;
 const MOMENT_EVENTS = new Set(['objectEntered', 'objectWoke', 'objectRecovered', 'bestShotUpdated']);
 const WITNESS_WINDOW_MS = 3000;
@@ -1902,26 +1895,28 @@ export class DetectionCoordinator {
   private async attachTrainingFrame(snapshot: ProcessedDetectionData, analysis: AnalysisFrame): Promise<void> {
     if (!this.eventManager.hasActiveEvent() && !this.snapshotWillStartEvent(snapshot)) return;
 
-    // moment-style score per subject, an edge-clipped subject makes a poor
-    // sample; the sink sums only the boxes the scene memory does not know yet
+    // the sink sums only the boxes the scene memory does not know yet
+    const value = (label: string, confidence: number, box: BoundingBox) => trainingValue(label, confidence, this.pipeline.threshold(label), box);
     const subjects: TrainingSubject[] = snapshot.objects
       .filter((d) => isTrainingSubject(d))
-      .map((d) => ({ label: d.label, box: d.box, score: d.confidence * Math.sqrt(d.box.width * d.box.height) * (touchesFrameEdge(d.box) ? 0.5 : 1) }));
-    // flat bonus: faces and plates are the scarce labels but their boxes are too
-    // small for the area term; fresh only, a buffered stale result describes
-    // an older frame and must not lift this one
+      .map((d) => ({ label: d.label, box: d.box, score: value(d.label, d.confidence, d.box) }));
+    // flat bonus: faces and plates are the scarce labels; fresh only, a
+    // buffered stale result describes an older frame and must not lift this one
     const now = Date.now();
     const facesFresh = snapshot.facesAt !== undefined && now - snapshot.facesAt <= SECONDARY_FRESH_MS;
     const platesFresh = snapshot.platesAt !== undefined && now - snapshot.platesAt <= SECONDARY_FRESH_MS;
     for (const face of facesFresh ? snapshot.faces : []) {
-      if (face.box && !isFullFrameBox(face.box))
-        subjects.push({ label: 'face', box: face.box, score: TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(face.box) ? 0.5 : 1) });
+      if (face.box && !isFullFrameBox(face.box)) subjects.push({ label: 'face', box: face.box, score: TRAINING_ATTRIBUTE_BONUS });
     }
     for (const plate of platesFresh ? snapshot.plates : []) {
-      if (plate.box && !isFullFrameBox(plate.box))
-        subjects.push({ label: 'license_plate', box: plate.box, score: TRAINING_ATTRIBUTE_BONUS * (touchesFrameEdge(plate.box) ? 0.5 : 1) });
+      if (plate.box && !isFullFrameBox(plate.box)) subjects.push({ label: 'license_plate', box: plate.box, score: TRAINING_ATTRIBUTE_BONUS });
     }
-    if (subjects.length === 0) return;
+    for (const hint of snapshot.trainingSuggestions ?? []) {
+      if (!isFullFrameBox(hint.box)) {
+        subjects.push({ label: hint.label, box: hint.box, score: TRAINING_SUGGESTION_WEIGHT * value(hint.label, hint.confidence, hint.box), hint: true });
+      }
+    }
+    if (!subjects.some((s) => !s.hint)) return;
     if (!this.eventManager.wantsTrainingFrame(subjects)) return;
 
     try {

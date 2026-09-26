@@ -3,6 +3,7 @@ import { iou } from './detection-window.js';
 
 import type { RPCClient } from '@camera.ui/rpc';
 import type { BoundingBox, LoggerService } from '@camera.ui/sdk';
+import type { TrainingSelection } from '../../api/database/types.js';
 import type { CoreManagerInterface, TrainingCandidateBox } from '../../rpc/interfaces/core.js';
 
 const FLUSH_INTERVAL_MS = 15_000;
@@ -13,6 +14,9 @@ const MAX_SAMPLES_PER_EVENT = 64;
 const SAME_SPOT_IOU = 0.5;
 const SCENE_FORGET_MS = 10 * 60_000;
 const MAX_SCENE_SPOTS = 128;
+const RANDOM_WINDOW_SHARE = 0.1;
+const UNCERTAINTY_FLOOR = 0.2;
+const ANIMAL_WEIGHT = 1.5;
 
 export interface SceneObservation {
   label: string;
@@ -21,6 +25,7 @@ export interface SceneObservation {
 
 export interface TrainingSubject extends SceneObservation {
   score: number;
+  hint?: boolean;
 }
 
 interface SceneSpot {
@@ -36,6 +41,14 @@ interface HeldCandidate {
   capturedAt: number;
   score: number;
   detectorPluginId?: string;
+  random: boolean;
+}
+
+export function trainingValue(label: string, confidence: number, threshold: number, box: BoundingBox): number {
+  const headroom = Math.max(1 - threshold, 0.05);
+  const uncertainty = Math.max(UNCERTAINTY_FLOOR, 1 - Math.max(0, confidence - threshold) / headroom);
+  const size = 1 - Math.min(Math.sqrt(box.width * box.height), 0.5);
+  return uncertainty * size * (label === 'animal' ? ANIMAL_WEIGHT : 1);
 }
 
 export class TrainingSink {
@@ -55,6 +68,7 @@ export class TrainingSink {
     private readonly cameraId: string,
     private readonly proxy: RPCClient,
     private readonly logger: LoggerService,
+    private readonly random: () => number = Math.random,
   ) {
     this.core()
       .getTrainingCollectionEnabled()
@@ -84,11 +98,11 @@ export class TrainingSink {
     const now = Date.now();
     if (now < this.disabledUntil) return false;
     // an open window only accepts a clear upgrade, everything else is free ticks
-    if (this.held && this.held.eventId === eventId) return this.novelScore(subjects, now) > this.held.score * SCORE_IMPROVEMENT;
+    if (this.held && this.held.eventId === eventId) return !this.held.random && this.novelScore(subjects, now) > this.held.score * SCORE_IMPROVEMENT;
     if (now - this.lastFlushAt < FLUSH_INTERVAL_MS) return false;
     // a stuck-open event must not churn the whole per-camera pool
     if (eventId && this.sentEventId === eventId && this.eventSamples >= MAX_SAMPLES_PER_EVENT) return false;
-    return subjects.some((s) => this.isNovel(s, now));
+    return subjects.some((s) => !s.hint && this.isNovel(s, now));
   }
 
   public consider(eventId: string, scene: Uint8Array, boxes: TrainingCandidateBox[], capturedAt: number, subjects: TrainingSubject[], detectorPluginId?: string): void {
@@ -106,7 +120,7 @@ export class TrainingSink {
       return;
     }
 
-    this.held = { eventId, scene, boxes, capturedAt, score, detectorPluginId };
+    this.held = { eventId, scene, boxes, capturedAt, score, detectorPluginId, random: this.random() < RANDOM_WINDOW_SHARE };
     this.holdTimer = setTimeout(() => this.flush(), HOLD_WINDOW_MS);
   }
 
@@ -178,6 +192,8 @@ export class TrainingSink {
         boxes: held.boxes,
         scene: held.scene,
         detectorPluginId: held.detectorPluginId,
+        selection: (held.random ? 'random' : 'scored') satisfies TrainingSelection,
+        selectionScore: held.score,
       })
       .then((result) => {
         if (result === 'stored') {

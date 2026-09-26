@@ -1,6 +1,6 @@
 import { assertResponseOk, cloudFetch } from '../instance.js';
 
-import type { TrainingBoxSource } from '../../../api/database/types.js';
+import type { TrainingBoxSource, TrainingSelection } from '../../../api/database/types.js';
 import type { CloudCredentialStore } from '../credentialStore.js';
 
 interface TrainSubmissionCreateResponse {
@@ -34,6 +34,8 @@ export interface TrainSubmissionDocument {
     app_version: string;
     taxonomy: number;
     review_ms?: number;
+    selection?: TrainingSelection;
+    selection_score?: number;
   };
   boxes: TrainSubmissionBox[];
   rejected: TrainSubmissionBox[] | null;

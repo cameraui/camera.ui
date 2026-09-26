@@ -81,9 +81,13 @@ export interface DBTrainingCandidateBox {
   proposal?: number;
 }
 
+export type TrainingSelection = 'scored' | 'random';
+
 export interface DBTrainingCandidateMeta {
   appVersion: string;
   detector?: { plugin: string; pluginVersion?: string };
+  selection?: TrainingSelection;
+  selectionScore?: number;
 }
 
 export interface DBTrainingCandidate {

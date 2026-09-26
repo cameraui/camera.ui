@@ -1,5 +1,5 @@
 import type { PluginInfo, PluginInterface } from '@camera.ui/sdk';
-import type { DBFloorPlan, DBRoomCatalog, TrainingBoxSource } from '../../api/database/types.js';
+import type { DBFloorPlan, DBRoomCatalog, TrainingBoxSource, TrainingSelection } from '../../api/database/types.js';
 import type { AssistantAccess, AssistantAskRequest, AssistantAskResult, AssistantPost } from '../../assistant/types.js';
 
 export interface HostPluginInfo extends PluginInfo {
@@ -28,6 +28,8 @@ export interface TrainingCandidateIngest {
   boxes: TrainingCandidateBox[];
   scene: Uint8Array;
   detectorPluginId?: string;
+  selection: TrainingSelection;
+  selectionScore: number;
 }
 
 export type TrainingIngestResult = 'stored' | 'skip' | 'disabled';

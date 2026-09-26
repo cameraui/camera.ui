@@ -174,7 +174,12 @@ export class TrainingCandidateManager {
       status: 'new',
       boxes: proposals.flatMap((box, proposal) => (box.source === 'suggestion' ? [] : [{ ...box, proposal }])),
       proposals,
-      meta: { appVersion: ConfigService.RUNNING_VERSION, detector: this.detector(payload.detectorPluginId) },
+      meta: {
+        appVersion: ConfigService.RUNNING_VERSION,
+        detector: this.detector(payload.detectorPluginId),
+        selection: payload.selection,
+        selectionScore: payload.selectionScore,
+      },
     });
 
     const evicted = await this.enforceCameraLimit(payload.cameraId, settings.perCameraLimit);
