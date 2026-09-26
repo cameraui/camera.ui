@@ -322,7 +322,8 @@ export default defineConfig(({ command }) => ({
               directoryIndex: null,
               runtimeCaching: [
                 {
-                  urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/api') && !/[?&]session=/.test(url.search),
+                  urlPattern: ({ request, url }) =>
+                    request.mode === 'navigate' && !(navigator as any)?.onLine && !url.pathname.startsWith('/api') && !/[?&]session=/.test(url.search),
                   handler: 'NetworkOnly',
                   options: { precacheFallback: { fallbackURL: 'index.html' } },
                 },
