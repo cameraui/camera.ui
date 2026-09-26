@@ -1641,6 +1641,8 @@ export default {
       filter_zone: 'Zone',
       filter_zone_enable: 'Nach Zone filtern',
       filter_zone_hint: 'Bereiche auf dem Kamerabild markieren.',
+      filter_search: 'Suche',
+      filter_search_matches: 'Nur Treffer',
       filter_scope_camera: 'Nur angezeigte Kamera',
       filter_scope_all: 'Alle Kameras der Ansicht',
       type_motion: 'Bewegung',

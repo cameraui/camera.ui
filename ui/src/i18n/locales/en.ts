@@ -1630,6 +1630,8 @@ export default {
       filter_zone: 'Zone',
       filter_zone_enable: 'Filter by zone',
       filter_zone_hint: 'Mark areas on the camera picture.',
+      filter_search: 'Search',
+      filter_search_matches: 'Matches only',
       filter_scope_camera: 'Shown camera only',
       filter_scope_all: 'All cameras in view',
       type_motion: 'Motion',
