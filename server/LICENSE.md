@@ -20,3 +20,10 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+The compiled web interface in `dist/interface` bundles `@camera.ui/nvr`, which
+is proprietary and not covered by the MIT License above. All rights to it are
+reserved; it may not be copied, modified or redistributed without written
+permission. Its full terms are in the LICENSE.md of `@camera.ui/nvr`.
