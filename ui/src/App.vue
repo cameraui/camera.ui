@@ -79,7 +79,7 @@
     <div
       class="fixed-bg"
       :style="{
-        background: routeMeta.background.value,
+        background: routeMeta.background.value ?? 'var(--ground-background)',
       }"
     ></div>
 
