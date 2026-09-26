@@ -441,6 +441,9 @@ const findings = computed<TraceFinding[]>(() => {
   for (const obj of tick.world) {
     if (obj.state === 'tentative') frame(t('views.recordings.trace.hint_tentative', { label: obj.label, id: obj.id }));
   }
+  for (const attr of tick.attrs ?? []) {
+    if (attr.weak) frame(droppedFinding(attr));
+  }
   for (const e of tick.events) {
     if (e.kind === 'objectEntered' && e.attested) frame(t('views.recordings.trace.hint_witness', { label: e.label, id: e.id }));
   }
@@ -636,8 +639,10 @@ function drawPicture(canvas: HTMLCanvasElement, picture: ImageBitmap, tick: Trac
 
   for (const attr of tick.attrs ?? []) {
     const color = ATTRIBUTE_COLORS[attr.type] ?? '#ffffff';
+    if (attr.weak) ctx.setLineDash([5 * scale, 3 * scale]);
     strokeBox(ctx, attr.box, w, h, color);
-    labelBox(ctx, attr.box, w, h, color, `${attr.type}:${attr.label} ${pct(attr.conf)}`, scale, true);
+    ctx.setLineDash([]);
+    labelBox(ctx, attr.box, w, h, color, `${attr.type}:${attr.label} ${pct(attr.conf)}${attr.weak ? ` ${t('views.recordings.trace.dropped_label')}` : ''}`, scale, true);
   }
 }
 
@@ -784,11 +789,15 @@ function objectId(obj: TraceTick['world'][number]): string {
 }
 
 function objectLabel(obj: TraceTick['world'][number]): string {
-  return `${obj.label} ${pct(obj.conf)}${objectId(obj)} ${t(`views.recordings.trace.state_${obj.state}`, obj.state)}`;
+  return `${obj.label} ${pct(obj.score ?? obj.conf)}${objectId(obj)} ${t(`views.recordings.trace.state_${obj.state}`, obj.state)}${lastSure(obj, ' (', ')')}`;
 }
 
 function objectText(obj: TraceTick['world'][number]): string {
-  return `${obj.label}${objectId(obj)} · ${t(`views.recordings.trace.state_${obj.state}`, obj.state)} · ${pct(obj.conf)}`;
+  return `${obj.label}${objectId(obj)} · ${t(`views.recordings.trace.state_${obj.state}`, obj.state)} · ${pct(obj.score ?? obj.conf)}${lastSure(obj, ' · ')}`;
+}
+
+function lastSure(obj: TraceTick['world'][number], before: string, after = ''): string {
+  return obj.score === undefined ? '' : `${before}${t('views.recordings.trace.last_sure', { value: pct(obj.conf) })}${after}`;
 }
 
 function eventText(e: TraceTick['events'][number]): string {
@@ -797,7 +806,22 @@ function eventText(e: TraceTick['events'][number]): string {
 }
 
 function attributeText(attr: NonNullable<TraceTick['attrs']>[number]): string {
-  return `${attr.type}:${attr.label} ${pct(attr.conf)}${attr.parent !== undefined ? ` (#${attr.parent})` : ''}`;
+  const dropped = attr.weak ? ` · ${t('views.recordings.trace.dropped_label')}` : '';
+  return `${attr.type}:${attr.label} ${pct(attr.conf)}${attr.parent !== undefined ? ` (#${attr.parent})` : ''}${dropped}`;
+}
+
+function droppedFinding(attr: NonNullable<TraceTick['attrs']>[number]): string {
+  const saved = trace.value?.config;
+  const settings = props.camera.detectionSettings;
+  if (attr.type === 'face') {
+    const min = saved?.face?.confidence ?? settings?.face?.confidence ?? 0.5;
+    return t('views.recordings.trace.hint_below_threshold', { label: 'face', min: pct(min) });
+  }
+  const plate = saved?.licensePlate ?? settings?.licensePlate;
+  const label = `plate ${attr.label}`;
+  if (attr.weak === 'ocr') return t('views.recordings.trace.hint_plate_unsure', { label, value: pct(attr.conf), min: pct(plate?.ocrConfidence ?? 0.9) });
+  if (attr.weak === 'length') return t('views.recordings.trace.hint_plate_short', { label, min: plate?.minLength ?? 4 });
+  return t('views.recordings.trace.hint_below_threshold', { label, min: pct(plate?.confidence ?? 0.3) });
 }
 
 function rawFinding(label: string, confidence: number, box: BoundingBox): string {

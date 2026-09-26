@@ -1,6 +1,6 @@
 import type { Detection as RustDetection, WorldEvent, WorldIngestResult } from '@camera.ui/rust-postprocessor';
 import type { BoundingBox, ClassifierDetection, Detection, FaceDetection, LicensePlateDetection } from '@camera.ui/sdk';
-import type { DetectionResults } from '../../rpc/interfaces/detection.js';
+import type { DetectionResults, PlateShortfall, WeakPlate } from '../../rpc/interfaces/detection.js';
 import type { TrackedSecondary } from './event-manager.js';
 
 export type TraceBox = [number, number, number, number];
@@ -9,6 +9,7 @@ export interface TraceObject {
   id: number;
   label: string;
   conf: number;
+  score?: number;
   state: string;
   speed: number;
   box: TraceBox;
@@ -28,6 +29,7 @@ export interface TraceAttribute {
   conf: number;
   parent?: number;
   box: TraceBox;
+  weak?: 'confidence' | PlateShortfall;
 }
 
 export interface TraceTick {
@@ -75,6 +77,7 @@ export function worldTrace(tMs: number, detections: RustDetection[], cameraMotio
       id: t.trackId,
       label: t.label,
       conf: round(t.confidence),
+      ...(round(t.score) !== round(t.confidence) ? { score: round(t.score) } : {}),
       state: t.state,
       speed: round(t.speed),
       box: [round(t.x), round(t.y), round(t.width), round(t.height)],
@@ -127,6 +130,13 @@ export function traceAttributes(results: DetectionResults): TraceAttribute[] | u
   for (const d of plates) {
     if (!d.plateText) continue;
     attrs.push({ type: 'plate', label: d.plateText, conf: round(d.ocrConfidence ?? d.confidence), parent: d.parentTrackId, box: traceBox(d.box) });
+  }
+  for (const d of (results.weakFaces ?? []) as (FaceDetection & TrackedSecondary)[]) {
+    attrs.push({ type: 'face', label: 'unknown', conf: round(d.confidence), parent: d.parentTrackId, box: traceBox(d.box), weak: 'confidence' });
+  }
+  for (const d of (results.weakPlates ?? []) as (WeakPlate & TrackedSecondary)[]) {
+    const conf = d.shortfall === 'confidence' ? d.confidence : (d.ocrConfidence ?? d.confidence);
+    attrs.push({ type: 'plate', label: d.plateText ?? '', conf: round(conf), parent: d.parentTrackId, box: traceBox(d.box), weak: d.shortfall });
   }
   for (const classifier of Object.values(results.classifiers ?? {})) {
     for (const d of classifier.detections as (ClassifierDetection & TrackedSecondary)[]) {

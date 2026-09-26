@@ -499,6 +499,7 @@ export class SecondaryStage {
     // faces under the user threshold are never recognized or reported
     const { kept, weak } = this.pipeline.splitFaces(this.pipeline.runNms(allFaces));
     this.suggest(results, this.pipeline.trainingSuggestionsFor(weak, 'face'));
+    if (weak.length > 0) results.weakFaces = weak;
     keepOneFacePerTrack(kept);
     return { detected: kept.length > 0, detections: kept };
   }
@@ -527,6 +528,7 @@ export class SecondaryStage {
     // NMS only, the crops come from already zone-filtered object detections
     const { kept, weak } = this.pipeline.splitPlates(this.pipeline.runNms(allPlates));
     this.suggest(results, this.pipeline.trainingSuggestionsFor(weak, 'license_plate'));
+    if (weak.length > 0) results.weakPlates = weak;
     return { detected: kept.length > 0, detections: kept };
   }
 

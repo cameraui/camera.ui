@@ -29,7 +29,7 @@ import type {
   TrackedDetection,
   ZoneLabel,
 } from '@camera.ui/sdk';
-import type { TrainingSuggestion } from '../../rpc/interfaces/detection.js';
+import type { PlateShortfall, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
 import type { TraceTick } from './event-trace.js';
 
 const NMS_IOU_THRESHOLD = 0.45;
@@ -388,18 +388,26 @@ export class DetectionPipeline {
     return { kept: faces.filter((f) => f.confidence >= threshold), weak: faces.filter((f) => f.confidence < threshold) };
   }
 
-  public splitPlates<T extends LicensePlateDetection>(plates: T[]): { kept: T[]; weak: T[] } {
-    const threshold = this.threshold('license_plate');
-    const ocrConfidence = this.settings.licensePlate?.ocrConfidence ?? PLATE_OCR_CONFIDENCE;
-    const minLength = this.settings.licensePlate?.minLength ?? MIN_PLATE_LENGTH;
-    const readable = (plate: T) =>
-      normalizePlateText(plate.plateText ?? '').length >= minLength && (plate.ocrConfidence === undefined || plate.ocrConfidence >= ocrConfidence);
-    const kept = plates.filter((p) => p.confidence >= threshold && readable(p));
-    return { kept, weak: plates.filter((p) => !kept.includes(p)) };
+  public splitPlates<T extends LicensePlateDetection>(plates: T[]): { kept: T[]; weak: (T & { shortfall: PlateShortfall })[] } {
+    const kept: T[] = [];
+    const weak: (T & { shortfall: PlateShortfall })[] = [];
+    for (const plate of plates) {
+      const shortfall = this.plateShortfall(plate);
+      if (shortfall) weak.push({ ...plate, shortfall });
+      else kept.push(plate);
+    }
+    return { kept, weak };
   }
 
   public trainingSuggestionsFor(items: { box: BoundingBox; confidence: number }[], label: string): TrainingSuggestion[] {
     return items.filter((item) => !this.masked(item.box)).map((item) => ({ label, box: item.box, confidence: item.confidence }));
+  }
+
+  private plateShortfall(plate: LicensePlateDetection): PlateShortfall | undefined {
+    if (plate.confidence < this.threshold('license_plate')) return 'confidence';
+    if (plate.ocrConfidence !== undefined && plate.ocrConfidence < (this.settings.licensePlate?.ocrConfidence ?? PLATE_OCR_CONFIDENCE)) return 'ocr';
+    if (normalizePlateText(plate.plateText ?? '').length < (this.settings.licensePlate?.minLength ?? MIN_PLATE_LENGTH)) return 'length';
+    return undefined;
   }
 
   private applyConfidences(settings: CameraDetectionSettings): void {

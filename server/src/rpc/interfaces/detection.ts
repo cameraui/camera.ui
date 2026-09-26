@@ -9,6 +9,7 @@ import type {
   FaceDetection,
   FaceEmbeddingResult,
   FaceResult,
+  LicensePlateDetection,
   LicensePlateResult,
   ModelSpec,
   MotionResult,
@@ -73,8 +74,14 @@ export interface DetectionResults {
   thumbnails?: DetectionThumbnail[];
   lineCrossings?: LineCrossingEvent[];
   trainingSuggestions?: TrainingSuggestion[];
+  weakFaces?: ServerFaceDetection[];
+  weakPlates?: WeakPlate[];
   timestamp: number;
 }
+
+export type PlateShortfall = 'confidence' | 'ocr' | 'length';
+
+export type WeakPlate = LicensePlateDetection & { shortfall: PlateShortfall };
 
 export interface CoordinatorSensorInfo {
   pluginId: string;
