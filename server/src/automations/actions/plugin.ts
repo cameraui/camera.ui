@@ -1,13 +1,10 @@
 import { PluginsService } from '../../api/services/plugins.service.js';
-import { buildArgsFromRegistry, getMethodDef } from '../pluginMethodRegistry.js';
+import { getMethodDef, runRegistryMethod } from '../pluginMethodRegistry.js';
 
+import type { PluginMethods } from '../pluginMethodRegistry.js';
 import type { ActionContext } from './types.js';
 
-// Cached plugin call for repeat mode — avoids re-resolving templates and re-creating Buffers
 let cachedPluginCall: (() => Promise<void>) | null = null;
-
-// Lazy singleton — DI container isn't fully populated when this module is
-// first imported (boot-time import chain), so eager construction would crash.
 let _pluginsService: PluginsService | undefined;
 const pluginsService = (): PluginsService => (_pluginsService ??= new PluginsService());
 
@@ -51,14 +48,12 @@ export async function actionPlugin(ctx: ActionContext, data: Record<string, unkn
     }
   }
 
-  const proxy = worker.pluginProxy as unknown as Record<string, ((...args: unknown[]) => Promise<unknown>) | undefined>;
-  const fn = proxy[method];
-  if (!fn) throw new Error(`Method "${method}" not found on plugin "${pluginName}"`);
+  const proxy = worker.pluginProxy as unknown as PluginMethods;
+  if (!proxy[method]) throw new Error(`Method "${method}" not found on plugin "${pluginName}"`);
 
-  const args = buildArgsFromRegistry(method, resolvedParams);
-
+  const call = () => runRegistryMethod(methodDef, proxy, worker.plugin.contract, resolvedParams);
   const callFn = async () => {
-    await fn(...args);
+    await call();
   };
 
   if (ctx.suppressVariableWrites) {
@@ -68,7 +63,7 @@ export async function actionPlugin(ctx: ActionContext, data: Record<string, unkn
   }
 
   const startMs = Date.now();
-  const result = (await fn(...args)) as Record<string, unknown> | undefined;
+  const result = (await call()) as Record<string, unknown> | undefined;
   const durationMs = Date.now() - startMs;
 
   ctx.variables.set('plugin.durationMs', String(durationMs));

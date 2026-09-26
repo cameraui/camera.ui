@@ -1,5 +1,9 @@
 import { PluginInterface } from '@camera.ui/sdk';
 
+import { segmentPicture } from './segment-picture.js';
+
+import type { PluginContract } from '@camera.ui/sdk';
+
 export type PluginMethodParamType = 'image' | 'audio' | 'video' | 'json' | 'string' | 'number';
 
 export interface PluginMethodParam {
@@ -16,14 +20,16 @@ export interface PluginMethodDef {
   params: PluginMethodParam[];
   args: PluginMethodArg[];
   settingsMethod?: string;
+  run?: (plugin: PluginMethods, contract: PluginContract | undefined, params: Record<string, unknown>) => Promise<unknown>;
 }
 
-export type PluginMethodArg = { param: string } | { fixed: unknown } | { frame: string } | { audioFrame: string } | { images: string } | { wholePicture: string };
+export type PluginMethods = Record<string, ((...args: unknown[]) => Promise<unknown>) | undefined>;
+
+export type PluginMethodArg = { param: string } | { fixed: unknown } | { frame: string } | { audioFrame: string } | { images: string };
 
 const IMAGE_METADATA: PluginMethodArg = { fixed: { width: 0, height: 0 } };
 const AUDIO_METADATA: PluginMethodArg = { fixed: { mimeType: 'audio/wav' } };
 const CONFIG_PARAM: PluginMethodArg = { param: 'config' };
-const WHOLE_PICTURE = { x: 0, y: 0, width: 1, height: 1 };
 
 export const PLUGIN_METHOD_REGISTRY: Partial<Record<PluginInterface, PluginMethodDef[]>> = {
   [PluginInterface.ObjectDetection]: [
@@ -81,8 +87,9 @@ export const PLUGIN_METHOD_REGISTRY: Partial<Record<PluginInterface, PluginMetho
       id: 'segmentImages',
       labelKey: 'components.automation_nodes.method_segment',
       params: [{ name: 'imageData', labelKey: 'components.automation_nodes.param_image', type: 'image', placeholder: '', binary: true }],
-      args: [{ wholePicture: 'imageData' }, CONFIG_PARAM],
+      args: [],
       settingsMethod: 'segmentationSettings',
+      run: (plugin, contract, params) => segmentPicture(plugin, contract, params.imageData as Buffer, (params.config as Record<string, unknown> | undefined) ?? {}),
     },
   ],
   [PluginInterface.LicensePlateDetection]: [
@@ -181,6 +188,18 @@ export function getMethodDef(methodId: string): PluginMethodDef | undefined {
   return undefined;
 }
 
+export async function runRegistryMethod(
+  def: PluginMethodDef,
+  plugin: PluginMethods,
+  contract: PluginContract | undefined,
+  params: Record<string, unknown>,
+): Promise<unknown> {
+  if (def.run) return await def.run(plugin, contract, params);
+  const method = plugin[def.id];
+  if (!method) throw new Error(`Method "${def.id}" is not implemented by the plugin`);
+  return await method(...buildArgsFromRegistry(def.id, params));
+}
+
 export function buildArgsFromRegistry(methodId: string, resolvedParams: Record<string, unknown>): unknown[] {
   const def = getMethodDef(methodId);
   if (!def) return Object.values(resolvedParams);
@@ -202,7 +221,6 @@ export function buildArgsFromRegistry(methodId: string, resolvedParams: Record<s
       return { data, sampleRate, channels, format };
     }
     if ('images' in arg) return [resolvedParams[arg.images]];
-    if ('wholePicture' in arg) return [{ image: resolvedParams[arg.wholePicture], box: WHOLE_PICTURE }];
     return resolvedParams[arg.param];
   });
 }

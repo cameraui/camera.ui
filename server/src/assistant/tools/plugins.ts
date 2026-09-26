@@ -5,7 +5,7 @@ import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
 import { PluginsService } from '../../api/services/plugins.service.js';
-import { buildArgsFromRegistry, PLUGIN_METHOD_REGISTRY } from '../../automations/pluginMethodRegistry.js';
+import { PLUGIN_METHOD_REGISTRY, runRegistryMethod } from '../../automations/pluginMethodRegistry.js';
 import { toWav, videoFrames } from '../media.js';
 import { takeSnapshot } from './cameras.js';
 import { toolError, withImages } from './shared.js';
@@ -211,8 +211,8 @@ function resolve(pluginName: string, methodId: string, type: PluginMethodParamTy
 }
 
 async function runOnPicture(target: Target, picture: Picture, textVector?: number[], text?: string): Promise<Record<string, unknown>> {
-  const args = buildArgsFromRegistry(target.def.id, { imageData: picture.data, config: {} });
-  const raw = await PromiseTimeout(target.method(...args), CALL_TIMEOUT_MS, undefined, `${target.def.id} timed out`);
+  const call = runRegistryMethod(target.def, target.proxy, target.plugin.contract, { imageData: picture.data, config: {} });
+  const raw = await PromiseTimeout(call, CALL_TIMEOUT_MS, undefined, `${target.def.id} timed out`);
   const result = compact(raw) as Record<string, unknown>;
   if (textVector) {
     const vectors = ((raw as { embeddings?: { embedding?: number[] }[] })?.embeddings ?? []).map((e) => e.embedding).filter(Array.isArray);
