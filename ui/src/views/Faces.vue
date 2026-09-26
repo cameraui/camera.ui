@@ -412,6 +412,7 @@ import FacesReindexDialog from '@/components/CuiDialog/templates/FacesReindex/Fa
 import FaceUploadDialog from '@/components/CuiDialog/templates/FaceUpload/FaceUpload.vue';
 import { useCardSelection } from '@/composables/useCardSelection.js';
 
+import type { FaceDetailFaceImage } from '@/components/CuiDialog/templates/FaceDetail/types.js';
 import type { FaceProfile, IgnoredFace, UnknownFace } from '@camera.ui/nvr';
 
 const dialog = useCuiDialog();
@@ -514,15 +515,15 @@ async function rescanFaces() {
 }
 
 async function openKnownFaceDetail(face: FaceProfile) {
-  const images = ref<{ id: string; src: string; confidence: number }[]>([]);
+  const images = ref<FaceDetailFaceImage[]>([]);
   try {
     const raw = await faceStore.getFaceImages(face.name);
     images.value = raw
       .map((img) => {
         const src = thumbnailToUrl(img.jpeg);
-        return src ? { id: img.id, src, confidence: img.confidence ?? 0 } : null;
+        return src ? { id: img.id, src, confidence: img.confidence ?? 0, clarity: img.clarity, sameAs: img.sameAs, alsoFiledUnder: img.alsoFiledUnder } : null;
       })
-      .filter(Boolean) as { id: string; src: string; confidence: number }[];
+      .filter(Boolean) as FaceDetailFaceImage[];
   } catch {
     // No images available
   }
@@ -537,7 +538,9 @@ async function openKnownFaceDetail(face: FaceProfile) {
           if (!image) return;
           try {
             await faceStore.removeFaceImage(face.name, image.id);
-            images.value.splice(idx, 1);
+            const at = images.value.findIndex((img) => img.id === image.id);
+            if (at >= 0) images.value.splice(at, 1);
+            releaseSameAs(images.value, image.id);
             toast.add({ severity: 'success', detail: t('views.faces.image_removed'), life: 3000 });
             await faceStore.refresh(true);
           } catch (err) {
@@ -559,6 +562,15 @@ async function openKnownFaceDetail(face: FaceProfile) {
       confirmButtonProps: { severity: 'danger' },
     },
   });
+}
+
+function releaseSameAs(images: FaceDetailFaceImage[], removedId: string) {
+  let original: string | undefined;
+  for (const image of images) {
+    if (image.sameAs !== removedId) continue;
+    image.sameAs = original;
+    original ??= image.id;
+  }
 }
 
 function openReindexDialog(): void {
@@ -590,7 +602,7 @@ function openUploadDialog() {
 async function onAssignCluster(cluster: { faces: UnknownFace[] }, value: string) {
   const faceIds = cluster.faces.map((f) => f.id);
   if (value === '__new__') {
-    promptNewPersonForCluster(faceIds);
+    promptNewPersonForCluster(cluster.faces);
     return;
   }
   try {
@@ -601,12 +613,13 @@ async function onAssignCluster(cluster: { faces: UnknownFace[] }, value: string)
   }
 }
 
-function promptNewPersonForCluster(faceIds: string[]) {
+function promptNewPersonForCluster(faces: UnknownFace[]) {
+  const faceIds = faces.map((f) => f.id);
   dialog.openComponentDialog(FaceNewPersonDialog, {
     data: {
       title: t('views.faces.enter_person_name'),
       confirmText: t('views.faces.enroll'),
-      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name) },
+      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name), faces },
     },
     onConfirm: async (name: string) => {
       try {
@@ -691,7 +704,7 @@ function promptAssignSingle(face: UnknownFace) {
     data: {
       title: t('views.faces.assign'),
       confirmText: t('views.faces.enroll'),
-      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name) },
+      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name), faces: [face] },
     },
     onConfirm: async (name: string) => {
       try {
@@ -706,14 +719,15 @@ function promptAssignSingle(face: UnknownFace) {
 }
 
 function promptAssignSelected() {
-  const faceIds = selectedItems.value.map((face) => face.id);
+  const faces = selectedItems.value;
+  const faceIds = faces.map((face) => face.id);
   if (!faceIds.length) return;
 
   dialog.openComponentDialog(FaceNewPersonDialog, {
     data: {
       title: t('views.faces.assign'),
       confirmText: t('views.faces.enroll'),
-      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name) },
+      contentProps: { knownNames: faceStore.knownFaces.value.map((f) => f.name), faces },
     },
     onConfirm: async (name: string) => {
       bulkBusy.value = true;

@@ -244,6 +244,19 @@
             <span v-else class="tile-empty">–</span>
           </div>
 
+          <div v-if="selected.tick.reads?.length" class="tile">
+            <div class="tile-head">
+              <i-tabler:face-id class="w-3.5 h-3.5" />
+              <span>{{ $t('views.recordings.trace.face_reads') }}</span>
+            </div>
+            <div class="chips">
+              <span v-for="(read, i) in selected.tick.reads" :key="i" class="chip">
+                <span class="chip-dot" :style="{ background: ATTRIBUTE_COLORS.face }" />
+                {{ readText(read) }}
+              </span>
+            </div>
+          </div>
+
           <div class="tile">
             <div class="tile-head">
               <i-tabler:eye class="w-3.5 h-3.5" />
@@ -443,6 +456,14 @@ const findings = computed<TraceFinding[]>(() => {
   }
   for (const attr of tick.attrs ?? []) {
     if (attr.weak) frame(droppedFinding(attr));
+  }
+  for (const read of tick.reads ?? []) {
+    const face = `face${read.parent !== undefined ? ` #${read.parent}` : ''}`;
+    if (read.match && !read.name && !read.single) {
+      frame(t('views.recordings.trace.hint_read_held', { face, name: read.match, votes: read.votes ?? 0, reads: read.reads ?? 0 }));
+    } else if (!read.match && read.closest) {
+      frame(t('views.recordings.trace.hint_read_missed', { face, seen: missText(read) }));
+    }
   }
   for (const e of tick.events) {
     if (e.kind === 'objectEntered' && e.attested) frame(t('views.recordings.trace.hint_witness', { label: e.label, id: e.id }));
@@ -808,6 +829,22 @@ function eventText(e: TraceTick['events'][number]): string {
 function attributeText(attr: NonNullable<TraceTick['attrs']>[number]): string {
   const dropped = attr.weak ? ` · ${t('views.recordings.trace.dropped_label')}` : '';
   return `${attr.type}:${attr.label} ${pct(attr.conf)}${attr.parent !== undefined ? ` (#${attr.parent})` : ''}${dropped}`;
+}
+
+function missText(read: NonNullable<TraceTick['reads']>[number]): string {
+  const closest = { name: read.closest, score: pct(read.closestScore ?? 0) };
+  if (!read.runnerUp) return t('views.recordings.trace.read_closest', closest);
+  return t('views.recordings.trace.read_between', { ...closest, runnerUp: read.runnerUp, runnerUpScore: pct(read.runnerUpScore ?? 0) });
+}
+
+function readText(read: NonNullable<TraceTick['reads']>[number]): string {
+  const face = `face${read.parent !== undefined ? ` #${read.parent}` : ''}`;
+  const seen = read.match ? `${read.match} ${pct(read.score ?? 0)}` : read.closest ? missText(read) : t('views.recordings.trace.read_no_match');
+  let vote = '';
+  if (read.single) vote = t('views.recordings.trace.read_single');
+  else if (read.name) vote = t('views.recordings.trace.read_named', { name: read.name });
+  else if (read.leader) vote = t('views.recordings.trace.read_votes', { name: read.leader, votes: read.votes ?? 0, reads: read.reads ?? 0 });
+  return `${face} · ${seen}${vote ? ` · ${vote}` : ''}`;
 }
 
 function droppedFinding(attr: NonNullable<TraceTick['attrs']>[number]): string {

@@ -15,3 +15,6 @@ export const PROXY_SERVICE_HOST = (() => {
     return '';
   }
 })();
+
+export const FACE_CLARITY_UNCLEAR = 0.7;
+export const FACE_CLARITY_CLEAR = 0.8;
