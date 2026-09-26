@@ -109,6 +109,8 @@ const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const headerToggles = inject<Record<number, boolean>>('dialogHeaderToggles', {});
 const dialogTitle = inject<Ref<string> | undefined>('dialogTitle', undefined);
 
+const similarPanelWidth = `${SIMILAR_PANEL_WIDTH}px`;
+
 const cameraCardRef = useTemplateRef<InstanceType<typeof CuiCameraCard>>('cameraCardRef');
 const cuiTimelineRef = useTemplateRef<InstanceType<typeof CuiTimeline>>('cuiTimelineRef');
 const camera = shallowRef(props.camera);
@@ -118,8 +120,6 @@ const qualityRole = ref<StreamingRole>();
 const isDownloading = ref(false);
 const similarRequest = shallowRef<SimilarSearchRequest | undefined>(props.similarRequest);
 const similarShown = ref<string[]>();
-
-const similarPanelWidth = `${SIMILAR_PANEL_WIDTH}px`;
 
 useDialogSidePanel(() => Boolean(similarRequest.value), SIMILAR_PANEL_WIDTH);
 

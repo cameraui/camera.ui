@@ -50,6 +50,7 @@ const { status, object, load, pickAt, clear } = useFrameSearch(() => ({
   confidences: props.camera.detectionSettings?.object?.confidences,
   faceConfidence: props.camera.detectionSettings?.face?.confidence,
   faceSensitivity: props.camera.detectionSettings?.face?.matchSensitivity,
+  plate: props.camera.detectionSettings?.licensePlate,
 }));
 
 const BAR_SHOWN_MS = 3500;
