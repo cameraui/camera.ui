@@ -66,6 +66,10 @@ export function getValidSensorTypes(): SensorType[] {
   return Object.keys(SENSOR_TYPE_CONFIG) as SensorType[];
 }
 
+export function isKnownSensorType(type: string): type is SensorType {
+  return Object.hasOwn(SENSOR_TYPE_CONFIG, type);
+}
+
 export function getAssignmentKey(type: SensorType): string {
   return SENSOR_TYPE_CONFIG[type].assignmentKey;
 }

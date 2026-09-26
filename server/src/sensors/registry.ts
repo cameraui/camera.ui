@@ -10,6 +10,7 @@ import { NamespaceManager } from '../rpc/namespaces.js';
 import { ServerSensor } from '../sensors/sensor.js';
 import {
   DETECTION_SENSOR_TYPES,
+  isKnownSensorType,
   isVirtualSensorType,
   SENSOR_TYPE_CONFIG,
   VIRTUAL_SENSOR_DEFAULT_CAPABILITIES,
@@ -110,19 +111,7 @@ export class SensorRegistry {
     bus.onEvent('camera:removed', onCameraRemoved);
     this.disposables.push(() => bus.offEvent('camera:removed', onCameraRemoved));
 
-    for (const { key, value } of this.dbs.sensorsDB.getRange()) {
-      const record = value;
-      this.records.set(String(key), record);
-      this.seedPropertyValues(record._id, record.state ?? {});
-
-      if (record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) {
-        this.runtime.set(record._id, { capabilities: this.virtualCapabilities(record.type) });
-        await registerVirtualSensorHost(this, record._id, record.type);
-      }
-
-      this.announceAdded(record);
-    }
-
+    await this.loadRecords();
     await this.sweepOrphanedRecords();
   }
 
@@ -625,6 +614,7 @@ export class SensorRegistry {
   }
 
   private validateContract(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): void {
+    if (!isKnownSensorType(sensor.type)) throw new Error(`Sensor type "${sensor.type}" needs a newer camera.ui`);
     if (pluginId === VIRTUAL_SENSOR_OWNER_ID) return;
 
     const contract = this.getPluginContract(pluginId);
@@ -751,6 +741,25 @@ export class SensorRegistry {
       } catch (error) {
         this.logger.warn(`Failed to re-sync cascade trigger for sensor ${sensorId}:`, error);
       }
+    }
+  }
+
+  private async loadRecords(): Promise<void> {
+    for (const { key, value } of this.dbs.sensorsDB.getRange()) {
+      const record = value;
+      if (!isKnownSensorType(record.type)) {
+        this.logger.warn(`Sensor "${record.displayName ?? record.name}" has the type "${record.type}", which needs a newer camera.ui; it stays saved but inactive`);
+        continue;
+      }
+      this.records.set(String(key), record);
+      this.seedPropertyValues(record._id, record.state ?? {});
+
+      if (record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) {
+        this.runtime.set(record._id, { capabilities: this.virtualCapabilities(record.type) });
+        await registerVirtualSensorHost(this, record._id, record.type);
+      }
+
+      this.announceAdded(record);
     }
   }
 
