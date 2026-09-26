@@ -162,12 +162,12 @@
         />
       </div>
 
-      <template v-if="selectedCameraName && !episodesOnly">
+      <template v-if="selectedCameraId && !episodesOnly">
         <div class="sidebar-divider" />
         <div class="flex flex-col gap-2">
           <label class="sidebar-section-title">{{ $t('views.recordings.grid_search') }}</label>
           <div class="relative rounded-md overflow-hidden">
-            <CuiCameraSnapshot :camera="selectedCameraName" object-fit="cover" />
+            <CuiCameraSnapshot :camera="selectedCameraId" object-fit="cover" />
             <CuiGridSearch :model-value="filters.gridRegions" @update:model-value="updateFilter('gridRegions', $event)" />
           </div>
           <Button
@@ -414,10 +414,9 @@ const cameraOptions = computed(() => {
   return cameras.map((c) => ({ id: c.id, name: c.name }));
 });
 
-const selectedCameraName = computed<string | undefined>(() => {
+const selectedCameraId = computed<string | undefined>(() => {
   if (props.filters.cameraIds.length !== 1) return undefined;
-  const cam = props.cameras.find((c) => c.id === props.filters.cameraIds[0]);
-  return cam?.name;
+  return props.cameras.find((c) => c.id === props.filters.cameraIds[0])?.id;
 });
 
 const episodesOnly = computed(() => props.filters.contentKind === 'episodes');
