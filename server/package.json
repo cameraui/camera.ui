@@ -43,13 +43,13 @@
     "@camera.ui/nats": "^2.15.0",
     "@camera.ui/rpc": "^1.0.12",
     "@camera.ui/rust-detector": "~0.0.12",
-    "@camera.ui/rust-postprocessor": "~0.1.11",
+    "@camera.ui/rust-postprocessor": "~0.1.12",
     "@camera.ui/sdk": "~1.4.0",
     "@camera.ui/tunnel": "^1.0.7",
     "@eneris/push-receiver": "^4.4.0",
     "@fastify/cors": "^11.3.0",
     "@fastify/helmet": "^13.1.1",
-    "@fastify/http-proxy": "^11.6.2",
+    "@fastify/http-proxy": "^11.6.3",
     "@fastify/multipart": "^10.1.2",
     "@fastify/static": "^10.1.5",
     "@fastify/swagger": "^9.9.0",
@@ -92,7 +92,7 @@
     "tsyringe": "^4.10.0",
     "undici": "^8.11.2",
     "werift": "^0.24.4",
-    "ws": "^8.21.3",
+    "ws": "^8.22.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
@@ -127,7 +127,7 @@
     "tail": "^2.2.6",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.70.1",
-    "updates": "^19.0.2",
+    "updates": "^19.0.3",
     "vitest": "^5.0.2"
   },
   "overrides": {
