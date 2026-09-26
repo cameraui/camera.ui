@@ -1,5 +1,5 @@
 <template>
-  <div class="overflow-y-auto p-3" :class="mode === 'drag' ? 'h-full' : ''">
+  <div class="overflow-y-auto p-3" :class="mode === 'drag' ? 'h-full pb-[var(--cui-bottom-gap)]' : 'pb-0'">
     <div v-if="mode === 'drag'" class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
       {{ $t('views.floorplan.palette') }}
     </div>

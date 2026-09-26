@@ -534,7 +534,13 @@ export default {
         const horizontal = this.isHorizontal();
         const contentPos = this.getContentPosition();
         const setProp = (_name, _value, _size, _cpos = 0) =>
-          (this.spacerStyle = { ...this.spacerStyle, ...{ [`${_name}`]: (_value || []).length * _size + _cpos + 'px' } });
+          (this.spacerStyle = {
+            ...this.spacerStyle,
+            ...{
+              [`${_name}`]:
+                _name === 'height' ? `calc(${(_value || []).length * _size + _cpos}px + var(--cui-scroll-end, 0px))` : (_value || []).length * _size + _cpos + 'px',
+            },
+          });
 
         if (both) {
           setProp('height', items, this.itemSize[0], contentPos.y);

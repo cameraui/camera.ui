@@ -9,7 +9,7 @@
         'scale-110': isHovered,
       },
     ]"
-    :style="!grouped ? { bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))` } : undefined"
+    :style="!grouped ? { bottom: bottomPadding } : undefined"
     v-element-hover="[onHover, {}]"
     v-tooltip.left="tooltipProps"
   >
@@ -36,6 +36,14 @@ const { buttonProps, tooltipProps, label, icon, iconProps, grouped, forceVisible
 const isHovered = ref(false);
 
 const { y } = useScroll(window, { throttle: 100 });
+
+const bottomPadding = computed(() => {
+  const isBottomVisible = bottombarHeight.value > 0;
+  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
+  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
+  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
+  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
+});
 
 function onHover(state: boolean) {
   isHovered.value = state;

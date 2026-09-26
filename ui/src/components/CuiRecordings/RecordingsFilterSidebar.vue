@@ -1,14 +1,14 @@
 <template>
   <nav
     ref="sidebarRef"
-    class="recordings-sidebar fixed transition-all duration-200 overflow-x-hidden overflow-y-auto md:!pl-0 pl-safe pb-safe flex flex-col z-4"
+    class="recordings-sidebar fixed transition-all duration-200 overflow-x-hidden overflow-y-auto md:!pl-0 pl-safe flex flex-col z-4"
     :style="{
       width: `${sidebarWidth}px`,
       borderRightWidth: isOpen ? '1px' : '0px',
-      paddingBottom: `calc(var(--safe-area-inset-top) + var(--safe-area-inset-bottom) + ${bottombarHeight}px + ${topbarOffset}px)`,
+      paddingBottom: `calc(var(--safe-area-inset-top) + ${topbarOffset}px + var(--cui-bottom-bar) + var(--cui-bottom-gap))`,
     }"
   >
-    <div class="flex flex-col gap-4 p-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">
+    <div class="flex flex-col gap-4 px-4 pt-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">
       <div class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.content_kind') }}</label>
         <SelectButton
@@ -380,7 +380,7 @@ const props = defineProps<RecordingsFilterSidebarProps>();
 const emit = defineEmits<RecordingsFilterSidebarEmits>();
 
 const { t } = useI18n();
-const { topbarOffset, bottombarHeight } = useSharedCuiStates();
+const { topbarOffset } = useSharedCuiStates();
 const { icons: DETECTION_ICONS, generic: GENERIC_ICON } = resolveEventIcons();
 
 const sensorEventIcons = DETECTION_ICONS;

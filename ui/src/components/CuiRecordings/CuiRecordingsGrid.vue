@@ -144,7 +144,7 @@ watch(
   { flush: 'post' },
 );
 
-defineExpose({ scrollToTop, scrollY });
+defineExpose({ scrollToTop, scrollY, loadingMore });
 </script>
 
 <style scoped>

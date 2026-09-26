@@ -1,7 +1,11 @@
 <template>
   <Drawer v-model:visible="drawer.visible.value" v-bind="drawerProps" :class="mini ? '' : 'border-0 md:border-l-[1px]'">
     <template #container="{ closeCallback }">
-      <div class="cui-assistant-drawer flex h-full w-full flex-col p-safe !pb-0 md:!pl-0 non-draggable-region">
+      <div
+        class="cui-assistant-drawer flex h-full w-full flex-col non-draggable-region"
+        :class="{ 'p-safe !pb-0 md:!pl-0': !mini }"
+        :style="mini ? { '--cui-bottom-gap': '0.75rem' } : undefined"
+      >
         <div class="flex shrink-0 items-center gap-2 border-b border-color px-3 py-2">
           <div class="cui-assistant-drawer-mark flex h-8 w-8 items-center justify-center rounded-lg">
             <i-tabler:sparkles class="w-4.5 h-4.5 text-color" />
@@ -78,7 +82,7 @@
           <Button v-if="isAdmin" class="cui-button-small" :label="$t('views.assistant.open_settings')" @click="openSettings(closeCallback)" />
         </div>
 
-        <div v-else-if="view === 'history'" class="flex flex-1 min-h-0 flex-col pb-safe">
+        <div v-else-if="view === 'history'" class="flex flex-1 min-h-0 flex-col" :class="{ 'pb-safe': !mini }">
           <div v-if="threadsLoading" class="flex items-center justify-center py-8">
             <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
           </div>
@@ -236,8 +240,8 @@ onMounted(async () => {
 .cui-assistant-drawer-mini {
   align-self: flex-end;
   width: 400px !important;
-  height: min(640px, calc(100vh - 2rem)) !important;
-  margin: 0 1rem 1rem 0;
+  height: min(640px, calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))) !important;
+  margin: 0 max(1rem, var(--safe-area-inset-right)) max(1rem, var(--safe-area-inset-bottom)) 0;
   border-radius: 16px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-lg);

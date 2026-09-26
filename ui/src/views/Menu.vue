@@ -23,7 +23,7 @@
       </CuiList>
     </section>
 
-    <section class="px-4 mb-4">
+    <section class="px-4">
       <span class="card-title">{{ $t('views.menu.section_actions') }}</span>
       <CuiList size="large" dividers>
         <CuiListItem to="/about">

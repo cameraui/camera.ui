@@ -2,7 +2,7 @@
   <div>
     <template v-for="section in sections" :key="section.key">
       <span class="card-title">{{ $t(`views.settings.section_${section.key}`) }}</span>
-      <CuiList size="large" dividers class="!h-auto mb-4">
+      <CuiList size="large" dividers class="!h-auto mb-4 last:mb-0">
         <CuiListItem v-for="item in section.items" :key="item.to" :to="item.to">
           <template #prepend>
             <component :is="item.icon" class="w-5 h-5 text-muted" />

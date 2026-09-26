@@ -78,7 +78,7 @@
           </div>
         </div>
 
-        <div v-if="!smBreakpoint && state === 'ready'" class="fixed right-0 z-10 h-[calc(40px+1rem)] py-2 pr-2 flex items-center">
+        <div v-if="!smBreakpoint && state === 'ready'" class="fixed right-0 z-10 h-[calc(40px+1rem)] py-2 pr-safe-offset-2 flex items-center">
           <Button
             v-tooltip.bottom="{ value: $t('views.assistant.new_conversation') }"
             severity="secondary"

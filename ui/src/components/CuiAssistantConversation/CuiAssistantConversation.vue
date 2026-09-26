@@ -151,7 +151,7 @@
       </div>
     </div>
 
-    <div v-if="!welcome" ref="bottomRef" class="relative px-4 pb-3 pt-6">
+    <div v-if="!welcome" ref="bottomRef" class="relative px-4 pt-6 pb-[var(--cui-bottom-gap,max(8px,var(--safe-area-inset-bottom)))]">
       <div class="mx-auto w-full max-w-[720px]">
         <div v-if="chat.queue.value.length" class="mb-2 flex flex-col gap-1">
           <div v-for="item in chat.queue.value" :key="item.id" class="cui-assistant-queued flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] text-muted">

@@ -24,8 +24,7 @@ interface RouteMetaUi {
     paddingRight?: ComputedRef<boolean> | boolean;
     fullwidth?: ComputedRef<boolean> | boolean;
     disableScroll?: ComputedRef<boolean> | boolean;
-    ignoreSafeAreaBottom?: ComputedRef<boolean> | boolean;
-    noExtraPadding?: ComputedRef<boolean> | boolean;
+    flushBottom?: ComputedRef<boolean> | boolean;
     allowOverflowX?: ComputedRef<boolean> | boolean;
   };
 }

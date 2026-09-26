@@ -47,45 +47,35 @@
             </span>
           </div>
 
-          <div v-if="faceStore.knownFaces.value.length" class="relative">
-            <div ref="knownRowRef" class="flex gap-3 p-px overflow-x-auto overscroll-x-contain hide-scrollbar" @scroll="measureKnownRow">
-              <CuiFaceCard
-                v-for="face in faceStore.knownFaces.value"
-                :key="face.name"
-                class="shrink-0"
-                :style="{ width: `${KNOWN_CARD_WIDTH}px` }"
-                variant="known"
-                :thumbnail="thumbnailToUrl(face.thumbnail)"
-                :name="face.name"
-                :image-count="face.imageCount"
-                @click="openKnownFaceDetail(face)"
-              />
+          <div v-if="faceStore.knownFaces.value.length" ref="knownContainerRef" class="relative min-w-0">
+            <div ref="knownRowRef" class="overflow-x-auto overflow-y-hidden overscroll-x-contain hide-scrollbar" :style="knownBleedStyle">
+              <div class="flex w-max gap-3 p-px">
+                <CuiFaceCard
+                  v-for="face in faceStore.knownFaces.value"
+                  :key="face.name"
+                  class="shrink-0"
+                  :style="{ width: `${KNOWN_CARD_WIDTH}px` }"
+                  variant="known"
+                  :thumbnail="thumbnailToUrl(face.thumbnail)"
+                  :name="face.name"
+                  :image-count="face.imageCount"
+                  @click="!knownSwiping && openKnownFaceDetail(face)"
+                />
+              </div>
             </div>
+
+            <div v-if="!knownAtStart && knownBleedLeft > 0" class="absolute pointer-events-none z-1" :style="knownFadeStyle" />
 
             <Transition name="fade-2">
               <Button
-                v-if="canScrollKnownLeft"
+                v-if="!knownAtStart"
                 rounded
                 severity="secondary"
                 class="absolute left-1 top-1/2 -translate-y-1/2 cui-icon-md shadow-md z-2 opacity-70 hover:opacity-100 transition-opacity"
-                @click="scrollKnownRow(-1)"
+                @click="scrollKnownToStart"
               >
                 <template #icon>
                   <i-tabler:chevron-left width="100%" height="100%" />
-                </template>
-              </Button>
-            </Transition>
-
-            <Transition name="fade-2">
-              <Button
-                v-if="canScrollKnownRight"
-                rounded
-                severity="secondary"
-                class="absolute right-1 top-1/2 -translate-y-1/2 cui-icon-md shadow-md z-2 opacity-70 hover:opacity-100 transition-opacity"
-                @click="scrollKnownRow(1)"
-              >
-                <template #icon>
-                  <i-tabler:chevron-right width="100%" height="100%" />
                 </template>
               </Button>
             </Transition>
@@ -94,7 +84,7 @@
           <div v-else class="text-muted text-sm">{{ $t('views.faces.no_known_faces') }}</div>
         </section>
 
-        <section class="mb-6 p-px">
+        <section class="p-px">
           <div class="flex items-center justify-between mb-3">
             <span class="flex items-center gap-2">
               <span class="card-title m-0!">{{ $t('views.faces.unknown_faces') }}</span>
@@ -293,7 +283,7 @@
       :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
       :style="{
         left: `calc(${reindexAnchorLeft}px + 0.75rem)`,
-        bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+        bottom: bottomPadding,
         transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
       }"
     >
@@ -438,7 +428,17 @@ const KNOWN_CARD_WIDTH = 160;
 const KNOWN_CARD_GAP = 12;
 
 const knownSkeletonRef = useTemplateRef<HTMLElement>('knownSkeletonRef');
+const knownContainerRef = useTemplateRef<HTMLElement>('knownContainerRef');
 const knownRowRef = useTemplateRef<HTMLElement>('knownRowRef');
+
+const {
+  bleedLeft: knownBleedLeft,
+  bleedStyle: knownBleedStyle,
+  fadeStyle: knownFadeStyle,
+  isAtStart: knownAtStart,
+  isSwiping: knownSwiping,
+  scrollToStart: scrollKnownToStart,
+} = useBleedScroll(knownContainerRef, knownRowRef);
 const reindexAnchorRef = useTemplateRef<HTMLElement>('reindexAnchorRef');
 const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
 const rescanning = ref(false);
@@ -447,8 +447,6 @@ const layoutReady = ref(false);
 const { status: reindexStatus, checking: reindexChecking } = useFacesReindex();
 const { y: windowScrollY } = useScroll(window, { throttle: 100 });
 const reindexScrollHidden = useScrollHide(() => windowScrollY.value);
-
-const knownRowScroll = reactive({ left: 0, max: 0 });
 
 const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
 
@@ -472,24 +470,13 @@ const knownSkeletonCount = computed(() => {
   return Math.floor((containerWidth + KNOWN_CARD_GAP) / (KNOWN_CARD_WIDTH + KNOWN_CARD_GAP)) || 4;
 });
 
-const canScrollKnownLeft = computed(() => knownRowScroll.left > 4);
-const canScrollKnownRight = computed(() => knownRowScroll.left < knownRowScroll.max - 4);
-
-function measureKnownRow(): void {
-  const row = knownRowRef.value;
-  if (!row) return;
-
-  knownRowScroll.left = row.scrollLeft;
-  knownRowScroll.max = row.scrollWidth - row.clientWidth;
-}
-
-function scrollKnownRow(direction: 1 | -1): void {
-  const row = knownRowRef.value;
-  if (!row) return;
-
-  const step = KNOWN_CARD_WIDTH + KNOWN_CARD_GAP;
-  row.scrollBy({ left: direction * Math.max(row.clientWidth - step, step), behavior: 'smooth' });
-}
+const bottomPadding = computed(() => {
+  const isBottomVisible = bottombarHeight.value > 0;
+  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
+  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
+  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
+  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
+});
 
 function groupSelectionState(faces: UnknownFace[]): 'none' | 'some' | 'all' {
   let count = 0;
@@ -781,13 +768,6 @@ async function clearUngrouped() {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   }
 }
-
-watch(
-  () => faceStore.knownFaces.value.length,
-  () => nextTick(measureKnownRow),
-);
-
-useResizeObserver(knownRowRef, measureKnownRow);
 
 onMounted(() => {
   requestAnimationFrame(() => {

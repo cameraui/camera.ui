@@ -23,8 +23,7 @@ export function useRouteMeta() {
     showTitle: computed(() => Boolean(toValue(ui.value?.containerSettings?.showTitle))),
     fullwidth: computed(() => Boolean(toValue(ui.value?.containerSettings?.fullwidth))),
     disableScroll: computed(() => Boolean(toValue(ui.value?.containerSettings?.disableScroll))),
-    ignoreSafeAreaBottom: computed(() => Boolean(toValue(ui.value?.containerSettings?.ignoreSafeAreaBottom))),
-    noExtraPadding: computed(() => Boolean(toValue(ui.value?.containerSettings?.noExtraPadding))),
+    flushBottom: computed(() => Boolean(toValue(ui.value?.containerSettings?.flushBottom))),
     allowOverflowX: computed(() => Boolean(toValue(ui.value?.containerSettings?.allowOverflowX))),
   };
 }

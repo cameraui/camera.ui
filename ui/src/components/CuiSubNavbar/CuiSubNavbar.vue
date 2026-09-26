@@ -1,11 +1,11 @@
 <template>
   <nav
     ref="subnavbarRef"
-    class="cui-subnavbar fixed transition-all duration-200 overflow-x-hidden overflow-y-scroll md:!pl-0 pl-safe pb-safe w-full h-full flex flex-col"
+    class="cui-subnavbar fixed transition-all duration-200 overflow-x-hidden overflow-y-scroll md:!pl-0 pl-safe w-full h-full flex flex-col"
     :style="{
       width: `${subnavbarWidth}px`,
       borderRightWidth: subnavbarState === 'opened' ? '1px' : '0px',
-      paddingBottom: `calc(var(--safe-area-inset-top) + var(--safe-area-inset-bottom) + ${bottombarHeight}px + ${topbarOffset}px)`,
+      paddingBottom: `calc(var(--safe-area-inset-top) + ${topbarOffset}px + var(--cui-bottom-bar) + var(--cui-bottom-gap))`,
     }"
   >
     <template v-for="section in navSections" :key="section.key">
@@ -43,7 +43,7 @@ import type { SubNavbarState } from './types.js';
 const router = useRouter();
 const { bus } = useCuiBus();
 const { xlBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
-const { bottombarHeight, subbarState: subState, navbarState, topbarOffset } = useSharedCuiStates();
+const { subbarState: subState, navbarState, topbarOffset } = useSharedCuiStates();
 
 const subnavbarRef = useTemplateRef('subnavbarRef');
 const state = ref<SubNavbarState>('closed');

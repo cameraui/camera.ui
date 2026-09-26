@@ -7,7 +7,7 @@
     <CuiLoadingScreen reload :text="switchingText" />
   </div>
 
-  <div class="app" v-else>
+  <div class="app" v-else :style="bottomVars">
     <CuiToast />
 
     <ConfirmPopup />
@@ -20,7 +20,7 @@
 
     <CuiTopbar v-if="showTopbar" ref="topbarRef" class="z-2 top-0" :offset-left="mdBreakpoint ? 0 : navbarTargetWidth" :animate="layoutReady" />
 
-    <CuiBottombar v-if="showBottombar" ref="bottombarRef" class="z-2" />
+    <CuiBottombar v-if="showBottombar" class="z-2" />
 
     <CuiNavbar v-if="showNavbar" ref="navbarRef" class="z-3 top-0 left-0" />
 
@@ -32,7 +32,7 @@
         paddingTop: topbarRef ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)',
         paddingLeft: navbarPaddingLeft,
         paddingRight: 'var(--safe-area-inset-right)',
-        paddingBottom: `max(${bottombarRef ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)'}, var(--keyboard-inset, 0px))`,
+        paddingBottom: 'var(--cui-bottom-bar)',
       }"
     >
       <div
@@ -40,12 +40,11 @@
         :class="{
           'p-2': routeMeta.padding.value,
           'pt-0': routeMeta.paddingTop.value === false,
-          'pb-0': routeMeta.paddingBottom.value === false && !bottombarRef,
-          'pb-4': (routeMeta.paddingBottom.value || bottombarRef) && !routeMeta.disableScroll,
           'pl-0': routeMeta.paddingLeft.value === false,
           'pr-0': routeMeta.paddingRight.value === false,
         }"
         :style="{
+          paddingBottom: containerPaddingBottom,
           minHeight: containerHeight,
           maxHeight: routeMeta.disableScroll.value ? containerHeight : undefined,
           height: routeMeta.disableScroll.value ? containerHeight : undefined,
@@ -96,6 +95,7 @@
 
 <script setup lang="ts">
 import { clearPendingIntent, readPendingIntent } from '@/common/pushIntent';
+import { BOTTOMBAR_SIZE } from '@/components/CuiBottombar/types.js';
 import { NAVBAR_SIZE } from '@/components/CuiNavbar/types.js';
 import { getConnection, isCapacitor, isConnectionBooted } from '@/connection/index.js';
 
@@ -128,12 +128,10 @@ const PENDING_INTENT_WAIT_MS = 60_000;
 
 const navbarRef = useTemplateRef<HTMLElement>('navbarRef');
 const topbarRef = useTemplateRef<HTMLElement>('topbarRef');
-const bottombarRef = useTemplateRef<HTMLElement>('bottombarRef');
 const loading = ref(true);
 const layoutReady = ref(false);
 
 const topbar = useElementSize(topbarRef, { width: 0, height: 0 }, { box: 'border-box' });
-const bottombar = useElementSize(bottombarRef, { width: 0, height: 0 }, { box: 'border-box' });
 
 const navbarTargetWidth = computed(() => {
   if (navbarState.value === 'closed' || navbarState.value === 'minified') {
@@ -164,10 +162,17 @@ const appBG = computed(() => {
 
 const containerHeight = computed(() => {
   const top = topbarRef.value ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)';
-  const bottom = bottombarRef.value ? `${bottombar.height.value}px` : routeMeta.ignoreSafeAreaBottom.value ? '0px' : 'var(--safe-area-inset-bottom)';
-  const extraPadding = bottombarRef.value || !routeMeta.disableScroll.value || routeMeta.noExtraPadding.value ? '0px' : '8px';
-  return `calc(100dvh - ${top} - max(${bottom}, var(--keyboard-inset, 0px)) - ${extraPadding})`;
+  return `calc(100dvh - ${top} - var(--cui-bottom-bar))`;
 });
+
+const bottomVars = computed(() => ({
+  '--cui-bottom-bar': showBottombar.value
+    ? `max(calc(${BOTTOMBAR_SIZE.HEIGHT}px + var(--safe-area-inset-bottom)), var(--keyboard-inset, 0px))`
+    : 'var(--keyboard-inset, 0px)',
+  '--cui-bottom-gap': showBottombar.value ? '8px' : 'max(8px, calc(var(--safe-area-inset-bottom) - var(--keyboard-inset, 0px)))',
+}));
+
+const containerPaddingBottom = computed(() => (routeMeta.paddingBottom.value === false || routeMeta.flushBottom.value ? '0px' : 'var(--cui-bottom-gap)'));
 
 const showLoadingScreen = computed(() => {
   return (route.meta.auth?.requiresAuth && !isLoggedIn.value) || loading.value || instanceStore.isSwitching;

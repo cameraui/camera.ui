@@ -192,7 +192,7 @@
           :md-breakpoint="mdBreakpoint"
           class="shrink-0 transition-[left] duration-200"
           :class="{
-            'h-full w-[400px] pt-2 pr-2': lgBreakpoint,
+            'h-full w-[400px] pt-2 pr-2 pb-[var(--cui-bottom-gap)]': lgBreakpoint,
             'h-[200px] pt-2 px-2 pb-2 pb-safe-offset fixed right-safe-offset-0 z-10': !lgBreakpoint,
             'p-0! pt-2! border-color': smBreakpoint,
           }"
@@ -200,7 +200,11 @@
             '!shadow-xl': true,
             '!rounded-none border-l-0! border-r-0!': smBreakpoint,
           }"
-          :style="!lgBreakpoint ? { left: `${navbarOffset}px`, bottom: `calc(${bottombarHeight}px + var(--safe-area-inset-bottom))` } : undefined"
+          :style="
+            !lgBreakpoint
+              ? { left: `calc(${navbarOffset}px + var(--safe-area-inset-left))`, bottom: 'calc(var(--cui-bottom-bar) + var(--cui-bottom-gap) - 0.5rem)' }
+              : undefined
+          "
           :locale-settings="timelineLocaleSettings"
         />
       </Transition>
@@ -215,7 +219,7 @@
       class="absolute right-2 z-11 dark-mode"
       :pt="{ root: { style: 'pointer-events: none' } }"
       :style="{
-        bottom: !lgBreakpoint ? `calc(${timelineSpaceOccupied ? 192 : 0}px + ${bottombarHeight > 0 ? `0.5rem` : '0px'})` : '0',
+        bottom: speedDialBottom,
         right: !lgBreakpoint ? '0.5rem' : `calc(${timelineSpaceOccupied ? 400 : 0}px + 0.5rem)`,
         transition: 'bottom 0.25s ease-out, right 0.25s ease-out',
       }"
@@ -400,6 +404,8 @@ const cameraCardModels = reactive<CuiCameraCardModels>({
   streamingMode: streamingMode.value,
 });
 
+const timelineClearance = 'calc(192px + var(--cui-bottom-gap))';
+
 const isLoading = computed(() => camerasLoading.value || viewsLoading.value || removeViewPending.value || addViewPending.value || patchViewPending.value);
 const viewPending = computed(
   () => (camerasLoading.value && !cameras.value) || (viewsLoading.value && !views.value) || removeViewPending.value || addViewPending.value || patchViewPending.value,
@@ -443,6 +449,14 @@ const cameraCardProps = computed<Partial<CuiCameraCardProps>>(() => ({
   },
 }));
 
+const gridEndGap = computed(() => (bottombarHeight.value > 0 ? '4px' : 'var(--cui-bottom-gap)'));
+
+const speedDialBottom = computed(() => {
+  if (lgBreakpoint.value) return 'var(--cui-bottom-gap)';
+  if (timelineSpaceOccupied.value) return timelineClearance;
+  return bottombarHeight.value > 0 ? '0.5rem' : 'var(--cui-bottom-gap)';
+});
+
 const contentContainerStyle = computed<HTMLAttributes['style']>(() => {
   if (!views.value?.result.length) {
     return {
@@ -454,12 +468,13 @@ const contentContainerStyle = computed<HTMLAttributes['style']>(() => {
     return {
       width: timelineSpaceOccupied.value ? 'calc(100% - 400px)' : '100%',
       height: '100%',
+      paddingBottom: gridEndGap.value,
       overflowY: 'scroll',
     };
   } else {
     return {
       height: '100%',
-      paddingBottom: timelineSpaceOccupied.value ? (bottombarHeight.value > 0 ? '200px' : '192px') : '0px',
+      paddingBottom: timelineSpaceOccupied.value ? timelineClearance : gridEndGap.value,
       overflowY: 'scroll',
     };
   }

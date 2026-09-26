@@ -1,10 +1,16 @@
 <template>
-  <div class="overflow-y-auto p-3" :class="mode === 'drag' ? 'h-full' : ''">
+  <div class="overflow-y-auto p-3" :class="mode === 'drag' ? 'h-full pb-[var(--cui-bottom-gap)]' : 'pb-0'">
     <div v-if="mode === 'drag'" class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
       {{ t('views.automation.node_palette') }}
     </div>
 
-    <div v-for="category in categories" :key="category.key" class="mb-4">
+    <div
+      v-for="(category, index) in categories"
+      :key="category.key"
+      :class="{
+        'mb-4': index !== categories.length - 1,
+      }"
+    >
       <div class="text-xs font-medium text-muted mb-2">
         {{ t(category.labelKey) }}
       </div>

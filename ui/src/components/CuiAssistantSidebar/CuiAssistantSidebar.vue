@@ -1,11 +1,11 @@
 <template>
   <nav
     ref="sidebarRef"
-    class="cui-assistant-sidebar fixed transition-all duration-200 overflow-hidden md:!pl-0 pl-safe pb-safe flex flex-col z-4"
+    class="cui-assistant-sidebar fixed transition-all duration-200 overflow-hidden md:!pl-0 pl-safe flex flex-col z-4"
     :style="{
       width: `${sidebarWidth}px`,
       borderRightWidth: isOpen ? '1px' : '0px',
-      paddingBottom: `calc(var(--safe-area-inset-top) + var(--safe-area-inset-bottom) + ${bottombarHeight}px + ${topbarOffset}px)`,
+      paddingBottom: `calc(var(--safe-area-inset-top) + ${topbarOffset}px + var(--cui-bottom-bar) + var(--cui-bottom-gap))`,
     }"
   >
     <div class="flex h-full min-h-0 flex-col" :style="{ width: `${ASSISTANT_SIDEBAR_WIDTH}px` }">
@@ -79,7 +79,7 @@
         </template>
       </div>
 
-      <div v-if="threads.length" class="cui-assistant-sidebar-foot px-3 py-2">
+      <div v-if="threads.length" class="cui-assistant-sidebar-foot px-3 pt-2">
         <Button type="button" severity="danger" text class="cui-button-small w-full" :label="$t('views.assistant.delete_all_conversations')" @click="emit('deleteAll')" />
       </div>
     </div>
@@ -100,7 +100,7 @@ const props = withDefaults(defineProps<CuiAssistantSidebarProps>(), {
 });
 const emit = defineEmits<CuiAssistantSidebarEmits>();
 
-const { topbarOffset, bottombarHeight } = useSharedCuiStates();
+const { topbarOffset } = useSharedCuiStates();
 
 const sidebarRef = useTemplateRef<HTMLElement>('sidebarRef');
 const search = ref('');

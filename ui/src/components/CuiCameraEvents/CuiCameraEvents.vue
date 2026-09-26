@@ -3,7 +3,7 @@
     <div
       ref="scrollContainerRef"
       class="absolute top-0 overflow-x-auto overflow-y-hidden hide-scrollbar overscroll-x-contain"
-      :style="bleedAbsStyle"
+      :style="bleedStyle"
       :class="{
         'overflow-x-hidden!': displayEvents.length === 0 && (isLoading || needsMoreEvents || noEvents),
       }"
@@ -43,7 +43,7 @@
       }}</span>
     </div>
 
-    <div v-if="!isAtStart && bleedOffsets.left > 0" class="absolute pointer-events-none z-1" :style="eventsStyle" />
+    <div v-if="!isAtStart && bleedLeft > 0" class="absolute pointer-events-none z-1" :style="fadeStyle" />
 
     <Transition name="fade-2">
       <Button
@@ -70,8 +70,6 @@ import type { CuiCameraEventsProps } from './types.js';
 
 const props = defineProps<CuiCameraEventsProps>();
 
-const { isTouch } = useSharedCuiUserAgent();
-
 // Provide shared hover preview instance (hover on desktop, long-press on touch)
 if (typeof VideoDecoder !== 'undefined') {
   const hoverPreview = useEventHoverPreview({ cacheSize: 20 });
@@ -87,12 +85,10 @@ let previousFirstId: string | undefined;
 const { cameras } = toRefs(props);
 const containerRef = useTemplateRef('containerRef');
 const scrollContainerRef = useTemplateRef('scrollContainerRef');
-const isAtStart = ref(true);
-const isSwiping = ref(false);
-const bleedOffsets = ref({ left: 0, right: 0 });
-const scrollLeft = ref(0);
 
-const { width: containerWidth } = useElementSize(containerRef);
+const { containerWidth, bleedLeft, bleedStyle, fadeStyle, scrollLeft, isAtStart, isSwiping, scrollToStart } = useBleedScroll(containerRef, scrollContainerRef, {
+  disabled: () => displayEvents.value.length === 0 && (isLoading.value || needsMoreEvents.value || noEvents.value),
+});
 
 const cameraMap = computed(() => {
   const map = new Map<string, string>();
@@ -139,42 +135,11 @@ const {
   enabled: () => !props.pending,
 });
 
-const { start: startSwipeReset } = useTimeoutFn(
-  () => {
-    isSwiping.value = false;
-  },
-  100,
-  { immediate: false },
-);
-
 const displayEvents = computed(() => segmentItems.value);
 const visibleCardCount = computed(() => Math.ceil((containerWidth.value || 800) / EVENT_CARD_WIDTH));
 const needsMoreEvents = computed(() => displayEvents.value.length < visibleCardCount.value && hasMore.value);
 const noEvents = computed(() => !isLoading.value && displayEvents.value.length === 0 && !hasMore.value);
 const skeletonCount = computed(() => (displayEvents.value.length === 0 ? 15 : 5));
-
-const bleedAbsStyle = computed(() => {
-  const { left } = bleedOffsets.value;
-  return {
-    left: `${-left}px`,
-    width: '100dvw',
-    paddingLeft: `${left}px`,
-  };
-});
-
-const eventsStyle = computed(() => {
-  const totalWidth = bleedOffsets.value.left + 50;
-  const stop1 = Math.min(Math.round((45 / totalWidth) * 100), 100);
-  const stop2 = Math.min(Math.round((58 / totalWidth) * 100), 100);
-  return {
-    top: '-10px',
-    height: 'calc(100% + 20px)',
-    left: `${-bleedOffsets.value.left}px`,
-    width: `${totalWidth}px`,
-    // eslint-disable-next-line @stylistic/max-len
-    background: `linear-gradient(270deg, transparent 0%, rgba(var(--ground-background-val), 0.8) ${stop1}%, rgba(var(--ground-background-val), 0.9) ${stop2}%, rgba(var(--ground-background-val), 0.95) 100%)`,
-  };
-});
 
 const renderStart = computed(() => Math.max(0, Math.floor(scrollLeft.value / EVENT_CARD_WIDTH) - BUFFER));
 
@@ -187,71 +152,11 @@ const visibleEvents = computed(() => displayEvents.value.slice(renderStart.value
 
 const renderOffset = computed(() => renderStart.value * EVENT_CARD_WIDTH);
 
-function updateBleed(): void {
-  const el = containerRef.value;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  bleedOffsets.value = { left: rect.left, right: window.innerWidth - rect.right };
-}
-
-function scrollToStart(): void {
-  const container = scrollContainerRef.value;
-  if (!container) return;
-  scrollLeft.value = 0;
-  nextTick(() => {
-    container.scrollTo({ left: 0, behavior: 'smooth' });
-  });
-}
-
-function updateScrollPosition(): void {
-  const container = scrollContainerRef.value;
-  if (!container) return;
-  scrollLeft.value = container.scrollLeft;
-  isAtStart.value = container.scrollLeft < 5;
-}
-
-function setupSwipe(): void {
-  usePointerSwipe(scrollContainerRef, {
-    disableTextSelect: true,
-    threshold: 10,
-    onSwipe: (e: PointerEvent) => {
-      if (displayEvents.value.length === 0 && (isLoading.value || needsMoreEvents.value || noEvents.value)) return;
-      isSwiping.value = true;
-      scrollContainerRef.value?.classList.add('cursor-grabbing');
-      scrollContainerRef.value?.scrollBy({ left: -e.movementX, behavior: 'smooth' });
-    },
-    onSwipeEnd: () => {
-      scrollContainerRef.value?.classList.remove('cursor-grabbing');
-      startSwipeReset();
-    },
-  });
-}
-
-useEventListener(window, 'resize', updateBleed);
-useEventListener(scrollContainerRef, 'scroll', updateScrollPosition, { passive: true });
-
-// Mouse wheel → horizontal scroll
-useEventListener(
-  scrollContainerRef,
-  'wheel',
-  (e: WheelEvent) => {
-    if (displayEvents.value.length === 0 && (isLoading.value || needsMoreEvents.value || noEvents.value)) return;
-
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      e.preventDefault();
-      scrollContainerRef.value?.scrollBy({ left: e.deltaY });
-    }
-  },
-  { passive: false },
-);
-
 useInfiniteScroll(scrollContainerRef, loadMore, {
   distance: 300,
   direction: 'right',
   canLoadMore: () => hasMore.value,
 });
-
-watch(containerWidth, () => updateBleed());
 
 watch(
   () => displayEvents.value[0]?.key,
@@ -282,17 +187,6 @@ watch(
 watch([needsMoreEvents, () => isLoading.value], ([needsMore, loading]) => {
   if (needsMore && !loading) {
     loadMore();
-  }
-});
-
-onMounted(() => {
-  updateBleed();
-  const mainEl = document.getElementById('container');
-  if (mainEl) {
-    useEventListener(mainEl, 'transitionend', updateBleed);
-  }
-  if (!isTouch.value) {
-    setupSwipe();
   }
 });
 </script>

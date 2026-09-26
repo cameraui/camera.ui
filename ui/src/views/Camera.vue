@@ -114,10 +114,10 @@
           'min-w-[300px]': smBreakpoint,
           'min-w-[400px]': !smBreakpoint,
           'border-t-[1px] border-color': smBreakpoint,
-          'lg:fixed lg:right-safe-offset-2 lg:bottom-safe-offset-2': !smBreakpoint && !xmdBreakpoint,
+          'lg:fixed lg:right-safe-offset-2 lg:bottom-[var(--cui-bottom-gap)]': !smBreakpoint && !xmdBreakpoint,
         }"
         :style="{
-          height: `calc(100% - ${topbarOffset}px - 1rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))`,
+          height: `calc(100% - ${topbarOffset}px - var(--safe-area-inset-top) - 0.5rem - var(--cui-bottom-gap))`,
         }"
       />
     </div>

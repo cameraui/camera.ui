@@ -286,6 +286,7 @@
     "useBackupRestore": true,
     "useBase64": true,
     "useBattery": true,
+    "useBleedScroll": true,
     "useBluetooth": true,
     "useBreakpoints": true,
     "useBroadcastChannel": true,

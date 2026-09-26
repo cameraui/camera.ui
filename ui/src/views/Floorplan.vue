@@ -120,6 +120,7 @@
         :read-only="!isAdmin"
         :north="north"
         class="flex-1 min-w-0"
+        :class="{ 'mb-[var(--cui-bottom-gap)] h-auto!': !smBreakpoint }"
         @select="selection = $event"
         @history="pushHistory()"
         @create-connection="onCreateConnection"

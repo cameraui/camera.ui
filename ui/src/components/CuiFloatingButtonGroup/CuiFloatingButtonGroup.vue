@@ -9,7 +9,7 @@
       'scale-100 opacity-100': forceVisible || !hidden,
     }"
     :style="{
-      bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+      bottom: bottomPadding,
       right: right || undefined,
     }"
   >
@@ -30,6 +30,14 @@ const { direction, forceVisible } = toRefs(props);
 
 const { y: windowY } = useScroll(window, { throttle: 100 });
 const hidden = useScrollHide(() => props.scrollY ?? windowY.value);
+
+const bottomPadding = computed(() => {
+  const isBottomVisible = bottombarHeight.value > 0;
+  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
+  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
+  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
+  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
+});
 </script>
 
 <style scoped></style>

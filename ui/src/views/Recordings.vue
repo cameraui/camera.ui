@@ -86,7 +86,7 @@
           </div>
         </div>
 
-        <div v-if="!smBreakpoint" class="fixed right-0 z-10 h-[calc(40px+1rem)] py-2 pr-2 flex items-center">
+        <div v-if="!smBreakpoint" class="fixed right-0 z-10 h-[calc(40px+1rem)] py-2 pr-safe-offset-2 flex items-center">
           <Button
             v-tooltip.bottom="{ value: $t('views.recordings.view_options') }"
             severity="secondary"
@@ -129,6 +129,7 @@
             :load-more="loadMore"
             :item-key="(item: UngroupedItem) => item.key"
             class="flex-1 min-h-0"
+            :style="{ '--cui-scroll-end': 'calc(var(--cui-bottom-gap) - 8px)' }"
           >
             <template #item="{ item }">
               <EpisodeCard v-if="item.episode" :episode="item.episode" :camera-by-id="cameraById" fluid :click-disabled="selectionMode" />
@@ -165,7 +166,7 @@
             </template>
           </CuiRecordingsGrid>
 
-          <div v-if="(listLoading && gridItems.length) || semanticSearching" class="flex justify-center py-4">
+          <div v-if="(listLoading && gridItems.length && !gridRef?.loadingMore) || semanticSearching" class="flex justify-center py-4">
             <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
           </div>
 
@@ -189,8 +190,8 @@
       class="fixed z-10"
       :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
       :style="{
-        left: `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem + var(--safe-area-inset-left))`,
-        bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+        left: reindexHidden ? `calc(${mainPaddingLeft} + 0.75rem + var(--safe-area-inset-left))` : `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem)`,
+        bottom: bottomPadding,
         transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
       }"
     >
@@ -387,7 +388,7 @@ const TIME_RANGE_MS: Record<string, number> = {
   '1m': 30 * 24 * 60 * 60 * 1000,
 };
 
-const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number }>('gridRef');
+const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number; loadingMore: boolean }>('gridRef');
 const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
 const reindexAnchorRef = useTemplateRef<HTMLElement>('reindexAnchorRef');
 const serverFilter = shallowRef<GetEventsOptions>({ hasDetections: true, withRecordingInfo: true, hasRecording: true });
@@ -406,6 +407,14 @@ let ungroupedTouched = false;
 let _prevFilterJSON = JSON.stringify(serverFilter.value);
 
 const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
+
+const bottomPadding = computed(() => {
+  const isBottomVisible = bottombarHeight.value > 0;
+  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
+  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
+  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
+  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
+});
 
 const sidebarOpen = computed(() => {
   if (xlBreakpoint.value) return true;

@@ -31,7 +31,15 @@
       <div class="flex flex-1 min-h-0">
         <CuiAutomationNodePalette v-if="!smBreakpoint" class="w-[240px] shrink-0" />
 
-        <CuiAutomationCanvas ref="canvasRef" :flow="draft" :mobile="smBreakpoint" class="flex-1 min-w-0" @node-select="onNodeSelect" @change="onCanvasChange" />
+        <CuiAutomationCanvas
+          ref="canvasRef"
+          :flow="draft"
+          :mobile="smBreakpoint"
+          class="flex-1 min-w-0"
+          :class="{ 'mb-[var(--cui-bottom-gap)] h-auto!': !smBreakpoint }"
+          @node-select="onNodeSelect"
+          @change="onCanvasChange"
+        />
 
         <div v-if="!smBreakpoint" class="shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out" :style="{ width: selectedNode ? '300px' : '0px' }">
           <CuiAutomationNodeConfig

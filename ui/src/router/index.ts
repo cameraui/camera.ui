@@ -235,6 +235,7 @@ export const routes: RouteRecordRaw[] = [
           showTitle: false,
           padding: false,
           disableScroll: true,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,
@@ -307,8 +308,7 @@ export const routes: RouteRecordRaw[] = [
           // padding: computed<boolean>(() => !mdBreakpoint.value),
           // disableScroll: computed<boolean>(() => smBreakpoint.value),
           disableScroll: true,
-          ignoreSafeAreaBottom: computed(() => smBreakpoint.value),
-          noExtraPadding: computed(() => smBreakpoint.value),
+          flushBottom: computed(() => smBreakpoint.value),
         },
         showNavbar: true,
         showTopbar: computed(() => !smBreakpoint.value),
@@ -330,6 +330,7 @@ export const routes: RouteRecordRaw[] = [
       ui: {
         containerSettings: {
           disableScroll: true,
+          flushBottom: true,
         },
         background: '#000000',
         showNavbar: true,
@@ -367,6 +368,7 @@ export const routes: RouteRecordRaw[] = [
           showTitle: false,
           padding: false,
           disableScroll: true,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,
@@ -404,6 +406,7 @@ export const routes: RouteRecordRaw[] = [
           padding: false,
           paddingBottom: false,
           disableScroll: true,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,
@@ -462,6 +465,7 @@ export const routes: RouteRecordRaw[] = [
         containerSettings: {
           showTitle: true,
           padding: true,
+          allowOverflowX: true,
         },
         showNavbar: true,
         showTopbar: true,
@@ -500,6 +504,7 @@ export const routes: RouteRecordRaw[] = [
           padding: true,
           paddingBottom: false,
           disableScroll: true,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,
@@ -688,6 +693,7 @@ export const routes: RouteRecordRaw[] = [
       ui: {
         containerSettings: {
           disableScroll: true,
+          flushBottom: computed(() => smBreakpoint.value),
         },
         showNavbar: true,
         showTopbar: true,
@@ -724,6 +730,7 @@ export const routes: RouteRecordRaw[] = [
         background: '#000000',
         containerSettings: {
           disableScroll: true,
+          flushBottom: computed(() => smBreakpoint.value),
         },
         showNavbar: true,
         showTopbar: true,
@@ -760,6 +767,7 @@ export const routes: RouteRecordRaw[] = [
         background: '#000000',
         containerSettings: {
           disableScroll: true,
+          flushBottom: computed(() => smBreakpoint.value),
         },
         showNavbar: true,
         showTopbar: true,
@@ -797,6 +805,7 @@ export const routes: RouteRecordRaw[] = [
         background: '#000000',
         containerSettings: {
           disableScroll: true,
+          flushBottom: computed(() => smBreakpoint.value),
         },
         showNavbar: true,
         showTopbar: true,
@@ -869,6 +878,7 @@ export const routes: RouteRecordRaw[] = [
         containerSettings: {
           disableScroll: true,
           paddingBottom: false,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,

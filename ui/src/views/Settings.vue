@@ -49,8 +49,8 @@
           ref="containerRef"
           class="px-2 h-full w-full"
           :class="{
-            'py-4': smBreakpoint,
-            'pt-[calc(40px+2rem)] pb-2': !smBreakpoint,
+            'pt-4': smBreakpoint,
+            'pt-[calc(40px+2rem)]': !smBreakpoint,
           }"
         >
           <CuiRouterLoading v-if="routerLoading && routeMeta.showRouterLoadingSub.value" class="w-full h-full relative overflow-x-hidden" />

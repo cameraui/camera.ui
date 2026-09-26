@@ -90,7 +90,7 @@
       <span class="flex-1 text-sm">{{ $t('views.training.verify_hint') }}</span>
     </div>
 
-    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[var(--cui-bottom-gap)]">
       <div v-if="candidates.isLoading.value && !candidates.data.value" class="grid w-full gap-3 p-px" :style="gridStyle">
         <div v-for="i in 8" :key="i" class="cui-card overflow-hidden">
           <Skeleton class="aspect-video" width="100%" height="100%" />

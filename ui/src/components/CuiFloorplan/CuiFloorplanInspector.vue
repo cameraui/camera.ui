@@ -17,7 +17,7 @@
       </Button>
     </div>
 
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto" :class="{ 'pb-[var(--cui-bottom-gap)]': readOnly }">
       <Accordion multiple :value="openPanels" :class="fluid ? 'w-full' : 'w-[300px]'">
         <AccordionPanel v-if="room" value="general">
           <AccordionHeader class="px-4 rounded-none!">
@@ -266,7 +266,7 @@
       </Accordion>
     </div>
 
-    <div v-if="!readOnly" class="p-4 border-top-color">
+    <div v-if="!readOnly" class="px-4 pt-4 pb-[max(1rem,var(--cui-bottom-gap))] border-top-color">
       <Button
         severity="danger"
         fluid

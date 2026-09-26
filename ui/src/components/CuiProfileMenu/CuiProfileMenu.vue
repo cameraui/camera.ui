@@ -126,7 +126,7 @@ function handleReload() {
 
 <style>
 .profile-menu {
-  left: calc(var(--safe-area-inset-right) + 0.5rem) !important;
+  left: calc(var(--safe-area-inset-left) + 0.5rem) !important;
   top: calc(var(--safe-area-inset-top) + 3.3rem) !important;
 }
 </style>
