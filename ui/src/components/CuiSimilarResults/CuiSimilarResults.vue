@@ -1,6 +1,7 @@
 <template>
   <div class="similar-results">
     <SimilarSearchBar
+      class="mx-3"
       :crop="request.crop"
       :object-label="request.objectLabel"
       :result="result"

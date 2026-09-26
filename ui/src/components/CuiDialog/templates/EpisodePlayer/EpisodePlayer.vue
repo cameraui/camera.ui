@@ -970,7 +970,8 @@ defineExpose({
 }
 
 .similar-below {
-  height: 360px;
+  flex: 1 1 0;
+  min-height: 0;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border-color);
 }
