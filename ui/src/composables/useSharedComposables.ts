@@ -1,4 +1,3 @@
-export const useSharedScreenOrientation = createSharedComposable(useScreenOrientation);
 export const useSharedWindowSize = createSharedComposable(useWindowSize);
 export const useSharedMouse = createSharedComposable(useMouse);
 export const useSharedCuiBreakpoint = createSharedComposable(useCuiBreakpoint);

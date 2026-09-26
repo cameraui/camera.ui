@@ -388,7 +388,6 @@ declare global {
   const useSharedCuiUserAgent: typeof import('../composables/useSharedComposables').useSharedCuiUserAgent
   const useSharedMediaQuery: typeof import('../composables/useSharedComposables').useSharedMediaQuery
   const useSharedMouse: typeof import('../composables/useSharedComposables').useSharedMouse
-  const useSharedScreenOrientation: typeof import('../composables/useSharedComposables').useSharedScreenOrientation
   const useSharedWindowSize: typeof import('../composables/useSharedComposables').useSharedWindowSize
   const useSimilarPick: typeof import('../composables/useSimilarPick').useSimilarPick
   const useSimilarSearchRoute: typeof import('../composables/useSimilarSearchRoute').useSimilarSearchRoute
@@ -965,7 +964,6 @@ declare module 'vue' {
     readonly useSharedCuiUserAgent: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedCuiUserAgent']>
     readonly useSharedMediaQuery: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedMediaQuery']>
     readonly useSharedMouse: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedMouse']>
-    readonly useSharedScreenOrientation: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedScreenOrientation']>
     readonly useSharedWindowSize: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedWindowSize']>
     readonly useSimilarPick: UnwrapRef<typeof import('../composables/useSimilarPick')['useSimilarPick']>
     readonly useSimilarSearchRoute: UnwrapRef<typeof import('../composables/useSimilarSearchRoute')['useSimilarSearchRoute']>

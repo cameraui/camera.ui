@@ -468,7 +468,6 @@
     "useSharedCuiUserAgent": true,
     "useSharedMediaQuery": true,
     "useSharedMouse": true,
-    "useSharedScreenOrientation": true,
     "useSharedWindowSize": true,
     "useSimilarPick": true,
     "useSimilarSearchRoute": true,
