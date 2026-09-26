@@ -48,6 +48,11 @@ export interface DetectionThumbnail {
 
 export interface ServerFaceDetection extends FaceDetection {
   matched?: string;
+  matchScore?: number;
+  closest?: string;
+  closestScore?: number;
+  runnerUp?: string;
+  runnerUpScore?: number;
   embedding?: number[];
   quality?: number;
   landmarks?: Point[];

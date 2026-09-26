@@ -3,24 +3,40 @@ import type { CroppedRegion, ServerFaceDetection } from '../../rpc/interfaces/de
 import type { TrackedFaceDetection } from './event-manager.js';
 
 const MIN_FACE_PX = 40;
-const EMBED_EVERY_MS = 1_000;
-const VOTES_FOR_NAME = 2;
+const FAST_READS = 10;
+const EMPTY_BACKOFF = 6;
+const BACKOFF_EVERY_MS = 1_000;
+const UNDECIDED_EVERY_MS = 5_000;
+const RECHECK_EVERY_MS = 10_000;
+const WINDOW = 20;
+const VOTES_FOR_NAME = 3;
 const NAMED_SHARE = 0.6;
 const ALL_SHARE = 0.3;
-const FAST_VECTORS = 3;
-const RECHECK_EVERY_MS = 10_000;
-const VECTORS_PER_TRACK = 10;
 const FACE_TRACKS_MAX = 256;
 const FACE_TRACK_IDLE_MS = 60_000;
 const UNTRACKED_IDLE_MS = 5_000;
 const UNTRACKED_GRID = 8;
+const HEAD_BAND = 2;
+const HEAD_DEPTH = 1;
+const HEAD_DEPTH_SPREAD = 0.56;
+const HEAD_ACROSS = 0.52;
+const HEAD_ACROSS_SPREAD = 0.31;
+const HEAD_TIE = 0.5;
 
 interface FaceTrack {
   attemptAt: number;
   seen: number;
-  vectors: number;
-  votes: Map<string, number>;
+  reading: boolean;
+  empty: number;
+  reads: (string | undefined)[];
   identity?: string;
+}
+
+// the vote behind a face's name after its latest read
+export interface FaceTally {
+  leader?: string;
+  votes: number;
+  reads: number;
 }
 
 export class FaceTrackNames {
@@ -37,15 +53,20 @@ export class FaceTrackNames {
       return true;
     }
     seen.seen = now;
-    if (seen.vectors >= VECTORS_PER_TRACK) return false;
-    const fast = !seen.identity && seen.vectors < FAST_VECTORS;
-    return now - seen.attemptAt >= (fast ? EMBED_EVERY_MS : RECHECK_EVERY_MS);
+    if (seen.reading) return false;
+    return now - seen.attemptAt >= pace(seen);
   }
 
   public markAttempt(face: ServerFaceDetection, now = Date.now()): void {
     const key = this.key(face);
     const seen = this.tracks.get(key);
-    this.tracks.set(key, seen ? { ...seen, attemptAt: now, seen: now } : { attemptAt: now, seen: now, vectors: 0, votes: new Map() });
+    if (seen) {
+      seen.attemptAt = now;
+      seen.seen = now;
+      seen.reading = true;
+    } else {
+      this.tracks.set(key, { attemptAt: now, seen: now, reading: true, empty: 0, reads: [] });
+    }
 
     if (this.tracks.size <= FACE_TRACKS_MAX) return;
     for (const [id, track] of this.tracks) {
@@ -53,18 +74,38 @@ export class FaceTrackNames {
     }
   }
 
+  public markEmpty(face: ServerFaceDetection): void {
+    const seen = this.tracks.get(this.key(face));
+    if (!seen) return;
+    seen.reading = false;
+    seen.empty++;
+  }
+
+  public markSettled(face: ServerFaceDetection): void {
+    const seen = this.tracks.get(this.key(face));
+    if (seen) seen.reading = false;
+  }
+
   public markVector(face: ServerFaceDetection): string | undefined {
     const seen = this.tracks.get(this.key(face));
     if (!seen) return undefined;
-    seen.vectors++;
-    if (face.identity) seen.votes.set(face.identity, (seen.votes.get(face.identity) ?? 0) + 1);
-    seen.identity = decide(seen);
+    seen.reading = false;
+    seen.empty = 0;
+    seen.reads.push(face.identity);
+    if (seen.reads.length > WINDOW) seen.reads.shift();
+    seen.identity = decide(seen.reads);
     return seen.identity;
+  }
+
+  public tally(face: ServerFaceDetection): FaceTally {
+    const reads = this.tracks.get(this.key(face))?.reads ?? [];
+    const { leader, votes } = count(reads);
+    return { leader, votes, reads: reads.length };
   }
 
   public carry(faces: ServerFaceDetection[], now = Date.now()): void {
     for (const face of faces) {
-      if ((face as TrackedFaceDetection).parentTrackId === undefined) continue;
+      if (!votesOnReads(face)) continue;
       const seen = this.tracks.get(this.key(face));
       if (!seen) continue;
       seen.seen = now;
@@ -81,6 +122,11 @@ export class FaceTrackNames {
   }
 }
 
+export function votesOnReads(face: ServerFaceDetection): boolean {
+  const tracked = face as TrackedFaceDetection;
+  return tracked.parentTrackId !== undefined || tracked.parentBox === undefined;
+}
+
 export function faceParent(face: BoundingBox, regions: CroppedRegion[], cropIndex: number): Detection | undefined {
   const cx = face.x + face.width / 2;
   const cy = face.y + face.height / 2;
@@ -94,6 +140,28 @@ export function faceParent(face: BoundingBox, regions: CroppedRegion[], cropInde
   const own = regions[cropIndex].detection;
   const inside = cx >= own.box.x && cx <= own.box.x + own.box.width && cy <= own.box.y + own.box.height;
   return inside ? own : undefined;
+}
+
+export function stillOwner(face: BoundingBox, persons: Detection[]): Detection | undefined {
+  const cx = face.x + face.width / 2;
+  const cy = face.y + face.height / 2;
+  let best: Detection | undefined;
+  let bestFit = Infinity;
+  let secondFit = Infinity;
+  for (const person of persons) {
+    const box = person.box;
+    const depth = (cy - box.y) / face.height;
+    if (cx < box.x || cx > box.x + box.width || depth < 0 || depth > HEAD_BAND) continue;
+    const fit = Math.hypot(((cx - box.x) / box.width - HEAD_ACROSS) / HEAD_ACROSS_SPREAD, (depth - HEAD_DEPTH) / HEAD_DEPTH_SPREAD);
+    if (fit < bestFit) {
+      secondFit = bestFit;
+      bestFit = fit;
+      best = person;
+    } else if (fit < secondFit) {
+      secondFit = fit;
+    }
+  }
+  return secondFit - bestFit < HEAD_TIE ? undefined : best;
 }
 
 export function keepOneFacePerTrack(faces: TrackedFaceDetection[]): void {
@@ -114,17 +182,32 @@ function centreY(box: BoundingBox): number {
   return box.y + box.height / 2;
 }
 
-function decide(track: FaceTrack): string | undefined {
-  let best: string | undefined;
-  let bestVotes = 0;
+function pace(track: FaceTrack): number {
+  if (track.identity) return RECHECK_EVERY_MS;
+  if (track.reads.length >= FAST_READS) return UNDECIDED_EVERY_MS;
+  return track.empty >= EMPTY_BACKOFF ? BACKOFF_EVERY_MS : 0;
+}
+
+function count(reads: (string | undefined)[]): { leader?: string; votes: number; named: number } {
+  const votes = new Map<string, number>();
   let named = 0;
-  for (const [name, votes] of track.votes) {
-    named += votes;
-    if (votes > bestVotes) {
-      best = name;
-      bestVotes = votes;
+  let leader: string | undefined;
+  let best = 0;
+  for (const name of reads) {
+    if (!name) continue;
+    named++;
+    const next = (votes.get(name) ?? 0) + 1;
+    votes.set(name, next);
+    if (next > best) {
+      leader = name;
+      best = next;
     }
   }
-  if (bestVotes < VOTES_FOR_NAME || bestVotes < NAMED_SHARE * named || bestVotes < ALL_SHARE * track.vectors) return undefined;
-  return best;
+  return { leader, votes: best, named };
+}
+
+function decide(reads: (string | undefined)[]): string | undefined {
+  const { leader, votes, named } = count(reads);
+  if (votes < VOTES_FOR_NAME || votes < NAMED_SHARE * named || votes < ALL_SHARE * reads.length) return undefined;
+  return leader;
 }

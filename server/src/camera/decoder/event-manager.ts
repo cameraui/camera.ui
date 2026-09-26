@@ -834,8 +834,9 @@ export class DetectionEventManager {
 
     // one face per track, named or not: two people the recognizer gave the same
     // name stay two faces, each correctable on its own. Without a track there
-    // is nothing to tell faces apart by, so they share one slot per name, and a
-    // name a tracked face already carries is that person
+    // is nothing to tell faces apart by, so they share one slot per name (a busy
+    // scene spreads such faces over many image cells), and a name a tracked
+    // face already carries is that person
     const tracked = face.parentTrackId !== undefined;
     if (!tracked && face.identity && this.activeSegment.attributes.some((a) => a.type === 'face' && a.label === face.identity)) return;
     const bucket = tracked ? `t${face.parentTrackId}` : `untracked:${face.identity ?? ''}`;

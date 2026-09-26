@@ -30,7 +30,7 @@ import type {
   ZoneLabel,
 } from '@camera.ui/sdk';
 import type { PlateShortfall, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
-import type { TraceTick } from './event-trace.js';
+import type { TraceAttest, TraceTick } from './event-trace.js';
 
 const NMS_IOU_THRESHOLD = 0.45;
 const NMS_CONFIDENCE_THRESHOLD = 0.25;
@@ -214,6 +214,7 @@ export class DetectionPipeline {
   private whitelist: Set<string> | null = null;
   private trainingMasks: Point[][] = [];
   private stillSince = new Map<number, number>();
+  private attested: TraceAttest[] = [];
   private settings: CameraDetectionSettings;
 
   constructor(zones: ZoneConfig, settings: CameraDetectionSettings) {
@@ -260,6 +261,7 @@ export class DetectionPipeline {
 
   public attest(label: string, tMs = Date.now()): void {
     this.world.attest(label, tMs);
+    this.attested.push({ label, at: tMs });
   }
 
   public process(rawDetections: Detection[], poseDelta?: { panDelta: number; tiltDelta: number }, tMs = Date.now()): PipelineResult {
@@ -305,7 +307,7 @@ export class DetectionPipeline {
       removed: result.removed,
       events: result.events,
       sightings: result.sightings,
-      trace: worldTrace(tMs, flat, cameraMotion, result),
+      trace: this.traceOf(worldTrace(tMs, flat, cameraMotion, result)),
     };
   }
 
@@ -401,6 +403,13 @@ export class DetectionPipeline {
 
   public trainingSuggestionsFor(items: { box: BoundingBox; confidence: number }[], label: string): TrainingSuggestion[] {
     return items.filter((item) => !this.masked(item.box)).map((item) => ({ label, box: item.box, confidence: item.confidence }));
+  }
+
+  private traceOf(trace: TraceTick): TraceTick {
+    if (this.attested.length === 0) return trace;
+    trace.attest = this.attested;
+    this.attested = [];
+    return trace;
   }
 
   private plateShortfall(plate: LicensePlateDetection): PlateShortfall | undefined {

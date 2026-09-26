@@ -1,7 +1,8 @@
 import type { Detection as RustDetection, WorldEvent, WorldIngestResult } from '@camera.ui/rust-postprocessor';
 import type { BoundingBox, ClassifierDetection, Detection, FaceDetection, LicensePlateDetection } from '@camera.ui/sdk';
-import type { DetectionResults, PlateShortfall, WeakPlate } from '../../rpc/interfaces/detection.js';
+import type { DetectionResults, PlateShortfall, ServerFaceDetection, WeakPlate } from '../../rpc/interfaces/detection.js';
 import type { TrackedSecondary } from './event-manager.js';
+import type { FaceTally } from './face-tracks.js';
 
 export type TraceBox = [number, number, number, number];
 
@@ -32,6 +33,35 @@ export interface TraceAttribute {
   weak?: 'confidence' | PlateShortfall;
 }
 
+export interface TraceFaceRead {
+  at: number;
+  parent?: number;
+  box: TraceBox;
+  match?: string;
+  score?: number;
+  closest?: string;
+  closestScore?: number;
+  runnerUp?: string;
+  runnerUpScore?: number;
+  name?: string;
+  leader?: string;
+  votes?: number;
+  reads?: number;
+  single?: boolean;
+}
+
+export interface TraceAttest {
+  label: string;
+  at: number;
+}
+
+export interface TraceInput {
+  tMs: number;
+  boxes?: [string, number, number, number, number, number][];
+  cameraMotion?: { x: number; y: number };
+  attest?: TraceAttest[];
+}
+
 export interface TraceTick {
   tMs: number;
   rtp?: number;
@@ -39,12 +69,15 @@ export interface TraceTick {
   objectRan: boolean;
   detections: RustDetection[];
   cameraMotion?: { x: number; y: number };
+  attest?: TraceAttest[];
+  between?: TraceInput[];
   world: TraceObject[];
   events: TraceEvent[];
   created?: number[];
   removed?: number[];
   motion?: TraceBox[];
   attrs?: TraceAttribute[];
+  reads?: TraceFaceRead[];
   witness?: string[];
 }
 
@@ -116,8 +149,42 @@ export function externalTrace(tMs: number, reported: Detection[], assisted: Dete
   };
 }
 
+function traceInput(tick: TraceTick): TraceInput {
+  const milli = (value: number) => Math.round(value * 1000);
+  return {
+    tMs: tick.tMs,
+    ...(tick.detections.length > 0
+      ? {
+          boxes: tick.detections.map((d): [string, number, number, number, number, number] => [
+            d.label,
+            milli(d.confidence),
+            milli(d.x),
+            milli(d.y),
+            milli(d.width),
+            milli(d.height),
+          ]),
+        }
+      : {}),
+    ...(tick.cameraMotion ? { cameraMotion: tick.cameraMotion } : {}),
+    ...(tick.attest?.length ? { attest: tick.attest } : {}),
+  };
+}
+
 export function motionTrace(tMs: number, detections: Detection[]): TraceTick {
   return { tMs, objectRan: false, detections: [], world: [], events: [], motion: detections.map((d) => traceBox(d.box)) };
+}
+
+export function faceRead(face: ServerFaceDetection & TrackedSecondary, at: number, tally: FaceTally | undefined): TraceFaceRead {
+  return {
+    at,
+    parent: face.parentTrackId,
+    box: traceBox(face.box),
+    ...(face.matched ? { match: face.matched, score: round(face.matchScore ?? 0) } : {}),
+    ...(face.closest ? { closest: face.closest, closestScore: round(face.closestScore ?? 0) } : {}),
+    ...(face.runnerUp ? { runnerUp: face.runnerUp, runnerUpScore: round(face.runnerUpScore ?? 0) } : {}),
+    ...(face.identity ? { name: face.identity } : {}),
+    ...(tally ? { leader: tally.leader, votes: tally.votes, reads: tally.reads } : { single: true }),
+  };
 }
 
 export function traceAttributes(results: DetectionResults): TraceAttribute[] | undefined {
@@ -149,6 +216,7 @@ export function traceAttributes(results: DetectionResults): TraceAttribute[] | u
 
 export class EventTraceCollector {
   private ticks: TraceTick[] = [];
+  private dropped: TraceInput[] = [];
   private lastKeptAt = 0;
   private pendingEmpty: TraceTick[] = [];
   private emptyTail = 0;
@@ -161,27 +229,25 @@ export class EventTraceCollector {
       tick.world.length === 0 && tick.events.length === 0 && tick.detections.length === 0 && !tick.motion?.length && !tick.attrs?.length && !tick.witness?.length;
     if (empty) {
       if (this.emptyTail > 0) {
-        if (tick.tMs - this.lastKeptAt < MOTION_ONLY_INTERVAL_MS) return;
+        if (tick.tMs - this.lastKeptAt < MOTION_ONLY_INTERVAL_MS) return this.drop(tick);
         this.emptyTail--;
-        this.ticks.push(tick);
-        this.lastKeptAt = tick.tMs;
+        this.keep([tick]);
         return;
       }
       const last = this.pendingEmpty.at(-1);
-      if (last && tick.tMs - last.tMs < MOTION_ONLY_INTERVAL_MS) return;
+      if (last && tick.tMs - last.tMs < MOTION_ONLY_INTERVAL_MS) return this.drop(tick);
       this.pendingEmpty.push(tick);
-      if (this.pendingEmpty.length > EMPTY_CONTEXT_TICKS) this.pendingEmpty.shift();
+      if (this.pendingEmpty.length > EMPTY_CONTEXT_TICKS) this.drop(this.pendingEmpty.shift()!);
       return;
     }
 
     const changed = tick.events.length > 0 || (tick.created?.length ?? 0) > 0 || (tick.removed?.length ?? 0) > 0 || this.hasNewReading(tick);
     const interval = tick.world.length > 0 ? KEEP_INTERVAL_MS : MOTION_ONLY_INTERVAL_MS;
-    if (!changed && tick.tMs - this.lastKeptAt < interval) return;
+    if (!changed && tick.tMs - this.lastKeptAt < interval) return this.drop(tick);
 
-    this.ticks.push(...this.pendingEmpty, tick);
+    this.keep([...this.pendingEmpty, tick]);
     this.pendingEmpty = [];
     this.emptyTail = EMPTY_CONTEXT_TICKS;
-    this.lastKeptAt = tick.tMs;
   }
 
   public take(): TraceTick[] | undefined {
@@ -193,10 +259,26 @@ export class EventTraceCollector {
 
   public reset(): void {
     this.ticks = [];
+    this.dropped = [];
     this.lastKeptAt = 0;
     this.pendingEmpty = [];
     this.emptyTail = 0;
     this.seenReadings.clear();
+  }
+
+  private keep(ticks: TraceTick[]): void {
+    this.dropped.sort((a, b) => a.tMs - b.tMs);
+    for (const tick of ticks) {
+      const before = this.dropped.findIndex((input) => input.tMs >= tick.tMs);
+      const between = this.dropped.splice(0, before === -1 ? this.dropped.length : before);
+      if (between.length > 0) tick.between = between;
+      this.ticks.push(tick);
+    }
+    this.lastKeptAt = ticks[ticks.length - 1].tMs;
+  }
+
+  private drop(tick: TraceTick): void {
+    if (tick.objectRan && !tick.world.some((o) => o.state === 'external')) this.dropped.push(traceInput(tick));
   }
 
   private hasNewReading(tick: TraceTick): boolean {

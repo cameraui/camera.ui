@@ -5,7 +5,8 @@ import { SensorType } from '@camera.ui/sdk';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { detectionRecord } from './debug/detection-record.js';
 import { EVENT_THUMB_MAX_WIDTH } from './event-thumbnailer.js';
-import { faceParent, FaceTrackNames, keepOneFacePerTrack } from './face-tracks.js';
+import { faceRead } from './event-trace.js';
+import { faceParent, FaceTrackNames, keepOneFacePerTrack, stillOwner, votesOnReads } from './face-tracks.js';
 import { directionBetween, MOMENT_QUALITY, momentFormat, momentWindow } from './moment-crop.js';
 import { MIN_PLATE_LENGTH, normalizePlateText } from './plate-vote.js';
 import { hasSecondaryModelSpec, isVideoInputSpec } from './plugin-registry.js';
@@ -21,6 +22,7 @@ import type { CroppedRegion, DetectionResults, DetectionThumbnail, ServerFaceDet
 import type { DetectionCoordinator } from './detection-coordinator.js';
 import type { DetectionPipeline } from './detection-pipeline.js';
 import type { TrackedClassifierDetection, TrackedClipEmbedding, TrackedFaceDetection, TrackedLicensePlateDetection } from './event-manager.js';
+import type { TraceFaceRead } from './event-trace.js';
 import type { ConsumerSpec, CropFit, FrameScaler, ScaleTarget } from './frame-scaler.js';
 import type { CropWindow } from './moment-crop.js';
 import type { PerfTracker } from './perf-tracker.js';
@@ -31,11 +33,22 @@ const SECONDARY_CONSUMERS: { type: SensorType; key: string; fit: CropFit }[] = [
   { type: SensorType.LicensePlate, key: 'lpd', fit: 'stretch' },
 ];
 
+interface FaceMatch {
+  identity?: string;
+  score?: number;
+  closest?: string;
+  closestScore?: number;
+  runnerUp?: string;
+  runnerUpScore?: number;
+}
+
 interface NvrFaceMatcher {
-  matchFaces(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<({ identity: string } | null)[]>;
+  matchFaces(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<(FaceMatch | null)[]>;
+  matchFacesNearest?(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<(FaceMatch | null)[]>;
 }
 
 const FACE_CROP_PADDING = 0.25;
+const NEAREST_RETRY_MS = 10 * 60_000;
 const EMBEDDED_TRACKS_MAX = 256;
 const EMBEDDED_TRACK_IDLE_MS = 60_000;
 const CLIP_EVERY_MS = 10_000;
@@ -78,6 +91,7 @@ interface FaceJob {
 
 export class SecondaryStage {
   private readonly faceNames = new FaceTrackNames();
+  private nearestFailedAt = 0;
   private readonly clipTracks = new Map<string, ClipTrack>();
   private readonly clipQueue = new SideQueue<ClipJob>(
     (jobs) => this.runClip(jobs),
@@ -97,7 +111,10 @@ export class SecondaryStage {
       if (this.coordinator.running && !isNoRespondersError(error)) this.logger.error('Face recognition error:', error);
     },
     (jobs) => {
-      for (const _job of jobs) this.coordinator.vectorJobSettled();
+      for (const job of jobs) {
+        this.faceNames.markSettled(job.face);
+        this.coordinator.vectorJobSettled();
+      }
     },
   );
 
@@ -126,11 +143,11 @@ export class SecondaryStage {
     private readonly logger: Logger,
   ) {}
 
-  public async detect(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[], results: DetectionResults): Promise<void> {
+  public async detect(sourceFrame: Frame, scaler: FrameScaler, objectDetections: Detection[], results: DetectionResults, stillPersons: Detection[] = []): Promise<void> {
     await this.queueClip(sourceFrame, scaler, objectDetections);
     await this.queuePersons(sourceFrame, scaler, objectDetections);
     const regionMap = await this.prepareSecondaryRegions(sourceFrame, scaler, objectDetections);
-    await this.runAllSecondaries(regionMap, results);
+    await this.runAllSecondaries(regionMap, results, stillPersons);
     await this.recognizeFaces(sourceFrame, scaler, results);
   }
 
@@ -227,9 +244,9 @@ export class SecondaryStage {
     return thumbnail;
   }
 
-  private async runAllSecondaries(regionMap: Map<string, CroppedRegion[]>, results: DetectionResults): Promise<void> {
+  private async runAllSecondaries(regionMap: Map<string, CroppedRegion[]>, results: DetectionResults, stillPersons: Detection[] = []): Promise<void> {
     await Promise.allSettled([
-      this.runSecondaryDetection(SensorType.Face, results, () => this.runFaceDetection(regionMap.get('face') ?? [], results)),
+      this.runSecondaryDetection(SensorType.Face, results, () => this.runFaceDetection(regionMap.get('face') ?? [], results, stillPersons)),
       this.runSecondaryDetection(SensorType.LicensePlate, results, () => this.runLicensePlateDetection(regionMap.get('lpd') ?? [], results)),
       this.runSecondaryDetection(SensorType.Classifier, results, () => this.runClassifierDetections(regionMap)),
     ]);
@@ -287,7 +304,10 @@ export class SecondaryStage {
     for (let i = 0; i < jobs.length; i++) {
       const { face, region, card } = jobs[i];
       const { embedding, landmarks, quality } = embedded[i] ?? {};
-      if (!embedding?.length) continue;
+      if (!embedding?.length) {
+        this.faceNames.markEmpty(face);
+        continue;
+      }
 
       face.embedding = embedding;
       face.quality = quality;
@@ -303,13 +323,17 @@ export class SecondaryStage {
     }
 
     await this.resolveFaceIdentities(faces);
-    for (const face of faces) {
+    const reads: TraceFaceRead[] = [];
+    for (let i = 0; i < faces.length; i++) {
+      const face = faces[i];
       face.matched = face.identity;
       const named = this.faceNames.markVector(face);
-      // without a track there is nothing to gather votes on, the face keeps its own match
-      if (face.parentTrackId !== undefined) face.identity = named;
+      const votes = votesOnReads(face);
+      if (votes) face.identity = named;
+      reads.push(faceRead(face, jobs.find((job) => job.face === face)?.capturedAt ?? Date.now(), votes ? this.faceNames.tally(face) : undefined));
     }
     if (faces.length === 0 || !this.coordinator.running) return;
+    this.coordinator.traceFaceReads(reads);
 
     const embeddingModel = (plugin.modelSpec as ModelSpec | undefined)?.embeddingModel ?? '';
     for (const job of jobs) {
@@ -473,7 +497,7 @@ export class SecondaryStage {
     }
   }
 
-  private async runFaceDetection(croppedRegions: CroppedRegion[], results: DetectionResults): Promise<FaceResult | undefined> {
+  private async runFaceDetection(croppedRegions: CroppedRegion[], results: DetectionResults, stillPersons: Detection[]): Promise<FaceResult | undefined> {
     const facePlugin = this.plugins.get(SensorType.Face);
     if (!facePlugin || croppedRegions.length === 0) return undefined;
 
@@ -488,7 +512,7 @@ export class SecondaryStage {
     for (let i = 0; i < batchResults.length; i++) {
       for (const face of ensureDetectionBoxes(batchResults[i].detections)) {
         const transformed = this.transformBoxToOriginal(face.box, croppedRegions[i]);
-        const parent = faceParent(transformed, croppedRegions, i);
+        const parent = faceParent(transformed, croppedRegions, i) ?? stillOwner(transformed, stillPersons);
         const parentTrackId = parent && 'trackId' in parent ? (parent as TrackedDetection).trackId : undefined;
         allFaces.push({ ...face, box: transformed, parentTrackId, parentBox: parent?.box });
       }
@@ -712,6 +736,16 @@ export class SecondaryStage {
     return croppedRegions.map((r, i) => ({ ...r.frame, id: String(i), label: r.detection.label }));
   }
 
+  private async matchNearest(nvr: Promisify<NvrFaceMatcher>, embeddings: number[][], model: string, sensitivity: string): Promise<(FaceMatch | null)[] | undefined> {
+    if (!nvr.matchFacesNearest || Date.now() - this.nearestFailedAt < NEAREST_RETRY_MS) return undefined;
+    try {
+      return await nvr.matchFacesNearest(embeddings, model, sensitivity);
+    } catch {
+      this.nearestFailedAt = Date.now();
+      return undefined;
+    }
+  }
+
   private async resolveFaceIdentities(faces: ServerFaceDetection[]): Promise<void> {
     const withEmbeddings = faces.filter((f) => f.embedding?.length);
     if (!withEmbeddings.length) return;
@@ -725,10 +759,19 @@ export class SecondaryStage {
 
     try {
       const embeddings = withEmbeddings.map((f) => f.embedding!);
-      const matches = await nvr.matchFaces(embeddings, embeddingModel, this.coordinator.detectionSettings.face?.matchSensitivity ?? 'balanced');
+      const sensitivity = this.coordinator.detectionSettings.face?.matchSensitivity ?? 'balanced';
+      const nearest = await this.matchNearest(nvr, embeddings, embeddingModel, sensitivity);
+      const matches = nearest ?? (await nvr.matchFaces(embeddings, embeddingModel, sensitivity));
       for (let i = 0; i < withEmbeddings.length; i++) {
-        if (matches[i]) {
-          withEmbeddings[i].identity = matches[i]!.identity;
+        const match = matches[i];
+        if (match?.identity) {
+          withEmbeddings[i].identity = match.identity;
+          withEmbeddings[i].matchScore = match.score;
+        } else if (match?.closest) {
+          withEmbeddings[i].closest = match.closest;
+          withEmbeddings[i].closestScore = match.closestScore;
+          withEmbeddings[i].runnerUp = match.runnerUp;
+          withEmbeddings[i].runnerUpScore = match.runnerUpScore;
         }
       }
     } catch (error) {

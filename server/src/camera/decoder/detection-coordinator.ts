@@ -70,7 +70,7 @@ import type {
   TrackedLicensePlateDetection,
   TrackedPersonEmbedding,
 } from './event-manager.js';
-import type { TraceTick } from './event-trace.js';
+import type { TraceFaceRead, TraceTick } from './event-trace.js';
 import type { LetterboxGeometry } from './frame-scaler.js';
 import type { CropWindow, MomentFormatName, MomentTarget } from './moment-crop.js';
 import type { AnyModelSpec, RegisteredPlugin } from './plugin-registry.js';
@@ -196,6 +196,7 @@ export class DetectionCoordinator {
   private trackAnchorBoxes: BoundingBox[] = [];
   private farewellBoxes: BoundingBox[] = [];
   private lastTrackedById = new Map<number, BoundingBox>();
+  private faceReads: TraceFaceRead[] = [];
   private detectionWindow = new DetectionWindow();
   private mainStreamActive = false;
   private idleSince = 0;
@@ -516,6 +517,10 @@ export class DetectionCoordinator {
 
   public acceptClipVectors(embeddings: TrackedClipEmbedding[], embeddingModel: string, capturedAt: number): void {
     this.eventManager.acceptClipVectors(embeddings, embeddingModel, capturedAt);
+  }
+
+  public traceFaceReads(reads: TraceFaceRead[]): void {
+    this.faceReads.push(...reads);
   }
 
   public acceptFaceVectors(faces: TrackedFaceDetection[], embeddingModel: string, capturedAt: number): void {
@@ -1518,6 +1523,10 @@ export class DetectionCoordinator {
     trace.rtp = analysis.rtp;
     trace.src = analysis.role?.replace('-resolution', '');
     trace.attrs = traceAttributes(results);
+    if (this.faceReads.length > 0) {
+      trace.reads = this.faceReads;
+      this.faceReads = [];
+    }
     const witness = [...this.witnessSeen].filter(([, at]) => Math.abs(trace.tMs - at) <= WITNESS_WINDOW_MS).map(([label]) => label);
     if (witness.length > 0) trace.witness = witness;
     // debugging
@@ -1733,7 +1742,8 @@ export class DetectionCoordinator {
 
     if (objectDetections.length > 0) {
       const images = this.hqUpgrade ?? analysis;
-      await this.runSecondariesAndThumbnails(images, objectDetections, results);
+      const stillPersons = staticDetections.filter((d) => d.label === 'person');
+      await this.runSecondariesAndThumbnails(images, objectDetections, results, stillPersons);
       if (!this.loopRunning) return;
       await this.captureAttributeMoment(results, images, t0);
     }
@@ -1795,14 +1805,19 @@ export class DetectionCoordinator {
     }
   }
 
-  private async runSecondariesAndThumbnails(analysis: AnalysisFrame, objectDetections: Detection[], results: DetectionResults): Promise<void> {
+  private async runSecondariesAndThumbnails(
+    analysis: AnalysisFrame,
+    objectDetections: Detection[],
+    results: DetectionResults,
+    stillPersons: Detection[] = [],
+  ): Promise<void> {
     if (objectDetections.length === 0) return;
 
     this.perf.objects += objectDetections.length;
     this.perf.framesWithObjects++;
 
     const secondaryStart = Date.now();
-    await this.secondaries.detect(analysis.frame, analysis.scaler, objectDetections, results);
+    await this.secondaries.detect(analysis.frame, analysis.scaler, objectDetections, results, stillPersons);
     this.perf.secondaryMs += Date.now() - secondaryStart;
 
     try {
