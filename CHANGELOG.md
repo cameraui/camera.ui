@@ -2,6 +2,72 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0]
+
+**Update the NVR plugin to 1.5.0 together with camera.ui.** Finding objects and the vehicle filter come with it. Until then a search from the player fails.
+
+**Update your AI backend together with camera.ui.** Tracking then keeps following a person or vehicle through uncertain moments.
+
+**To find people without a visible face and to see the outline of what you click, pick the updated AI backend (CoreML, OpenVINO, ONNX or NCNN) as Person Re-ID and as Segmentation** in each camera's Plugins tab under Detection. Until then a person is found only by the face, and the clicked object gets a box.
+
+**Stuck on "Cannot reach your home server" behind Pangolin, Authelia or another login proxy? Clear the browser's site data for camera.ui after the update, then open it again.** The proxy then asks for its login and the new version loads.
+
+### Added
+
+- **Find a person or a vehicle from the player.** Pause a recording or the live picture, click a person or a vehicle, and the moments that show it are listed right there, the timeline marks only those: people by name, face and clothing, vehicles by their plate and their look, each moment once. A slider sets how close a match has to be, and the clicked object shows its outline. Works in live view, in recordings and in episodes.
+
+- **Filter recordings by vehicle color and type.** Under Vehicles in the filters or through Ask the assistant, older recordings included. The color is read from the picture and can be wrong.
+
+- **Search recordings by picture.** Drop a picture of a person or a vehicle on the recordings page, or choose one, and click the one you mean.
+
+- **Try person re-ID and segmentation.** The AI backend's plugin page has a tab for each: find people who look like the one in a picture, or see every person, vehicle and animal in it outlined.
+
+- **Reset a forgotten master password.** Create an empty file named `reset-password` in camera.ui's `volume` folder and restart camera.ui. The master then signs in with the password `admin` and sets a new one, two-factor authentication is off. The docs list the folder for each install under **I can't sign in**.
+
+### Changed
+
+- **One search field in the recordings filters.** Search, AI Search, Ask the assistant and the new picture search share one field, the buttons above it switch between them.
+
+- **Resize the player on the camera page.** Drag the handle between the player and the tabs below to make room for the recordings or for the picture. The split is kept, a double-click on the handle resets it.
+
+- **Tracking holds through uncertain moments.** Detections below your confidence now reach camera.ui too. They only keep following a person or vehicle that is already tracked, so someone half hidden behind a car stays the same person. Events, notifications and sensors still start only above your confidence.
+
+- **The training editor shows uncertain detections.** Detections below the camera's confidence appear as dotted outlines with their score, the plus labels one. Leave the ones that show nothing.
+
+- **Training collects the frames a model learns most from.** Out of each moment it now picks objects the detector was unsure about, small ones and animals before large, obvious ones.
+
+- **The Faces view marks pictures that hurt recognition.** A person's training pictures show a mark when the face is unclear or only partly visible, when the same picture is there twice, or when it is also filed under someone else. Assigning an unknown face warns about the same, and unclear faces no longer collect under Unknown Faces. Needs the NVR plugin and AI backend update.
+
+- **The event trace shows what your settings dropped and how each face was read.** Faces and plates below your settings appear dashed with the setting they missed, and a track shows how sure the detector was in that frame. Each face read shows whom it matched or came closest to, and how many reads agree on the name.
+
+- **Event pictures show who walks along.** Two people walking together or a person with a stroller now share the event picture, instead of a tight crop around one of them. People standing still stay out of it.
+
+### Fixed
+
+- **Fewer wrong names on faces.** One picture that looked like someone else was enough to name a person for as long as the camera followed them, so automations and AI descriptions reported the wrong person. A person now gets a name once three pictures of the face agree, a picture that looks about as much like two people counts for neither, and a clear look late in a long visit still counts.
+
+- **Someone sitting or standing still keeps their face.** Their face went to no one and showed as unknown on the recording card, even when the person had been recognized before sitting down.
+
+- **PTZ autotracking stays on the person.** The camera no longer aims two to four times too far ahead or turns to someone else after one missed detection. It holds for up to three seconds while the person is hidden, and they keep their track while the camera turns. The default lead is now 1.5 s.
+
+- **Someone walking out close to the camera no longer hands their identity to the next person.** A person passing right in front of the camera and fading just before the edge was held as standing still for a minute, and whoever entered there next took over their track, with their face and name.
+
+- **Walking straight toward or away from the camera counts as moving.** Someone who walked at the camera and past it was taken for part of the scene, and when they came back and walked into the room they showed as standing still, so their return caused no movement.
+
+- **Someone taken for part of the scene is followed again once they walk off.** A person who went somewhere, came back to where they started and then stayed out of sight for a few seconds, bending over the car for example, was held as standing still, and their next walk showed no movement.
+
+- **No extra person from cut-off legs or a head.** Where detection looks at a moving area up close, the part of a person reaching into it could count as a second person entering. It now belongs to the person.
+
+- **Workers stay connected.** After a while the main server stopped taking worker connections, and every worker dropped again a second after connecting until camera.ui was restarted on the main server.
+
+- **A login proxy in front of camera.ui gets to ask for its login again.** Once the session of Pangolin, Authelia or a similar proxy ran out, the browser opened camera.ui from its cache and the page stayed on "Cannot reach your home server". Page loads now go through the proxy, also when the session ends while camera.ui is open. Without a connection the cached page still opens.
+
+- **People no longer take over each other's place in an event.** After a person was out of sight for a moment, someone near their last spot could continue as that person, and the one who walked away was never recorded as gone.
+
+- **A confidence below 0.5 now works.** A person, vehicle or animal the detector was less than 50 % sure about never started an event, whatever the camera's confidence setting said. Values from 0.3 up now apply as set.
+
+- **Face and plate confidence apply as set.** A face below the face confidence could still get a name and switch on the face sensor, and faces and plates were checked against the lowest object confidence instead of their own.
+
 ## [2.2.8]
 
 ### Added
