@@ -973,12 +973,11 @@ export class FrameWorker extends Subscribed {
 
   private getControllerSnapshotSourceId(): string | undefined {
     if (!this.camera.pluginInfo) return undefined;
-    const source = this.camera.snapshotSource ?? this.camera.lowResolutionSource ?? this.camera.midResolutionSource ?? this.camera.streamSource;
-    return source?._id;
+    return this.camera.snapshotSource?._id;
   }
 
   private getSnapshotSource(): string {
-    const snapshotSource = this.camera.snapshotSource;
+    const snapshotSource = this.camera.designatedSnapshotSource;
     const lowRes = this.camera.lowResolutionSource;
     const midRes = this.camera.midResolutionSource;
     const streamSource = this.camera.streamSource;

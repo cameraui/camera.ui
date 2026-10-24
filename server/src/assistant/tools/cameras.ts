@@ -55,8 +55,7 @@ export async function takeSnapshot(camera: string): Promise<{ name: string; data
   if (!controller) return { error: `Camera "${resolved.name}" is not running.` };
   if (!controller.connected) return { error: `Camera "${resolved.name}" is offline right now.` };
 
-  const source = controller.preferredSnapshotSource ?? controller.streamSource;
-  const snapshot = await controller.snapshot(source._id, true).catch(() => undefined);
+  const snapshot = await controller.getSnapshot(true).catch(() => undefined);
   if (!snapshot || snapshot.byteLength === 0) return { error: `Camera "${resolved.name}" did not deliver a snapshot.` };
   if (snapshot.byteLength > SNAPSHOT_MAX_BYTES) return { error: `The snapshot of "${resolved.name}" is too large to transfer.` };
 

@@ -1138,7 +1138,7 @@ export default {
         activity_mode: 'Wann der Live-Stream läuft. Immer an streamt durchgehend, Aktivität nur wenn etwas passiert, Standby wartet auf einen Tipp',
         system_preference: 'Systemeinstellung für die Benutzeroberfläche',
         type_and_enter: 'Text eingeben und mit Enter hinzufügen',
-        use_for_snapshot: 'Verwendet diese Quelle für Snapshots (wenn sonst keine geeignete Quelle existiert)',
+        use_for_snapshot: 'Snapshots kommen von dieser Quelle, sonst von der mit der niedrigsten Auflösung. Eine Quelle mit der Rolle Snapshot geht vor',
         video_codec: 'Der erkannte Video Codec für diesen Stream',
       },
       option: {

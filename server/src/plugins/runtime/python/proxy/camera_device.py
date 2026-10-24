@@ -316,10 +316,14 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
 
     @property
     def snapshotSource(self) -> CameraDeviceSource | None:
-        snapshot_source = next((s for s in self.sources if s.role == "snapshot"), None)
-        if not snapshot_source:
-            snapshot_source = next((s for s in self.sources if s.useForSnapshot), None)
-        return snapshot_source
+        sources = self.sources
+        return (
+            next((s for s in sources if s.role == "snapshot"), None)
+            or next((s for s in sources if s.useForSnapshot), None)
+            or self.lowResolutionSource
+            or self.midResolutionSource
+            or self.highResolutionSource
+        )
 
     @cached_property
     def _camera_controller_proxy(self) -> CameraControllerInterface:
@@ -343,6 +347,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
 
     def getSourceById(self, id: str) -> CameraDeviceSource | None:
         return next((s for s in self.sources if s._id == id), None)  # pyright: ignore[reportPrivateUsage]
+
+    async def getSnapshot(self, forceNew: bool = False) -> bytes | None:
+        source = self.snapshotSource
+        return await source.snapshot(forceNew) if source else None
 
     async def init(self) -> None:
         if self._initialized.value:

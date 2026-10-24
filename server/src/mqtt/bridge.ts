@@ -347,7 +347,7 @@ export class MqttBridge {
   }
 
   private async publishSnapshot(controller: CameraController): Promise<void> {
-    const source = controller.preferredSnapshotSource;
+    const source = controller.snapshotSource;
     if (!source) return;
 
     try {

@@ -412,8 +412,7 @@ export class CamerasController {
         });
       }
 
-      const source = cameraController.snapshotSource ?? cameraController.streamSource;
-      const snapshot = await cameraController.snapshot(source._id, req.query.forceNew);
+      const snapshot = await cameraController.getSnapshot(req.query.forceNew);
 
       if (!snapshot) {
         return reply.code(503).send({

@@ -1125,7 +1125,7 @@ export default {
         activity_mode: 'When the live stream runs. Always on streams continuously, Activity only while something happens, Standby waits for a tap',
         system_preference: 'System setting for the user interface',
         type_and_enter: 'Type and press Enter',
-        use_for_snapshot: 'Uses this source for snapshots (if no other suitable source exists)',
+        use_for_snapshot: 'Snapshots come from this source, otherwise from the lowest resolution one. A source with the Snapshot role comes first',
         video_codec: 'The video codec detected for this stream',
       },
       option: {

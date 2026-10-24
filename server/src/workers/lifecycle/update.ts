@@ -31,10 +31,7 @@ export interface WorkerUpdateReport {
 }
 
 export type WorkerUpdateEvent =
-  | ({ type: 'report'; now: number } & WorkerUpdateReport)
-  | { type: 'restarting'; now: number }
-  | { type: 'tick'; now: number }
-  | { type: 'resumed'; now: number };
+  ({ type: 'report'; now: number } & WorkerUpdateReport) | { type: 'restarting'; now: number } | { type: 'tick'; now: number } | { type: 'resumed'; now: number };
 
 export type WorkerUpdateEffect = { type: 'changed' } | { type: 'done'; version?: string } | { type: 'failed'; reason: string };
 

@@ -121,11 +121,6 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     return (this.highResolutionSource ?? this.midResolutionSource ?? this.lowResolutionSource)!;
   }
 
-  get preferredSnapshotSource(): CameraDeviceSource | undefined {
-    const dedicated = this.sources.find((s) => s.role === 'snapshot') ?? this.sources.find((s) => s.useForSnapshot);
-    return dedicated ?? this.lowResolutionSource ?? this.midResolutionSource ?? this.highResolutionSource ?? this.streamSource;
-  }
-
   get camera(): Camera {
     return this.cameraObject;
   }
@@ -222,7 +217,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   @RPCMethod
   public async snapshot(sourceId: string, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined> {
     if (!forceNew) {
-      const stored = this.snapshots.serve(sourceId, this.snapshotSettings);
+      const stored = this.snapshots.serve(sourceId, this.snapshotSettings, sourceId === this.snapshotSource?._id);
       if (stored) return stored;
     }
 
@@ -501,7 +496,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.autoRefreshInterval = setInterval(async () => {
       if (this.disabled || !this.connected) return;
 
-      const source = this.preferredSnapshotSource;
+      const source = this.snapshotSource;
       if (!source) return;
 
       try {
@@ -523,7 +518,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     const storeSnapshot = async (s: CameraDeviceSource, data: ArrayBuffer): Promise<ArrayBuffer | undefined> => {
       const masked = await this.snapshotPrivacy.apply(data);
       if (masked && masked.byteLength > 0) {
-        this.snapshots.set(s._id, masked, Date.now(), s._id === this.preferredSnapshotSource?._id);
+        this.snapshots.set(s._id, masked, Date.now(), s._id === this.snapshotSource?._id);
       }
 
       return masked;
@@ -586,7 +581,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   private async remaskSnapshots(): Promise<void> {
-    const preferred = this.preferredSnapshotSource?._id;
+    const preferred = this.snapshotSource?._id;
     for (const [sourceId, entry] of this.snapshots.list()) {
       const masked = await this.snapshotPrivacy.apply(entry.data);
       if (!masked || masked.byteLength === 0) {

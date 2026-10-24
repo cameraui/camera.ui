@@ -14,7 +14,6 @@ import type {
   CameraNotificationSettings,
   CameraPluginInfo,
   CameraRecordingSettings,
-  CameraSource,
   CameraType,
   CameraUiSettings,
   CameraZones,
@@ -150,12 +149,21 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
     return this.sources.find((source) => source.role === 'low-resolution');
   }
 
-  get snapshotSource(): CameraSource | undefined {
-    return this.sources.find((source) => source.role == 'snapshot') ?? this.sources.find((source) => source.useForSnapshot);
+  get designatedSnapshotSource(): CameraDeviceSource | undefined {
+    const sources = this.sources;
+    return sources.find((source) => source.role === 'snapshot') ?? sources.find((source) => source.useForSnapshot);
+  }
+
+  get snapshotSource(): CameraDeviceSource | undefined {
+    return this.designatedSnapshotSource ?? this.lowResolutionSource ?? this.midResolutionSource ?? this.highResolutionSource;
   }
 
   public getSourceById(id: string): CameraDeviceSource | undefined {
     return this.sources.find((source) => source._id === id);
+  }
+
+  public async getSnapshot(forceNew?: boolean): Promise<ArrayBuffer | undefined> {
+    return this.snapshotSource?.snapshot(forceNew);
   }
 
   public abstract createStorage<T extends Record<string, any> = Record<string, any>>(schemas: JsonSchema[]): DeviceStorage<T>;

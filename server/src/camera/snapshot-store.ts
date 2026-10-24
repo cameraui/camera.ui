@@ -18,10 +18,13 @@ export class SnapshotStore {
     return this.entries.get(sourceId);
   }
 
-  public serve(sourceId: string, settings: SnapshotSettings): ArrayBuffer | undefined {
+  public serve(sourceId: string, settings: SnapshotSettings, refreshedByTimer: boolean): ArrayBuffer | undefined {
     const entry = this.entries.get(sourceId);
     if (!entry) return undefined;
-    if (settings.mode === 'onView' && Date.now() - entry.fetchedAt > settings.maxAge * 1000) return undefined;
+    const ageMs = Date.now() - entry.fetchedAt;
+    if (settings.mode === 'onView' && ageMs > settings.maxAge * 1000) return undefined;
+    // the timer refreshes one source only, any other would keep its first picture forever
+    if (settings.mode === 'interval' && !refreshedByTimer && ageMs > settings.interval * 1000) return undefined;
     return entry.data;
   }
 
