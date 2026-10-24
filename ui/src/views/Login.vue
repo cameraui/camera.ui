@@ -113,7 +113,7 @@
             v-model="backupCode"
             size="large"
             autocapitalize="characters"
-            autocomplete="one-time-code"
+            autocomplete="off"
             spellcheck="false"
             :maxlength="BACKUP_CODE_LENGTH"
             :placeholder="$t('views.login.2fa_backup_placeholder')"

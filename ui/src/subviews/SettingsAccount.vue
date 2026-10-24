@@ -147,7 +147,9 @@
 
                 <div v-else-if="!twoFactorStatus?.enabled && setupData" key="setup" class="tfa-setup">
                   <div class="tfa-setup-qr">
-                    <CuiQRCode :value="otpauthUri" :size="160" :logo-size="36" />
+                    <a :href="otpauthUri">
+                      <CuiQRCode :value="otpauthUri" :size="160" :logo-size="36" />
+                    </a>
                     <p class="text-sm text-muted text-center mt-3">{{ $t('views.settings.security.scan_qr') }}</p>
                   </div>
 

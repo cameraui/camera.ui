@@ -81,6 +81,7 @@ function buildPrimeVueOptions() {
         darkModeSelector: '.dark-mode',
       },
     },
+    pt: { inputotp: { pcInputText: { root: { autocomplete: 'one-time-code' } } } },
   };
 }
 

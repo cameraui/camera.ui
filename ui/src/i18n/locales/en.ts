@@ -3733,7 +3733,7 @@ export default {
         setup_2fa: 'Set up 2FA',
         step_scan: 'Scan QR',
         step_verify: 'Verify',
-        scan_qr: 'Scan this QR code with your authenticator app',
+        scan_qr: 'Scan this QR code with your authenticator app or tap it on this device',
         manual_entry: 'Manual entry code',
         enter_code: 'Enter verification code',
         enter_code_description: 'Enter the 6-digit code from your authenticator app to verify the setup.',

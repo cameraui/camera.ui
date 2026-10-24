@@ -29,12 +29,16 @@ const FALLBACKS: Record<Position, Position[]> = {
 
 const FADE_IN_MS = 250;
 
+const INTERACTIVE =
+  'a[href], button, input, select, textarea, label, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"]';
+
 const states = new WeakMap<Element, TooltipState>();
 
 let elements: TooltipElements | null = null;
 let active: TooltipState | null = null;
 let container: Element | null = null;
 let renderedClass = '';
+let lastPointerType = '';
 
 export const tooltip: ObjectDirective<HTMLElement, TooltipValue> = {
   mounted(el, binding) {
@@ -48,11 +52,13 @@ export const tooltip: ObjectDirective<HTMLElement, TooltipValue> = {
       target.addEventListener('focus', onShowEvent);
       target.addEventListener('blur', onHideEvent);
     } else {
-      target.addEventListener('mouseenter', onShowEvent);
-      target.addEventListener('mouseleave', onHideEvent);
-      target.addEventListener('click', onHideEvent);
+      target.addEventListener('pointerenter', onPointerEnter);
+      target.addEventListener('pointerleave', onPointerLeave);
+      target.addEventListener('click', onClick);
     }
     target.addEventListener('keydown', onKeydown);
+    // the same listener with the same options is added only once
+    document.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
   },
   updated(el, binding) {
     const state = states.get(el);
@@ -69,9 +75,9 @@ export const tooltip: ObjectDirective<HTMLElement, TooltipValue> = {
     const { target } = state;
     target.removeEventListener('focus', onShowEvent);
     target.removeEventListener('blur', onHideEvent);
-    target.removeEventListener('mouseenter', onShowEvent);
-    target.removeEventListener('mouseleave', onHideEvent);
-    target.removeEventListener('click', onHideEvent);
+    target.removeEventListener('pointerenter', onPointerEnter);
+    target.removeEventListener('pointerleave', onPointerLeave);
+    target.removeEventListener('click', onClick);
     target.removeEventListener('keydown', onKeydown);
     states.delete(el);
     states.delete(target);
@@ -103,6 +109,26 @@ function onShowEvent(event: Event): void {
 
 function onHideEvent(event: Event): void {
   if (states.get(event.currentTarget as Element) === active) hide();
+}
+
+function onPointerEnter(event: PointerEvent): void {
+  if (event.pointerType !== 'touch') onShowEvent(event);
+}
+
+function onPointerLeave(event: PointerEvent): void {
+  if (event.pointerType !== 'touch') onHideEvent(event);
+}
+
+function onClick(event: MouseEvent): void {
+  const state = states.get(event.currentTarget as Element);
+  if (!state) return;
+  if (state === active) hide();
+  else if (lastPointerType === 'touch' && !state.target.closest(INTERACTIVE)) show(state);
+}
+
+function onPointerDown(event: PointerEvent): void {
+  lastPointerType = event.pointerType;
+  if (active && !(event.target instanceof Node && active.target.contains(event.target))) hide();
 }
 
 function onKeydown(event: KeyboardEvent): void {

@@ -3761,7 +3761,7 @@ export default {
         setup_2fa: '2FA einrichten',
         step_scan: 'QR scannen',
         step_verify: 'Verifizieren',
-        scan_qr: 'Scannen Sie diesen QR-Code mit Ihrer Authenticator-App',
+        scan_qr: 'Scannen Sie diesen QR-Code mit Ihrer Authenticator-App oder tippen Sie ihn auf diesem Gerät an',
         manual_entry: 'Manueller Eingabecode',
         enter_code: 'Verifizierungscode eingeben',
         enter_code_description: 'Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein, um die Einrichtung zu verifizieren.',
