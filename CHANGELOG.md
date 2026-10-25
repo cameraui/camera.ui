@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2]
+
+### Changed
+
+- **Password managers can fill in the 2FA code.** Apple's Passwords app and other password managers offer the code at sign-in. During setup, tap the QR code on the device that keeps your codes instead of scanning it.
+
+- **Short detections no longer rush past in the Detections list.** During playback each entry plays for at least 5 seconds, so the list stops racing through one-second detections and you see what happened.
+
+- **Hints on phones and tablets show on tap.** Tap a status icon or badge to see its hint, tap anywhere else to close it. Buttons no longer flash their hint when you tap them.
+
+- **All snapshots come from one source.** Home Assistant, HomeKit, automations and the API now take the same source as the camera tiles: the one set to Use for snapshot, otherwise the lowest resolution stream. For sharper snapshots, turn on Use for snapshot for the main stream in the camera's sources.
+
+### Fixed
+
+- **Snapshots in Home Assistant and HomeKit no longer stay old.** With a new picture set to Regularly, the snapshot could be minutes or hours old. It now renews with the interval.
+
+- **Smaller fixes in the interface.** Camera pictures on the home view are current as soon as you return to the app, not only after the next refresh.
+
 ## [2.4.1]
 
 - **Home Assistant: update the [integration](https://docs.cameraui.com/home-assistant/integration#install) to 0.5.1.** Until then a reload of the camera.ui panel still goes back to the last camera opened from a notification.
