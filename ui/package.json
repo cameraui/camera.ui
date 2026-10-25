@@ -58,7 +58,7 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4",
     "@capawesome/capacitor-badge": "^8.0.4",
-    "@capgo/capacitor-updater": "^8.53.1",
+    "@capgo/capacitor-updater": "^8.54.0",
     "@iconify/json": "^2.2.547",
     "@openuxkit/styled": "^1.0.0",
     "@openuxkit/utils": "^1.0.1",
