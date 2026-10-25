@@ -32,6 +32,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
   #logger: LoggerService;
   #source: CameraDeviceSource;
   #url: string;
+  #startWithKeyframe: boolean;
   #options: Fmp4SessionOptions = {};
 
   #fmp4Stream?: FMP4Stream;
@@ -48,6 +49,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
     this.#logger = cameraDevice.logger;
     this.#source = this.#cameraDevice.sources.find((s) => s.name === source.name)!;
     this.#url = typeof urlOrOptions === 'string' ? urlOrOptions : this.#source.generateRTSPUrl(urlOrOptions);
+    this.#startWithKeyframe = typeof urlOrOptions === 'object' && urlOrOptions.gop === false;
   }
 
   get initSegment(): Promise<Buffer> {
@@ -120,7 +122,10 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
 
     const fmp4Stream = FMP4Stream.create(this.#url, {
       signal: this.#abort.signal,
-      inputOptions: { options: inputOptions },
+      inputOptions: {
+        startWithKeyframe: this.#startWithKeyframe,
+        options: inputOptions,
+      },
       onData: (data: Buffer, info: FMP4Data) => {
         for (const box of info.boxes) {
           if (box.type === 'ftyp') {
@@ -163,6 +168,7 @@ export class Fmp4Session extends SubscribedPublic implements Fmp4SessionInterfac
         height: this.#options.video?.height,
         fps: this.#options.video?.fps,
         bitrate: this.#options.video?.bitrate,
+        transcode: this.#options.video?.transcode,
         tag: 'hvc1',
         encoderOptions: this.#options.video?.encoderOptions,
       },

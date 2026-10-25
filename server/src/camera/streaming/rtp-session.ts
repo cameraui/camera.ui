@@ -41,6 +41,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
   #logger: LoggerService;
   #source: CameraDeviceSource;
   #url: string;
+  #startWithKeyframe: boolean;
   #options: RtpSessionOptions = {};
 
   #rtpStream?: RTPStream;
@@ -61,6 +62,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     this.#logger = cameraDevice.logger;
     this.#source = this.#cameraDevice.sources.find((s) => s.name === source.name)!;
     this.#url = typeof urlOrOptions === 'string' ? urlOrOptions : this.#source.generateRTSPUrl(urlOrOptions);
+    this.#startWithKeyframe = typeof urlOrOptions === 'object' && urlOrOptions.gop === false;
   }
 
   get hasBackchannel(): boolean {
@@ -139,6 +141,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
         width: this.#options.video?.width,
         height: this.#options.video?.height,
         bitrate: this.#options.video?.bitrate,
+        transcode: this.#options.video?.transcode,
         dumpExtra: true,
         encoderOptions: this.#options.video?.encoderOptions,
       },
@@ -156,6 +159,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       inputOptions: {
         format: 'rtsp',
         bufferSize: this.#options.video?.mtu,
+        startWithKeyframe: this.#startWithKeyframe,
         options: this.#options.input?.options,
       },
     });
@@ -293,6 +297,10 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     } catch {
       // ignore
     }
+  }
+
+  public requestKeyframe(): void {
+    this.#rtpStream?.requestVideoKeyframe();
   }
 
   public async stop(): Promise<void> {
