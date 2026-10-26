@@ -36,7 +36,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "26.6.5",
     "@types/tail": "^2.2.3",
-    "@typescript-eslint/parser": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.1",
     "eslint": "9.39.2",
     "fs-extra": "^11.4.1",
     "globals": "^17.13.0",
@@ -48,7 +48,7 @@
     "tsx": "^4.23.15",
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.72.0",
+    "typescript-eslint": "^8.72.1",
     "updates": "^19.3.0",
     "vitest": "^5.0.5"
   },
