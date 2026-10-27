@@ -118,6 +118,9 @@ export class CamerasService {
       }
     }
 
+    // the other plugins are activated after the camera exists, so they are told about it
+    const requested = cameraData.plugins.filter((p) => p.id !== plugin?.id);
+    cameraData.plugins = cameraData.plugins.filter((p) => p.id === plugin?.id);
     cameraData.sources = cameraData.sources.map(withSourceTransportDefaults);
 
     await this.addCameraSourcesToConfig(cameraData._id, cameraData.name, cameraData.sources);
@@ -127,7 +130,12 @@ export class CamerasService {
     const transformedCamera = this.transformCamera(cameraData);
     await this.api.addCamera(transformedCamera);
 
-    return (await this.activateDefaultExtensions(cameraData)) ?? cameraData;
+    let camera = cameraData;
+    for (const { name } of requested) {
+      camera = (await this.activatePluginByName(camera.name, name)) ?? camera;
+    }
+
+    return (await this.activateDefaultExtensions(camera)) ?? camera;
   }
 
   public async patchZoneConfig(cameraname: string, zones: CameraZones): Promise<DBCamera | undefined> {
