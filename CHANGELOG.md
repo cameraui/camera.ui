@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3]
+
+### Fixed
+
+- **Cloudflare tunnels run on cloudflared 2026.10.4.** Cloudflare asked everyone with a tunnel to update, because older versions trust compromised certificates. go2rtc and NATS get the same fix.
+
+- **Cameras added through the API reach the plugins named in the request right away.** HomeKit and other plugins only picked them up after a restart.
+
+- **Smaller fixes on iPhone and iPad.** Lists where you pick several entries, like the sources to record or the sensors to notify for, no longer jump when you tap them.
+
 ## [2.4.2]
 
 ### Changed
