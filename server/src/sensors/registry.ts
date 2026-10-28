@@ -131,6 +131,7 @@ export class SensorRegistry {
   @RPCMethod
   public registerSensor(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): SensorRegistration {
     this.validateContract(sensor, pluginId, options);
+    this.deriveCameraNativeId(sensor, options);
 
     let record = this.reconcile(sensor, pluginId);
     const created = !record;
@@ -164,11 +165,17 @@ export class SensorRegistry {
 
     // a camera.addSensor re-registration re-binds, also for migrated records
     if (options?.assignCameraId) {
-      record.boundCameraId = options.assignCameraId;
-      // camera-bound means assigned to its camera, restore an assignment a plugin toggle removed
-      if (!record.assignedCameraIds.includes(options.assignCameraId)) {
-        record.assignedCameraIds.push(options.assignCameraId);
-        this.announceAssignment(record, options.assignCameraId, true);
+      const cameraId = options.assignCameraId;
+      const sensorId = record._id;
+      const others = record.assignedCameraIds.filter((id) => id !== cameraId);
+      const restored = !record.assignedCameraIds.includes(cameraId);
+      record.boundCameraId = cameraId;
+      // camera-bound means assigned to its camera alone: restore an assignment a plugin toggle removed, drop the ones a same-named sensor of another camera picked up
+      record.assignedCameraIds = [cameraId];
+      if (restored) this.announceAssignment(record, cameraId, true);
+      for (const other of others) {
+        this.announceAssignment(record, other, false);
+        this.enqueue(other, () => this.removeSensorFromCoordinator(sensorId, other));
       }
     }
     record.updatedAt = Date.now();
@@ -210,6 +217,7 @@ export class SensorRegistry {
   @RPCMethod
   public resolveSensor(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): string {
     this.validateContract(sensor, pluginId, options);
+    this.deriveCameraNativeId(sensor, options);
 
     let record = this.reconcile(sensor, pluginId);
     if (!record) {
@@ -607,6 +615,11 @@ export class SensorRegistry {
       this.coordinators.set(cameraId, coordinator);
     }
     return coordinator;
+  }
+
+  private deriveCameraNativeId(sensor: SensorJSON, options?: RegisterSensorOptions): void {
+    // a Go plugin on sdk 1.4.4 or older re-registers camera sensors without the nativeId the sdk derived on add
+    if (options?.assignCameraId) sensor.nativeId ??= `${options.assignCameraId}:${sensor.type}:${sensor.name}`;
   }
 
   private validateContract(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): void {
