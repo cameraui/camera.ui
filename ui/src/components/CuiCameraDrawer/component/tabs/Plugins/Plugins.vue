@@ -38,6 +38,7 @@
           <SectionLabel :label="$t('components.camera_options.plugin_settings')" />
 
           <CuiSchema
+            v-if="pluginSettings.schema?.length"
             ref="schemaRef"
             :key="selectedPlugin"
             :schema-form="{ schema: pluginSettings.schema, config: pluginSettings.config }"
@@ -46,6 +47,7 @@
             @on-submit="(state) => onSubmit(state, selectedPlugin)"
             @on-action="(state) => onAction(state, selectedPlugin)"
           />
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_plugin_settings') }}</span>
         </template>
       </template>
     </div>
@@ -78,6 +80,7 @@
           <SectionLabel :label="$t('components.camera_options.plugin_settings')" />
 
           <CuiSchema
+            v-if="pluginSettings.schema?.length"
             ref="schemaRef"
             :key="selectedPlugin"
             :schema-form="{ schema: pluginSettings.schema, config: pluginSettings.config }"
@@ -86,6 +89,7 @@
             @on-submit="(state) => onSubmit(state, selectedPlugin)"
             @on-action="(state) => onAction(state, selectedPlugin)"
           />
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_plugin_settings') }}</span>
         </template>
       </template>
     </div>
@@ -130,6 +134,7 @@
             <SectionLabel :label="$t('components.camera_options.plugin_settings')" />
 
             <CuiSchema
+              v-if="detectionPluginSettings.schema?.length"
               :key="`detection-plugin-${selectedDetectionPlugin}`"
               :schema-form="{ schema: detectionPluginSettings.schema, config: detectionPluginSettings.config }"
               :loading="configPatchLoading"
@@ -137,6 +142,7 @@
               @on-submit="(state) => onDetectionPluginSubmit(state)"
               @on-action="(state) => onDetectionPluginAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_plugin_settings') }}</span>
           </template>
 
           <Divider class="m-0 py-3" />
@@ -164,6 +170,7 @@
             <SectionLabel :label="$t('components.camera_options.sensor_settings')" />
 
             <CuiSchema
+              v-if="detectionSensorSettings.schema?.length"
               :key="`sensor-${selectedDetectionSensorId}`"
               :schema-form="{ schema: detectionSensorSettings.schema, config: detectionSensorSettings.config }"
               :loading="configPatchLoading"
@@ -171,6 +178,7 @@
               @on-submit="(state) => onDetectionSubmit(state)"
               @on-action="(state) => onDetectionAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_sensor_settings') }}</span>
           </template>
         </template>
 
@@ -199,6 +207,7 @@
             <SectionLabel :label="$t('components.camera_options.sensor_settings')" />
 
             <CuiSchema
+              v-if="objectAssistSettings.schema?.length"
               :key="`object-assist-${objectAssistSensorId}`"
               :schema-form="{ schema: objectAssistSettings.schema, config: objectAssistSettings.config }"
               :loading="configPatchLoading"
@@ -206,6 +215,7 @@
               @on-submit="(state) => onObjectAssistSubmit(state)"
               @on-action="(state) => onObjectAssistAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_sensor_settings') }}</span>
           </template>
         </template>
       </template>
@@ -251,6 +261,7 @@
             <SectionLabel :label="$t('components.camera_options.plugin_settings')" />
 
             <CuiSchema
+              v-if="corePluginSettings.schema?.length"
               :key="`core-plugin-${selectedCorePlugin}`"
               :schema-form="{ schema: corePluginSettings.schema, config: corePluginSettings.config }"
               :loading="configPatchLoading"
@@ -258,6 +269,7 @@
               @on-submit="(state) => onCorePluginSubmit(state)"
               @on-action="(state) => onCorePluginAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_plugin_settings') }}</span>
           </template>
 
           <Divider class="m-0 py-3" />
@@ -285,6 +297,7 @@
             <SectionLabel :label="$t('components.camera_options.sensor_settings')" />
 
             <CuiSchema
+              v-if="coreSensorSettings.schema?.length"
               :key="`sensor-${selectedCoreSensorId}`"
               :schema-form="{ schema: coreSensorSettings.schema, config: coreSensorSettings.config }"
               :loading="configPatchLoading"
@@ -292,6 +305,7 @@
               @on-submit="(state) => onControlSubmit(state)"
               @on-action="(state) => onControlAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_sensor_settings') }}</span>
           </template>
         </template>
       </template>
@@ -343,6 +357,7 @@
             <SectionLabel :label="$t('components.camera_options.plugin_settings')" />
 
             <CuiSchema
+              v-if="accessoryPluginSettings.schema?.length"
               :key="`accessory-plugin-${selectedAccessoryPluginForConfig}`"
               :schema-form="{ schema: accessoryPluginSettings.schema, config: accessoryPluginSettings.config }"
               :loading="configPatchLoading"
@@ -350,6 +365,7 @@
               @on-submit="(state) => onAccessoryPluginSubmit(state)"
               @on-action="(state) => onAccessoryPluginAction(state)"
             />
+            <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_plugin_settings') }}</span>
           </template>
         </template>
 
@@ -378,6 +394,7 @@
           <SectionLabel :label="$t('components.camera_options.sensor_settings')" />
 
           <CuiSchema
+            v-if="accessorySensorSettings.schema?.length"
             :key="`sensor-${selectedAccessorySensorId}`"
             :schema-form="{ schema: accessorySensorSettings.schema, config: accessorySensorSettings.config }"
             :loading="configPatchLoading"
@@ -385,6 +402,7 @@
             @on-submit="(state) => onAccessorySubmit(state)"
             @on-action="(state) => onAccessoryAction(state)"
           />
+          <span v-else class="text-sm text-muted text-center min-h-[30px]">{{ $t('components.camera_options.no_sensor_settings') }}</span>
         </template>
       </template>
     </div>
@@ -608,11 +626,9 @@ const sensorStorage = useSensorStorage(selectedAccessorySensorId, selectedAccess
 const sensorConfig = sensorStorage.config;
 const sensorConfigLoading = sensorStorage.isLoading;
 
-const pluginSettings = computed(() => (selectedPlugin.value && extensionConfig.value?.schema?.length ? extensionConfig.value : undefined));
+const pluginSettings = computed(() => (selectedPlugin.value ? extensionConfig.value : undefined));
 
-const accessorySensorSettings = computed(() =>
-  selectedAccessorySensorId.value && selectedAccessoryPluginName.value && sensorConfig.value?.schema?.length ? sensorConfig.value : undefined,
-);
+const accessorySensorSettings = computed(() => (selectedAccessorySensorId.value && selectedAccessoryPluginName.value ? sensorConfig.value : undefined));
 
 const categoriesLoading = computed(() => pluginsLoading.value || extensionsListLoading.value || cameraExtensionsLoading.value || cameraSensorsLoading.value);
 
@@ -800,14 +816,11 @@ const detectionPluginSettings = computed(() => {
   if (!selectedDetectionPlugin.value || selectedDetectionPlugin.value === camera.value.pluginInfo?.name) return undefined;
   const snapshot = detectionPluginConfigSnapshot.value;
   if (snapshot?.plugin !== selectedDetectionPlugin.value) return undefined;
-  return snapshot.config.schema?.length ? snapshot.config : undefined;
+  return snapshot.config;
 });
 
 const detectionSensorSettings = computed(() =>
-  selectedDetectionSensorId.value &&
-  selectedDetectionSensorPluginName.value &&
-  detectionSensorConfigFor.value === selectedDetectionSensorId.value &&
-  detectionSensorConfig.value?.schema?.length
+  selectedDetectionSensorId.value && selectedDetectionSensorPluginName.value && detectionSensorConfigFor.value === selectedDetectionSensorId.value
     ? detectionSensorConfig.value
     : undefined,
 );
@@ -825,7 +838,7 @@ const objectAssistSensorStorage = useSensorStorage(objectAssistSensorId, objectA
 const objectAssistSensorConfig = objectAssistSensorStorage.config;
 const objectAssistSensorConfigLoading = objectAssistSensorStorage.isLoading;
 
-const objectAssistSettings = computed(() => (objectAssistSensorId.value && objectAssistSensorConfig.value?.schema?.length ? objectAssistSensorConfig.value : undefined));
+const objectAssistSettings = computed(() => (objectAssistSensorId.value ? objectAssistSensorConfig.value : undefined));
 
 const selectedCorePluginName = computed(() => selectedCorePlugin.value ?? '');
 const coreExtensionStorage = useCameraStorage(cameraDevice, selectedCorePluginName);
@@ -838,12 +851,10 @@ const coreSensorConfigLoading = coreSensorStorage.isLoading;
 
 const corePluginSettings = computed(() => {
   if (!selectedCorePlugin.value || selectedCorePlugin.value === camera.value.pluginInfo?.name) return undefined;
-  return coreExtensionConfig.value?.schema?.length ? coreExtensionConfig.value : undefined;
+  return coreExtensionConfig.value;
 });
 
-const coreSensorSettings = computed(() =>
-  selectedCoreSensorId.value && selectedCoreSensorPluginName.value && coreSensorConfig.value?.schema?.length ? coreSensorConfig.value : undefined,
-);
+const coreSensorSettings = computed(() => (selectedCoreSensorId.value && selectedCoreSensorPluginName.value ? coreSensorConfig.value : undefined));
 
 const selectedAccessoryPluginForConfigName = computed(() => selectedAccessoryPluginForConfig.value ?? '');
 const accessoryExtensionStorage = useCameraStorage(cameraDevice, selectedAccessoryPluginForConfigName);
@@ -852,7 +863,7 @@ const accessoryExtensionConfigLoading = accessoryExtensionStorage.isLoading;
 
 const accessoryPluginSettings = computed(() => {
   if (!selectedAccessoryPluginForConfig.value || selectedAccessoryPluginForConfig.value === camera.value.pluginInfo?.name) return undefined;
-  return accessoryExtensionConfig.value?.schema?.length ? accessoryExtensionConfig.value : undefined;
+  return accessoryExtensionConfig.value;
 });
 
 const filteredExtensions = computed<PluginExtension[]>(() => {

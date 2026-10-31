@@ -35,11 +35,11 @@
         <Card
           class="cui-card !h-auto lg:!h-full"
           :class="{
-            'items-center justify-center': pluginLoading || pluginConfigLoading,
+            'items-center justify-center': settingsLoading,
           }"
         >
           <template #content>
-            <div v-if="pluginLoading || pluginConfigLoading" class="w-full h-full flex items-center justify-center">
+            <div v-if="settingsLoading" class="w-full h-full flex items-center justify-center">
               <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
             </div>
 
@@ -48,6 +48,19 @@
 
               <div v-if="plugin?.disabled" class="flex items-center justify-center w-full h-full text-muted text-sm">
                 <span>{{ $t('views.plugin.disabled_info') }}</span>
+              </div>
+
+              <div v-else-if="isPluginStarting" class="flex items-center justify-center gap-2 w-full h-full text-muted text-sm">
+                <ProgressSpinner class="w-4 h-4 m-0" stroke-width="5" />
+                <span>{{ $t('views.plugin.starting') }}</span>
+              </div>
+
+              <div v-else-if="!isPluginRunning" class="flex items-center justify-center w-full h-full text-muted text-sm">
+                <span>{{ $t('views.plugin.not_running') }}</span>
+              </div>
+
+              <div v-else-if="!segments.length" class="flex items-center justify-center w-full h-full text-muted text-sm">
+                <span>{{ $t('views.plugin.no_settings') }}</span>
               </div>
 
               <Tabs v-else v-model:value="currentTab" scrollable>
@@ -125,11 +138,6 @@
                           <span>{{ $t('views.plugin.no_cameras') }}</span>
                         </div>
 
-                        <div v-else-if="!isPluginRunning" class="flex items-center justify-center gap-2 w-full h-full text-muted text-sm">
-                          <i-mdi:information-outline class="w-4 h-4 flex-shrink-0" />
-                          <span>{{ $t('views.plugin.assignment_requires_running') }}</span>
-                        </div>
-
                         <div v-for="camera in contract.cameras" v-else :key="camera.name" class="cui-list-item">
                           <CuiListItem
                             :disabled="addPluginPending || removePluginPending || storage.isLoading.value"
@@ -142,7 +150,7 @@
                             <template v-if="!plugin || !isCameraCreatedByPlugin(camera, plugin.pluginName)" #append>
                               <ToggleSwitch
                                 :model-value="enabledCameras.includes(camera.name)"
-                                :disabled="addPluginPending || removePluginPending || storage.isLoading.value || !isPluginRunning"
+                                :disabled="addPluginPending || removePluginPending || storage.isLoading.value"
                                 @update:model-value="() => toggleCamera(camera)"
                               />
                             </template>
@@ -202,7 +210,7 @@ import PluginSchemaDialog from '@/components/CuiDialog/templates/PluginSchema/Pl
 
 import type { PluginSchemaProps } from '@/components/CuiDialog/templates/PluginSchema/types.js';
 import type { PluginConfig } from '@camera.ui/sdk';
-import type { PluginContractCamera } from '@shared/types';
+import type { PlacementInfo, PluginContractCamera } from '@shared/types';
 
 interface SegmentItem {
   name: string;
@@ -249,10 +257,13 @@ const pluginConfigLoading = storage.isLoading;
 const { mutate: addPlugin, isPending: addPluginPending } = camerasQuery.activateCameraExtensionQuery();
 const { mutate: removePlugin, isPending: removePluginPending } = camerasQuery.deactivateCameraExtensionQuery();
 
+const WAITING_PHASES = new Set<PlacementInfo['phase']>(['waiting-for-worker', 'held']);
+
 const currentTab = ref('settings');
 const segments = ref<SegmentItem[]>([]);
 const enabledCameras = ref<string[]>([]);
-const pluginStatus = ref<PLUGIN_STATUS>(PLUGIN_STATUS.UNKNOWN);
+const pluginStatus = ref<PLUGIN_STATUS>();
+const pluginPlacement = ref<PlacementInfo>();
 
 let pluginStatusScope: ReturnType<typeof effectScope> | undefined;
 
@@ -260,6 +271,8 @@ const assignable = computed(() => plugin.value?.contract?.role !== PluginRole.Se
 const isNvr = computed(() => !!pluginContract.value && hasInterface(pluginContract.value, PluginInterface.NVR));
 
 const isPluginRunning = computed(() => pluginStatus.value === PLUGIN_STATUS.READY || pluginStatus.value === PLUGIN_STATUS.STARTED);
+const isPluginStarting = computed(() => pluginStatus.value === PLUGIN_STATUS.STARTING && !(pluginPlacement.value && WAITING_PHASES.has(pluginPlacement.value.phase)));
+const settingsLoading = computed(() => pluginLoading.value || pluginConfigLoading.value || !pluginStatus.value);
 
 const showSettingsTab = computed(() => {
   if (!isPluginRunning.value) return false;
@@ -389,7 +402,14 @@ watch(
     pluginStatusScope.run(() => {
       const statusSocket = usePluginsSocket(name);
       statusSocket.connect();
-      watch(statusSocket.status, (status) => (pluginStatus.value = status), { immediate: true });
+      watch(
+        [statusSocket.status, statusSocket.placement],
+        ([status, placement]) => {
+          pluginStatus.value = placement ? status : undefined;
+          pluginPlacement.value = placement;
+        },
+        { immediate: true },
+      );
     });
   },
   { immediate: true },
