@@ -142,7 +142,7 @@
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.5",
-    "vue-tsc": "3.3.11"
+    "vue-tsc": "3.3.13"
   },
   "overrides": {
     "unplugin-vue-markdown": {
