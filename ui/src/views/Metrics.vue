@@ -245,6 +245,11 @@
                         <Chip :label="data.recordingMode" class="text-xs" />
                       </template>
                     </Column>
+                    <Column field="limits" :header="$t('views.metrics.col_limits')">
+                      <template #body="{ data }">
+                        <span :class="{ 'text-muted': !data.ownLimits }">{{ data.limits }}</span>
+                      </template>
+                    </Column>
                     <template #empty>
                       <span class="text-muted text-sm">{{ $t('views.metrics.no_cameras') }}</span>
                     </template>
@@ -289,6 +294,8 @@ interface CameraStorageRow {
   bandwidthMBh: number;
   recordingMode: string;
   isRecording: boolean;
+  ownLimits: boolean;
+  limits: string;
 }
 
 interface OverviewRow {
@@ -814,6 +821,8 @@ const cameraRows = computed<CameraStorageRow[]>(() => {
       bandwidthMBh: cam.bandwidthMBh,
       recordingMode: cam.recordingMode,
       isRecording: cam.isRecording,
+      ownLimits: cam.ownLimits === true,
+      limits: cam.ownLimits ? cameraLimits(cam.retentionDays ?? 0, cam.maxStorageGB ?? 0) : t('views.metrics.limits_global'),
     }))
     .sort((a, b) => b.usedBytes - a.usedBytes);
 });
@@ -1037,6 +1046,11 @@ function formatGB(gb: number): string {
   if (gb >= 1000) return `${(gb / 1000).toFixed(2)} TB`;
   if (gb >= 1) return `${gb.toFixed(2)} GB`;
   return `${(gb * 1000).toFixed(0)} MB`;
+}
+
+function cameraLimits(retentionDays: number, maxStorageGB: number): string {
+  const days = retentionDays > 0 ? t('views.metrics.days_count', { count: retentionDays }) : t('views.metrics.unlimited');
+  return maxStorageGB > 0 ? `${days} · ${formatGB(maxStorageGB)}` : days;
 }
 
 function formatBytes(bytes: number): string {
