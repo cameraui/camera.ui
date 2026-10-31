@@ -125,7 +125,7 @@ const {
   availableCameraIds,
   realtime: true,
   pageSize: pageSize.value,
-  filter: () => ({ hasDetections: true, hiddenTypes: props.hiddenTypes }),
+  filter: () => ({ hasDetections: true, hiddenTypes: props.hiddenTypes, shownTypes: props.shownTypes }),
   withEpisodes: true,
   enabled: () => !props.pending,
 });

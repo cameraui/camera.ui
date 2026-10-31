@@ -117,6 +117,7 @@ declare global {
   const provide: typeof import('vue').provide
   const provideEventHoverPreview: typeof import('../composables/provideEventHoverPreview').provideEventHoverPreview
   const provideLocal: typeof import('@vueuse/core').provideLocal
+  const provideTimelineFilter: typeof import('../composables/provideTimelineFilter').provideTimelineFilter
   const reactify: typeof import('@vueuse/core').reactify
   const reactifyObject: typeof import('@vueuse/core').reactifyObject
   const reactive: typeof import('vue').reactive
@@ -296,7 +297,6 @@ declare global {
   const useFullscreen: typeof import('@vueuse/core').useFullscreen
   const useGamepad: typeof import('@vueuse/core').useGamepad
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
-  const useHiddenEventTypes: typeof import('../composables/useHiddenEventTypes').useHiddenEventTypes
   const useHiddenHomeCameras: typeof import('../composables/useHiddenHomeCameras').useHiddenHomeCameras
   const useHostMenu: typeof import('../composables/useHostMenu').useHostMenu
   const useHttp: typeof import('../connection/composables/useHttp').useHttp
@@ -374,6 +374,7 @@ declare global {
   const useQueryLoading: typeof import('../composables/useQueryLoading').useQueryLoading
   const useRAF: typeof import('../composables/useFn').useRAF
   const useRafFn: typeof import('@vueuse/core').useRafFn
+  const useRecentEventTypes: typeof import('../composables/useRecentEventTypes').useRecentEventTypes
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useRegisterSW: typeof import('../composables/pwa-register-stub').useRegisterSW
   const useResizableZoom: typeof import('../composables/useResizableZoom').useResizableZoom
@@ -548,6 +549,9 @@ declare global {
   export type { PushSyncStatus, PushSyncState } from '../composables/usePushRegistration'
   import('../composables/usePushRegistration')
   // @ts-ignore
+  export type { RecentEventTypes } from '../composables/useRecentEventTypes'
+  import('../composables/useRecentEventTypes')
+  // @ts-ignore
   export type { ResizableZoomOptions } from '../composables/useResizableZoom'
   import('../composables/useResizableZoom')
   // @ts-ignore
@@ -717,6 +721,7 @@ declare module 'vue' {
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideEventHoverPreview: UnwrapRef<typeof import('../composables/provideEventHoverPreview')['provideEventHoverPreview']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
+    readonly provideTimelineFilter: UnwrapRef<typeof import('../composables/provideTimelineFilter')['provideTimelineFilter']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
@@ -895,7 +900,6 @@ declare module 'vue' {
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
-    readonly useHiddenEventTypes: UnwrapRef<typeof import('../composables/useHiddenEventTypes')['useHiddenEventTypes']>
     readonly useHiddenHomeCameras: UnwrapRef<typeof import('../composables/useHiddenHomeCameras')['useHiddenHomeCameras']>
     readonly useHostMenu: UnwrapRef<typeof import('../composables/useHostMenu')['useHostMenu']>
     readonly useHttp: UnwrapRef<typeof import('../connection/composables/useHttp')['useHttp']>
@@ -973,6 +977,7 @@ declare module 'vue' {
     readonly useQueryLoading: UnwrapRef<typeof import('../composables/useQueryLoading')['useQueryLoading']>
     readonly useRAF: UnwrapRef<typeof import('../composables/useFn')['useRAF']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
+    readonly useRecentEventTypes: UnwrapRef<typeof import('../composables/useRecentEventTypes')['useRecentEventTypes']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useRegisterSW: UnwrapRef<typeof import('../composables/pwa-register-stub')['useRegisterSW']>
     readonly useResizableZoom: UnwrapRef<typeof import('../composables/useResizableZoom')['useResizableZoom']>

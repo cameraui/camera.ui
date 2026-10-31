@@ -1,3 +1,5 @@
+import { EVENT_TRIGGER_TYPES } from '@camera.ui/sdk';
+
 import type { FrameObject } from '@camera.ui/nvr';
 
 export const AUDIO_LABEL_I18N: Record<string, string> = {
@@ -32,22 +34,10 @@ export const SENSOR_EVENT_LABELS: Record<string, string> = {
   'line-crossing': 'views.recordings.sensor_line_crossing',
 };
 
-// motion and audio come with the detection labels
-export const NOTIFY_SENSOR_TYPES = [
-  'doorbell',
-  'contact',
-  'siren',
-  'security_system',
-  'smoke',
-  'gas',
-  'carbonMonoxide',
-  'heat',
-  'leak',
-  'cold',
-  'vibration',
-  'tamper',
-  'problem',
-] as const;
+// motion and audio come with the detection labels, a line crossing pushes through the alert zones
+const SILENT_TRIGGER_TYPES = new Set<string>(['motion', 'audio', 'line-crossing']);
+
+export const NOTIFY_SENSOR_TYPES = EVENT_TRIGGER_TYPES.filter((type) => !SILENT_TRIGGER_TYPES.has(type));
 
 export function detectionLabelKey(label: string): string {
   return `components.timeline.type_${label}`;

@@ -4,7 +4,7 @@ import { inject, tryInject } from '../../container.js';
 import { AuthService } from './auth.service.js';
 
 import type { Database } from '../database/index.js';
-import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser, HiddenEventTypes } from '../database/types.js';
+import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser, EventTypesByCamera, EventTypesField } from '../database/types.js';
 
 export class UsersService {
   private dbs: Database;
@@ -92,18 +92,19 @@ export class UsersService {
     await Promise.all(tasks);
   }
 
-  public getHiddenEventTypes(username: string): HiddenEventTypes | undefined {
+  public getEventTypes(username: string, field: EventTypesField): EventTypesByCamera | undefined {
     const user = this.findByName(username);
     if (!user) return undefined;
 
-    const hidden: HiddenEventTypes = {};
+    const types: EventTypesByCamera = {};
     for (const [cameraId, prefs] of Object.entries(user.preferences.cameras)) {
-      if (prefs?.hiddenEventTypes?.length) hidden[cameraId] = prefs.hiddenEventTypes;
+      const list = prefs?.[field];
+      if (list?.length) types[cameraId] = list;
     }
-    return hidden;
+    return types;
   }
 
-  public async setHiddenEventTypes(username: string, hidden: HiddenEventTypes): Promise<HiddenEventTypes | undefined> {
+  public async setEventTypes(username: string, field: EventTypesField, types: EventTypesByCamera): Promise<EventTypesByCamera | undefined> {
     const existing = this.findByName(username);
     if (!existing) return undefined;
 
@@ -111,20 +112,20 @@ export class UsersService {
       if (!current) return undefined;
 
       for (const prefs of Object.values(current.preferences.cameras)) {
-        if (prefs) delete prefs.hiddenEventTypes;
+        if (prefs) delete prefs[field];
       }
 
-      for (const [cameraId, types] of Object.entries(hidden)) {
-        const normalized = [...new Set(types.map((type) => type.toLowerCase()))];
+      for (const [cameraId, list] of Object.entries(types)) {
+        const normalized = [...new Set(list.map((type) => type.toLowerCase()))];
         if (normalized.length === 0) continue;
         const prefs = (current.preferences.cameras[cameraId] ??= { shortcuts: [] });
-        prefs.hiddenEventTypes = normalized;
+        prefs[field] = normalized;
       }
 
       return current;
     });
 
-    return user ? this.getHiddenEventTypes(username) : undefined;
+    return user ? this.getEventTypes(username, field) : undefined;
   }
 
   public async createShortcut(username: string, cameraId: string, shortcutData: DBShortcut): Promise<DBShortcut[] | undefined> {

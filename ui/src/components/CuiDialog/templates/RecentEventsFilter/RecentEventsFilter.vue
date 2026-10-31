@@ -30,9 +30,11 @@ import { DETECTION_ATTRIBUTES } from '@camera.ui/sdk';
 import { attributeLabelKey, detectionLabelKey } from '@/common/eventLabels.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
-import { RECENT_EVENTS_FILTER_TYPES } from './types.js';
+import { RECENT_EVENTS_FILTER_TYPES, RECENT_EVENTS_OPT_IN_TYPES } from './types.js';
 
+import type { RecentEventTypes } from '@/composables/useRecentEventTypes.js';
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
+import type { EventTypesByCamera } from '@shared/types';
 import type { RecentEventsFilterProps } from './types.js';
 
 const props = defineProps<RecentEventsFilterProps>();
@@ -41,20 +43,34 @@ const { t } = useI18n();
 
 const { icons, generic } = resolveEventIcons();
 
-const draft = ref(Object.fromEntries(Object.entries(props.hidden).map(([cameraId, types]) => [cameraId, [...types]])));
+const OPT_IN = new Set<string>(RECENT_EVENTS_OPT_IN_TYPES);
+
+const hiddenDraft = ref(copyTypes(props.hidden));
+const shownDraft = ref(copyTypes(props.shown));
 
 const cameraOptions = computed(() => props.cameras.map((camera) => ({ label: camera.name, value: camera._id })));
 
 const typeOptions = computed(() =>
-  RECENT_EVENTS_FILTER_TYPES.map((type) => ({
+  [...RECENT_EVENTS_FILTER_TYPES, ...RECENT_EVENTS_OPT_IN_TYPES].map((type) => ({
     value: type as string,
     label: t((DETECTION_ATTRIBUTES as readonly string[]).includes(type) ? attributeLabelKey(type) : detectionLabelKey(type)),
     icon: icons[type] ?? generic,
   })),
 );
 
+function copyTypes(byCamera: EventTypesByCamera): EventTypesByCamera {
+  return Object.fromEntries(Object.entries(byCamera).map(([cameraId, types]) => [cameraId, [...types]]));
+}
+
+function withoutEmpty(byCamera: EventTypesByCamera): EventTypesByCamera {
+  return Object.fromEntries(Object.entries(byCamera).filter(([, types]) => types.length > 0));
+}
+
 function shownOn(type: string): string[] {
-  return props.cameras.filter((camera) => !draft.value[camera._id]?.includes(type)).map((camera) => camera._id);
+  const optIn = OPT_IN.has(type);
+  return props.cameras
+    .filter((camera) => (optIn ? shownDraft.value[camera._id]?.includes(type) : !hiddenDraft.value[camera._id]?.includes(type)))
+    .map((camera) => camera._id);
 }
 
 function shownLabel(type: string): string {
@@ -64,16 +80,18 @@ function shownLabel(type: string): string {
 }
 
 function setShownOn(type: string, cameraIds: string[]): void {
+  const optIn = OPT_IN.has(type);
+  const draft = optIn ? shownDraft : hiddenDraft;
   const shown = new Set(cameraIds);
   const next = { ...draft.value };
   for (const camera of props.cameras) {
     const types = (next[camera._id] ?? []).filter((entry) => entry !== type);
-    next[camera._id] = shown.has(camera._id) ? types : [...types, type];
+    next[camera._id] = shown.has(camera._id) === optIn ? [...types, type] : types;
   }
   draft.value = next;
 }
 
 defineExpose<CustomDialogComponent>({
-  onConfirm: async () => Object.fromEntries(Object.entries(draft.value).filter(([, types]) => types.length > 0)),
+  onConfirm: async (): Promise<RecentEventTypes> => ({ hidden: withoutEmpty(hiddenDraft.value), shown: withoutEmpty(shownDraft.value) }),
 });
 </script>

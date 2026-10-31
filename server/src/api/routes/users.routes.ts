@@ -7,7 +7,7 @@ import {
   cameraShortcutByIdParamsSchema,
   cameraShortcutParamsSchema,
   createUserSchema,
-  hiddenEventTypesSchema,
+  eventTypesByCameraSchema,
   patchPreferencesCameraShortcutLayout,
   patchPreferencesCamviewViewsLayout,
   patchUserSchema,
@@ -104,7 +104,7 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
     handler: usersController.getHiddenEventTypes.bind(usersController),
     schema: {
       tags: ['Users'],
-      summary: 'Detection types a user hides from recent events, per camera',
+      summary: 'Event types a user hides from recent events, per camera',
       params: usernameParamsSchema,
     },
   });
@@ -116,9 +116,34 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
     handler: usersController.putHiddenEventTypes.bind(usersController),
     schema: {
       tags: ['Users'],
-      summary: 'Replace the detection types a user hides from recent events',
+      summary: 'Replace the event types a user hides from recent events',
       params: usernameParamsSchema,
-      body: hiddenEventTypesSchema,
+      body: eventTypesByCameraSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'GET',
+    url: '/:username/preferences/shown-event-types',
+    preValidation: [validJWTNeeded, onlySameUserOrAdminCanDoThisAction],
+    handler: usersController.getShownEventTypes.bind(usersController),
+    schema: {
+      tags: ['Users'],
+      summary: 'Event types a user adds to recent events, per camera',
+      params: usernameParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'PUT',
+    url: '/:username/preferences/shown-event-types',
+    preValidation: [validJWTNeeded, onlySameUserOrAdminCanDoThisAction],
+    handler: usersController.putShownEventTypes.bind(usersController),
+    schema: {
+      tags: ['Users'],
+      summary: 'Replace the event types a user adds to recent events',
+      params: usernameParamsSchema,
+      body: eventTypesByCameraSchema,
     },
   });
 

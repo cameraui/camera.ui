@@ -8,7 +8,7 @@ import type {
   DBCameraShortcut,
   DBCamviewLayout,
   DBUser,
-  HiddenEventTypes,
+  EventTypesByCamera,
   MethodKeys,
   PaginationQuery,
   PatchShortcutInput,
@@ -137,13 +137,15 @@ export async function removeViewsFn({ username }: { username: string }): Promise
   return response.data;
 }
 
-export async function getHiddenEventTypesFn({ username, signal }: { username: string; signal: AbortSignal }): Promise<HiddenEventTypes> {
-  const response: AxiosResponse<HiddenEventTypes> = await api.get(`/users/${username}/preferences/hidden-event-types`, { signal });
+export type EventTypesKind = 'hidden' | 'shown';
+
+export async function getEventTypesFn({ username, kind, signal }: { username: string; kind: EventTypesKind; signal: AbortSignal }): Promise<EventTypesByCamera> {
+  const response: AxiosResponse<EventTypesByCamera> = await api.get(`/users/${username}/preferences/${kind}-event-types`, { signal });
   return response.data;
 }
 
-export async function putHiddenEventTypesFn({ username, hidden }: { username: string; hidden: HiddenEventTypes }): Promise<HiddenEventTypes> {
-  const response: AxiosResponse<HiddenEventTypes> = await api.put(`/users/${username}/preferences/hidden-event-types`, hidden);
+export async function putEventTypesFn({ username, kind, types }: { username: string; kind: EventTypesKind; types: EventTypesByCamera }): Promise<EventTypesByCamera> {
+  const response: AxiosResponse<EventTypesByCamera> = await api.put(`/users/${username}/preferences/${kind}-event-types`, types);
   return response.data;
 }
 
@@ -178,7 +180,7 @@ export class UsersQuery {
       enabled: true,
     },
     {
-      name: 'getHiddenEventTypesQuery',
+      name: 'getEventTypesQuery',
       enabled: true,
     },
   ]);
@@ -245,29 +247,29 @@ export class UsersQuery {
     });
   }
 
-  public getHiddenEventTypesQuery(username: string | Ref<string>) {
+  public getEventTypesQuery(username: string | Ref<string>, kind: EventTypesKind) {
     return useQueryEnhanced({
-      queryKey: ['hiddenEventTypes', username],
-      queryFn: ({ signal }) => getHiddenEventTypesFn({ username: unref(username), signal }),
-      enabled: () => Boolean(unref(username)) && this.queryActivator.value.some((query) => query.name === 'getHiddenEventTypesQuery' && query.enabled),
+      queryKey: ['eventTypes', kind, username],
+      queryFn: ({ signal }) => getEventTypesFn({ username: unref(username), kind, signal }),
+      enabled: () => Boolean(unref(username)) && this.queryActivator.value.some((query) => query.name === 'getEventTypesQuery' && query.enabled),
     });
   }
 
-  public putHiddenEventTypesQuery() {
+  public putEventTypesQuery() {
     return useMutation({
-      mutationFn: putHiddenEventTypesFn,
-      onMutate: async ({ username, hidden }) => {
-        const queryKey = ['hiddenEventTypes', username];
+      mutationFn: putEventTypesFn,
+      onMutate: async ({ username, kind, types }) => {
+        const queryKey = ['eventTypes', kind, username];
         await this._queryClient.cancelQueries({ queryKey });
-        const previous = this._queryClient.getQueryData<HiddenEventTypes>(queryKey);
-        this._queryClient.setQueryData(queryKey, hidden);
+        const previous = this._queryClient.getQueryData<EventTypesByCamera>(queryKey);
+        this._queryClient.setQueryData(queryKey, types);
         return { previous };
       },
-      onError: (_error, { username }, context) => {
-        this._queryClient.setQueryData(['hiddenEventTypes', username], context?.previous);
+      onError: (_error, { username, kind }, context) => {
+        this._queryClient.setQueryData(['eventTypes', kind, username], context?.previous);
       },
-      onSuccess: (saved, { username }) => {
-        this._queryClient.setQueryData(['hiddenEventTypes', username], saved);
+      onSuccess: (saved, { username, kind }) => {
+        this._queryClient.setQueryData(['eventTypes', kind, username], saved);
       },
     });
   }

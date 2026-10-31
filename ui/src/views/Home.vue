@@ -11,7 +11,7 @@
       <h1 v-if="!smBreakpoint" class="page-title mb-2">
         {{ $t('components.camera_events.title') }}
       </h1>
-      <CuiCameraEvents :cameras="cameras?.result" :hidden-types="hiddenEventTypes" :pending="!hiddenEventTypesReady" />
+      <CuiCameraEvents :cameras="cameras?.result" :hidden-types="hiddenEventTypes" :shown-types="shownEventTypes" :pending="!eventTypesReady" />
     </div>
 
     <div class="flex flex-col flex-1 overflow-x-hidden">
@@ -232,7 +232,8 @@ import { extractErrorMessage, getImageUrl } from '@/common/utils.js';
 import type CuiCameraSnapshot from '@/components/CuiCameraSnapshot/CuiCameraSnapshot.vue';
 import type { CameraConsoleProps } from '@/components/CuiDialog/templates/CameraConsole/types.js';
 import type { RecentEventsFilterProps } from '@/components/CuiDialog/templates/RecentEventsFilter/types.js';
-import type { BulkResult, DBCamera, HiddenEventTypes } from '@shared/types';
+import type { RecentEventTypes } from '@/composables/useRecentEventTypes.js';
+import type { BulkResult, DBCamera } from '@shared/types';
 
 interface CameraGroup {
   room: string;
@@ -262,11 +263,12 @@ const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 
 const {
   hidden: hiddenEventTypes,
+  shown: shownEventTypes,
   active: recentEventsFiltered,
-  ready: hiddenEventTypesReady,
-  saving: hiddenEventTypesSaving,
-  save: saveHiddenEventTypes,
-} = useHiddenEventTypes();
+  ready: eventTypesReady,
+  saving: eventTypesSaving,
+  save: saveEventTypes,
+} = useRecentEventTypes();
 
 const { hiddenIds: hiddenCameraIds, toggle: toggleCameraHidden } = useHiddenHomeCameras();
 
@@ -494,15 +496,16 @@ function openRecentEventsFilter() {
     data: {
       title: t('components.camera_events.filter'),
       confirmText: t('components.form.button.save'),
-      loading: hiddenEventTypesSaving,
+      loading: eventTypesSaving,
       contentProps: {
         cameras: sortedCameras.value,
         hidden: hiddenEventTypes.value,
+        shown: shownEventTypes.value,
       },
     },
-    onConfirm: async (next: HiddenEventTypes) => {
+    onConfirm: async (next: RecentEventTypes) => {
       try {
-        await saveHiddenEventTypes(next);
+        await saveEventTypes(next);
       } catch (error) {
         toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
       }

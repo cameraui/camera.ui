@@ -10,6 +10,7 @@ import IconSmoke from '~icons/mdi/smoke-detector';
 import IconCold from '~icons/mdi/snowflake';
 import IconVibration from '~icons/mdi/vibrate';
 import IconLeak from '~icons/mdi/water-alert-outline';
+import IconSensor from '~icons/material-symbols/home-iot-device-outline';
 import IconActivity from '~icons/tabler/activity';
 import IconAlarm from '~icons/tabler/alarm';
 import IconAlertOctagon from '~icons/tabler/alert-octagon';
@@ -34,6 +35,7 @@ import IconShieldLock from '~icons/tabler/shield-lock';
 import IconSpeakerphone from '~icons/tabler/speakerphone';
 import IconTag from '~icons/tabler/tag';
 import IconToggleLeft from '~icons/tabler/toggle-left';
+import IconUrgent from '~icons/tabler/urgent';
 import IconUser from '~icons/tabler/user';
 import IconVolume from '~icons/tabler/volume';
 
@@ -43,6 +45,9 @@ const icons: Record<string, Component> = {
   vehicle: IconCar,
   animal: IconDog,
   audio: IconVolume,
+  sensor: IconSensor,
+  alarm_sound: IconUrgent,
+  other_sound: IconVolume,
   face: IconFaceId,
   license_plate: IconLicense,
   contact: IconDoor,

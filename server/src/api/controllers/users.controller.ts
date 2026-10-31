@@ -9,13 +9,13 @@ import { UsersService } from '../services/users.service.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
-import type { DBCamviewLayout, DBUser } from '../database/types.js';
+import type { DBCamviewLayout, DBUser, EventTypesField } from '../database/types.js';
 import type { UserLanguage } from '../schemas/users.schema.js';
 import type {
   AuthLoginRequest,
   AuthParamsRequest,
   CamerasParamsRequest,
-  HiddenEventTypesPutRequest,
+  EventTypesPutRequest,
   PaginationRequest,
   ShortcutInsertRequest,
   ShortcutParamsRequest,
@@ -381,47 +381,25 @@ export class UsersController {
   }
 
   public getHiddenEventTypes(req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest>, reply: FastifyReply): FastifyReply {
-    try {
-      const hidden = this.service.getHiddenEventTypes(req.params.username);
-
-      if (!hidden) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'User not exists',
-        });
-      }
-
-      return reply.code(200).send(hidden);
-    } catch (error: any) {
-      return reply.code(500).send({
-        statusCode: 500,
-        message: error.message,
-      });
-    }
+    return this.sendEventTypes(req, reply, 'hiddenEventTypes');
   }
 
-  public async putHiddenEventTypes(
-    req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest & HiddenEventTypesPutRequest>,
+  public putHiddenEventTypes(
+    req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest & EventTypesPutRequest>,
     reply: FastifyReply,
   ): Promise<FastifyReply> {
-    try {
-      const hidden = Object.fromEntries(Object.entries(req.body).filter(([cameraId]) => this.camerasService.findById(cameraId)));
-      const saved = await this.service.setHiddenEventTypes(req.params.username, hidden);
+    return this.saveEventTypes(req, reply, 'hiddenEventTypes');
+  }
 
-      if (!saved) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'User not exists',
-        });
-      }
+  public getShownEventTypes(req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest>, reply: FastifyReply): FastifyReply {
+    return this.sendEventTypes(req, reply, 'shownEventTypes');
+  }
 
-      return reply.code(200).send(saved);
-    } catch (error: any) {
-      return reply.code(500).send({
-        statusCode: 500,
-        message: error.message,
-      });
-    }
+  public putShownEventTypes(
+    req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest & EventTypesPutRequest>,
+    reply: FastifyReply,
+  ): Promise<FastifyReply> {
+    return this.saveEventTypes(req, reply, 'shownEventTypes');
   }
 
   public getShortcutsByCameraName(
@@ -737,6 +715,51 @@ export class UsersController {
       const ordered = orderBy(views, ['name'], ['asc']);
 
       return ordered;
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  private sendEventTypes(req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest>, reply: FastifyReply, field: EventTypesField): FastifyReply {
+    try {
+      const types = this.service.getEventTypes(req.params.username, field);
+
+      if (!types) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'User not exists',
+        });
+      }
+
+      return reply.code(200).send(types);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  private async saveEventTypes(
+    req: FastifyRequest<AuthLoginRequest & AuthParamsRequest & UsersParamsRequest & EventTypesPutRequest>,
+    reply: FastifyReply,
+    field: EventTypesField,
+  ): Promise<FastifyReply> {
+    try {
+      const types = Object.fromEntries(Object.entries(req.body).filter(([cameraId]) => this.camerasService.findById(cameraId)));
+      const saved = await this.service.setEventTypes(req.params.username, field, types);
+
+      if (!saved) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'User not exists',
+        });
+      }
+
+      return reply.code(200).send(saved);
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

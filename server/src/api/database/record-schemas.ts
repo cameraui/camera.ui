@@ -11,6 +11,8 @@ import {
   sensorShortcutTypeSchema,
   userLanguageSchema,
   userPreferencesCamviewViewsLayoutCameras,
+  userPreferencesRecordingsFilters,
+  userPreferencesTimeline,
 } from '../schemas/users.schema.js';
 
 const dbRolesSchema = zod.enum(['master', 'admin', 'user']);
@@ -52,14 +54,24 @@ export const dbUserSchema = zod.object({
     .object({
       language: userLanguageSchema.default('auto'),
       camview: zod.object({ views: dbCamviewLayoutSchema.array().default([]) }).default({ views: [] }),
-      cameras: zod.record(zod.string(), zod.object({ shortcuts: dbShortcutSchema.array().default([]), hiddenEventTypes: zod.string().array().optional() })).default({}),
+      cameras: zod
+        .record(
+          zod.string(),
+          zod.object({
+            shortcuts: dbShortcutSchema.array().default([]),
+            hiddenEventTypes: zod.string().array().optional(),
+            shownEventTypes: zod.string().array().optional(),
+          }),
+        )
+        .default({}),
       discovery: zod
         .object({
           hiddenDevices: zod.object({ id: zod.string(), name: zod.string(), model: zod.string().optional() }).array().default([]),
         })
         .optional(),
-      recordings: zod.object({ ungrouped: zod.boolean() }).optional(),
+      recordings: zod.object({ ungrouped: zod.boolean().optional(), filters: userPreferencesRecordingsFilters.optional() }).optional(),
       home: zod.object({ hiddenCameras: zod.string().array().default([]) }).optional(),
+      timeline: userPreferencesTimeline.optional(),
     })
     .default({ language: 'auto', camview: { views: [] }, cameras: {} }),
   twoFactor: zod

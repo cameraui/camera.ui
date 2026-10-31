@@ -539,7 +539,9 @@ export interface DBSensorShortcut extends DBShortcutBase {
 
 export type DBShortcut = DBCameraShortcut | DBSensorShortcut;
 
-export type HiddenEventTypes = Record<string, string[]>;
+export type EventTypesByCamera = Record<string, string[]>;
+
+export type EventTypesField = 'hiddenEventTypes' | 'shownEventTypes';
 
 // prettier-ignore
 export type DBUserCameraPreferences = Record<
@@ -547,9 +549,35 @@ export type DBUserCameraPreferences = Record<
   | {
     shortcuts: DBShortcut[];
     hiddenEventTypes?: string[];
+    shownEventTypes?: string[];
   }
   | undefined
 >;
+
+export interface DBRecordingsFilters {
+  contentKind?: 'all' | 'events' | 'episodes';
+  favoritesOnly?: boolean;
+  filterLogicTriggers?: 'and' | 'or';
+  filterLogicAttributes?: 'and' | 'or';
+  rooms?: string[];
+  cameraIds?: string[];
+  eventTypes?: string[];
+  audioLabels?: string[];
+  hasAttributes?: string[];
+  vehicleColors?: string[];
+  vehicleTypes?: string[];
+  sensorEvents?: string[];
+  gridRegions?: { col: number; row: number; w: number; h: number }[];
+  minConfidence?: number;
+  minSemanticScore?: number;
+  onlyWithRecordings?: boolean;
+}
+
+export interface DBTimelineFilter {
+  hiddenTypes?: string[];
+  scope?: 'camera' | 'all';
+  onlyMatches?: boolean;
+}
 
 export interface DBHiddenDevice {
   id: string;
@@ -568,11 +596,13 @@ export interface DBUserPreferences {
     hiddenDevices: DBHiddenDevice[];
   };
   recordings?: {
-    ungrouped: boolean;
+    ungrouped?: boolean;
+    filters?: DBRecordingsFilters;
   };
   home?: {
     hiddenCameras: string[];
   };
+  timeline?: DBTimelineFilter;
 }
 
 export interface DBInstanceCredentials {

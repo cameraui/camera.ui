@@ -158,15 +158,50 @@ export const patchPreferencesCameraShortcutLayout = zod.union([patchCameraShortc
 export const userPreferencesCameras = zod.object({
   shortcuts: userPreferencesCameraShortcutLayout.array(),
   hiddenEventTypes: zod.string().array().optional(),
+  shownEventTypes: zod.string().array().optional(),
 });
 
-export const hiddenEventTypesSchema = zod.record(zod.string().trim().min(1), zod.string().trim().min(1).max(64).array().max(64));
+const eventTypeList = zod.string().trim().min(1).max(64).array().max(64);
+
+export const eventTypesByCameraSchema = zod.record(zod.string().trim().min(1), eventTypeList);
 
 export const userLanguageSchema = zod.enum(['auto', ...SUPPORTED_LANGUAGES]);
 
+const filterValues = zod.string().trim().min(1).max(128).array().max(1000);
+
+export const userPreferencesRecordingsFilters = zod
+  .object({
+    contentKind: zod.enum(['all', 'events', 'episodes']),
+    favoritesOnly: zod.boolean(),
+    filterLogicTriggers: zod.enum(['and', 'or']),
+    filterLogicAttributes: zod.enum(['and', 'or']),
+    rooms: filterValues,
+    cameraIds: filterValues,
+    eventTypes: filterValues,
+    audioLabels: filterValues,
+    hasAttributes: filterValues,
+    vehicleColors: filterValues,
+    vehicleTypes: filterValues,
+    sensorEvents: filterValues,
+    gridRegions: zod.object({ col: zod.number(), row: zod.number(), w: zod.number(), h: zod.number() }).array().max(1000),
+    minConfidence: zod.number().min(0).max(1),
+    minSemanticScore: zod.number().min(0).max(1),
+    onlyWithRecordings: zod.boolean(),
+  })
+  .partial();
+
 export const userPreferencesRecordings = zod.object({
-  ungrouped: zod.boolean(),
+  ungrouped: zod.boolean().optional(),
+  filters: userPreferencesRecordingsFilters.optional(),
 });
+
+export const userPreferencesTimeline = zod
+  .object({
+    hiddenTypes: eventTypeList,
+    scope: zod.enum(['camera', 'all']),
+    onlyMatches: zod.boolean(),
+  })
+  .partial();
 
 export const userPreferencesHome = zod.object({
   hiddenCameras: zod.string().trim().min(1).array().max(1000),
@@ -203,6 +238,7 @@ export const userPreferences = zod.object({
   cameras: zod.record(zod.string().trim(), userPreferencesCameras),
   recordings: userPreferencesRecordings.optional(),
   home: userPreferencesHome.optional(),
+  timeline: userPreferencesTimeline.optional(),
   navLayout: userPreferencesNavLayout.nullable().optional(),
 });
 
@@ -300,7 +336,7 @@ export type PatchViewInput = zod.output<typeof patchPreferencesCamviewViewsLayou
 export type CreateShortcutInput = zod.output<typeof userPreferencesCameraShortcutLayout>;
 export type PatchShortcutInput = zod.output<typeof patchPreferencesCameraShortcutLayout>;
 export type UsernameParamsInput = zod.output<typeof usernameParamsSchema>;
-export type HiddenEventTypesInput = zod.output<typeof hiddenEventTypesSchema>;
+export type EventTypesByCameraInput = zod.output<typeof eventTypesByCameraSchema>;
 export type CameraShortcutParamsInput = zod.output<typeof cameraShortcutParamsSchema>;
 export type CameraShortcutByIdParamsInput = zod.output<typeof cameraShortcutByIdParamsSchema>;
 export type ViewParamsInput = zod.output<typeof viewParamsSchema>;

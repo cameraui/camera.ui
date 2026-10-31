@@ -87,7 +87,7 @@ import type {
   CreateShortcutInput,
   CreateUserInput,
   CreateViewInput,
-  HiddenEventTypesInput,
+  EventTypesByCameraInput,
   LoginUserInput,
   PatchShortcutInput,
   PatchUserInput,
@@ -566,8 +566,8 @@ export interface UsersInsertRequest {
   Body: CreateUserInput & { avatar: string };
 }
 
-export interface HiddenEventTypesPutRequest {
-  Body: HiddenEventTypesInput;
+export interface EventTypesPutRequest {
+  Body: EventTypesByCameraInput;
 }
 
 export interface UsersPatchRequest {

@@ -1,9 +1,10 @@
 import type { RecordedEvent, RecordedSegment } from '@camera.ui/nvr';
-import type { DBCamera, HiddenEventTypes } from '@shared/types';
+import type { DBCamera, EventTypesByCamera } from '@shared/types';
 
 export interface CuiCameraEventsProps {
   cameras?: DBCamera[];
-  hiddenTypes?: HiddenEventTypes;
+  hiddenTypes?: EventTypesByCamera;
+  shownTypes?: EventTypesByCamera;
   pending?: boolean;
 }
 

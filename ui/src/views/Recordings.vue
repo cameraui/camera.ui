@@ -310,7 +310,7 @@ import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { RecordingsFilterState } from '@/components/CuiRecordings/types.js';
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
 import type { GetEventsOptions, RecordedEvent, SimilarOptions, TextSearchOptions } from '@camera.ui/nvr';
-import type { DBCamera } from '@shared/types';
+import type { DBCamera, DBRecordingsFilters } from '@shared/types';
 
 const assistantQuery = new AssistantQuery();
 const camerasQuery = new CamerasQuery();
@@ -355,7 +355,7 @@ const nvrDataEpoch = useNvrDataEpoch();
 
 const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
 const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
-const { data: currentUser } = usersQuery.getUserQuery(computed(() => authStore.user?.username ?? ''));
+const { data: currentUser, isError: userLoadFailed } = usersQuery.getUserQuery(computed(() => authStore.user?.username ?? ''));
 
 const SIDEBAR_WIDTH = 288;
 const SKELETON_ITEMS = Array.from({ length: 24 }, (_, index) => index);
@@ -401,6 +401,7 @@ const assistantNote = ref('');
 const imageDrags = ref(0);
 const rangeStartMs = ref<number>();
 const ungrouped = ref(false);
+const filtersRestored = ref(false);
 const hoveredEventId = ref<string | null>(null);
 const semanticText = ref('');
 const semanticThreshold = refDebounced(
@@ -409,6 +410,7 @@ const semanticThreshold = refDebounced(
 );
 
 let ungroupedTouched = false;
+let savedFilterJSON = '';
 let lastSemanticKey = '';
 let _prevFilterJSON = JSON.stringify(serverFilter.value);
 
@@ -516,6 +518,7 @@ const {
   filter: serverFilter,
   withEpisodes: episodesWanted,
   withStats: true,
+  enabled: () => filtersRestored.value || userLoadFailed.value,
 });
 
 const semanticEventIds = computed(() => {
@@ -860,6 +863,11 @@ function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
   };
 }
 
+function savedFilters(f: RecordingsFilterState): DBRecordingsFilters {
+  const { search, semanticQuery, timeRange, customDateRange, ...saved } = f;
+  return saved;
+}
+
 function vehicleAttributeLabels(f: RecordingsFilterState): Record<string, string[]> | undefined {
   if (!f.vehicleColors.length && !f.vehicleTypes.length) return undefined;
   const labels: Record<string, string[]> = {};
@@ -989,6 +997,27 @@ watch(
     if (saved !== undefined) ungrouped.value = saved;
   },
   { immediate: true },
+);
+
+watch(
+  currentUser,
+  (u) => {
+    if (!u || filtersRestored.value) return;
+    filters.value = { ...filters.value, ...u.preferences?.recordings?.filters };
+    savedFilterJSON = JSON.stringify(savedFilters(filters.value));
+    filtersRestored.value = true;
+  },
+  { immediate: true },
+);
+
+watchDebounced(
+  () => JSON.stringify(savedFilters(filters.value)),
+  (json) => {
+    if (!filtersRestored.value || json === savedFilterJSON) return;
+    savedFilterJSON = json;
+    authStore.updateUser({ preferences: { recordings: { filters: savedFilters(filters.value) } } });
+  },
+  { debounce: 500 },
 );
 
 watch(

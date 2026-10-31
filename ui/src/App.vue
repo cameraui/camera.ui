@@ -111,6 +111,7 @@ setupAppUpdate();
 usePushHandler();
 useServerCompatibility();
 useBackupRestoreDialog(() => !showLoadingScreen.value);
+provideTimelineFilter();
 useElectronNotifications();
 useElectronDeepLinks();
 registerKeyboardInset();
