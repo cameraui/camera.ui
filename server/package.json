@@ -100,7 +100,7 @@
     "@fastify/formbody": "^9.0.1",
     "@isaacs/ttlcache": "^2.1.5",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "@types/adm-zip": "^0.5.8",
+    "@types/adm-zip": "^0.6.0",
     "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "26.6.6",
