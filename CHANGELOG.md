@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.4]
+
+- **Update the NVR plugin to 1.6.3.** Until then every camera keeps the shared storage limit, alarm sounds stay out of Recordings and Home, and the **Motion** and **Other sound** rows in **Filter recent events** have no effect.
+
+### Added
+
+- **Cameras can keep their own retention and storage limit.** Turn on **Own Storage Limits** in a camera's settings, the Camera Storage table in Metrics shows each camera's limits.
+
+- **Home can show motion and other sounds per camera.** **Filter recent events** has new rows for **Motion** and **Other sound**, both off until you pick cameras. The rows **Sensor** and **Alarm sound** hide those per camera.
+
+- **Discovered sensors can be hidden.** On the Sensors page the eye button hides a sensor you don't want to adopt, selection mode hides several at once. **Show hidden sensors** brings them back.
+
+### Changed
+
+- **Alarm sounds are listed like detections.** Glass breaking, screams, gunshots, alarms, sirens, smoke and car alarms and the doorbell show in Recordings and on Home without a filter, also from before the update.
+
+- **The timeline filter picks pictures, the bars stay.** Every event keeps its bar, the filter decides which types get a picture and a card in the detections list. Motion and other sounds are off by default, alarm sounds and each sensor type have their own entry. Where pictures would overlap, a person or vehicle wins over a sensor, a sound or motion.
+
+- **Filters follow your account.** The timeline filter and the Recordings filters are saved to your account and look the same on every device, search and time range are not saved. A timeline filter set before the update starts from the default once.
+
+- **More sensors can send pushes: locks, garage doors, occupancy, switches, lights and power.** Pick them under **Notify for sensors** in a camera's settings. New cameras push for locks and garage doors by default.
+
+### Fixed
+
+- **Smaller fixes in the interface.** The plugin page says when a plugin is starting or not running instead of showing empty tabs, the plugin and sensor settings of a camera say when there is nothing to set.
+
 ## [2.4.3]
 
 ### Fixed
