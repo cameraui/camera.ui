@@ -21,7 +21,7 @@
     "presetup": "npm install",
     "release": "tsx ./scripts/release.ts",
     "setup": "tsx ./scripts/setup.ts",
-    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate && tsx ./scripts/update.ts"
+    "update": "updates -M npm,pypi,go,cargo,docker --update ./ && cupdate && tsx ./scripts/update.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

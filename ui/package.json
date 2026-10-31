@@ -32,7 +32,7 @@
     "pwa": "pwa-assets-generator",
     "test": "vitest run",
     "type-check": "vue-tsc --build",
-    "update": "updates -M npm,pypi,go,cargo,docker,make -u -e eslint,typescript,@eslint/js,vue-tsc"
+    "update": "updates -M npm,pypi,go,cargo,docker -u -e eslint,typescript,@eslint/js,vue-tsc"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

@@ -29,7 +29,7 @@
     "format": "prettier --write 'src/' 'bin/' --ignore-unknown --no-error-on-unmatched-pattern && ruff format",
     "install-updates": "npm i --save --legacy-peer-deps",
     "lint": "eslint --fix . && ruff check --fix && mypy --config-file ./mypy.ini src",
-    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate",
+    "update": "updates -M npm,pypi,go,cargo,docker --update ./ && cupdate",
     "prepublishOnly": "npm i --package-lock-only && node ../scripts/check-imports.mjs server && npm --prefix .. run check:sensors && npm run lint && npm run format && npm run build && npm --prefix ../ui run lint && npm --prefix ../ui run format && npm --prefix ../ui run build",
     "prepack": "node ../scripts/shrinkwrap.mjs create",
     "postpack": "node ../scripts/shrinkwrap.mjs cleanup",
