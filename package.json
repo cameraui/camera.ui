@@ -24,17 +24,17 @@
     "update": "updates -M npm,pypi,go,cargo,docker,make --update ./ && cupdate && tsx ./scripts/update.ts"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "chalk": "^6.0.1",
     "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",
-    "updates": "^19.3.0"
+    "updates": "^20.0.0"
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "ora": "^9.4.1"
+    "ora": "^10.0.0"
   }
 }
