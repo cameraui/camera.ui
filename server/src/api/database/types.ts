@@ -585,6 +585,11 @@ export interface DBHiddenDevice {
   model?: string;
 }
 
+export interface DBHiddenSensor {
+  pluginName: string;
+  id: string;
+}
+
 export interface DBUserPreferences {
   language?: UserLanguage;
   navLayout?: NavLayoutSettings | null;
@@ -594,6 +599,7 @@ export interface DBUserPreferences {
   cameras: DBUserCameraPreferences;
   discovery?: {
     hiddenDevices: DBHiddenDevice[];
+    hiddenSensors: DBHiddenSensor[];
   };
   recordings?: {
     ungrouped?: boolean;

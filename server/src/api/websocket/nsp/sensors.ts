@@ -14,8 +14,15 @@ import type {
   SensorSourceChangedEvent,
   SensorsNamespaceEvents,
 } from '../../../rpc/interfaces/sensor.js';
+import type { DBHiddenSensor } from '../../database/types.js';
 import type { JwtTokenDecoded } from '../../types/index.js';
 import type { SocketNsp } from '../types.js';
+
+interface HiddenSensorsResult {
+  success: boolean;
+  hiddenSensors?: DBHiddenSensor[];
+  error?: string;
+}
 
 export class SensorsNamespace {
   public nsp: Namespace;
@@ -43,14 +50,23 @@ export class SensorsNamespace {
   }
 
   private onConnection(socket: Socket): void {
-    socket.on('sensors:subscribe', (_payload: unknown, callback?: (data: { success: boolean; sensors?: DiscoveredSensorListItem[]; isScanning?: boolean }) => void) => {
-      const socketWithSub = socket as Socket & { sensorsSubscribed?: boolean };
-      const discovery = getSensorDiscovery();
-      const sensors = socketWithSub.sensorsSubscribed ? discovery.list() : discovery.subscribe();
-      socketWithSub.sensorsSubscribed = true;
+    socket.on(
+      'sensors:subscribe',
+      (
+        _payload: unknown,
+        callback?: (data: { success: boolean; sensors?: DiscoveredSensorListItem[]; isScanning?: boolean; hiddenSensors?: DBHiddenSensor[] }) => void,
+      ) => {
+        const socketWithSub = socket as Socket & { sensorsSubscribed?: boolean };
+        const discovery = getSensorDiscovery();
+        const sensors = socketWithSub.sensorsSubscribed ? discovery.list() : discovery.subscribe();
+        socketWithSub.sensorsSubscribed = true;
 
-      callback?.({ success: true, sensors, isScanning: discovery.isScanningNow() });
-    });
+        const decodedToken = socket.decodedToken as JwtTokenDecoded | undefined;
+        const hiddenSensors = decodedToken ? this.usersService.getHiddenSensors(decodedToken.username) : [];
+
+        callback?.({ success: true, sensors, isScanning: discovery.isScanningNow(), hiddenSensors });
+      },
+    );
 
     socket.on('sensors:unsubscribe', (_payload: unknown, callback?: (data: { success: boolean }) => void) => {
       const socketWithSub = socket as Socket & { sensorsSubscribed?: boolean };
@@ -79,11 +95,39 @@ export class SensorsNamespace {
       }
     });
 
+    socket.on('sensors:hide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) => {
+      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.hideSensors(username, sensors));
+    });
+
+    socket.on('sensors:unhide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) => {
+      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.unhideSensors(username, sensors));
+    });
+
     socket.on('disconnect', () => {
       if ((socket as Socket & { sensorsSubscribed?: boolean }).sensorsSubscribed) {
         getSensorDiscovery().unsubscribe();
       }
     });
+  }
+
+  private async handleHiddenSensors(
+    socket: Socket,
+    payload: { sensors: DBHiddenSensor[] },
+    callback: ((data: HiddenSensorsResult) => void) | undefined,
+    apply: (username: string, sensors: DBHiddenSensor[]) => Promise<DBHiddenSensor[]>,
+  ): Promise<void> {
+    const decodedToken = socket.decodedToken as JwtTokenDecoded | undefined;
+    if (!decodedToken) {
+      callback?.({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const hiddenSensors = await apply(decodedToken.username, hiddenSensorList(payload?.sensors));
+      callback?.({ success: true, hiddenSensors });
+    } catch (error: unknown) {
+      callback?.({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
   }
 
   private async subscribeToDiscoveryEvents(): Promise<void> {
@@ -119,4 +163,11 @@ export class SensorsNamespace {
       socket.emit(eventType, data);
     }
   }
+}
+
+function hiddenSensorList(value: unknown): DBHiddenSensor[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is DBHiddenSensor => typeof entry?.pluginName === 'string' && typeof entry?.id === 'string')
+    .map(({ pluginName, id }) => ({ pluginName, id }));
 }

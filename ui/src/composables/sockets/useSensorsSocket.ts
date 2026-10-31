@@ -1,10 +1,12 @@
 import type { SocketChannel } from '@/connection/index.js';
-import type { DiscoveredSensorListItem, SensorsNamespaceEvents } from '@shared/types';
+import type { DBHiddenSensor, DiscoveredSensorListItem, SensorsNamespaceEvents } from '@shared/types';
 
 export interface SensorsSocketState {
   isLoading: boolean;
   sensors: DiscoveredSensorListItem[];
   isScanning: boolean;
+  hiddenSensors: DBHiddenSensor[];
+  showHidden: boolean;
   error: string | null;
 }
 
@@ -12,6 +14,7 @@ interface SubscribeResult {
   success: boolean;
   sensors?: DiscoveredSensorListItem[];
   isScanning?: boolean;
+  hiddenSensors?: DBHiddenSensor[];
 }
 
 interface RescanResult {
@@ -24,6 +27,12 @@ interface AdoptResult {
   error?: string;
 }
 
+interface HiddenSensorsResult {
+  success: boolean;
+  hiddenSensors?: DBHiddenSensor[];
+  error?: string;
+}
+
 type SourceChangedHandler = (event: SensorsNamespaceEvents['sensor:source:changed']) => void;
 
 const DISPOSAL_GRACE_MS = 5_000;
@@ -32,6 +41,8 @@ const state = reactive<SensorsSocketState>({
   isLoading: true,
   sensors: [],
   isScanning: false,
+  hiddenSensors: [],
+  showHidden: false,
   error: null,
 });
 
@@ -46,7 +57,13 @@ function resetState(): void {
   state.isLoading = true;
   state.sensors = [];
   state.isScanning = false;
+  state.hiddenSensors = [];
+  state.showHidden = false;
   state.error = null;
+}
+
+function hiddenKey(item: DBHiddenSensor): string {
+  return `${item.pluginName}:${item.id}`;
 }
 
 function ensureChannel(): SocketChannel {
@@ -86,13 +103,14 @@ function ensureChannel(): SocketChannel {
 
 async function subscribeInternal(): Promise<SubscribeResult> {
   if (!channel || isSubscribed) {
-    return { success: isSubscribed, sensors: state.sensors, isScanning: state.isScanning };
+    return { success: isSubscribed, sensors: state.sensors, isScanning: state.isScanning, hiddenSensors: state.hiddenSensors };
   }
   try {
     const result = await channel.request<SubscribeResult>('sensors:subscribe', {});
     isSubscribed = result.success;
     if (result.sensors) state.sensors = result.sensors;
     if (result.isScanning !== undefined) state.isScanning = result.isScanning;
+    if (result.hiddenSensors) state.hiddenSensors = result.hiddenSensors;
     state.isLoading = false;
     return result;
   } catch (err) {
@@ -168,12 +186,49 @@ export function useSensorsSocket() {
     }
   }
 
+  async function updateHidden(event: 'sensors:hide' | 'sensors:unhide', items: DiscoveredSensorListItem[]): Promise<HiddenSensorsResult> {
+    if (!channel?.ready.value) return { success: false, error: 'Not connected' };
+    const sensors = items.map(({ pluginName, id }) => ({ pluginName, id }));
+    try {
+      const result = await channel.request<HiddenSensorsResult>(event, { sensors });
+      if (result.success && result.hiddenSensors) state.hiddenSensors = result.hiddenSensors;
+      return result;
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : `${event} failed` };
+    }
+  }
+
+  function hideSensors(items: DiscoveredSensorListItem[]): Promise<HiddenSensorsResult> {
+    return updateHidden('sensors:hide', items);
+  }
+
+  function unhideSensors(items: DiscoveredSensorListItem[]): Promise<HiddenSensorsResult> {
+    return updateHidden('sensors:unhide', items);
+  }
+
+  function toggleShowHidden(): void {
+    state.showHidden = !state.showHidden;
+  }
+
   function onSourceChanged(handler: SourceChangedHandler): () => void {
     sourceChangedHandlers.add(handler);
     return () => sourceChangedHandlers.delete(handler);
   }
 
-  const sortedSensors = computed(() => [...state.sensors].sort((a, b) => a.name.localeCompare(b.name)));
+  const hiddenKeys = computed(() => new Set(state.hiddenSensors.map(hiddenKey)));
+
+  const hiddenCount = computed(() => state.sensors.filter((item) => hiddenKeys.value.has(hiddenKey(item))).length);
+
+  const sortedSensors = computed(() => {
+    const byName = (a: DiscoveredSensorListItem, b: DiscoveredSensorListItem): number => a.name.localeCompare(b.name);
+    const visible = state.sensors.filter((item) => !hiddenKeys.value.has(hiddenKey(item))).sort(byName);
+    const hidden = state.showHidden ? state.sensors.filter((item) => hiddenKeys.value.has(hiddenKey(item))).sort(byName) : [];
+    return [...visible, ...hidden];
+  });
+
+  function isHidden(item: DiscoveredSensorListItem): boolean {
+    return hiddenKeys.value.has(hiddenKey(item));
+  }
 
   tryOnScopeDispose(() => {
     refCount--;
@@ -193,6 +248,8 @@ export function useSensorsSocket() {
     isLoading: computed(() => state.isLoading),
     sensors: computed(() => state.sensors),
     isScanning: computed(() => state.isScanning),
+    showHidden: computed(() => state.showHidden),
+    hiddenCount,
     error: computed(() => state.error),
 
     sortedSensors,
@@ -203,6 +260,10 @@ export function useSensorsSocket() {
     unsubscribe: unsubscribeInternal,
     forceRescan,
     adoptSensor,
+    hideSensors,
+    unhideSensors,
+    toggleShowHidden,
+    isHidden,
     onSourceChanged,
   };
 }

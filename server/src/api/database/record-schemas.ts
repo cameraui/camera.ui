@@ -67,6 +67,7 @@ export const dbUserSchema = zod.object({
       discovery: zod
         .object({
           hiddenDevices: zod.object({ id: zod.string(), name: zod.string(), model: zod.string().optional() }).array().default([]),
+          hiddenSensors: zod.object({ pluginName: zod.string(), id: zod.string() }).array().default([]),
         })
         .optional(),
       recordings: zod.object({ ungrouped: zod.boolean().optional(), filters: userPreferencesRecordingsFilters.optional() }).optional(),

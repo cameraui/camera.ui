@@ -4,7 +4,7 @@ import { inject, tryInject } from '../../container.js';
 import { AuthService } from './auth.service.js';
 
 import type { Database } from '../database/index.js';
-import type { DBCamviewLayout, DBHiddenDevice, DBShortcut, DBUser, EventTypesByCamera, EventTypesField } from '../database/types.js';
+import type { DBCamviewLayout, DBHiddenDevice, DBHiddenSensor, DBShortcut, DBUser, EventTypesByCamera, EventTypesField } from '../database/types.js';
 
 export class UsersService {
   private dbs: Database;
@@ -366,7 +366,7 @@ export class UsersService {
     const user = await this.dbs.commit(this.dbs.usersDB, existing._id, (current) => {
       if (!current) return undefined;
 
-      const discovery = (current.preferences.discovery ??= { hiddenDevices: [] });
+      const discovery = (current.preferences.discovery ??= { hiddenDevices: [], hiddenSensors: [] });
       if (discovery.hiddenDevices.some((d) => d.id === device.id)) return undefined;
 
       discovery.hiddenDevices.push(device);
@@ -384,7 +384,7 @@ export class UsersService {
     const user = await this.dbs.commit(this.dbs.usersDB, existing._id, (current) => {
       if (!current) return undefined;
 
-      const discovery = (current.preferences.discovery ??= { hiddenDevices: [] });
+      const discovery = (current.preferences.discovery ??= { hiddenDevices: [], hiddenSensors: [] });
       discovery.hiddenDevices = discovery.hiddenDevices.filter((d) => d.id !== deviceId);
 
       return current;
@@ -400,14 +400,46 @@ export class UsersService {
     await this.dbs.commit(this.dbs.usersDB, existing._id, (current) => {
       if (!current) return undefined;
 
-      current.preferences.discovery ??= { hiddenDevices: [] };
+      current.preferences.discovery ??= { hiddenDevices: [], hiddenSensors: [] };
       current.preferences.discovery.hiddenDevices = hiddenDevices;
 
       return current;
     });
   }
+
+  public getHiddenSensors(username: string): DBHiddenSensor[] {
+    return this.findByName(username)?.preferences.discovery?.hiddenSensors ?? [];
+  }
+
+  public hideSensors(username: string, sensors: DBHiddenSensor[]): Promise<DBHiddenSensor[]> {
+    return this.updateHiddenSensors(username, (hidden) => [...hidden, ...sensors.filter((sensor) => !hidden.some((entry) => sameSensor(entry, sensor)))]);
+  }
+
+  public unhideSensors(username: string, sensors: DBHiddenSensor[]): Promise<DBHiddenSensor[]> {
+    return this.updateHiddenSensors(username, (hidden) => hidden.filter((entry) => !sensors.some((sensor) => sameSensor(entry, sensor))));
+  }
+
+  private async updateHiddenSensors(username: string, update: (hidden: DBHiddenSensor[]) => DBHiddenSensor[]): Promise<DBHiddenSensor[]> {
+    const existing = this.findByName(username);
+    if (!existing) return [];
+
+    const user = await this.dbs.commit(this.dbs.usersDB, existing._id, (current) => {
+      if (!current) return undefined;
+
+      const discovery = (current.preferences.discovery ??= { hiddenDevices: [], hiddenSensors: [] });
+      discovery.hiddenSensors = update(discovery.hiddenSensors);
+
+      return current;
+    });
+
+    return user?.preferences.discovery?.hiddenSensors ?? [];
+  }
 }
 
 function isAdmin(role: DBUser['role']): boolean {
   return role === 'admin' || role === 'master';
+}
+
+function sameSensor(a: DBHiddenSensor, b: DBHiddenSensor): boolean {
+  return a.pluginName === b.pluginName && a.id === b.id;
 }

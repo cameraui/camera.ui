@@ -195,6 +195,7 @@
             :pt="tablePtOptions"
             class="w-full"
             :class="{ 'opacity-60 pointer-events-none': isAdopting || discoveredBulkBusy }"
+            :row-class="discoveredRowClass"
             @row-click="(e: DataTableRowClickEvent) => handleDiscoveredRowClick(e.data)"
           >
             <Column v-if="discoveredSelectionMode" header="" header-class="p-2 pl-4 w-8 max-w-8" class="p-2 pl-4 w-8 max-w-8">
@@ -243,9 +244,28 @@
                 <Chip v-if="data.room" :label="data.room" class="text-xs whitespace-nowrap" />
               </template>
             </Column>
-            <Column field="pluginName" :header="t('views.sensors.plugin')" sortable header-class="p-2 pr-4 whitespace-nowrap" class="p-2 pr-4 whitespace-nowrap">
+            <Column field="pluginName" :header="t('views.sensors.plugin')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
               <template #body="{ data }">
                 <Chip :label="data.pluginName" class="text-xs whitespace-nowrap" />
+              </template>
+            </Column>
+            <Column header="" header-class="p-2 pr-4 w-12" class="p-2 pr-4 w-12">
+              <template #body="{ data }">
+                <div class="flex items-center justify-center">
+                  <Button
+                    v-tooltip.left="{ value: sensorsSocket.isHidden(data) ? t('views.sensors.unhide') : t('views.sensors.hide') }"
+                    severity="secondary"
+                    text
+                    rounded
+                    class="cui-icon-md"
+                    @click="(e) => toggleHidden(e, data)"
+                  >
+                    <template #icon>
+                      <EyeIcon v-if="sensorsSocket.isHidden(data)" width="100%" height="100%" class="text-muted" />
+                      <EyeOffIcon v-else width="100%" height="100%" class="text-muted" />
+                    </template>
+                  </Button>
+                </div>
               </template>
             </Column>
           </CuiDataTable>
@@ -256,6 +276,13 @@
           </div>
           <div class="flex flex-wrap items-center gap-2 mt-4">
             <div class="ml-auto"></div>
+            <Button
+              v-if="hiddenCount > 0"
+              severity="secondary"
+              class="cui-button-medium"
+              :label="showHidden ? t('views.sensors.hide_hidden') : `${t('views.sensors.show_hidden')} (${hiddenCount})`"
+              @click="sensorsSocket.toggleShowHidden()"
+            />
             <Button severity="secondary" class="cui-button-medium" :label="t('views.sensors.rescan')" :loading="isScanning" @click="handleRescan" />
           </div>
         </template>
@@ -338,6 +365,14 @@
         />
         <CuiFloatingButton
           grouped
+          :tooltip-props="{ value: t('views.sensors.hide_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !discoveredSelectedItems.length || discoveredBulkBusy }"
+          :icon="EyeOffIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="hideSelected"
+        />
+        <CuiFloatingButton
+          grouped
           :tooltip-props="{ value: t('views.sensors.adopt_selected') }"
           :button-props="{ class: 'text-white', disabled: !discoveredSelectedItems.length || discoveredBulkBusy }"
           :icon="AdoptIcon"
@@ -354,6 +389,8 @@ import { useAllSensors } from '@camera.ui/browser';
 import { SensorType } from '@camera.ui/sdk';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
+import EyeIcon from '~icons/mdi/eye';
+import EyeOffIcon from '~icons/mdi/eye-off';
 import SelectDiscoveredIcon from '~icons/mdi/playlist-check';
 import AdoptIcon from '~icons/mdi/playlist-plus';
 import TrashIcon from '~icons/mdi/trash-can-outline';
@@ -541,6 +578,8 @@ const rows = computed<SensorRow[]>((previous) => {
 });
 
 const isScanning = computed(() => sensorsSocket.isScanning.value);
+const showHidden = computed(() => sensorsSocket.showHidden.value);
+const hiddenCount = computed(() => sensorsSocket.hiddenCount.value);
 
 const discoveredRows = computed<DiscoveredSensorListItem[]>((previous) => {
   const query = searchQuery.value.toLowerCase().trim();
@@ -618,12 +657,41 @@ function startDiscoveredSelection() {
   enterDiscoveredSelectionMode();
 }
 
+function discoveredRowClass(item: DiscoveredSensorListItem): string | undefined {
+  return sensorsSocket.isHidden(item) ? 'opacity-50' : undefined;
+}
+
 function handleDiscoveredRowClick(item: DiscoveredSensorListItem) {
   if (discoveredSelectionMode.value) {
     toggleDiscoveredSelection(discoveredKey(item));
     return;
   }
+  if (sensorsSocket.isHidden(item)) return;
   confirmAdopt(item);
+}
+
+async function toggleHidden(event: Event, item: DiscoveredSensorListItem) {
+  event.stopPropagation();
+  const result = sensorsSocket.isHidden(item) ? await sensorsSocket.unhideSensors([item]) : await sensorsSocket.hideSensors([item]);
+  if (!result.success) {
+    toast.add({ severity: 'error', summary: t('views.sensors.hide'), detail: result.error, life: 3000 });
+  }
+}
+
+async function hideSelected() {
+  const targets = [...discoveredSelectedItems.value];
+  discoveredBulkBusy.value = true;
+  try {
+    const result = await sensorsSocket.hideSensors(targets);
+    if (!result.success) {
+      toast.add({ severity: 'error', summary: t('views.sensors.hide_selected'), detail: result.error, life: 3000 });
+      return;
+    }
+    exitDiscoveredSelectionMode();
+    toast.add({ severity: 'success', detail: t('views.sensors.hide_selected_done', { count: targets.length }), life: 5000 });
+  } finally {
+    discoveredBulkBusy.value = false;
+  }
 }
 
 function confirmAdopt(item: DiscoveredSensorListItem) {
