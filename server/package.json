@@ -44,7 +44,7 @@
     "@camera.ui/rpc": "^1.1.1",
     "@camera.ui/rust-detector": "~0.0.13",
     "@camera.ui/rust-postprocessor": "~0.2.2",
-    "@camera.ui/sdk": "~1.4.4",
+    "@camera.ui/sdk": "~1.4.5",
     "@camera.ui/tunnel": "^1.1.2",
     "@eneris/push-receiver": "^4.4.0",
     "@fastify/cors": "^11.3.1",
@@ -93,7 +93,7 @@
     "tsyringe": "^4.10.0",
     "undici": "^8.12.3",
     "werift": "^0.25.2",
-    "ws": "^8.22.0",
+    "ws": "^8.22.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -120,7 +120,7 @@
     "globals": "^17.13.0",
     "node-forge": "^1.4.2",
     "npm-registry-fetch": "^20.0.1",
-    "otplib": "^13.5.0",
+    "otplib": "^13.6.0",
     "pacote": "^22.0.1",
     "prettier": "^3.9.10",
     "ps-list": "^9.0.0",
