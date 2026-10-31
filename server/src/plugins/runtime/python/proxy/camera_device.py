@@ -33,6 +33,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     Disposable,
     LoggerService,
     Observable,
+    PluginAssignments,
     ProbeConfig,
     ProbeStream,
     PtzAutotrackSettings,
@@ -250,6 +251,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
     @property
     def isCloud(self) -> bool:
         return self._camera_subject.value["isCloud"]
+
+    @property
+    def assignments(self) -> PluginAssignments:
+        return deepcopy(self._camera_subject.value["assignments"])
 
     @property
     def snapshotSettings(self) -> SnapshotSettings:

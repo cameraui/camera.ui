@@ -23,6 +23,7 @@ import type {
   JsonSchema,
   LoggerService,
   Observable,
+  PluginAssignments,
   PtzAutotrackSettings,
   Sensor,
   SnapshotSettings,
@@ -99,6 +100,10 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
 
   get isCloud(): boolean {
     return this.cameraSubject.getValue().isCloud;
+  }
+
+  get assignments(): PluginAssignments {
+    return structuredClone(this.cameraSubject.getValue().assignments);
   }
 
   get snapshotSettings(): SnapshotSettings {
