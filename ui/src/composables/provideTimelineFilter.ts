@@ -2,7 +2,8 @@ import { TIMELINE_DEFAULT_HIDDEN, TimelineFilterKey } from '@camera.ui/nvr';
 
 import { patchUserFn, UsersQuery } from '@/api/routes/users.js';
 
-import type { DBTimelineFilter } from '@shared/types';
+import type { DBTimelineFilter, DBTimelinePreferences } from '@shared/types';
+import type { MaybeRefOrGetter } from 'vue';
 
 export function provideTimelineFilter(): void {
   const usersQuery = new UsersQuery();
@@ -11,22 +12,31 @@ export function provideTimelineFilter(): void {
   const { user } = storeToRefs(authStore);
 
   const username = computed(() => user.value?.username ?? '');
-
   const { data: currentUser } = usersQuery.getUserQuery(username);
 
-  const pending = ref<DBTimelineFilter>();
-
-  const filter = computed<DBTimelineFilter>(() => pending.value ?? currentUser.value?.preferences?.timeline ?? {});
+  const pending = ref<DBTimelinePreferences>();
+  const timeline = computed<DBTimelinePreferences>(() => pending.value ?? currentUser.value?.preferences?.timeline ?? {});
 
   let saving = 0;
 
-  async function save(next: DBTimelineFilter): Promise<void> {
-    pending.value = next;
+  function read(cameraId: string | undefined): DBTimelineFilter {
+    if (!cameraId) return timeline.value;
+    return timeline.value.cameras?.[cameraId] ?? {};
+  }
+
+  function merged(cameraId: string | undefined, change: DBTimelineFilter): DBTimelinePreferences {
+    if (!cameraId) return { ...timeline.value, ...change };
+    return { ...timeline.value, cameras: { ...timeline.value.cameras, [cameraId]: { ...read(cameraId), ...change } } };
+  }
+
+  async function write(cameraId: string | undefined, change: DBTimelineFilter): Promise<void> {
+    pending.value = merged(cameraId, change);
     if (!username.value) return;
 
     saving++;
     try {
-      await patchUserFn({ username: username.value, userData: { preferences: { timeline: next } } });
+      const delta = cameraId ? { cameras: { [cameraId]: change } } : change;
+      await patchUserFn({ username: username.value, userData: { preferences: { timeline: delta } } });
       await queryClient.invalidateQueries({ queryKey: ['users', username.value] });
     } finally {
       // a later toggle is still on its way, its value stays until it lands
@@ -34,18 +44,18 @@ export function provideTimelineFilter(): void {
     }
   }
 
-  function field<K extends keyof DBTimelineFilter>(key: K, fallback: NonNullable<DBTimelineFilter[K]>) {
+  function field<K extends keyof DBTimelineFilter>(cameraId: MaybeRefOrGetter<string | undefined>, key: K, fallback: NonNullable<DBTimelineFilter[K]>) {
     return computed({
-      get: () => filter.value[key] ?? fallback,
+      get: () => read(toValue(cameraId))[key] ?? fallback,
       set: (value) => {
-        save({ ...filter.value, [key]: value });
+        write(toValue(cameraId), { [key]: value });
       },
     });
   }
 
-  provide(TimelineFilterKey, {
-    hiddenTypes: field('hiddenTypes', [...TIMELINE_DEFAULT_HIDDEN]),
-    scope: field('scope', 'camera'),
-    onlyMatches: field('onlyMatches', true),
-  });
+  provide(TimelineFilterKey, (cameraId) => ({
+    hiddenTypes: field(cameraId, 'hiddenTypes', [...TIMELINE_DEFAULT_HIDDEN]),
+    scope: field(cameraId, 'scope', 'camera'),
+    onlyMatches: field(cameraId, 'onlyMatches', true),
+  }));
 }

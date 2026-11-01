@@ -317,6 +317,11 @@ export class UsersService {
             mutated = true;
           }
 
+          if (current.preferences.timeline?.cameras?.[cameraId]) {
+            delete current.preferences.timeline.cameras[cameraId];
+            mutated = true;
+          }
+
           for (const cameraPreference of Object.values(current.preferences.cameras)) {
             if (!cameraPreference) continue;
 

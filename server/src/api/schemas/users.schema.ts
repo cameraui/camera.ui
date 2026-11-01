@@ -195,13 +195,17 @@ export const userPreferencesRecordings = zod.object({
   filters: userPreferencesRecordingsFilters.optional(),
 });
 
-export const userPreferencesTimeline = zod
+const timelineFilter = zod
   .object({
     hiddenTypes: eventTypeList,
     scope: zod.enum(['camera', 'all']),
     onlyMatches: zod.boolean(),
   })
   .partial();
+
+export const userPreferencesTimeline = timelineFilter.extend({
+  cameras: zod.record(zod.string().trim().min(1), timelineFilter).optional(),
+});
 
 export const userPreferencesHome = zod.object({
   hiddenCameras: zod.string().trim().min(1).array().max(1000),

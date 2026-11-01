@@ -579,6 +579,10 @@ export interface DBTimelineFilter {
   onlyMatches?: boolean;
 }
 
+export interface DBTimelinePreferences extends DBTimelineFilter {
+  cameras?: Record<string, DBTimelineFilter | undefined>;
+}
+
 export interface DBHiddenDevice {
   id: string;
   name: string;
@@ -608,7 +612,7 @@ export interface DBUserPreferences {
   home?: {
     hiddenCameras: string[];
   };
-  timeline?: DBTimelineFilter;
+  timeline?: DBTimelinePreferences;
 }
 
 export interface DBInstanceCredentials {
