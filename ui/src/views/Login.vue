@@ -299,7 +299,8 @@ async function onBiometricLogin(): Promise<void> {
 }
 
 async function readCurrentServerId(): Promise<string | null> {
-  if (!isCapacitor) return null;
+  // saved credentials belong to the home server, a remote must not use or replace them
+  if (!isCapacitor || !instanceStore.isHomeActive) return null;
   try {
     const { Preferences } = await import('@capacitor/preferences');
     const { value } = await Preferences.get({ key: 'currentServerId' });

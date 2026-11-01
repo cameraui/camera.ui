@@ -22,7 +22,7 @@
                   <ToggleSwitch :model-value="draft.enabled" :loading="enabling" @update:model-value="onToggleEnabled" />
                 </CuiToggleRow>
 
-                <CuiToggleRow v-if="isCapacitor && draft.enabled" :label="$t('views.settings.notifications.this_device')">
+                <CuiToggleRow v-if="isCapacitor && draft.enabled && instanceStore.isHomeActive" :label="$t('views.settings.notifications.this_device')">
                   <template #hint>
                     <Message :severity="deviceSynced ? 'secondary' : 'warn'" variant="simple" size="small" class="cui-input-switch-hint">
                       {{ deviceSynced ? $t('views.settings.notifications.this_device_synced') : $t('views.settings.notifications.this_device_unsynced') }}
@@ -216,6 +216,7 @@ const notificationsQuery = new NotificationsQuery();
 
 const { t, te } = useI18n();
 const toast = useCuiToast();
+const instanceStore = useInstanceStore();
 const isAdmin = hasPermission(undefined, 'admin');
 const { registerForPush, forgetIfThisDevice, getSyncState, restoreMarker } = usePushRegistration();
 const { isElectronApp, electron } = useElectron();
@@ -340,7 +341,7 @@ async function onToggleEnabled(next: boolean) {
 }
 
 async function refreshDeviceSync() {
-  const serverId = getCurrentServerId();
+  const serverId = instanceStore.isHomeActive ? getCurrentServerId() : null;
   const state = serverId ? await getSyncState(serverId, devices.value) : { status: 'unknown' as const };
   deviceSynced.value = state.status === 'registered';
   if (state.status === 'registered' && state.device && serverId) await restoreMarker(serverId, state.device.id);

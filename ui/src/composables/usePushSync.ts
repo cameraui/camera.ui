@@ -12,6 +12,7 @@ let evaluating = false;
 
 export function usePushSync() {
   const authStore = useAuthStore();
+  const instanceStore = useInstanceStore();
   const { isLoggedIn } = storeToRefs(authStore);
 
   const { registerForPush, getSyncState, restoreMarker } = usePushRegistration();
@@ -20,7 +21,8 @@ export function usePushSync() {
   const { data: settings } = notificationsQuery.getSettingsQuery();
   const { data: devices } = notificationsQuery.listDevicesQuery(() => isCapacitor && isLoggedIn.value);
 
-  const active = computed(() => isCapacitor && isLoggedIn.value && settings.value?.enabled === true);
+  // the push keys belong to the home server, a remote's device list says nothing about them
+  const active = computed(() => isCapacitor && isLoggedIn.value && instanceStore.isHomeActive && settings.value?.enabled === true);
 
   async function evaluate(): Promise<void> {
     if (!active.value || evaluating) return;
