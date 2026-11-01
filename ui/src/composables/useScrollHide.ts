@@ -3,9 +3,9 @@ const HIDE_AFTER_PX = 24;
 const REVEAL_AFTER_PX = 24;
 
 export function useScrollHide(y: MaybeRefOrGetter<number>) {
-  const hidden = ref(false);
-  let lastY = 0;
+  let lastY = toValue(y);
   let travelled = 0;
+  const hidden = ref(lastY > TOP_PX);
 
   watch(
     () => toValue(y),

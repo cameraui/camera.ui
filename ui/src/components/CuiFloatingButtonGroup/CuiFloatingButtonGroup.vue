@@ -18,6 +18,8 @@
 </template>
 
 <script setup lang="ts">
+import { pageScrollY } from '@/common/pageScroll.js';
+
 import type { CuiFloatingButtonGroupProps } from './types.js';
 
 const props = withDefaults(defineProps<CuiFloatingButtonGroupProps>(), {
@@ -30,8 +32,8 @@ const { bottombarHeight } = useSharedCuiStates();
 
 const { direction, forceVisible } = toRefs(props);
 
-const { y: windowY } = useScroll(window, { throttle: 100 });
-const windowHidden = useScrollHide(windowY);
+const pageY = ref(pageScrollY());
+const windowHidden = useScrollHide(pageY);
 const hidden = computed(() => props.scrollHidden ?? windowHidden.value);
 
 const bottomPadding = computed(() => {
@@ -41,6 +43,12 @@ const bottomPadding = computed(() => {
   const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
   return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
 });
+
+function syncPageY() {
+  pageY.value = pageScrollY();
+}
+
+useEventListener(window, 'scroll', useThrottleFn(syncPageY, 100, true), { passive: true });
 </script>
 
 <style scoped></style>

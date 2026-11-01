@@ -62,12 +62,19 @@
 }
 
 ::view-transition-group(cui-bottombar),
-::view-transition-old(cui-bottombar),
-::view-transition-new(cui-bottombar) {
+::view-transition-old(cui-bottombar):not(:only-child),
+::view-transition-new(cui-bottombar):not(:only-child) {
   z-index: 4 !important;
   animation: none !important;
   animation-duration: 0s !important;
   mix-blend-mode: normal !important;
+}
+
+::view-transition-old(cui-bottombar):only-child,
+::view-transition-new(cui-bottombar):only-child {
+  animation-duration: 250ms !important;
+  animation-timing-function: ease-out !important;
+  animation-fill-mode: both !important;
 }
 
 .fade-enter-active {
