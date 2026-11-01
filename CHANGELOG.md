@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.5]
+
+### Changed
+
+- **Less detector load on cameras with object zones.** Movement outside every object zone, like traffic on the street in front of a driveway, no longer gets zoomed looks of its own.
+
+- **Camera cards show when a picture updates.** A small spinner sits next to the picture's age while a new one is fetched or has just arrived.
+
+### Fixed
+
+- **Fewer phantom objects at the edge of a zoomed view.** Detection looks at cut-outs of the moving areas, and something cut off at the edge of one could be taken for a vehicle or a person and open an event. A cut-off view no longer starts an object, the first whole view does. The event trace marks such a box as cut off.
+
+- **Leaving after standing still opens an event more reliably.** A parked car that drove off or a person who had waited and walked away could go unnoticed when they paused or turned right after starting off.
+
+- **Smaller fixes in the interface.** The bottom bar fades with the page when a camera opens or closes, a scrolled Home no longer jumps after closing a camera, the floating buttons no longer flash up when you return to a scrolled page, a camera card no longer keeps an old picture after you come back from another page, cameras set to When viewed get new pictures while their card stays open, the picture age stays right when the server's clock differs from your device, camera cards get a new picture right after a lost connection comes back.
+
 ## [2.4.4]
 
 - **Update the NVR plugin to 1.6.3.** Until then every camera keeps the shared storage limit, alarm sounds stay out of Recordings and Home, and the **Motion** and **Other sound** rows in **Filter recent events** have no effect.
