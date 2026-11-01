@@ -17,7 +17,7 @@ import type { TrackedSecondary } from './event-manager.js';
 import type { FaceTally } from './face-tracks.js';
 
 export type TraceBox = [number, number, number, number];
-export type TraceInputBox = [label: string, conf: number, x: number, y: number, width: number, height: number, id: number];
+export type TraceInputBox = [label: string, conf: number, x: number, y: number, width: number, height: number, id: number, clipped?: 1];
 export type TraceDetection = RustDetection & { id?: number };
 export type FaceLabelSource = 'track' | 'cell' | 'own' | 'single';
 
@@ -289,6 +289,7 @@ function traceDetection(d: RustDetection, tracked: WorldObject[]): TraceDetectio
     width: Math.fround(d.width),
     height: Math.fround(d.height),
   };
+  if (d.clipped) detection.clipped = true;
 
   // the engine passes the detection box through unchanged, so exact equality names the track
   for (const t of tracked) {
@@ -320,7 +321,7 @@ function traceEvent(e: WorldEvent): TraceEvent {
 
 function traceInput(tick: TraceTick, form: number): TraceInput {
   const input: TraceInput = { tMs: tick.tMs };
-  if (tick.detections.length > 0) input.boxes = tick.detections.map((d): TraceInputBox => [d.label, d.confidence, d.x, d.y, d.width, d.height, d.id ?? 0]);
+  if (tick.detections.length > 0) input.boxes = tick.detections.map(inputBox);
   if (tick.cameraMotion) input.cameraMotion = tick.cameraMotion;
   if (tick.attest?.length) input.attest = tick.attest;
   if (form & WIN_CHANGED && tick.win) input.win = tick.win;
@@ -328,6 +329,12 @@ function traceInput(tick: TraceTick, form: number): TraceInput {
   if (form & WINDOWS_CHANGED && tick.windows) input.windows = tick.windows;
   if (tick.motion?.length) input.motion = tick.motion;
   return input;
+}
+
+function inputBox(d: TraceDetection): TraceInputBox {
+  const box: TraceInputBox = [d.label, d.confidence, d.x, d.y, d.width, d.height, d.id ?? 0];
+  if (d.clipped) box.push(1);
+  return box;
 }
 
 function worldInput(tick: TraceTick): boolean {

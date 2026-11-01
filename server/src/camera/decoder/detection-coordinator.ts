@@ -10,7 +10,7 @@ import { AudioDetectionLoop } from './audio-loop.js';
 import { CascadeManager } from './cascade-manager.js';
 import { detectionRecord } from './debug/detection-record.js';
 import { DetectionPipeline } from './detection-pipeline.js';
-import { clusterBoxes, DetectionWindow, mergeWindowDetections, MOTION_PAD, planWindowsOnce, TRACK_PAD } from './detection-window.js';
+import { clippedBy, clusterBoxes, DetectionWindow, mergeWindowDetections, MOTION_PAD, planWindowsOnce, TRACK_PAD } from './detection-window.js';
 import { DwellManager } from './dwell-manager.js';
 import { DetectionEventManager, MOMENT_RANK_ATTRIBUTE, MOMENT_RANK_OBJECT, SECONDARY_FRESH_MS } from './event-manager.js';
 import { EventThumbnailer } from './event-thumbnailer.js';
@@ -53,6 +53,7 @@ import type {
   LicensePlateResult,
   MotionResult,
   ObjectResult,
+  Point,
   PtzAutotrackSettings,
   TrackedDetection,
   VideoFrameData,
@@ -65,6 +66,7 @@ import type { CoordinatorSensorInfo, DetectionPluginInterface, DetectionResults,
 import type { CameraDeviceInterface } from '../../rpc/interfaces/device.js';
 import type { SensorWriteMessage } from '../../rpc/interfaces/sensor.js';
 import type { LineCrossingEvent, PipelineResult, ZoneConfig } from './detection-pipeline.js';
+import type { WindowDetection } from './detection-window.js';
 import type {
   NormalizedDetectionZone,
   ProcessedDetectionData,
@@ -276,6 +278,7 @@ export class DetectionCoordinator {
     this.frameScaler = new FrameScaler(null, logger, this.privacy);
     this.localizer = new MotionLocalizer();
     this.pipeline = new DetectionPipeline(this.pipelineZones(), config.detectionSettings);
+    this.detectionWindow.setZones(this.windowZones());
     this.secondaries = new SecondaryStage(this, this.plugins, this.pipeline, this.frameScaler, this.proxy, this.perf, logger);
 
     if (config.zones.lines.length > 0) {
@@ -505,6 +508,7 @@ export class DetectionCoordinator {
     zones = normalizeZones(zones);
     this.config.zones = zones;
     this.pipeline.updateZones(this.pipelineZones());
+    this.detectionWindow.setZones(this.windowZones());
     this.privacy.update(zones);
     this.pipeline.updateLines(zones.lines, this.videoAspectRatio);
   }
@@ -1055,6 +1059,10 @@ export class DetectionCoordinator {
 
   private pipelineZones(): ZoneConfig {
     return { motion: this.config.zones.motion, object: this.config.zones.object, privacy: this.config.zones.privacy };
+  }
+
+  private windowZones(): Point[][] {
+    return this.config.zones.object.map((zone) => normalizePolygon(zone.points));
   }
 
   private getNormalizedDetectionZones(): NormalizedDetectionZone[] {
@@ -2318,7 +2326,7 @@ export class DetectionCoordinator {
     return this.scaleFrameForPlugin(rawFrame, objectPlugin, scaler, lease);
   }
 
-  private async runObjectDetection(objectPlugin: RegisteredPlugin, analysis: AnalysisFrame, pluginMotionBoxes: Detection[]): Promise<Detection[] | undefined> {
+  private async runObjectDetection(objectPlugin: RegisteredPlugin, analysis: AnalysisFrame, pluginMotionBoxes: Detection[]): Promise<WindowDetection[] | undefined> {
     const inputSpec = objectPlugin.modelSpec?.input;
     const motionAnchors = [...this.anchorBoxes, ...pluginMotionBoxes.map((d) => d.box).filter((box): box is BoundingBox => box !== undefined), ...this.farewellBoxes];
     this.farewellBoxes = [];
@@ -2365,7 +2373,7 @@ export class DetectionCoordinator {
     window: BoundingBox,
     spec: VideoInputSpec,
     lease?: OutputLease,
-  ): Promise<{ detections: Detection[]; cropMs: number }> {
+  ): Promise<{ detections: WindowDetection[]; cropMs: number }> {
     const scaleStart = Date.now();
     const cropped = await scaler.cropToSpec(frame, window, spec, lease);
     const cropMs = Date.now() - scaleStart;
@@ -2377,7 +2385,10 @@ export class DetectionCoordinator {
       undefined,
       `Object detection timed out after ${DETECT_TIMEOUT_MS}ms`,
     );
-    return { detections: FrameScaler.undoLetterbox(ensureDetectionBoxes(result.detections), cropped.geometry), cropMs };
+    const detections = FrameScaler.undoLetterbox(ensureDetectionBoxes(result.detections), cropped.geometry);
+    // the crop snaps to the scaler grid, the box ends where the crop ends
+    const seen = cropped.geometry.window ?? window;
+    return { detections: detections.map((d) => (clippedBy(d.box, seen) ? { ...d, clipped: true } : d)), cropMs };
   }
 
   private async scaleFrameForPlugin(

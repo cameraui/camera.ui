@@ -2953,6 +2953,7 @@ export default {
         hint_outside_zones: '{label} · outside object zones',
         hint_label_not_in_zone: '{label} · not allowed in {zones}',
         hint_not_confirmed: '{label} · not confirmed yet',
+        hint_cut_off: '{label} · cut off by a zoom window',
         hint_tentative: '{label} #{id} · tentative, no segment yet',
         hint_notifications_off: 'notifications off',
         hint_motion_only: 'motion only, no notification',

@@ -31,6 +31,7 @@ import type {
   ZoneLabel,
 } from '@camera.ui/sdk';
 import type { PlateShortfall, TrainingSuggestion } from '../../rpc/interfaces/detection.js';
+import type { WindowDetection } from './detection-window.js';
 import type { TraceAttest, TraceContext, TraceTick, TraceWorldConfig, WorldSignals } from './event-trace.js';
 
 const NMS_IOU_THRESHOLD = 0.45;
@@ -74,7 +75,7 @@ export interface PipelineResult {
 
 export type PresentTrackedDetection = TrackedDetection & { presentSince?: number };
 
-function toRustDetection(det: Detection): RustDetection {
+function toRustDetection(det: WindowDetection): RustDetection {
   return {
     x: det.box.x,
     y: det.box.y,
@@ -82,6 +83,7 @@ function toRustDetection(det: Detection): RustDetection {
     height: det.box.height,
     confidence: det.confidence,
     label: det.label,
+    clipped: det.clipped,
   };
 }
 
@@ -269,7 +271,7 @@ export class DetectionPipeline {
     this.attestState = [...this.attestState.filter((a) => a.label !== label), { label, at: tMs }];
   }
 
-  public process(rawDetections: Detection[], poseDelta?: { panDelta: number; tiltDelta: number }, tMs = Date.now()): PipelineResult {
+  public process(rawDetections: WindowDetection[], poseDelta?: { panDelta: number; tiltDelta: number }, tMs = Date.now()): PipelineResult {
     // the label whitelist is ours, not rust's: a zone only constrains the labels it lists
     const allowed = this.allowedByWhitelist(rawDetections);
     const flat = allowed.length === 0 ? [] : this.runNmsAndMergeFlat(allowed);
@@ -485,7 +487,7 @@ export class DetectionPipeline {
     return this.trainingMasks.some((mask) => boxInsidePolygon(box, mask));
   }
 
-  private runNmsAndMergeFlat(rawDetections: Detection[]): RustDetection[] {
+  private runNmsAndMergeFlat(rawDetections: WindowDetection[]): RustDetection[] {
     const flat = rawDetections.map(toRustDetection).filter((d) => d.confidence >= NMS_CONFIDENCE_THRESHOLD);
     if (flat.length === 0) return [];
     const deduped = rustNms(flat, NMS_IOU_THRESHOLD);

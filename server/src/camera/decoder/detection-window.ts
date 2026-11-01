@@ -1,4 +1,6 @@
-import type { BoundingBox, Detection } from '@camera.ui/sdk';
+import { boxIntersectsPolygon } from '../utils/filter.js';
+
+import type { BoundingBox, Detection, Point } from '@camera.ui/sdk';
 
 export const WINDOW_CAP = 3;
 export const MOTION_PAD = 1.5;
@@ -8,17 +10,20 @@ const SHRINK_PATIENCE = 5;
 const FULL_FRAME_FRACTION = 0.98;
 const LOOKS_BEFORE_FULL = 2;
 const DEBT_PATIENCE = 12;
+const CUT_EDGE = 0.01;
+const FRAME_EDGE = 1e-6;
 
 export type PlanMode = 'window' | 'sweep' | 'full';
 export type LookReason = 'reset' | 'ptz' | 'motion-sensor' | 'witness';
 export type WindowMode = PlanMode | 'cover';
+export type WindowDetection = Detection & { clipped?: boolean };
 
 export interface PlanRecord {
   mode: PlanMode;
   windows: BoundingBox[];
   motion: BoundingBox[];
   tracks: BoundingBox[];
-  reason?: LookReason | 'no-anchors' | 'cover';
+  reason?: LookReason | 'no-anchors' | 'cover' | 'outside-zones';
   debt?: LookReason;
   waited?: number;
   pending: number;
@@ -85,10 +90,23 @@ export function containment(a: BoundingBox, b: BoundingBox): number {
   return smaller > 0 ? inter / smaller : 0;
 }
 
-export function mergeWindowDetections(detections: Detection[]): Detection[] {
-  const kept: Detection[] = [];
+export function clippedBy(box: BoundingBox, window: BoundingBox): boolean {
+  const dx = CUT_EDGE * window.width;
+  const dy = CUT_EDGE * window.height;
+  const right = window.x + window.width;
+  const bottom = window.y + window.height;
+  return (
+    (window.x > FRAME_EDGE && box.x - window.x <= dx) ||
+    (window.y > FRAME_EDGE && box.y - window.y <= dy) ||
+    (right < 1 - FRAME_EDGE && right - (box.x + box.width) <= dx) ||
+    (bottom < 1 - FRAME_EDGE && bottom - (box.y + box.height) <= dy)
+  );
+}
+
+export function mergeWindowDetections(detections: WindowDetection[]): WindowDetection[] {
+  const kept: WindowDetection[] = [];
   for (const detection of [...detections].sort((a, b) => b.confidence - a.confidence)) {
-    const duplicate = kept.some((other) => {
+    const duplicate = kept.findIndex((other) => {
       if (other.label !== detection.label || other.box === undefined || detection.box === undefined) return false;
       if (iou(other.box, detection.box) >= 0.5) return true;
       // containment only dedups boxes alike in size, a small object inside a huge same-label box is distinct
@@ -97,13 +115,19 @@ export function mergeWindowDetections(detections: Detection[]): Detection[] {
       const sizeAlike = Math.min(areaA, areaB) >= Math.max(areaA, areaB) * 0.25;
       return sizeAlike && containment(other.box, detection.box) >= 0.7;
     });
-    if (!duplicate) kept.push(detection);
+    if (duplicate < 0) kept.push(detection);
+    // one window that saw the body whole is enough
+    else if (kept[duplicate].clipped && !detection.clipped) kept[duplicate] = { ...kept[duplicate], clipped: false };
   }
   return kept;
 }
 
 export function contains(outer: BoundingBox, inner: BoundingBox): boolean {
   return outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.width >= inner.x + inner.width && outer.y + outer.height >= inner.y + inner.height;
+}
+
+function sameBox(a: BoundingBox, b: BoundingBox): boolean {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }
 
 export function clusterBoxes(boxes: BoundingBox[]): BoundingBox[] {
@@ -165,6 +189,7 @@ export class DetectionWindow {
   private owed?: Debt = { reason: 'reset', plans: 0 };
   private paid?: Debt;
   private last?: PlanRecord;
+  private zones: Point[][] = [];
 
   public plan(motionAnchors: BoundingBox[], trackAnchors: BoundingBox[], frameWidth: number, frameHeight: number, minSidePx: number): BoundingBox[] | null {
     this.last = undefined;
@@ -220,10 +245,17 @@ export class DetectionWindow {
         this.last = { mode: 'full', windows: [], motion: motionAnchors, tracks: trackAnchors, reason: 'cover', ...this.payDebt(), pending };
         return null;
       }
-      windows.push(window);
+      // nothing a window outside every object zone sees passes the zone filter
+      if (!this.watches(window)) continue;
+      // clusters split from one keep its window, one look covers them all
+      if (!windows.some((other) => sameBox(other, window))) windows.push(window);
     }
 
     for (const cluster of served) cluster.looks++;
+    if (windows.length === 0) {
+      this.last = { mode: 'full', windows: [], motion: motionAnchors, tracks: trackAnchors, reason: 'outside-zones', ...this.payDebt(), pending };
+      return null;
+    }
     if (this.owed) this.owed.plans++;
     this.last = { mode: 'window', windows, motion: motionAnchors, tracks: trackAnchors, pending };
     return windows;
@@ -249,10 +281,18 @@ export class DetectionWindow {
     this.oweLook('reset');
   }
 
+  public setZones(zones: Point[][]): void {
+    this.zones = zones;
+  }
+
   private payDebt(): Pick<PlanRecord, 'debt' | 'waited'> {
     this.paid = this.owed;
     this.owed = undefined;
     return this.paid ? { debt: this.paid.reason, waited: this.paid.plans } : {};
+  }
+
+  private watches(window: BoundingBox): boolean {
+    return this.zones.length === 0 || this.zones.some((zone) => boxIntersectsPolygon(window, zone));
   }
 
   private applyHysteresis(cluster: Cluster, frameWidth: number, frameHeight: number, minSidePx: number): BoundingBox | null {

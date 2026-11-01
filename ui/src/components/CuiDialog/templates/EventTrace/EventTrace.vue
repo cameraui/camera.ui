@@ -316,7 +316,7 @@ import { isShownRead } from './reads.js';
 
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { ZipEntry } from '@/utils/zipStore.js';
-import type { TraceFrame, TraceFrameStatus, TraceTick } from '@camera.ui/nvr';
+import type { TraceDetection, TraceFrame, TraceFrameStatus, TraceTick } from '@camera.ui/nvr';
 import type { AlertZone, BoundingBox, MotionZone, ObjectZone, PrivacyZone } from '@camera.ui/sdk';
 import type { EventTraceProps } from './types.js';
 
@@ -456,7 +456,7 @@ const findings = computed<TraceFinding[]>(() => {
     for (const det of tick.detections) {
       const box: [number, number, number, number] = [det.x, det.y, det.width, det.height];
       if (tick.world.some((obj) => covers(obj.box, box))) continue;
-      frame(rawFinding(det.label, det.confidence, { x: det.x, y: det.y, width: det.width, height: det.height }));
+      frame(rawFinding(det));
     }
   }
   for (const obj of tick.world) {
@@ -886,7 +886,9 @@ function droppedFinding(attr: NonNullable<TraceTick['attrs']>[number]): string {
   return t('views.recordings.trace.hint_below_threshold', { label, min: pct(plate?.confidence ?? 0.3) });
 }
 
-function rawFinding(label: string, confidence: number, box: BoundingBox): string {
+function rawFinding(det: TraceDetection): string {
+  const { label, confidence } = det;
+  const box: BoundingBox = { x: det.x, y: det.y, width: det.width, height: det.height };
   const min = thresholds.value[label];
   if (min !== undefined && confidence < Math.fround(min)) return t('views.recordings.trace.hint_below_threshold', { label, min: pct(min) });
   if (droppingPrivacyZones.value.some((zone) => boxIntersectsPolygon(box, zone.points))) return t('views.recordings.trace.hint_in_privacy', { label });
@@ -896,6 +898,7 @@ function rawFinding(label: string, confidence: number, box: BoundingBox): string
     const allowed = inside.some((zone) => zone.labels.length === 0 || zone.labels.some((l) => l.toLowerCase() === label.toLowerCase()));
     if (!allowed) return t('views.recordings.trace.hint_label_not_in_zone', { label, zones: inside.map((zone) => zone.name).join(', ') });
   }
+  if (det.clipped) return t('views.recordings.trace.hint_cut_off', { label });
   return t('views.recordings.trace.hint_not_confirmed', { label });
 }
 

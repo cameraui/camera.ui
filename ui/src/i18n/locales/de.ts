@@ -2973,6 +2973,7 @@ export default {
         hint_outside_zones: '{label} · außerhalb der Objektzonen',
         hint_label_not_in_zone: '{label} · in {zones} nicht freigegeben',
         hint_not_confirmed: '{label} · noch nicht bestätigt',
+        hint_cut_off: '{label} · vom Zoomfenster angeschnitten',
         hint_tentative: '{label} #{id} · vorläufig, noch kein Segment',
         hint_notifications_off: 'Benachrichtigungen aus',
         hint_motion_only: 'nur Bewegung, keine Benachrichtigung',
