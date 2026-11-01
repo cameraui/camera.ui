@@ -9,10 +9,11 @@ export function provideTimelineFilter(): void {
   const usersQuery = new UsersQuery();
   const queryClient = useQueryClient();
   const authStore = useAuthStore();
+  const instanceStore = useInstanceStore();
   const { user } = storeToRefs(authStore);
 
   const username = computed(() => user.value?.username ?? '');
-  const { data: currentUser } = usersQuery.getUserQuery(username);
+  const { data: currentUser, refetch } = usersQuery.getUserQuery(username);
 
   const pending = ref<DBTimelinePreferences>();
   const timeline = computed<DBTimelinePreferences>(() => pending.value ?? currentUser.value?.preferences?.timeline ?? {});
@@ -52,6 +53,14 @@ export function provideTimelineFilter(): void {
       },
     });
   }
+
+  // lives outside the remounted views, after queryClient.clear() it keeps the old server's data until it fetches
+  watch(
+    () => instanceStore.switchKey,
+    () => {
+      if (username.value) refetch();
+    },
+  );
 
   provide(TimelineFilterKey, (cameraId) => ({
     hiddenTypes: field(cameraId, 'hiddenTypes', [...TIMELINE_DEFAULT_HIDDEN]),
