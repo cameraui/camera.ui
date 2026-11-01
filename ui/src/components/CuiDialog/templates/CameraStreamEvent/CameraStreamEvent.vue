@@ -52,8 +52,8 @@
       :show-date="false"
       :md-breakpoint="mdBreakpoint"
       :only-events="findKeys"
-      class="flex w-full border-t-[1px] border-color shrink-0"
-      :class="mdBreakpoint ? 'h-full' : 'h-[200px]'"
+      class="flex w-full border-t-[1px] border-color"
+      :class="mdBreakpoint ? 'h-full min-h-0' : 'h-[200px] shrink-0'"
       :card-class="{
         'mt-auto': !mdBreakpoint,
       }"
@@ -112,7 +112,7 @@ const isContentReady = ref(false);
 const qualityRole = ref<StreamingRole>();
 const isDownloading = ref(false);
 
-const find = useFindObject({ views: ['timeline'], searchable: () => Boolean(camera.value?.assignments?.object) });
+const find = useFindObject({ searchable: () => Boolean(camera.value?.assignments?.object) });
 const { segment: timelineSegment, views: timelineViews, keys: findKeys, count: findCount } = find;
 
 provide(FindObjectKey, find);

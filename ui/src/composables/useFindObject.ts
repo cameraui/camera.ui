@@ -13,7 +13,6 @@ export interface UseFindObjectOptions {
   shown?: MaybeRefOrGetter<boolean>;
   pickable?: MaybeRefOrGetter<boolean>;
   searchable?: MaybeRefOrGetter<boolean>;
-  views?: TimelineSegment[];
 }
 
 const pages: FindObjectState[] = [];
@@ -31,7 +30,7 @@ export function useFindObject(options: UseFindObjectOptions = {}): FindObjectSta
   const frozen = new Set<FrozenPicture>();
   let nextId = 0;
 
-  const baseViews = options.views ?? ['timeline', 'detections'];
+  const baseViews: TimelineSegment[] = ['timeline', 'detections'];
   const findViews: TimelineSegment[] = [...baseViews, 'find'];
 
   const available = computed(() => Boolean(plugin.value) && hasPermission(undefined, 'admin'));
