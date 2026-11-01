@@ -5,6 +5,7 @@ import { localAccessExpiry } from '@camera.ui/transport';
 import { createInstanceFn, deleteInstanceFn, getInstancesFn, isRequires2fa, loginToRemoteFn, toggleFavoriteFn, updateInstanceFn } from '@/api/routes/instances.js';
 import InstanceTwoFactorPrompt from '@/components/CuiDialog/templates/InstanceTwoFactorPrompt/InstanceTwoFactorPrompt.vue';
 import { createStorageAdapter } from '@/connection/adapters/storage.js';
+import { getCurrentServerId } from '@/connection/cloudHandoff.js';
 import { getConnection, instanceOverride } from '@/connection/instance.js';
 import { isCapacitor } from '@/connection/runtime.js';
 import { i18n } from '@/i18n/index.js';
@@ -18,6 +19,7 @@ import type { DBInstance, UserData } from '@shared/types';
 const SWITCH_TIMEOUT_MS = 30_000;
 const PROBE_TIMEOUT_MS = 5_000;
 const HOME_SLOT = '__home__';
+const ACTIVE_KEY = 'activeInstanceId';
 const LOCALHOST_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const SLOT_SECRET_PREFIX = 'instanceTokens.';
 
@@ -69,6 +71,25 @@ function serializeUserData(tokens: Tokens, user?: { _id: string; username: strin
   } as UserData;
 }
 
+function homeSlotKey(): string {
+  const serverId = getCurrentServerId();
+  return serverId ? `${HOME_SLOT}:${serverId}` : HOME_SLOT;
+}
+
+function activeStorageKey(): string {
+  const serverId = getCurrentServerId();
+  if (!serverId) return ACTIVE_KEY;
+
+  const key = `${ACTIVE_KEY}:${serverId}`;
+  // moved, not copied: a copy would send every other server to this remote too
+  const shared = localStorage.getItem(ACTIVE_KEY);
+  if (shared !== null) {
+    localStorage.setItem(key, shared);
+    localStorage.removeItem(ACTIVE_KEY);
+  }
+  return key;
+}
+
 export const useInstanceStore = defineStore('instances', () => {
   const authStore = useAuthStore();
   const toast = useCuiToast();
@@ -77,7 +98,9 @@ export const useInstanceStore = defineStore('instances', () => {
   const { t } = i18n.global;
 
   const instanceTokens = useLocalStorage<InstanceTokens>('instanceTokens', {});
-  const activeId = useLocalStorage<string | null>('activeInstanceId', null);
+  // per tab, another tab keeps its own connection when this one switches
+  const activeId = useLocalStorage<string | null>(activeStorageKey(), null, { listenToStorageChanges: false });
+  const homeSlot = homeSlotKey();
 
   const isSwitching = ref(false);
   const switchTargetName = ref<string | null>(null);
@@ -134,7 +157,7 @@ export const useInstanceStore = defineStore('instances', () => {
   });
 
   function homeEntry(): InstanceEntry {
-    const slot = instanceTokens.value[HOME_SLOT];
+    const slot = instanceTokens.value[homeSlot];
     // with a remote instance active the live target is that remote, so home comes from the saved slot
     const url = activeId.value === null ? (getConnection().target.value?.endpoint.url ?? slot?.url ?? window.location.origin) : (slot?.url ?? window.location.origin);
     return {
@@ -150,11 +173,14 @@ export const useInstanceStore = defineStore('instances', () => {
   }
 
   const activeInstance = computed<InstanceEntry>(() => {
-    if (activeId.value !== null) {
-      const remote = instances.value.find((i) => i.id === activeId.value);
-      if (remote) return remote;
-    }
-    return homeEntry();
+    if (activeId.value === null) return homeEntry();
+
+    const remote = instances.value.find((i) => i.id === activeId.value);
+    if (remote) return remote;
+
+    // on a remote the list is its own, which does not contain it
+    const slot = instanceTokens.value[activeId.value];
+    return slot?.name ? { ...homeEntry(), ...slot, id: activeId.value, isHome: false } : homeEntry();
   });
 
   const favoriteInstances = computed<InstanceEntry[]>(() => instances.value.filter((i) => i.favorite));
@@ -202,7 +228,7 @@ export const useInstanceStore = defineStore('instances', () => {
       log.debug('[save-tokens]', 'skipped — no live access token');
       return;
     }
-    const slot = activeId.value ?? HOME_SLOT;
+    const slot = activeId.value ?? homeSlot;
     writeSlot(slot, {
       userData: serializeUserData(target.tokens, authStore.user ?? undefined),
       lastConnectedAt: Date.now(),
@@ -212,7 +238,7 @@ export const useInstanceStore = defineStore('instances', () => {
   }
 
   function writeSlot(slot: string, entry: InstanceTokenEntry): void {
-    instanceTokens.value[slot] = entry;
+    instanceTokens.value[slot] = { ...instanceTokens.value[slot], ...entry };
     if (!slotSecrets) return;
     if (!entry.userData?.access_token) {
       forgetSlotSecret(slot);
@@ -321,7 +347,7 @@ export const useInstanceStore = defineStore('instances', () => {
 
       saveCurrentTokens();
 
-      const slot = targetId ?? HOME_SLOT;
+      const slot = targetId ?? homeSlot;
       const tokens = freshUserData ? tokensFromUserData(freshUserData) : await slotTokens(slot);
       log.debug('[switch]', `tokens source: ${freshUserData ? 'fresh' : tokens ? 'cached' : 'none'} (slot=${slot})`);
 
@@ -347,18 +373,27 @@ export const useInstanceStore = defineStore('instances', () => {
       instanceOverride.value = targetId === null ? null : target.url;
       log.debug('[switch]', `activeId=${targetId} instanceOverride=${instanceOverride.value ?? 'null'}`);
 
+      if (targetId !== null) {
+        const entry = instanceTokens.value[targetId];
+        instanceTokens.value[targetId] = { userData: entry?.userData ?? null, lastConnectedAt: entry?.lastConnectedAt ?? null, name: target.name, url: target.url };
+      }
+
       if (tokens && freshUserData) {
         writeSlot(slot, {
           userData: freshUserData,
           lastConnectedAt: Date.now(),
           url: target.url,
         });
+      }
+
+      const knownUser = freshUserData ?? instanceTokens.value[slot]?.userData;
+      if (tokens && knownUser?.username) {
         authStore.user = {
-          _id: freshUserData._id,
-          username: freshUserData.username,
-          role: freshUserData.role,
-          firstLogin: freshUserData.firstLogin,
-          avatar: freshUserData.avatar,
+          _id: knownUser._id,
+          username: knownUser.username,
+          role: knownUser.role,
+          firstLogin: knownUser.firstLogin,
+          avatar: knownUser.avatar,
         };
       }
 
@@ -402,6 +437,10 @@ export const useInstanceStore = defineStore('instances', () => {
         switchTargetName.value = null;
       }
     }
+  }
+
+  async function leaveRemote(): Promise<void> {
+    if (activeId.value !== null) await switchInstance(null);
   }
 
   async function slotTokens(slot: string): Promise<Tokens | null> {
@@ -514,6 +553,19 @@ export const useInstanceStore = defineStore('instances', () => {
     window.location.href = dest;
   }
 
+  async function adoptSharedHomeSlot(): Promise<void> {
+    const shared = instanceTokens.value[HOME_SLOT];
+    if (homeSlot === HOME_SLOT || !shared) return;
+
+    // the old shared slot belongs to the server the app ran on last, the one opening now
+    const tokens = await slotTokens(HOME_SLOT);
+    if (tokens && !instanceTokens.value[homeSlot]) {
+      writeSlot(homeSlot, { ...shared, userData: serializeUserData(tokens, shared.userData ?? undefined) });
+    }
+    delete instanceTokens.value[HOME_SLOT];
+    forgetSlotSecret(HOME_SLOT);
+  }
+
   function reset(): void {
     for (const slot of Object.keys(instanceTokens.value)) forgetSlotSecret(slot);
     instanceTokens.value = {};
@@ -530,6 +582,8 @@ export const useInstanceStore = defineStore('instances', () => {
       if (entry.userData?.access_token) writeSlot(slot, entry);
     }
   }
+
+  adoptSharedHomeSlot();
 
   return {
     instances,
@@ -553,6 +607,7 @@ export const useInstanceStore = defineStore('instances', () => {
     removeInstance,
     updateInstance,
     switchInstance,
+    leaveRemote,
     probeInstance,
     complete2FALogin,
     reset,

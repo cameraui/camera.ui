@@ -4,6 +4,7 @@ export interface InstanceTokenEntry {
   userData: UserData | null;
   lastConnectedAt: number | null;
   url?: string;
+  name?: string;
 }
 
 export type InstanceTokens = Record<string, InstanceTokenEntry>;
