@@ -2,6 +2,7 @@ import { useConnection } from '@/connection/index.js';
 import { axiosInstance as api } from '..';
 
 import { i18n } from '@/i18n/index.js';
+import type { LoginUserData } from '@/connection/index.js';
 import type { LoginUserInput } from '@/schemas/users.schema.js';
 import type {
   ApiTokenCreatedResponse,
@@ -28,6 +29,11 @@ export async function checkFn(signal?: AbortSignal): Promise<SessionResponse> {
     signal,
     baseURL: endpoint,
   });
+  return response.data;
+}
+
+export async function getMeFn(): Promise<LoginUserData> {
+  const response: AxiosResponse<LoginUserData> = await api.get('/auth/me');
   return response.data;
 }
 

@@ -207,16 +207,19 @@ async function consumePendingIntent(): Promise<void> {
   }
 }
 
+async function onConnectionReady(): Promise<void> {
+  await authStore.refreshUser();
+  instanceStore.saveCurrentTokens();
+  instanceStore.fetchInstances();
+}
+
 watch(
   [isLoggedIn, () => connection.isOnline.value],
   ([loggedIn, online], prev) => {
     if (instanceStore.isSwitching) return;
     const wasReady = prev?.[0] === true && prev?.[1] === true;
     const isReady = loggedIn && online;
-    if (isReady && !wasReady) {
-      instanceStore.saveCurrentTokens();
-      instanceStore.fetchInstances();
-    }
+    if (isReady && !wasReady) onConnectionReady();
   },
   { immediate: true },
 );
