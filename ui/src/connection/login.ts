@@ -36,7 +36,7 @@ export async function loginCloud(connection: Connection, api: AuthApi, cloudSess
 
 export async function login(credentials: LoginCredentials): Promise<LoginOutcome> {
   const boot = getBootResult();
-  if (boot.mode === 'cloud') {
+  if (usesCloudLogin(boot.mode)) {
     if (!boot.cloudSession) throw new Error('login(): cloud mode but cloudSession missing');
     return loginCloud(boot.connection, boot.api, boot.cloudSession, credentials);
   }
@@ -50,7 +50,7 @@ export async function verify2FA(tempToken: string, code: string): Promise<LoginR
   let endpoint: Endpoint;
   let extraTokens: ResolvedEndpoint['extraTokens'];
 
-  if (boot.mode === 'cloud') {
+  if (usesCloudLogin(boot.mode)) {
     if (!boot.cloudSession) throw new Error('verify2FA(): cloud mode but cloudSession missing');
     const resolved = await resolveCloudEndpoint(boot.api, boot.cloudSession, boot.connection);
     endpoint = resolved.endpoint;
@@ -89,6 +89,11 @@ export async function logout(connection: Connection, api: AuthApi): Promise<void
 
   connection.reset();
   connection.boot(instanceId);
+}
+
+function usesCloudLogin(mode: string): boolean {
+  // the cloud session only knows the home server
+  return mode === 'cloud' && !instanceOverride.value;
 }
 
 async function resolveCloudEndpoint(api: AuthApi, cloudSession: CloudSessionHolder, connection: Connection): Promise<ResolvedEndpoint> {
