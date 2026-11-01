@@ -51,10 +51,11 @@ export function usePushRegistration() {
       const platform = await detectPlatform();
       const deviceName = await detectDeviceName();
       const pushKey = await getOrCreatePushKey(serverId);
+      if (!pushKey) throw new Error('push key unavailable');
 
       const device = await registerNotifierDeviceFn({
         pluginName: MOBILE_PLUGIN_NAME,
-        input: { deviceId, platform, deviceName, ...(pushKey ? { pushKey } : {}) },
+        input: { deviceId, platform, deviceName, pushKey },
       });
 
       await writeRegistration(serverId, { deviceId: device.id, enabledAt: Date.now() });
@@ -171,7 +172,7 @@ async function getOrCreatePushKey(serverId: string): Promise<string | null> {
     const { key } = await plugin.getOrCreateKey({ serverId });
     return key || null;
   } catch (err) {
-    log.warn('push key unavailable, falling back to plaintext push:', err);
+    log.warn('push key unavailable:', err);
     return null;
   }
 }
