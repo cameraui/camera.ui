@@ -197,6 +197,7 @@ async function consumePendingIntent(): Promise<void> {
     return;
   }
 
+  await instanceStore.leaveRemote();
   const ready = await getConnection().whenOnline({ timeoutMs: PENDING_INTENT_WAIT_MS });
   await clearPendingIntent();
   if (!ready) return;

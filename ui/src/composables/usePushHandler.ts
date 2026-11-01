@@ -33,6 +33,11 @@ export function usePushHandler(): void {
 
   const router = useRouter();
 
+  async function openOnHome(path: string): Promise<void> {
+    await useInstanceStore().leaveRemote();
+    await router.push(path);
+  }
+
   (async () => {
     const { FirebaseMessaging, Importance } = await import('@capacitor-firebase/messaging');
     const { Capacitor } = await import('@capacitor/core');
@@ -58,7 +63,7 @@ export function usePushHandler(): void {
       if (!intent) return;
 
       if (intent.kind === 'open-server' && (!intent.serverId || intent.serverId === getCurrentServerId())) {
-        if (intent.deepLink) router.push(intent.deepLink);
+        if (intent.deepLink) openOnHome(intent.deepLink);
         return;
       }
 
