@@ -43,7 +43,7 @@
     "@camera.ui/nats": "^2.15.2",
     "@camera.ui/rpc": "^1.1.1",
     "@camera.ui/rust-detector": "~0.0.13",
-    "@camera.ui/rust-postprocessor": "~0.2.2",
+    "@camera.ui/rust-postprocessor": "~0.2.3",
     "@camera.ui/sdk": "~1.4.5",
     "@camera.ui/tunnel": "^1.1.2",
     "@eneris/push-receiver": "^4.4.0",
@@ -92,7 +92,7 @@
     "tar": "^7.5.22",
     "tsyringe": "^4.10.0",
     "undici": "^8.12.3",
-    "werift": "^0.25.2",
+    "werift": "^0.26.0",
     "ws": "^8.22.1",
     "zod": "4.6.7"
   },
@@ -134,7 +134,8 @@
   },
   "overrides": {
     "adm-zip": "$adm-zip",
-    "vitest": "$vitest"
+    "vitest": "$vitest",
+    "werift": "$werift"
   },
   "bugs": {
     "url": "https://github.com/cameraui/camera.ui/issues"
