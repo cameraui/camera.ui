@@ -68,7 +68,7 @@
     "@tanstack/ai": "^1.0.1",
     "@tanstack/ai-client": "^1.0.1",
     "@tanstack/ai-vue": "^1.0.1",
-    "@tanstack/vue-query": "^5.105.0",
+    "@tanstack/vue-query": "^5.105.1",
     "@vue-flow/background": "^1.3.2",
     "@vue-flow/controls": "^1.1.3",
     "@vue-flow/core": "^1.48.2",
