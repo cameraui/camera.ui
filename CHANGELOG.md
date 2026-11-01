@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.6]
+
+### Added
+
+- **Event dialogs have the detections view.** The switch sits next to the filter, on phones the dots under the timeline lead to it.
+
+### Changed
+
+- **Each camera keeps its own timeline filter.** A change on one camera no longer reaches the others, and the camera's event dialogs use the same filter. Camview over several cameras has a separate one. Cameras start at the default filter.
+
+### Fixed
+
+- **Smaller fixes on phones.** The event dialog no longer cuts off the bottom of the timeline with the filter button and the view dots.
+
 ## [2.4.5]
 
 ### Changed
