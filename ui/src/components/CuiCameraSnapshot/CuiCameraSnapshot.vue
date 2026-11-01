@@ -27,9 +27,11 @@
 
     <span
       v-if="showTimestamp && snapshotTimestamp && !isDisabled"
-      class="absolute top-0 right-0 m-4 px-1.5 py-0.5 text-[10px] font-semibold bg-black/30 rounded-full text-white pointer-events-none"
-      >{{ snapshotAge }}</span
+      class="absolute top-0 right-0 m-4 flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold bg-black/30 rounded-full text-white pointer-events-none"
     >
+      <span v-if="isRefreshing" class="w-[10px] h-[10px] shrink-0 rounded-full border-[1.5px] border-white/30 border-t-white animate-spin" />
+      {{ snapshotAge }}
+    </span>
   </div>
 </template>
 
@@ -46,7 +48,7 @@ const props = withDefaults(defineProps<CuiCameraSnapshotProps>(), {
 
 const { camera, loading, src, width, height, showLoadingScreen, objectFit, aspectRatio, imageStyle, imageClass, showTimestamp } = toRefs(props);
 
-const { snapshotSrc: cachedSnapshotSrc, isLoading: snapshotLoading, snapshotTimestamp, refresh } = useSnapshot(camera);
+const { snapshotSrc: cachedSnapshotSrc, isLoading: snapshotLoading, isRefreshing, snapshotTimestamp, refresh } = useSnapshot(camera);
 
 const now = props.showTimestamp ? useNow({ scheduler: (cb) => useIntervalFn(cb, 1000) }) : undefined;
 
