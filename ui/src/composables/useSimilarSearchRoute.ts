@@ -26,7 +26,7 @@ export function useSimilarSearchRoute() {
 
   function openOnCamera(cameraName: string, timestamp: number, next: SimilarSearchRequest): void {
     router.push({
-      path: `/cameras/${cameraName}`,
+      path: `/cameras/${encodeURIComponent(cameraName)}`,
       query: { startTs: String(timestamp) },
       state: { similar: JSON.parse(JSON.stringify(next)) },
     });

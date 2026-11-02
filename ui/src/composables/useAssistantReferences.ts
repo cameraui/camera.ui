@@ -37,7 +37,7 @@ export function useAssistantReferences() {
         dismissableMask: false,
         modal: false,
         dialogContentClass: '!px-0 h-full',
-        goTo: `/cameras/${camera.name}?startTs=${timestamp}`,
+        goTo: `/cameras/${encodeURIComponent(camera.name)}?startTs=${timestamp}`,
       },
       dialogSize: {
         desktop: {
@@ -62,7 +62,7 @@ export function useAssistantReferences() {
       if (reference.kind === 'camera') {
         const camera = cameras.get(reference.id);
         if (!camera) throw new Error('missing');
-        await router.push(`/cameras/${camera.name}`);
+        await router.push(`/cameras/${encodeURIComponent(camera.name)}`);
         return;
       }
 

@@ -306,7 +306,7 @@ function openCameraEvent(): void {
       dismissableMask: false,
       modal: false,
       dialogContentClass: '!px-0 h-full',
-      goTo: `/cameras/${props.camera.name}${isNearLive ? '' : `?startTs=${anchorTime.value}`}`,
+      goTo: `/cameras/${encodeURIComponent(props.camera.name)}${isNearLive ? '' : `?startTs=${anchorTime.value}`}`,
     },
     dialogSize: {
       desktop: {

@@ -950,7 +950,7 @@ function openRecordingDialog(event: RecordedEvent, timestamp: number): void {
       dismissableMask: false,
       modal: false,
       dialogContentClass: '!px-0 h-full',
-      goTo: `/cameras/${camera.name}?startTs=${timestamp}`,
+      goTo: `/cameras/${encodeURIComponent(camera.name)}?startTs=${timestamp}`,
     },
     dialogSize: {
       desktop: {

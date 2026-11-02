@@ -22,7 +22,7 @@
 
       <Column field="name" :header="$t('components.camera_table.name')" class="w-full max-w-0 p-0 pl-4">
         <template #body="{ data: camera }">
-          <div class="w-full h-full cursor-pointer truncate pr-4 py-3" @click="$router.push(`/cameras/${camera.name}`)">{{ camera.name }}</div>
+          <div class="w-full h-full cursor-pointer truncate pr-4 py-3" @click="$router.push(`/cameras/${encodeURIComponent(camera.name)}`)">{{ camera.name }}</div>
         </template>
       </Column>
 

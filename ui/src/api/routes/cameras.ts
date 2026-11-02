@@ -36,22 +36,22 @@ export async function getRoomsFn({ signal }: { signal: AbortSignal }): Promise<s
 }
 
 export async function getCameraFn({ cameraname, signal }: { cameraname: string; signal: AbortSignal }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.get(`/cameras/${cameraname}`, { signal });
+  const response: AxiosResponse<DBCamera> = await api.get(`/cameras/${encodeURIComponent(cameraname)}`, { signal });
   return response.data;
 }
 
 export async function clearLogFn({ cameraname }: { cameraname: string }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.delete(`/cameras/${cameraname}/log`);
+  const response: AxiosResponse<AckResponse> = await api.delete(`/cameras/${encodeURIComponent(cameraname)}/log`);
   return response.data;
 }
 
 export async function downloadLogFn({ cameraname, signal }: { cameraname: string; signal: AbortSignal }): Promise<BlobPart> {
-  const response: AxiosResponse<BlobPart> = await api.get(`/cameras/${cameraname}/log/download`, { signal });
+  const response: AxiosResponse<BlobPart> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/log/download`, { signal });
   return response.data;
 }
 
 export async function streamSourceInfoFn({ cameraname, sourcename, signal }: { cameraname: string; sourcename: string; signal?: AbortSignal }): Promise<Go2RTCProbe> {
-  const response: AxiosResponse<Go2RTCProbe> = await api.get(`/cameras/${cameraname}/info/${sourcename}`, {
+  const response: AxiosResponse<Go2RTCProbe> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/info/${encodeURIComponent(sourcename)}`, {
     signal,
   });
   return response.data;
@@ -70,15 +70,22 @@ export async function probeCameraSourceFn({
   force?: boolean;
   signal?: AbortSignal;
 }): Promise<{ rtspUrl: string; onvifUrl: string; probe: Go2RTCProbe }> {
-  const response: AxiosResponse<{ rtspUrl: string; onvifUrl: string; probe: Go2RTCProbe }> = await api.get(`/cameras/${cameraname}/probe/${sourcename}`, {
-    params: { ...probeConfig, ...(force ? { refresh: true } : {}) },
-    signal,
-  });
+  const response: AxiosResponse<{ rtspUrl: string; onvifUrl: string; probe: Go2RTCProbe }> = await api.get(
+    `/cameras/${encodeURIComponent(cameraname)}/probe/${encodeURIComponent(sourcename)}`,
+    {
+      params: { ...probeConfig, ...(force ? { refresh: true } : {}) },
+      signal,
+    },
+  );
   return response.data;
 }
 
 export async function getCameraSnapshotFn({ cameraname, forceNew, signal }: { cameraname: string; forceNew?: boolean; signal?: AbortSignal }): Promise<ArrayBuffer> {
-  const response: AxiosResponse<ArrayBuffer> = await api.get(`/cameras/${cameraname}/snapshot`, { signal, params: { forceNew }, responseType: 'arraybuffer' });
+  const response: AxiosResponse<ArrayBuffer> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/snapshot`, {
+    signal,
+    params: { forceNew },
+    responseType: 'arraybuffer',
+  });
   return response.data;
 }
 
@@ -88,7 +95,7 @@ export async function getCamerasFn({ parameter, signal }: { parameter: Paginatio
 }
 
 export async function patchCameraFn({ cameraname, cameraData }: { cameraname: string; cameraData: PatchCameraInput }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.patch(`/cameras/${cameraname}`, cameraData);
+  const response: AxiosResponse<DBCamera> = await api.patch(`/cameras/${encodeURIComponent(cameraname)}`, cameraData);
   return response.data;
 }
 
@@ -103,7 +110,7 @@ export async function bulkDeleteCamerasFn({ cameranames }: { cameranames: string
 }
 
 export async function getCameraExtensionsFn({ cameraname, signal }: { cameraname: string; signal: AbortSignal }): Promise<PluginExtension[]> {
-  const response: AxiosResponse<PluginExtension[]> = await api.get(`/cameras/${cameraname}/extensions`, { signal });
+  const response: AxiosResponse<PluginExtension[]> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/extensions`, { signal });
   return response.data;
 }
 
@@ -116,7 +123,7 @@ export async function getCameraExtensionConfigFn({
   pluginname: string;
   signal: AbortSignal;
 }): Promise<PluginExtensionConfig> {
-  const response: AxiosResponse<PluginExtensionConfig> = await api.get(`/cameras/${cameraname}/${pluginname}/config`, { signal });
+  const response: AxiosResponse<PluginExtensionConfig> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/config`, { signal });
   return response.data;
 }
 
@@ -129,7 +136,7 @@ export async function patchCameraExtensionConfigFn({
   pluginname: string;
   configData: PatchStorateInput;
 }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.patch(`/cameras/${cameraname}/${pluginname}/config`, configData);
+  const response: AxiosResponse<AckResponse> = await api.patch(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/config`, configData);
   return response.data;
 }
 
@@ -142,7 +149,7 @@ export async function setCameraExtensionConfigFn({
   pluginname: string;
   configData: SetStorageInput;
 }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.put(`/cameras/${cameraname}/${pluginname}/config`, configData);
+  const response: AxiosResponse<AckResponse> = await api.put(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/config`, configData);
   return response.data;
 }
 
@@ -155,7 +162,7 @@ export async function submitCameraExtensionConfigFn({
   pluginname: string;
   configData: SubmitStorageInput;
 }): Promise<FormSubmitResponse | void> {
-  const response: AxiosResponse<FormSubmitResponse | void> = await api.post(`/cameras/${cameraname}/${pluginname}/config`, configData);
+  const response: AxiosResponse<FormSubmitResponse | void> = await api.post(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/config`, configData);
   return response.data;
 }
 
@@ -170,7 +177,7 @@ export async function getSensorConfigFn({
   sensorId: string;
   signal: AbortSignal;
 }): Promise<PluginExtensionConfig> {
-  const response: AxiosResponse<PluginExtensionConfig> = await api.get(`/cameras/${cameraname}/${pluginname}/sensor/${sensorId}/config`, { signal });
+  const response: AxiosResponse<PluginExtensionConfig> = await api.get(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/sensor/${sensorId}/config`, { signal });
   return response.data;
 }
 
@@ -185,7 +192,7 @@ export async function patchSensorConfigFn({
   sensorId: string;
   configData: PatchStorateInput;
 }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.patch(`/cameras/${cameraname}/${pluginname}/sensor/${sensorId}/config`, configData);
+  const response: AxiosResponse<AckResponse> = await api.patch(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/sensor/${sensorId}/config`, configData);
   return response.data;
 }
 
@@ -200,7 +207,7 @@ export async function setSensorConfigFn({
   sensorId: string;
   configData: SetStorageInput;
 }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.put(`/cameras/${cameraname}/${pluginname}/sensor/${sensorId}/config`, configData);
+  const response: AxiosResponse<AckResponse> = await api.put(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/sensor/${sensorId}/config`, configData);
   return response.data;
 }
 
@@ -215,49 +222,52 @@ export async function submitSensorConfigFn({
   sensorId: string;
   configData: SubmitStorageInput;
 }): Promise<FormSubmitResponse | void> {
-  const response: AxiosResponse<FormSubmitResponse | void> = await api.post(`/cameras/${cameraname}/${pluginname}/sensor/${sensorId}/config`, configData);
+  const response: AxiosResponse<FormSubmitResponse | void> = await api.post(
+    `/cameras/${encodeURIComponent(cameraname)}/${pluginname}/sensor/${sensorId}/config`,
+    configData,
+  );
   return response.data;
 }
 
 type AssignmentType = SensorType | 'hub' | 'cameraController';
 
 export async function enableCameraExtensionFn({ cameraname, pluginname, type }: { cameraname: string; pluginname: string; type: AssignmentType }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.put(`/cameras/${cameraname}/${pluginname}/enable`, null, { params: { type } });
+  const response: AxiosResponse<DBCamera> = await api.put(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/enable`, null, { params: { type } });
   return response.data;
 }
 
 export async function disableCameraExtensionFn({ cameraname, pluginname, type }: { cameraname: string; pluginname: string; type: AssignmentType }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.put(`/cameras/${cameraname}/${pluginname}/disable`, null, { params: { type } });
+  const response: AxiosResponse<DBCamera> = await api.put(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/disable`, null, { params: { type } });
   return response.data;
 }
 
 export async function addCameraExtensionFn({ cameraname, pluginname, type }: { cameraname: string; pluginname: string; type: AssignmentType }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.post(`/cameras/${cameraname}/${pluginname}`, null, { params: { type } });
+  const response: AxiosResponse<DBCamera> = await api.post(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}`, null, { params: { type } });
   return response.data;
 }
 
 export async function removeCameraExtensionFn({ cameraname, pluginname, type }: { cameraname: string; pluginname: string; type: AssignmentType }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.delete(`/cameras/${cameraname}/${pluginname}`, { params: { type } });
+  const response: AxiosResponse<DBCamera> = await api.delete(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}`, { params: { type } });
   return response.data;
 }
 
 export async function activateCameraExtensionFn({ cameraname, pluginname }: { cameraname: string; pluginname: string }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.post(`/cameras/${cameraname}/${pluginname}/activate`);
+  const response: AxiosResponse<DBCamera> = await api.post(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/activate`);
   return response.data;
 }
 
 export async function deactivateCameraExtensionFn({ cameraname, pluginname }: { cameraname: string; pluginname: string }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.delete(`/cameras/${cameraname}/${pluginname}/deactivate`);
+  const response: AxiosResponse<DBCamera> = await api.delete(`/cameras/${encodeURIComponent(cameraname)}/${pluginname}/deactivate`);
   return response.data;
 }
 
 export async function patchZoneConfigFn({ cameraname, zones }: { cameraname: string; zones: CameraZones }): Promise<DBCamera> {
-  const response: AxiosResponse<DBCamera> = await api.patch(`/cameras/${cameraname}/zone-config`, zones);
+  const response: AxiosResponse<DBCamera> = await api.patch(`/cameras/${encodeURIComponent(cameraname)}/zone-config`, zones);
   return response.data;
 }
 
 export async function removeCameraFn({ cameraname }: { cameraname: string }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.delete(`/cameras/${cameraname}`);
+  const response: AxiosResponse<AckResponse> = await api.delete(`/cameras/${encodeURIComponent(cameraname)}`);
   return response.data;
 }
 

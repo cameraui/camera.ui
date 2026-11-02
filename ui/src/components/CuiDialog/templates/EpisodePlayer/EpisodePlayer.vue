@@ -940,7 +940,7 @@ function resolveGoTo(): string | undefined {
   if (matchView.value) return matchViewRef.value?.resolveGoTo();
   const camera = props.cameraById.get(activeCameraId.value);
   if (!camera) return undefined;
-  return `/cameras/${camera.name}?startTs=${Math.floor(playheadMs.value)}`;
+  return `/cameras/${encodeURIComponent(camera.name)}?startTs=${Math.floor(playheadMs.value)}`;
 }
 
 watch(visibleCameraId, resetZoom);

@@ -30,7 +30,7 @@ export function useEpisodePlayerDialog() {
         dismissableMask: false,
         modal: false,
         dialogContentClass: '!px-0 h-full',
-        goTo: `/cameras/${camera.name}?startTs=${episode.startTime}`,
+        goTo: `/cameras/${encodeURIComponent(camera.name)}?startTs=${episode.startTime}`,
       },
       dialogSize: {
         desktop: {

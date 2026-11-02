@@ -30,7 +30,7 @@ export function useEpisodeTraceDialog() {
         dismissableMask: false,
         modal: false,
         dialogContentClass: '!px-0 h-full',
-        goTo: camera ? `/cameras/${camera.name}?startTs=${episode.startTime}` : undefined,
+        goTo: camera ? `/cameras/${encodeURIComponent(camera.name)}?startTs=${episode.startTime}` : undefined,
       },
       dialogSize: {
         desktop: {

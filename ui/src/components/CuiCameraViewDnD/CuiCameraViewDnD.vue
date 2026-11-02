@@ -150,7 +150,7 @@ const expandedIdx = computed(() => fullScreenCard.value ?? collapsingCard.value)
 const activeCameraCardProps = computed(() => {
   return (camera: DBCamera | undefined) => {
     const p = { ...toRaw(cameraCardProps.value) };
-    if (camera) p.routerLink = `/cameras/${camera.name}`;
+    if (camera) p.routerLink = `/cameras/${encodeURIComponent(camera.name)}`;
     return p;
   };
 });

@@ -420,7 +420,7 @@ provide(FindObjectKey, find);
 function openPipCamera(name: string): void {
   const query: Record<string, string> = { pip: cameraName.value };
   if (nvrController.mode.value !== 'idle') query.startTs = String(Math.floor(playheadUs(nvrController) / 1000));
-  router.push({ path: `/cameras/${name}`, query, state: { pipFullscreen: cameraCardIsFullscreen.value } });
+  router.push({ path: `/cameras/${encodeURIComponent(name)}`, query, state: { pipFullscreen: cameraCardIsFullscreen.value } });
 }
 
 function openTraceAtPlayhead(): void {

@@ -58,7 +58,7 @@ export async function createShortcutFn({
   cameraname: string;
   shortcutData: CreateShortcutInput;
 }): Promise<DBCameraShortcut[]> {
-  const response: AxiosResponse<DBCameraShortcut[]> = await api.post(`/users/${username}/preferences/cameras/${cameraname}/shortcuts`, shortcutData);
+  const response: AxiosResponse<DBCameraShortcut[]> = await api.post(`/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts`, shortcutData);
   return response.data;
 }
 
@@ -73,12 +73,14 @@ export async function getShortcutFn({
   shortcutid: string;
   signal: AbortSignal;
 }): Promise<DBCameraShortcut> {
-  const response: AxiosResponse<DBCameraShortcut> = await api.get(`/users/${username}/preferences/cameras/${cameraname}/shortcuts/${shortcutid}`, { signal });
+  const response: AxiosResponse<DBCameraShortcut> = await api.get(`/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts/${shortcutid}`, {
+    signal,
+  });
   return response.data;
 }
 
 export async function getShortcutsFn({ username, cameraname, signal }: { username: string; cameraname: string; signal: AbortSignal }): Promise<DBCameraShortcut[]> {
-  const response: AxiosResponse<DBCameraShortcut[]> = await api.get(`/users/${username}/preferences/cameras/${cameraname}/shortcuts`, { signal });
+  const response: AxiosResponse<DBCameraShortcut[]> = await api.get(`/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts`, { signal });
   return response.data;
 }
 
@@ -93,17 +95,22 @@ export async function patchShortcutFn({
   shortcutid: string;
   shortcutData: PatchShortcutInput;
 }): Promise<DBCameraShortcut[]> {
-  const response: AxiosResponse<DBCameraShortcut[]> = await api.patch(`/users/${username}/preferences/cameras/${cameraname}/shortcuts/${shortcutid}`, shortcutData);
+  const response: AxiosResponse<DBCameraShortcut[]> = await api.patch(
+    `/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts/${shortcutid}`,
+    shortcutData,
+  );
   return response.data;
 }
 
 export async function removeShortcutFn({ username, cameraname, shortcutid }: { username: string; cameraname: string; shortcutid: string }): Promise<DBCameraShortcut[]> {
-  const response: AxiosResponse<DBCameraShortcut[]> = await api.delete(`/users/${username}/preferences/cameras/${cameraname}/shortcuts/${shortcutid}`);
+  const response: AxiosResponse<DBCameraShortcut[]> = await api.delete(
+    `/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts/${shortcutid}`,
+  );
   return response.data;
 }
 
 export async function removeShortcutsFn({ username, cameraname }: { username: string; cameraname: string }): Promise<DBCameraShortcut[]> {
-  const response: AxiosResponse<DBCameraShortcut[]> = await api.delete(`/users/${username}/preferences/cameras/${cameraname}/shortcuts`);
+  const response: AxiosResponse<DBCameraShortcut[]> = await api.delete(`/users/${username}/preferences/cameras/${encodeURIComponent(cameraname)}/shortcuts`);
   return response.data;
 }
 

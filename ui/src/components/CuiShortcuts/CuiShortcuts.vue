@@ -961,9 +961,9 @@ async function routeCamera(cameraId: string, nvrHandoffTs?: number): Promise<voi
 
   if (camName) {
     if (nvrHandoffTs !== undefined) {
-      router.push({ path: `/cameras/${camName}`, query: { startTs: String(nvrHandoffTs) } });
+      router.push({ path: `/cameras/${encodeURIComponent(camName)}`, query: { startTs: String(nvrHandoffTs) } });
     } else {
-      router.push(`/cameras/${camName}`);
+      router.push(`/cameras/${encodeURIComponent(camName)}`);
     }
   }
 }

@@ -30,7 +30,7 @@ export function useEventTraceDialog() {
         dismissableMask: false,
         modal: false,
         dialogContentClass: '!px-0 h-full',
-        goTo: `/cameras/${camera.name}?startTs=${event.startTime}`,
+        goTo: `/cameras/${encodeURIComponent(camera.name)}?startTs=${event.startTime}`,
       },
       dialogSize: {
         desktop: {

@@ -419,7 +419,7 @@ function onCardClick(camera: DBCamera) {
   if (Date.now() - lastDragEnd < CLICK_AFTER_DRAG_GRACE) return;
 
   if (!selectionMode.value) {
-    router.push(`/cameras/${camera.name}`);
+    router.push(`/cameras/${encodeURIComponent(camera.name)}`);
     return;
   }
 

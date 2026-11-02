@@ -351,7 +351,7 @@
             severity="secondary"
             text
             class="cui-button p-1.5"
-            @click="$router.push(`/cameras/${previewCamera.name}`)"
+            @click="$router.push(`/cameras/${encodeURIComponent(previewCamera.name)}`)"
           >
             <template #icon>
               <i-mdi:open-in-new class="w-4 h-4" />

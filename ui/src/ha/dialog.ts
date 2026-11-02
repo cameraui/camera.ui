@@ -20,7 +20,7 @@ export function openCameraDialog(dialog: CuiDialog, camera: DBCamera, eventTimes
       dismissableMask: false,
       modal: false,
       dialogContentClass: '!px-0 h-full',
-      goTo: `/cameras/${camera.name}${eventTimestamp ? `?startTs=${eventTimestamp}` : ''}`,
+      goTo: `/cameras/${encodeURIComponent(camera.name)}${eventTimestamp ? `?startTs=${eventTimestamp}` : ''}`,
     },
     dialogSize: {
       desktop: {

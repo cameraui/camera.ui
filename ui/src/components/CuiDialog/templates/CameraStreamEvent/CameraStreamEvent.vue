@@ -191,8 +191,8 @@ function onTimelineScroll(scrolling: boolean) {
 
 function resolveGoTo(): string | undefined {
   const liveMs = nvrController.currentTimestamp.value > 0 ? Math.floor(nvrController.currentTimestamp.value / 1000) : eventTimestamp.value;
-  if (!liveMs) return `/cameras/${camera.value.name}`;
-  return `/cameras/${camera.value.name}?startTs=${liveMs}`;
+  if (!liveMs) return `/cameras/${encodeURIComponent(camera.value.name)}`;
+  return `/cameras/${encodeURIComponent(camera.value.name)}?startTs=${liveMs}`;
 }
 
 watch(
