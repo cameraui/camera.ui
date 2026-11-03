@@ -1,3 +1,8 @@
+[[PackageOverrides]]
+group = "dev"
+vulnerability.ignore = true
+reason = "build, lint and test tooling, not part of the published package"
+
 [[IgnoredVulns]]
 id = "CVE-2026-22701"
 ignoreUntil = 2027-01-15
@@ -7,3 +12,23 @@ reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui do
 id = "CVE-2025-68146"
 ignoreUntil = 2027-01-15
 reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui does not install"
+
+[[IgnoredVulns]]
+id = "CVE-2026-112909"
+ignoreUntil = 2027-01-15
+reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui does not install"
+
+[[IgnoredVulns]]
+id = "CVE-2026-112910"
+ignoreUntil = 2027-01-15
+reason = "filelock 3.19.1 is only reachable on Python < 3.10, which camera.ui does not install"
+
+[[IgnoredVulns]]
+id = "CVE-2026-118764"
+ignoreUntil = 2027-01-15
+reason = "minimatch 10 only compiles the fixed patterns @fastify/static passes to glob, the fix is in minimatch 11"
+
+[[IgnoredVulns]]
+id = "CVE-2026-118773"
+ignoreUntil = 2027-01-15
+reason = "@fastify/static runs glob once at startup without an AbortSignal, the fix is in glob 14, which @fastify/static does not accept yet"

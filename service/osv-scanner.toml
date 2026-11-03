@@ -1,0 +1,4 @@
+[[PackageOverrides]]
+group = "dev"
+vulnerability.ignore = true
+reason = "build, lint and test tooling, not part of the published package"

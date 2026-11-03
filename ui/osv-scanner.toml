@@ -1,0 +1,4 @@
+[[PackageOverrides]]
+group = "dev"
+vulnerability.ignore = true
+reason = "build, lint and test tooling, runtime libraries are in dependencies"

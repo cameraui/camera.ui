@@ -2,12 +2,13 @@ name: Security
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "**/package.json"
       - "**/package-lock.json"
       - "**/npm-shrinkwrap.json"
       - "**/requirements.txt"
+      - "**/osv-scanner.toml"
       - ".github/workflows/security.yml"
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - "**/package-lock.json"
       - "**/npm-shrinkwrap.json"
       - "**/requirements.txt"
+      - "**/osv-scanner.toml"
       - ".github/workflows/security.yml"
   schedule:
     - cron: "30 4 * * 1"
