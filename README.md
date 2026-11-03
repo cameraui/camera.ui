@@ -24,7 +24,7 @@
   <img src=".github/home.webp" alt="The camera.ui home view with recent events and the camera grid" />
 </p>
 
-camera.ui turns your IP cameras into one system on your own hardware: live view, detection, recordings and smart home. The server runs on macOS, Windows and Linux, in Docker, on Proxmox or as a Home Assistant app. You watch from the desktop app, the browser, your phone or your Apple TV.
+camera.ui is the local-first camera and NVR platform. It turns your IP cameras into one system on your own hardware: live view, detection, recordings and smart home. The server runs on macOS, Windows and Linux, in Docker, on Proxmox or as a Home Assistant app. You watch from the desktop app, the browser, your phone or your Apple TV.
 
 ## What it does
 
