@@ -569,7 +569,6 @@ export interface DBRecordingsFilters {
   sensorEvents?: string[];
   gridRegions?: { col: number; row: number; w: number; h: number }[];
   minConfidence?: number;
-  minSemanticScore?: number;
   onlyWithRecordings?: boolean;
 }
 

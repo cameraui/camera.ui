@@ -36,7 +36,7 @@
             :control-microphone-button="!smBreakpoint"
             :toolbar-timeline-button="cardTimeline"
             fullscreen-timeline
-            :toolbar-description-button="Boolean(nvrPluginRef)"
+            :toolbar-description-button="nvrAvailable"
             :event-description="currentDescription"
             :current-event="currentTraceEvent"
             @open-trace="openTraceAtPlayhead"
@@ -294,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { CuiTimeline, playheadUs, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
+import { CuiTimeline, playheadUs, useEventStore, useNvrPlayback, useRecordingExport } from '@camera.ui/nvr';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
@@ -315,7 +315,7 @@ const CuiCameraShares = asyncComponent(() => import('@/components/CuiCameraShare
 const CuiBottomSheet = asyncComponent(() => import('@/components/CuiBottomSheet/CuiBottomSheet.vue'));
 
 const camerasQuery = new CamerasQuery();
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+const eventStore = useEventStore();
 
 const log = useLogger();
 const toast = useCuiToast();
@@ -329,7 +329,7 @@ const { openEventTrace } = useEventTraceDialog();
 const { openSimilarSearch, openOnCamera, cameraSearch, forgetCameraSearch } = useSimilarSearchRoute();
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportRange } = useRecordingExport();
 
 const routerStore = useRouterStore();
 
@@ -512,15 +512,14 @@ async function onTrimExport() {
   const endMs = tl.trimEndMs;
   if (!startMs || !endMs || !cameraId.value) return;
 
-  const nvrPlugin = nvrPluginRef.value as { nvrExport: (...args: any[]) => Promise<any> } | undefined;
-  if (!nvrPlugin?.nvrExport) return;
+  if (!nvrAvailable.value) return;
 
   const timelapseSetting = TIMELAPSE_OPTIONS[trimTimelapse.value];
   const timelapseIntervalSec = timelapseSetting === 'Off' ? 0 : parseInt(timelapseSetting) * 60;
 
   trimExporting.value = true;
   try {
-    const result = await nvrPlugin.nvrExport(cameraId.value, startMs * 1000, endMs * 1000, {
+    const result = await exportRange(cameraId.value, startMs, endMs, {
       timelapseIntervalSec: timelapseIntervalSec || undefined,
       sourceRole: nvrController.effectiveRole.value || undefined,
     });
@@ -554,13 +553,12 @@ async function onRangeDelete() {
   const tl = cuiTimelineRef.value;
   if (!tl?.trimStartMs || !tl?.trimEndMs || !cameraId.value) return;
 
-  const nvrPlugin = nvrPluginRef.value as { nvrDeleteRange: (...args: any[]) => Promise<any> } | undefined;
-  if (!nvrPlugin?.nvrDeleteRange) return;
+  if (!nvrAvailable.value) return;
 
   rangeDeleting.value = true;
   try {
-    const result = await nvrPlugin.nvrDeleteRange(cameraId.value, tl.trimStartMs * 1000, tl.trimEndMs * 1000);
-    if (result?.endMs > result?.startMs) {
+    const result = await eventStore.deleteRange(cameraId.value, tl.trimStartMs, tl.trimEndMs);
+    if (result.endMs > result.startMs) {
       toast.add({ severity: 'success', detail: i18n.t('components.player.delete_range_done'), life: 4000 });
       deleteMode.value = false;
     } else if (tl.trimEndMs > Date.now() - 3 * 60_000) {

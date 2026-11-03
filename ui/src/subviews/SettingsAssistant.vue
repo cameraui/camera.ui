@@ -760,6 +760,7 @@ import { axiosInstance } from '@/api/index.js';
 import { AssistantQuery } from '@/api/routes/assistant.js';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@/common/assistantModels.js';
+import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
@@ -790,7 +791,6 @@ type SchedulePreset = 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'hourly' | 
 type ToolSource = { key: string; label: string; serverId?: string; tools: AssistantToolInfo[] };
 
 const NO_PLUGIN_ACCESS = 'none';
-const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
 const DELETE_ITEM: MenuItem = {
   icon: DeleteIcon,
   iconProps: { class: 'text-red-500' },
@@ -820,7 +820,7 @@ const camerasQuery = new CamerasQuery();
 const toast = useCuiToast();
 const dialog = useCuiDialog();
 const { t, locale } = useI18n();
-const { alerts: textAlerts, setEnabled: setTextAlertEnabled, setModel: setTextAlertModel, remove: removeTextAlert } = useTextAlerts(NVR_PLUGIN_NAME);
+const { alerts: textAlerts, setEnabled: setTextAlertEnabled, setModel: setTextAlertModel, remove: removeTextAlert } = useTextAlerts();
 
 const { data: usageRows, isLoading: usageLoading } = assistantQuery.usageAllQuery();
 const { data: info } = assistantQuery.getAssistantInfoQuery();

@@ -303,7 +303,7 @@
 </template>
 
 <script setup lang="ts">
-import { playheadUs, useEventTrace, useNvrPlayback } from '@camera.ui/nvr';
+import { playheadUs, useEventTrace, useNvrPlayback, useRecordingExport } from '@camera.ui/nvr';
 import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 
@@ -332,7 +332,7 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportRange } = useRecordingExport();
 const nvrController = useNvrPlayback(
   computed(() => props.camera._id),
   { sourceRole: computed(() => props.camera.interfaceSettings?.playbackSource ?? 'auto') },
@@ -1053,10 +1053,9 @@ function bundleClipRange(): { startMs: number; endMs: number } | undefined {
 }
 
 async function exportClip(range: { startMs: number; endMs: number } | undefined): Promise<Uint8Array<ArrayBuffer> | undefined> {
-  const nvrPlugin = nvrPluginRef.value as { nvrExport: (...args: any[]) => Promise<{ url: string }> } | undefined;
-  if (!nvrPlugin?.nvrExport || !range) return undefined;
+  if (!nvrAvailable.value || !range) return undefined;
   try {
-    const result = await nvrPlugin.nvrExport(props.event.cameraId, range.startMs * 1000, range.endMs * 1000);
+    const result = await exportRange(props.event.cameraId, range.startMs, range.endMs);
     const response = await fetch(result.url, { credentials: 'include' });
     if (!response.ok) return undefined;
     return new Uint8Array(await response.arrayBuffer());

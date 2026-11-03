@@ -5,14 +5,7 @@
         <img v-if="thumbnail" :src="thumbnail" class="w-full h-full object-cover" />
         <ProgressSpinner v-else-if="imageCount" stroke-width="6" class="cui-spinner-delayed" />
         <img v-else :src="fallbackUrl" class="w-1/2 h-1/2 object-contain" />
-        <span
-          v-if="marked"
-          v-tooltip.top="$t('views.faces.card_marked', { count: marked }, marked)"
-          class="absolute top-1.5 left-1.5 cui-icon-sm rounded-full shadow-md"
-          :class="markedDanger ? 'bg-red-500 text-white' : 'bg-amber-400 text-black'"
-        >
-          <i-mdi:exclamation-thick width="100%" height="100%" />
-        </span>
+        <CuiFaceMarkBadge v-if="marked" :text="$t('views.faces.card_marked', { count: marked }, marked)" :danger="markedDanger" class="absolute top-1.5 left-1.5" />
       </div>
     </template>
     <template #content>
@@ -34,7 +27,10 @@
 
       <div class="absolute top-0 left-0 right-0 p-2 bg-gradient-to-b from-black/60 to-transparent">
         <div class="flex items-center justify-between">
-          <span class="text-xs text-white/70">{{ formattedTime }}</span>
+          <span class="flex items-center gap-1.5">
+            <CuiFaceMarkBadge v-if="markText" :text="markText" :danger="!!alsoFiledUnder?.length" />
+            <span class="text-xs text-white/70">{{ formattedTime }}</span>
+          </span>
           <span v-if="confidence" class="text-xs font-medium" :class="confidenceColorLight">{{ Math.round(confidence * 100) }}%</span>
         </div>
       </div>
@@ -95,6 +91,7 @@
 
 <script setup lang="ts">
 import { FACE_FEW_PICTURES } from '@/common/constants.js';
+import { isPartlyVisible } from '@/common/faceMarks.js';
 import { getImageUrl } from '@/common/utils.js';
 
 import type { CuiFaceCardEmits, CuiFaceCardProps } from './types.js';
@@ -102,6 +99,8 @@ import type { CuiFaceCardEmits, CuiFaceCardProps } from './types.js';
 const props = defineProps<CuiFaceCardProps>();
 
 defineEmits<CuiFaceCardEmits>();
+
+const { t } = useI18n();
 
 const fallbackUrl = getImageUrl();
 
@@ -111,6 +110,12 @@ const marked = computed(() => {
   return (marks?.filedUnder ?? 0) + (marks?.unclear ?? 0) + (marks?.unlike ?? 0) + (marks?.partlyVisible ?? 0) + (marks?.sameAs ?? 0);
 });
 const markedDanger = computed(() => !!(props.marks?.filedUnder || props.marks?.unclear));
+const markText = computed(() => {
+  const reasons: string[] = [];
+  if (props.alsoFiledUnder?.length) reasons.push(t('views.faces.assign_filed_under', { names: props.alsoFiledUnder.join(', ') }, 1));
+  if (isPartlyVisible(props.clarity)) reasons.push(t('views.faces.assign_partly_visible', 1));
+  return reasons.join(' ');
+});
 
 const confidenceColorLight = computed(() => {
   if (!props.confidence) return 'text-white/50';

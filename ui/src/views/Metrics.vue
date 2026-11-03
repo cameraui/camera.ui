@@ -242,12 +242,33 @@
                     </Column>
                     <Column field="recordingMode" :header="$t('views.metrics.col_mode')">
                       <template #body="{ data }">
-                        <Chip :label="data.recordingMode" class="text-xs" />
+                        <Chip :label="data.recordingEnabled ? data.recordingMode : $t('views.metrics.mode_off')" class="text-xs" />
                       </template>
                     </Column>
                     <Column field="limits" :header="$t('views.metrics.col_limits')">
                       <template #body="{ data }">
                         <span :class="{ 'text-muted': !data.ownLimits }">{{ data.limits }}</span>
+                      </template>
+                    </Column>
+                    <Column v-if="canDeleteRecordings" header="" header-class="p-2! w-10" class="p-2! w-10">
+                      <template #body="{ data }">
+                        <div class="flex items-center justify-end">
+                          <ProgressSpinner v-if="data.deleting" v-tooltip.left="$t('views.metrics.deleting_recordings')" class="w-6 h-6 m-0 p-1" stroke-width="6" />
+                          <span v-else v-tooltip.left="deleteRecordingsTooltip(data)" class="inline-flex">
+                            <Button
+                              text
+                              rounded
+                              severity="danger"
+                              class="cui-icon-sm"
+                              :disabled="data.recordingEnabled || data.usedBytes <= 0"
+                              @click="confirmDeleteRecordings(data)"
+                            >
+                              <template #icon>
+                                <i-mdi:trash-can-outline width="100%" height="100%" />
+                              </template>
+                            </Button>
+                          </span>
+                        </div>
                       </template>
                     </Column>
                     <template #empty>
@@ -276,10 +297,12 @@ import { FrameWorkerQuery } from '@/api/routes/frameWorkers.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { isHeaderChart } from '@/components/CuiChartTable/types.js';
+import DeleteCameraRecordingsDialog from '@/components/CuiDialog/templates/DeleteCameraRecordings/DeleteCameraRecordings.vue';
 import BenchmarkDialog from '@/components/CuiDialog/templates/DetectionBenchmark/DetectionBenchmark.vue';
 import { DEFAULT_PROCESS_LOAD, MAX_METRICS_DATA_POINTS } from '@/composables/sockets/useMetricsSocket.js';
 
 import type { TableHeader, TableHeaderChart } from '@/components/CuiChartTable/types.js';
+import type { DeleteCameraRecordingsProps } from '@/components/CuiDialog/templates/DeleteCameraRecordings/types.js';
 import type { PaginationQuery, PlacementInfo, ProcessInfo, StreamStatsRow } from '@shared/types';
 import type { ChartData, ChartOptions } from 'chart.js';
 import type { DataTablePassThroughOptions } from 'openvue';
@@ -293,9 +316,11 @@ interface CameraStorageRow {
   daysCount: number;
   bandwidthMBh: number;
   recordingMode: string;
+  recordingEnabled: boolean;
   isRecording: boolean;
   ownLimits: boolean;
   limits: string;
+  deleting: boolean;
 }
 
 interface OverviewRow {
@@ -316,7 +341,7 @@ const metricsSocket = useMetricsSocket();
 const { mdBreakpoint, smBreakpoint, xsBreakpoint } = useSharedCuiBreakpoint();
 const { beginServerRestart } = useServerRestart();
 const { statusWithPlacement } = usePlacementLabel();
-const { stats, isLoading: storageStatsLoading } = useStorageStats();
+const { stats, isLoading: storageStatsLoading, canDeleteRecordings, deleteCameraRecordings } = useStorageStats();
 
 const METRICS_TABS = ['overview', 'cameras', 'storage'];
 
@@ -820,9 +845,11 @@ const cameraRows = computed<CameraStorageRow[]>(() => {
       daysCount: cam.daysCount,
       bandwidthMBh: cam.bandwidthMBh,
       recordingMode: cam.recordingMode,
+      recordingEnabled: cam.recordingEnabled !== false,
       isRecording: cam.isRecording,
       ownLimits: cam.ownLimits === true,
       limits: cam.ownLimits ? cameraLimits(cam.retentionDays ?? 0, cam.maxStorageGB ?? 0) : t('views.metrics.limits_global'),
+      deleting: cam.deleting === true,
     }))
     .sort((a, b) => b.usedBytes - a.usedBytes);
 });
@@ -1040,6 +1067,23 @@ async function pluginRestart(pluginName: string): Promise<void> {
   } finally {
     pluginsRestarting.value = pluginsRestarting.value.filter((plugin) => plugin !== pluginName);
   }
+}
+
+function deleteRecordingsTooltip(row: CameraStorageRow): string {
+  return row.recordingEnabled ? t('views.metrics.delete_recordings_recording') : t('views.metrics.delete_recordings');
+}
+
+function confirmDeleteRecordings(row: CameraStorageRow) {
+  dialog.openComponentDialog<DeleteCameraRecordingsProps>(DeleteCameraRecordingsDialog, {
+    data: {
+      title: t('views.metrics.delete_recordings'),
+      confirmText: t('components.form.button.remove'),
+      confirmButtonProps: { severity: 'danger' },
+      awaitConfirm: true,
+      contentProps: { cameraName: row.name },
+    },
+    onConfirm: (withEvents: boolean) => deleteCameraRecordings(row.id, withEvents),
+  });
 }
 
 function formatGB(gb: number): string {

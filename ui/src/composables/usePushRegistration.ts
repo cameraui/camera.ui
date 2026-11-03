@@ -1,4 +1,5 @@
 import { registerNotifierDeviceFn } from '@/api/routes/notifications.js';
+import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { getPushDeviceId } from '@/common/deviceId';
 import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
 
@@ -6,7 +7,6 @@ import type { NotifierDeviceWithSource } from '@shared/types';
 
 const log = useLogger('PushRegistration');
 
-const MOBILE_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
 const PREF_KEY_REGISTRATIONS = 'cui.push.registrations';
 
 interface PerServerRegistration {
@@ -54,7 +54,7 @@ export function usePushRegistration() {
       if (!pushKey) throw new Error('push key unavailable');
 
       const device = await registerNotifierDeviceFn({
-        pluginName: MOBILE_PLUGIN_NAME,
+        pluginName: NVR_PLUGIN_NAME,
         input: { deviceId, platform, deviceName, pushKey },
       });
 
@@ -82,7 +82,7 @@ export function usePushRegistration() {
     const deviceHash = await fingerprint(await getPushDeviceId());
     if (!deviceHash) return { status: 'unknown' };
 
-    const mine = devices.find((device) => device.pluginName === MOBILE_PLUGIN_NAME && device.metadata?.deviceHash === deviceHash);
+    const mine = devices.find((device) => device.pluginName === NVR_PLUGIN_NAME && device.metadata?.deviceHash === deviceHash);
     if (!mine) return { status: 'unregistered' };
 
     const localKey = await getOrCreatePushKey(serverId);

@@ -35,17 +35,18 @@
 </template>
 
 <script setup lang="ts">
+import { useFaceActions } from '@camera.ui/nvr';
+
 import { FACE_CLARITY_CLEAR, FACE_CLARITY_UNCLEAR } from '@/common/constants.js';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
-import type { EventFaceCheck, NVRInterface } from '@camera.ui/nvr';
-import type { Promisify } from '@camera.ui/rpc';
+import type { EventFaceCheck } from '@camera.ui/nvr';
 import type { FaceReassignProps } from './types.js';
 
 const props = defineProps<FaceReassignProps>();
 
 const { t } = useI18n();
-const { plugin } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable, knownNames: loadKnownNames, checkEventFace } = useFaceActions();
 
 const selected = ref<string | null>(null);
 const knownNames = ref<string[]>([]);
@@ -81,25 +82,23 @@ const options = computed(() => {
   return opts;
 });
 
-async function loadCheck(nvr: Promisify<NVRInterface>) {
+async function loadCheck() {
   try {
     const options = props.attrIndex !== undefined ? { attrIndex: props.attrIndex } : undefined;
-    check.value = await nvr.checkEventFace(props.eventId, props.segIndex, props.oldName, options);
+    check.value = await checkEventFace(props.eventId, props.segIndex, props.oldName, options);
   } catch {
     // ignore
   }
 }
 
 watch(
-  plugin,
-  async (proxy) => {
-    const nvr = proxy as unknown as Promisify<NVRInterface> | undefined;
-    if (!nvr) return;
-    loadCheck(nvr);
+  isAvailable,
+  async (available) => {
+    if (!available) return;
+    loadCheck();
 
     try {
-      const known = await nvr.listKnownFaceMeta();
-      knownNames.value = (known ?? []).map((profile) => profile.name);
+      knownNames.value = await loadKnownNames();
     } catch {
       // the select stays empty, unknown-option still works
     } finally {

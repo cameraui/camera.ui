@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { createNvrPlayback, playheadUs } from '@camera.ui/nvr';
+import { createNvrPlayback, playheadUs, useRecordingExport } from '@camera.ui/nvr';
 import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
@@ -224,7 +224,7 @@ const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const dialogTitle = inject<Ref<string> | undefined>('dialogTitle', undefined);
 
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportEpisode } = useRecordingExport();
 const { openEpisodeTrace } = useEpisodeTraceDialog();
 const { openSimilarSearch } = useSimilarSearchRoute();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
@@ -921,12 +921,11 @@ function applyScrub(posMs: number, force = false): void {
 
 async function handleDownload(): Promise<void> {
   if (isDownloading.value) return;
-  const nvrPlugin = nvrPluginRef.value as { nvrExportEpisode: (episodeID: string) => Promise<{ url: string; filename: string }> } | undefined;
-  if (!nvrPlugin?.nvrExportEpisode) return;
+  if (!nvrAvailable.value) return;
 
   isDownloading.value = true;
   try {
-    const result = await nvrPlugin.nvrExportEpisode(props.episode.id);
+    const result = await exportEpisode(props.episode.id);
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Episode download failed:', error);
@@ -975,9 +974,9 @@ watch(preloadBlock, (next) => {
 });
 
 watch(
-  nvrPluginRef,
-  (proxy) => {
-    if (!proxy || playbackStarted) return;
+  nvrAvailable,
+  (available) => {
+    if (!available || playbackStarted) return;
     playbackStarted = true;
     playAt(positionMs.value);
   },
@@ -985,14 +984,14 @@ watch(
 );
 
 watch(
-  [nvrPluginRef, isDownloading, isAdmin],
-  ([proxy]) => {
+  [nvrAvailable, isDownloading, isAdmin],
+  ([available]) => {
     if (!dialogRefProps.headerActions) return;
     dialogRefProps.headerActions.value = [
       ...(isAdmin.value
-        ? [{ icon: TraceIcon, tooltip: t('views.recordings.episode_trace.open'), onClick: () => openEpisodeTrace(props.episode, props.cameraById), disabled: !proxy }]
+        ? [{ icon: TraceIcon, tooltip: t('views.recordings.episode_trace.open'), onClick: () => openEpisodeTrace(props.episode, props.cameraById), disabled: !available }]
         : []),
-      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value, disabled: !proxy },
+      { icon: DownloadIcon, tooltip: t('views.recordings.download'), onClick: handleDownload, loading: isDownloading.value, disabled: !available },
     ];
   },
   { immediate: true },

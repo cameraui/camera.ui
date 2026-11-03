@@ -185,7 +185,6 @@ export const userPreferencesRecordingsFilters = zod
     sensorEvents: filterValues,
     gridRegions: zod.object({ col: zod.number(), row: zod.number(), w: zod.number(), h: zod.number() }).array().max(1000),
     minConfidence: zod.number().min(0).max(1),
-    minSemanticScore: zod.number().min(0).max(1),
     onlyWithRecordings: zod.boolean(),
   })
   .partial();

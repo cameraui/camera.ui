@@ -10,5 +10,4 @@ export interface BackupRestoreNote {
 
 export const RESTORE_MODES: RestoreMode[] = ['move', 'copy'];
 export const MOVE_PHASES = new Set(['connecting', 'stopping', 'packing', 'receiving', 'checking']);
-export const NVR_PLUGIN = '@camera.ui/camera-ui-nvr';
 export const BACKUP_KEY_PATTERN = /([A-Z2-7]{4}-){7}[A-Z2-7]{4}/i;

@@ -1,12 +1,12 @@
 import { isAxiosError } from '@/api/errors.js';
 import { apiInfo } from '@/api/routes/api.js';
 import { getPluginFn } from '@/api/routes/plugins.js';
+import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { outdatedComponents } from '@/common/serverCompatibility.js';
 import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
 
 import type { OutdatedComponent } from '@/common/serverCompatibility.js';
 
-const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
 const HINT_ID = 'server-compatibility';
 const CHECK_TIMEOUT_MS = 10_000;
 const DISMISSED_KEEP = 10;

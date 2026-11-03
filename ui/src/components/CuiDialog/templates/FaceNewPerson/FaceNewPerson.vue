@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { FACE_CLARITY_CLEAR, FACE_CLARITY_UNCLEAR } from '@/common/constants.js';
+import { isPartlyVisible } from '@/common/faceMarks.js';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { AutoCompleteCompleteEvent } from 'openvue/autocomplete';
@@ -36,10 +36,7 @@ const warning = computed(() => {
   const faces = props.faces ?? [];
   const total = faces.length;
   const filed = faces.filter((face) => face.alsoFiledUnder?.length);
-  const partlyVisible = faces.filter((face) => {
-    const clarity = face.clarity ?? 1;
-    return clarity >= FACE_CLARITY_UNCLEAR && clarity < FACE_CLARITY_CLEAR;
-  }).length;
+  const partlyVisible = faces.filter((face) => isPartlyVisible(face.clarity)).length;
   const lines: string[] = [];
   if (filed.length) {
     const names = [...new Set(filed.flatMap((face) => face.alsoFiledUnder ?? []))].join(', ');

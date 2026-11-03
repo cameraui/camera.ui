@@ -3,25 +3,24 @@
 </template>
 
 <script setup lang="ts">
-import { usePlugin } from '@camera.ui/browser';
+import { useDetectionHeatmap } from '@camera.ui/nvr';
 
-import type { CuiHeatmapProps, HeatmapProxy } from './types.js';
+import type { CuiHeatmapProps } from './types.js';
 
 const props = defineProps<CuiHeatmapProps>();
 
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable, load: loadHeatmap } = useDetectionHeatmap();
 
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvasRef');
 
 async function load() {
   const canvas = canvasRef.value;
-  const nvrPlugin = nvrPluginRef.value as HeatmapProxy | undefined;
-  if (!canvas || !nvrPlugin?.getDetectionHeatmap) return;
+  if (!canvas || !isAvailable.value) return;
 
   try {
     const endMs = Date.now();
     const startMs = endMs - 24 * 60 * 60 * 1000;
-    const result = await nvrPlugin.getDetectionHeatmap(props.cameraId, startMs, endMs);
+    const result = await loadHeatmap(props.cameraId, startMs, endMs);
     if (!result?.points?.length) return;
     render(canvas, result.points);
   } catch {
@@ -91,8 +90,8 @@ function heatColor(t: number): [number, number, number] {
   }
 }
 
-watch(nvrPluginRef, (nvrPlugin) => {
-  if (nvrPlugin) load();
+watch(isAvailable, (available) => {
+  if (available) load();
 });
 
 onMounted(() => load());

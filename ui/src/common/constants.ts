@@ -16,6 +16,8 @@ export const PROXY_SERVICE_HOST = (() => {
   }
 })();
 
+export const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
+
 export const FACE_CLARITY_UNCLEAR = 0.7;
 export const FACE_CLARITY_CLEAR = 0.8;
 export const FACE_FEW_PICTURES = 10;

@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { CuiTimeline, useEventStore, useNvrPlayback } from '@camera.ui/nvr';
+import { CuiTimeline, useEventStore, useNvrPlayback, useRecordingExport } from '@camera.ui/nvr';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 import SparklesIcon from '~icons/tabler/sparkles';
@@ -94,10 +94,10 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const timelineLocaleSettings = useTimelineLocale();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportRange } = useRecordingExport();
 const { openEventTrace } = useEventTraceDialog();
 const { openSimilarSearch } = useSimilarSearchRoute();
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+const eventStore = useEventStore();
 
 const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
@@ -147,17 +147,11 @@ async function handleDownload(): Promise<void> {
   if (isDownloading.value) return;
   const ev = cuiTimelineRef.value?.currentEvent;
   if (!ev) return;
-  const nvrPlugin = nvrPluginRef.value as { nvrExport: (...args: any[]) => Promise<{ url: string; filename: string }> } | undefined;
-  if (!nvrPlugin?.nvrExport) return;
+  if (!nvrAvailable.value) return;
 
   isDownloading.value = true;
   try {
-    const result = await nvrPlugin.nvrExport(
-      ev.cameraId,
-      ev.startMs * 1000, // ms → μs
-      ev.endMs * 1000,
-      { sourceRole: nvrController.effectiveRole.value || undefined },
-    );
+    const result = await exportRange(ev.cameraId, ev.startMs, ev.endMs, { sourceRole: nvrController.effectiveRole.value || undefined });
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Download failed:', error);
@@ -196,10 +190,10 @@ function resolveGoTo(): string | undefined {
 }
 
 watch(
-  [hasCurrentEvent, isLive, isDownloading, nvrPluginRef, isAdmin],
+  [hasCurrentEvent, isLive, isDownloading, nvrAvailable, isAdmin],
   ([hasEvent, live]) => {
     if (!dialogRefProps.headerActions) return;
-    const eventActionable = !live && hasEvent && Boolean(nvrPluginRef.value);
+    const eventActionable = !live && hasEvent && nvrAvailable.value;
     dialogRefProps.headerActions.value = [
       { icon: SparklesIcon, tooltip: t('components.player.ai_descriptions'), toggle: true, onClick: () => {} },
       ...(isAdmin.value ? [{ icon: TraceIcon, tooltip: t('views.recordings.open_trace'), onClick: openTrace, disabled: !eventActionable }] : []),
@@ -215,9 +209,9 @@ if (eventTimestamp.value) {
 }
 
 watch(
-  [nvrPluginRef, eventTimestamp],
-  ([proxy, ts]) => {
-    if (!proxy || !ts || playbackStarted) return;
+  [nvrAvailable, eventTimestamp],
+  ([available, ts]) => {
+    if (!available || !ts || playbackStarted) return;
     playbackStarted = true;
     nvrController.play(ts * 1000);
   },

@@ -1,11 +1,10 @@
-import { useNvrDataEpoch } from '@camera.ui/nvr';
+import { useNvrDataEpoch, useSimilarSearch } from '@camera.ui/nvr';
 
 import { findItems } from '@/components/CuiFindObjectView/utils.js';
 
 import type { FindObjectState, FindPick, FrozenPicture } from '@/components/CuiFindObjectView/types.js';
 import type { SimilarSearchRequest } from '@/components/CuiSimilarPicker/types.js';
-import type { NVRInterface, TimelineSegment } from '@camera.ui/nvr';
-import type { Promisify } from '@camera.ui/rpc';
+import type { TimelineSegment } from '@camera.ui/nvr';
 import type { DBCamera } from '@shared/types';
 import type { MaybeRefOrGetter } from 'vue';
 
@@ -19,7 +18,7 @@ const pages: FindObjectState[] = [];
 
 export function useFindObject(options: UseFindObjectOptions = {}): FindObjectState {
   const log = useLogger('FindObject');
-  const { plugin } = usePlugin('@camera.ui/camera-ui-nvr');
+  const similar = useSimilarSearch();
 
   const segment = ref<TimelineSegment>('timeline');
   const picks = shallowRef<FindPick[]>([]);
@@ -33,7 +32,7 @@ export function useFindObject(options: UseFindObjectOptions = {}): FindObjectSta
   const baseViews: TimelineSegment[] = ['timeline', 'detections'];
   const findViews: TimelineSegment[] = [...baseViews, 'find'];
 
-  const available = computed(() => Boolean(plugin.value) && hasPermission(undefined, 'admin'));
+  const available = computed(() => similar.isAvailable.value && hasPermission(undefined, 'admin'));
   const views = computed(() => (available.value && toValue(options.searchable ?? true) ? findViews : baseViews));
   const armed = computed(() => available.value && segment.value === 'find' && toValue(options.shown ?? true));
   const pickable = computed(() => available.value && toValue(options.pickable ?? true));
@@ -85,12 +84,11 @@ export function useFindObject(options: UseFindObjectOptions = {}): FindObjectSta
   }
 
   async function search(pick: FindPick): Promise<void> {
-    const nvr = plugin.value as unknown as Promisify<NVRInterface> | undefined;
-    if (!nvr) return;
+    if (!similar.isAvailable.value) return;
     const run = (runs.get(pick.id) ?? 0) + 1;
     runs.set(pick.id, run);
     try {
-      const result = await nvr.searchSimilarQuery(pick.request.query, {});
+      const result = await similar.query(pick.request.query);
       if (runs.get(pick.id) !== run) return;
       update(pick.id, { result, searching: false });
       licenseRequired.value = false;
@@ -129,13 +127,10 @@ export function useFindObject(options: UseFindObjectOptions = {}): FindObjectSta
     releaseAll,
   };
 
-  watch(
-    () => Boolean(plugin.value),
-    (ready) => {
-      if (!ready) return;
-      for (const pick of picks.value) if (pick.searching) search(pick);
-    },
-  );
+  watch(similar.isAvailable, (ready) => {
+    if (!ready) return;
+    for (const pick of picks.value) if (pick.searching) search(pick);
+  });
 
   // another plugin instance holds other events
   watch(useNvrDataEpoch(), () => {

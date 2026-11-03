@@ -65,10 +65,9 @@
 import { useOAuth, usePluginStorage } from '@camera.ui/browser';
 import { useStorageStats } from '@camera.ui/nvr';
 
+import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import CuiPluginOAuthButton from '@/components/CuiPluginCard/CuiPluginOAuthButton.vue';
 import CuiSchema from '@/components/CuiSchema/CuiSchema.vue';
-
-const NVR_PLUGIN_NAME = '@camera.ui/camera-ui-nvr';
 
 const { t } = useI18n();
 const toast = useCuiToast();

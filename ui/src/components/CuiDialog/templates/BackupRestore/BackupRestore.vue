@@ -80,7 +80,9 @@
         <span v-if="status?.error" class="text-xs text-muted select-text">{{ status.error }}</span>
         <template v-if="succeeded && summary?.cloud">
           <span class="text-xs text-muted">{{ $t('restore.result_cloud') }}</span>
-          <span v-if="status?.kind === 'undo' || plugins.some((plugin) => plugin.name === NVR_PLUGIN)" class="text-xs text-muted">{{ $t('restore.result_nvr') }}</span>
+          <span v-if="status?.kind === 'undo' || plugins.some((plugin) => plugin.name === NVR_PLUGIN_NAME)" class="text-xs text-muted">{{
+            $t('restore.result_nvr')
+          }}</span>
         </template>
 
         <div v-if="failedPlugins.length" class="flex flex-col gap-1 w-full text-left">
@@ -118,9 +120,10 @@
 <script setup lang="ts">
 import InlineSvg from 'vue-inline-svg';
 
+import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { describePlatform, humanizeOs } from '@/common/platformLabels.js';
 import { formatBytes, getImageUrl } from '@/common/utils.js';
-import { BACKUP_KEY_PATTERN, MOVE_PHASES, NVR_PLUGIN, RESTORE_MODES } from './types.js';
+import { BACKUP_KEY_PATTERN, MOVE_PHASES, RESTORE_MODES } from './types.js';
 
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { RestoreMode, RestorePluginResult } from '@shared/types';

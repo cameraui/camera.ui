@@ -13,7 +13,7 @@ export function useAssistantReferences() {
   const toast = useCuiToast();
   const dialog = useCuiDialog();
   const { openEpisodePlayer } = useEpisodePlayerDialog();
-  const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+  const eventStore = useEventStore();
   const { download } = useFileDownload();
 
   const busy = ref<string | null>(null);

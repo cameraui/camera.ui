@@ -94,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import { useFaceActions } from '@camera.ui/nvr';
 import {
   ACCEPTED_AUDIO_TYPES,
   ACCEPTED_MOTION_VIDEO_TYPES,
@@ -117,8 +118,6 @@ import type { PluginObjectInterfaceProps } from '@/components/CuiDialog/template
 import type { PluginPersonEmbeddingProps } from '@/components/CuiDialog/templates/PluginPersonEmbedding/types.js';
 import type { PluginSegmentationInterfaceProps } from '@/components/CuiDialog/templates/PluginSegmentationInterface/types.js';
 import type { SimilarSearchRequest } from '@/components/CuiSimilarPicker/types.js';
-import type { NVRInterface } from '@camera.ui/nvr';
-import type { Promisify } from '@camera.ui/rpc';
 import type { AudioMetadata, ImageMetadata, JsonSchema } from '@camera.ui/sdk';
 import type { PluginClipInterfaceProps } from '../CuiDialog/templates/PluginClipInterface/types.js';
 import type { PluginFaceRecognitionProps } from '../CuiDialog/templates/PluginFaceRecognition/types.js';
@@ -149,7 +148,7 @@ const dialog = useCuiDialog();
 const { type, pluginName } = toRefs(props);
 
 const { plugin: pluginProxy, contract: pluginContract, isLoading: pluginLoading } = usePlugin(pluginName);
-const { plugin: nvrProxy } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, matchFace } = useFaceActions();
 const { openSimilarSearch } = useSimilarSearchRoute();
 
 const fileInputRef = useTemplateRef('fileInputRef');
@@ -509,7 +508,7 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
         toast.add({ severity: 'info', detail: t('components.face_recognition_interface.no_face'), life: 3000 });
         return;
       }
-      if (!nvrProxy.value) {
+      if (!nvrAvailable.value) {
         toast.add({ severity: 'info', detail: t('components.face_recognition_interface.needs_nvr'), life: 3000 });
         return;
       }
@@ -525,11 +524,7 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
             dimensions: embedding.length,
             landmarks: responses![0]!.landmarks,
             quality: responses![0]!.quality,
-            onMatch: async (sensitivity: string) => {
-              const nvr = nvrProxy.value as unknown as Promisify<NVRInterface>;
-              const matches = await nvr.matchFaces([embedding], embeddingModel, sensitivity);
-              return matches?.[0] ?? undefined;
-            },
+            onMatch: (sensitivity: string) => matchFace(embedding, embeddingModel, sensitivity),
           },
         },
       });
@@ -552,7 +547,7 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
             src: mediaUrl,
             embeddingModel: result.embeddingModel,
             dimensions: result.embedding.length,
-            onSearch: nvrProxy.value ? () => openSimilarSearch(request) : undefined,
+            onSearch: nvrAvailable.value ? () => openSimilarSearch(request) : undefined,
           },
         },
       });

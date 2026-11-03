@@ -250,8 +250,7 @@ const camerasQuery = new CamerasQuery();
 const drawer = useCuiCameraDrawer();
 const dialog = useCuiDialog();
 const { openEpisodePlayer } = useEpisodePlayerDialog();
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const eventStore = useEventStore();
 const toast = useCuiToast();
 const queryClient = useQueryClient();
 const route = useRoute();
@@ -529,9 +528,9 @@ function openConsoleDialog(cameraName: string) {
 }
 
 watch(
-  [() => route.query.episodeId, nvrPluginRef, cameras],
-  async ([episodeId, proxy, cams]) => {
-    if (typeof episodeId !== 'string' || !episodeId || !proxy || !cams?.result?.length) return;
+  [() => route.query.episodeId, eventStore.isAvailable, cameras],
+  async ([episodeId, nvrAvailable, cams]) => {
+    if (typeof episodeId !== 'string' || !episodeId || !nvrAvailable || !cams?.result?.length) return;
     if (consumedEpisodeLink === episodeId) return;
     consumedEpisodeLink = episodeId;
 

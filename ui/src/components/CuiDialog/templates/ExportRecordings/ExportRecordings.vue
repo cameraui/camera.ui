@@ -90,17 +90,18 @@
 </template>
 
 <script setup lang="ts">
-import type { NvrExportEstimateFile, NvrExportSlice } from '@camera.ui/nvr';
+import { useRecordingExport } from '@camera.ui/nvr';
 
 import type { CustomDialogComponent, DialogRefProps } from '@/composables/useCuiDialog.js';
-import type { ExportRecordingsFile, ExportRecordingsProps, ExportRecordingsProxy } from './types.js';
+import type { NvrExportEstimateFile, NvrExportSlice } from '@camera.ui/nvr';
+import type { ExportRecordingsFile, ExportRecordingsProps } from './types.js';
 
 const props = defineProps<ExportRecordingsProps>();
 
 const { t } = useI18n();
 const toast = useCuiToast();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportBatch, estimateBatch } = useRecordingExport();
 
 const TIMELAPSE_FACTOR = 30;
 
@@ -217,15 +218,14 @@ function fmtBytes(bytes: number) {
 }
 
 async function runEstimate() {
-  const plugin = nvrPluginRef.value as ExportRecordingsProxy | undefined;
-  if (!plugin?.nvrExportEstimate || selectedCameraIds.value.length === 0 || daySlices.value.length === 0) {
+  if (!nvrAvailable.value || selectedCameraIds.value.length === 0 || daySlices.value.length === 0) {
     estimateFiles.value = [];
     estimating.value = false;
     return;
   }
   estimating.value = true;
   try {
-    const res = await plugin.nvrExportEstimate({ cameras: selectedCameraIds.value, slices: daySlices.value, quality: quality.value });
+    const res = await estimateBatch({ cameras: selectedCameraIds.value, slices: daySlices.value, quality: quality.value });
     estimateFiles.value = res.files ?? [];
   } catch {
     estimateFiles.value = [];
@@ -237,13 +237,12 @@ async function runEstimate() {
 async function onConfirm(): Promise<void | null> {
   if (!rangeValid.value || selectedCameraIds.value.length === 0 || daySlices.value.length === 0) return null;
 
-  const plugin = nvrPluginRef.value as ExportRecordingsProxy | undefined;
-  if (!plugin?.nvrExportBatch) {
+  if (!nvrAvailable.value) {
     toast.add({ severity: 'error', detail: t('views.recordings.export.plugin_missing'), life: 3000 });
     return null;
   }
 
-  const res = await plugin.nvrExportBatch({
+  const res = await exportBatch({
     cameras: selectedCameraIds.value,
     slices: daySlices.value,
     quality: quality.value,
@@ -252,7 +251,7 @@ async function onConfirm(): Promise<void | null> {
   await download({ url: res.url, filename: res.filename });
 }
 
-watchDebounced([selectedCameraIds, daySlices, quality, () => Boolean(nvrPluginRef.value)], runEstimate, { debounce: 350, immediate: true, deep: true });
+watchDebounced([selectedCameraIds, daySlices, quality, nvrAvailable], runEstimate, { debounce: 350, immediate: true, deep: true });
 
 watchEffect(() => {
   if (dialogRefProps.disabled) {

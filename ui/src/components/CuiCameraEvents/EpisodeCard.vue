@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { EventHoverPreviewKey, thumbnailToUrl, useEventStore } from '@camera.ui/nvr';
+import { EventHoverPreviewKey, thumbnailToUrl, useEventStore, useRecordingExport } from '@camera.ui/nvr';
 import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 
@@ -129,8 +129,8 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { openEpisodePlayer } = useEpisodePlayerDialog();
 const { openEpisodeTrace } = useEpisodeTraceDialog();
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, exportEpisode } = useRecordingExport();
+const eventStore = useEventStore();
 const { mounted: overlays, toggleOverlay } = useLazyOverlays<'menu'>();
 const preview = inject(EventHoverPreviewKey, undefined);
 
@@ -283,12 +283,11 @@ async function toggleFavorite(): Promise<void> {
 
 async function handleDownload(): Promise<void> {
   if (isDownloading.value) return;
-  const nvrPlugin = nvrPluginRef.value as { nvrExportEpisode: (episodeID: string) => Promise<{ url: string; filename: string }> } | undefined;
-  if (!nvrPlugin?.nvrExportEpisode) return;
+  if (!nvrAvailable.value) return;
 
   isDownloading.value = true;
   try {
-    const result = await nvrPlugin.nvrExportEpisode(props.episode.id);
+    const result = await exportEpisode(props.episode.id);
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Episode download failed:', error);

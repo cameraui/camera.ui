@@ -323,7 +323,7 @@ const { status: reindexStatus, checking: reindexChecking } = useClipReindex();
 
 const { openEventTrace } = useEventTraceDialog();
 const { requests: similarRequests, closeSimilarSearch } = useSimilarSearchRoute();
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+const eventStore = useEventStore();
 const toast = useCuiToast();
 const { t, locale } = useI18n();
 const { smBreakpoint, xlBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
@@ -378,7 +378,7 @@ const DEFAULT_FILTERS: RecordingsFilterState = {
   sensorEvents: [],
   gridRegions: [],
   minConfidence: 0.5,
-  minSemanticScore: 0.5,
+  minSemanticScore: 0.4,
   onlyWithRecordings: true,
 };
 const TIME_RANGE_MS: Record<string, number> = {
@@ -480,7 +480,6 @@ const contentFiltered = computed(() => {
   return (
     f.search.trim() !== '' ||
     f.eventTypes.length > 0 ||
-    f.audioLabels.length > 0 ||
     f.hasAttributes.length > 0 ||
     f.vehicleColors.length > 0 ||
     f.vehicleTypes.length > 0 ||
@@ -851,12 +850,14 @@ function inGridRegions(event: RecordedEvent, regions: RecordingsFilterState['gri
 }
 
 function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
-  const hasAnyContentFilter = f.eventTypes.length > 0 || f.sensorEvents.length > 0 || f.audioLabels.length > 0 || f.hasAttributes.length > 0;
+  const hasAnyContentFilter = f.eventTypes.length > 0 || f.sensorEvents.length > 0 || f.hasAttributes.length > 0;
+  // the sounds sit under the audio trigger, with it unpicked they are hidden and filter nothing
+  const sounds = f.sensorEvents.includes('audio') ? f.audioLabels : [];
 
   return {
     types: f.eventTypes.length > 0 ? f.eventTypes : undefined,
     triggers: f.sensorEvents.length > 0 ? f.sensorEvents : undefined,
-    triggerLabels: f.audioLabels.length > 0 ? f.audioLabels : undefined,
+    triggerLabels: sounds.length > 0 ? sounds : undefined,
     attributes: f.hasAttributes.length > 0 ? f.hasAttributes : undefined,
     attributeLabels: vehicleAttributeLabels(f),
     filterLogicTriggers: hasAnyContentFilter ? f.filterLogicTriggers : undefined,
@@ -872,7 +873,7 @@ function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
 }
 
 function savedFilters(f: RecordingsFilterState): DBRecordingsFilters {
-  const { search, semanticQuery, timeRange, customDateRange, ...saved } = f;
+  const { search, semanticQuery, minSemanticScore, timeRange, customDateRange, ...saved } = f;
   return saved;
 }
 
@@ -1011,7 +1012,8 @@ watch(
   currentUser,
   (u) => {
     if (!u || filtersRestored.value) return;
-    filters.value = { ...filters.value, ...u.preferences?.recordings?.filters };
+    // the score goes with the search, which is not saved either; older saves still hold one
+    filters.value = { ...filters.value, ...u.preferences?.recordings?.filters, minSemanticScore: DEFAULT_FILTERS.minSemanticScore };
     savedFilterJSON = JSON.stringify(savedFilters(filters.value));
     filtersRestored.value = true;
   },

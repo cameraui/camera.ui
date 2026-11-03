@@ -103,7 +103,7 @@
               <template #content>
                 <Accordion multiple @update:value="rememberOpened">
                   <AccordionPanel
-                    v-for="(cluster, i) in clustered.clusters"
+                    v-for="({ cluster, marks }, i) in clusterPanels"
                     :key="cluster.clusterId"
                     :value="cluster.clusterId"
                     :class="{
@@ -127,10 +127,24 @@
                             <i-mdi:minus v-else-if="groupSelectionState(cluster.faces) === 'some'" class="w-4 h-4 text-white" />
                           </div>
                         </div>
-                        <div class="w-10 h-10 rounded-full overflow-hidden bg-surface-100 dark:bg-surface-800 shrink-0">
-                          <img v-if="cluster.bestThumbnail" :src="cluster.bestThumbnail" class="w-full h-full object-cover" />
+                        <div class="relative shrink-0">
+                          <div class="w-10 h-10 rounded-full overflow-hidden bg-surface-100 dark:bg-surface-800">
+                            <img v-if="cluster.bestThumbnail" :src="cluster.bestThumbnail" class="w-full h-full object-cover" />
+                          </div>
+                          <CuiFaceMarkBadge
+                            v-if="marks.count"
+                            :text="$t('views.faces.card_marked', { count: marks.count }, marks.count)"
+                            :danger="marks.danger"
+                            compact
+                            class="absolute -top-1 -left-1"
+                          />
                         </div>
-                        <span class="font-medium">{{ cluster.faces.length }} {{ $t('views.faces.faces_in_cluster') }}</span>
+                        <span class="flex flex-wrap items-center gap-x-2">
+                          <span class="font-medium">{{ cluster.faces.length }} {{ $t('views.faces.faces_in_cluster') }}</span>
+                          <span v-if="marks.count" class="text-xs" :class="marks.danger ? 'text-red-500' : 'text-amber-500'">
+                            {{ $t('views.faces.to_check', { count: marks.count }) }}
+                          </span>
+                        </span>
                         <span class="ml-auto flex items-center gap-1 mr-2" @click.stop>
                           <Button
                             v-tooltip.top="$t('views.faces.assign_cluster')"
@@ -174,6 +188,8 @@
                           :thumbnail="thumbnailToUrl(face.thumbnail)"
                           :timestamp="face.timestamp"
                           :confidence="face.confidence"
+                          :clarity="face.clarity"
+                          :also-filed-under="face.alsoFiledUnder"
                           :selection-mode="selectionMode"
                           :selected="selectedIds.has(face.id)"
                           @click="toggleSelection(face.id)"
@@ -204,13 +220,25 @@
                             <i-mdi:minus v-else-if="groupSelectionState(clustered.ungrouped) === 'some'" class="w-4 h-4 text-white" />
                           </div>
                         </div>
-                        <div class="w-10 h-10 rounded-full overflow-hidden bg-surface-100 dark:bg-surface-800 shrink-0 flex items-center justify-center">
-                          <i-mdi:account-question class="w-5 h-5 text-muted" />
+                        <div class="relative shrink-0">
+                          <div class="w-10 h-10 rounded-full overflow-hidden bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                            <i-mdi:account-question class="w-5 h-5 text-muted" />
+                          </div>
+                          <CuiFaceMarkBadge
+                            v-if="ungroupedMarks.count"
+                            :text="$t('views.faces.card_marked', { count: ungroupedMarks.count }, ungroupedMarks.count)"
+                            :danger="ungroupedMarks.danger"
+                            compact
+                            class="absolute -top-1 -left-1"
+                          />
                         </div>
                         <span class="flex flex-col">
                           <span class="flex items-center gap-2 font-medium">
                             {{ $t('views.faces.ungrouped') }}
                             <Badge size="small" class="rounded-full px-1.5" severity="secondary" :value="String(clustered.ungrouped.length)" />
+                            <span v-if="ungroupedMarks.count" class="text-xs font-normal" :class="ungroupedMarks.danger ? 'text-red-500' : 'text-amber-500'">
+                              {{ $t('views.faces.to_check', { count: ungroupedMarks.count }) }}
+                            </span>
                           </span>
                           <span class="text-muted text-sm font-normal">{{ $t('views.faces.ungrouped_hint') }}</span>
                         </span>
@@ -234,6 +262,8 @@
                           :thumbnail="thumbnailToUrl(face.thumbnail)"
                           :timestamp="face.timestamp"
                           :confidence="face.confidence"
+                          :clarity="face.clarity"
+                          :also-filed-under="face.alsoFiledUnder"
                           :selection-mode="selectionMode"
                           :selected="selectedIds.has(face.id)"
                           @click="toggleSelection(face.id)"
@@ -278,6 +308,7 @@
                           variant="ignored"
                           :thumbnail="thumbnailToUrl(face.thumbnail)"
                           :timestamp="face.timestamp"
+                          :clarity="face.clarity"
                           @restore="restoreFace(face)"
                         />
                       </div>
@@ -424,6 +455,7 @@ import SelectIcon from '~icons/tabler/dots-filled';
 import RemoveIcon from '~icons/tabler/minus';
 import PlusIcon from '~icons/typcn/plus';
 
+import { countUnassignedMarks } from '@/common/faceMarks.js';
 import FaceDetailDialog from '@/components/CuiDialog/templates/FaceDetail/FaceDetail.vue';
 import FaceNewPersonDialog from '@/components/CuiDialog/templates/FaceNewPerson/FaceNewPerson.vue';
 import FacesReindexDialog from '@/components/CuiDialog/templates/FacesReindex/FacesReindex.vue';
@@ -469,6 +501,8 @@ const { y: windowScrollY } = useScroll(window, { throttle: 100 });
 const reindexScrollHidden = useScrollHide(() => windowScrollY.value);
 
 const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
+const clusterPanels = computed(() => clustered.value.clusters.map((cluster) => ({ cluster, marks: countUnassignedMarks(cluster.faces) })));
+const ungroupedMarks = computed(() => countUnassignedMarks(clustered.value.ungrouped));
 
 const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
   allUnknownFaces,

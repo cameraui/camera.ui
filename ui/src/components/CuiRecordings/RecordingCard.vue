@@ -158,7 +158,6 @@
 import {
   attributeThumbnails,
   EventHoverPreviewKey,
-  invalidateEventThumbnails,
   previewFocusTrack,
   previewPlayableEnd,
   resolveThumbnail,
@@ -166,6 +165,8 @@ import {
   thumbnailToUrl,
   useEventPictures,
   useEventStore,
+  useFaceActions,
+  useRecordingExport,
 } from '@camera.ui/nvr';
 import DeleteIcon from '~icons/mdi/delete-outline';
 import DeleteRecordingIcon from '~icons/mdi/movie-remove-outline';
@@ -183,7 +184,6 @@ import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { FaceReassignProps } from '@/components/CuiDialog/templates/FaceReassign/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
-import type { FaceReassignOptions } from '@camera.ui/nvr';
 import type { FaceTarget, RecordingCardEmits, RecordingCardProps } from './types.js';
 
 const props = defineProps<RecordingCardProps>();
@@ -194,8 +194,9 @@ const log = useLogger();
 const toast = useCuiToast();
 const { t } = useI18n();
 const router = useRouter();
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
+const eventStore = useEventStore();
+const { exportRange } = useRecordingExport();
+const { reassignEventFace } = useFaceActions();
 const dialog = useCuiDialog();
 const { mounted: overlays, toggleOverlay } = useLazyOverlays<'menu'>();
 const { pictures, state: pictureState } = useEventPictures(
@@ -338,8 +339,8 @@ const hiddenThumbnailCount = computed(() => stripThumbnails.value.length - foote
 
 const formatDateTime = computed(() => formatCardTime(shownSegment.value?.firstSeen ?? props.event.thumbnailAt ?? props.event.startTime));
 
-const canDownload = computed(() => Boolean(nvrPluginRef.value && props.event.endTime && props.event.hasRecording !== false));
-const canDeleteEvent = computed(() => Boolean(isAdmin.value && nvrPluginRef.value && props.event.state === 'ended'));
+const canDownload = computed(() => Boolean(eventStore.isAvailable.value && props.event.endTime && props.event.hasRecording !== false));
+const canDeleteEvent = computed(() => Boolean(isAdmin.value && eventStore.isAvailable.value && props.event.state === 'ended'));
 const canDeleteRecording = computed(() => canDeleteEvent.value && canDownload.value);
 
 const previewIndicator = computed(() => {
@@ -527,17 +528,12 @@ function openFaceReassignDialog(): void {
 
 async function reassignFace(target: FaceTarget, newName: string, onCrop: boolean): Promise<void> {
   if (reassignBusy.value) return;
-  const nvr = nvrPluginRef.value as
-    { reassignEventFace?: (eventId: string, segIndex: number, oldName: string, newName: string, options?: FaceReassignOptions) => Promise<number> } | undefined;
-  if (!nvr?.reassignEventFace) return;
+  if (!eventStore.isAvailable.value) return;
   reassignBusy.value = true;
   try {
     const options = target.attrIndex !== undefined ? { attrIndex: target.attrIndex } : undefined;
-    const count = await nvr.reassignEventFace(props.event.id, target.seg, target.label, newName, options);
-    if (count > 0) {
-      if (onCrop) focusFace.value = { seg: target.seg, label: newName || 'unknown', attrIndex: target.attrIndex };
-      invalidateEventThumbnails(props.event.id);
-    }
+    const count = await reassignEventFace(props.event.id, target.seg, target.label, newName, options);
+    if (count > 0 && onCrop) focusFace.value = { seg: target.seg, label: newName || 'unknown', attrIndex: target.attrIndex };
     toast.add({ severity: 'success', detail: t('views.recordings.reassign_done'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
@@ -559,16 +555,11 @@ async function toggleFavorite(): Promise<void> {
 
 async function handleDownload(): Promise<void> {
   if (isDownloading.value) return;
-  const nvrPlugin = nvrPluginRef.value as { nvrExport: (...args: any[]) => Promise<{ url: string; filename: string }> } | undefined;
-  if (!nvrPlugin?.nvrExport || !props.event.endTime) return;
+  if (!eventStore.isAvailable.value || !props.event.endTime) return;
 
   isDownloading.value = true;
   try {
-    const result = await nvrPlugin.nvrExport(
-      props.event.cameraId,
-      props.event.startTime * 1000, // ms → μs
-      props.event.endTime * 1000,
-    );
+    const result = await exportRange(props.event.cameraId, props.event.startTime, props.event.endTime);
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Download failed:', error);
@@ -594,12 +585,11 @@ function confirmDelete(contentText: string, onConfirm: () => Promise<void>): voi
 
 async function deleteEvent(): Promise<void> {
   if (deleteBusy.value) return;
-  const nvrPlugin = nvrPluginRef.value as { deleteEvents?: (eventIds: string[]) => Promise<void> } | undefined;
-  if (!nvrPlugin?.deleteEvents) return;
+  if (!eventStore.isAvailable.value) return;
 
   deleteBusy.value = true;
   try {
-    await nvrPlugin.deleteEvents([props.event.id]);
+    await eventStore.deleteEvents([props.event.id]);
     toast.add({ severity: 'success', detail: t('views.recordings.delete_event_done'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 5000 });
@@ -610,17 +600,11 @@ async function deleteEvent(): Promise<void> {
 
 async function deleteRecording(): Promise<void> {
   if (deleteBusy.value || !props.event.endTime) return;
-  const nvrPlugin = nvrPluginRef.value as
-    { nvrDeleteRange?: (cameraId: string, startUs: number, endUs: number) => Promise<{ startMs: number; endMs: number }> } | undefined;
-  if (!nvrPlugin?.nvrDeleteRange) return;
+  if (!eventStore.isAvailable.value) return;
 
   deleteBusy.value = true;
   try {
-    const result = await nvrPlugin.nvrDeleteRange(
-      props.event.cameraId,
-      (props.event.startTime - EVENT_FOOTAGE_PAD_MS) * 1000,
-      (props.event.endTime + EVENT_FOOTAGE_PAD_MS) * 1000,
-    );
+    const result = await eventStore.deleteRange(props.event.cameraId, props.event.startTime - EVENT_FOOTAGE_PAD_MS, props.event.endTime + EVENT_FOOTAGE_PAD_MS);
     if (result.endMs > result.startMs) {
       toast.add({ severity: 'success', detail: t('views.recordings.delete_recording_done'), life: 3000 });
     } else {

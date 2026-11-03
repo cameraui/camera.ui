@@ -9,6 +9,8 @@ export interface CuiFaceCardProps {
   cameraName?: string;
   timestamp?: number;
   confidence?: number;
+  clarity?: number;
+  alsoFiledUnder?: string[];
   compact?: boolean;
   showRemove?: boolean;
   selectionMode?: boolean;

@@ -196,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { useEventStore } from '@camera.ui/nvr';
+import { useEpisodeTrace, useEventStore, useRecordingExport } from '@camera.ui/nvr';
 import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 
@@ -206,7 +206,7 @@ import { buildStoredZip } from '@/utils/zipStore.js';
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { ZipEntry } from '@/utils/zipStore.js';
 import type { EpisodeTrace, EpisodeTraceCall, EpisodeTraceImage } from '@camera.ui/nvr';
-import type { EpisodeTracePlugin, EpisodeTraceProps } from './types.js';
+import type { EpisodeTraceProps } from './types.js';
 
 interface TraceImage {
   note: string;
@@ -221,8 +221,9 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
-const { plugin: nvrPluginRef } = usePlugin('@camera.ui/camera-ui-nvr');
-const eventStore = useEventStore('@camera.ui/camera-ui-nvr');
+const { isAvailable: nvrAvailable, loadTrace, loadImages } = useEpisodeTrace();
+const { exportEpisode } = useRecordingExport();
+const eventStore = useEventStore();
 
 const KEPT_COLOR = '#22c55e';
 const DROPPED_COLOR = '#ef4444';
@@ -314,11 +315,11 @@ function clock(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-async function load(plugin: EpisodeTracePlugin): Promise<void> {
+async function load(): Promise<void> {
   imagesLoading.value = true;
-  const pictures = plugin.getEpisodeTraceImages(props.episode.id).catch((): EpisodeTraceImage[] => []);
+  const pictures = loadImages(props.episode.id).catch((): EpisodeTraceImage[] => []);
   try {
-    const result = await plugin.getEpisodeTrace(props.episode.id);
+    const result = await loadTrace(props.episode.id);
     if (!result) {
       status.value = 'empty';
       return;
@@ -345,8 +346,7 @@ async function load(plugin: EpisodeTracePlugin): Promise<void> {
 
 async function exportBundle(): Promise<void> {
   const current = trace.value;
-  const plugin = nvrPluginRef.value as unknown as EpisodeTracePlugin | undefined;
-  if (bundleBusy.value || !current || !plugin) return;
+  if (bundleBusy.value || !current || !nvrAvailable.value) return;
   bundleBusy.value = true;
   try {
     const encoder = new TextEncoder();
@@ -369,7 +369,7 @@ async function exportBundle(): Promise<void> {
     const mosaic = await eventStore.loadEpisodeMosaic(props.episode.id);
     if (mosaic) entries.push({ name: 'mosaic.jpg', data: new Uint8Array(mosaic) });
 
-    const clip = await exportClip(plugin);
+    const clip = await exportClip();
     if (clip) entries.push({ name: 'clip.mp4', data: clip });
 
     await download({ blob: buildStoredZip(entries), filename: `episode-trace-${props.episode.id.slice(0, 8)}.zip` });
@@ -381,9 +381,9 @@ async function exportBundle(): Promise<void> {
   }
 }
 
-async function exportClip(plugin: EpisodeTracePlugin): Promise<Uint8Array<ArrayBuffer> | undefined> {
+async function exportClip(): Promise<Uint8Array<ArrayBuffer> | undefined> {
   try {
-    const result = await plugin.nvrExportEpisode(props.episode.id);
+    const result = await exportEpisode(props.episode.id);
     const response = await fetch(result.url, { credentials: 'include' });
     if (!response.ok) return undefined;
     return new Uint8Array(await response.arrayBuffer());
@@ -421,12 +421,12 @@ useEventListener(
 watch(selectedIndex, resetStageZoom);
 
 watch(
-  nvrPluginRef,
-  (proxy) => {
-    if (!proxy || (loadStarted && status.value !== 'unavailable')) return;
+  nvrAvailable,
+  (available) => {
+    if (!available || (loadStarted && status.value !== 'unavailable')) return;
     loadStarted = true;
     status.value = 'loading';
-    load(proxy as unknown as EpisodeTracePlugin);
+    load();
   },
   { immediate: true },
 );
