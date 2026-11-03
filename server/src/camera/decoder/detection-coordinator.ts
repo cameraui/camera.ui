@@ -531,6 +531,7 @@ export class DetectionCoordinator {
   public updateNvrRpc(namespace?: string): void {
     this.config.nvrRpc = namespace;
     this.eventManager.updateNvrRpc(namespace);
+    this.secondaries.updateNvrRpc(namespace);
   }
 
   public updateInterfaceSettings(settings: CameraUiSettings): void {
@@ -568,12 +569,19 @@ export class DetectionCoordinator {
     this.writeSensorProperties(facePlugin.sensorId, { identities: [...this.faceIdentities].sort() });
   }
 
+  public forgetFaceIdentity(name: string): void {
+    const facePlugin = this.plugins.get(SensorType.Face);
+    if (!this.faceIdentities.delete(name) || !facePlugin) return;
+    this.writeSensorProperties(facePlugin.sensorId, { identities: [...this.faceIdentities].sort() });
+  }
+
   public acceptPersonVectors(persons: TrackedPersonEmbedding[], embeddingModel: string, capturedAt: number): void {
     this.eventManager.acceptPersonVectors(persons, embeddingModel, capturedAt);
   }
 
   public async dispose(): Promise<void> {
     this.heldMoments.clear();
+    this.secondaries.dispose();
     await this.stopVideoLoop();
     await this.frameSource.stop();
     await this.audioLoop.stop();
@@ -1900,6 +1908,8 @@ export class DetectionCoordinator {
         const detections = this.pipeline.runZoneFilterWithLabel(results.face.detections, 'face');
         // no mid-segment clear: a turned-away head would flap the list
         for (const detection of detections) {
+          // carried before a delete that landed during this tick
+          if (this.secondaries.deletedSince(detection.identity, results.timestamp)) detection.identity = undefined;
           if (detection.identity) this.faceIdentities.add(detection.identity);
         }
         this.ingestDetectionResult(SensorType.Face, facePlugin.sensorId, {

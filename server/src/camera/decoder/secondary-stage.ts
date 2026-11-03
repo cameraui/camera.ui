@@ -47,6 +47,7 @@ interface FaceMatch {
 interface NvrFaceMatcher {
   matchFaces(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<(FaceMatch | null)[]>;
   matchFacesNearest?(embeddings: number[][], embeddingModel: string, sensitivity: string): Promise<(FaceMatch | null)[]>;
+  onFaceDeleted(callback: (name: string) => void): Promise<() => void>;
 }
 
 const FACE_CROP_PADDING = 0.25;
@@ -98,6 +99,7 @@ interface FaceJob {
 
 export class SecondaryStage {
   private readonly faceNames = new FaceTrackNames();
+  private readonly faceDeletedAt = new Map<string, number>();
   private nearestFailedAt = 0;
   private matchSensitivity?: string;
   private readonly clipTracks = new Map<string, ClipTrack>();
@@ -140,6 +142,8 @@ export class SecondaryStage {
 
   private nvrProxy?: Promisify<NvrFaceMatcher>;
   private nvrProxyPromise?: Promise<Promisify<NvrFaceMatcher> | undefined>;
+  private faceDeletes?: Promise<(() => void) | undefined>;
+  private disposed = false;
 
   constructor(
     private readonly coordinator: DetectionCoordinator,
@@ -225,6 +229,21 @@ export class SecondaryStage {
 
   public forgetUntrackedFaces(): void {
     this.faceNames.forgetUntracked();
+  }
+
+  public updateNvrRpc(namespace?: string): void {
+    // a restarted NVR no longer knows the subscription
+    this.stopFaceDeletes();
+    if (namespace && this.nvrProxy) this.watchFaceDeletes(namespace);
+  }
+
+  public dispose(): void {
+    this.disposed = true;
+    this.stopFaceDeletes();
+  }
+
+  public deletedSince(name: string | undefined, at: number): boolean {
+    return name !== undefined && at <= (this.faceDeletedAt.get(name) ?? -Infinity);
   }
 
   public noteWorld(result: PipelineResult, ptzEnded: boolean): void {
@@ -368,11 +387,16 @@ export class SecondaryStage {
         reads.push(faceRead(face, capturedAt, undefined, { ...context, empty: true }));
         continue;
       }
+      // matched before the person was deleted
+      if (this.deletedSince(face.identity, capturedAt)) {
+        face.identity = undefined;
+        face.matchScore = undefined;
+      }
       face.matched = face.identity;
       const outcome = failed ? this.faceNames.markFailed(face, attempt) : this.faceNames.markVector(face, attempt, trigger);
       const tracked = key.startsWith('t');
       // also in doubt or unanswered, so the read lands in its epoch's slot instead of unknown
-      if (tracked) face.identity = outcome.name;
+      if (tracked) face.identity = this.deletedSince(outcome.name, capturedAt) ? undefined : outcome.name;
       const note: FaceNote = { key };
       if (face.identity) note.source = tracked ? 'track' : key.startsWith('s') ? 'own' : 'single';
       if (outcome.epoch !== undefined) note.epoch = outcome.epoch;
@@ -888,10 +912,35 @@ export class SecondaryStage {
       const ns = NamespaceManager.pluginNamespaces(plugin.id);
       const connection = this.proxy.createProxy<NvrFaceMatcher>(ns.pluginChildRpc, { isolatedConnection: true });
       this.nvrProxy = connection.proxy;
+      // not awaited: a plugin without it fails only after the no-responder retries, about 3.5 s
+      this.watchFaceDeletes(ns.pluginChildRpc);
       return this.nvrProxy;
     } catch (error) {
       this.logger.error('NVR proxy resolution failed:', error);
       return undefined;
     }
+  }
+
+  private watchFaceDeletes(namespace: string): void {
+    if (this.disposed || this.faceDeletes) return;
+    // a fresh proxy, the methods a cached one listed can predate an update of the plugin
+    const nvr = this.proxy.createProxy<NvrFaceMatcher>(namespace);
+    this.faceDeletes = nvr
+      .onFaceDeleted((name) => this.forgetFace(name))
+      .catch((error) => {
+        if (!isNoRespondersError(error)) this.logger.debug('Deleted faces are not followed until the NVR starts again:', error);
+        return undefined;
+      });
+  }
+
+  private stopFaceDeletes(): void {
+    this.faceDeletes?.then((stop) => stop?.());
+    this.faceDeletes = undefined;
+  }
+
+  private forgetFace(name: string): void {
+    this.faceDeletedAt.set(name, Date.now());
+    this.faceNames.forget(name);
+    this.coordinator.forgetFaceIdentity(name);
   }
 }

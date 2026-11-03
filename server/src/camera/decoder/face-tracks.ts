@@ -343,6 +343,15 @@ export class FaceTrackNames {
     }
   }
 
+  public forget(name: string): void {
+    for (const track of this.tracks.values()) {
+      const reads = track.reads.filter((entry) => entry.name !== name);
+      // the votes for the deleted name can be what kept another name under the shares
+      if (track.identity === name || (!track.identity && reads.length < track.reads.length)) clearEpoch(track);
+      else track.reads = reads;
+    }
+  }
+
   public takeDoubts(): TraceDoubt[] {
     const doubts = this.doubts;
     this.doubts = [];
