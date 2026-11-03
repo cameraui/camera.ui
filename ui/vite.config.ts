@@ -43,7 +43,7 @@ const manifest: Partial<ManifestOptions> = {
   id: 'camera.ui',
   name: 'camera.ui',
   short_name: 'camera.ui',
-  description: 'The modern solution for professional video surveillance. Designed for maximum flexibility and user-friendliness',
+  description: 'The local-first camera and NVR platform.',
   theme_color: '#F1F1F1',
   display: 'standalone',
   display_override: ['standalone'],

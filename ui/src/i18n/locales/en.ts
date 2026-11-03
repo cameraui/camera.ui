@@ -2662,7 +2662,7 @@ export default {
       from_backup: 'Restore from Backup',
       from_server: 'From Another Server',
       new_installation: 'New Installation',
-      slogan: 'The modern solution for professional video surveillance.',
+      slogan: 'The local-first camera and NVR platform.',
       start: 'Start',
       start_message: 'Start a new installation, restore a backup or take over another camera.ui server.',
       step_account: 'Account',

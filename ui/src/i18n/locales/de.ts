@@ -2681,7 +2681,7 @@ export default {
       from_backup: 'Aus Backup wiederherstellen',
       from_server: 'Von anderem Server',
       new_installation: 'Neue Installation',
-      slogan: 'Die moderne Lösung für professionelle Videoüberwachung.',
+      slogan: 'Die Local-first-Plattform für Kameras und Aufnahmen.',
       start: 'Start',
       start_message: 'Starten Sie eine neue Installation, stellen Sie ein Backup wieder her oder übernehmen Sie einen anderen camera.ui Server.',
       step_account: 'Konto',

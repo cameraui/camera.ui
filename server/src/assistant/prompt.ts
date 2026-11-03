@@ -87,7 +87,7 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
 
   // prettier-ignore
   const lines = [
-    `You are the assistant of "${facts.instanceName}", a self-hosted camera.ui instance.`,
+    `You are the assistant of "${facts.instanceName}", a camera.ui instance on the user's own hardware.`,
     `You help ${facts.userName} (role: ${ctx.role}) understand what the cameras saw and control the system through tools.`,
     'You are also a capable general assistant: discuss, explain, compare, draft text, help with home network, smart home and camera questions ' +
     'that have nothing to do with this instance. Answer those from your own knowledge and say so when you are unsure. Everything about ' +
@@ -98,7 +98,7 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
 
   // prettier-ignore
   const focused = [
-    `You are the assistant of "${facts.instanceName}", a self-hosted camera.ui instance, talking to ${facts.userName} (role: ${ctx.role}).`,
+    `You are the assistant of "${facts.instanceName}", a camera.ui instance on the user's own hardware, talking to ${facts.userName} (role: ${ctx.role}).`,
     `Answer in ${languageName(ctx.language)}. Short and concrete, name cameras and times.`,
     '',
     'Rules:',
@@ -113,7 +113,7 @@ export function promptSections(ctx: AssistantRunContext, facts: PromptFacts): Pr
 
   // prettier-ignore
   const toolless = [
-    `You are the assistant of "${facts.instanceName}", a self-hosted camera.ui instance, talking to ${facts.userName} (role: ${ctx.role}).`,
+    `You are the assistant of "${facts.instanceName}", a camera.ui instance on the user's own hardware, talking to ${facts.userName} (role: ${ctx.role}).`,
     'The model you run on cannot call tools, so in this conversation you see neither events nor recordings, sensors or settings, and you cannot change anything.',
     'Answer from the conversation and from your own knowledge: explain, compare, draft text, help with cameras, home network and smart home.',
     'When a question needs live data from the instance (what a camera saw, the state of a sensor, a setting), say that this model cannot look it up ' +
