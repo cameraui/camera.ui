@@ -28,7 +28,7 @@
       :is-overlay="sidebarIsOverlay"
       :result-count="gridItems.length"
       :result-total="resultTotal"
-      :result-capped="stats?.capped"
+      :result-capped="resultCapped"
       :semantic-count="isSemanticActive ? semanticCount : undefined"
       :semantic-search-available="semanticAvailable"
       :semantic-search-loading="semanticSearching"
@@ -660,6 +660,8 @@ const gridItems = computed<UngroupedItem[]>(() => {
   return items;
 });
 
+const totalWithEpisodes = computed(() => filters.value.contentKind !== 'events' && !contentFiltered.value);
+
 const resultTotal = computed<number | undefined>(() => {
   const s = stats.value;
   const f = filters.value;
@@ -667,8 +669,14 @@ const resultTotal = computed<number | undefined>(() => {
   if (episodesOnly.value) return s.episodes;
   const cards = ungrouped.value ? s.segments : s.total;
   if (cards === undefined) return undefined;
-  const withEpisodes = f.contentKind !== 'events' && !contentFiltered.value;
-  return cards + (withEpisodes ? s.episodes : 0);
+  return cards + (totalWithEpisodes.value ? s.episodes : 0);
+});
+
+const resultCapped = computed(() => {
+  const s = stats.value;
+  if (!s) return false;
+  if (episodesOnly.value) return !!s.episodesCapped;
+  return s.capped || (totalWithEpisodes.value && !!s.episodesCapped);
 });
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
