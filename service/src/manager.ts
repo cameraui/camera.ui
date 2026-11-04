@@ -35,6 +35,7 @@ const HEALTHY_WINDOW_MS = 5 * 60_000;
 const LEGACY_STABLE_MS = 120_000;
 const ROLLBACK_AFTER_CRASHES = 3;
 const HOME_TAKEN_ERROR = 'Another camera.ui is already running with the home ';
+const UPDATE_LOCK_OWNER = `${process.pid} ${Math.round(performance.timeOrigin)}`;
 
 interface UpdateMessage {
   type: 'UPDATE_SERVER';
@@ -624,7 +625,7 @@ export class ServerManager {
     let cause: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        writeFileSync(this.updateLockPath, String(process.pid), { flag: 'wx' });
+        writeFileSync(this.updateLockPath, UPDATE_LOCK_OWNER, { flag: 'wx' });
         return;
       } catch (error) {
         cause = error;
@@ -640,7 +641,7 @@ export class ServerManager {
 
   private releaseUpdateLock(): void {
     try {
-      if (readFileSync(this.updateLockPath, 'utf-8').trim() === String(process.pid)) {
+      if (readFileSync(this.updateLockPath, 'utf-8').trim() === UPDATE_LOCK_OWNER) {
         rmSync(this.updateLockPath, { force: true });
       }
     } catch {
@@ -649,14 +650,19 @@ export class ServerManager {
   }
 
   private updateLockHolder(): number | undefined {
-    let pid: number;
+    let owner: string;
     try {
-      pid = parseInt(readFileSync(this.updateLockPath, 'utf-8').trim(), 10);
+      owner = readFileSync(this.updateLockPath, 'utf-8').trim();
     } catch {
       return undefined;
     }
+    const pid = parseInt(owner, 10);
     if (!Number.isFinite(pid) || pid <= 0) {
       return undefined;
+    }
+    // a container restart hands the launcher its old pid again, only this very process still holds it
+    if (pid === process.pid) {
+      return owner === UPDATE_LOCK_OWNER ? pid : undefined;
     }
     try {
       process.kill(pid, 0);
