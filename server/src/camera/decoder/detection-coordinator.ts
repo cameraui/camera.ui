@@ -182,6 +182,7 @@ export class DetectionCoordinator {
   private lastWorldTickAt = 0;
 
   private readonly activeSensorTriggerTypes = new Map<string, string>();
+  private readonly heldSensorTriggerTypes = new Map<string, string>();
   private readonly secondaryBboxSeen = new Map<string, number>();
   private readonly emptyWrittenAt = new Map<string, Map<string, number>>();
   private readonly faceIdentities = new Set<string>();
@@ -370,6 +371,7 @@ export class DetectionCoordinator {
           this.writeSensorProperties(event.sensorId, { detected: false, blocked: false });
         }
         this.activeSensorTriggerTypes.delete(event.sensorId);
+        this.heldSensorTriggerTypes.delete(event.sensorId);
 
         this.eventManager.processResults(this.buildSnapshot());
         if (!this.dwell.hasActive() && this.worldSpans.size === 0 && !this.eventManager.hasActiveSegment()) {
@@ -654,6 +656,7 @@ export class DetectionCoordinator {
 
     const dwellKey = `trigger:${sensorId}`;
     this.activeSensorTriggerTypes.delete(dwellKey);
+    this.heldSensorTriggerTypes.delete(dwellKey);
     this.dwell.clear(dwellKey);
     this.dwell.clear(sensorId);
   }
@@ -806,12 +809,19 @@ export class DetectionCoordinator {
   }
 
   @RPCMethod
-  public reportSensorTrigger(sensorId: string, triggerType: string, action: 'activate' | 'deactivate', _sustained: boolean, timeoutSeconds: number): void {
+  public reportSensorTrigger(sensorId: string, triggerType: string, action: 'activate' | 'deactivate', sustained: boolean, timeoutSeconds: number): void {
     // namespaced so trigger dwells don't overwrite the sensor's own detected/blocked
     const dwellKey = `trigger:${sensorId}`;
+    // a held sensor that reports its trigger state again starts no new occurrence
+    const started = action === 'activate' && !this.heldSensorTriggerTypes.has(dwellKey);
 
     if (action === 'activate') {
       this.activeSensorTriggerTypes.set(dwellKey, triggerType);
+      if (sustained) this.heldSensorTriggerTypes.set(dwellKey, triggerType);
+    } else {
+      this.heldSensorTriggerTypes.delete(dwellKey);
+      // the sensor already left the event, a dwell now would hold the event open without it
+      if (!this.activeSensorTriggerTypes.has(dwellKey)) return;
     }
 
     this.dwell.refresh(dwellKey, timeoutSeconds);
@@ -821,7 +831,7 @@ export class DetectionCoordinator {
       this.cascade.triggerMomentary(Math.max(timeoutSeconds, this.cascadeTimeoutSeconds));
     }
 
-    this.eventManager.processResults(this.buildSnapshot());
+    this.eventManager.processResults({ ...this.buildSnapshot(), startedSensorTrigger: started ? triggerType : undefined });
 
     // no loop frame to encode from, a no-op if already captured
     if (action === 'activate') {
@@ -836,6 +846,7 @@ export class DetectionCoordinator {
       const sensorId = dwellKey.slice('trigger:'.length);
       if (!activeSet.has(sensorId)) {
         this.activeSensorTriggerTypes.delete(dwellKey);
+        this.heldSensorTriggerTypes.delete(dwellKey);
         this.dwell.clear(dwellKey);
       }
     }
@@ -958,6 +969,7 @@ export class DetectionCoordinator {
 
   private handleEventEnded(): void {
     this.activeSensorTriggerTypes.clear();
+    this.heldSensorTriggerTypes.clear();
     this.currentDetectionState = {};
   }
 
@@ -1041,6 +1053,7 @@ export class DetectionCoordinator {
       audio: cs.audio ? { detected: cs.audio.detected ?? false, detections: cs.audio.detections ?? [] } : undefined,
       cascadeTriggered: cs.cascadeTriggered,
       sensorTriggers: [...new Set(this.activeSensorTriggerTypes.values())],
+      heldSensorTriggers: [...new Set(this.heldSensorTriggerTypes.values())],
       objects: cs.object?.detected ? cs.object.detections : [],
       faces: cs.face?.detections ?? [],
       facesAt: cs.faceAt,

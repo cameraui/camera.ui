@@ -90,6 +90,8 @@ export interface ProcessedDetectionData {
   };
   cascadeTriggered?: boolean;
   sensorTriggers?: string[];
+  heldSensorTriggers?: string[];
+  startedSensorTrigger?: string;
   objects: Detection[];
   faces: TrackedFaceDetection[];
   facesAt?: number;
@@ -179,10 +181,9 @@ function newResult(at: number | undefined, carried: number | undefined, now: num
   return at !== carried && freshResult(at, now);
 }
 
-function noteOccurrence(occurrences: [number, number][], now: number): void {
-  const last = occurrences[occurrences.length - 1];
-  if (now - last[1] > OCCURRENCE_GAP_MS && occurrences.length < MAX_OCCURRENCES) occurrences.push([now, now]);
-  else last[1] = now;
+function noteOccurrence(occurrences: [number, number][], now: number, startsNew: boolean): void {
+  if (startsNew && occurrences.length < MAX_OCCURRENCES) occurrences.push([now, now]);
+  else occurrences[occurrences.length - 1][1] = now;
 }
 
 function clipArea(clip: TrackedClipEmbedding): number {
@@ -289,6 +290,7 @@ export class DetectionEventManager {
   private carriedFacesAt?: number;
   private carriedPlatesAt?: number;
   private carriedClassifiersAt?: number;
+  private heldSensorTriggers = new Set<string>();
 
   private readonly eventSubject: string;
   private readonly nvr: NvrSink;
@@ -371,7 +373,7 @@ export class DetectionEventManager {
     if (data.trainingFrame) this.offerTrainingCandidate(data.trainingFrame, data, now);
 
     if (triggers.length > 0) {
-      this.enrichTriggers(triggers, now);
+      this.enrichTriggers(triggers, data, now);
       // a trigger joining mid-event stamps its type now, not with the next segment update
       this.updateTypes();
       this.activeEvent.lastUpdate = now;
@@ -381,6 +383,7 @@ export class DetectionEventManager {
         this.publishUpdateThrottled();
       }
     }
+    this.noteSensorHolds(data.heldSensorTriggers, now);
 
     if (data.hasOpenSpans) {
       this.segmentClosePendingSince = null;
@@ -540,6 +543,7 @@ export class DetectionEventManager {
       segments: [],
       expectedEndTime: data.expectedEndTime,
     };
+    this.heldSensorTriggers = new Set(data.heldSensorTriggers);
     this.segmentIndex = 0;
     this.needsEventThumbnail = true;
     this.eventThumbnail = null;
@@ -705,14 +709,20 @@ export class DetectionEventManager {
     this.lastSegmentClosedAt = Date.now();
   }
 
-  private enrichTriggers(triggers: EventTrigger[], now: number): void {
+  private enrichTriggers(triggers: EventTrigger[], data: ProcessedDetectionData, now: number): void {
     if (!this.activeEvent) return;
 
     for (const incoming of triggers) {
       const existing = this.activeEvent.triggers.find((t) => t.type === incoming.type && t.label === incoming.label && t.lineName === incoming.lineName);
 
       if (existing) {
-        if (existing.occurrences) noteOccurrence(existing.occurrences, now);
+        const occurrences = existing.occurrences;
+        if (occurrences && !data.sensorTriggers?.includes(existing.type)) {
+          noteOccurrence(occurrences, now, now - occurrences[occurrences.length - 1][1] > OCCURRENCE_GAP_MS);
+        } else if (occurrences && existing.type === data.startedSensorTrigger) {
+          // a sensor starts and ends its own occurrence, the dwell after its end only keeps the event going
+          noteOccurrence(occurrences, now, true);
+        }
         existing.lastSeen = now;
         if (incoming.score !== undefined && (existing.score === undefined || incoming.score > existing.score)) {
           existing.score = incoming.score;
@@ -721,6 +731,18 @@ export class DetectionEventManager {
         this.activeEvent.triggers.push({ ...incoming });
       }
     }
+  }
+
+  // a held sensor's occurrence grows until the first snapshot that no longer holds it
+  private noteSensorHolds(held: string[] | undefined, now: number): void {
+    if (!this.activeEvent) return;
+
+    const next = new Set(held);
+    for (const type of new Set([...this.heldSensorTriggers, ...next])) {
+      const occurrences = this.activeEvent.triggers.find((t) => t.type === type)?.occurrences;
+      if (occurrences) occurrences[occurrences.length - 1][1] = now;
+    }
+    this.heldSensorTriggers = next;
   }
 
   private enrichSegment(data: ProcessedDetectionData, now: number): void {
