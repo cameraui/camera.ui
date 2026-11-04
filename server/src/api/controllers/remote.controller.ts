@@ -28,10 +28,13 @@ import type {
 } from '../types/index.js';
 
 function webrtcSettings(iceServers: IceServer[]): WebrtcSettings {
-  const turn = iceServers.find(isTurnServer);
   return {
     stun: iceServers.flatMap((server) => server.urls.filter((url) => !TURN_URL_PATTERN.test(url))),
-    turn: turn ? { urls: turn.urls.filter((url) => TURN_URL_PATTERN.test(url)), username: turn.username ?? '', credentialSet: !!turn.credential } : null,
+    turn: iceServers.filter(isTurnServer).map((server) => ({
+      urls: server.urls.filter((url) => TURN_URL_PATTERN.test(url)),
+      username: server.username ?? '',
+      credentialSet: !!server.credential,
+    })),
   };
 }
 
@@ -287,21 +290,21 @@ export class RemoteController {
     try {
       const { stun, turn } = req.body;
       const current = this.configService.iceServers;
-      const currentTurn = current.find(isTurnServer);
+      const storedTurn = current.filter(isTurnServer);
 
-      const credential = turn?.credential ?? currentTurn?.credential;
-      if (turn && !credential) {
-        return reply.code(400).send({
-          statusCode: 400,
-          message: 'Password is required',
-        });
+      const turnServers: IceServer[] = [];
+      for (const { urls, username, credential, storedIndex } of turn) {
+        const password = credential ?? (storedIndex === undefined ? undefined : storedTurn[storedIndex]?.credential);
+        if (!password) {
+          return reply.code(400).send({
+            statusCode: 400,
+            message: 'Password is required',
+          });
+        }
+        turnServers.push({ urls, username, credential: password });
       }
 
-      const iceServers: IceServer[] = [
-        ...(stun.length ? [{ urls: stun }] : []),
-        ...(turn ? [{ urls: turn.urls, username: turn.username, credential }] : []),
-        ...current.filter((server) => server !== currentTurn && isTurnServer(server)),
-      ];
+      const iceServers: IceServer[] = [...(stun.length ? [{ urls: stun }] : []), ...turnServers];
 
       if (!isEqual(iceServers, current)) {
         await this.configService.writeGo2RtcConfigApi({ webrtc: { ice_servers: iceServers } });

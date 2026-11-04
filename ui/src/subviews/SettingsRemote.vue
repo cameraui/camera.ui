@@ -663,52 +663,86 @@
               </div>
 
               <div class="flex flex-col field-gap">
-                <label for="webrtcTurn" class="cui-label">{{ $t('views.settings.webrtc_turn_label') }}</label>
-                <AutoComplete
-                  v-model="webrtcForm.turnUrls"
-                  input-id="webrtcTurn"
-                  multiple
-                  fluid
-                  :typeahead="false"
-                  :invalid="!!turnError"
-                  :loading="webrtcLoading"
-                  placeholder="turn:turn.example.com:3478"
-                />
-                <span v-if="turnError" class="cui-input-error">{{ turnError }}</span>
-                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_hint') }}</Message>
+                <span class="cui-label">{{ $t('views.settings.webrtc_turn_label') }}</span>
+                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_hint') }}</Message>
               </div>
 
-              <div v-if="webrtcForm.turnUrls.length" class="flex flex-col sm:flex-row gap-6">
-                <div class="flex flex-col field-gap flex-1 min-w-0">
-                  <label for="webrtcUsername" class="cui-label">{{ $t('components.form.label.username') }}</label>
-                  <InputText id="webrtcUsername" v-model.trim="webrtcForm.username" type="text" autocomplete="off" class="w-full" />
-                </div>
-
-                <div class="flex flex-col field-gap flex-1 min-w-0">
-                  <label for="webrtcPassword" class="cui-label">{{ $t('components.form.label.password') }}</label>
-                  <Password
-                    v-model="webrtcForm.password"
-                    input-id="webrtcPassword"
-                    :feedback="false"
-                    toggle-mask
+              <div v-for="server in webrtcForm.turn" :key="server.key" class="cui-turn-server flex flex-col gap-4 rounded-xl p-4">
+                <div class="flex flex-col field-gap">
+                  <label :for="`webrtcTurn-${server.key}`" class="cui-label">{{ $t('views.settings.webrtc_turn_urls') }}</label>
+                  <AutoComplete
+                    v-model="server.urls"
+                    :input-id="`webrtcTurn-${server.key}`"
+                    multiple
                     fluid
-                    autocomplete="new-password"
-                    :placeholder="turnCredentialSet ? '••••••••' : ''"
+                    :typeahead="false"
+                    :invalid="!validTurnUrls(server.urls)"
+                    placeholder="turn:turn.example.com:3478"
                   />
-                  <Message v-if="turnCredentialSet" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                    $t('views.settings.webrtc_password_keep_hint')
-                  }}</Message>
+                  <span v-if="!validTurnUrls(server.urls)" class="cui-input-error">{{ $t('views.settings.webrtc_turn_invalid') }}</span>
+                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_urls_hint') }}</Message>
                 </div>
+
+                <div class="flex flex-col sm:flex-row gap-6">
+                  <div class="flex flex-col field-gap flex-1 min-w-0">
+                    <label :for="`webrtcUsername-${server.key}`" class="cui-label">{{ $t('components.form.label.username') }}</label>
+                    <InputText :id="`webrtcUsername-${server.key}`" v-model.trim="server.username" type="text" autocomplete="off" class="w-full" />
+                  </div>
+
+                  <div class="flex flex-col field-gap flex-1 min-w-0">
+                    <label :for="`webrtcPassword-${server.key}`" class="cui-label">{{ $t('components.form.label.password') }}</label>
+                    <Password
+                      v-model="server.password"
+                      :input-id="`webrtcPassword-${server.key}`"
+                      :feedback="false"
+                      toggle-mask
+                      fluid
+                      autocomplete="new-password"
+                      :placeholder="server.credentialSet ? '••••••••' : ''"
+                    />
+                    <Message v-if="server.credentialSet" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                      $t('views.settings.webrtc_password_keep_hint')
+                    }}</Message>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  severity="danger"
+                  outlined
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.remove')"
+                  @click="removeTurnServer(server.key)"
+                >
+                  <template #icon>
+                    <i-mdi:delete-outline class="w-4 h-4" />
+                  </template>
+                </Button>
               </div>
 
-              <Button
-                type="button"
-                :disabled="!canSaveWebrtc"
-                :loading="webrtcLoading || putWebrtcLoading"
-                class="cui-button-medium ml-auto"
-                :label="$t('components.form.button.save')"
-                @click="confirmSaveWebrtc"
-              />
+              <div class="flex items-center gap-2">
+                <Button
+                  type="button"
+                  severity="secondary"
+                  outlined
+                  class="cui-button-medium"
+                  :disabled="webrtcLoading"
+                  :label="$t('components.form.button.add_turn_server')"
+                  @click="addTurnServer"
+                >
+                  <template #icon>
+                    <i-mdi:plus class="w-4 h-4" />
+                  </template>
+                </Button>
+                <Button
+                  type="button"
+                  :disabled="!canSaveWebrtc"
+                  :loading="webrtcLoading || putWebrtcLoading"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="confirmSaveWebrtc"
+                />
+              </div>
             </div>
           </template>
         </Card>
@@ -730,7 +764,7 @@ import LanIcon from '~icons/mdi/lan';
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
-import { copyToClipboard, deepToRaw } from '@/common/utils.js';
+import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import ConnectionDetailsDialog from '@/components/CuiDialog/templates/ConnectionDetails/ConnectionDetails.vue';
 import { isCapacitor, isInCloudSession } from '@/connection/index.js';
 import { refreshIceServers } from '@/plugins/cameraui.js';
@@ -741,6 +775,15 @@ import type { ConnectionDetailsProps } from '@/components/CuiDialog/templates/Co
 import type { PatchRemoteInput } from '@/schemas/remote.schema.js';
 import type { PatchServerInput } from '@/schemas/server.schema.js';
 import type { DBCloudflareMode, DBRemote, DBRemoteDirectMode, DBServer } from '@shared/types';
+
+interface TurnServerForm {
+  key: string;
+  storedIndex?: number;
+  credentialSet: boolean;
+  urls: string[];
+  username: string;
+  password: string;
+}
 
 const serverQuery = new ServerQuery();
 const remoteQuery = new RemoteQuery();
@@ -784,7 +827,7 @@ const pairUrl = ref('');
 const pairExpiresAt = ref<number | null>(null);
 const pairPollIntervalSec = ref(2);
 const pairCountdown = ref('');
-const webrtcForm = ref<{ stun: string[]; turnUrls: string[]; username: string; password: string }>({ stun: [], turnUrls: [], username: '', password: '' });
+const webrtcForm = ref<{ stun: string[]; turn: TurnServerForm[] }>({ stun: [], turn: [] });
 let pairPollTimer: ReturnType<typeof setTimeout> | null = null;
 let pairCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -908,22 +951,20 @@ const canConnectManaged = computed(() => {
   return !!hostname && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(hostname);
 });
 
-const turnCredentialSet = computed(() => webrtcSettings.value?.turn?.credentialSet ?? false);
-
 const stunError = computed(() => (webrtcForm.value.stun.some((url) => !STUN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_stun_invalid') : ''));
 
-const turnError = computed(() => (webrtcForm.value.turnUrls.some((url) => !TURN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_turn_invalid') : ''));
-
 const canSaveWebrtc = computed(() => {
-  const form = webrtcForm.value;
+  const { stun, turn } = webrtcForm.value;
   const stored = webrtcSettings.value;
-  if (!stored || stunError.value || turnError.value) return false;
-  if (form.turnUrls.length && (!form.username || (!form.password && !turnCredentialSet.value))) return false;
+  if (!stored || stunError.value) return false;
+  if (turn.some((server) => !server.urls.length || !validTurnUrls(server.urls) || !server.username || (!server.password && !server.credentialSet))) return false;
   return (
-    !isEqual(form.stun, stored.stun) ||
-    !isEqual(form.turnUrls, stored.turn?.urls ?? []) ||
-    (form.turnUrls.length > 0 && form.username !== stored.turn?.username) ||
-    form.password.length > 0
+    !isEqual(stun, stored.stun) ||
+    !isEqual(
+      turn.map(({ urls, username, storedIndex }) => ({ urls, username, storedIndex })),
+      stored.turn.map(({ urls, username }, storedIndex) => ({ urls, username, storedIndex })),
+    ) ||
+    turn.some((server) => server.password.length > 0)
   );
 });
 
@@ -1272,15 +1313,30 @@ function confirmSaveWebrtc() {
 }
 
 async function saveWebrtc() {
-  const form = webrtcForm.value;
-  const turnUrls = form.turnUrls.map((url) => url.trim());
+  const { stun, turn } = webrtcForm.value;
   try {
     await putWebrtc({
-      stun: form.stun.map((url) => url.trim()),
-      turn: turnUrls.length ? { urls: turnUrls, username: form.username, ...(form.password ? { credential: form.password } : {}) } : null,
+      stun: stun.map((url) => url.trim()),
+      turn: turn.map((server) => ({
+        urls: server.urls.map((url) => url.trim()),
+        username: server.username,
+        ...(server.password ? { credential: server.password } : { storedIndex: server.storedIndex }),
+      })),
     });
     await refreshIceServers();
   } catch {}
+}
+
+function validTurnUrls(urls: string[]): boolean {
+  return urls.every((url) => TURN_URL_PATTERN.test(url.trim()));
+}
+
+function addTurnServer(): void {
+  webrtcForm.value.turn.push({ key: randomId(), credentialSet: false, urls: [], username: '', password: '' });
+}
+
+function removeTurnServer(key: string): void {
+  webrtcForm.value.turn = webrtcForm.value.turn.filter((server) => server.key !== key);
 }
 
 watch(
@@ -1343,9 +1399,14 @@ watch(
     if (settings) {
       webrtcForm.value = {
         stun: [...settings.stun],
-        turnUrls: [...(settings.turn?.urls ?? [])],
-        username: settings.turn?.username ?? '',
-        password: '',
+        turn: settings.turn.map((server, storedIndex) => ({
+          key: randomId(),
+          storedIndex,
+          credentialSet: server.credentialSet,
+          urls: [...server.urls],
+          username: server.username,
+          password: '',
+        })),
       };
     }
   },
@@ -1380,5 +1441,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
+}
+
+.cui-turn-server {
+  background: var(--card-inner-background);
+  border: 1px solid var(--border-color-inner);
 }
 </style>

@@ -119,7 +119,7 @@ const shareResult = ref<ShareCreateResult | null>(null);
 
 const canShare = computed(() => !!navigator.share);
 const isLoading = computed(() => Boolean(dialogRefProps.loading?.value || createLoading.value));
-const hasTurnServer = computed(() => !!webrtcSettings.value?.turn);
+const hasTurnServer = computed(() => !!webrtcSettings.value?.turn.length);
 const needsCloud = computed(() => remoteInfo.value?.remoteSettings.enabled === false || registrationStatus.value?.isRegistered === false);
 
 async function shareNative() {

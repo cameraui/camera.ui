@@ -76,7 +76,7 @@
 
           <div v-for="group in grouped" v-else :key="group.cameraId" class="flex flex-col gap-1">
             <span class="text-xs text-muted px-0.5">{{ group.cameraName }} · {{ group.files.length }} · {{ approx }}{{ fmtBytes(group.bytes) }}</span>
-            <div v-for="f in group.files" :key="f.name" class="flex items-center gap-3 card-inner-background border border-color rounded-lg px-3 py-2">
+            <div v-for="f in group.files" :key="f.name" class="flex items-center gap-3 border border-color rounded-lg px-3 py-2">
               <i-mdi:file-video-outline class="w-4 h-4 text-muted shrink-0" />
               <span class="font-mono text-xs truncate flex-1">{{ f.name }}</span>
               <span class="text-xs text-muted tabular-nums shrink-0">{{ f.span }}</span>

@@ -92,9 +92,10 @@ export const putWebrtcSchema = zod
         urls: zod.string().trim().regex(TURN_URL_PATTERN, 'Must start with turn: or turns:').array().min(1, 'TURN URL is required'),
         username: zod.string().trim().min(1, 'Username is required'),
         credential: zod.string().min(1, 'Password is required').optional(),
+        storedIndex: zod.number().int().nonnegative().optional(),
       })
       .strict()
-      .nullable(),
+      .array(),
   })
   .strict();
 
