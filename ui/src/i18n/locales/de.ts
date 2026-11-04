@@ -1675,6 +1675,7 @@ export default {
     },
     timeline: {
       fine_scrubbing: 'Feinsteuerung',
+      moment_range: '{from} bis {to}',
       filter: 'Filter',
       pick_date: 'Datum wählen',
       date_apply: 'Springen',
@@ -2968,6 +2969,7 @@ export default {
         hint_witness: '{label} #{id} · bestätigt durch die Meldung der Kamera',
         world_events: 'Tracker-Ereignisse',
         detector_idle: 'Detektor lief nicht',
+        triggers: 'Auslöser',
         info: 'Info',
         scope_frame: 'Bild',
         scope_event: 'Ereignis',

@@ -127,6 +127,8 @@ const CLIP_ATTRIBUTE = 'clip';
 const CLIP_VIEW_GROWTH = 1.5;
 const FACE_MEANS_APART = 0.3;
 const FACE_MEAN_MIN_FACES = 5;
+const OCCURRENCE_GAP_MS = 10_000;
+const MAX_OCCURRENCES = 50;
 
 function unitVector(values: number[]): number[] {
   let norm = 0;
@@ -175,6 +177,12 @@ function freshResult(at: number | undefined, now: number): boolean {
 
 function newResult(at: number | undefined, carried: number | undefined, now: number): boolean {
   return at !== carried && freshResult(at, now);
+}
+
+function noteOccurrence(occurrences: [number, number][], now: number): void {
+  const last = occurrences[occurrences.length - 1];
+  if (now - last[1] > OCCURRENCE_GAP_MS && occurrences.length < MAX_OCCURRENCES) occurrences.push([now, now]);
+  else last[1] = now;
 }
 
 function clipArea(clip: TrackedClipEmbedding): number {
@@ -701,9 +709,10 @@ export class DetectionEventManager {
     if (!this.activeEvent) return;
 
     for (const incoming of triggers) {
-      const existing = this.activeEvent.triggers.find((t) => t.type === incoming.type && t.label === incoming.label);
+      const existing = this.activeEvent.triggers.find((t) => t.type === incoming.type && t.label === incoming.label && t.lineName === incoming.lineName);
 
       if (existing) {
+        if (existing.occurrences) noteOccurrence(existing.occurrences, now);
         existing.lastSeen = now;
         if (incoming.score !== undefined && (existing.score === undefined || incoming.score > existing.score)) {
           existing.score = incoming.score;
@@ -1131,6 +1140,7 @@ export class DetectionEventManager {
       }
     }
 
+    for (const trigger of triggers) trigger.occurrences = [[now, now]];
     return triggers;
   }
 

@@ -1662,6 +1662,7 @@ export default {
     },
     timeline: {
       fine_scrubbing: 'Fine Scrubbing',
+      moment_range: '{from} to {to}',
       filter: 'Filter',
       pick_date: 'Choose date',
       date_apply: 'Jump',
@@ -2948,6 +2949,7 @@ export default {
         hint_witness: "{label} #{id} · confirmed by the camera's own report",
         world_events: 'Tracker events',
         detector_idle: 'detector did not run',
+        triggers: 'Triggers',
         info: 'Info',
         scope_frame: 'Frame',
         scope_event: 'Event',

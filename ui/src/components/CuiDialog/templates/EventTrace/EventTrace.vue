@@ -285,6 +285,17 @@
 
           <div class="tile">
             <div class="tile-head">
+              <i-tabler:bolt class="w-3.5 h-3.5" />
+              <span>{{ $t('views.recordings.trace.triggers') }}</span>
+            </div>
+            <div v-if="triggerTexts.length" class="chips">
+              <span v-for="(text, i) in triggerTexts" :key="i" class="chip">{{ text }}</span>
+            </div>
+            <span v-else class="tile-empty">–</span>
+          </div>
+
+          <div class="tile">
+            <div class="tile-head">
               <i-tabler:info-circle class="w-3.5 h-3.5" />
               <span>{{ $t('views.recordings.trace.info') }}</span>
             </div>
@@ -308,6 +319,7 @@ import VueZoomable from 'vue-zoomable';
 import DownloadIcon from '~icons/tabler/download';
 
 import { detectionStyle } from '@/common/detectionLabels.js';
+import { audioLabelKey, detectionLabelKey, sensorLabelKey } from '@/common/eventLabels.js';
 import { extractErrorMessage, randomLetter } from '@/common/utils.js';
 import { buildStoredZip } from '@/utils/zipStore.js';
 import { boxIntersectsPolygon, boxMatchesZone } from '@/utils/zoneGeometry.js';
@@ -317,7 +329,7 @@ import { isShownRead } from './reads.js';
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { ZipEntry } from '@/utils/zipStore.js';
 import type { TraceDetection, TraceFrame, TraceFrameStatus, TraceTick } from '@camera.ui/nvr';
-import type { AlertZone, BoundingBox, MotionZone, ObjectZone, PrivacyZone } from '@camera.ui/sdk';
+import type { AlertZone, BoundingBox, EventTrigger, MotionZone, ObjectZone, PrivacyZone } from '@camera.ui/sdk';
 import type { EventTraceProps } from './types.js';
 
 interface TraceFinding {
@@ -444,6 +456,8 @@ const alertZones = computed<AlertZone[]>(() => zones.value?.alert ?? []);
 const droppingPrivacyZones = computed(() => privacyZones.value.filter((zone) => zone.dropDetections !== false));
 const thresholds = computed<Record<string, number>>(() => trace.value?.config?.objectConfidences ?? props.camera.detectionSettings?.object?.confidences ?? {});
 const shownReads = computed(() => (selected.value?.tick.reads ?? []).filter(isShownRead));
+
+const triggerTexts = computed(() => [...(props.event.triggers ?? [])].sort((a, b) => a.firstSeen - b.firstSeen).map(triggerText));
 
 const findings = computed<TraceFinding[]>(() => {
   const tick = selected.value?.tick;
@@ -844,6 +858,22 @@ function objectText(obj: TraceTick['world'][number]): string {
 
 function lastSure(obj: TraceTick['world'][number], before: string, after = ''): string {
   return obj.score === undefined ? '' : `${before}${t('views.recordings.trace.last_sure', { value: pct(obj.conf) })}${after}`;
+}
+
+function triggerText(trigger: EventTrigger): string {
+  const parts = [t(trigger.type === 'audio' && trigger.label ? audioLabelKey(trigger.label) : sensorLabelKey(trigger.type))];
+  if (trigger.lineName) parts.push(trigger.lineName);
+  if (trigger.type === 'line-crossing' && trigger.label) parts.push(t(detectionLabelKey(trigger.label)));
+  // older events only know the first and last hit
+  const spans: [number, number][] = trigger.occurrences ?? [[trigger.firstSeen, trigger.lastSeen]];
+  parts.push(spans.map(offsetSpan).join(', '));
+  if (trigger.score !== undefined) parts.push(pct(trigger.score));
+  return parts.join(' · ');
+}
+
+function offsetSpan([from, to]: [number, number]): string {
+  const start = `+${relativeSeconds(from)}s`;
+  return to - from < 1000 ? start : t('components.timeline.moment_range', { from: start, to: `+${relativeSeconds(to)}s` });
 }
 
 function eventText(e: TraceTick['events'][number]): string {
