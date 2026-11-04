@@ -533,6 +533,7 @@ declare module 'vue' {
     'ITabler:activity': typeof import('~icons/tabler/activity')['default']
     'ITabler:arrowLeft': typeof import('~icons/tabler/arrow-left')['default']
     'ITabler:arrowRight': typeof import('~icons/tabler/arrow-right')['default']
+    'ITabler:bolt': typeof import('~icons/tabler/bolt')['default']
     'ITabler:calendar': typeof import('~icons/tabler/calendar')['default']
     'ITabler:cameraBolt': typeof import('~icons/tabler/camera-bolt')['default']
     'ITabler:check': typeof import('~icons/tabler/check')['default']
