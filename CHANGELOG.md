@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.7]
+
+### After the update
+
+- **Update the NVR plugin to 1.7.0.** Until then a deleted person's name can stay on someone still in front of a camera, picking a sound in Recordings still shows every sound, Metrics → Storage has no delete button, and the timeline marks only the first and last time a sound or sensor went off in an event.
+
+### Added
+
+- **Delete a camera's recordings from Metrics → Storage.** Once recording is off for a camera, its Mode shows off and the button at the end of its row deletes its recordings, and with **Delete events too** all its events, favorites included. The row shows the delete until it is done, also after a restart.
+
+- **The timeline shows when motion, a sound, a sensor or a line crossing set in during an event.** Each one is a small dot where it began, also in the middle of a running event, and dots close together become one with a count. Hover a dot for what it was and when, click it to jump there. A click on a full event bar plays from where it began.
+
+- **The detection trace lists an event's triggers.** Motion, sounds, sensors and line crossings, each with the times it went off.
+
+- **STUN and TURN servers in Settings → Remote Access.** The new WebRTC card sets them without the config editor, and the apps use them too. A TURN server helps live view and two-way audio from outside when no direct path works, on mobile networks for example, and a share link can pass it on to its viewers. See [WebRTC](https://docs.cameraui.com/remote/#webrtc).
+
+- **Unknown faces show their marks.** A face already filed under someone or only partly visible carries the exclamation mark in Faces, the tooltip names the reason. Groups and Ungrouped show how many of their faces are marked, so you see it before you assign. Ignored faces get the mark when they are only partly visible.
+
+### Changed
+
+- **AI search starts at a 40 % match score.** Min. Match Score starts lower and resets with each visit, like the search itself.
+
+- **Logging starts in the Console.** The record button at the bottom right starts and stops it, debug entries included. The two switches under Settings → Appearance are gone.
+
+### Fixed
+
+- **The sound filter in Recordings works.** Picking gunshot, doorbell or another sound under Audio shows only those events, and new or running events no longer slip into a filtered list they don't match.
+
+- **Switching between servers keeps the right account.** With a different username on each server, the app showed "User not exists" errors after the switch and recent events loaded late. This also happened after tapping a push from the other server or when returning from an instance.
+
+- **Instances stay apart from your servers.** A push opens on its own server even with an instance active, and each server remembers its own active instance. The instance menu keeps the right name after a reload. An instance no longer touches the saved Face ID login of your server.
+
+- **Cameras with `/`, `#`, `?` or `%` in their name work.** Opening such a camera showed an error, its settings could not be saved and removing it said the camera does not exist. In Home Assistant this needs the camera.ui integration 0.5.3.
+
+- **The assistant's Usage counts every call.** Missing were the call before an approval or before the assistant opened a page for you, answers that failed or were stopped, and the short call that picks out facts to remember. Gemini models that think were estimated too cheap.
+
+- **A deleted person's name goes away at once.** Someone still in front of a camera when you deleted them kept the name until they left. Events that started meanwhile and automations on the face sensor still saw it.
+
+- **Dialogs fit the screen in the iPhone browser.** In Safari the top or bottom of a dialog was cut off, with buttons out of reach, and the event dialog hid the bottom of its timeline. Suggestion lists, the names when you assign a face for example, opened with a gap below the field.
+
+- **Long menus stay on the screen.** A menu with many entries, the PTZ presets for example, scrolls instead of running past the screen edge, and long names are shortened instead of making the menu wider than the screen.
+
+- **The camera stays in view when you turn the phone.** In the iPhone browser the camera page slid up after turning to landscape, and stayed off after turning back.
+
+- **A security fix for share links.**
+
+- **Smaller fixes in the interface.** The recording bar on the timeline ends with the recording instead of running on for up to two minutes, the episode count in Recordings shows a + only when the episodes themselves reach the limit, changed server addresses under Network take effect on save instead of after the next restart.
+
 ## [2.4.6]
 
 ### Added
@@ -132,11 +180,11 @@ All notable changes to this project will be documented in this file.
 
 - **Restoring a backup shows what it contains before anything changes.** The summary names the date, version, cameras, plugins and the accounts to sign in with afterwards, and the restore starts only after you confirm. The window then shows each plugin as it installs. Large archives upload in parts and continue after a dropped connection, and archives from the backup scheduler restore on the server without a download.
 
-- **A restore can be undone for 7 days** with **Undo restore** under Settings > Backup > **Last restore**. If the restored setup fails to start three times, camera.ui puts back the previous one on its own. Plugins the restore could not install can be retried or discarded there too.
+- **A restore can be undone** with **Undo restore** under Settings > Backup > **Last restore**. If the restored setup fails to start three times, camera.ui puts back the previous one on its own. Plugins the restore could not install can be retried or discarded there too.
 
-- **A restore asks whether this server replaces the old one or runs next to it.** A move keeps the identity of the backup, so apps, the Apple TV and workers keep trusting the server. A copy gets its own identity and none of the old server's sessions, workers or cloud registration. Backups from 2.3 have no certificate authority. After a move from such a backup, install the certificate from Settings > System again on devices that trusted the old server.
+- **A restore asks whether this server replaces the old one or runs next to it.** A replacement keeps working with your apps, the Apple TV and workers, a server next to it starts as a new one. After replacing a server from a 2.3 backup, install the certificate from Settings > System again on devices that trusted the old server.
 
-- **After a restore, sign the server in to cameraui.com again** under Settings > Remote Access, then reconnect a licensed NVR in its settings. Remote access and the license stay with the same server, and after a move or an undo the NVR keeps recording for up to 14 days until you reconnect.
+- **After a restore, sign the server in to cameraui.com again** under Settings > Remote Access, then reconnect a licensed NVR in its settings.
 
 - **A server moves to a new machine with a move code.** Create the code on the old server under Settings > Backup and enter it on the new one, on the welcome screen or under Settings > Backup. The new server fetches the backup over the network, and the old one keeps its cameras, plugins and workers stopped until you choose **Run here again** there or discard the move on the new server.
 
@@ -224,21 +272,21 @@ All notable changes to this project will be documented in this file.
 
 - **Unlimited viewers on a share means up to 50 at a time.** Anyone beyond that sees **Maximum number of viewers reached** and gets in once a seat is free.
 
-- **The Apple TV app checks the server's certificate.** It accepts the certificate it saw at sign-in, certificates from the server's own certificate authority and publicly trusted ones, and refuses any other. The status then shows Certificate changed.
+- **The Apple TV app checks the server's certificate.** When it does not match, the app refuses the connection and the status shows Certificate changed.
 
-- **The desktop app trusts your server's certificate authority instead of a single certificate**, so a renewed server certificate no longer brings the warning back. Other websites open in your browser, and on macOS closing the window only hides it, so desktop notifications keep coming until you quit.
+- **The desktop app no longer warns again when your server renews its certificate.** Other websites open in your browser, and on macOS closing the window only hides it, so desktop notifications keep coming until you quit.
 
 - **On phones and tablets, live streams stop as soon as the app or tab goes to the background**, picture-in-picture excepted. A desktop tab keeps them for 30 seconds.
 
-- **The mobile apps keep your sign-in only in the device's secure storage.**
+- **Security improvements in the mobile apps.**
 
 - **Live view stops for cameras you scroll past.** A player out of view for about 10 seconds stops, keeps its last picture and starts again when you scroll back. Picture-in-picture, talking, PTZ, fullscreen and open player menus keep it running.
 
 - **Turning off cloud access also stops share links.** The share dialog says so while cloud access is off.
 
-- **camera.ui takes a visitor's address from a reverse proxy only when the proxy runs on the same machine or is listed under [`trustedProxies`](https://docs.cameraui.com/remote/reverse-proxy#proxy-on-another-machine).** Before, any visitor could hand camera.ui a made-up address for the session lists and the share code limit. Add a proxy on another machine in `camera.ui.yaml` or as `CAMERA_UI_TRUSTED_PROXIES` in Docker, otherwise every visitor shows up with the proxy's address.
+- **camera.ui takes a visitor's address from a reverse proxy only when the proxy runs on the same machine or is listed under [`trustedProxies`](https://docs.cameraui.com/remote/reverse-proxy#proxy-on-another-machine).** Add a proxy on another machine in `camera.ui.yaml` or as `CAMERA_UI_TRUSTED_PROXIES` in Docker, otherwise every visitor shows up with the proxy's address.
 
-- **Each signed-in browser, app or API token can keep up to 64 live streams and about 32 tabs open at once.** Past that, new connections wait and retry until others close, and connections of devices that stopped answering are closed to make room. Home Assistant dashboards share the limit of the integration's token, a viewer token gives them a second one.
+- **Each signed-in browser, app or API token has a limit on open live streams and tabs.** Past it, new connections wait until others close. Home Assistant dashboards share the limit of the integration's token, a viewer token gives them a second one.
 
 - **Server addresses no longer lists Podman, VirtualBox, VMware or Kubernetes networks**, and the server certificate leaves them out too. VPN addresses such as WireGuard stay.
 
@@ -338,9 +386,9 @@ All notable changes to this project will be documented in this file.
 
 - **Cameras in activity mode start on motion again in Camview with detections turned off**, and while you rearrange the view.
 
-- **Accounts with the user role no longer receive camera logins** and can only open the live streams of your cameras. Stream addresses and internal server functions are only reachable by the parts of camera.ui that need them. Download links only serve exports, notification pictures and clips, never your recordings or camera.ui's own files.
+- **Security fixes for accounts with the user role and for download links.**
 
-- **Paired workers get only what they need.** They can no longer use the admin terminal or reach remote access, casting and notifications, and they are kept apart from each other.
+- **Paired workers get only the access they need.**
 
 - **Live view works for cameras with &, #, + or % in their name.**
 
@@ -358,7 +406,7 @@ All notable changes to this project will be documented in this file.
 
 - **Live view no longer restarts every few seconds on a slow remote connection.** This hit cameras with a long keyframe interval or a high bitrate, also after falling back from WebRTC. Only a live view whose connection cannot keep up at all is stopped, after about 15 seconds.
 
-- **A stalled or sleeping browser or app no longer fills up the server's memory.** One that falls too far behind is disconnected and reconnects. One that stops answering, like a phone gone to sleep with camera.ui open, is dropped after about a minute instead of six minutes.
+- **A stalled or sleeping browser or app no longer fills up the server's memory.** It is disconnected and reconnects by itself.
 
 - **Workers no longer drop frames or lose their link to the main server under heavy frame traffic.** If that link crashes on the main server, workers reconnect within about a second instead of about four. Pairing or removing a worker also interrupts the others for a shorter time. Plugins on the workers then catch up on sensor and camera states that changed in between, and send the changes of their own sensors that didn't get through.
 
@@ -372,7 +420,7 @@ All notable changes to this project will be documented in this file.
 
 - **Plugin settings saved on a worker while the main server is away are no longer lost.** The main server takes them once it is back, also when the plugin was stopped in between. If the plugin saved newer settings on another machine meanwhile, the older change is dropped and the log says so.
 
-- **Two machines that share one worker's identity no longer run the same plugins and cameras.** This happens with a copied worker folder or a restored backup. The main server stops the work on both and logs which worker it is. Remove that worker and pair one of them again. While one copy is online, the main server refuses to pair another, unless the pairing code names that worker under **Replaces**.
+- **Two machines that share one worker's identity no longer run the same plugins and cameras.** This can happen after copying a worker or restoring a backup. The main server stops the work on both and logs which worker it is. Remove that worker and pair one of them again. To replace a worker that is still online, name it under **Replaces** when you create the pairing code.
 
 - **Moving a plugin or camera to another machine no longer runs it twice for a moment.** The new machine starts it once the old one has stopped it.
 
@@ -422,13 +470,13 @@ All notable changes to this project will be documented in this file.
 
 - **The iOS and Apple TV apps no longer drop their connection when several large replies arrive at once**, while scrubbing several cameras for example.
 
-- **Signing out a device takes effect at once.** A device signed out from the session list, by Logout all, by a password change or by deleting its account or API token loses its open connections and its live view right away. Taking admin rights away also applies at once.
+- **Signing out a device or taking away admin rights takes effect at once.**
 
-- **Shared camera links keep playing and stop on time.** The viewer reconnects by itself, several people on one link no longer cut each other off, and picture-in-picture keeps running when the recipient switches away. An expired or revoked share now ends at once instead of up to ten minutes later, and a wrong code, an ended share and a full share each get their own message.
+- **Shared camera links keep playing and stop on time.** The viewer reconnects by itself, several people on one link no longer cut each other off, and picture-in-picture keeps running when the recipient switches away. A wrong code, an ended share and a full share each get their own message.
 
 - **A Cloudflare tunnel with a wrong token no longer restarts forever.** Settings > Remote Access shows why the tunnel failed, and restarts after a crash slow down step by step. A cloudflared `config.yml` on the host no longer takes over Quick and token tunnels.
 
-- **Remote access starts even when the network blocks Google's push service.** Tunnels and the custom domain stayed off, and signing in to cameraui.com could hang.
+- **Remote access starts on networks that block some outside services.** Tunnels and the custom domain stayed off, and signing in to cameraui.com could hang.
 
 - **A custom domain reaches the apps as soon as its name resolves publicly.** It stayed unused until a restart when camera.ui started before the internet connection or the reverse proxy, or behind a router without hairpin NAT.
 
@@ -444,7 +492,7 @@ All notable changes to this project will be documented in this file.
 
 - **Talking through a camera sounds clean while others watch.** Silent viewers pulled the voice down and distorted it, and on cameras with two-way audio a new viewer no longer interrupts the picture for everyone.
 
-- **camera.ui keeps track of its connection in every case.** After the server turned down a request it stopped noticing drops, a device whose clock is off renewed its session several times a second, and a device signed out from elsewhere kept retrying instead of showing the sign-in page.
+- **camera.ui keeps track of its connection more reliably.** A device signed out from elsewhere shows the sign-in page instead of retrying.
 
 - **Recordings keep playing after a pause or a connection drop.** Resuming after a long pause, a slow first start and a short network drop continue at the right spot, and a paused recording no longer starts by itself.
 
@@ -468,9 +516,9 @@ All notable changes to this project will be documented in this file.
 
 - **The desktop app no longer brings back the old mode when you switch while it is still starting.** The picker stays open, and no error about the old connection shows up half a minute later.
 
-- **The desktop app asks again when a server certificate you trusted earlier has expired**, instead of accepting it without a word.
+- **The desktop app asks again when a server certificate you trusted earlier has expired.**
 
-- **The Android app refuses a server certificate that was issued for another address.** At home it accepted any certificate from your server's certificate authority.
+- **The Android app checks server certificates more strictly.**
 
 - **The Top Shelf of the Apple TV app fills in when the saved server address does not answer**, and its pictures no longer pile up.
 
@@ -488,11 +536,11 @@ All notable changes to this project will be documented in this file.
 
 - **A broken named Cloudflare tunnel no longer interrupts remote access every ten minutes.** camera.ui still covers it with a Quick Tunnel and retries your tunnel after ten minutes, then less and less often, up to every four hours.
 
-- **Signing out of your camera.ui account on a device also ends its cloud connection to your server**, and so does losing access to a shared server. The mobile apps then go back to the camera.ui Cloud sign-in or server list instead of trying to reconnect.
+- **After signing out of your camera.ui account or losing access to a shared server, the mobile apps go back to the camera.ui Cloud sign-in or server list** instead of trying to reconnect.
 
 - **The desktop app stays on the page you had open when its server restarts.**
 
-- **Logged in users and Active sessions no longer list sign-ins that have run out**, and the iOS app keeps one sign-in per device. Each reinstall of the app used to leave the old sign-in in the list for 90 days.
+- **Logged in users and Active sessions no longer list sign-ins that have run out**, and the iOS app keeps one sign-in per device.
 
 - **Clips in the Home Assistant media browser start sooner and keep playing for everyone.** Seeking in one no longer stops the export for all other viewers, an exported clip plays without asking camera.ui again, and on days with more than 600 events the older clips play too. Live video through Home Assistant needs less CPU.
 
@@ -734,7 +782,7 @@ All notable changes to this project will be documented in this file.
 
 - **Remote access no longer downloads its tunnel program on first use.** camera.ui brings it along and keeps it on a tested version, so the first connection starts right away. Windows on ARM gets remote access at all now.
 
-- **A two-factor code can only be used once.** Right after setting up two-factor authentication, a second device needs the next code from the app instead of the one just entered.
+- **Two-factor sign-in is stricter.** Right after setting up two-factor authentication, a second device needs the next code from the app.
 
 - **An update installs exactly the versions that were tested.** An update used to fetch the newest available version of every part camera.ui is built on, so an install could end up with something nobody had tried, in bad cases breaking the start. The server and the launcher now bring a fixed list with them.
 
@@ -1080,7 +1128,7 @@ All notable changes to this project will be documented in this file.
 
 - **CUDA detection works again on the NVIDIA Docker image.** The ONNX plugin moved to CUDA 13 while the `:nvidia` image stayed on CUDA 12.6, so detection silently ran on the CPU and RTX 50xx cards could not work at all. The image now ships CUDA 13 (host driver 580 or newer); a new `:nvidia-cuda12` image keeps the old base for older drivers, paired with the ONNX Legacy plugin. The plugin log now names the matching image when CUDA fails to load. A new `:nvidia-tensorrt` image carries the TensorRT runtime for the plugin's tensorrt provider, measured at roughly 2.5x detection throughput for about twice the VRAM.
 
-- **Getting signed out of the cloud is fixed, and no longer silent.** Cloud maintenance could sign a server out of its cameraui.com account without notice, which also dropped the NVR recording license. If a sign-out ever happens again, camera.ui notifies you and the NVR keeps recording so you have time to reconnect.
+- **Unexpected sign-outs from cameraui.com are fixed.** If the server is ever signed out, camera.ui tells you so you can sign in again.
 
 - **The update badge no longer needs a full reload.** When the page loaded while the connection was still settling, the red dot on the Updates entry and the live update state never arrived, even though the updates page and notifications knew better. The affected channel now catches up on its own, and a connection setup that failed once retries instead of staying dead.
 
@@ -1102,7 +1150,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Controlling sensors now needs an admin account.** The API accepted sensor commands from any signed-in account, so a viewer who knew the API could have opened a lock or moved a PTZ camera even though no button showed. If Home Assistant controls your camera.ui sensors, make sure the integration uses an admin's API token; a viewer token can only watch from now on.
+- **Controlling sensors now needs an admin account.** If Home Assistant controls your camera.ui sensors, make sure the integration uses an admin's API token; a viewer token can only watch from now on.
 
 - **Snoozing detections no longer risks losing them for good.** After a snooze, disable or a manual frame-worker stop, the worker no longer followed the camera: a stream hiccup later and detections stayed dead until a server restart, with "Failed to reconcile sensor triggers" timeouts in the log. Quick snooze toggles could also tangle the stop and start of the detection process, and a detection process that never finished starting now retries instead of hanging.
 
@@ -1156,7 +1204,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Home Assistant cards reconnect after a Home Assistant restart.** They kept retrying with the old signed address for up to 20 minutes and filled the Home Assistant log with failed logins. Needs the Home Assistant integration 0.4.0.
+- **Home Assistant cards reconnect after a Home Assistant restart.** They kept failing and filled the Home Assistant log with failed logins. Needs the Home Assistant integration 0.4.0.
 
 - **A camera on shaky WiFi no longer loses a whole minute over a few seconds of hiccup.** Every stage of the pipeline gave up after 5 seconds without video and reconnected on its own, so a short stall turned into a reconnect cascade with 20 seconds of nothing and a "disrupted" band on the timeline. Plugin streams and the analysis now wait out a stall; the recording gets a hole as long as the stall itself, nothing more. Needs the NVR plugin 1.3.19.
 
@@ -1841,7 +1889,7 @@ Virtual sensors carry over automatically.
 
 ### Fixed
 
-- **Plugins on a worker get camera streams again.** A plugin running on a worker could fail to open the camera stream because the request to the main server lost its stream credentials, for example HomeKit answered with "no response" and HKSV only showed snapshots. Streams from workers now authenticate properly.
+- **Plugins on a worker get camera streams again.** HomeKit on a worker answered with "no response" and HKSV only showed snapshots.
 
 - **Update indicators disappear without a page reload.** The update dot in the navbar stayed on after installing the plugin or server update, and the System page kept offering an update the server already had. Both now clear on their own.
 
@@ -2043,7 +2091,7 @@ Virtual sensors carry over automatically.
 
 ### Fixed
 
-- **Exporting recordings works over remote access again.** When the interface was opened through the cloud address (proxy.cameraui.com) but the server ran on its own domain, the export download was blocked by the browser (CORS). Streamed downloads now send the same cross-origin headers the rest of the API already did.
+- **Exporting recordings works over remote access again.** When camera.ui was opened through the cloud while the server ran on its own domain, the browser blocked the export download.
 
 - **A Docker worker starts without listing its capabilities.** A worker started without `CAMERA_UI_WORKER_CAPABILITIES` refused to boot ("no capabilities configured"). It now offers everything by default; the master still assigns only what you give it. Set the variable to restrict a worker to a single job.
 
@@ -2117,7 +2165,7 @@ Virtual sensors carry over automatically.
 
 - **Blueprints can now ask for text values during import.** The blueprint import wizard supports free-text inputs (with sensible defaults prefilled), so a blueprint like MQTT doorbell can ask for the MQTT topic and the field to match right in the import dialog — no editing the flow afterwards.
 
-- **Instances now work with 2FA-protected accounts.** Adding or switching to a remote instance whose account has two-factor authentication enabled prompts for the 6-digit code (backup codes work too). After one successful code entry the connection keeps itself alive through rotating refresh tokens, so the code is only asked again if the instance hasn't been used for a long time. A wrong code simply re-prompts, and an instance whose challenge wasn't completed yet is clearly marked in the instances list with a "2FA" badge and an "Enter code" button to finish it whenever you like.
+- **Instances now work with 2FA-protected accounts.** Adding or switching to a remote instance whose account has two-factor authentication enabled prompts for the 6-digit code (backup codes work too). A wrong code simply re-prompts, and an instance whose challenge wasn't completed yet is clearly marked in the instances list with a "2FA" badge and an "Enter code" button to finish it whenever you like.
 
 - **Beta versions for plugins are now opt-in.** The plugins page has a "Beta versions" toggle in its settings menu (next to the search bar). When enabled, pre-release versions show up in the plugin version picker and beta releases are offered as available updates; when disabled (the default), only stable versions are listed — previously, pre-releases always appeared in the version picker.
 
@@ -2145,7 +2193,7 @@ Virtual sensors carry over automatically.
 
 - **Dashboard snapshots now refresh automatically.** Camera cards on the dashboard subscribe to the server's snapshot auto-refresh again — previously the pushed snapshots never reached the dashboard, so the preview images (and now the age badge) stayed frozen until a page reload or manual refresh.
 
-- **The plugin pairing dialog now has copy buttons.** The device-flow pairing dialog (e.g. when connecting the NVR plugin to cameraui.com) offers a copy button next to the verification link and the pairing code, and both are text-selectable — previously there was no way to copy either one, especially in the desktop app.
+- **The plugin pairing dialog now has copy buttons.** When connecting the NVR plugin to cameraui.com, the link and the pairing code can be copied and selected. Before there was no way to copy either one, especially in the desktop app.
 
 ## [2.0.10]
 
@@ -2179,7 +2227,7 @@ Virtual sensors carry over automatically.
 
 ### Fixed
 
-- **The server failed to start on 2.0.7.** A code-ordering bug in the virtual-sensor module crashed the server during startup (`Cannot access 'VirtualSensorHost' before initialization`) — fresh installs never came up and existing installs crash-looped after their next restart. If you are on 2.0.7, update to this version.
+- **The server failed to start on 2.0.7.** Fresh installs never came up and existing installs crash-looped after their next restart. If you are on 2.0.7, update to this version.
 
 ## [2.0.7]
 
@@ -2233,13 +2281,13 @@ Virtual sensors carry over automatically.
 
 - **Restoring a backup during First Steps was blocked.** The restore step reported "Password change required before first use" and couldn't continue; restoring is now permitted during the initial setup.
 
-- **Restoring a backup onto a different machine left the server unreachable** ("Cannot reach your home server", and cloud/mobile access broke). A backup no longer carries the source machine's TLS certificate, and a restored install now regenerates its own identity — certificate, server addresses, and cloud pairing — instead of inheriting the source machine's. The restored install is reachable on its own network again; because it is a new server, you may need to re-pair cloud access and sign in again.
+- **Restoring a backup onto a different machine left the server unreachable** ("Cannot reach your home server", and cloud/mobile access broke). The restored server is reachable on its own network again. You may need to connect cloud access again and sign in.
 
 - **Backups and restores no longer run concurrently.** Starting a backup while another backup or restore is running (a second tab, another user, or a scheduled backup) is rejected with a clear message instead of doing the same heavy work twice — and two restores can no longer interleave, which could corrupt the server's storage.
 
 - **Failed recording downloads now say so.** Downloading or exporting an event that fails (for example an NVR licensing problem) shows an error with the actual reason instead of failing silently.
 
-- **A stalled live-stream viewer no longer grows memory.** A stream consumer that stops reading now has its session ended instead of queueing video data without bound.
+- **A stalled live-stream viewer no longer grows the server's memory.**
 
 - **Motion detection reconnects properly after stream errors.** When the detection or audio stream dies with a read error, the worker now logs the reason and reconnects with backoff instead of treating it like a stream that simply ended.
 
