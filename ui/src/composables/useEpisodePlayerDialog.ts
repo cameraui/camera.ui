@@ -35,7 +35,7 @@ export function useEpisodePlayerDialog() {
       dialogSize: {
         desktop: {
           maxWidth: '900px',
-          maxHeight: 'calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
+          maxHeight: 'calc(100% - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
           width: '60vw',
         },
       },

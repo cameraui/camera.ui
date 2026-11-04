@@ -61,7 +61,7 @@
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.table_rows') }}</Message>
               </div>
 
-              <div class="w-full flex flex-col gap-2">
+              <div v-if="!smBreakpoint" class="w-full flex flex-col gap-2">
                 <CuiToggleRow :label="$t('components.form.label.navbar_stay_collapsed')" :hint="$t('components.form.hint.navbar_stay_collapsed')">
                   <ToggleSwitch v-model="uiSettings.interface.navbarStayCollapsed" />
                 </CuiToggleRow>
@@ -71,7 +71,7 @@
         </Card>
       </div>
 
-      <div v-if="!compact">
+      <div v-if="!compact && !smBreakpoint">
         <span class="card-title">{{ $t('views.settings.navigation') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -92,30 +92,11 @@
           </template>
         </Card>
       </div>
-
-      <div>
-        <span class="card-title">{{ $t('views.settings.debugging') }}</span>
-        <Card class="cui-card">
-          <template #content>
-            <div class="w-full flex flex-col gap-2">
-              <CuiToggleRow :label="$t('components.form.label.debug_verbose')" :hint="$t('components.form.hint.debug_verbose')">
-                <ToggleSwitch :model-value="debugOn" @update:model-value="setDebug" />
-              </CuiToggleRow>
-
-              <CuiToggleRow :label="$t('components.form.label.record_logs')" :hint="$t('components.form.hint.record_logs')">
-                <ToggleSwitch :model-value="recording" @update:model-value="setRecording" />
-              </CuiToggleRow>
-            </div>
-          </template>
-        </Card>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Logger } from '@camera.ui/logger';
-
 import { isHaPanel } from '@/common/base.js';
 import { landingPageRoutes } from '@/router/index.js';
 
@@ -123,6 +104,7 @@ withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
 
 const { t } = useI18n();
 const { settingsInNav, isCollapsible, setCollapsible, setSettingsInNav } = useNavLayout();
+const { smBreakpoint } = useSharedCuiBreakpoint();
 
 const localeStore = useLocaleStore();
 const { language, languageOptions } = storeToRefs(localeStore);
@@ -132,9 +114,6 @@ const { colors, theme, autoMode } = storeToRefs(themeStore);
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
-
-const recording = ref(Logger.isRecording());
-const debugOn = ref(Logger.isDebug());
 
 const tableRowsOptions = [5, 10, 15, 25, 50, 100];
 
@@ -153,22 +132,6 @@ const settingsViewOptions = computed(() =>
     value: view,
   })),
 );
-
-const offFlags = Logger.onChange(() => {
-  recording.value = Logger.isRecording();
-  debugOn.value = Logger.isDebug();
-});
-
-function setRecording(value: boolean): void {
-  Logger.setRecording(value);
-  if (!value) Logger.clear();
-}
-
-function setDebug(value: boolean): void {
-  Logger.setDebug(value);
-}
-
-onUnmounted(offFlags);
 </script>
 
 <style scoped></style>

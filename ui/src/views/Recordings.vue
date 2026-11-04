@@ -964,7 +964,7 @@ function openRecordingDialog(event: RecordedEvent, timestamp: number): void {
     dialogSize: {
       desktop: {
         maxWidth: '800px',
-        maxHeight: 'calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
+        maxHeight: 'calc(100% - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))',
         width: '50vw',
       },
     },

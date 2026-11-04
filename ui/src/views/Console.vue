@@ -64,9 +64,7 @@
       <div ref="scrollEl" class="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] leading-snug">
         <div v-if="!filtered.length" class="h-full flex flex-col items-center justify-center gap-4">
           <i-mdi:bug class="w-12 h-12 text-muted" />
-          <span class="text-muted text-sm px-4 text-center">{{
-            source === 'connection' || recording ? $t('views.console.empty') : $t('views.console.recording_off')
-          }}</span>
+          <span class="text-muted text-sm px-4 text-center">{{ source === 'connection' || logging ? $t('views.console.empty') : $t('views.console.logging_off') }}</span>
         </div>
         <div v-for="(e, i) in filtered" :key="i" class="whitespace-pre-wrap break-words py-0.5 border-b border-white/5" :class="levelClass(e.level)">
           <span class="text-muted">{{ time(e.t) }}</span>
@@ -78,17 +76,24 @@
       </div>
     </div>
 
-    <Button
-      v-tooltip="{ value: $t('views.console.refresh') }"
-      severity="secondary"
-      rounded
-      class="absolute right-3 bottom-3 z-11 opacity-60 hover:opacity-100 transition"
-      @click="refresh"
-    >
-      <template #icon>
-        <i-lucide:refresh-cw class="text-sm" />
-      </template>
-    </Button>
+    <CuiFloatingButtonGroup>
+      <CuiFloatingButton
+        grouped
+        :tooltip-props="{ value: $t('views.console.refresh') }"
+        :button-props="{ severity: 'secondary' }"
+        :icon="RefreshIcon"
+        :icon-props="{ width: '100%', height: '100%' }"
+        @click="refresh"
+      />
+      <CuiFloatingButton
+        grouped
+        :tooltip-props="{ value: logging ? $t('views.console.stop_logging') : $t('views.console.start_logging') }"
+        :button-props="{ class: 'text-white' }"
+        :icon="logging ? StopIcon : RecordIcon"
+        :icon-props="{ width: '100%', height: '100%' }"
+        @click="toggleLogging"
+      />
+    </CuiFloatingButtonGroup>
 
     <CuiMenu
       ref="levelMenuRef"
@@ -107,6 +112,9 @@
 
 <script setup lang="ts">
 import { buildExport, Logger } from '@camera.ui/logger';
+import RecordIcon from '~icons/carbon/recording-filled';
+import StopIcon from '~icons/carbon/stop-filled';
+import RefreshIcon from '~icons/lucide/refresh-cw';
 
 import { copyToClipboard } from '@/common/utils.js';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
@@ -158,6 +166,7 @@ const mobileSearchInput = useTemplateRef<{ $el: HTMLElement }>('mobileSearchInpu
 const levelMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('levelMenuRef');
 
 const recording = ref(Logger.isRecording());
+const debugOn = ref(Logger.isDebug());
 const stickToBottom = ref(true);
 const nativePlatform = ref('web');
 
@@ -180,6 +189,8 @@ const levelMenuItems = computed<MenuItem[]>(() =>
     onClick: () => toggleLevel(level),
   })),
 );
+
+const logging = computed(() => recording.value && debugOn.value);
 
 const filtered = computed<ConsoleRow[]>(() => {
   const q = filter.value.trim().toLowerCase();
@@ -216,6 +227,12 @@ function toggleSource(): void {
 
 function toggleLevel(level: LogLevel): void {
   selectedLevels.value = selectedLevels.value.includes(level) ? selectedLevels.value.filter((l) => l !== level) : [...selectedLevels.value, level];
+}
+
+function toggleLogging(): void {
+  const enabled = !logging.value;
+  Logger.setDebug(enabled);
+  Logger.setRecording(enabled);
 }
 
 function openMobileSearch(): void {
@@ -302,6 +319,7 @@ onMounted(() => {
   });
   offFlags = Logger.onChange(() => {
     recording.value = Logger.isRecording();
+    debugOn.value = Logger.isDebug();
   });
   if (isConnectionBooted()) {
     const journal = getConnection().journal;

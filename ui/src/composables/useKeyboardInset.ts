@@ -1,3 +1,5 @@
+import { absolutePosition } from '@openuxkit/utils/dom';
+
 import { isPageHeld, isPageParked, parkPage, pinPage, unparkPage, unpinPage } from '@/common/pageScroll.js';
 import { isCapacitor } from '@/connection/index.js';
 
@@ -130,6 +132,25 @@ export function registerKeyboardInset(): void {
   window.visualViewport?.addEventListener('scroll', measure);
   document.addEventListener('focusin', () => setTimeout(measure, 50));
   document.addEventListener('focusout', () => setTimeout(measure, 50));
+
+  // safari moves the page while the keyboard comes up, a dropdown opened in that moment stays offset
+  let alignFrame = 0;
+  const realign = (): void => {
+    cancelAnimationFrame(alignFrame);
+    alignFrame = requestAnimationFrame(alignFocusedOverlay);
+  };
+  window.addEventListener('scroll', realign, { passive: true });
+  window.visualViewport?.addEventListener('resize', realign);
+  window.visualViewport?.addEventListener('scroll', realign);
+}
+
+function alignFocusedOverlay(): void {
+  const input = document.activeElement;
+  if (!isTextEntryElement(input)) return;
+  const controls = input.getAttribute('aria-controls');
+  const overlay = controls ? document.getElementById(controls)?.closest<HTMLElement>('[data-pc-section="overlay"]') : null;
+  if (overlay?.parentElement !== document.body) return;
+  absolutePosition(overlay, input.closest<HTMLElement>('[data-pc-section="inputmultiple"]') ?? input);
 }
 
 function parkUnderOverlays(onPark: () => void, onRelease: () => Promise<void>): void {

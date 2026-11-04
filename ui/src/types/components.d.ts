@@ -319,7 +319,6 @@ declare module 'vue' {
     'ILucide:plus': typeof import('~icons/lucide/plus')['default']
     'ILucide:power': typeof import('~icons/lucide/power')['default']
     'ILucide:powerOff': typeof import('~icons/lucide/power-off')['default']
-    'ILucide:refreshCw': typeof import('~icons/lucide/refresh-cw')['default']
     'ILucide:settings2': typeof import('~icons/lucide/settings2')['default']
     'ILucide:thermometer': typeof import('~icons/lucide/thermometer')['default']
     'ILucide:trash2': typeof import('~icons/lucide/trash2')['default']

@@ -240,7 +240,7 @@ onMounted(async () => {
 .cui-assistant-drawer-mini {
   align-self: flex-end;
   width: 400px !important;
-  height: min(640px, calc(100vh - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))) !important;
+  height: min(640px, calc(100% - max(1rem, var(--safe-area-inset-top)) - max(1rem, var(--safe-area-inset-bottom)))) !important;
   margin: 0 max(1rem, var(--safe-area-inset-right)) max(1rem, var(--safe-area-inset-bottom)) 0;
   border-radius: 16px;
   border: 1px solid var(--border-color);

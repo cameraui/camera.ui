@@ -44,6 +44,11 @@ export interface CuiMenuEmits {
   (e: 'click:menu-item', item: MenuItem): void;
 }
 
+export const CUI_MENU_EDGE = 12;
+export const CUI_MENU_MAX_WIDTH = `calc(100vw - var(--safe-area-inset-left) - var(--safe-area-inset-right) - ${2 * CUI_MENU_EDGE}px)`;
+export const CUI_MENU_CHROME = 40; // popover gutter, padding and border around the list
+export const CUI_MENU_MIN_HEIGHT = 160;
+
 export const CUI_MENU_DEFAULTS = {
   autoHide: true,
   dividers: 'all',

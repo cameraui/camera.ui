@@ -1,5 +1,5 @@
 <template>
-  <Popover ref="menuRef" class="shadow-lg cui-rounded-corner" v-bind="popover" @show="onShow" @hide="onHide">
+  <Popover ref="menuRef" class="shadow-lg cui-rounded-corner" :style="{ maxWidth: CUI_MENU_MAX_WIDTH }" v-bind="popover" @show="onShow" @hide="onHide">
     <DefineTemplate v-slot="{ item }">
       <CuiListItem
         :key="item.key"
@@ -27,9 +27,10 @@
         </template>
 
         <template #default="{ isExactActive }">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <span
               v-bind="item.labelProps"
+              class="truncate"
               :class="{
                 'text-primary': isExactActive || item.active,
                 '!font-bold': item.avatarProps,
@@ -68,7 +69,7 @@
 
     <Card class="cui-card border-0!" :pt="{ body: { class: 'p-0' } }">
       <template #content>
-        <div class="overflow-y-auto overscroll-contain" :style="scrollStyle">
+        <div ref="scrollRef" class="overflow-y-auto overscroll-contain" :style="scrollStyle">
           <template v-for="(row, i) in rows" :key="i">
             <div v-if="row.type === 'group'" class="px-3 pt-3 pb-1 text-[0.7rem] font-semibold uppercase tracking-wider text-muted-color select-none">
               {{ row.label }}
@@ -83,7 +84,7 @@
 
 <script setup lang="ts">
 import { closeOpenMenu, registerOpenMenu, releaseOpenMenu } from '@/common/menuRegistry.js';
-import { CUI_MENU_DEFAULTS } from './types.js';
+import { CUI_MENU_CHROME, CUI_MENU_DEFAULTS, CUI_MENU_EDGE, CUI_MENU_MAX_WIDTH, CUI_MENU_MIN_HEIGHT } from './types.js';
 
 import type { Popover } from 'openvue';
 import type { CuiMenuEmits, CuiMenuProps, MenuItem } from './types.js';
@@ -98,12 +99,16 @@ type MenuRow = { type: 'group'; label: string } | { type: 'item'; item: MenuItem
 const [DefineTemplate, ReuseTemplate] = createReusableTemplate<{ item: MenuItem & { showDivider?: boolean } }>();
 
 const menuRef = useTemplateRef<InstanceType<typeof Popover>>('menuRef');
+const scrollRef = useTemplateRef<HTMLElement>('scrollRef');
 const isOpen = ref(false);
 const data = ref();
+const fitHeight = ref<string>();
+let edgeObserver: ResizeObserver | undefined;
 
 const scrollStyle = computed(() => {
-  if (maxHeight.value === undefined) return undefined;
-  return { maxHeight: typeof maxHeight.value === 'number' ? `${maxHeight.value}px` : maxHeight.value };
+  const limit = typeof maxHeight.value === 'number' ? `${maxHeight.value}px` : maxHeight.value;
+  if (!fitHeight.value) return limit ? { maxHeight: limit } : undefined;
+  return { maxHeight: limit ? `min(${limit}, ${fitHeight.value})` : fitHeight.value };
 });
 
 const baseItems = computed<MenuItem[]>(() => {
@@ -170,11 +175,14 @@ function onClickItem(item: MenuItem) {
 
 function onShow() {
   registerOpenMenu(hide);
+  watchScreenEdges();
   isOpen.value = true;
   emit('show');
 }
 
 function onHide() {
+  edgeObserver?.disconnect();
+  edgeObserver = undefined;
   releaseOpenMenu(hide);
   data.value = undefined;
   isOpen.value = false;
@@ -184,6 +192,7 @@ function onHide() {
 function toggleMenu(event: Event, target?: any, customData?: any) {
   closeOpenMenu(hide);
   data.value = customData;
+  fitToScreen(target ?? event.currentTarget);
   menuRef.value?.toggle(event, target);
 }
 
@@ -193,7 +202,31 @@ function hide() {
 
 function show(event: Event, target?: any) {
   closeOpenMenu(hide);
+  fitToScreen(target ?? event.currentTarget);
   menuRef.value?.show(event, target);
+}
+
+function fitToScreen(anchor: unknown) {
+  if (!(anchor instanceof Element)) return;
+  const { top, bottom } = anchor.getBoundingClientRect();
+  const below = window.innerHeight - bottom;
+  const space = Math.max(Math.max(below, top) - CUI_MENU_CHROME - CUI_MENU_EDGE, CUI_MENU_MIN_HEIGHT);
+  fitHeight.value = `calc(${space}px - var(--safe-area-inset-${below >= top ? 'bottom' : 'top'}))`;
+}
+
+function watchScreenEdges() {
+  const popover = scrollRef.value?.closest<HTMLElement>('[data-pc-name="popover"]');
+  if (!popover) return;
+  edgeObserver = new ResizeObserver(() => keepInsideScreen(popover));
+  edgeObserver.observe(popover);
+}
+
+function keepInsideScreen(popover: HTMLElement) {
+  // offsets, the enter animation scales the bounding rect
+  const left = popover.offsetLeft - window.scrollX;
+  const right = left + popover.offsetWidth;
+  const shift = left < CUI_MENU_EDGE ? CUI_MENU_EDGE - left : Math.min(window.innerWidth - CUI_MENU_EDGE - right, 0);
+  if (shift) popover.style.insetInlineStart = `${parseFloat(popover.style.insetInlineStart || '0') + shift}px`;
 }
 
 defineExpose({

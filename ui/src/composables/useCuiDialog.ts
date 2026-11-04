@@ -156,28 +156,28 @@ const RESPONSIVE_DIALOG_PROPS: ResponsiveDialogProps = {
     textDialog: {
       style: {
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       },
       ...RESPONSE_DIALOG_BASE_MOBILE_PT,
     },
     imageDialog: {
       style: {
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       },
       ...RESPONSE_DIALOG_BASE_MOBILE_PT,
     },
     componentDialog: {
       style: {
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       },
       ...RESPONSE_DIALOG_BASE_MOBILE_PT,
     },
     stepperDialog: {
       style: {
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       },
       ...RESPONSE_DIALOG_BASE_MOBILE_PT,
     },
@@ -475,7 +475,7 @@ export function useCuiDialog() {
       dialogProps.style = {
         ...dialogProps.style,
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       };
 
       dialogProps.pt = {
@@ -498,7 +498,7 @@ export function useCuiDialog() {
       dialogProps.style = {
         ...dialogProps.style,
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       };
 
       dialogProps.pt = {
@@ -524,7 +524,7 @@ export function useCuiDialog() {
       dialogProps.style = {
         ...dialogProps.style,
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       };
 
       dialogProps.pt = {
@@ -550,7 +550,7 @@ export function useCuiDialog() {
       dialogProps.style = {
         ...dialogProps.style,
         maxWidth: 'none',
-        maxHeight: '100vh',
+        maxHeight: '100%',
       };
 
       dialogProps.pt = {
