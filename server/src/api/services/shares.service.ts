@@ -22,6 +22,7 @@ interface CreateShareParams {
   ttlHours: number;
   maxViewers: number;
   label?: string;
+  turn?: boolean;
 }
 
 interface ShareCreateResult {
@@ -95,6 +96,7 @@ export class SharesService {
       totalViews: 0,
       revoked: false,
       label: params.label,
+      turn: params.turn,
     };
 
     await this.registerWithCloud(token, expiresAt);

@@ -172,6 +172,7 @@ export class ServerController {
       const serverAddressesChanged = isEqual(oldServer.serverAddresses, serverInfo.serverAddresses, true) !== true;
       if (serverAddressesChanged) {
         await this.configService.updateGo2RtcWebRtcFilter(serverInfo.serverAddresses, oldServer.serverAddresses, true);
+        await req.system.restartGo2rtc();
       }
 
       if (serverAddressesChanged || oldServer.localUrl !== serverInfo.localUrl) {

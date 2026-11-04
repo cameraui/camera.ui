@@ -10,6 +10,7 @@ export const createShareSchema = zod.object({
     .max(30 * 24, 'Maximum 720 hours'),
   maxViewers: zod.number().int().min(0, 'Minimum 0').optional(),
   label: zod.string().trim().optional(),
+  turn: zod.boolean().optional(),
 });
 
 export const shareTokenParamsSchema = zod.object({

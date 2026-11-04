@@ -733,6 +733,7 @@ import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
 import { copyToClipboard, deepToRaw } from '@/common/utils.js';
 import ConnectionDetailsDialog from '@/components/CuiDialog/templates/ConnectionDetails/ConnectionDetails.vue';
 import { isCapacitor, isInCloudSession } from '@/connection/index.js';
+import { refreshIceServers } from '@/plugins/cameraui.js';
 import { remotePatchSchema } from '@/schemas/remote.schema.js';
 import { serverPatchSchema } from '@/schemas/server.schema.js';
 
@@ -1235,7 +1236,24 @@ async function onPatchRemote(values: PatchRemoteInput) {
   } catch {}
 }
 
-async function onPatchServer(values: PatchServerInput) {
+function onPatchServer(values: PatchServerInput) {
+  if (isEqual(serverInfo.value?.serverAddresses ?? [], values.serverAddresses, true)) {
+    patchServerInfo(values);
+    return;
+  }
+
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('views.settings.go2rtc_restart_confirm'),
+      confirmText: t('components.form.button.save_and_restart'),
+      loading: patchServerLoading,
+    },
+    onConfirm: () => patchServerInfo(values),
+  });
+}
+
+async function patchServerInfo(values: PatchServerInput) {
   try {
     await patchServer(values);
   } catch {}
@@ -1245,7 +1263,7 @@ function confirmSaveWebrtc() {
   dialog.openTextDialog({
     data: {
       title: t('components.dialog.title.confirm'),
-      contentText: t('views.settings.webrtc_restart_confirm'),
+      contentText: t('views.settings.go2rtc_restart_confirm'),
       confirmText: t('components.form.button.save_and_restart'),
       loading: putWebrtcLoading,
     },
@@ -1261,6 +1279,7 @@ async function saveWebrtc() {
       stun: form.stun.map((url) => url.trim()),
       turn: turnUrls.length ? { urls: turnUrls, username: form.username, ...(form.password ? { credential: form.password } : {}) } : null,
     });
+    await refreshIceServers();
   } catch {}
 }
 

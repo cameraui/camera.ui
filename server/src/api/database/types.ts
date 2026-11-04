@@ -691,6 +691,7 @@ export interface DBShare {
   totalViews: number;
   revoked: boolean;
   label?: string;
+  turn?: boolean;
 }
 
 export interface PluginData {

@@ -106,6 +106,11 @@ export async function putWebrtc(settings: PutWebrtcInput): Promise<WebrtcSetting
   return response.data;
 }
 
+export async function getIceServers(): Promise<RTCIceServer[]> {
+  const response: AxiosResponse<RTCIceServer[]> = await api.get('/remote/webrtc/ice-servers');
+  return response.data;
+}
+
 export class RemoteQuery {
   private _queryClient = useQueryClient();
   private t = i18n.global.t;

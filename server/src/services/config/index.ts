@@ -24,12 +24,13 @@ import { MIN_NODE_VERSION } from '../../utils/engines.js';
 import { announceUpdateChannel } from '../../utils/ipc.js';
 import { execSafePath } from '../../utils/path.js';
 import { newBackupKey, parseBackupKey } from './backup-archive.js';
-import { DEFAULT_CONFIG, DEFAULT_GO2RTC_CONFIG, ELECTRON_ASAR_UNPACKED } from './constants.js';
+import { DEFAULT_CONFIG, DEFAULT_GO2RTC_CONFIG, DEFAULT_ICE_SERVERS, ELECTRON_ASAR_UNPACKED } from './constants.js';
 import { resolveProxyAuth } from './proxy-auth.js';
 import { runPendingRestore } from './restore.js';
 
 import type { LoggerOptions } from '@camera.ui/common/logger';
 import type { PidRegistryEntry } from '@camera.ui/common/node';
+import type { IceServer } from '@camera.ui/sdk/internal';
 import type { DeepPartial } from '../../types.js';
 import type { LoggerService } from '../logger/index.js';
 import type { ProxyAuthSettings } from './proxy-auth.js';
@@ -159,6 +160,10 @@ export class ConfigService {
 
   set go2rtcConfig(newConfig: Go2RtcConfig) {
     this.validateAndSetGo2RtcConfig(newConfig);
+  }
+
+  get iceServers(): IceServer[] {
+    return this._go2rtcConfig.webrtc.ice_servers ?? DEFAULT_ICE_SERVERS;
   }
 
   get DEFAULT_PLUGINS(): string[] {

@@ -1,24 +1,39 @@
+import { inject } from '../../container.js';
+import { browserIceServers, browserStunServers } from '../../services/config/ice-servers.js';
 import { SharesService } from '../services/shares.service.js';
 
+import type { IceServer } from '@camera.ui/sdk/internal';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { ConfigService } from '../../services/config/index.js';
+import type { DBShare } from '../database/types.js';
 import type { AuthLoginRequest, CreateShareRequest, ListShareRequest, ShareParamsRequest, ValidateShareRequest } from '../types/index.js';
 
 interface ShareViewerRequest extends ShareParamsRequest {
   Body: unknown;
 }
 
+interface ViewerSession {
+  access_token: string;
+  camera_id: string;
+  stream_name: string;
+  expires_in: number;
+  ice_servers: IceServer[];
+}
+
 const MAX_SHARE_TTL_HOURS = 30 * 24;
 
 export class SharesController {
+  private configService: ConfigService;
   private service: SharesService;
 
   constructor(_app: FastifyInstance) {
+    this.configService = inject('configService');
     this.service = new SharesService();
   }
 
   public async create(req: FastifyRequest<AuthLoginRequest & CreateShareRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const { cameraId, sourceId, ttlHours, maxViewers, label } = req.body;
+      const { cameraId, sourceId, ttlHours, maxViewers, label, turn } = req.body;
 
       if (!cameraId || !sourceId || !ttlHours) {
         return reply.code(400).send({ statusCode: 400, message: 'cameraId, sourceId and ttlHours are required' });
@@ -34,6 +49,7 @@ export class SharesController {
         ttlHours,
         maxViewers: maxViewers || 0,
         label,
+        turn,
       });
 
       return reply.code(201).send(result);
@@ -99,12 +115,7 @@ export class SharesController {
       const jwtToken = await this.service.issueViewerToken(share);
       await this.service.countView(token);
 
-      return reply.code(200).send({
-        access_token: jwtToken,
-        camera_id: share.cameraId,
-        stream_name: streamName,
-        expires_in: 300,
-      });
+      return reply.code(200).send(this.viewerSession(share, jwtToken, streamName));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
@@ -147,15 +158,21 @@ export class SharesController {
         return reply.code(401).send({ statusCode: 401, message: 'Viewer token required', error: 'unauthorized' });
       }
 
-      return reply.code(200).send({
-        access_token: jwtToken,
-        camera_id: actualShare.cameraId,
-        stream_name: streamName,
-        expires_in: 300,
-      });
+      return reply.code(200).send(this.viewerSession(actualShare, jwtToken, streamName));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
+  }
+
+  private viewerSession(share: DBShare, accessToken: string, streamName: string): ViewerSession {
+    const iceServers = this.configService.iceServers;
+    return {
+      access_token: accessToken,
+      camera_id: share.cameraId,
+      stream_name: streamName,
+      expires_in: 300,
+      ice_servers: share.turn ? browserIceServers(iceServers) : browserStunServers(iceServers),
+    };
   }
 }
 

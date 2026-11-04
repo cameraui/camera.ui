@@ -22,6 +22,10 @@
         <label class="cui-label">{{ $t('shares.label') }}</label>
         <InputText v-model="label" :placeholder="$t('shares.label_placeholder')" class="w-full" />
       </div>
+
+      <CuiToggleRow v-if="hasTurnServer" :label="$t('shares.turn')" :hint="$t('shares.turn_hint')" label-for="shareTurn">
+        <ToggleSwitch v-model="turn" input-id="shareTurn" />
+      </CuiToggleRow>
     </div>
 
     <div v-else class="flex flex-col gap-4">
@@ -89,6 +93,7 @@ const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 const { mutateAsync: createShare, isPending: createLoading } = sharesQuery.createShareQuery();
 const { data: remoteInfo } = remoteQuery.getRemoteInfoQuery();
 const { data: registrationStatus } = remoteQuery.getRegistrationStatusQuery();
+const { data: webrtcSettings } = remoteQuery.getWebrtcQuery();
 
 const ttlOptions = [
   { label: '1 ' + t('shares.hour'), value: 1 },
@@ -108,11 +113,13 @@ const sourceOptions = props.sources.map((s) => ({ label: s.name, value: s._id })
 const ttl = ref(24);
 const maxViewers = ref(0);
 const label = ref('');
+const turn = ref(false);
 const sourceId = ref(props.sources.find((s) => s.role === 'high-resolution')?._id ?? props.sources[0]?._id ?? '');
 const shareResult = ref<ShareCreateResult | null>(null);
 
 const canShare = computed(() => !!navigator.share);
 const isLoading = computed(() => Boolean(dialogRefProps.loading?.value || createLoading.value));
+const hasTurnServer = computed(() => !!webrtcSettings.value?.turn);
 const needsCloud = computed(() => remoteInfo.value?.remoteSettings.enabled === false || registrationStatus.value?.isRegistered === false);
 
 async function shareNative() {
@@ -139,6 +146,7 @@ async function onConfirm(): Promise<void | null> {
         ttlHours: ttl.value,
         maxViewers: maxViewers.value,
         label: label.value || undefined,
+        turn: hasTurnServer.value && turn.value,
       },
     });
   } catch {

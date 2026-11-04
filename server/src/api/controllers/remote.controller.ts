@@ -2,7 +2,7 @@ import { isLanClientAddress, isLoopbackAddress, isLoopbackHost } from '@camera.u
 import { isEqual } from '@camera.ui/common/utils';
 
 import { inject } from '../../container.js';
-import { DEFAULT_ICE_SERVERS } from '../../services/config/constants.js';
+import { browserIceServers, isTurnServer } from '../../services/config/ice-servers.js';
 import { TURN_URL_PATTERN } from '../schemas/remote.schema.js';
 import { RemoteService } from '../services/remote.service.js';
 import { ServerService } from '../services/server.service.js';
@@ -26,10 +26,6 @@ import type {
   RemoteWebrtcPutRequest,
   WebrtcSettings,
 } from '../types/index.js';
-
-function isTurnServer(server: IceServer): boolean {
-  return server.urls.some((url) => TURN_URL_PATTERN.test(url));
-}
 
 function webrtcSettings(iceServers: IceServer[]): WebrtcSettings {
   const turn = iceServers.find(isTurnServer);
@@ -280,13 +276,17 @@ export class RemoteController {
   }
 
   public getWebrtc(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
-    return reply.code(200).send(webrtcSettings(this.iceServers()));
+    return reply.code(200).send(webrtcSettings(this.configService.iceServers));
+  }
+
+  public getIceServers(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    return reply.code(200).send(browserIceServers(this.configService.iceServers));
   }
 
   public async putWebrtc(req: FastifyRequest<AuthLoginRequest & RemoteWebrtcPutRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const { stun, turn } = req.body;
-      const current = this.iceServers();
+      const current = this.configService.iceServers;
       const currentTurn = current.find(isTurnServer);
 
       const credential = turn?.credential ?? currentTurn?.credential;
@@ -315,10 +315,6 @@ export class RemoteController {
         message: error.message,
       });
     }
-  }
-
-  private iceServers(): IceServer[] {
-    return this.configService.go2rtcConfig.webrtc.ice_servers ?? DEFAULT_ICE_SERVERS;
   }
 
   private inferCurrentConnection(req: FastifyRequest, externalUrl: string | null): ConnectionInfo['currentConnection'] {

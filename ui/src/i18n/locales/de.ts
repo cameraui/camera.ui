@@ -2143,6 +2143,8 @@ export default {
     share_title: 'Kamera-Stream',
     source: 'Quelle',
     ttl: 'Gültig für',
+    turn: 'TURN-Server mitgeben',
+    turn_hint: 'Hilft Zuschauern, deren Netz direkte Verbindungen blockiert. Sie erhalten das TURN-Passwort und behalten es, auch wenn der Link abläuft.',
     unlimited: 'Unbegrenzt',
     viewers: 'Zuschauer',
   },
@@ -3311,7 +3313,7 @@ export default {
       webrtc_turn_hint: 'Leitet die Verbindung weiter, wenn kein direkter Weg zustande kommt, etwa im Mobilfunknetz.',
       webrtc_turn_invalid: 'Jede Adresse beginnt mit turn: oder turns:',
       webrtc_password_keep_hint: 'Leer lassen, um das gespeicherte Passwort zu behalten.',
-      webrtc_restart_confirm: 'Beim Speichern startet Go2RTC neu. Live-Ansichten und Aufnahmen setzen dafür ein paar Sekunden aus.',
+      go2rtc_restart_confirm: 'Beim Speichern startet Go2RTC neu. Live-Ansichten und Aufnahmen setzen dafür ein paar Sekunden aus.',
       status_info: 'Zeigt an, ob dieser Server bei der camera.ui Cloud für den Fernzugriff registriert ist.',
       server_name: 'Servername',
       server_name_info:

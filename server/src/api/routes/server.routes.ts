@@ -27,7 +27,7 @@ export const ServerRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
     handler: serverController.patchServerInfo.bind(serverController),
     schema: {
       tags: ['Server'],
-      summary: 'Update server network address settings',
+      summary: 'Update server network address settings, restarts go2rtc when the addresses change',
       body: patchServerSchema,
     },
   });

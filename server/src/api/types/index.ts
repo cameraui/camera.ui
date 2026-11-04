@@ -1335,6 +1335,7 @@ export interface CreateShareBody {
   ttlHours: number;
   maxViewers: number;
   label?: string;
+  turn?: boolean;
 }
 
 export interface ShareTokenParams {

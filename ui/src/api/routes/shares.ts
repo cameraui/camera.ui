@@ -33,6 +33,7 @@ export interface CreateShareInput {
   ttlHours: number;
   maxViewers: number;
   label?: string;
+  turn?: boolean;
 }
 
 export async function createShareFn({ shareData }: { shareData: CreateShareInput }): Promise<ShareCreateResult> {

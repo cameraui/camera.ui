@@ -210,4 +210,15 @@ export const RemoteRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
       body: putWebrtcSchema,
     },
   });
+
+  app.route({
+    url: '/webrtc/ice-servers',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: remoteController.getIceServers.bind(remoteController),
+    schema: {
+      tags: ['Remote'],
+      summary: 'Get the ICE servers a browser uses for WebRTC, with TURN credentials',
+    },
+  });
 };
