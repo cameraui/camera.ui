@@ -1,4 +1,5 @@
 import { SharesController } from '../controllers/shares.controller.js';
+import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import { createShareSchema, shareTokenParamsSchema, sharesListQuerySchema, shareViewQuerySchema } from '../schemas/shares.schema.js';
 
@@ -11,7 +12,7 @@ export const SharesRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/',
     method: 'POST',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
     handler: sharesController.create.bind(sharesController),
     schema: {
       tags: ['Shares'],
@@ -23,7 +24,7 @@ export const SharesRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/',
     method: 'GET',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
     handler: sharesController.list.bind(sharesController),
     schema: {
       tags: ['Shares'],
@@ -35,7 +36,7 @@ export const SharesRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
   app.withTypeProvider<ZodTypeProvider>().route({
     url: '/:token',
     method: 'DELETE',
-    preValidation: [validJWTNeeded],
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
     handler: sharesController.revoke.bind(sharesController),
     schema: {
       tags: ['Shares'],
