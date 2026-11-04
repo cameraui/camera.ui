@@ -290,6 +290,7 @@ export class DetectionEventManager {
   private carriedFacesAt?: number;
   private carriedPlatesAt?: number;
   private carriedClassifiersAt?: number;
+  private carriedCrossingsAt?: number;
   private heldSensorTriggers = new Set<string>();
 
   private readonly eventSubject: string;
@@ -350,6 +351,7 @@ export class DetectionEventManager {
     this.carriedFacesAt = data.facesAt;
     this.carriedPlatesAt = data.platesAt;
     this.carriedClassifiersAt = data.classifiersAt;
+    this.carriedCrossingsAt = data.lineCrossings?.[0]?.timestamp;
 
     if (triggers.length === 0 && !this.activeEvent) return;
 
@@ -717,7 +719,10 @@ export class DetectionEventManager {
 
       if (existing) {
         const occurrences = existing.occurrences;
-        if (occurrences && !data.sensorTriggers?.includes(existing.type)) {
+        if (occurrences && existing.type === 'line-crossing') {
+          // a crossing is a point, two in one frame are one
+          noteOccurrence(occurrences, now, now > occurrences[occurrences.length - 1][1]);
+        } else if (occurrences && !data.sensorTriggers?.includes(existing.type)) {
           noteOccurrence(occurrences, now, now - occurrences[occurrences.length - 1][1] > OCCURRENCE_GAP_MS);
         } else if (occurrences && existing.type === data.startedSensorTrigger) {
           // a sensor starts and ends its own occurrence, the dwell after its end only keeps the event going
@@ -1147,7 +1152,8 @@ export class DetectionEventManager {
       }
     }
 
-    if (data.lineCrossings && data.lineCrossings.length > 0) {
+    // the coordinator repeats the last crossings until the cascade ends, each one counts once
+    if (data.lineCrossings?.length && data.lineCrossings[0].timestamp !== this.carriedCrossingsAt) {
       for (const lc of data.lineCrossings) {
         triggers.push({
           type: 'line-crossing',
