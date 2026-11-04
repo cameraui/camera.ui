@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [2.4.7]
 
-### After the update
+- **Updates no longer get stuck on "Another update is already in progress".** A restart in the middle of an update blocked every further update in Docker and the Home Assistant app. The fix comes with the next Docker image and Home Assistant app.
 
 - **Update the NVR plugin to 1.7.0.** Until then a deleted person's name can stay on someone still in front of a camera, picking a sound in Recordings still shows every sound, Metrics → Storage has no delete button, and the timeline marks only the first and last time a sound or sensor went off in an event.
 
