@@ -54,7 +54,12 @@ export function withEmptyTurnRetry(adapter: AssistantAdapter, onRetry: () => voi
           finish = chunk;
           continue;
         }
-        if (chunk.type === EventType.RUN_ERROR) failed = true;
+        if (chunk.type === EventType.RUN_ERROR) {
+          failed = true;
+          // the empty attempts before were billed too
+          yield index ? { ...chunk, usage: addUsage(usage, chunk.usage) } : chunk;
+          continue;
+        }
         if ((chunk.type === EventType.TEXT_MESSAGE_CONTENT && chunk.delta.trim()) || chunk.type === EventType.TOOL_CALL_START) answered = true;
         yield chunk;
       }

@@ -2,7 +2,7 @@ import { ASK_USER_INTERRUPT, ASSISTANT_CLIENT_TOOLS, ASSISTANT_PAGES } from '@sh
 import { EventType, toolDefinition } from '@tanstack/ai';
 import { fetchServerSentEvents, useChat } from '@tanstack/ai-vue';
 
-import { cancelAssistantRun, hydrateAssistantThread } from '@/api/routes/assistant.js';
+import { hydrateAssistantThread } from '@/api/routes/assistant.js';
 import { CONTINUE_MARK } from '@/components/CuiAssistantMessage/types.js';
 import { ASSISTANT_SETTING_KEYS } from '@/components/CuiAssistantSetting/types.js';
 import { fetchAuthHeaders } from '@/connection/fetchAuth.js';
@@ -209,7 +209,7 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
 
   seedAttachments(options.initialAttachments ?? {});
 
-  const transport = fetchServerSentEvents(chatUrl, { fetchClient: authedFetch });
+  const transport = fetchServerSentEvents(chatUrl, { fetchClient: authedFetch, cancelUrl: () => `${chatUrl()}/cancel` });
   const connection = {
     ...transport,
     hydrate: async (threadId: string) => {
@@ -301,8 +301,6 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   }
 
   function stop(): void {
-    const runId = chat.runId.value;
-    if (runId) cancelAssistantRun(runId).catch(() => undefined);
     chat.stop();
     const last = chat.messages.value.at(-1);
     stoppedId.value = last?.role === 'assistant' ? last.id : null;

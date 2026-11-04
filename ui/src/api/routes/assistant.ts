@@ -66,10 +66,6 @@ export async function hydrateAssistantThread(threadId: string): Promise<Assistan
   return response.data;
 }
 
-export async function cancelAssistantRun(runId: string): Promise<void> {
-  await api.post('/assistant/chat/cancel', { runId });
-}
-
 export async function searchAssistantFilters(text: string, language: string, timezone: string): Promise<AssistantSearchResult> {
   const response: AxiosResponse<AssistantSearchResult> = await api.post('/assistant/search', { text, language, timezone });
   return response.data;

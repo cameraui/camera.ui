@@ -475,9 +475,7 @@ export class AssistantManager {
     } finally {
       clearTimeout(timer);
       release();
-      this.usage
-        .record(`plugin:${request.pluginId}`, usageEvent(model, stats))
-        .catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+      this.recordUsage(`plugin:${request.pluginId}`, model, stats);
     }
   }
 
@@ -706,12 +704,10 @@ export class AssistantManager {
       attachments,
       ctx.userId,
       thread._id,
+      () => usageEvent(model, stats),
       () => {
-        const event = usageEvent(model, stats);
-        this.usage.record(ctx.userId, event).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
-        return event;
-      },
-      () => {
+        // here and not at the answer: a run that paused for an approval or a browser tool, failed or was stopped was billed too
+        this.recordUsage(ctx.userId, model, stats);
         const run = this.runs.get(runId);
         if (run) run.finishedAt = Date.now();
         setTimeout(() => this.runs.delete(runId), REPLAY_RETENTION_MS).unref();
@@ -813,7 +809,7 @@ export class AssistantManager {
       }
     } finally {
       clearTimeout(timer);
-      this.usage.record(user._id, usageEvent(model, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+      this.recordUsage(user._id, model, stats);
     }
 
     const image = Object.values(attachments).flatMap((entry) => entry.images)[0];
@@ -853,7 +849,7 @@ export class AssistantManager {
       return toSearchResult(output, cameras);
     } finally {
       clearTimeout(timer);
-      this.usage.record(user._id, usageEvent(model, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
+      this.recordUsage(user._id, model, stats);
     }
   }
 
@@ -947,6 +943,7 @@ export class AssistantManager {
     if (model.contextTokens < EXTRACT_MIN_CONTEXT_TOKENS) return { add: [], remove: [] };
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), EXTRACT_TIMEOUT_MS);
+    const stats = newStats();
     let text = '';
     try {
       const stream = chat({
@@ -960,6 +957,7 @@ export class AssistantManager {
           },
         ],
         agentLoopStrategy: maxIterations(1),
+        middleware: [countUsage(stats)],
         abortController: abort,
       });
       for await (const chunk of stream as AsyncIterable<StreamChunk>) {
@@ -968,10 +966,16 @@ export class AssistantManager {
       }
     } finally {
       clearTimeout(timer);
+      this.recordUsage(userId, model, stats);
     }
     const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[\s\S]*$/, '}')) as Partial<MemoryChange>;
     const strings = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : []);
     return { add: strings(parsed.add).slice(0, 3), remove: strings(parsed.remove) };
+  }
+
+  private recordUsage(owner: string, model: Pick<AssistantSettings, 'provider' | 'model'>, stats: AssistantRunStats): void {
+    if (!stats.calls.length) return;
+    this.usage.record(owner, usageEvent(model, stats)).catch((error: any) => this.logger.warn(`Assistant: could not record usage: ${error.message}`));
   }
 
   private async storeUploads(ctx: AssistantRunContext, threadId: string, lastIndex: number): Promise<void> {
@@ -1228,7 +1232,7 @@ function tuningOf(model: AssistantSettings): { reasoning?: never; modelOptions?:
   return reasoningFor(model) as { reasoning?: never; modelOptions?: never; wrapFetch?: FetchWrapper };
 }
 
-function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware<AssistantRunContext>>, 'name' | 'onUsage'> {
+function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware>, 'name' | 'onUsage'> {
   return {
     name: 'camera.ui-usage',
     onUsage: (_ctx, usage) => {
