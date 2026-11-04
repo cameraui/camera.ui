@@ -57,7 +57,8 @@
 .p-inputgroup:has(.p-inputgroupaddon) > .p-inputtext,
 .p-inputgroup:has(.p-inputgroupaddon) > .p-select,
 .p-inputgroup:has(.p-inputgroupaddon) > .p-multiselect,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete {
+.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete .p-autocomplete-input-multiple {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }

@@ -648,16 +648,32 @@
 
               <div class="flex flex-col field-gap">
                 <label for="webrtcStun" class="cui-label">{{ $t('views.settings.webrtc_stun_label') }}</label>
-                <AutoComplete
-                  v-model="webrtcForm.stun"
-                  input-id="webrtcStun"
-                  multiple
-                  fluid
-                  :typeahead="false"
-                  :invalid="!!stunError"
-                  :loading="webrtcLoading"
-                  placeholder="stun:stun.example.com:3478"
-                />
+                <InputGroup>
+                  <AutoComplete
+                    v-model="webrtcForm.stun"
+                    input-id="webrtcStun"
+                    multiple
+                    fluid
+                    :typeahead="false"
+                    :invalid="!!stunError"
+                    :loading="webrtcLoading"
+                    placeholder="stun:stun.example.com:3478"
+                  />
+                  <InputGroupAddon>
+                    <Button
+                      v-tooltip="{ value: $t('components.form.button.reset_defaults') }"
+                      text
+                      severity="secondary"
+                      :disabled="webrtcLoading || stunIsDefault"
+                      type="button"
+                      @click="resetStun"
+                    >
+                      <template #icon>
+                        <i-mdi:restore />
+                      </template>
+                    </Button>
+                  </InputGroupAddon>
+                </InputGroup>
                 <span v-if="stunError" class="cui-input-error">{{ stunError }}</span>
                 <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_stun_hint') }}</Message>
               </div>
@@ -952,6 +968,8 @@ const canConnectManaged = computed(() => {
 });
 
 const stunError = computed(() => (webrtcForm.value.stun.some((url) => !STUN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_stun_invalid') : ''));
+
+const stunIsDefault = computed(() => isEqual(webrtcForm.value.stun, webrtcSettings.value?.defaultStun));
 
 const canSaveWebrtc = computed(() => {
   const { stun, turn } = webrtcForm.value;
@@ -1337,6 +1355,11 @@ function addTurnServer(): void {
 
 function removeTurnServer(key: string): void {
   webrtcForm.value.turn = webrtcForm.value.turn.filter((server) => server.key !== key);
+}
+
+function resetStun(): void {
+  if (!webrtcSettings.value) return;
+  webrtcForm.value.stun = [...webrtcSettings.value.defaultStun];
 }
 
 watch(

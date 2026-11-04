@@ -1285,6 +1285,7 @@ export interface RemoteInfo {
 export interface WebrtcSettings {
   stun: string[];
   turn: { urls: string[]; username: string; credentialSet: boolean }[];
+  defaultStun: string[];
 }
 
 export interface RemoteRegistrationStatus {

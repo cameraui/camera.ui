@@ -2,6 +2,7 @@ import { isLanClientAddress, isLoopbackAddress, isLoopbackHost } from '@camera.u
 import { isEqual } from '@camera.ui/common/utils';
 
 import { inject } from '../../container.js';
+import { DEFAULT_ICE_SERVERS } from '../../services/config/constants.js';
 import { browserIceServers, isTurnServer } from '../../services/config/ice-servers.js';
 import { TURN_URL_PATTERN } from '../schemas/remote.schema.js';
 import { RemoteService } from '../services/remote.service.js';
@@ -35,6 +36,7 @@ function webrtcSettings(iceServers: IceServer[]): WebrtcSettings {
       username: server.username ?? '',
       credentialSet: !!server.credential,
     })),
+    defaultStun: DEFAULT_ICE_SERVERS.flatMap((server) => server.urls),
   };
 }
 
