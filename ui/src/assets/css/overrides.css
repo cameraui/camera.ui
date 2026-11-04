@@ -158,8 +158,12 @@
   border-radius: 99px !important;
 }
 
-.p-chip-remove-icon {
+.p-multiselect-label .p-chip-remove-icon {
   color: #fff !important;
+}
+
+.p-autocomplete-chip {
+  background: var(--input-chip-background);
 }
 
 .p-dialog-header {
