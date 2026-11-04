@@ -35,9 +35,10 @@ export const INGRESS_DEVICE_PREFIX = 'ingress_';
 
 export const PROXY_AUTH_DEVICE_PREFIX = 'proxyauth_';
 
+// go2rtc's own default while its config sets no ice_servers
 export const DEFAULT_ICE_SERVERS: IceServer[] = [
   {
-    urls: ['stun:stun.l.google.com:19302'],
+    urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'],
   },
 ];
 

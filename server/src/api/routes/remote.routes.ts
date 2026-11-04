@@ -1,7 +1,15 @@
 import { RemoteController } from '../controllers/remote.controller.js';
 import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import { cloudflareManagedConnectSchema, pairInitSchema, pairPollSchema, patchRemoteSchema, testRemoteSchema, updateServerNameSchema } from '../schemas/remote.schema.js';
+import {
+  cloudflareManagedConnectSchema,
+  pairInitSchema,
+  pairPollSchema,
+  patchRemoteSchema,
+  putWebrtcSchema,
+  testRemoteSchema,
+  updateServerNameSchema,
+} from '../schemas/remote.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -177,6 +185,29 @@ export const RemoteRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
     schema: {
       tags: ['Remote'],
       summary: 'Log out of Cloudflare and remove stored credentials',
+    },
+  });
+
+  app.route({
+    url: '/webrtc',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: remoteController.getWebrtc.bind(remoteController),
+    schema: {
+      tags: ['Remote'],
+      summary: 'Get the STUN and TURN servers for WebRTC',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/webrtc',
+    method: 'PUT',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: remoteController.putWebrtc.bind(remoteController),
+    schema: {
+      tags: ['Remote'],
+      summary: 'Set the STUN and TURN servers for WebRTC, restarts go2rtc when they change',
+      body: putWebrtcSchema,
     },
   });
 };

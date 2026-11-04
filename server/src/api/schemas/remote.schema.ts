@@ -81,8 +81,26 @@ export const updateServerNameSchema = zod
   })
   .strict();
 
+export const STUN_URL_PATTERN = /^stuns?:[^\s?#]+$/i;
+export const TURN_URL_PATTERN = /^turns?:[^\s#]+$/i;
+
+export const putWebrtcSchema = zod
+  .object({
+    stun: zod.string().trim().regex(STUN_URL_PATTERN, 'Must start with stun: or stuns:').array(),
+    turn: zod
+      .object({
+        urls: zod.string().trim().regex(TURN_URL_PATTERN, 'Must start with turn: or turns:').array().min(1, 'TURN URL is required'),
+        username: zod.string().trim().min(1, 'Username is required'),
+        credential: zod.string().min(1, 'Password is required').optional(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+
 export type PatchRemoteInput = zod.output<typeof patchRemoteSchema>;
 export type TestRemoteInput = zod.output<typeof testRemoteSchema>;
 export type PairInitInput = zod.output<typeof pairInitSchema>;
 export type PairPollInput = zod.output<typeof pairPollSchema>;
 export type CloudflareManagedConnectInput = zod.output<typeof cloudflareManagedConnectSchema>;
+export type PutWebrtcInput = zod.output<typeof putWebrtcSchema>;

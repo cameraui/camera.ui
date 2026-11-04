@@ -1,7 +1,18 @@
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
-import type { ConnectionInfo, DBRemote, DeepPartial, ManagedTunnelStatus, MethodKeys, RemoteInfo, RemoteTestResult, TunnelStatus } from '@shared/types';
+import type {
+  ConnectionInfo,
+  DBRemote,
+  DeepPartial,
+  ManagedTunnelStatus,
+  MethodKeys,
+  PutWebrtcInput,
+  RemoteInfo,
+  RemoteTestResult,
+  TunnelStatus,
+  WebrtcSettings,
+} from '@shared/types';
 import type { AxiosResponse } from 'axios';
 
 export interface PairInitResponse {
@@ -85,6 +96,16 @@ export async function cloudflareManagedLogout(): Promise<void> {
   await api.post('/remote/cloudflare/managed/logout');
 }
 
+export async function getWebrtc({ signal }: { signal: AbortSignal }): Promise<WebrtcSettings> {
+  const response: AxiosResponse<WebrtcSettings> = await api.get('/remote/webrtc', { signal });
+  return response.data;
+}
+
+export async function putWebrtc(settings: PutWebrtcInput): Promise<WebrtcSettings> {
+  const response: AxiosResponse<WebrtcSettings> = await api.put('/remote/webrtc', settings);
+  return response.data;
+}
+
 export class RemoteQuery {
   private _queryClient = useQueryClient();
   private t = i18n.global.t;
@@ -109,6 +130,10 @@ export class RemoteQuery {
     },
     {
       name: 'getCloudflareManagedStatusQuery',
+      enabled: true,
+    },
+    {
+      name: 'getWebrtcQuery',
       enabled: true,
     },
   ]);
@@ -259,6 +284,24 @@ export class RemoteQuery {
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['remote'], exact: true });
         await this._queryClient.refetchQueries({ queryKey: ['remote', 'cloudflare', 'managed'], exact: true });
+      },
+    });
+  }
+
+  public getWebrtcQuery() {
+    return useQueryEnhanced({
+      queryKey: ['remote', 'webrtc'],
+      queryFn: ({ signal }) => getWebrtc({ signal }),
+      enabled: () => this.queryActivator.value.some((query) => query.name === 'getWebrtcQuery' && query.enabled),
+    });
+  }
+
+  public putWebrtcMutation() {
+    return useMutation({
+      mutationFn: putWebrtc,
+      onSuccess: (settings) => {
+        this._queryClient.setQueryData(['remote', 'webrtc'], settings);
+        this.toast.add({ severity: 'success', detail: this.t('components.toast.webrtc_updated'), life: 3000 });
       },
     });
   }

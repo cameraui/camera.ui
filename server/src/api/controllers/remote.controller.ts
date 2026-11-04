@@ -1,9 +1,13 @@
 import { isLanClientAddress, isLoopbackAddress, isLoopbackHost } from '@camera.ui/common/network';
+import { isEqual } from '@camera.ui/common/utils';
 
 import { inject } from '../../container.js';
+import { DEFAULT_ICE_SERVERS } from '../../services/config/constants.js';
+import { TURN_URL_PATTERN } from '../schemas/remote.schema.js';
 import { RemoteService } from '../services/remote.service.js';
 import { ServerService } from '../services/server.service.js';
 
+import type { IceServer } from '@camera.ui/sdk/internal';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { TLSSocket } from 'node:tls';
 import type { RemoteAccessManager } from '../../remote/index.js';
@@ -19,7 +23,21 @@ import type {
   RemoteRegisterRequest,
   RemoteTestRequest,
   RemoteUpdateServerNameRequest,
+  RemoteWebrtcPutRequest,
+  WebrtcSettings,
 } from '../types/index.js';
+
+function isTurnServer(server: IceServer): boolean {
+  return server.urls.some((url) => TURN_URL_PATTERN.test(url));
+}
+
+function webrtcSettings(iceServers: IceServer[]): WebrtcSettings {
+  const turn = iceServers.find(isTurnServer);
+  return {
+    stun: iceServers.flatMap((server) => server.urls.filter((url) => !TURN_URL_PATTERN.test(url))),
+    turn: turn ? { urls: turn.urls.filter((url) => TURN_URL_PATTERN.test(url)), username: turn.username ?? '', credentialSet: !!turn.credential } : null,
+  };
+}
 
 function isTunnelToken(token: string): boolean {
   if (token.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(token)) {
@@ -259,6 +277,48 @@ export class RemoteController {
       };
       return reply.code(200).send(result);
     }
+  }
+
+  public getWebrtc(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    return reply.code(200).send(webrtcSettings(this.iceServers()));
+  }
+
+  public async putWebrtc(req: FastifyRequest<AuthLoginRequest & RemoteWebrtcPutRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const { stun, turn } = req.body;
+      const current = this.iceServers();
+      const currentTurn = current.find(isTurnServer);
+
+      const credential = turn?.credential ?? currentTurn?.credential;
+      if (turn && !credential) {
+        return reply.code(400).send({
+          statusCode: 400,
+          message: 'Password is required',
+        });
+      }
+
+      const iceServers: IceServer[] = [
+        ...(stun.length ? [{ urls: stun }] : []),
+        ...(turn ? [{ urls: turn.urls, username: turn.username, credential }] : []),
+        ...current.filter((server) => server !== currentTurn && isTurnServer(server)),
+      ];
+
+      if (!isEqual(iceServers, current)) {
+        await this.configService.writeGo2RtcConfigApi({ webrtc: { ice_servers: iceServers } });
+        await req.system.restartGo2rtc();
+      }
+
+      return reply.code(200).send(webrtcSettings(iceServers));
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  private iceServers(): IceServer[] {
+    return this.configService.go2rtcConfig.webrtc.ice_servers ?? DEFAULT_ICE_SERVERS;
   }
 
   private inferCurrentConnection(req: FastifyRequest, externalUrl: string | null): ConnectionInfo['currentConnection'] {

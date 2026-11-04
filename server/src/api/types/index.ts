@@ -78,7 +78,7 @@ import type {
   TestMotionInput,
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
-import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput } from '../schemas/remote.schema.js';
+import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { RunUpdatesInput } from '../schemas/updates.schema.js';
@@ -691,6 +691,10 @@ export interface CloudflareManagedConnectRequest {
   Body: CloudflareManagedConnectInput;
 }
 
+export interface RemoteWebrtcPutRequest {
+  Body: PutWebrtcInput;
+}
+
 export interface ViewsParamsRequest {
   Params: { viewid: string };
 }
@@ -1276,6 +1280,11 @@ export interface RemoteInfo {
   cloudflareTokenSet: boolean;
   cloudflareError: string | null;
   directOverride: { active: boolean; fallback: boolean };
+}
+
+export interface WebrtcSettings {
+  stun: string[];
+  turn: { urls: string[]; username: string; credentialSet: boolean } | null;
 }
 
 export interface RemoteRegistrationStatus {

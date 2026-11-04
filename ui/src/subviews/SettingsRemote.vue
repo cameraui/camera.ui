@@ -638,11 +638,88 @@
           </Card>
         </div>
       </Form>
+
+      <div>
+        <span class="card-title">{{ $t('views.settings.webrtc') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.webrtc_info') }}</span>
+
+              <div class="flex flex-col field-gap">
+                <label for="webrtcStun" class="cui-label">{{ $t('views.settings.webrtc_stun_label') }}</label>
+                <AutoComplete
+                  v-model="webrtcForm.stun"
+                  input-id="webrtcStun"
+                  multiple
+                  fluid
+                  :typeahead="false"
+                  :invalid="!!stunError"
+                  :loading="webrtcLoading"
+                  placeholder="stun:stun.example.com:3478"
+                />
+                <span v-if="stunError" class="cui-input-error">{{ stunError }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_stun_hint') }}</Message>
+              </div>
+
+              <div class="flex flex-col field-gap">
+                <label for="webrtcTurn" class="cui-label">{{ $t('views.settings.webrtc_turn_label') }}</label>
+                <AutoComplete
+                  v-model="webrtcForm.turnUrls"
+                  input-id="webrtcTurn"
+                  multiple
+                  fluid
+                  :typeahead="false"
+                  :invalid="!!turnError"
+                  :loading="webrtcLoading"
+                  placeholder="turn:turn.example.com:3478"
+                />
+                <span v-if="turnError" class="cui-input-error">{{ turnError }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_hint') }}</Message>
+              </div>
+
+              <div v-if="webrtcForm.turnUrls.length" class="flex flex-col sm:flex-row gap-6">
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="webrtcUsername" class="cui-label">{{ $t('components.form.label.username') }}</label>
+                  <InputText id="webrtcUsername" v-model.trim="webrtcForm.username" type="text" autocomplete="off" class="w-full" />
+                </div>
+
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="webrtcPassword" class="cui-label">{{ $t('components.form.label.password') }}</label>
+                  <Password
+                    v-model="webrtcForm.password"
+                    input-id="webrtcPassword"
+                    :feedback="false"
+                    toggle-mask
+                    fluid
+                    autocomplete="new-password"
+                    :placeholder="turnCredentialSet ? '••••••••' : ''"
+                  />
+                  <Message v-if="turnCredentialSet" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                    $t('views.settings.webrtc_password_keep_hint')
+                  }}</Message>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                :disabled="!canSaveWebrtc"
+                :loading="webrtcLoading || putWebrtcLoading"
+                class="cui-button-medium ml-auto"
+                :label="$t('components.form.button.save')"
+                @click="confirmSaveWebrtc"
+              />
+            </div>
+          </template>
+        </Card>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
+import { STUN_URL_PATTERN, TURN_URL_PATTERN } from '@shared/types';
 import { ErrorMessage, Field, Form } from 'vee-validate';
 import LocalIcon from '~icons/boxicons/computer-filled';
 import CopyIcon from '~icons/fluent/copy-16-filled';
@@ -690,6 +767,8 @@ const { mutateAsync: managedConnect, isPending: managedConnectLoading } = remote
 const { mutateAsync: managedCancel, isPending: managedCancelLoading } = remoteQuery.cloudflareManagedCancelMutation();
 const { mutateAsync: managedDisconnect, isPending: managedDisconnectLoading } = remoteQuery.cloudflareManagedDisconnectMutation();
 const { mutateAsync: managedLogout, isPending: managedLogoutLoading } = remoteQuery.cloudflareManagedLogoutMutation();
+const { data: webrtcSettings, isBusy: webrtcLoading } = remoteQuery.getWebrtcQuery();
+const { mutateAsync: putWebrtc, isPending: putWebrtcLoading } = remoteQuery.putWebrtcMutation();
 
 const serverInfoForm = ref<DBServer>();
 const remoteInfoForm = ref<DBRemote>();
@@ -704,6 +783,7 @@ const pairUrl = ref('');
 const pairExpiresAt = ref<number | null>(null);
 const pairPollIntervalSec = ref(2);
 const pairCountdown = ref('');
+const webrtcForm = ref<{ stun: string[]; turnUrls: string[]; username: string; password: string }>({ stun: [], turnUrls: [], username: '', password: '' });
 let pairPollTimer: ReturnType<typeof setTimeout> | null = null;
 let pairCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -825,6 +905,25 @@ const canConnectManaged = computed(() => {
   if (managedState.value !== 'idle') return false;
   const hostname = cloudflareHostnameInput.value.trim();
   return !!hostname && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(hostname);
+});
+
+const turnCredentialSet = computed(() => webrtcSettings.value?.turn?.credentialSet ?? false);
+
+const stunError = computed(() => (webrtcForm.value.stun.some((url) => !STUN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_stun_invalid') : ''));
+
+const turnError = computed(() => (webrtcForm.value.turnUrls.some((url) => !TURN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_turn_invalid') : ''));
+
+const canSaveWebrtc = computed(() => {
+  const form = webrtcForm.value;
+  const stored = webrtcSettings.value;
+  if (!stored || stunError.value || turnError.value) return false;
+  if (form.turnUrls.length && (!form.username || (!form.password && !turnCredentialSet.value))) return false;
+  return (
+    !isEqual(form.stun, stored.stun) ||
+    !isEqual(form.turnUrls, stored.turn?.urls ?? []) ||
+    (form.turnUrls.length > 0 && form.username !== stored.turn?.username) ||
+    form.password.length > 0
+  );
 });
 
 const connectionTypeLabel = computed(() => {
@@ -1142,6 +1241,29 @@ async function onPatchServer(values: PatchServerInput) {
   } catch {}
 }
 
+function confirmSaveWebrtc() {
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('views.settings.webrtc_restart_confirm'),
+      confirmText: t('components.form.button.save_and_restart'),
+      loading: putWebrtcLoading,
+    },
+    onConfirm: saveWebrtc,
+  });
+}
+
+async function saveWebrtc() {
+  const form = webrtcForm.value;
+  const turnUrls = form.turnUrls.map((url) => url.trim());
+  try {
+    await putWebrtc({
+      stun: form.stun.map((url) => url.trim()),
+      turn: turnUrls.length ? { urls: turnUrls, username: form.username, ...(form.password ? { credential: form.password } : {}) } : null,
+    });
+  } catch {}
+}
+
 watch(
   () => registrationStatus.value?.serverName,
   (name) => {
@@ -1194,6 +1316,21 @@ watch(
     }
   },
   { deep: true, immediate: true },
+);
+
+watch(
+  webrtcSettings,
+  (settings) => {
+    if (settings) {
+      webrtcForm.value = {
+        stun: [...settings.stun],
+        turnUrls: [...(settings.turn?.urls ?? [])],
+        username: settings.turn?.username ?? '',
+        password: '',
+      };
+    }
+  },
+  { immediate: true },
 );
 
 onBeforeUnmount(() => {
