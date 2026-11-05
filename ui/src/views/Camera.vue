@@ -210,41 +210,13 @@
               </template>
             </Button>
 
-            <template v-if="exportMode">
-              <Button
-                v-tooltip.left="{
-                  value: timelapseDisabled
-                    ? $t('components.player.timelapse_min_duration')
-                    : trimTimelapse > 0
-                      ? `${$t('components.player.timelapse')}: ${TIMELAPSE_OPTIONS[trimTimelapse]}`
-                      : $t('components.player.timelapse_off'),
-                }"
-                rounded
-                severity="secondary"
-                :disabled="timelapseDisabled"
-                :label="trimTimelapse > 0 ? TIMELAPSE_OPTIONS[trimTimelapse] : undefined"
-                class="shadow-md pointer-events-auto !text-xs !font-semibold"
-                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
-                @click="cycleTrimTimelapse"
-              >
-                <template v-if="trimTimelapse === 0" #icon>
-                  <i-tabler:clock-play width="100%" height="100%" class="opacity-40" />
-                </template>
-              </Button>
-              <Button
-                v-tooltip.left="{ value: $t('components.player.export_selection') }"
-                rounded
-                severity="success"
-                :loading="trimExporting"
-                class="shadow-md pointer-events-auto"
-                :class="horizontalTimeline ? 'cui-button-small' : 'w-[42px] h-[42px]'"
-                @click="onTrimExport"
-              >
-                <template #icon>
-                  <i-tabler:download width="100%" height="100%" />
-                </template>
-              </Button>
-            </template>
+            <CuiTimelineExport
+              v-if="exportMode && cameraId"
+              :timeline="cuiTimelineRef"
+              :camera-id="cameraId"
+              :source-role="nvrController.effectiveRole.value"
+              :horizontal="horizontalTimeline"
+            />
 
             <Button
               v-if="deleteMode"
@@ -336,7 +308,7 @@ const { openEventTrace } = useEventTraceDialog();
 const { openSimilarSearch, openOnCamera, cameraSearch, forgetCameraSearch } = useSimilarSearchRoute();
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
-const { isAvailable: nvrAvailable, exportRange } = useRecordingExport();
+const { isAvailable: nvrAvailable } = useRecordingExport();
 
 const routerStore = useRouterStore();
 
@@ -344,7 +316,6 @@ const cameraName = computed(() => route.params.cameraname as string);
 
 const { data: camera } = camerasQuery.getCameraQuery(cameraName);
 
-const TIMELAPSE_OPTIONS = ['Off', '1m', '2m', '3m', '5m'] as const;
 const CAMERA_SHARE_DEFAULT = 0.5;
 const CAMERA_SHARE_MIN = 0.2;
 const TABS_MIN_HEIGHT = 160;
@@ -362,8 +333,6 @@ const gridSearchActive = ref(false);
 const gridSearchRegions = ref<import('@/components/CuiGridSearch/types').GridRegion[]>([]);
 const qualityRole = ref<StreamingRole>();
 const consumedStartTs = ref<number>();
-const trimTimelapse = ref(0); // index into TIMELAPSE_OPTIONS
-const trimExporting = ref(false);
 const rangeDeleting = ref(false);
 const exportMode = ref(false);
 const deleteMode = ref(false);
@@ -413,14 +382,6 @@ const startTs = computed(() => {
 
 const pipCameraQuery = computed(() => (typeof route.query.pip === 'string' && route.query.pip ? route.query.pip : undefined));
 
-const trimDurationMs = computed(() => {
-  const tl = cuiTimelineRef.value;
-  if (!tl?.trimStartMs || !tl?.trimEndMs) return 0;
-  return tl.trimRecordingDurationMs ?? tl.trimEndMs - tl.trimStartMs;
-});
-
-const timelapseDisabled = computed(() => trimDurationMs.value < 60 * 60 * 1000);
-
 provide(GridSearchKey, { active: gridSearchActive, regions: gridSearchRegions });
 provide(FindObjectKey, find);
 
@@ -465,11 +426,6 @@ if (!isContentReady.value) {
   }, 1000);
 }
 
-function cycleTrimTimelapse() {
-  if (timelapseDisabled.value) return;
-  trimTimelapse.value = (trimTimelapse.value + 1) % TIMELAPSE_OPTIONS.length;
-}
-
 function onTimelineScroll(scrolling: boolean) {
   try {
     cameraCardRef.value?.timelineScroll(scrolling);
@@ -509,34 +465,6 @@ function openFindMatch({ event, camera: matchCamera, timestamp }: SimilarResultO
     return;
   }
   if (matchCamera) openOnCamera(matchCamera.name, timestamp, pick.request);
-}
-
-async function onTrimExport() {
-  const tl = cuiTimelineRef.value;
-  if (!tl) return;
-
-  const startMs = tl.trimStartMs;
-  const endMs = tl.trimEndMs;
-  if (!startMs || !endMs || !cameraId.value) return;
-
-  if (!nvrAvailable.value) return;
-
-  const timelapseSetting = TIMELAPSE_OPTIONS[trimTimelapse.value];
-  const timelapseIntervalSec = timelapseSetting === 'Off' ? 0 : parseInt(timelapseSetting) * 60;
-
-  trimExporting.value = true;
-  try {
-    const result = await exportRange(cameraId.value, startMs, endMs, {
-      timelapseIntervalSec: timelapseIntervalSec || undefined,
-      sourceRole: nvrController.effectiveRole.value || undefined,
-    });
-    await download({ url: result.url, filename: result.filename });
-  } catch (error) {
-    log.error('Export failed:', error);
-    toast.add({ severity: 'error', summary: i18n.t('views.recordings.download_failed'), detail: extractErrorMessage(error), life: 5000 });
-  } finally {
-    trimExporting.value = false;
-  }
 }
 
 function confirmRangeDelete() {
@@ -678,10 +606,6 @@ watch(
   },
 );
 
-watch(exportMode, (active) => {
-  if (!active) trimTimelapse.value = 0;
-});
-
 watch(cameraCardRef, (card) => {
   if (!card || !window.history.state?.pipFullscreen) return;
   // a reload must not bring the fullscreen back
@@ -691,10 +615,6 @@ watch(cameraCardRef, (card) => {
 
 watch(cameraCardIsFullscreen, (fullscreen) => {
   if (fullscreen) deleteMode.value = false;
-});
-
-watch(timelapseDisabled, (disabled) => {
-  if (disabled) trimTimelapse.value = 0;
 });
 
 onBeforeRouteUpdate((to, from) => {

@@ -169,7 +169,33 @@
             @expand="expandCamera"
             @fullscreen="onCameraFullscreen"
             @rearrange="rearrangeCamera"
-          />
+          >
+            <template #fullscreen-actions>
+              <Button
+                severity="secondary"
+                rounded
+                class="cui-fs-button"
+                :aria-label="fullscreenControlsCollapsed ? $t('views.camview.controls_show') : $t('views.camview.controls_hide')"
+                @click="fullscreenControlsCollapsed = !fullscreenControlsCollapsed"
+              >
+                <template #icon>
+                  <i-tabler:layout-bottombar-expand v-if="fullscreenControlsCollapsed" class="w-5 h-5" />
+                  <i-tabler:layout-bottombar-collapse v-else class="w-5 h-5" />
+                </template>
+              </Button>
+            </template>
+
+            <template #fullscreen>
+              <CuiCamviewControls
+                v-model:collapsed="fullscreenControlsCollapsed"
+                v-bind="controlsProps"
+                :fab="false"
+                class="fixed inset-x-0 z-[2147483647] px-2 dark-mode"
+                :style="{ bottom: 'calc(var(--safe-area-inset-bottom) + 0.5rem)' }"
+                @mic="toggleIntercom"
+              />
+            </template>
+          </CuiCameraViewDnD>
         </div>
       </div>
 
@@ -211,7 +237,17 @@
               : { left: `calc(${navbarOffset}px + var(--safe-area-inset-left))`, bottom: 'calc(var(--cui-bottom-bar) + var(--cui-bottom-gap) - 0.5rem)' }
           "
           :locale-settings="timelineLocaleSettings"
+          :trim-mode="exportMode"
+          trim-variant="export"
+          :export-available="Boolean(exportCameraId)"
+          @toggle-export-mode="exportMode = !exportMode"
         >
+          <template #bottom-right>
+            <div v-if="exportMode && exportCameraId" class="flex gap-2 items-center" :class="sideTimeline ? 'flex-col-reverse' : 'flex-row-reverse'">
+              <CuiTimelineExport :timeline="cuiTimelineRef" :camera-id="exportCameraId" :horizontal="!sideTimeline" />
+            </div>
+          </template>
+
           <template #find="{ layout }">
             <CuiFindObjectView :layout @open="openFindMatch" @show-all="openSimilarSearch" />
           </template>
@@ -219,63 +255,18 @@
       </Transition>
     </div>
 
-    <SpeedDial
-      v-if="!editMode && currentView"
-      :model="cameraButtons"
-      direction="up"
-      :transition-delay="80"
-      :tooltip-options="{ position: 'left', event: undefined }"
-      class="absolute right-2 z-11 dark-mode"
-      :pt="{ root: { style: 'pointer-events: none' } }"
+    <CuiCamviewControls
+      v-if="!editMode && currentView && !isFullscreen"
+      v-model:collapsed="controlsCollapsed"
+      v-bind="controlsProps"
+      class="absolute left-0 z-11 px-2 dark-mode"
       :style="{
-        bottom: speedDialBottom,
-        right: !sideTimeline ? '0.5rem' : `calc(${sideWidth}px + 0.5rem)`,
+        bottom: controlsBottom,
+        right: sideTimeline ? `${sideWidth}px` : '0',
         transition: 'bottom 0.25s ease-out, right 0.25s ease-out',
       }"
-    >
-      <template #button="{ visible, toggleCallback }">
-        <Button
-          severity="secondary"
-          class="dark-mode opacity-40 hover:opacity-100 active:opacity-100 focus:opacity-100 transition pointer-events-auto"
-          :class="{
-            'opacity-100': visible,
-          }"
-          rounded
-          :loading="isLoading"
-          @click="toggleCallback"
-        >
-          <template #icon>
-            <div class="relative w-6 h-6">
-              <div
-                class="bg-white absolute top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                :class="{
-                  'w-4 h-[2px] rotate-45 top-1/2 -translate-y-1/2 rounded-none': visible,
-                }"
-              />
-              <div
-                class="bg-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-all duration-100"
-                :class="{
-                  'opacity-0 scale-0': visible,
-                }"
-              />
-              <div
-                class="bg-white absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                :class="{
-                  'w-4 h-[2px] -rotate-45 bottom-1/2 translate-y-1/2 rounded-none': visible,
-                }"
-              />
-            </div>
-          </template>
-        </Button>
-      </template>
-      <template #item="{ item, toggleCallback }">
-        <Button v-tooltip="{ value: item.label }" :loading="isLoading" severity="secondary" v-bind="item.buttonProps" rounded @click="toggleCallback">
-          <template #icon>
-            <component :is="item.icon" />
-          </template>
-        </Button>
-      </template>
-    </SpeedDial>
+      @mic="toggleIntercom"
+    />
 
     <CuiMenu
       ref="menuRef"
@@ -322,7 +313,6 @@ import ActivityModeActivityIcon from '~icons/fluent/pulse-24-filled';
 import SpeakerOnIcon from '~icons/heroicons/speaker-wave-16-solid';
 import SpeakerOffIcon from '~icons/heroicons/speaker-x-mark-16-solid';
 import ActivityModeSleepIcon from '~icons/icon-park-solid/sleep';
-import MicrophoneIcon from '~icons/mage/microphone-fill';
 import StreamingModeAutoIcon from '~icons/material-symbols/motion-photos-auto-outline-rounded';
 import NewViewIcon from '~icons/mdi/card-plus-outline';
 import ActivityModePerCameraIcon from '~icons/mdi/cctv';
@@ -340,12 +330,12 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
 import CuiCameraViewDnD from '@/components/CuiCameraViewDnD/CuiCameraViewDnD.vue';
-import AudioVisualizerDialog from '@/components/CuiDialog/templates/AudioVisualizer/AudioVisualizer.vue';
 import CamviewFormDialog from '@/components/CuiDialog/templates/CamviewForm/CamviewForm.vue';
 import { FindObjectKey } from '@/components/CuiFindObjectView/types.js';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
 import type { CuiCameraCardModels, CuiCameraCardProps } from '@/components/CuiCameraCard/types.js';
+import type { CuiCamviewControlItem, CuiCamviewControlsProps } from '@/components/CuiCamviewControls/types.js';
 import type { CardState } from '@/components/CuiCameraViewDnD/types.js';
 import type { CamviewFormProps } from '@/components/CuiDialog/templates/CamviewForm/types.js';
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
@@ -356,7 +346,6 @@ import type { VideoStreamingMode } from '@camera.ui/browser';
 import type { StreamingRole } from '@camera.ui/sdk';
 import type { DBCamera, DBCamviewCardFit, DBCamviewLayout, DBCamviewLayoutCamera, DBCamviewViewSize } from '@shared/types';
 import type { HTMLAttributes } from 'vue';
-import type { CuiButtonAttrs } from '@/components/CuiButton/types.js';
 
 const usersQuery = new UsersQuery();
 const camerasQuery = new CamerasQuery();
@@ -406,6 +395,10 @@ const timelineState = ref(false);
 const timelineSpaceOccupied = ref(false);
 const timelineAnimating = ref(false);
 const isMuted = ref(true);
+const micPending = ref(false);
+const controlsCollapsed = useLocalStorage('cui-camview-controls-collapsed', false);
+const fullscreenControlsCollapsed = ref(true);
+const exportMode = ref(false);
 const sourceRole = ref<StreamingRole>('low-resolution');
 const streamingMode = ref<VideoStreamingMode>('auto');
 const cards = ref<CardState[]>([]);
@@ -469,7 +462,7 @@ const gridEndGap = computed(() => (bottombarHeight.value > 0 ? '4px' : 'var(--cu
 const sideTimeline = computed(() => lgBreakpoint.value || (shortBreakpoint.value && !smBreakpoint.value));
 const sideTimelineWidth = computed(() => (lgBreakpoint.value ? 400 : 300));
 
-const speedDialBottom = computed(() => {
+const controlsBottom = computed(() => {
   if (sideTimeline.value) return 'var(--cui-bottom-gap)';
   if (timelineSpaceOccupied.value) return timelineClearance;
   return bottombarHeight.value > 0 ? '0.5rem' : 'var(--cui-bottom-gap)';
@@ -515,23 +508,20 @@ const detectionsEnabled = computed(() => uiSettings.value.camview.detections !==
 
 const activityMode = computed(() => uiSettings.value.camview.activityMode);
 
-const cameraButtons = computed<{ label: string; icon: any; buttonProps?: CuiButtonAttrs; command: () => void }[]>(() => [
+const controlsStart = computed<CuiCamviewControlItem[]>(() => [
   {
-    label: isFullscreen.value ? t('components.form.tooltip.fullscreen_off') : t('components.form.tooltip.fullscreen_on'),
-    icon: isFullscreen.value ? FullscreenOffIcon : FullscreenOnIcon,
-    command: toggleFullscreen,
+    id: 'resolution',
+    label:
+      sourceRole.value === 'low-resolution'
+        ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_low')}`
+        : sourceRole.value === 'mid-resolution'
+          ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_mid')}`
+          : `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_high')}`,
+    icon: sourceRole.value === 'low-resolution' ? SourceRoleLowIcon : sourceRole.value === 'mid-resolution' ? SourceRoleMidIcon : SourceRoleHighIcon,
+    onClick: () => togglePlayerSourceRole(),
   },
   {
-    label: isMuted.value ? t('components.form.tooltip.unmute') : t('components.form.tooltip.mute'),
-    icon: isMuted.value ? SpeakerOffIcon : SpeakerOnIcon,
-    command: togglePlayerMute,
-  },
-  {
-    label: t('components.form.tooltip.intercom'),
-    icon: MicrophoneIcon,
-    command: () => openDialog('intercom'),
-  },
-  {
+    id: 'streaming',
     label:
       streamingMode.value === 'auto'
         ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_auto')}`
@@ -539,9 +529,25 @@ const cameraButtons = computed<{ label: string; icon: any; buttonProps?: CuiButt
           ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_webrtc')}`
           : `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_mse')}`,
     icon: streamingMode.value === 'auto' ? StreamingModeAutoIcon : streamingMode.value === 'webrtc' ? StreamingModeWebrtcIcon : StreamingModeMseIcon,
-    command: () => togglePlayerStreamingMode(),
+    onClick: () => togglePlayerStreamingMode(),
   },
   {
+    id: 'mute',
+    label: isMuted.value ? t('components.form.tooltip.unmute') : t('components.form.tooltip.mute'),
+    icon: isMuted.value ? SpeakerOffIcon : SpeakerOnIcon,
+    onClick: togglePlayerMute,
+  },
+]);
+
+const controlsEnd = computed<CuiCamviewControlItem[]>(() => [
+  {
+    id: 'detections',
+    label: `${t('components.form.tooltip.detections')}: ${detectionsEnabled.value ? t('components.form.tooltip.detections_on') : t('components.form.tooltip.detections_off')}`,
+    icon: detectionsEnabled.value ? DetectionsOnIcon : DetectionsOffIcon,
+    onClick: () => (uiSettings.value.camview.detections = !detectionsEnabled.value),
+  },
+  {
+    id: 'activity',
     label: `${t('components.form.label.activity_mode')}: ${
       !activityMode.value
         ? t('components.form.tooltip.activity_mode_per_camera')
@@ -558,24 +564,24 @@ const cameraButtons = computed<{ label: string; icon: any; buttonProps?: CuiButt
         : activityMode.value === 'standby'
           ? ActivityModeSleepIcon
           : ActivityModeActivityIcon,
-    command: togglePlayerActivityMode,
+    onClick: togglePlayerActivityMode,
   },
   {
-    label:
-      sourceRole.value === 'low-resolution'
-        ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_low')}`
-        : sourceRole.value === 'mid-resolution'
-          ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_mid')}`
-          : `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_high')}`,
-    icon: sourceRole.value === 'low-resolution' ? SourceRoleLowIcon : sourceRole.value === 'mid-resolution' ? SourceRoleMidIcon : SourceRoleHighIcon,
-    command: () => togglePlayerSourceRole(),
-  },
-  {
-    label: `${t('components.form.tooltip.detections')}: ${detectionsEnabled.value ? t('components.form.tooltip.detections_on') : t('components.form.tooltip.detections_off')}`,
-    icon: detectionsEnabled.value ? DetectionsOnIcon : DetectionsOffIcon,
-    command: () => (uiSettings.value.camview.detections = !detectionsEnabled.value),
+    id: 'fullscreen',
+    label: isFullscreen.value ? t('components.form.tooltip.fullscreen_off') : t('components.form.tooltip.fullscreen_on'),
+    icon: isFullscreen.value ? FullscreenOffIcon : FullscreenOnIcon,
+    onClick: toggleFullscreen,
   },
 ]);
+
+const controlsProps = computed<CuiCamviewControlsProps>(() => ({
+  start: controlsStart.value,
+  end: controlsEnd.value,
+  micActive: viewDndRef.value?.micActive ?? false,
+  micAvailable: viewDndRef.value?.micAvailable ?? false,
+  micLoading: micPending.value,
+  disabled: isLoading.value,
+}));
 
 const currentView = computed(() => {
   const view = views.value?.result.find((v) => v._id === uiSettings.value.camview.viewid) || views.value?.result[0];
@@ -598,6 +604,8 @@ const timelineCameraIds = computed(() => {
   const id = expandedCameraId.value;
   return id && viewCameraIds.value.includes(id) ? [id] : viewCameraIds.value;
 });
+
+const exportCameraId = computed(() => (timelineCameraIds.value.length === 1 ? timelineCameraIds.value[0] : undefined));
 
 const playbackCameraIds = computed(() => {
   const id = fullscreenCameraId.value;
@@ -653,7 +661,7 @@ const addViewItems = computed<MenuItem[]>(() => {
 
 provide(FindObjectKey, find);
 
-function openDialog(type: 'newView' | 'editView' | 'intercom' | 'removeView') {
+function openDialog(type: 'newView' | 'editView' | 'removeView') {
   switch (type) {
     case 'newView':
     case 'editView': {
@@ -689,19 +697,6 @@ function openDialog(type: 'newView' | 'editView' | 'intercom' | 'removeView') {
       });
       break;
     }
-    case 'intercom':
-      dialog.openComponentDialog<{}, { listening: (state: boolean) => void }>(AudioVisualizerDialog, {
-        data: {
-          title: t('components.dialog.title.intercom'),
-          hideConfirmButton: true,
-          loading: isLoading,
-          contentProps: {},
-        },
-        events: {
-          listening: toggleIntercom,
-        },
-      });
-      break;
     case 'removeView':
       dialog.openTextDialog({
         data: {
@@ -886,8 +881,10 @@ async function togglePlayerStreamingMode(state?: VideoStreamingMode) {
   streamingMode.value = mode;
 }
 
-async function toggleIntercom(state: boolean) {
-  await viewDndRef.value?.toggleAllPlayerMicrophone(state);
+async function toggleIntercom(): Promise<void> {
+  micPending.value = true;
+  await viewDndRef.value?.toggleAllPlayerMicrophone(!viewDndRef.value.micActive);
+  micPending.value = false;
 }
 
 watch(timelineState, (active) => {
@@ -895,6 +892,15 @@ watch(timelineState, (active) => {
 });
 
 watch(activityMode, (mode) => (cameraCardModels.activityMode = mode));
+
+watch(isFullscreen, () => {
+  fullscreenControlsCollapsed.value = true;
+});
+
+// the selection belongs to one camera in a mounted timeline
+watch([exportCameraId, timelineState, fullscreenCameraId], () => {
+  exportMode.value = false;
+});
 
 watch([editMode, rearrangeMode, () => currentView.value?._id], () => find.releaseAll(true));
 
@@ -995,9 +1001,5 @@ watch(
 
 .p-divider-vertical:before {
   border-inline-start: 1px solid #2d2d2d;
-}
-
-:deep(.p-speeddial-open) .p-speeddial-list {
-  pointer-events: auto;
 }
 </style>

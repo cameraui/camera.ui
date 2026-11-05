@@ -100,6 +100,9 @@ const isEditActive = computed(() => editCollect.value.canDrop && editCollect.val
 const editBgColor = computed(() => (mode.value !== 'edit' ? '#000' : isEditActive.value ? '#171717' : '#202020'));
 const showOnlyRemoveIcon = computed(() => containerWidth.value <= 200);
 
+const micActive = computed(() => Boolean(playerRef.value?.micActive));
+const micAvailable = computed(() => playerRef.value?.micButtonDisabled === false);
+
 const availableCameras = computed<DBCamera[]>(() => cameras.value.filter((c) => !droppedCameras.value.some((d) => d.name === c.name)));
 const menuItems = computed<MenuItem[]>(() => availableCameras.value.map((c) => ({ label: c.name, onClick: () => emit('drop', c) })));
 
@@ -128,6 +131,8 @@ function togglePip(state?: boolean): void {
 }
 
 defineExpose({
+  micActive,
+  micAvailable,
   togglePlayerMute,
   toggleMicrophone,
   togglePlayerSourceRole,

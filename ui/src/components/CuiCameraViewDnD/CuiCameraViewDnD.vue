@@ -2,11 +2,17 @@
   <DndProvider :backend="isTouch ? TouchBackend : HTML5Backend" :options="isTouch ? { enableMouseEvents: true } : undefined">
     <div class="w-full h-full flex flex-row">
       <div ref="viewRef" class="view-container w-full flex flex-col min-w-0 overflow-y-auto items-center" :class="{ 'px-2': editMode && lgBreakpoint }">
-        <Button v-if="isFullscreen" severity="secondary" rounded class="cui-fs-exit" :aria-label="$t('components.form.tooltip.fullscreen_off')" @click="toggleFs">
-          <template #icon>
-            <i-mingcute:fullscreen-exit-fill class="w-5 h-5" />
-          </template>
-        </Button>
+        <template v-if="isFullscreen">
+          <div class="cui-fs-actions">
+            <slot name="fullscreen-actions" />
+            <Button severity="secondary" rounded class="cui-fs-button" :aria-label="$t('components.form.tooltip.fullscreen_off')" @click="toggleFs">
+              <template #icon>
+                <i-mingcute:fullscreen-exit-fill class="w-5 h-5" />
+              </template>
+            </Button>
+          </div>
+          <slot name="fullscreen" />
+        </template>
 
         <div v-if="expandedIdx !== undefined" class="w-full aspect-video relative my-auto" :style="{ maxWidth: `${maxWidth}px` }">
           <ViewDnDCard
@@ -160,6 +166,9 @@ const maxWidth = computed(() => (viewBounds.height.value - 16) * (16 / 9));
 const droppedCameras = computed<DBCamera[]>(() => {
   return cards.value.filter((c) => c.lastDroppedCamera).map((c) => c.lastDroppedCamera!);
 });
+
+const micActive = computed(() => (cardRefs.value ?? []).some((card) => card.micActive));
+const micAvailable = computed(() => (cardRefs.value ?? []).some((card) => card.micAvailable));
 
 function getWidgetPos(idx: number): GsLayoutItem {
   const card = cards.value[idx];
@@ -464,6 +473,8 @@ onBeforeUnmount(() => {
 });
 
 defineExpose({
+  micActive,
+  micAvailable,
   expandCameraById,
   toggleFullscreen,
   toggleAllPlayerMute,
@@ -485,11 +496,17 @@ defineExpose({
   transition: padding 0.2s ease-in-out;
 }
 
-.cui-fs-exit {
+.cui-fs-actions {
   position: fixed;
   top: calc(var(--safe-area-inset-top) + 12px);
   right: calc(var(--safe-area-inset-right) + 12px);
   z-index: 2147483647;
+  display: flex;
+  gap: 8px;
+}
+
+.cui-fs-button,
+:slotted(.cui-fs-button) {
   width: 40px;
   height: 40px;
   background: rgba(0, 0, 0, 0.55) !important;
@@ -501,8 +518,10 @@ defineExpose({
   transition: opacity 0.15s ease;
 }
 
-.cui-fs-exit:hover,
-.cui-fs-exit:focus {
+.cui-fs-button:hover,
+.cui-fs-button:focus,
+:slotted(.cui-fs-button:hover),
+:slotted(.cui-fs-button:focus) {
   opacity: 1;
 }
 
