@@ -70,218 +70,180 @@ import { CUI_PTZ_CONTROL_DEFAULTS } from './types.js';
 import { useCameraPtz } from './useCameraPtz.js';
 
 import type { PTZDirection } from '@camera.ui/sdk';
-import type { CuiPTZControlEmits, CuiPTZControlProps, PTZPosition, ZoomLevel } from './types.js';
+import type { CuiPTZControlProps } from './types.js';
+
+type PanTiltAxis = 'pan' | 'tilt';
 
 const props = withDefaults(defineProps<CuiPTZControlProps>(), CUI_PTZ_CONTROL_DEFAULTS);
-
-const emit = defineEmits<CuiPTZControlEmits>();
 
 const { cameraDevice, size } = toRefs(props);
 
 const log = useLogger();
 const { sensor: ptzSensor, hasZoom, hasPanTilt } = useCameraPtz(cameraDevice);
 
-const commandDebounceTime = 100; // ms
-const significantChangeThreshold = 0.05;
-const panTiltSpeedFactor = 0.05;
-const zoomSpeedFactor = 0.03;
+const STOP: PTZDirection = { panSpeed: 0, tiltSpeed: 0, zoomSpeed: 0 };
+const speedSteps = [0.1, 0.25, 0.45, 0.7, 1];
+const axisSwitchRatio = 2;
+const keepAliveInterval = 300;
+const releaseGrace = 50;
+const startSettle = 150;
+const startMaxWait = 400;
+const speedSettle = 500;
+const speedMaxWait = 1000;
 
 const panTiltRef = useTemplateRef('panTiltRef');
 const zoomRef = useTemplateRef('zoomRef');
 
-const panTiltUIPosition = reactive<PTZPosition>({ x: 0, y: 0 });
-const panTiltPosition = reactive<PTZPosition>({ x: 0, y: 0 });
-const lastPanTiltValues = reactive<PTZPosition>({ x: 0, y: 0 });
+const panTiltUIPosition = reactive({ x: 0, y: 0 });
+const zoomUIPosition = ref(0);
 const isPanTiltActive = ref(false);
 const isZoomActive = ref(false);
-const zoomUIPosition = ref<ZoomLevel>(0);
-const zoomValue = ref<ZoomLevel>(0);
-const lastZoomValue = ref<ZoomLevel>(0);
-const isCommandInProgress = ref(false);
-const lastCommandTime = ref(0);
-const lastSentPanSpeed = ref(0);
-const lastSentTiltSpeed = ref(0);
-const lastSentZoomSpeed = ref(0);
-const currentPanDirection = ref(0);
-const currentTiltDirection = ref(0);
-const currentZoomDirection = ref(0);
-const activeAxis = ref<'pan' | 'tilt' | 'none'>('none');
-const accumulatedPan = ref(0);
-const accumulatedTilt = ref(0);
-const accumulatedZoom = ref(0);
-const animationFrameId = ref<number | null>(null);
-const lastUpdateTime = ref(Date.now());
 
-const isControlActive = computed(() => isPanTiltActive.value || isZoomActive.value);
+let panTiltTouchId: number | undefined;
+let zoomTouchId: number | undefined;
+let panTiltAxis: PanTiltAxis = 'pan';
+let panTiltLevel = 0;
+let zoomLevel = 0;
+let panSpeed = 0;
+let tiltSpeed = 0;
+let zoomSpeed = 0;
+let target = STOP;
+let pending: PTZDirection | undefined;
+let pendingSince = 0;
+let sent = STOP;
+let sending = false;
+let keepAliveTimer: ReturnType<typeof setInterval> | undefined;
+let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
 const maxZoomOffset = computed(() => (size.value === 'small' ? 26 : 60));
 const knobOffset = computed(() => (size.value === 'small' ? 10 : 15));
 
-function roundToTwoDecimals(value: number): number {
-  return Math.round(value * 100) / 100;
+function isStop(velocity: PTZDirection): boolean {
+  return velocity.panSpeed === 0 && velocity.tiltSpeed === 0 && velocity.zoomSpeed === 0;
 }
 
-function normalizeZoomValue(value: number): number {
-  return roundToTwoDecimals(Math.max(0, Math.min(1, value)));
+function sameVelocity(a: PTZDirection, b: PTZDirection): boolean {
+  return a.panSpeed === b.panSpeed && a.tiltSpeed === b.tiltSpeed && a.zoomSpeed === b.zoomSpeed;
 }
 
-async function executeContinuousMove(velocity: PTZDirection): Promise<void> {
-  const now = Date.now();
+function sameDirection(a: PTZDirection, b: PTZDirection): boolean {
+  return Math.sign(a.panSpeed) === Math.sign(b.panSpeed) && Math.sign(a.tiltSpeed) === Math.sign(b.tiltSpeed) && Math.sign(a.zoomSpeed) === Math.sign(b.zoomSpeed);
+}
 
-  if (isCommandInProgress.value && now - lastCommandTime.value < commandDebounceTime) {
+function settleDelay(next: PTZDirection, waited: number): number {
+  const fullSpeed = Math.max(Math.abs(next.panSpeed), Math.abs(next.tiltSpeed), Math.abs(next.zoomSpeed)) === 1;
+  if (isStop(next) || fullSpeed) {
+    return 0;
+  }
+  if (isStop(target) || !sameDirection(next, target)) {
+    return Math.max(0, Math.min(startSettle, startMaxWait - waited));
+  }
+  return Math.max(0, Math.min(speedSettle, speedMaxWait - waited));
+}
+
+function speedLevel(magnitude: number, current: number): number {
+  const exact = magnitude * speedSteps.length;
+  if (exact < (current > 0 ? 0.25 : 0.5)) {
+    return 0;
+  }
+  // a resting finger shakes a few pixels, a level changes only at the middle of the next one
+  if (current > 0 && Math.abs(exact - current) < 1) {
+    return current;
+  }
+  return Math.min(speedSteps.length, Math.max(1, Math.round(exact)));
+}
+
+function levelSpeed(level: number, direction: number): number {
+  return level === 0 ? 0 : speedSteps[level - 1] * Math.sign(direction);
+}
+
+function pickAxis(pan: number, tilt: number): PanTiltAxis {
+  const panAbs = Math.abs(pan);
+  const tiltAbs = Math.abs(tilt);
+  const ratio = panTiltLevel === 0 ? 1 : axisSwitchRatio;
+
+  if (panTiltAxis === 'pan') {
+    return panAbs * ratio >= tiltAbs ? 'pan' : 'tilt';
+  }
+  return tiltAbs * ratio >= panAbs ? 'tilt' : 'pan';
+}
+
+async function send(repeat = false): Promise<void> {
+  // one command in flight, the loop sends the newest target once it lands
+  if (sending || (!repeat && sameVelocity(target, sent))) {
     return;
   }
 
-  const normalizedVelocity: PTZDirection = {
-    panSpeed: roundToTwoDecimals(velocity.panSpeed),
-    tiltSpeed: roundToTwoDecimals(velocity.tiltSpeed),
-    zoomSpeed: roundToTwoDecimals(velocity.zoomSpeed),
-  };
-
-  isCommandInProgress.value = true;
-  lastCommandTime.value = now;
-
-  try {
-    await ptzSensor.value?.setProperty(PTZProperty.Velocity, normalizedVelocity);
-  } catch (error) {
-    log.error('PTZ continuous move failed:', error);
-  } finally {
-    isCommandInProgress.value = false;
-  }
+  sending = true;
+  do {
+    const velocity = target;
+    try {
+      await ptzSensor.value?.setProperty(PTZProperty.Velocity, velocity);
+    } catch (error) {
+      log.error('PTZ move failed:', error);
+    }
+    sent = velocity;
+  } while (!sameVelocity(target, sent));
+  sending = false;
 }
 
-async function executeStop(): Promise<void> {
+function startKeepAlive(): void {
+  if (keepAliveTimer) {
+    return;
+  }
+  keepAliveTimer = setInterval(() => {
+    send(true);
+  }, keepAliveInterval);
+}
+
+function stopKeepAlive(): void {
+  clearInterval(keepAliveTimer);
+  keepAliveTimer = undefined;
+}
+
+function commit(next: PTZDirection): void {
+  clearTimeout(settleTimer);
+  pending = undefined;
+  target = next;
+
+  if (isStop(target)) {
+    stopKeepAlive();
+  } else {
+    startKeepAlive();
+  }
+  send();
+}
+
+function updateTarget(): void {
+  clearTimeout(releaseTimer);
+  const next = { panSpeed, tiltSpeed, zoomSpeed };
+
+  if (sameVelocity(next, target)) {
+    clearTimeout(settleTimer);
+    pending = undefined;
+    return;
+  }
+  if (pending && sameVelocity(next, pending)) {
+    return;
+  }
+
   const now = Date.now();
-
-  isCommandInProgress.value = true;
-  lastCommandTime.value = now;
-
-  try {
-    await ptzSensor.value?.setProperty(PTZProperty.Velocity, { panSpeed: 0, tiltSpeed: 0, zoomSpeed: 0 });
-  } catch (error) {
-    log.error('PTZ stop failed:', error);
-  } finally {
-    isCommandInProgress.value = false;
+  if (!pending) {
+    pendingSince = now;
   }
+
+  const delay = settleDelay(next, now - pendingSince);
+  if (delay === 0) {
+    commit(next);
+    return;
+  }
+  clearTimeout(settleTimer);
+  pending = next;
+  settleTimer = setTimeout(() => commit(next), delay);
 }
 
-function continuousMovementLoop(): void {
-  const now = Date.now();
-  const deltaTime = (now - lastUpdateTime.value) / 1000; // seconds
-  lastUpdateTime.value = now;
-
-  let needsUpdate = false;
-
-  if (
-    isPanTiltActive.value &&
-    (Math.abs(currentPanDirection.value) >= significantChangeThreshold || Math.abs(currentTiltDirection.value) >= significantChangeThreshold)
-  ) {
-    const panIncrement = currentPanDirection.value * panTiltSpeedFactor * deltaTime * 5;
-    const tiltIncrement = currentTiltDirection.value * panTiltSpeedFactor * deltaTime * 5;
-
-    accumulatedPan.value = Math.max(-1, Math.min(1, accumulatedPan.value + panIncrement));
-    accumulatedTilt.value = Math.max(-1, Math.min(1, accumulatedTilt.value + tiltIncrement));
-
-    const roundedPan = roundToTwoDecimals(accumulatedPan.value);
-    const roundedTilt = roundToTwoDecimals(accumulatedTilt.value);
-
-    if (panTiltPosition.x !== roundedPan || panTiltPosition.y !== roundedTilt) {
-      panTiltPosition.x = roundedPan;
-      panTiltPosition.y = roundedTilt;
-
-      emit('panTiltChange', {
-        x: panTiltPosition.x,
-        y: panTiltPosition.y,
-      });
-
-      needsUpdate = true;
-    }
-  }
-
-  if (isZoomActive.value && Math.abs(currentZoomDirection.value) >= significantChangeThreshold) {
-    const zoomIncrement = currentZoomDirection.value * zoomSpeedFactor * deltaTime * 10;
-    accumulatedZoom.value = Math.max(0, Math.min(1, accumulatedZoom.value + zoomIncrement));
-    const roundedZoomValue = roundToTwoDecimals(accumulatedZoom.value);
-
-    if (zoomValue.value !== roundedZoomValue) {
-      zoomValue.value = roundedZoomValue;
-      emit('zoomChange', roundedZoomValue);
-      needsUpdate = true;
-    }
-  }
-
-  if (needsUpdate && isControlActive.value) {
-    const nowInner = Date.now();
-    if (nowInner - lastCommandTime.value >= commandDebounceTime * 2) {
-      if (
-        isPanTiltActive.value &&
-        (Math.abs(currentPanDirection.value) >= significantChangeThreshold || Math.abs(currentTiltDirection.value) >= significantChangeThreshold)
-      ) {
-        const panValue = roundToTwoDecimals(currentPanDirection.value);
-        const tiltValue = roundToTwoDecimals(currentTiltDirection.value);
-
-        if (activeAxis.value === 'pan') {
-          executeContinuousMove({ panSpeed: panValue, tiltSpeed: 0, zoomSpeed: 0 });
-        } else if (activeAxis.value === 'tilt') {
-          executeContinuousMove({ panSpeed: 0, tiltSpeed: tiltValue, zoomSpeed: 0 });
-        } else {
-          executeContinuousMove({ panSpeed: panValue, tiltSpeed: tiltValue, zoomSpeed: 0 });
-        }
-      } else if (isZoomActive.value && Math.abs(currentZoomDirection.value) >= significantChangeThreshold) {
-        // ONVIF zoom speed stays in 0-1
-        const zoomDirection = normalizeZoomValue(Math.abs(currentZoomDirection.value));
-        const isZoomingIn = currentZoomDirection.value > 0;
-        executeContinuousMove({ panSpeed: 0, tiltSpeed: 0, zoomSpeed: isZoomingIn ? zoomDirection : -zoomDirection });
-      }
-    }
-  }
-
-  if (isControlActive.value) {
-    animationFrameId.value = requestAnimationFrame(continuousMovementLoop);
-  }
-}
-
-function startContinuousMovement(): void {
-  if (animationFrameId.value !== null) {
-    cancelAnimationFrame(animationFrameId.value);
-  }
-  lastUpdateTime.value = Date.now();
-  animationFrameId.value = requestAnimationFrame(continuousMovementLoop);
-}
-
-function stopContinuousMovement(): void {
-  if (animationFrameId.value !== null) {
-    cancelAnimationFrame(animationFrameId.value);
-    animationFrameId.value = null;
-  }
-}
-
-async function stopMovement(): Promise<void> {
-  // 50 ms grace, a quick adjust should not stop the move
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  if (
-    !isControlActive.value &&
-    (Math.abs(lastSentPanSpeed.value) >= significantChangeThreshold ||
-      Math.abs(lastSentTiltSpeed.value) >= significantChangeThreshold ||
-      Math.abs(lastSentZoomSpeed.value) >= significantChangeThreshold)
-  ) {
-    currentPanDirection.value = 0;
-    currentTiltDirection.value = 0;
-    currentZoomDirection.value = 0;
-    activeAxis.value = 'none';
-
-    lastSentPanSpeed.value = 0;
-    lastSentTiltSpeed.value = 0;
-    lastSentZoomSpeed.value = 0;
-
-    await executeStop();
-
-    stopContinuousMovement();
-  }
-}
-
-async function updateZoomPosition(clientY: number): Promise<void> {
+function updateZoomPosition(clientY: number): void {
   if (!zoomRef.value || !isZoomActive.value) {
     return;
   }
@@ -296,41 +258,26 @@ async function updateZoomPosition(clientY: number): Promise<void> {
   zoomUIPosition.value = offset;
 
   // negative: pulling down zooms out
-  const zoomDirection = -offset / maxOffset;
-  currentZoomDirection.value = zoomDirection;
+  const zoom = -offset / maxOffset;
+  zoomLevel = speedLevel(Math.abs(zoom), zoomLevel);
+  zoomSpeed = levelSpeed(zoomLevel, zoom);
 
-  const roundedZoomDirection = roundToTwoDecimals(zoomDirection);
-
-  if (Math.abs(roundedZoomDirection) >= significantChangeThreshold && Math.abs(roundedZoomDirection - lastSentZoomSpeed.value) >= significantChangeThreshold) {
-    lastSentZoomSpeed.value = roundedZoomDirection;
-
-    const isZoomingIn = roundedZoomDirection > 0;
-    const zoomSpeed = normalizeZoomValue(Math.abs(roundedZoomDirection));
-
-    await executeContinuousMove({ panSpeed: 0, tiltSpeed: 0, zoomSpeed: isZoomingIn ? zoomSpeed : -zoomSpeed });
-  } else if (isZoomActive.value && Math.abs(roundedZoomDirection) < significantChangeThreshold && Math.abs(lastSentZoomSpeed.value) >= significantChangeThreshold) {
-    currentZoomDirection.value = 0;
-    lastSentZoomSpeed.value = 0;
-    await executeStop();
-  }
+  updateTarget();
 }
 
 function activateZoom(e: MouseEvent | TouchEvent): void {
   isZoomActive.value = true;
-  lastUpdateTime.value = Date.now();
-
-  accumulatedZoom.value = zoomValue.value;
-
-  startContinuousMovement();
 
   if (e instanceof MouseEvent) {
     updateZoomPosition(e.clientY);
   } else {
-    updateZoomPosition(e.touches[0].clientY);
+    const touch = e.changedTouches[0];
+    zoomTouchId = touch.identifier;
+    updateZoomPosition(touch.clientY);
   }
 }
 
-async function updatePanTiltPosition(clientX: number, clientY: number): Promise<void> {
+function updatePanTiltPosition(clientX: number, clientY: number): void {
   if (!panTiltRef.value || !isPanTiltActive.value) {
     return;
   }
@@ -353,79 +300,56 @@ async function updatePanTiltPosition(clientX: number, clientY: number): Promise<
   panTiltUIPosition.x = uiX;
   panTiltUIPosition.y = uiY;
 
-  const panDirection = uiX / radius;
+  const pan = uiX / radius;
   // screen y grows downwards
-  const tiltDirection = -uiY / radius;
+  const tilt = -uiY / radius;
 
   // single-axis cameras move along the dominant axis only
-  const panAbs = Math.abs(panDirection);
-  const tiltAbs = Math.abs(tiltDirection);
+  panTiltAxis = pickAxis(pan, tilt);
+  panTiltLevel = speedLevel(Math.hypot(pan, tilt), panTiltLevel);
+  panSpeed = panTiltAxis === 'pan' ? levelSpeed(panTiltLevel, pan) : 0;
+  tiltSpeed = panTiltAxis === 'tilt' ? levelSpeed(panTiltLevel, tilt) : 0;
 
-  if (panAbs >= significantChangeThreshold || tiltAbs >= significantChangeThreshold) {
-    if (panAbs > tiltAbs) {
-      activeAxis.value = 'pan';
-      currentPanDirection.value = panDirection;
-      currentTiltDirection.value = 0;
-    } else {
-      activeAxis.value = 'tilt';
-      currentPanDirection.value = 0;
-      currentTiltDirection.value = tiltDirection;
-    }
-  } else {
-    activeAxis.value = 'none';
-    currentPanDirection.value = 0;
-    currentTiltDirection.value = 0;
-  }
-
-  if (panAbs > significantChangeThreshold || tiltAbs > significantChangeThreshold) {
-    lastPanTiltValues.x = currentPanDirection.value;
-    lastPanTiltValues.y = currentTiltDirection.value;
-  }
-
-  const panDiff = Math.abs(currentPanDirection.value - lastSentPanSpeed.value);
-  const tiltDiff = Math.abs(currentTiltDirection.value - lastSentTiltSpeed.value);
-  const isSignificantChange = panDiff >= significantChangeThreshold || tiltDiff >= significantChangeThreshold;
-  const isSignificantMovement = Math.abs(currentPanDirection.value) >= significantChangeThreshold || Math.abs(currentTiltDirection.value) >= significantChangeThreshold;
-
-  if (isSignificantMovement && isSignificantChange) {
-    lastSentPanSpeed.value = currentPanDirection.value;
-    lastSentTiltSpeed.value = currentTiltDirection.value;
-
-    const panValue = roundToTwoDecimals(currentPanDirection.value);
-    const tiltValue = roundToTwoDecimals(currentTiltDirection.value);
-
-    if (activeAxis.value === 'pan') {
-      await executeContinuousMove({ panSpeed: panValue, tiltSpeed: 0, zoomSpeed: 0 });
-    } else if (activeAxis.value === 'tilt') {
-      await executeContinuousMove({ panSpeed: 0, tiltSpeed: tiltValue, zoomSpeed: 0 });
-    }
-  } else if (
-    isPanTiltActive.value &&
-    !isSignificantMovement &&
-    (Math.abs(lastSentPanSpeed.value) >= significantChangeThreshold || Math.abs(lastSentTiltSpeed.value) >= significantChangeThreshold)
-  ) {
-    currentPanDirection.value = 0;
-    currentTiltDirection.value = 0;
-    activeAxis.value = 'none';
-
-    lastSentPanSpeed.value = 0;
-    lastSentTiltSpeed.value = 0;
-
-    await executeStop();
-  }
+  updateTarget();
 }
 
 function activatePanTilt(e: MouseEvent | TouchEvent): void {
   isPanTiltActive.value = true;
-  lastUpdateTime.value = Date.now();
-
-  startContinuousMovement();
 
   if (e instanceof MouseEvent) {
     updatePanTiltPosition(e.clientX, e.clientY);
   } else {
-    updatePanTiltPosition(e.touches[0].clientX, e.touches[0].clientY);
+    const touch = e.changedTouches[0];
+    panTiltTouchId = touch.identifier;
+    updatePanTiltPosition(touch.clientX, touch.clientY);
   }
+}
+
+function findTouch(touches: TouchList, id: number | undefined): Touch | undefined {
+  return id === undefined ? undefined : Array.from(touches).find((touch) => touch.identifier === id);
+}
+
+function releasePanTilt(): void {
+  isPanTiltActive.value = false;
+  panTiltTouchId = undefined;
+  panTiltUIPosition.x = 0;
+  panTiltUIPosition.y = 0;
+  panTiltLevel = 0;
+  panSpeed = 0;
+  tiltSpeed = 0;
+}
+
+function releaseZoom(): void {
+  isZoomActive.value = false;
+  zoomTouchId = undefined;
+  zoomUIPosition.value = 0;
+  zoomLevel = 0;
+  zoomSpeed = 0;
+}
+
+function scheduleStop(): void {
+  clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(updateTarget, releaseGrace);
 }
 
 function handleMouseMove(e: MouseEvent): void {
@@ -438,45 +362,70 @@ function handleMouseMove(e: MouseEvent): void {
 }
 
 function handleTouchMove(e: TouchEvent): void {
-  e.preventDefault();
-  if (isPanTiltActive.value) {
-    updatePanTiltPosition(e.touches[0].clientX, e.touches[0].clientY);
+  const panTiltTouch = findTouch(e.touches, panTiltTouchId);
+  const zoomTouch = findTouch(e.touches, zoomTouchId);
+  if (!panTiltTouch && !zoomTouch) {
+    return;
   }
-  if (isZoomActive.value) {
-    updateZoomPosition(e.touches[0].clientY);
+
+  e.preventDefault();
+  if (panTiltTouch) {
+    updatePanTiltPosition(panTiltTouch.clientX, panTiltTouch.clientY);
+  }
+  if (zoomTouch) {
+    updateZoomPosition(zoomTouch.clientY);
   }
 }
 
-function handlePointerUp(): void {
+function handleMouseUp(): void {
+  if (!isPanTiltActive.value && !isZoomActive.value) {
+    return;
+  }
+
   if (isPanTiltActive.value) {
-    isPanTiltActive.value = false;
-    panTiltUIPosition.x = 0;
-    panTiltUIPosition.y = 0;
+    releasePanTilt();
   }
-
   if (isZoomActive.value) {
-    lastZoomValue.value = zoomValue.value;
-    isZoomActive.value = false;
-    zoomUIPosition.value = 0;
+    releaseZoom();
+  }
+  scheduleStop();
+}
+
+function handleTouchEnd(e: TouchEvent): void {
+  const panTiltEnded = findTouch(e.changedTouches, panTiltTouchId);
+  const zoomEnded = findTouch(e.changedTouches, zoomTouchId);
+  if (!panTiltEnded && !zoomEnded) {
+    return;
   }
 
-  stopMovement();
+  if (panTiltEnded) {
+    releasePanTilt();
+  }
+  if (zoomEnded) {
+    releaseZoom();
+  }
+  scheduleStop();
 }
 
 onMounted(() => {
   window.addEventListener('mousemove', handleMouseMove);
-  window.addEventListener('mouseup', handlePointerUp);
+  window.addEventListener('mouseup', handleMouseUp);
   window.addEventListener('touchmove', handleTouchMove, { passive: false });
-  window.addEventListener('touchend', handlePointerUp);
+  window.addEventListener('touchend', handleTouchEnd);
+  window.addEventListener('touchcancel', handleTouchEnd);
 });
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove);
-  window.removeEventListener('mouseup', handlePointerUp);
+  window.removeEventListener('mouseup', handleMouseUp);
   window.removeEventListener('touchmove', handleTouchMove);
-  window.removeEventListener('touchend', handlePointerUp);
+  window.removeEventListener('touchend', handleTouchEnd);
+  window.removeEventListener('touchcancel', handleTouchEnd);
 
-  stopContinuousMovement();
-  executeStop();
+  clearTimeout(releaseTimer);
+  clearTimeout(settleTimer);
+  stopKeepAlive();
+  target = STOP;
+  send();
 });
 </script>
