@@ -72,6 +72,10 @@ export interface FaceTarget {
   attrIndex?: number;
 }
 
+export interface RecordingsSensorFilterProps {
+  types: readonly string[];
+}
+
 export interface RecordingsFilterSidebarProps {
   filters: RecordingsFilterState;
   cameras: { id: string; name: string; room?: string }[];

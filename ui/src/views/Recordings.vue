@@ -300,6 +300,7 @@ import SimilarImageSearchDialog from '@/components/CuiDialog/templates/SimilarIm
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import RecordingsFilterSidebar from '@/components/CuiRecordings/RecordingsFilterSidebar.vue';
+import { triggerQuery, vehicleAttributeLabels } from '@/components/CuiRecordings/filters.js';
 import { buildUngroupedItems, newestFirst } from '@/components/CuiRecordings/ungrouped.js';
 import { mergeSimilarItems, similarItems } from '@/components/CuiSimilarResults/utils.js';
 import { provideEventHoverPreview } from '@/composables/provideEventHoverPreview.js';
@@ -851,15 +852,13 @@ function inGridRegions(event: RecordedEvent, regions: RecordingsFilterState['gri
 
 function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
   const hasAnyContentFilter = f.eventTypes.length > 0 || f.sensorEvents.length > 0 || f.hasAttributes.length > 0;
-  // the sounds sit under the audio trigger, with it unpicked they are hidden and filter nothing
-  const sounds = f.sensorEvents.includes('audio') ? f.audioLabels : [];
 
   return {
     types: f.eventTypes.length > 0 ? f.eventTypes : undefined,
-    triggers: f.sensorEvents.length > 0 ? f.sensorEvents : undefined,
-    triggerLabels: sounds.length > 0 ? sounds : undefined,
+    // the sounds stay picked while audio is off, they only count with it
+    ...triggerQuery(f.sensorEvents, f.sensorEvents.includes('audio') ? f.audioLabels : []),
     attributes: f.hasAttributes.length > 0 ? f.hasAttributes : undefined,
-    attributeLabels: vehicleAttributeLabels(f),
+    attributeLabels: vehicleAttributeLabels(f.vehicleColors, f.vehicleTypes),
     filterLogicTriggers: hasAnyContentFilter ? f.filterLogicTriggers : undefined,
     filterLogicAttributes: hasAnyContentFilter ? f.filterLogicAttributes : undefined,
     search: f.search || undefined,
@@ -875,14 +874,6 @@ function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
 function savedFilters(f: RecordingsFilterState): DBRecordingsFilters {
   const { search, semanticQuery, minSemanticScore, timeRange, customDateRange, ...saved } = f;
   return saved;
-}
-
-function vehicleAttributeLabels(f: RecordingsFilterState): Record<string, string[]> | undefined {
-  if (!f.vehicleColors.length && !f.vehicleTypes.length) return undefined;
-  const labels: Record<string, string[]> = {};
-  if (f.vehicleColors.length) labels.color = f.vehicleColors;
-  if (f.vehicleTypes.length) labels.vehicle_type = f.vehicleTypes;
-  return labels;
 }
 
 function itemKey(item: UngroupedItem): string {

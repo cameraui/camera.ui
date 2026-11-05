@@ -225,22 +225,14 @@
             <span>{{ $t('views.recordings.sensor_events') }}</span>
             <component :is="sections.sensorEvents ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
           </button>
-          <div v-if="sections.sensorEvents" class="flex flex-col gap-2">
-            <template v-for="sensor in sensorEventOptions" :key="sensor.value">
-              <label class="flex items-center gap-2 cursor-pointer text-sm">
-                <Checkbox :model-value="filters.sensorEvents.includes(sensor.value)" :binary="true" @update:model-value="toggleSensorEvent(sensor.value)" />
-                <component :is="sensor.icon" class="w-4 h-4 text-muted" />
-                <span>{{ sensor.label }}</span>
-              </label>
-              <div v-if="sensor.value === 'audio' && filters.sensorEvents.includes('audio')" class="flex flex-col gap-2 ml-6">
-                <label v-for="al in audioLabelOptions" :key="al.value" class="flex items-center gap-2 cursor-pointer text-sm">
-                  <Checkbox :model-value="filters.audioLabels.includes(al.value)" :binary="true" @update:model-value="toggleAudioLabel(al.value)" />
-                  <component :is="al.icon" class="w-4 h-4 text-muted" />
-                  <span>{{ al.label }}</span>
-                </label>
-              </div>
-            </template>
-          </div>
+          <RecordingsSensorFilter
+            v-if="sections.sensorEvents"
+            :types="EVENT_TRIGGER_TYPES"
+            :sensor-events="filters.sensorEvents"
+            :audio-labels="filters.audioLabels"
+            @update:sensor-events="updateFilter('sensorEvents', $event)"
+            @update:audio-labels="updateFilter('audioLabels', $event)"
+          />
         </div>
 
         <div class="filter-logic-divider">
@@ -263,11 +255,15 @@
             <component :is="sections.eventTypes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
           </button>
           <div v-if="sections.eventTypes" class="flex flex-col gap-2">
-            <label v-for="type in eventTypeOptions" :key="type.value" class="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox :model-value="filters.eventTypes.includes(type.value)" :binary="true" @update:model-value="toggleEventType(type.value)" />
-              <component :is="type.icon" class="w-4 h-4 text-muted" />
-              <span>{{ type.label }}</span>
-            </label>
+            <CuiCheckRow
+              v-for="type in eventTypeOptions"
+              :key="type.value"
+              :model-value="filters.eventTypes.includes(type.value)"
+              :label="type.label"
+              :icon="type.icon"
+              plain
+              @update:model-value="toggleEventType(type.value)"
+            />
           </div>
         </div>
 
@@ -291,16 +287,22 @@
             <component :is="sections.attributes ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
           </button>
           <div v-if="sections.attributes" class="flex flex-col gap-2">
-            <label v-for="attr in attributeOptions" :key="attr.value" class="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox :model-value="filters.hasAttributes.includes(attr.value)" :binary="true" @update:model-value="toggleAttribute(attr.value)" />
-              <component :is="attr.icon" class="w-4 h-4 text-muted" />
-              <span>{{ attr.label }}</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox :model-value="filters.eventTypes.includes(otherOption.value)" :binary="true" @update:model-value="toggleEventType(otherOption.value)" />
-              <component :is="otherOption.icon" class="w-4 h-4 text-muted" />
-              <span>{{ otherOption.label }}</span>
-            </label>
+            <CuiCheckRow
+              v-for="attr in attributeOptions"
+              :key="attr.value"
+              :model-value="filters.hasAttributes.includes(attr.value)"
+              :label="attr.label"
+              :icon="attr.icon"
+              plain
+              @update:model-value="toggleAttribute(attr.value)"
+            />
+            <CuiCheckRow
+              :model-value="filters.eventTypes.includes(otherOption.value)"
+              :label="otherOption.label"
+              :icon="otherOption.icon"
+              plain
+              @update:model-value="toggleEventType(otherOption.value)"
+            />
           </div>
         </div>
 
@@ -311,34 +313,13 @@
             <span>{{ $t('views.recordings.vehicles') }}</span>
             <component :is="sections.vehicles ? chevronUp : chevronDown" class="w-4 h-4 text-muted" />
           </button>
-          <div v-if="sections.vehicles" class="flex flex-col gap-3">
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="color in vehicleColorOptions"
-                :key="color.value"
-                v-tooltip.top="{ value: color.label }"
-                class="vehicle-color"
-                :class="{ 'vehicle-color-active': filters.vehicleColors.includes(color.value) }"
-                :style="{ background: color.swatch }"
-                :aria-label="color.label"
-                :aria-pressed="filters.vehicleColors.includes(color.value)"
-                @click="toggleVehicleFilter('vehicleColors', color.value)"
-              />
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <Button
-                v-for="type in vehicleTypeOptions"
-                :key="type.value"
-                :label="type.label"
-                :severity="filters.vehicleTypes.includes(type.value) ? undefined : 'secondary'"
-                :outlined="!filters.vehicleTypes.includes(type.value)"
-                size="small"
-                class="text-xs"
-                @click="toggleVehicleFilter('vehicleTypes', type.value)"
-              />
-            </div>
-            <span class="text-xs text-muted">{{ $t('views.recordings.vehicle_filter_hint') }}</span>
-          </div>
+          <RecordingsVehicleFilter
+            v-if="sections.vehicles"
+            :colors="filters.vehicleColors"
+            :types="filters.vehicleTypes"
+            @update:colors="updateFilter('vehicleColors', $event)"
+            @update:types="updateFilter('vehicleTypes', $event)"
+          />
         </div>
       </template>
     </div>
@@ -346,8 +327,8 @@
 </template>
 
 <script setup lang="ts">
-import { EVENT_TYPE_OTHER, VEHICLE_COLORS, VEHICLE_TYPES } from '@camera.ui/nvr';
-import { BASE_AUDIO_LABELS, DETECTION_ATTRIBUTES, DETECTION_LABELS, EVENT_TRIGGER_TYPES } from '@camera.ui/sdk';
+import { EVENT_TYPE_OTHER } from '@camera.ui/nvr';
+import { DETECTION_ATTRIBUTES, DETECTION_LABELS, EVENT_TRIGGER_TYPES } from '@camera.ui/sdk';
 import RobotIcon from '~icons/mdi/robot-outline';
 import IconChevronDown from '~icons/tabler/chevron-down';
 import IconChevronUp from '~icons/tabler/chevron-up';
@@ -355,7 +336,7 @@ import PhotoSearchIcon from '~icons/tabler/photo-search';
 import SearchIcon from '~icons/tabler/search';
 import SparklesIcon from '~icons/tabler/sparkles';
 
-import { attributeLabelKey, audioLabelKey, sensorLabelKey, vehicleColorKey, vehicleTypeKey } from '@/common/eventLabels.js';
+import { attributeLabelKey } from '@/common/eventLabels.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { Component } from 'vue';
@@ -365,16 +346,6 @@ const SIDEBAR_WIDTH = 288;
 
 const NON_FILTER_LABELS = new Set(['motion', 'audio']);
 
-const VEHICLE_SWATCHES: Record<string, string> = {
-  white: '#f5f5f5',
-  gray: '#9ca3af',
-  yellow: '#facc15',
-  red: '#ef4444',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  black: '#111827',
-};
-
 const props = defineProps<RecordingsFilterSidebarProps>();
 
 const emit = defineEmits<RecordingsFilterSidebarEmits>();
@@ -383,7 +354,6 @@ const { t } = useI18n();
 const { topbarOffset } = useSharedCuiStates();
 const { icons: DETECTION_ICONS, generic: GENERIC_ICON } = resolveEventIcons();
 
-const sensorEventIcons = DETECTION_ICONS;
 const chevronUp = IconChevronUp;
 const chevronDown = IconChevronDown;
 
@@ -473,22 +443,6 @@ const otherOption = computed(() => ({
   icon: DETECTION_ICONS['other'] ?? GENERIC_ICON,
 }));
 
-const sensorEventOptions = computed(() =>
-  EVENT_TRIGGER_TYPES.map((value) => ({
-    label: t(sensorLabelKey(value)),
-    value: value as string,
-    icon: sensorEventIcons[value] ?? GENERIC_ICON,
-  })),
-);
-
-const audioLabelOptions = computed(() =>
-  BASE_AUDIO_LABELS.map((label) => ({
-    label: t(audioLabelKey(label)),
-    value: label,
-    icon: DETECTION_ICONS[label] ?? GENERIC_ICON,
-  })),
-);
-
 const attributeOptions = computed(() =>
   DETECTION_ATTRIBUTES.map((attr) => ({
     label: t(attributeLabelKey(attr)),
@@ -496,12 +450,6 @@ const attributeOptions = computed(() =>
     icon: DETECTION_ICONS[attr] ?? GENERIC_ICON,
   })),
 );
-
-const vehicleColorOptions = computed(() =>
-  VEHICLE_COLORS.map((color) => ({ label: t(vehicleColorKey(color)), value: color as string, swatch: VEHICLE_SWATCHES[color] })),
-);
-
-const vehicleTypeOptions = computed(() => VEHICLE_TYPES.map((type) => ({ label: t(vehicleTypeKey(type)), value: type as string })));
 
 function updateFilter<K extends keyof RecordingsFilterState>(key: K, value: RecordingsFilterState[K] | undefined): void {
   emit('update:filters', { ...props.filters, [key]: value });
@@ -555,28 +503,6 @@ function toggleEventType(type: string): void {
   updateFilter('eventTypes', current);
 }
 
-function toggleAudioLabel(label: string): void {
-  const current = [...props.filters.audioLabels];
-  const idx = current.indexOf(label);
-  if (idx >= 0) {
-    current.splice(idx, 1);
-  } else {
-    current.push(label);
-  }
-  updateFilter('audioLabels', current);
-}
-
-function toggleSensorEvent(type: string): void {
-  const current = [...props.filters.sensorEvents];
-  const idx = current.indexOf(type);
-  if (idx >= 0) {
-    current.splice(idx, 1);
-  } else {
-    current.push(type);
-  }
-  updateFilter('sensorEvents', current);
-}
-
 function toggleAttribute(attr: string): void {
   const current = [...props.filters.hasAttributes];
   const idx = current.indexOf(attr);
@@ -586,11 +512,6 @@ function toggleAttribute(attr: string): void {
     current.push(attr);
   }
   updateFilter('hasAttributes', current);
-}
-
-function toggleVehicleFilter(key: 'vehicleColors' | 'vehicleTypes', value: string): void {
-  const current = props.filters[key];
-  updateFilter(key, current.includes(value) ? current.filter((v) => v !== value) : [...current, value]);
 }
 
 function toggleSection(section: keyof typeof sections): void {
@@ -674,21 +595,6 @@ defineExpose({
     padding: 0.3rem 0.5rem;
     font-size: 0.75rem;
   }
-}
-
-.vehicle-color {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: box-shadow 150ms ease;
-}
-
-.vehicle-color-active {
-  box-shadow:
-    0 0 0 2px var(--subnavbar-background),
-    0 0 0 4px var(--p-primary-color);
 }
 
 .semantic-textarea {

@@ -23,7 +23,7 @@
             flex: !smBreakpoint,
             'h-full': !smBreakpoint && recordingsInSheet,
           }"
-          :style="recordingsInSheet ? undefined : { maxHeight: `${cameraShare * 100}%` }"
+          :style="recordingsInSheet ? undefined : { maxHeight: `min(${cameraShare * 100}%, calc(100% - ${TABS_MIN_HEIGHT}px))` }"
         >
           <CuiCameraPipCard
             ref="cameraCardRef"
@@ -82,7 +82,14 @@
 
               <TabPanels class="camera-tab-panels px-0 pb-0 flex-1 min-h-0">
                 <TabPanel value="0" class="!overflow-hidden">
-                  <CuiCameraRecordings v-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" @scroll-to-event="onScrollToEvent" />
+                  <CuiCameraRecordings
+                    v-if="cameraId"
+                    :key="cameraId"
+                    :camera-id="cameraId"
+                    :camera-name="cameraName"
+                    :camera="camera"
+                    @scroll-to-event="onScrollToEvent"
+                  />
                 </TabPanel>
                 <TabPanel value="1">
                   <CuiCameraTable :active-camera="cameraName" />
@@ -122,7 +129,7 @@
         </TabList>
         <TabPanels class="mobile-sheet-panels px-0 pb-0 flex-1 min-h-0">
           <TabPanel value="0" class="h-full !overflow-hidden">
-            <CuiCameraRecordings v-if="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" compact @scroll-to-event="onScrollToEvent" />
+            <CuiCameraRecordings v-if="cameraId" :key="cameraId" :camera-id="cameraId" :camera-name="cameraName" :camera="camera" @scroll-to-event="onScrollToEvent" />
           </TabPanel>
           <TabPanel value="1" class="h-full overflow-auto">
             <CuiCameraTable :active-camera="cameraName" />
@@ -338,7 +345,7 @@ const cameraName = computed(() => route.params.cameraname as string);
 const { data: camera } = camerasQuery.getCameraQuery(cameraName);
 
 const TIMELAPSE_OPTIONS = ['Off', '1m', '2m', '3m', '5m'] as const;
-const CAMERA_SHARE_DEFAULT = 0.6;
+const CAMERA_SHARE_DEFAULT = 0.5;
 const CAMERA_SHARE_MIN = 0.2;
 const TABS_MIN_HEIGHT = 160;
 
@@ -347,7 +354,7 @@ const cuiTimelineRef = useTemplateRef<InstanceType<typeof CuiTimeline>>('cuiTime
 const timelineRef = useTemplateRef('timelineRef');
 const cameraColumnRef = useTemplateRef('cameraColumnRef');
 const cameraPaneRef = useTemplateRef('cameraPaneRef');
-const cameraShare = useLocalStorage('cui-camera-view-share', CAMERA_SHARE_DEFAULT);
+const cameraShare = useLocalStorage('cui-camera-view-split', CAMERA_SHARE_DEFAULT);
 const isContentReady = ref(!routerStore.isTransitioning);
 const wasTimelineActive = ref(false);
 const showMobileSheet = ref(false);

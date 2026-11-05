@@ -1,69 +1,96 @@
 <template>
-  <div class="flex flex-col h-full">
-    <CuiCameraRecordingsToolbar
-      v-model:search="search"
-      v-model:selected-types="selectedTypes"
-      v-model:selected-date="selectedDate"
-      v-model:min-confidence="minConfidence"
-      :compact
-    />
+  <div class="relative flex flex-col h-full">
+    <CuiRecordingsGrid
+      v-if="displayItems.length"
+      ref="gridRef"
+      :items="displayItems"
+      :min-item-width="150"
+      :gap="8"
+      :has-more="hasMore"
+      :load-more="loadMore"
+      :item-key="itemKey"
+      class="flex-1 min-h-0"
+    >
+      <template #item="{ item }">
+        <RecordingCard
+          :event="item.event"
+          :seg-index="item.segIndex"
+          hide-segment-badge
+          :camera-name="cameraName"
+          :camera="camera"
+          @scroll-to-event="(ts: number) => emit('scrollToEvent', ts)"
+          @open-trace="(atMs?: number) => openTrace(item.event, atMs)"
+        />
+      </template>
+    </CuiRecordingsGrid>
 
-    <div class="flex-1 min-h-0 flex flex-col mt-3">
-      <CuiRecordingsGrid
-        v-if="displayItems.length"
-        :items="displayItems"
-        :min-item-width="150"
-        :gap="8"
-        :has-more="hasMore"
-        :load-more="loadMore"
-        :item-key="itemKey"
-        class="flex-1 min-h-0"
-      >
-        <template #item="{ item }">
-          <RecordingCard
-            :event="item.event"
-            :seg-index="item.segIndex"
-            hide-segment-badge
-            :camera-name="cameraName"
-            :camera="camera"
-            @scroll-to-event="(ts: number) => emit('scrollToEvent', ts)"
-            @open-trace="(atMs?: number) => openTrace(item.event, atMs)"
-          />
-        </template>
-      </CuiRecordingsGrid>
+    <div v-if="isLoading && !displayItems.length" class="flex justify-center py-4">
+      <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
+    </div>
 
-      <div v-if="isLoading && !displayItems.length" class="flex justify-center py-4">
-        <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
-      </div>
+    <div v-if="!displayEvents.length && !isLoading" class="flex flex-col items-center justify-center py-10 gap-3">
+      <i-tabler:video-off class="w-12 h-12 text-muted opacity-30" />
+      <p class="text-muted text-sm">{{ emptyText }}</p>
+    </div>
 
-      <div v-if="!displayEvents.length && !isLoading" class="flex flex-col items-center justify-center py-10 gap-3">
-        <i-tabler:video-off class="w-12 h-12 text-muted opacity-30" />
-        <p class="text-muted text-sm">{{ eventsUnavailable ? $t('views.recordings.recordings_unavailable') : $t('views.recordings.no_recordings') }}</p>
-      </div>
+    <div
+      v-if="!eventsUnavailable"
+      class="absolute right-3 bottom-3 z-10 flex flex-col transition-all duration-200 ease-in-out"
+      :class="scrollHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
+    >
+      <CuiFloatingButton
+        v-if="gridSearch"
+        grouped
+        :tooltip-props="{ value: $t('components.timeline.filter_zone_enable') }"
+        :button-props="{ severity: gridSearch.active.value ? 'primary' : 'secondary' }"
+        :icon="ZoneIcon"
+        :icon-props="{ width: '100%', height: '100%' }"
+        @click="toggleZone"
+      />
+      <CuiFloatingButton
+        grouped
+        :tooltip-props="{ value: $t('views.camera.recordings_filter') }"
+        :button-props="{ severity: filterActive ? 'primary' : 'secondary' }"
+        :icon="filterActive ? FilterActiveIcon : FilterIcon"
+        :icon-props="{ width: '100%', height: '100%' }"
+        @click="openFilter"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useDetectionEvents } from '@camera.ui/nvr';
+import { timelineFilterQuery, useDetectionEvents, useTimelineFilter } from '@camera.ui/nvr';
 import { DETECTION_ATTRIBUTES } from '@camera.ui/sdk';
+import FilterIcon from '~icons/mage/filter';
+import FilterActiveIcon from '~icons/mage/filter-fill';
+import ZoneIcon from '~icons/tabler/grid-scan';
 
+import { asyncComponent } from '@/common/asyncComponent.js';
 import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
 import CuiRecordingsGrid from '@/components/CuiRecordings/CuiRecordingsGrid.vue';
+import { triggerQuery, vehicleAttributeLabels } from '@/components/CuiRecordings/filters.js';
 import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
 import { provideEventHoverPreview } from '@/composables/provideEventHoverPreview.js';
-import CuiCameraRecordingsToolbar from './CuiCameraRecordingsToolbar.vue';
+import { cameraFilterSet } from './filter.js';
+import { CAMERA_RECORDINGS_FILTER_DEFAULTS } from './types.js';
 
+import type { CameraRecordingsFilterProps } from '@/components/CuiDialog/templates/CameraRecordingsFilter/types.js';
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
 import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
-import type { CuiCameraRecordingsEmits, CuiCameraRecordingsProps } from './types.js';
+import type { CameraRecordingsFilterState, CuiCameraRecordingsEmits, CuiCameraRecordingsProps } from './types.js';
 
-const props = withDefaults(defineProps<CuiCameraRecordingsProps>(), { compact: false });
+const CameraRecordingsFilterDialog = asyncComponent(() => import('@/components/CuiDialog/templates/CameraRecordingsFilter/CameraRecordingsFilter.vue'));
+
+const props = defineProps<CuiCameraRecordingsProps>();
 
 const emit = defineEmits<CuiCameraRecordingsEmits>();
 
+const { t } = useI18n();
+const dialog = useCuiDialog();
 const { openEventTrace } = useEventTraceDialog();
+const { hiddenTypes } = useTimelineFilter(() => props.cameraId);
 
 const gridSearch = inject(GridSearchKey, undefined);
 
@@ -73,30 +100,27 @@ const ATTR_SET = new Set<string>(DETECTION_ATTRIBUTES);
 const REGION_FILL_ITEMS = 12;
 const REGION_FILL_PAGES = 5;
 
-const search = ref('');
-const selectedTypes = ref<string[]>([]);
-const selectedTriggers = ref<string[]>([]);
-const selectedDate = ref<Date | undefined>();
-const minConfidence = ref(0);
-
-const searchQuery = refDebounced(search, 300);
-const confidence = refDebounced(minConfidence, 300);
+const gridRef = useTemplateRef<{ scrollY: number }>('gridRef');
+const filter = ref<CameraRecordingsFilterState>({ ...CAMERA_RECORDINGS_FILTER_DEFAULTS });
 
 let regionFillPages = 0;
+
+const scrollHidden = useScrollHide(() => gridRef.value?.scrollY ?? 0);
 
 const cameraIds = computed(() => [props.cameraId]);
 
 const serverFilter = computed<GetEventsOptions>(() => {
-  const attrFilters = selectedTypes.value.filter((t) => ATTR_SET.has(t));
-  const hasAnyFilter = selectedTypes.value.length > 0 || selectedTriggers.value.length > 0;
-  const day = selectedDate.value;
+  const { types, day, minConfidence, search, sensorEvents, audioLabels, vehicleColors, vehicleTypes } = filter.value;
+  const attributes = types.filter((type) => ATTR_SET.has(type));
+  const labels = types.filter((type) => !ATTR_SET.has(type));
   return {
-    types: selectedTypes.value.length > 0 ? selectedTypes.value.filter((t) => !ATTR_SET.has(t)) : undefined,
-    triggers: selectedTriggers.value.length > 0 ? selectedTriggers.value : undefined,
-    attributes: attrFilters.length > 0 ? attrFilters : undefined,
-    search: searchQuery.value.trim() || undefined,
-    minConfidence: confidence.value > 0 ? confidence.value : undefined,
-    hasDetections: !hasAnyFilter,
+    ...timelineFilterQuery(hiddenTypes.value, cameraIds.value),
+    ...triggerQuery(sensorEvents, audioLabels),
+    types: labels.length > 0 ? labels : undefined,
+    attributes: attributes.length > 0 ? attributes : undefined,
+    attributeLabels: vehicleAttributeLabels(vehicleColors, vehicleTypes),
+    search: search || undefined,
+    minConfidence: minConfidence > 0 ? minConfidence : undefined,
     startMs: day ? new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime() : undefined,
     endMs: day ? new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime() - 1 : undefined,
   };
@@ -108,6 +132,7 @@ const {
   hasMore,
   loadMore,
   pluginUnavailable: eventsUnavailable,
+  licenseRequired,
 } = useDetectionEvents({
   availableCameraIds: cameraIds,
   cameraIds,
@@ -127,9 +152,17 @@ const displayEvents = computed(() => {
   return result;
 });
 
-const displayItems = computed(() => buildUngroupedItems(displayEvents.value));
+const displayItems = computed(() => buildUngroupedItems(displayEvents.value, false, hiddenTypes.value));
 
 const regionsKey = computed(() => JSON.stringify(gridSearch?.regions.value ?? []));
+
+const filterActive = computed(() => cameraFilterSet(filter.value));
+
+const emptyText = computed(() => {
+  if (eventsUnavailable.value) return t('views.recordings.recordings_unavailable');
+  if (licenseRequired.value) return t('views.recordings.vehicle_filter_license');
+  return t('views.recordings.no_recordings');
+});
 
 function itemKey(item: UngroupedItem): string {
   return item.key;
@@ -137,6 +170,25 @@ function itemKey(item: UngroupedItem): string {
 
 function openTrace(event: RecordedEvent, atMs?: number): void {
   if (props.camera) openEventTrace(event, props.camera, atMs);
+}
+
+function openFilter(): void {
+  dialog.openComponentDialog<CameraRecordingsFilterProps>(CameraRecordingsFilterDialog, {
+    data: {
+      title: t('views.camera.recordings_filter'),
+      confirmText: t('components.form.button.apply'),
+      contentProps: { cameraName: props.cameraName, camera: props.camera, filter: filter.value },
+    },
+    onConfirm: (result: CameraRecordingsFilterState) => {
+      filter.value = result;
+    },
+  });
+}
+
+function toggleZone(): void {
+  if (!gridSearch) return;
+  gridSearch.active.value = !gridSearch.active.value;
+  if (!gridSearch.active.value) gridSearch.regions.value = [];
 }
 
 watch([regionsKey, serverFilter], () => {

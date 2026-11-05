@@ -1,3 +1,5 @@
+import { segmentHidden } from '@camera.ui/nvr';
+
 import type { RecordedEpisode, RecordedEvent } from '@camera.ui/nvr';
 
 export interface UngroupedItem {
@@ -20,18 +22,17 @@ export function newestFirst(a: UngroupedItem, b: UngroupedItem): number {
   return ungroupedItemTime(b) - ungroupedItemTime(a);
 }
 
-export function buildUngroupedItems(events: RecordedEvent[], keepOrder = false): UngroupedItem[] {
+export function buildUngroupedItems(events: RecordedEvent[], keepOrder = false, hiddenTypes?: readonly string[]): UngroupedItem[] {
   const items: UngroupedItem[] = [];
   for (const event of events) {
     const segments = event.segments ?? [];
-    if (segments.length <= 1) {
+    const shown = segments.flatMap((segment, index) => (segment && !segmentHidden(segment, hiddenTypes) ? [index] : []));
+    // listed for its motion, a sound or a sensor while every span is hidden
+    if (segments.length <= 1 || shown.length === 0) {
       items.push({ event, key: event.id });
       continue;
     }
-    const moments: UngroupedItem[] = [];
-    segments.forEach((segment, index) => {
-      if (segment) moments.push({ event, key: `${event.id}:seg:${index}`, segIndex: index });
-    });
+    const moments = shown.map((index) => ({ event, key: `${event.id}:seg:${index}`, segIndex: index }));
     items.push(...moments.sort(newestFirst));
   }
   return keepOrder ? items : items.sort(newestFirst);
