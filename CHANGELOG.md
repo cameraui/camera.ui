@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.8]
+
+### After the update
+
+- **Update the Home Assistant plugin to 1.1.0.** Until then no cameras from Home Assistant show up under Cameras → Discovered.
+
+- **Update the Reolink plugin to 1.3.8.** Until then the camera moves in jerks while you hold the joystick.
+
+### Added
+
+- **Export from the Camview timeline.** With one camera in the view or one tile expanded, the timeline has Export, as on the camera page.
+
+- **Cameras from Home Assistant.** The cameras of your other Home Assistant integrations show up under Cameras → Discovered. The stream comes through Home Assistant and records like any other camera, and the camera brings its own motion, person, vehicle and animal sensors, battery, light and siren along. Two-way audio works where Home Assistant offers it. See [Import from Home Assistant](https://docs.cameraui.com/home-assistant/import#cameras).
+
+- **Your cameras as an ONVIF device.** Another NVR, an ONVIF client or the ONVIF integration of Home Assistant can add camera.ui as an ONVIF camera, each camera with its streams from high to low resolution. The answers follow the ONVIF specification, so clients that check them strictly accept it too. It stays off until you turn it on under Settings → Streaming, and single streams can be left out in a camera's Sources tab. Without host networking, publish port 2005 as well. See [ONVIF export](https://docs.cameraui.com/cameras/onvif-export).
+
+- **Choose the sounds per camera.** Settings → Detection lists the sounds that count for a camera, all selected at first. A sound you deselect starts no event, push or automation on that camera. Automations can change the selection with Camera control. See [Audio detection](https://docs.cameraui.com/detection/audio).
+
+### Changed
+
+- **Camview has a control bar at the bottom.** It replaces the button in the corner and holds the same controls. The microphone in its middle talks to all cameras right away, without a dialog. The arrow at its end folds the bar back into a button, in fullscreen a button at the top shows it.
+
+- **The recordings below a camera follow its timeline filter.** A camera that only reports motion lists its motion events once its timeline shows motion. Buttons at the bottom right replace the bar above the list: one filters by text, day, confidence, label, the camera's sensors and sounds and by vehicle, the one above it turns on the zone filter.
+
+- **The camera page leaves more room for the recordings.** The player takes up to half the height, a wide picture less.
+
+- **RTSP clients without a query get one video and one audio track.** They got every track of the stream before. A query in the URL still picks the tracks.
+
+- **Settings pages replace the config editor.** The new Streaming page holds RTSP, the ONVIF export, WebRTC with STUN and TURN and the other ports. System adds ports, address, local discovery and logging, Remote Access the reverse proxy, sign-in through a proxy and the tunnel protocol. Most changes apply without a restart, and the YAML files stay under Advanced on System and Streaming. See [Streaming](https://docs.cameraui.com/admin/streaming).
+
+- **Smaller changes in the settings.** The list of settings pages is sorted alphabetically, Save stays off until something in its card changed, Profile and Password are one card, every card opens with a short description, and the German texts say "du" throughout.
+
+### Fixed
+
+- **The PTZ joystick moves the camera evenly.** The camera turned in jerks, crept along and then suddenly sped up, or stopped while you still held the joystick. The speed now follows how far you push it. On phones, zoom and joystick also work at the same time.
+
+- **A camera opened right after Camview plays its main stream.** It kept the low stream from Camview until you opened it a second time.
+
+- **The detections list beside a camera no longer flickers when motion is shown in its filter.** It went blank for a moment every second.
+
 ## [2.4.7]
 
 ### After the update
