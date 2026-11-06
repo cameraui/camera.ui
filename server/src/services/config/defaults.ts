@@ -1,7 +1,7 @@
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 import { hostname } from 'node:os';
 
-import type { API, Ffmpeg, Log, Logger, PluginsSettings, RTMP, RTSP, SRTP, Webrtc, WorkerConfig } from './types.js';
+import type { API, Ffmpeg, Log, Logger, Onvif, PluginsSettings, RTMP, RTSP, SRTP, Webrtc, WorkerConfig } from './types.js';
 
 export const DESKTOP_PORT_OFFSET = 100;
 export const ELECTRON_PORT_OFFSET = IS_ELECTRON ? DESKTOP_PORT_OFFSET : 0;
@@ -36,9 +36,12 @@ export const DEFAULT_GO2RTC_CONFIG_API: API = {
 };
 export const DEFAULT_GO2RTC_CONFIG_RTSP: RTSP = {
   listen: listenWithOffset('0.0.0.0', 2001),
-  default_query: 'video=all&audio=all',
+  default_query: 'video&audio',
   username: 'admin',
   password: 'admin',
+};
+export const DEFAULT_GO2RTC_CONFIG_ONVIF: Onvif = {
+  listen: '',
 };
 export const DEFAULT_GO2RTC_CONFIG_SRTP: SRTP = {
   listen: listenWithOffset('0.0.0.0', 2002),

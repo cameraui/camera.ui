@@ -79,6 +79,7 @@ export interface Go2RtcConfig {
   log: Partial<Log>;
   api: API;
   rtsp: RTSP;
+  onvif: Onvif;
   srtp: SRTP;
   rtmp: RTMP;
   webrtc: Webrtc;
@@ -110,6 +111,7 @@ export interface Log {
   mjpeg: LogLevel;
   streams: LogLevel;
   webrtc: LogLevel;
+  onvif: LogLevel;
 }
 
 export interface API {
@@ -143,6 +145,17 @@ export interface RTSP {
   password?: string;
   default_query: string;
   pkt_size?: number;
+}
+
+export interface Onvif {
+  listen: string;
+  video_sources?: OnvifVideoSource[];
+}
+
+export interface OnvifVideoSource {
+  token?: string;
+  name?: string;
+  profiles: string[];
 }
 
 export interface Webrtc {

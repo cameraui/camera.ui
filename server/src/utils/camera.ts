@@ -1,6 +1,8 @@
 import { GOP_REGEX, SOURCE_BACKCHANNEL_REGEX, SOURCE_HANDSHAKE_TIMEOUT_REGEX, SOURCE_TIMEOUT_REGEX } from '../api/utils/regex.js';
 
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
+import type { DBCamera } from '../api/database/types.js';
+import type { OnvifVideoSource } from '../services/config/types.js';
 
 const NO_AUDIO_FLAG = '#noAudio';
 const NO_BACKCHANNEL_FLAG = '#noBackchannel';
@@ -9,6 +11,7 @@ const BACKCHANNEL_OFF_FLAG = '#backchannel=0';
 const BACKCHANNEL_SCHEMES = ['rtsp://', 'rtsps://', 'cui://', 'onvif://'];
 const CUI_STREAM_URL_REGEX = /^cui:\/\/127\.0\.0\.1:\d+\/api\/cameras\/streams\/[^?#]*/;
 const STREAM_TOKEN_QUERY_REGEX = /\?token=[^#]*/;
+const ONVIF_PROFILE_ROLES = ['high-resolution', 'mid-resolution', 'low-resolution'];
 
 export interface SourceUrlFlags {
   preload: boolean;
@@ -185,4 +188,18 @@ export function normalizeCameraName(name: string): string {
 
 export function createSourceName(cameraName: string, sourceName: string): string {
   return `cui_${normalizeCameraName(cameraName)}_${normalizeCameraName(sourceName)}`;
+}
+
+export function onvifVideoSources(cameras: DBCamera[]): OnvifVideoSource[] {
+  return cameras
+    .filter((camera) => !camera.disabled)
+    .map((camera) => ({
+      token: camera._id,
+      name: camera.name,
+      profiles: ONVIF_PROFILE_ROLES.flatMap((role) =>
+        camera.sources.filter((source) => source.role === role).map((source) => createSourceName(camera.name, source.name)),
+      ),
+    }))
+    .filter((videoSource) => videoSource.profiles.length > 0)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

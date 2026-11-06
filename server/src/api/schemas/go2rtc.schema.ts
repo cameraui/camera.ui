@@ -4,6 +4,7 @@ import {
   DEFAULT_GO2RTC_CONFIG_API,
   DEFAULT_GO2RTC_CONFIG_FFMPEG,
   DEFAULT_GO2RTC_CONFIG_LOGGER,
+  DEFAULT_GO2RTC_CONFIG_ONVIF,
   DEFAULT_GO2RTC_CONFIG_RTMP,
   DEFAULT_GO2RTC_CONFIG_RTSP,
   DEFAULT_GO2RTC_CONFIG_SRTP,
@@ -36,6 +37,7 @@ export const logSchema = zod
     mjpeg: logLevelGo2rtcSchema,
     streams: logLevelGo2rtcSchema,
     webrtc: logLevelGo2rtcSchema,
+    onvif: logLevelGo2rtcSchema,
   })
   .strict();
 
@@ -145,6 +147,21 @@ export const webrtcSchema = zod
   })
   .strict();
 
+export const onvifVideoSourceSchema = zod
+  .object({
+    token: zod.string().trim().optional(),
+    name: zod.string().trim().optional(),
+    profiles: zod.string().trim().array(),
+  })
+  .strict();
+
+export const onvifSchema = zod
+  .object({
+    listen: zod.string().trim().default(DEFAULT_GO2RTC_CONFIG_ONVIF.listen),
+    video_sources: onvifVideoSourceSchema.array().optional(),
+  })
+  .strict();
+
 export const homeKitSettingsSchema = zod
   .object({
     pin: zod.number(),
@@ -179,6 +196,7 @@ export const patchGo2RtcSchema = zod
     srtp: srtpSchema,
     rtmp: rtmpSchema,
     webrtc: webrtcSchema,
+    onvif: onvifSchema.default(() => ({ ...DEFAULT_GO2RTC_CONFIG_ONVIF })),
     ffmpeg: ffmpegSchema,
     secrets: streamSecretsSchema.optional(),
     preload: preloadSchema.optional(),

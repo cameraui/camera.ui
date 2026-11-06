@@ -126,6 +126,7 @@ export class CamerasService {
     await this.addCameraSourcesToConfig(cameraData._id, cameraData.name, cameraData.sources);
 
     await this.dbs.camerasDB.put(cameraData._id, cameraData);
+    await this.updateOnvifVideoSources();
 
     const transformedCamera = this.transformCamera(cameraData);
     await this.api.addCamera(transformedCamera);
@@ -374,6 +375,8 @@ export class CamerasService {
     if (cameraOld.disabled !== camera.disabled) {
       this.dbs.syncCamerasToGo2RtcConfig();
     }
+
+    await this.updateOnvifVideoSources();
 
     if (cameraOld.roomId !== camera.roomId) {
       await this.dropMisplacedFloorPlanCamera(camera);
@@ -689,6 +692,7 @@ export class CamerasService {
     await this.floorPlanService.dropCameras(camerasToRemove.map((camera) => camera._id));
     await this.dbs.camerasDB.clearAsync();
     await Promise.all(camerasToRemove.map((camera) => this.removeCameraSourcesFromConfig(camera.name, camera.sources)));
+    await this.updateOnvifVideoSources();
     await Promise.all(camerasToRemove.map((camera) => this.api.removeCamera(this.transformCamera(camera), camera.assignments)));
   }
 
@@ -823,7 +827,14 @@ export class CamerasService {
     await this.floorPlanService.dropCameras([camera._id]);
     await this.dbs.camerasDB.remove(camera._id);
     await this.removeCameraSourcesFromConfig(camera.name, camera.sources);
+    await this.updateOnvifVideoSources();
     await this.api.removeCamera(this.transformCamera(camera), camera.assignments);
+  }
+
+  private async updateOnvifVideoSources(): Promise<void> {
+    if (this.dbs.syncOnvifVideoSources()) {
+      await this.configService.writeGo2RtcConfigApi();
+    }
   }
 
   private async addCameraSourcesToConfig(cameraId: string, cameraname: string, sources: CameraInputSettings[]): Promise<void> {
@@ -924,7 +935,7 @@ export class CamerasService {
     const go2rtcAddress = this.configService.go2rtcAddress('rtsp');
     const onvifAddress = this.configService.go2rtcAddress('onvif');
     const baseRtspUrl = `${go2rtcAddress}/${sourceName}`;
-    const baseOnvifUrl = `${onvifAddress}/${sourceName}`;
+    const baseOnvifUrl = onvifAddress && `${onvifAddress}?subtype=${sourceName}`;
 
     return {
       base: `${baseRtspUrl}?video&audio&timeout=15`,

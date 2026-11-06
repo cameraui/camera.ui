@@ -1,4 +1,4 @@
-import { sleep } from '@camera.ui/common/utils';
+import { isEqual, sleep } from '@camera.ui/common/utils';
 import { ensureDir } from 'fs-extra/esm';
 import { open } from 'lmdb';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
@@ -11,7 +11,7 @@ import { DEFAULT_MASTER_USERNAME, INGRESS_USERNAME, MIN_DATABASE_VERSION } from 
 import { isMovedAway, readMoveRecord } from '../../services/config/move.js';
 import { isHostAddress } from '../../services/config/platform-values.js';
 import { dropsIngressAccount, isIngressAccount } from '../../services/config/restore.js';
-import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, stripStreamToken } from '../../utils/camera.js';
+import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, onvifVideoSources, stripStreamToken } from '../../utils/camera.js';
 import { createAutomationSchema } from '../schemas/automations.schema.js';
 import { createCameraBaseSchema } from '../schemas/cameras.schema.js';
 import { notificationSettingsSchema } from '../schemas/notifications.schema.js';
@@ -107,7 +107,7 @@ import type {
 } from './types.js';
 
 export class Database {
-  static readonly VERSION = '2.3.1';
+  static readonly VERSION = '2.4.8';
 
   public workerStateDB!: DB<DBWorkerState, 'state'>;
 
@@ -229,6 +229,7 @@ export class Database {
     await this.resetMasterPassword();
     await this.migrationRunner.migrate();
     await this.backfillSchemaDefaults();
+    this.syncOnvifVideoSources();
     this.syncCamerasToGo2RtcConfig();
 
     this.logger.debug('Database initialized!');
@@ -284,6 +285,17 @@ export class Database {
         }
       }
     });
+  }
+
+  public syncOnvifVideoSources(): boolean {
+    const movedAway = isMovedAway(readMoveRecord(this.configService.MOVE_FILE));
+    const videoSources = onvifVideoSources(movedAway ? [] : [...this.camerasDB.getRange()].map(({ value }) => value));
+    const onvif = this.configService.go2rtcConfig.onvif;
+
+    if (isEqual(videoSources, onvif.video_sources)) return false;
+
+    onvif.video_sources = videoSources;
+    return true;
   }
 
   public syncCamerasToGo2RtcConfig(): void {

@@ -389,7 +389,12 @@ export class ConfigService {
     const db = tryInject('dbs');
 
     await db?.updateCameras();
+    const onvifChanged = db?.syncOnvifVideoSources();
     db?.syncCamerasToGo2RtcConfig();
+
+    if (onvifChanged) {
+      await this.writeGo2RtcConfigApi();
+    }
   }
 
   public async updateGo2RtcWebRtcFilter(serverAddresses: string[] = [], oldAddresses: string[] = [], api?: boolean): Promise<void> {
@@ -468,7 +473,11 @@ export class ConfigService {
 
     const isTls = this._go2rtcConfig.api.listen === '';
 
-    if (mod === 'api' || mod === 'ws' || mod === 'onvif') {
+    if (mod === 'onvif' && !this._go2rtcConfig.onvif.listen) {
+      return '';
+    }
+
+    if (mod === 'api' || mod === 'ws') {
       const listen = isTls ? this._go2rtcConfig.api.tls_listen : this._go2rtcConfig.api.listen;
       go2rtcPort = parseInt(listen.split(':')[1], 10);
     } else {
