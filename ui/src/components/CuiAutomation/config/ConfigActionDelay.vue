@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-4">
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.delay_duration') }}</label>
-      <InputNumber :model-value="data.duration" :min="1" :max="9999" class="w-full" @update:model-value="update('duration', $event)" />
+      <CuiNumberStepper :model-value="data.duration" :min="1" :max="9999" class="w-full" @update:model-value="update('duration', $event)" />
     </div>
 
     <div class="flex flex-col field-gap">

@@ -199,11 +199,10 @@
           >
             <label :for="`sources[${i}].timeout`" class="cui-label">{{ $t('components.form.label.source_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="source.timeout"
                 :invalid="errors.length > 0"
                 :loading
-                show-buttons
                 :min="5"
                 :max="120"
                 :use-grouping="false"
@@ -233,11 +232,10 @@
           >
             <label :for="`sources[${i}].handshakeTimeout`" class="cui-label">{{ $t('components.form.label.source_handshake_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="source.handshakeTimeout"
                 :invalid="errors.length > 0"
                 :loading
-                show-buttons
                 :min="1"
                 :max="60"
                 :use-grouping="false"

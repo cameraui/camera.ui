@@ -414,11 +414,10 @@
           >
             <label for="detectionSettings.motion.timeout" class="cui-label">{{ $t('components.form.label.motion_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.motion.timeout"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :min="10"
                 :use-grouping="false"
                 @value-change="(e) => (cameraForm.detectionSettings.motion.timeout = e ?? undefined)"
@@ -460,11 +459,10 @@
           >
             <label :for="`detectionSettings.object.confidences.${objectLabel}`" class="cui-label">{{ $t(`components.form.label.confidence_${objectLabel}`) }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.object.confidences[objectLabel]"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="0.01"
                 :max-fraction-digits="2"
                 :max="1"
@@ -493,11 +491,10 @@
           >
             <label for="detectionSettings.object.timeout" class="cui-label">{{ $t('components.form.label.object_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.object.timeout ?? 15"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :min="10"
                 :use-grouping="false"
                 @value-change="(e) => (cameraForm.detectionSettings.object.timeout = e ?? undefined)"
@@ -588,11 +585,10 @@
           >
             <label for="detectionSettings.audio.confidence" class="cui-label">{{ $t('components.form.label.audio_confidence') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.audio.confidence"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="0.05"
                 :max-fraction-digits="2"
                 :min="0"
@@ -622,11 +618,10 @@
           >
             <label for="detectionSettings.audio.minDecibels" class="cui-label">{{ $t('components.form.label.audio_min_decibels') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.audio.minDecibels"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="1"
                 :min="-100"
                 :max="0"
@@ -655,11 +650,10 @@
           >
             <label for="detectionSettings.audio.timeout" class="cui-label">{{ $t('components.form.label.audio_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.audio.timeout"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :min="10"
                 :use-grouping="false"
                 @value-change="(e) => (cameraForm.detectionSettings.audio.timeout = e ?? undefined)"
@@ -699,11 +693,10 @@
           >
             <label for="detectionSettings.face.confidence" class="cui-label">{{ $t('components.form.label.face_confidence') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.face?.confidence"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="0.01"
                 :max-fraction-digits="2"
                 :min="0"
@@ -775,11 +768,10 @@
           >
             <label for="detectionSettings.licensePlate.confidence" class="cui-label">{{ $t('components.form.label.plate_confidence') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.licensePlate?.confidence"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="0.01"
                 :max-fraction-digits="2"
                 :min="0"
@@ -809,11 +801,10 @@
           >
             <label for="detectionSettings.licensePlate.ocrConfidence" class="cui-label">{{ $t('components.form.label.plate_ocr_confidence') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.licensePlate?.ocrConfidence"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="0.01"
                 :max-fraction-digits="2"
                 :min="0"
@@ -845,11 +836,10 @@
           >
             <label for="detectionSettings.licensePlate.minLength" class="cui-label">{{ $t('components.form.label.plate_min_length') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.licensePlate?.minLength"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :step="1"
                 :min="1"
                 :max="10"
@@ -891,11 +881,10 @@
           >
             <label for="detectionSettings.sensor.timeout" class="cui-label">{{ $t('components.form.label.sensor_timeout') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.detectionSettings.sensor?.timeout"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
-                show-buttons
                 :min="10"
                 :use-grouping="false"
                 @value-change="
@@ -1025,11 +1014,10 @@
             >
               <label for="recordingSettings.preBuffer" class="cui-label">{{ $t('components.form.label.recording_prebuffer') }}</label>
               <InputGroup>
-                <InputNumber
+                <CuiNumberStepper
                   :model-value="cameraForm.recordingSettings?.preBuffer ?? 10"
                   :invalid="errors.length > 0"
                   :loading="isLoading"
-                  show-buttons
                   :step="1"
                   :min="0"
                   :max="60"
@@ -1214,11 +1202,10 @@
             >
               <label for="notificationSettings.cooldown" class="cui-label">{{ $t('components.form.label.notify_cooldown') }}</label>
               <InputGroup>
-                <InputNumber
+                <CuiNumberStepper
                   :model-value="cameraForm.notificationSettings?.cooldown ?? 30"
                   :invalid="errors.length > 0"
                   :loading="isLoading"
-                  show-buttons
                   :step="5"
                   :min="0"
                   :max="600"
@@ -1303,7 +1290,7 @@
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.minConfidence" name="ptzAutotrack.minConfidence" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_min_confidence') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.ptzAutotrack?.minConfidence"
                 :min="0.3"
                 :max="1"
@@ -1330,7 +1317,7 @@
               class="flex flex-col field-gap"
             >
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_trigger_dead_zone') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.ptzAutotrack?.triggerDeadZone"
                 :min="0"
                 :max="0.3"
@@ -1359,7 +1346,7 @@
               class="flex flex-col field-gap"
             >
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_tracking_speed') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.ptzAutotrack?.trackingSpeed ?? 2"
                 :min="1"
                 :max="5"
@@ -1380,7 +1367,7 @@
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1500" name="ptzAutotrack.leadMs" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_lead_ms') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.ptzAutotrack?.leadMs ?? 1500"
                 :min="0"
                 :max="4000"
@@ -1399,7 +1386,7 @@
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.panRate ?? 0.85" name="ptzAutotrack.panRate" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_pan_rate') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.ptzAutotrack?.panRate ?? 0.85"
                 :min="0.1"
                 :max="3"
@@ -1455,7 +1442,7 @@
               class="flex flex-col field-gap"
             >
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_home_wait') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="(cameraForm.ptzAutotrack?.homeWaitMs ?? 0) / 1000"
                 :min="1"
                 :max="60"
@@ -1475,7 +1462,7 @@
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.minTargetSize" name="ptzAutotrack.minTargetSize" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_min_target_size') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="Math.round((cameraForm.ptzAutotrack?.minTargetSize ?? 0) * 100)"
                 :min="0"
                 :max="50"
@@ -1495,7 +1482,7 @@
 
             <Field v-slot="{ errors }" :model-value="cameraForm.ptzAutotrack?.maxTargetSize" name="ptzAutotrack.maxTargetSize" as="div" class="flex flex-col field-gap">
               <label class="cui-label">{{ $t('components.form.label.ptz_autotrack_max_target_size') }}</label>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="Math.round((cameraForm.ptzAutotrack?.maxTargetSize ?? 0) * 100)"
                 :min="0"
                 :max="100"
@@ -1581,13 +1568,12 @@
           >
             <label for="snapshotSettings.interval" class="cui-label">{{ $t('components.form.label.refresh_interval') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.snapshotSettings.interval"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
                 :min="10"
                 :max="3600"
-                show-buttons
                 :use-grouping="false"
                 @value-change="(e) => (cameraForm.snapshotSettings.interval = e ?? 60)"
                 @input="(e) => (cameraForm.snapshotSettings.interval = (e.value as any) ?? 60)"
@@ -1613,13 +1599,12 @@
           >
             <label for="snapshotSettings.maxAge" class="cui-label">{{ $t('components.form.label.snapshot_max_age') }}</label>
             <InputGroup>
-              <InputNumber
+              <CuiNumberStepper
                 :model-value="cameraForm.snapshotSettings.maxAge"
                 :invalid="errors.length > 0"
                 :loading="isLoading"
                 :min="10"
                 :max="3600"
-                show-buttons
                 :use-grouping="false"
                 @value-change="(e) => (cameraForm.snapshotSettings.maxAge = e ?? 60)"
                 @input="(e) => (cameraForm.snapshotSettings.maxAge = (e.value as any) ?? 60)"

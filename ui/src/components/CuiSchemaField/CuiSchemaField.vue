@@ -73,7 +73,7 @@
       <Field v-slot="{ field, errors }" :model-value="fieldValue" :name="configKey" as="div" class="flex flex-col field-gap">
         <label :for="configKey" class="cui-label">{{ schemaField.title }}</label>
         <InputGroup>
-          <InputNumber
+          <CuiNumberStepper
             v-bind="field"
             v-model="fieldValue"
             :invalid="errors.length > 0"

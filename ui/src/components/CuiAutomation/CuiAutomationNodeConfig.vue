@@ -52,11 +52,17 @@
             <div class="flex flex-col gap-3">
               <div class="flex flex-col field-gap">
                 <label class="cui-label">{{ t('components.automation_nodes.repeat_count') }}</label>
-                <InputNumber :model-value="(node.data as any).repeat ?? 1" :min="1" :max="100000" class="w-full" @update:model-value="onUpdateData({ repeat: $event })" />
+                <CuiNumberStepper
+                  :model-value="(node.data as any).repeat ?? 1"
+                  :min="1"
+                  :max="100000"
+                  class="w-full"
+                  @update:model-value="onUpdateData({ repeat: $event })"
+                />
               </div>
               <div v-if="(node.data as any).repeat > 1" class="flex flex-col field-gap">
                 <label class="cui-label">{{ t('components.automation_nodes.repeat_concurrency') }}</label>
-                <InputNumber
+                <CuiNumberStepper
                   :model-value="(node.data as any).repeatConcurrency ?? 1"
                   :min="1"
                   :max="64"

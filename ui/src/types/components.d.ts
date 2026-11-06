@@ -192,6 +192,7 @@ declare module 'vue' {
     CuiNotificationInterface: typeof import('./../components/CuiNotificationInterface/CuiNotificationInterface.vue')['default']
     CuiNotificationItem: typeof import('./../components/CuiNotificationMenu/CuiNotificationItem.vue')['default']
     CuiNotificationMenu: typeof import('./../components/CuiNotificationMenu/CuiNotificationMenu.vue')['default']
+    CuiNumberStepper: typeof import('./../components/CuiNumberStepper/CuiNumberStepper.vue')['default']
     CuiOccupancySensor: typeof import('./../components/CuiOccupancySensor/CuiOccupancySensor.vue')['default']
     CuiOnvifIcon: typeof import('./../components/CuiIcons/CuiOnvifIcon.vue')['default']
     CuiPluginCard: typeof import('./../components/CuiPluginCard/CuiPluginCard.vue')['default']

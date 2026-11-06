@@ -207,12 +207,12 @@
               <div class="flex flex-col md:flex-row gap-6">
                 <div class="flex flex-col field-gap flex-1">
                   <label for="maxIterations" class="cui-label">{{ $t('views.settings.assistant_max_iterations_label') }}</label>
-                  <InputNumber v-model="form.maxIterations" :min="1" :max="30" :use-grouping="false" fluid />
+                  <CuiNumberStepper v-model="form.maxIterations" :min="1" :max="30" :use-grouping="false" fluid />
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_max_iterations_info') }}</Message>
                 </div>
                 <div class="flex flex-col field-gap flex-1">
                   <label for="maxToolCalls" class="cui-label">{{ $t('views.settings.assistant_max_tool_calls_label') }}</label>
-                  <InputNumber v-model="form.maxToolCalls" :min="1" :max="100" :use-grouping="false" fluid />
+                  <CuiNumberStepper v-model="form.maxToolCalls" :min="1" :max="100" :use-grouping="false" fluid />
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_max_tool_calls_info') }}</Message>
                 </div>
               </div>
@@ -226,12 +226,12 @@
               <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex flex-col field-gap flex-1">
                   <label for="historyThreads" class="cui-label">{{ $t('views.settings.assistant_history_threads_label') }}</label>
-                  <InputNumber id="historyThreads" v-model="form.historyThreads" :min="5" :max="500" :use-grouping="false" fluid />
+                  <CuiNumberStepper id="historyThreads" v-model="form.historyThreads" :min="5" :max="500" :use-grouping="false" fluid />
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_history_threads_info') }}</Message>
                 </div>
                 <div class="flex flex-col field-gap flex-1">
                   <label for="historyImages" class="cui-label">{{ $t('views.settings.assistant_history_images_label') }}</label>
-                  <InputNumber id="historyImages" v-model="form.historyImages" :min="0" :max="200" :use-grouping="false" fluid />
+                  <CuiNumberStepper id="historyImages" v-model="form.historyImages" :min="0" :max="200" :use-grouping="false" fluid />
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_history_images_info') }}</Message>
                 </div>
               </div>

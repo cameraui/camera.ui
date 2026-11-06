@@ -33,6 +33,10 @@
   width: 1%;
 }
 
+.p-inputgroup > .p-inputnumber-horizontal > .p-inputnumber-input {
+  border-radius: 0 !important;
+}
+
 .p-inputgroup > .p-inputgroupaddon:last-child {
   border-top-right-radius: 10px !important;
   border-bottom-right-radius: 10px !important;

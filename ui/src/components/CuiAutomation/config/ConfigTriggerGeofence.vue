@@ -40,7 +40,7 @@
         class="w-full"
         @update:model-value="(v) => onRadiusChange(Array.isArray(v) ? v[0] : v)"
       />
-      <InputNumber :model-value="data.radius || 200" :min="50" :max="5000" suffix=" m" class="w-full" @update:model-value="onRadiusChange" />
+      <CuiNumberStepper :model-value="data.radius || 200" :min="50" :max="5000" suffix=" m" class="w-full" @update:model-value="onRadiusChange" />
     </div>
 
     <div class="flex flex-col field-gap">

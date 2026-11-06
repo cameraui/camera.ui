@@ -281,12 +281,11 @@
 
                   <div v-if="schedulerForm.interval === 'monthly'" class="flex flex-col field-gap">
                     <label for="backupDayOfMonth" class="cui-label">{{ $t('views.settings.backup_day_of_month') }}</label>
-                    <InputNumber
+                    <CuiNumberStepper
                       v-model="schedulerForm.dayOfMonth"
                       input-id="backupDayOfMonth"
                       :min="1"
                       :max="28"
-                      show-buttons
                       :use-grouping="false"
                       :disabled="schedulerSaving"
                     />
@@ -294,15 +293,7 @@
 
                   <div class="flex flex-col field-gap">
                     <label for="backupRetention" class="cui-label">{{ $t('views.settings.backup_retention') }}</label>
-                    <InputNumber
-                      v-model="schedulerForm.retention"
-                      input-id="backupRetention"
-                      :min="1"
-                      :max="60"
-                      show-buttons
-                      :use-grouping="false"
-                      :disabled="schedulerSaving"
-                    />
+                    <CuiNumberStepper v-model="schedulerForm.retention" input-id="backupRetention" :min="1" :max="60" :use-grouping="false" :disabled="schedulerSaving" />
                     <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.backup_retention_hint') }}</Message>
                   </div>
                 </div>

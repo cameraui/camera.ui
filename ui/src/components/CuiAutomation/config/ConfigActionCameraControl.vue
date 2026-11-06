@@ -50,7 +50,7 @@
           class="w-full"
           @update:model-value="setPropertyValue(def.key, JSON.stringify($event))"
         />
-        <InputNumber
+        <CuiNumberStepper
           v-else-if="def.inputType === 'number'"
           :model-value="Number(getPropertyValue(def.key)) || def.min"
           :min="def.min"

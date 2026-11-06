@@ -32,13 +32,12 @@
       @update:model-value="(v) => emitValue(String(v ?? ''))"
     />
 
-    <InputNumber
+    <CuiNumberStepper
       v-else-if="meta.kind === 'number'"
       :model-value="numberValue"
       :min="meta.min"
       :max="meta.max"
       :max-fraction-digits="3"
-      show-buttons
       fluid
       :disabled
       @update:model-value="(v) => emitValue(v === null || v === undefined ? '' : String(v))"
