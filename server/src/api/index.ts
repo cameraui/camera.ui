@@ -26,7 +26,7 @@ import { RUNTIME_STATUS } from '../services/config/types.js';
 import { MdnsService } from '../services/mdns/index.js';
 import { paint } from '../utils/colors.js';
 import { syncInterfaceCache } from '../utils/interface-cache.js';
-import { trustEntry } from '../utils/trusted-addresses.js';
+import { addressList, listsAddress, trustEntry } from '../utils/trusted-addresses.js';
 import { sweepExpiredTokens } from './database/tokenSweep.js';
 import { IngressAuth } from './ingress.js';
 import { HeaderPlugin } from './plugins/header.plugin.js';
@@ -51,7 +51,7 @@ import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
 import type { FastifyBaseLogger, FastifyHttp2SecureOptions, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Server as HttpServer, IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import type { Http2SecureServer } from 'node:http2';
-import type { AddressInfo, Socket } from 'node:net';
+import type { AddressInfo, BlockList, Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import type { ServerOptions } from 'socket.io';
 import type { CameraUiAPI } from '../api.js';
@@ -134,6 +134,8 @@ async function proxyUpgradeIdentity(auth: ProxyAuth, address: string | undefined
   return { token: outcome.token, drop: new Set([...auth.ownHeaders, 'authorization']), add: ['X-Cui-Auth: proxy'] };
 }
 
+const forwarderSockets = new WeakMap<FastifyInstance, Set<Socket>>();
+
 export class Server {
   public isRunning = false;
   public app?: FastifyInstance<Http2SecureServer>;
@@ -153,6 +155,8 @@ export class Server {
   private tokenSweepTimer?: NodeJS.Timeout;
   private stopCertificateWatch?: () => void;
   private mdnsService = new MdnsService();
+  private proxyTrust?: BlockList;
+  private bound?: { port: number; host?: string };
 
   private readonly connections = new Set<Socket>();
 
@@ -167,6 +171,15 @@ export class Server {
 
   public get internalPort(): number {
     return this._internalPort;
+  }
+
+  public get boundPort(): number | undefined {
+    return this.bound?.port;
+  }
+
+  public get restartPending(): boolean {
+    const { port, host } = this.configService.config;
+    return !!this.bound && (this.bound.port !== port || this.bound.host !== host);
   }
 
   public async register(): Promise<void> {
@@ -232,6 +245,7 @@ export class Server {
       this.logger.debug(`camera.ui internal listener bound to http://127.0.0.1:${this._internalPort}`);
     }
 
+    this.bound = { port, host: this.configService.config.host };
     logCustomCertificate(CertificateGeneration.requiredAddresses());
 
     await this.startInsecureForwarder();
@@ -282,6 +296,29 @@ export class Server {
     this.loopback = undefined;
     this.loopbackPort = 0;
     this._internalPort = 0;
+    this.bound = undefined;
+  }
+
+  public applyTrustedProxies(): void {
+    this.proxyTrust = addressList(this.trustedProxies);
+  }
+
+  public async applyMdns(): Promise<void> {
+    await this.mdnsService.stop();
+    if (!inject('cameraui').movedAway) this.mdnsService.advertise();
+  }
+
+  public async rebindForwarders(listeners: { insecure: boolean; proxyAuth: boolean }): Promise<void> {
+    if (listeners.insecure) {
+      await this.closeForwarder(this.insecureApp);
+      this.insecureApp = undefined;
+    }
+    if (listeners.proxyAuth) {
+      await this.closeForwarder(this.proxyAuthApp);
+      this.proxyAuthApp = undefined;
+    }
+    if (listeners.insecure) await this.startInsecureForwarder();
+    if (listeners.proxyAuth) await this.startProxyAuthForwarder();
   }
 
   private async startInsecureForwarder(): Promise<void> {
@@ -379,8 +416,19 @@ export class Server {
 
   private createForwarder(): FastifyInstance {
     const app = Fastify({ bodyLimit: 1e8, logController: new LogController({ disableRequestLogging: true }) });
+    const sockets = new Set<Socket>();
+    forwarderSockets.set(app, sockets);
     this.trackConnections(app.server);
+    this.trackConnections(app.server, sockets);
     return app;
+  }
+
+  private async closeForwarder(app: FastifyInstance | undefined): Promise<void> {
+    if (!app) return;
+    const closing = app.close();
+    // upgraded sockets outlive close(), a changed listener must not keep serving them
+    for (const socket of forwarderSockets.get(app) ?? []) socket.destroy();
+    await PromiseTimeout(closing, 2000).catch(() => {});
   }
 
   private async forwardRequests(app: FastifyInstance, rewrite: RewriteRequestHeaders): Promise<void> {
@@ -455,10 +503,10 @@ export class Server {
     return `http://127.0.0.1:${this.loopbackPort}`;
   }
 
-  private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }): void {
+  private trackConnections(server: { on(event: 'connection', listener: (socket: Socket) => void): void }, sockets = this.connections): void {
     server.on('connection', (socket: Socket) => {
-      this.connections.add(socket);
-      socket.once('close', () => this.connections.delete(socket));
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
     });
   }
 
@@ -675,7 +723,7 @@ export class Server {
     return {
       bodyLimit: 1e8,
       forceCloseConnections: true,
-      trustProxy: this.trustedProxies,
+      trustProxy: (address: string) => listsAddress((this.proxyTrust ??= addressList(this.trustedProxies)), address),
       http2: true,
       https: {
         rejectUnauthorized: false,
@@ -694,7 +742,8 @@ export class Server {
 
   private get trustedProxies(): string[] {
     const ingress = this.configService.INGRESS_TRUST_IP;
-    const trusted = ingress && isIP(ingress) ? ['loopback', ingress] : ['loopback'];
+    const trusted = ['127.0.0.0/8', '::1/128'];
+    if (ingress && isIP(ingress)) trusted.push(ingress);
     for (const value of this.configService.config.trustedProxies ?? []) {
       const entry = trustEntry(value);
       if (entry) {

@@ -69,6 +69,128 @@
         </Card>
       </div>
 
+      <div v-if="serverForm">
+        <span class="card-title">{{ $t('views.settings.server') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.system.server_info') }}</span>
+
+              <div class="flex flex-col sm:flex-row gap-6">
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="serverPort" class="cui-label">{{ $t('views.settings.system.port') }}</label>
+                  <InputNumber
+                    v-model="serverForm.port"
+                    input-id="serverPort"
+                    :min="1024"
+                    :max="49151"
+                    :use-grouping="false"
+                    :disabled="!!lockedBy('port')"
+                    :invalid="!!serverErrors.port"
+                    fluid
+                  />
+                  <span v-if="serverErrors.port" class="cui-input-error">{{ serverErrors.port }}</span>
+                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                    serverHint('port', 'views.settings.system.port_hint')
+                  }}</Message>
+                </div>
+
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="insecurePort" class="cui-label">{{ $t('views.settings.system.insecure_port') }}</label>
+                  <InputNumber
+                    v-model="serverForm.insecurePort"
+                    input-id="insecurePort"
+                    :min="1024"
+                    :max="49151"
+                    :use-grouping="false"
+                    :disabled="!!lockedBy('insecurePort')"
+                    :invalid="!!serverErrors.insecurePort"
+                    fluid
+                  />
+                  <span v-if="serverErrors.insecurePort" class="cui-input-error">{{ serverErrors.insecurePort }}</span>
+                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                    serverHint('insecurePort', 'views.settings.system.insecure_port_hint')
+                  }}</Message>
+                </div>
+              </div>
+
+              <div class="flex flex-col field-gap">
+                <label for="serverHost" class="cui-label">{{ $t('views.settings.system.host') }}</label>
+                <Select
+                  v-model="serverForm.host"
+                  input-id="serverHost"
+                  :options="hostOptions"
+                  option-label="label"
+                  option-value="value"
+                  :invalid="!!serverErrors.host"
+                  fluid
+                />
+                <span v-if="serverErrors.host" class="cui-input-error">{{ serverErrors.host }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.system.host_hint') }}</Message>
+              </div>
+
+              <CuiToggleRow :label="$t('views.settings.system.mdns')" :hint="$t('views.settings.system.mdns_hint')" label-for="serverMdns">
+                <ToggleSwitch v-model="serverForm.mdns" input-id="serverMdns" />
+              </CuiToggleRow>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  :loading="serverSaving === 'server'"
+                  :disabled="!serverDirty.server || !!serverSaving"
+                  @click="confirmServerSave"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div v-if="loggingForm">
+        <span class="card-title">{{ $t('views.settings.system.logging') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.system.logging_info') }}</span>
+
+              <div class="flex flex-col sm:flex-row gap-6">
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="logLevel" class="cui-label">camera.ui</label>
+                  <Select v-model="loggingForm.level" input-id="logLevel" :options="logLevelOptions" option-label="label" option-value="value" fluid />
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.system.log_level_hint') }}</Message>
+                </div>
+
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="streamingLogLevel" class="cui-label">Go2RTC</label>
+                  <Select
+                    v-model="loggingForm.streamingLevel"
+                    input-id="streamingLogLevel"
+                    :options="streamingLogLevelOptions"
+                    option-label="label"
+                    option-value="value"
+                    fluid
+                  />
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.system.streaming_log_level_hint') }}</Message>
+                </div>
+              </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  :loading="loggingSaving === 'logging'"
+                  :disabled="!loggingDirty.logging || !!loggingSaving"
+                  @click="confirmLoggingSave"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
       <div v-if="!isElectronApp">
         <span class="card-title">{{ $t('views.settings.certificate') }}</span>
         <Card class="cui-card">
@@ -137,6 +259,15 @@
       </div>
 
       <div>
+        <span class="card-title">{{ $t('views.settings.advanced') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <CuiConfigEditor config="camera.ui" />
+          </template>
+        </Card>
+      </div>
+
+      <div>
         <span class="card-title">{{ $t('views.settings.restart_server') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -176,6 +307,8 @@
 </template>
 
 <script setup lang="ts">
+import { sleep } from '@camera.ui/common/utils';
+
 import { ApiQuery, apiInfo as fetchApiInfo } from '@/api/routes/api.js';
 import { getBackupSchedulerFn } from '@/api/routes/backup.js';
 import { downloadCertFn, getCertificate, removeCertificate, restartGo2RtcFn, ServerQuery, uploadCertificate } from '@/api/routes/server.js';
@@ -203,11 +336,38 @@ const { restarting, beginServerRestart } = useServerRestart();
 const { isBeta, setBeta } = useUpdateChannel();
 const { appVersion, nativeVersion, refreshAppVersion } = useAppVersion();
 
+const {
+  settings,
+  form: serverForm,
+  errors: serverErrors,
+  saving: serverSaving,
+  pending: serverPending,
+  dirty: serverDirty,
+  changesOf: serverChanges,
+  lockedBy,
+  hint: serverHint,
+  save: saveServer,
+} = useSettingsForm('server', { server: ['port', 'insecurePort', 'host', 'mdns'] });
+const {
+  form: loggingForm,
+  saving: loggingSaving,
+  pending: loggingPending,
+  dirty: loggingDirty,
+  changesOf: loggingChanges,
+  save: saveLogging,
+} = useSettingsForm('logging', { logging: ['level', 'streamingLevel'] });
+
 const authStore = useAuthStore();
 
 const { data: apiInfo, isBusy: apiInfoLoading } = apiQuery.apiInfoQuery();
+const { data: serverInfo } = serverQuery.getServerInfoQuery();
 const { mutate: restartServer, isPending: restartServerLoading } = serverQuery.restartServerQuery();
 const { mutateAsync: resetServer, isPending: resetServerLoading } = serverQuery.resetServerQuery();
+
+const LOG_LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
+const STREAMING_LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
+const ANY_HOSTS = ['0.0.0.0', '::'];
+const LOCAL_HOST = '127.0.0.1';
 
 const currentVersion = ref(t('views.settings.unknown'));
 const currentElectronVersion = ref(t('views.settings.unknown'));
@@ -236,6 +396,92 @@ const installedVersion = computed(() => apiInfo.value?.installedVersion || apiIn
 const restartRequired = computed(() => apiInfo.value?.restartRequired ?? false);
 
 const actionsDisabled = computed(() => isLoading.value || !isOnline.value || restarting.value);
+
+const hostOptions = computed(() => {
+  // the desktop app opens its window on 127.0.0.1, a single LAN address would lock it out
+  const addresses = isElectronBuild.value ? [] : (serverInfo.value?.availableAddresses ?? []).map(({ address }) => address);
+  const saved = settings.value?.server.host ?? '';
+  const options = [
+    { value: ANY_HOSTS.includes(saved) ? saved : ANY_HOSTS[0], label: t('views.settings.system.host_all') },
+    { value: LOCAL_HOST, label: t('views.settings.system.host_local') },
+    ...addresses.map((address) => ({ value: address, label: address })),
+  ];
+  if (saved && !options.some(({ value }) => value === saved)) options.push({ value: saved, label: saved });
+  return options;
+});
+
+const logLevelOptions = computed(() => levelOptions(LOG_LEVELS));
+const streamingLogLevelOptions = computed(() => levelOptions(STREAMING_LOG_LEVELS));
+
+function levelOptions(levels: string[]): { value: string; label: string }[] {
+  return levels.map((level) => ({ value: level, label: t(`views.settings.system.level_${level}`) }));
+}
+
+function confirmServerSave(): void {
+  const patch = serverChanges('server');
+  if (patch.port === undefined && patch.host === undefined) {
+    saveServer('server', patch);
+    return;
+  }
+
+  const target = movedPageUrl(patch.port);
+  const notes = [t('views.settings.system.restart_confirm'), target && t('views.settings.system.new_address_confirm', { url: target })];
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: notes.filter(Boolean).join('\n\n'),
+      markdown: true,
+      confirmText: t('components.form.button.save_and_restart'),
+      loading: serverPending,
+    },
+    onConfirm: () => saveAndRestart(patch, target),
+  });
+}
+
+async function saveAndRestart(patch: ReturnType<typeof serverChanges>, target: string | undefined): Promise<void> {
+  if (!(await saveServer('server', patch))) return;
+  beginRestart();
+  if (target) openWhenReachable(target);
+}
+
+function movedPageUrl(port: number | undefined): string | undefined {
+  // only a page served straight from the HTTPS port moves with it
+  if (!port || isCapacitor || isElectronApp || window.location.port !== String(settings.value!.server.port)) return undefined;
+  const url = new URL(window.location.href);
+  url.port = String(port);
+  return url.href;
+}
+
+async function openWhenReachable(url: string): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await sleep(2000);
+    try {
+      await fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(2000) });
+      break;
+    } catch {
+      // still restarting
+    }
+  }
+  window.location.href = url;
+}
+
+function confirmLoggingSave(): void {
+  const patch = loggingChanges('logging');
+  if (patch.streamingLevel === undefined) {
+    saveLogging('logging', patch);
+    return;
+  }
+
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('views.settings.go2rtc_restart_confirm'),
+      confirmText: t('components.form.button.save_and_restart'),
+      loading: loggingPending,
+    },
+    onConfirm: () => saveLogging('logging', patch),
+  });
+}
 
 function onBetaToggle(next: boolean | string | undefined): void {
   setBeta(next === true);

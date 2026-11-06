@@ -63,6 +63,7 @@ import type { ConfigQueryInput, PatchConfigInput } from '../schemas/config.schem
 import type { FilesParamsInput } from '../schemas/files.schema.js';
 import type { FrameWorkerParamsInput } from '../schemas/frameWorkers.schema.js';
 import type { PatchGo2RtcConfigInput } from '../schemas/go2rtc.schema.js';
+import type { SettingsPatchInput } from '../schemas/settings.schema.js';
 import type { BulkDeleteInstancesInput, CreateInstanceInput, InstanceLoginInput, UpdateInstanceInput } from '../schemas/instances.schema.js';
 import type { PatchMqttInput, TestMqttInput } from '../schemas/mqtt.schema.js';
 import type {
@@ -473,6 +474,10 @@ export interface ConfigPatchRequest {
 
 export interface Go2RtcConfigPatchRequest {
   Body: PatchGo2RtcConfigInput;
+}
+
+export interface SettingsPatchRequest {
+  Body: SettingsPatchInput;
 }
 
 export interface FilesParamsRequest {

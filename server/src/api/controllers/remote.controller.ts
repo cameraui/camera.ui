@@ -310,7 +310,6 @@ export class RemoteController {
 
       if (!isEqual(iceServers, current)) {
         await this.configService.writeGo2RtcConfigApi({ webrtc: { ice_servers: iceServers } });
-        await req.system.restartGo2rtc();
       }
 
       return reply.code(200).send(webrtcSettings(iceServers));

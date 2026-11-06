@@ -128,22 +128,22 @@ function isPlatformDefault(value: number, target: number): boolean {
   return value === base || value === base + DESKTOP_PORT_OFFSET;
 }
 
-function listenPort(listen: string): number {
+export function listenPort(listen: string): number {
   return Number(listen.slice(listen.lastIndexOf(':') + 1));
 }
 
-function readKey(values: Section, key: string): unknown {
+export function readKey(values: Section, key: string): unknown {
   const [section, name] = key.split('.');
   return name ? (values[section] as Section | undefined)?.[name] : values[section];
 }
 
-function writeKey(values: Section, key: string, value: unknown): void {
+export function writeKey(values: Section, key: string, value: unknown): void {
   const [section, name] = key.split('.');
-  if (name) (values[section] as Section)[name] = value;
+  if (name) ((values[section] ??= {}) as Section)[name] = value;
   else values[section] = value;
 }
 
-function dropKey(values: Section, key: string): void {
+export function dropKey(values: Section, key: string): void {
   const [section, name] = key.split('.');
   if (!name) delete values[section];
   else if (values[section] && typeof values[section] === 'object') delete (values[section] as Section)[name];

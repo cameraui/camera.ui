@@ -77,6 +77,7 @@ export const patchConfigSchema = zod
       .transform((value) => value ?? undefined),
     workers: workersSchema,
     worker: workerSchema,
+    mdns: zod.boolean().optional(),
   })
   .strip();
 

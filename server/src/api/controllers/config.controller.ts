@@ -1,20 +1,47 @@
 import { dump } from 'js-yaml';
 
 import { inject } from '../../container.js';
+import { SettingsError, SettingsService } from '../services/settings.service.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { ConfigService } from '../../services/config/index.js';
 import type { Go2RtcConfig, IConfig } from '../../services/config/types.js';
-import type { AuthLoginRequest, ConfigPatchRequest, ConfigRequest, Go2RtcConfigPatchRequest } from '../types/index.js';
+import type { AuthLoginRequest, ConfigPatchRequest, ConfigRequest, Go2RtcConfigPatchRequest, SettingsPatchRequest } from '../types/index.js';
 
 export class ConfigController {
   private configService: ConfigService;
   private go2rtcApi: Go2RtcApi;
+  private settingsService: SettingsService;
 
   constructor(private app: FastifyInstance) {
     this.configService = inject('configService');
     this.go2rtcApi = inject('go2rtcApi');
+    this.settingsService = new SettingsService();
+  }
+
+  public showSettings(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      return reply.code(200).send(this.settingsService.read());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async patchSettings(req: FastifyRequest<AuthLoginRequest & SettingsPatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    const invalid = req.validationError?.validation[0];
+    if (invalid) {
+      return reply.code(400).send({ statusCode: 400, message: invalid.message, field: invalid.instancePath.slice(1).replaceAll('/', '.') });
+    }
+
+    try {
+      return reply.code(200).send(await this.settingsService.update(req.body));
+    } catch (error: any) {
+      if (error instanceof SettingsError) {
+        return reply.code(400).send({ statusCode: 400, message: error.message, field: error.field });
+      }
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
   }
 
   public showConfig(req: FastifyRequest<AuthLoginRequest & ConfigRequest>, reply: FastifyReply): FastifyReply {
@@ -89,8 +116,8 @@ export class ConfigController {
 
   public async patchGo2RtcConfig(req: FastifyRequest<AuthLoginRequest & Go2RtcConfigPatchRequest>, reply: FastifyReply): Promise<FastifyReply | void> {
     try {
-      await this.configService.writeGo2RtcConfigApi(req.body);
-      return reply.code(204).send();
+      const streamingRestarted = await this.settingsService.saveGo2Rtc(req.body);
+      return reply.code(200).send({ streamingRestarted });
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

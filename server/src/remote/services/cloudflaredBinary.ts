@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import type { Logger } from '@camera.ui/common';
 
-const EDGE_PROTOCOLS = ['auto', 'quic', 'http2'];
+export const EDGE_PROTOCOLS = ['auto', 'quic', 'http2'] as const;
 const DEFAULT_EDGE_PROTOCOL = 'http2';
 
 let reportedProtocol: string | undefined;
@@ -24,7 +24,7 @@ export async function removeDownloadedCloudflared(dir: string): Promise<void> {
 export function edgeProtocol(requested: string | undefined, logger: Logger): string {
   if (!requested) return DEFAULT_EDGE_PROTOCOL;
 
-  const valid = EDGE_PROTOCOLS.includes(requested);
+  const valid = (EDGE_PROTOCOLS as readonly string[]).includes(requested);
   if (reportedProtocol !== requested) {
     reportedProtocol = requested;
     if (valid) logger.log(`Cloudflare: connecting to the edge over ${requested} (cloudflaredProtocol)`);

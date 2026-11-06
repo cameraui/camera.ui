@@ -171,8 +171,12 @@ export class ServerController {
 
       const serverAddressesChanged = isEqual(oldServer.serverAddresses, serverInfo.serverAddresses, true) !== true;
       if (serverAddressesChanged) {
+        const ips = [...(this.configService.go2rtcConfig.webrtc.filters?.ips ?? [])];
         await this.configService.updateGo2RtcWebRtcFilter(serverInfo.serverAddresses, oldServer.serverAddresses, true);
-        await req.system.restartGo2rtc();
+        // go2rtc takes the candidate filter as saved, the IP filter only at its start
+        if (!isEqual(ips, this.configService.go2rtcConfig.webrtc.filters?.ips ?? [])) {
+          await req.system.restartGo2rtc();
+        }
       }
 
       if (serverAddressesChanged || oldServer.localUrl !== serverInfo.localUrl) {

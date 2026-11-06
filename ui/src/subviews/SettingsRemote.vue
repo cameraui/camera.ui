@@ -41,6 +41,8 @@
           <Card class="cui-card">
             <template #content>
               <div class="flex flex-col gap-6">
+                <span class="text-sm">{{ $t('views.settings.cloud_info') }}</span>
+
                 <Field v-slot="{ field, errors }" :model-value="remoteInfoForm.enabled" :value="true" :unchecked-value="false" type="checkbox" name="enabled">
                   <CuiToggleRow
                     :label="$t('components.form.label.enabled')"
@@ -229,6 +231,8 @@
           <Card class="cui-card">
             <template #content>
               <div class="flex flex-col gap-6">
+                <span class="text-sm">{{ $t('views.settings.direct_connection_card_info') }}</span>
+
                 <Field v-slot="{ field, errors }" :model-value="remoteInfoForm.directEnabled" :value="true" :unchecked-value="false" type="checkbox" name="directEnabled">
                   <CuiToggleRow
                     :label="$t('components.form.label.enabled')"
@@ -292,6 +296,21 @@
                         @update:model-value="(value) => onSelectCloudflareVariant(value as DBCloudflareMode)"
                       />
                       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ currentCloudflareVariantDescription }}</Message>
+                    </div>
+
+                    <div v-if="proxyForm" class="flex flex-col field-gap">
+                      <label for="tunnelProtocol" class="cui-label">{{ $t('views.settings.proxy.tunnel_protocol') }}</label>
+                      <Select
+                        v-model="proxyForm.cloudflaredProtocol"
+                        input-id="tunnelProtocol"
+                        :options="protocolOptions"
+                        option-label="label"
+                        option-value="value"
+                        :disabled="!!lockedBy('cloudflaredProtocol')"
+                      />
+                      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                        proxyHint('cloudflaredProtocol', 'views.settings.proxy.tunnel_protocol_hint')
+                      }}</Message>
                     </div>
 
                     <Message v-if="remoteInfo?.cloudflareError" severity="error" variant="simple" size="small">
@@ -565,7 +584,13 @@
                     </div>
                   </div>
 
-                  <Button type="submit" :loading="isLoading" :disabled="!canSaveDirect" class="cui-button-medium ml-auto" :label="$t('components.form.button.save')" />
+                  <Button
+                    type="submit"
+                    :loading="isLoading || proxySaving === 'tunnel'"
+                    :disabled="!canSaveDirect && !protocolChanged"
+                    class="cui-button-medium ml-auto"
+                    :label="$t('components.form.button.save')"
+                  />
                 </template>
               </div>
             </template>
@@ -573,7 +598,7 @@
         </div>
       </Form>
 
-      <Form ref="serverFormRef" class="flex flex-col w-full gap-6" :validation-schema="serverPatchSchema" @submit="onPatchServer($event as PatchServerInput)">
+      <Form ref="serverFormRef" class="flex flex-col w-full gap-6" :validation-schema="serverPatchSchema" @submit="patchServerInfo($event as PatchServerInput)">
         <div>
           <span class="card-title">{{ $t('views.settings.network') }}</span>
           <Card class="cui-card">
@@ -632,131 +657,198 @@
                   }}</Message>
                 </Field>
 
-                <Button type="submit" :loading="isLoading" class="cui-button-medium ml-auto" :label="$t('components.form.button.save')" />
+                <Button type="submit" :loading="isLoading" :disabled="!networkDirty" class="cui-button-medium ml-auto" :label="$t('components.form.button.save')" />
               </div>
             </template>
           </Card>
         </div>
       </Form>
 
-      <div>
-        <span class="card-title">{{ $t('views.settings.webrtc') }}</span>
+      <div v-if="proxyForm">
+        <span class="card-title">{{ $t('views.settings.proxy.reverse_proxy') }}</span>
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <span class="text-sm">{{ $t('views.settings.webrtc_info') }}</span>
+              <span class="text-sm">{{ $t('views.settings.proxy.reverse_proxy_info') }}</span>
 
               <div class="flex flex-col field-gap">
-                <label for="webrtcStun" class="cui-label">{{ $t('views.settings.webrtc_stun_label') }}</label>
-                <InputGroup>
-                  <AutoComplete
-                    v-model="webrtcForm.stun"
-                    input-id="webrtcStun"
-                    multiple
-                    fluid
-                    :typeahead="false"
-                    :invalid="!!stunError"
-                    :loading="webrtcLoading"
-                    placeholder="stun:stun.example.com:3478"
-                  />
-                  <InputGroupAddon>
-                    <Button
-                      v-tooltip="{ value: $t('components.form.button.reset_defaults') }"
-                      text
-                      severity="secondary"
-                      :disabled="webrtcLoading || stunIsDefault"
-                      type="button"
-                      @click="resetStun"
-                    >
-                      <template #icon>
-                        <i-mdi:restore />
-                      </template>
-                    </Button>
-                  </InputGroupAddon>
-                </InputGroup>
-                <span v-if="stunError" class="cui-input-error">{{ stunError }}</span>
-                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_stun_hint') }}</Message>
+                <label for="trustedProxies" class="cui-label">{{ $t('views.settings.proxy.trusted_proxies') }}</label>
+                <AutoComplete
+                  v-model="proxyForm.trustedProxies"
+                  input-id="trustedProxies"
+                  multiple
+                  fluid
+                  :typeahead="false"
+                  :disabled="!!lockedBy('trustedProxies')"
+                  :invalid="!!proxyErrors.trustedProxies"
+                  placeholder="10.0.0.5"
+                />
+                <span v-if="proxyErrors.trustedProxies" class="cui-input-error">{{ proxyErrors.trustedProxies }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                  proxyHint('trustedProxies', 'views.settings.proxy.trusted_proxies_hint')
+                }}</Message>
               </div>
 
               <div class="flex flex-col field-gap">
-                <span class="cui-label">{{ $t('views.settings.webrtc_turn_label') }}</span>
-                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_hint') }}</Message>
+                <label for="corsOrigins" class="cui-label">{{ $t('views.settings.proxy.cors_origins') }}</label>
+                <AutoComplete
+                  v-model="proxyForm.corsOrigins"
+                  input-id="corsOrigins"
+                  multiple
+                  fluid
+                  :typeahead="false"
+                  :invalid="!!proxyErrors.corsOrigins"
+                  placeholder="https://dashboard.example.com"
+                />
+                <span v-if="proxyErrors.corsOrigins" class="cui-input-error">{{ proxyErrors.corsOrigins }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.proxy.cors_origins_hint') }}</Message>
               </div>
 
-              <div v-for="server in webrtcForm.turn" :key="server.key" class="cui-turn-server flex flex-col gap-4 rounded-xl p-4">
-                <div class="flex flex-col field-gap">
-                  <label :for="`webrtcTurn-${server.key}`" class="cui-label">{{ $t('views.settings.webrtc_turn_urls') }}</label>
-                  <AutoComplete
-                    v-model="server.urls"
-                    :input-id="`webrtcTurn-${server.key}`"
-                    multiple
-                    fluid
-                    :typeahead="false"
-                    :invalid="!validTurnUrls(server.urls)"
-                    placeholder="turn:turn.example.com:3478"
-                  />
-                  <span v-if="!validTurnUrls(server.urls)" class="cui-input-error">{{ $t('views.settings.webrtc_turn_invalid') }}</span>
-                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.webrtc_turn_urls_hint') }}</Message>
-                </div>
+              <div class="flex">
+                <Button
+                  type="button"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  :loading="proxySaving === 'reverseProxy'"
+                  :disabled="!proxyDirty.reverseProxy || !!proxySaving"
+                  @click="saveReverseProxy"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
 
+      <div v-if="proxyForm">
+        <span class="card-title">{{ $t('views.settings.proxy.sign_in') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.proxy.sign_in_info') }}</span>
+
+              <CuiToggleRow :label="$t('components.form.label.enabled')" :hint="proxyHint('proxyAuth', 'views.settings.proxy.sign_in_hint')" label-for="signInEnabled">
+                <ToggleSwitch v-model="signInEnabled" input-id="signInEnabled" :disabled="!!lockedBy('proxyAuth')" />
+              </CuiToggleRow>
+
+              <template v-if="proxyForm.proxyAuth">
                 <div class="flex flex-col sm:flex-row gap-6">
-                  <div class="flex flex-col field-gap flex-1 min-w-0">
-                    <label :for="`webrtcUsername-${server.key}`" class="cui-label">{{ $t('components.form.label.username') }}</label>
-                    <InputText :id="`webrtcUsername-${server.key}`" v-model.trim="server.username" type="text" autocomplete="off" class="w-full" />
+                  <div class="flex flex-col field-gap w-full sm:w-40 shrink-0">
+                    <label for="signInPort" class="cui-label">{{ $t('views.settings.port') }}</label>
+                    <InputNumber
+                      v-model="proxyForm.proxyAuth.port"
+                      input-id="signInPort"
+                      :min="1"
+                      :max="65535"
+                      :use-grouping="false"
+                      :disabled="!!lockedBy('proxyAuth.port')"
+                      :invalid="!!proxyErrors['proxyAuth.port']"
+                      fluid
+                    />
+                    <span v-if="proxyErrors['proxyAuth.port']" class="cui-input-error">{{ proxyErrors['proxyAuth.port'] }}</span>
+                    <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                      proxyHint('proxyAuth.port', 'views.settings.proxy.port_hint')
+                    }}</Message>
                   </div>
 
                   <div class="flex flex-col field-gap flex-1 min-w-0">
-                    <label :for="`webrtcPassword-${server.key}`" class="cui-label">{{ $t('components.form.label.password') }}</label>
-                    <Password
-                      v-model="server.password"
-                      :input-id="`webrtcPassword-${server.key}`"
-                      :feedback="false"
-                      toggle-mask
-                      fluid
-                      autocomplete="new-password"
-                      :placeholder="server.credentialSet ? '••••••••' : ''"
+                    <label for="signInHeader" class="cui-label">{{ $t('views.settings.proxy.header') }}</label>
+                    <InputText
+                      id="signInHeader"
+                      v-model.trim="proxyForm.proxyAuth.header"
+                      :disabled="!!lockedBy('proxyAuth.header')"
+                      :invalid="!!proxyErrors['proxyAuth.header']"
+                      autocomplete="off"
+                      class="w-full"
                     />
-                    <Message v-if="server.credentialSet" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-                      $t('views.settings.webrtc_password_keep_hint')
+                    <span v-if="proxyErrors['proxyAuth.header']" class="cui-input-error">{{ proxyErrors['proxyAuth.header'] }}</span>
+                    <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                      proxyHint('proxyAuth.header', 'views.settings.proxy.header_hint')
                     }}</Message>
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  severity="danger"
-                  outlined
-                  class="cui-button-medium ml-auto"
-                  :label="$t('components.form.button.remove')"
-                  @click="removeTurnServer(server.key)"
-                >
-                  <template #icon>
-                    <i-mdi:delete-outline class="w-4 h-4" />
-                  </template>
-                </Button>
-              </div>
+                <div class="flex flex-col field-gap">
+                  <label for="signInTrust" class="cui-label">{{ $t('views.settings.proxy.trust') }}</label>
+                  <AutoComplete
+                    v-model="proxyForm.proxyAuth.trust"
+                    input-id="signInTrust"
+                    multiple
+                    fluid
+                    :typeahead="false"
+                    :disabled="!!lockedBy('proxyAuth.trust')"
+                    :invalid="!!proxyErrors['proxyAuth.trust']"
+                    placeholder="10.0.0.5"
+                  />
+                  <span v-if="proxyErrors['proxyAuth.trust']" class="cui-input-error">{{ proxyErrors['proxyAuth.trust'] }}</span>
+                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                    proxyHint('proxyAuth.trust', 'views.settings.proxy.trust_hint')
+                  }}</Message>
+                </div>
 
-              <div class="flex items-center gap-2">
+                <div class="flex flex-col sm:flex-row gap-6">
+                  <div class="flex flex-col field-gap flex-1 min-w-0">
+                    <label for="signInSecret" class="cui-label">{{ $t('views.settings.proxy.secret') }}</label>
+                    <InputGroup>
+                      <Password
+                        v-model="signInSecret"
+                        input-id="signInSecret"
+                        :feedback="false"
+                        :disabled="!!lockedBy('proxyAuth.secret')"
+                        :invalid="!!proxyErrors['proxyAuth.secret']"
+                        :placeholder="secretStored ? '••••••••' : ''"
+                        toggle-mask
+                        fluid
+                        autocomplete="new-password"
+                      />
+                      <InputGroupAddon v-if="secretStored && !lockedBy('proxyAuth.secret')">
+                        <Button
+                          v-tooltip="{ value: $t('components.form.button.remove') }"
+                          type="button"
+                          severity="secondary"
+                          text
+                          :aria-label="$t('components.form.button.remove')"
+                          @click="removeSecret = true"
+                        >
+                          <template #icon>
+                            <i-mdi:delete-outline />
+                          </template>
+                        </Button>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <span v-if="proxyErrors['proxyAuth.secret']" class="cui-input-error">{{ proxyErrors['proxyAuth.secret'] }}</span>
+                    <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                      proxyHint('proxyAuth.secret', secretStored ? 'views.settings.proxy.secret_keep_hint' : 'views.settings.proxy.secret_hint')
+                    }}</Message>
+                  </div>
+
+                  <div class="flex flex-col field-gap flex-1 min-w-0">
+                    <label for="signInLogoutUrl" class="cui-label">{{ $t('views.settings.proxy.logout_url') }}</label>
+                    <InputText
+                      id="signInLogoutUrl"
+                      v-model.trim="proxyForm.proxyAuth.logoutUrl"
+                      :disabled="!!lockedBy('proxyAuth.logoutUrl')"
+                      :invalid="!!proxyErrors['proxyAuth.logoutUrl']"
+                      placeholder="https://auth.example.com/logout"
+                      class="w-full"
+                    />
+                    <span v-if="proxyErrors['proxyAuth.logoutUrl']" class="cui-input-error">{{ proxyErrors['proxyAuth.logoutUrl'] }}</span>
+                    <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                      proxyHint('proxyAuth.logoutUrl', 'views.settings.proxy.logout_url_hint')
+                    }}</Message>
+                  </div>
+                </div>
+              </template>
+
+              <Message v-if="proxyErrors.proxyAuth" severity="error" variant="simple" size="small">{{ proxyErrors.proxyAuth }}</Message>
+
+              <div class="flex">
                 <Button
                   type="button"
-                  severity="secondary"
-                  outlined
-                  class="cui-button-medium"
-                  :disabled="webrtcLoading"
-                  :label="$t('components.form.button.add_turn_server')"
-                  @click="addTurnServer"
-                >
-                  <template #icon>
-                    <i-mdi:plus class="w-4 h-4" />
-                  </template>
-                </Button>
-                <Button
-                  type="button"
-                  :disabled="!canSaveWebrtc"
-                  :loading="webrtcLoading || putWebrtcLoading"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.save')"
-                  @click="confirmSaveWebrtc"
+                  :loading="proxySaving === 'signIn'"
+                  :disabled="!signInDirty || !!proxySaving"
+                  @click="saveSignIn"
                 />
               </div>
             </div>
@@ -769,7 +861,6 @@
 
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
-import { STUN_URL_PATTERN, TURN_URL_PATTERN } from '@shared/types';
 import { ErrorMessage, Field, Form } from 'vee-validate';
 import LocalIcon from '~icons/boxicons/computer-filled';
 import CopyIcon from '~icons/fluent/copy-16-filled';
@@ -780,26 +871,19 @@ import LanIcon from '~icons/mdi/lan';
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
-import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
+import { copyToClipboard, deepToRaw } from '@/common/utils.js';
 import ConnectionDetailsDialog from '@/components/CuiDialog/templates/ConnectionDetails/ConnectionDetails.vue';
 import { isCapacitor, isInCloudSession } from '@/connection/index.js';
-import { refreshIceServers } from '@/plugins/cameraui.js';
 import { remotePatchSchema } from '@/schemas/remote.schema.js';
 import { serverPatchSchema } from '@/schemas/server.schema.js';
 
 import type { ConnectionDetailsProps } from '@/components/CuiDialog/templates/ConnectionDetails/types.js';
 import type { PatchRemoteInput } from '@/schemas/remote.schema.js';
 import type { PatchServerInput } from '@/schemas/server.schema.js';
-import type { DBCloudflareMode, DBRemote, DBRemoteDirectMode, DBServer } from '@shared/types';
+import type { DBCloudflareMode, DBRemote, DBRemoteDirectMode, DBServer, SettingsPatchInput, SettingsView } from '@shared/types';
 
-interface TurnServerForm {
-  key: string;
-  storedIndex?: number;
-  credentialSet: boolean;
-  urls: string[];
-  username: string;
-  password: string;
-}
+type SignIn = NonNullable<SettingsView['proxy']['proxyAuth']>;
+type SignInPatch = NonNullable<SettingsPatchInput['proxy']>['proxyAuth'];
 
 const serverQuery = new ServerQuery();
 const remoteQuery = new RemoteQuery();
@@ -809,6 +893,21 @@ const dialog = useCuiDialog();
 const toast = useCuiToast();
 const { t } = useI18n();
 const { endpoint, isOnline } = useConnection();
+const {
+  settings,
+  form: proxyForm,
+  errors: proxyErrors,
+  saving: proxySaving,
+  dirty: proxyDirty,
+  changesOf: proxyChanges,
+  lockedBy,
+  hint: proxyHint,
+  save: saveProxy,
+} = useSettingsForm('proxy', {
+  reverseProxy: ['trustedProxies', 'corsOrigins'],
+  signIn: ['proxyAuth'],
+  tunnel: ['cloudflaredProtocol'],
+});
 
 const { data: serverInfo, isBusy: serverInfoLoading } = serverQuery.getServerInfoQuery();
 const { data: remoteInfo, isBusy: remoteInfoLoading } = remoteQuery.getRemoteInfoQuery();
@@ -827,8 +926,6 @@ const { mutateAsync: managedConnect, isPending: managedConnectLoading } = remote
 const { mutateAsync: managedCancel, isPending: managedCancelLoading } = remoteQuery.cloudflareManagedCancelMutation();
 const { mutateAsync: managedDisconnect, isPending: managedDisconnectLoading } = remoteQuery.cloudflareManagedDisconnectMutation();
 const { mutateAsync: managedLogout, isPending: managedLogoutLoading } = remoteQuery.cloudflareManagedLogoutMutation();
-const { data: webrtcSettings, isBusy: webrtcLoading } = remoteQuery.getWebrtcQuery();
-const { mutateAsync: putWebrtc, isPending: putWebrtcLoading } = remoteQuery.putWebrtcMutation();
 
 const serverInfoForm = ref<DBServer>();
 const remoteInfoForm = ref<DBRemote>();
@@ -843,7 +940,8 @@ const pairUrl = ref('');
 const pairExpiresAt = ref<number | null>(null);
 const pairPollIntervalSec = ref(2);
 const pairCountdown = ref('');
-const webrtcForm = ref<{ stun: string[]; turn: TurnServerForm[] }>({ stun: [], turn: [] });
+const signInSecret = ref('');
+const removeSecret = ref(false);
 let pairPollTimer: ReturnType<typeof setTimeout> | null = null;
 let pairCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -871,12 +969,40 @@ const isRegistered = computed(() => registrationStatus.value?.isRegistered ?? fa
 const needsReauth = computed(() => registrationStatus.value?.needsReauth ?? false);
 const isNameEditable = computed(() => !isLoading.value);
 
+const protocolOptions = computed(() => [
+  // HTTP/2 is cloudflared's default, picking it drops the setting unless it is stored explicitly
+  { value: settings.value?.proxy.cloudflaredProtocol === 'http2' ? 'http2' : '', label: 'HTTP/2' },
+  { value: 'quic', label: 'QUIC' },
+  { value: 'auto', label: t('views.settings.proxy.protocol_auto') },
+]);
+
+const signInEnabled = computed({
+  get: () => !!proxyForm.value?.proxyAuth,
+  set: (enabled: boolean) => {
+    const saved = settings.value!.proxy.proxyAuth;
+    proxyForm.value!.proxyAuth = enabled ? (saved ? deepToRaw(saved) : newSignIn()) : null;
+    signInSecret.value = '';
+    removeSecret.value = false;
+  },
+});
+
+const secretStored = computed(() => !!proxyForm.value?.proxyAuth?.secretSet && !removeSecret.value);
+const signInDirty = computed(() => proxyDirty.value.signIn || !!signInSecret.value || removeSecret.value);
+
 const canSaveName = computed(() => {
   if (!isNameEditable.value) return false;
   const name = serverNameInput.value.trim();
   if (!name || name.length > 100) return false;
   return name !== (registrationStatus.value?.serverName ?? '');
 });
+
+const networkDirty = computed(() => {
+  if (!serverInfo.value || !serverInfoForm.value) return false;
+  const savedAddresses = (serverInfo.value.serverAddresses || []).filter(Boolean);
+  return !isEqual(serverInfoForm.value.serverAddresses, savedAddresses) || serverInfoForm.value.localUrl !== (serverInfo.value.localUrl ?? '');
+});
+
+const protocolChanged = computed(() => remoteInfoForm.value?.directMode === 'cloudflare' && proxyDirty.value.tunnel);
 
 const canSaveDirect = computed(() => {
   if (!remoteInfoForm.value) return false;
@@ -965,25 +1091,6 @@ const canConnectManaged = computed(() => {
   if (managedState.value !== 'idle') return false;
   const hostname = cloudflareHostnameInput.value.trim();
   return !!hostname && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(hostname);
-});
-
-const stunError = computed(() => (webrtcForm.value.stun.some((url) => !STUN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_stun_invalid') : ''));
-
-const stunIsDefault = computed(() => isEqual(webrtcForm.value.stun, webrtcSettings.value?.defaultStun));
-
-const canSaveWebrtc = computed(() => {
-  const { stun, turn } = webrtcForm.value;
-  const stored = webrtcSettings.value;
-  if (!stored || stunError.value) return false;
-  if (turn.some((server) => !server.urls.length || !validTurnUrls(server.urls) || !server.username || (!server.password && !server.credentialSet))) return false;
-  return (
-    !isEqual(stun, stored.stun) ||
-    !isEqual(
-      turn.map(({ urls, username, storedIndex }) => ({ urls, username, storedIndex })),
-      stored.turn.map(({ urls, username }, storedIndex) => ({ urls, username, storedIndex })),
-    ) ||
-    turn.some((server) => server.password.length > 0)
-  );
 });
 
 const connectionTypeLabel = computed(() => {
@@ -1290,76 +1397,47 @@ async function onPatchRemote(values: PatchRemoteInput) {
       };
     }
   }
+  // the protocol first, a tunnel the remote save starts then comes up with it
+  if (protocolChanged.value) await saveTunnelProtocol();
+  if (!canSaveDirect.value) return;
   try {
     await patchRemote(patch);
   } catch {}
 }
 
-function onPatchServer(values: PatchServerInput) {
-  if (isEqual(serverInfo.value?.serverAddresses ?? [], values.serverAddresses, true)) {
-    patchServerInfo(values);
-    return;
-  }
+function newSignIn(): SignIn {
+  // the port stays empty until the user picks one, the server asks for it
+  return { port: null as unknown as number, header: 'remote-user', trust: [], logoutUrl: '', secretSet: false };
+}
 
-  dialog.openTextDialog({
-    data: {
-      title: t('components.dialog.title.confirm'),
-      contentText: t('views.settings.go2rtc_restart_confirm'),
-      confirmText: t('components.form.button.save_and_restart'),
-      loading: patchServerLoading,
-    },
-    onConfirm: () => patchServerInfo(values),
-  });
+function signInPatch(): SignInPatch {
+  const { proxyAuth } = proxyChanges('signIn');
+  if (proxyAuth === null) return null;
+  const changes = Object.fromEntries(Object.entries(proxyAuth ?? {}).filter(([key]) => key !== 'secretSet'));
+  const secret = signInSecret.value || (removeSecret.value ? '' : undefined);
+  return { ...changes, ...(secret === undefined ? {} : { secret }) };
+}
+
+function saveReverseProxy(): void {
+  const { trustedProxies, corsOrigins } = proxyChanges('reverseProxy');
+  saveProxy('reverseProxy', { trustedProxies, corsOrigins });
+}
+
+async function saveSignIn(): Promise<void> {
+  if (!(await saveProxy('signIn', { proxyAuth: signInPatch() }))) return;
+  signInSecret.value = '';
+  removeSecret.value = false;
+}
+
+async function saveTunnelProtocol(): Promise<void> {
+  const { cloudflaredProtocol } = proxyChanges('tunnel');
+  await saveProxy('tunnel', { cloudflaredProtocol: cloudflaredProtocol as NonNullable<SettingsPatchInput['proxy']>['cloudflaredProtocol'] });
 }
 
 async function patchServerInfo(values: PatchServerInput) {
   try {
     await patchServer(values);
   } catch {}
-}
-
-function confirmSaveWebrtc() {
-  dialog.openTextDialog({
-    data: {
-      title: t('components.dialog.title.confirm'),
-      contentText: t('views.settings.go2rtc_restart_confirm'),
-      confirmText: t('components.form.button.save_and_restart'),
-      loading: putWebrtcLoading,
-    },
-    onConfirm: saveWebrtc,
-  });
-}
-
-async function saveWebrtc() {
-  const { stun, turn } = webrtcForm.value;
-  try {
-    await putWebrtc({
-      stun: stun.map((url) => url.trim()),
-      turn: turn.map((server) => ({
-        urls: server.urls.map((url) => url.trim()),
-        username: server.username,
-        ...(server.password ? { credential: server.password } : { storedIndex: server.storedIndex }),
-      })),
-    });
-    await refreshIceServers();
-  } catch {}
-}
-
-function validTurnUrls(urls: string[]): boolean {
-  return urls.every((url) => TURN_URL_PATTERN.test(url.trim()));
-}
-
-function addTurnServer(): void {
-  webrtcForm.value.turn.push({ key: randomId(), credentialSet: false, urls: [], username: '', password: '' });
-}
-
-function removeTurnServer(key: string): void {
-  webrtcForm.value.turn = webrtcForm.value.turn.filter((server) => server.key !== key);
-}
-
-function resetStun(): void {
-  if (!webrtcSettings.value) return;
-  webrtcForm.value.stun = [...webrtcSettings.value.defaultStun];
 }
 
 watch(
@@ -1416,26 +1494,6 @@ watch(
   { deep: true, immediate: true },
 );
 
-watch(
-  webrtcSettings,
-  (settings) => {
-    if (settings) {
-      webrtcForm.value = {
-        stun: [...settings.stun],
-        turn: settings.turn.map((server, storedIndex) => ({
-          key: randomId(),
-          storedIndex,
-          credentialSet: server.credentialSet,
-          urls: [...server.urls],
-          username: server.username,
-          password: '',
-        })),
-      };
-    }
-  },
-  { immediate: true },
-);
-
 onBeforeUnmount(() => {
   clearPairTimers();
 });
@@ -1464,10 +1522,5 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-}
-
-.cui-turn-server {
-  background: var(--card-inner-background);
-  border: 1px solid var(--border-color-inner);
 }
 </style>

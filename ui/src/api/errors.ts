@@ -5,6 +5,7 @@ const TUNNEL_ERROR_PATTERNS = ['Tunnel unavailable'];
 export interface CameraUiErrorBody {
   message?: string | { name?: string };
   redirect?: string;
+  field?: string;
 }
 
 export function isAxiosError(error: unknown): error is AxiosError {
@@ -13,6 +14,12 @@ export function isAxiosError(error: unknown): error is AxiosError {
 
 export function readErrorBody(error: AxiosError): CameraUiErrorBody | undefined {
   return error?.response?.data as CameraUiErrorBody | undefined;
+}
+
+export function readFieldError(error: unknown): { field: string; message: string } | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const { field, message } = readErrorBody(error) ?? {};
+  return field && typeof message === 'string' ? { field, message } : undefined;
 }
 
 export function readErrorMessage(error: AxiosError): string | undefined {

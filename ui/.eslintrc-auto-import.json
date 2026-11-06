@@ -482,6 +482,8 @@
     "useServerRestart": true,
     "useServerSocket": true,
     "useSessionStorage": true,
+    "useSettingsForm": true,
+    "useSettingsSections": true,
     "useShare": true,
     "useSharedCuiBreakpoint": true,
     "useSharedCuiStates": true,

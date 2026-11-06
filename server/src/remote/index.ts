@@ -73,6 +73,10 @@ export class RemoteAccessManager {
     await this.remoteAccessService.reconcile();
   }
 
+  public async restartTunnel(): Promise<void> {
+    await this.remoteAccessService.restartTunnel();
+  }
+
   public getStatus(): RemoteAccessStatus {
     return this.remoteAccessService.getStatus();
   }

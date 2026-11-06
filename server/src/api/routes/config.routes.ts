@@ -5,6 +5,7 @@ import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middlewa
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import { configQuerySchema, patchConfigSchema } from '../schemas/config.schema.js';
 import { patchGo2RtcSchema } from '../schemas/go2rtc.schema.js';
+import { settingsPatchSchema } from '../schemas/settings.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -37,6 +38,30 @@ export const ConfigRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
       tags: ['Config'],
       summary: 'Get the go2rtc configuration (YAML or JSON)',
       querystring: configQuerySchema,
+    },
+  });
+
+  app.route({
+    url: '/settings',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: configController.showSettings.bind(configController),
+    schema: {
+      tags: ['Config'],
+      summary: 'Get the settings the settings pages edit, with the ones the environment sets',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/settings',
+    method: 'PATCH',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    attachValidation: true,
+    handler: configController.patchSettings.bind(configController),
+    schema: {
+      tags: ['Config'],
+      summary: 'Change settings, applies each change without a restart where it can and says what it restarted',
+      body: settingsPatchSchema,
     },
   });
 

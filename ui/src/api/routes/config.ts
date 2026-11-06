@@ -1,7 +1,7 @@
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
-import type { Go2RtcConfig, IConfig, MethodKeys } from '@shared/types';
+import type { Go2RtcConfig, IConfig, MethodKeys, SettingsPatchInput, SettingsUpdate, SettingsView } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
@@ -34,12 +34,22 @@ export async function patchConfigFn({ configData }: { configData: string }): Pro
   return response.data;
 }
 
-export async function patchGo2RtcConfigFn({ configData }: { configData: string }): Promise<AckResponse> {
-  const response: AxiosResponse<AckResponse> = await api.patch('/config/go2rtc', configData, {
+export async function patchGo2RtcConfigFn({ configData }: { configData: string }): Promise<{ streamingRestarted: boolean }> {
+  const response: AxiosResponse<{ streamingRestarted: boolean }> = await api.patch('/config/go2rtc', configData, {
     headers: {
       'Content-Type': 'text/yaml',
     },
   });
+  return response.data;
+}
+
+export async function getSettingsFn({ signal }: { signal: AbortSignal }): Promise<SettingsView> {
+  const response: AxiosResponse<SettingsView> = await api.get('/config/settings', { signal });
+  return response.data;
+}
+
+export async function patchSettingsFn(patch: SettingsPatchInput): Promise<SettingsUpdate> {
+  const response: AxiosResponse<SettingsUpdate> = await api.patch('/config/settings', patch);
   return response.data;
 }
 
@@ -94,6 +104,7 @@ export class ConfigQuery {
       mutationFn: patchConfigFn,
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['config'] });
+        await this._queryClient.invalidateQueries({ queryKey: ['settings'] });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.config_updated'), life: 3000 });
       },
     });
@@ -102,9 +113,30 @@ export class ConfigQuery {
   public patchGo2RtcConfigQuery() {
     return useMutation({
       mutationFn: patchGo2RtcConfigFn,
-      onSuccess: async () => {
+      onSuccess: async ({ streamingRestarted }) => {
         await this._queryClient.refetchQueries({ queryKey: ['go2rtcConfig'] });
-        this.toast.add({ severity: 'success', detail: this.t('components.toast.config_go2rtc_updated'), life: 3000 });
+        await this._queryClient.invalidateQueries({ queryKey: ['settings'] });
+        const detail = streamingRestarted ? 'components.toast.config_go2rtc_updated_restarted' : 'components.toast.config_go2rtc_updated';
+        this.toast.add({ severity: 'success', detail: this.t(detail), life: 3000 });
+      },
+    });
+  }
+
+  public getSettingsQuery() {
+    return useQueryEnhanced({
+      queryKey: ['settings'],
+      queryFn: ({ signal }) => getSettingsFn({ signal }),
+    });
+  }
+
+  public patchSettingsMutation() {
+    return useMutation({
+      mutationFn: patchSettingsFn,
+      onSuccess: async (settings) => {
+        this._queryClient.setQueryData(['settings'], settings);
+        await Promise.all([this._queryClient.invalidateQueries({ queryKey: ['config'] }), this._queryClient.invalidateQueries({ queryKey: ['go2rtcConfig'] })]);
+        const detail = settings.streamingRestarted ? 'components.toast.settings_updated_restarted' : 'components.toast.settings_updated';
+        this.toast.add({ severity: 'success', detail: this.t(detail), life: 3000 });
       },
     });
   }

@@ -395,6 +395,8 @@ declare global {
   const useServerRestart: typeof import('../composables/useServerRestart').useServerRestart
   const useServerSocket: typeof import('../composables/sockets/useServerSocket').useServerSocket
   const useSessionStorage: typeof import('@vueuse/core').useSessionStorage
+  const useSettingsForm: typeof import('../composables/useSettingsForm').useSettingsForm
+  const useSettingsSections: typeof import('../composables/useSettingsSections').useSettingsSections
   const useShare: typeof import('@vueuse/core').useShare
   const useSharedCuiBreakpoint: typeof import('../composables/useSharedComposables').useSharedCuiBreakpoint
   const useSharedCuiStates: typeof import('../composables/useSharedComposables').useSharedCuiStates
@@ -998,6 +1000,8 @@ declare module 'vue' {
     readonly useServerRestart: UnwrapRef<typeof import('../composables/useServerRestart')['useServerRestart']>
     readonly useServerSocket: UnwrapRef<typeof import('../composables/sockets/useServerSocket')['useServerSocket']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
+    readonly useSettingsForm: UnwrapRef<typeof import('../composables/useSettingsForm')['useSettingsForm']>
+    readonly useSettingsSections: UnwrapRef<typeof import('../composables/useSettingsSections')['useSettingsSections']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSharedCuiBreakpoint: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedCuiBreakpoint']>
     readonly useSharedCuiStates: UnwrapRef<typeof import('../composables/useSharedComposables')['useSharedCuiStates']>

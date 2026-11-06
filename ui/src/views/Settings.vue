@@ -64,8 +64,6 @@
 </template>
 
 <script setup lang="ts">
-import { routes } from '@/router/index.js';
-
 import type CuiSubNavbar from '@/components/CuiSubNavbar/CuiSubNavbar.vue';
 import type { SubNavbarState } from '@/components/CuiSubNavbar/types.js';
 
@@ -73,15 +71,10 @@ const router = useRouter();
 const routeMeta = useRouteMeta();
 const { bus } = useCuiBus();
 const { mdBreakpoint, xlBreakpoint, smBreakpoint } = useSharedCuiBreakpoint();
+const sections = useSettingsSections();
 
 const loadingStore = useRouterStore();
 const { routerLoading } = storeToRefs(loadingStore);
-
-const uiRoutes = (['personal', 'system'] as const).flatMap((group) =>
-  routes
-    .find((route) => route.name === 'Settings')!
-    .children!.filter((route) => hasPermission(route) && route.meta?.settingsBar && (route.meta.settingsBar.group ?? 'personal') === group),
-);
 
 const subnavbarRef = useTemplateRef<InstanceType<typeof CuiSubNavbar>>('subnavbarRef');
 const containerRef = useTemplateRef('containerRef');
@@ -91,6 +84,7 @@ const isListRoute = computed(() => router.currentRoute.value.path === '/settings
 useTabSwipe(containerRef, (swipeDirection) => {
   if (isListRoute.value) return;
 
+  const uiRoutes = sections.value.flatMap((section) => section.routes);
   const oldRouteIndex = uiRoutes.findIndex((route) => route.path === router.currentRoute.value.path.split('/settings/')[1]);
   const newRoute = swipeDirection === 'right' ? uiRoutes[oldRouteIndex - 1] : uiRoutes[oldRouteIndex + 1];
 

@@ -102,6 +102,13 @@ export class RemoteAccessService {
     await this.reconcile();
   }
 
+  public async restartTunnel(): Promise<void> {
+    const tunnel = this.activeMode === 'cloudflare' || this.activeMode === 'cloudflareQuick';
+    if (!tunnel || this.cloudflareService.managed.busy) return;
+    this.teardownActive();
+    await this.reconcile();
+  }
+
   public getStatus(): RemoteAccessStatus {
     return {
       enabled: this.remoteConfig.enabled,

@@ -43,6 +43,8 @@ export const DEFAULT_GO2RTC_CONFIG_RTSP: RTSP = {
 export const DEFAULT_GO2RTC_CONFIG_ONVIF: Onvif = {
   listen: '',
 };
+export const DEFAULT_ONVIF_PORT = withOffset(2005);
+export const NEW_INSTALL_RTSP_USERNAME = 'cameraui';
 export const DEFAULT_GO2RTC_CONFIG_SRTP: SRTP = {
   listen: listenWithOffset('0.0.0.0', 2002),
 };

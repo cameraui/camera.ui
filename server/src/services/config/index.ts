@@ -25,7 +25,9 @@ import { announceUpdateChannel } from '../../utils/ipc.js';
 import { execSafePath } from '../../utils/path.js';
 import { newBackupKey, parseBackupKey } from './backup-archive.js';
 import { DEFAULT_CONFIG, DEFAULT_GO2RTC_CONFIG, DEFAULT_ICE_SERVERS, ELECTRON_ASAR_UNPACKED } from './constants.js';
-import { resolveProxyAuth } from './proxy-auth.js';
+import { NEW_INSTALL_RTSP_USERNAME } from './defaults.js';
+import { dropKey, readKey, writeKey } from './platform-values.js';
+import { PROXY_AUTH_ENVIRONMENT, resolveProxyAuth } from './proxy-auth.js';
 import { runPendingRestore } from './restore.js';
 
 import type { LoggerOptions } from '@camera.ui/common/logger';
@@ -135,6 +137,7 @@ export class ConfigService {
   private _ssl!: SSLConfig;
   private _proxyAuthBlock?: unknown;
   private _proxyAuth?: ProxyAuthSettings;
+  private fileValues = new Map<string, unknown>();
   private _pidRegistry?: PidRegistry;
   private sslListeners?: Set<(ssl: SSLConfig) => void>;
 
@@ -152,6 +155,10 @@ export class ConfigService {
 
   public get proxyAuth(): ProxyAuthSettings | undefined {
     return this._proxyAuth;
+  }
+
+  public get proxyAuthBlock(): unknown {
+    return this._proxyAuthBlock;
   }
 
   get go2rtcConfig(): Go2RtcConfig {
@@ -227,6 +234,16 @@ export class ConfigService {
     return Object.entries(ENVIRONMENT_SETTINGS)
       .filter(([name]) => process.env[name] !== undefined)
       .map(([, setting]) => setting);
+  }
+
+  public get ENVIRONMENT_VARIABLES(): Record<string, string> {
+    const settings = Object.entries(ENVIRONMENT_SETTINGS)
+      .filter(([name]) => process.env[name] !== undefined)
+      .map(([name, setting]) => [setting, name]);
+    const proxyAuth = Object.entries(PROXY_AUTH_ENVIRONMENT)
+      .filter(([, name]) => process.env[name]?.trim())
+      .map(([key, name]) => [`proxyAuth.${key}`, name]);
+    return Object.fromEntries([...settings, ...proxyAuth]);
   }
 
   public get STAGED_VERSION(): string | undefined {
@@ -340,10 +357,22 @@ export class ConfigService {
       this.mergeAndValidate(this._config, newConfig);
     }
 
-    const content = this._proxyAuthBlock === undefined ? this._config : { ...this._config, proxyAuth: this._proxyAuthBlock };
+    const content = structuredClone(this._config) as unknown as Record<string, unknown>;
+    // an environment value holds for this run only, the file keeps its own
+    for (const [setting, value] of this.fileValues) {
+      if (value === undefined) dropKey(content, setting);
+      else writeKey(content, setting, value);
+    }
+    if (this._proxyAuthBlock !== undefined) content.proxyAuth = this._proxyAuthBlock;
     writeFileSync(this.CONFIG_FILE, dump(content, { lineWidth: -1, noRefs: true }));
 
     announceUpdateChannel(this._config.betaUpdates ?? false);
+  }
+
+  public writeProxyAuth(block: unknown): void {
+    this._proxyAuthBlock = block;
+    this.resolveProxyAuthSettings();
+    this.writeConfig();
   }
 
   private async updateGo2RtcConfigCommon(newConfig?: DeepPartial<Go2RtcConfig>, writeMethod: 'file' | 'api' = 'file'): Promise<void> {
@@ -378,6 +407,10 @@ export class ConfigService {
 
   public async writeGo2RtcConfigApi(newConfig?: DeepPartial<Go2RtcConfig>): Promise<void> {
     await this.updateGo2RtcConfigCommon(newConfig, 'api');
+  }
+
+  public patchGo2RtcConfig(patch: DeepPartial<Go2RtcConfig>): void {
+    this.mergeAndValidate(this._go2rtcConfig, patch);
   }
 
   public async mergeGo2RtcConfig(): Promise<void> {
@@ -627,6 +660,7 @@ export class ConfigService {
       }
     }
 
+    this.fileValues = new Map(this.ENVIRONMENT_SETTINGS.map((setting) => [setting, readKey(config as unknown as Record<string, unknown>, setting)]));
     config = this.applyEnvOverrides(config);
 
     return config;
@@ -663,16 +697,18 @@ export class ConfigService {
   private readGo2RtcConfig(): Go2RtcConfig {
     let go2rtcConfig = this.defaultGo2RtcConfig();
 
-    if (pathExistsSync(this.GO2RTC_CONFIG_FILE)) {
-      const configFileData = this.parseYaml<Go2RtcConfig>(readFileSync(this.GO2RTC_CONFIG_FILE, 'utf-8'));
+    const configFileData = pathExistsSync(this.GO2RTC_CONFIG_FILE) ? this.parseYaml<Go2RtcConfig>(readFileSync(this.GO2RTC_CONFIG_FILE, 'utf-8')) : undefined;
 
-      if (configFileData) {
-        go2rtcConfig = mergeWith(go2rtcConfig, configFileData, (source: any, target: any) => {
-          if (Array.isArray(source)) {
-            return target;
-          }
-        });
-      }
+    if (configFileData) {
+      go2rtcConfig = mergeWith(go2rtcConfig, configFileData, (source: any, target: any) => {
+        if (Array.isArray(source)) {
+          return target;
+        }
+      });
+    } else {
+      // a new install gets its own restream login, the file keeps it from then on
+      go2rtcConfig.rtsp.username = NEW_INSTALL_RTSP_USERNAME;
+      go2rtcConfig.rtsp.password = randomBytes(12).toString('base64url');
     }
 
     return this.updateGo2RtcConfig(go2rtcConfig);
@@ -698,12 +734,16 @@ export class ConfigService {
 
   private updateConfig(): void {
     this.validateAndSetConfig(this.readConfig());
-    this._proxyAuth = resolveProxyAuth(this._proxyAuthBlock, process.env, [this._config.port, this._config.insecurePort], (message) => this.logger.warn(message));
+    this.resolveProxyAuthSettings();
     this.validateAndSetGo2RtcConfig(this.readGo2RtcConfig());
     this._ssl = this.readSSL();
 
     this.logger.debugEnabled = this._config.logger?.level === 'debug' || this._config.logger?.level === 'trace';
     this.logger.traceEnabled = this._config.logger?.level === 'trace';
+  }
+
+  private resolveProxyAuthSettings(): void {
+    this._proxyAuth = resolveProxyAuth(this._proxyAuthBlock, process.env, [this._config.port, this._config.insecurePort], (message) => this.logger.warn(message));
   }
 
   private updateGo2RtcConfig(go2rtcConfig: Go2RtcConfig): Go2RtcConfig {

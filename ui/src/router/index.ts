@@ -35,8 +35,6 @@ import ConsoleIcon from '~icons/mdi/bug-outline';
 import SettingsIconActive from '~icons/mdi/cog';
 import SettingsIcon from '~icons/mdi/cog-outline';
 import FacesIcon from '~icons/mdi/face-recognition';
-import ConfigIconActive from '~icons/mdi/note-edit';
-import ConfigIcon from '~icons/mdi/note-edit-outline';
 import AssistantIconActive from '~icons/mdi/robot';
 import AssistantIcon from '~icons/mdi/robot-outline';
 import SettingsPermissionsIconActive from '~icons/mdi/shield-check';
@@ -44,6 +42,8 @@ import SettingsPermissionsIcon from '~icons/mdi/shield-check-outline';
 import SettingsMqttIcon from '~icons/mdi/transit-connection-variant';
 import SettingsUsersIconActive from '~icons/mdi/users';
 import SettingsUsersIcon from '~icons/mdi/users-outline';
+import SettingsStreamingIconActive from '~icons/mdi/video-wireless';
+import SettingsStreamingIcon from '~icons/mdi/video-wireless-outline';
 import GridIconActive from '~icons/mingcute/grid-fill';
 import GridIcon from '~icons/mingcute/grid-line';
 import RecordingsIconActive from '~icons/mingcute/photo-album-fill';
@@ -79,7 +79,6 @@ const Plugins = () => import('@/views/Plugins.vue');
 const Plugin = () => import('@/views/Plugin.vue');
 const Metrics = () => import('@/views/Metrics.vue');
 const Updates = () => import('@/views/Updates.vue');
-const Config = () => import('@/views/Config.vue');
 const Logs = () => import('@/views/Logs.vue');
 const Terminal = () => import('@/views/Terminal.vue');
 const Automations = () => import('@/views/Automations.vue');
@@ -97,6 +96,7 @@ const SettingsBackup = () => import('@/subviews/SettingsBackup.vue');
 const SettingsRecordings = () => import('@/subviews/SettingsRecordings.vue');
 const SettingsRemote = () => import('@/subviews/SettingsRemote.vue');
 const SettingsMqtt = () => import('@/subviews/SettingsMqtt.vue');
+const SettingsStreaming = () => import('@/subviews/SettingsStreaming.vue');
 const SettingsAssistant = () => import('@/subviews/SettingsAssistant.vue');
 const SettingsList = () => import('@/subviews/SettingsList.vue');
 const SettingsSystem = () => import('@/subviews/SettingsSystem.vue');
@@ -680,42 +680,6 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   {
-    name: 'Config',
-    path: '/config',
-    component: Config,
-    meta: {
-      name: 'config',
-      auth: {
-        requiresAuth: true,
-        role: 'admin',
-      },
-      ui: {
-        containerSettings: {
-          disableScroll: true,
-          flushBottom: computed(() => smBreakpoint.value),
-        },
-        showNavbar: true,
-        showTopbar: true,
-        showBottombar: true,
-        showRouterLoading: true,
-      },
-      navbar: {
-        position: 'bottom',
-        group: 'system',
-        icon: {
-          default: ConfigIcon,
-          active: ConfigIconActive,
-        },
-      },
-      menu: {
-        icon: {
-          default: ConfigIcon,
-          active: ConfigIconActive,
-        },
-      },
-    },
-  },
-  {
     name: 'Logs',
     path: '/logs',
     component: Logs,
@@ -1212,6 +1176,32 @@ export const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'SettingsStreaming',
+        path: 'streaming',
+        component: SettingsStreaming,
+        meta: {
+          name: 'streaming',
+          description: 'streaming_description',
+          auth: {
+            requiresAuth: true,
+            role: 'admin',
+          },
+          ui: {
+            showNavbar: true,
+            showTopbar: true,
+            showBottombar: true,
+            showRouterLoadingSub: true,
+          },
+          settingsBar: {
+            group: 'system',
+            icon: {
+              default: SettingsStreamingIcon,
+              active: SettingsStreamingIconActive,
+            },
+          },
+        },
+      },
+      {
         name: 'SettingsMqtt',
         path: 'mqtt',
         component: SettingsMqtt,
@@ -1328,7 +1318,6 @@ const landingPages = [
   '/automations',
   '/plugins',
   '/settings',
-  '/config',
   '/logs',
   '/terminal',
   '/instances',
@@ -1377,7 +1366,6 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
   if (p.startsWith('/settings/')) return { group: 'menu', key: 'settings-detail', depth: 2 };
   if (p === '/metrics') return { group: 'menu', key: 'metrics', depth: 1 };
   if (p === '/updates') return { group: 'menu', key: 'updates', depth: 1 };
-  if (p === '/config') return { group: 'menu', key: 'config', depth: 1 };
   if (p === '/logs') return { group: 'menu', key: 'logs', depth: 1 };
   if (p === '/console') return { group: 'menu', key: 'console', depth: 1 };
   if (p === '/terminal') return { group: 'menu', key: 'terminal', depth: 1 };

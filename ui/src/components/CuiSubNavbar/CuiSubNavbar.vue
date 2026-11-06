@@ -34,8 +34,6 @@
 </template>
 
 <script setup lang="ts">
-import { routes } from '@/router/index.js';
-
 import { SUB_NAVBAR_SIZE } from './types.js';
 
 import type { SubNavbarState } from './types.js';
@@ -44,6 +42,7 @@ const router = useRouter();
 const { bus } = useCuiBus();
 const { xlBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { subbarState: subState, navbarState, topbarOffset } = useSharedCuiStates();
+const navSections = useSettingsSections();
 
 const subnavbarRef = useTemplateRef('subnavbarRef');
 const state = ref<SubNavbarState>('closed');
@@ -62,15 +61,6 @@ const subnavbarWidth = computed(() => {
     return SUB_NAVBAR_SIZE.EXPANDED;
   }
 });
-const navRoutes = computed<RouteRecordRaw[]>(() =>
-  routes.find((route) => route.name === 'Settings')!.children!.filter((route) => route.meta?.settingsBar && hasPermission(route)),
-);
-
-const navSections = computed(() =>
-  (['personal', 'system'] as const)
-    .map((key) => ({ key, routes: navRoutes.value.filter((route) => (route.meta!.settingsBar!.group ?? 'personal') === key) }))
-    .filter((section) => section.routes.length > 0),
-);
 
 function closeNavbar() {
   state.value = 'closed';

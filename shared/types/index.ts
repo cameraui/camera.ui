@@ -12,12 +12,15 @@ export * from '../../server/src/api/schemas/remote.schema.js';
 export * from '../../server/src/api/schemas/rooms.schema.js';
 export * from '../../server/src/api/schemas/sensors.schema.js';
 export * from '../../server/src/api/schemas/server.schema.js';
+export type { SettingsPatchInput } from '../../server/src/api/schemas/settings.schema.js';
 export * from '../../server/src/api/schemas/storage.schema.js';
+export * from '../../server/src/api/schemas/streaming.schema.js';
 export * from '../../server/src/api/schemas/training.schema.js';
 export * from '../../server/src/api/schemas/users.schema.js';
 export * from '../../server/src/api/schemas/workers.schema.js';
 export type { ScheduledBackupEntry } from '../../server/src/api/services/backupScheduler.service.js';
 export type { TransformedSensor } from '../../server/src/api/services/sensors.service.js';
+export type { SettingsUpdate, SettingsView } from '../../server/src/api/services/settings.service.js';
 export type {
   UpdatesActivityItem,
   UpdatesBlockedReason,
