@@ -78,6 +78,7 @@ async function onSave() {
       ...input,
       muted: input.muted ?? false,
       backchannelDisabled: input.backchannelDisabled ?? false,
+      onvifDisabled: input.onvifDisabled ?? false,
       urls: input.urls.map(normalizeSource).filter(Boolean),
     })),
   };

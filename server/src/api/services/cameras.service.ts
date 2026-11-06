@@ -754,6 +754,7 @@ export class CamerasService {
         preload: source.preload,
         muted: source.muted,
         backchannelDisabled: source.backchannelDisabled,
+        onvifDisabled: source.onvifDisabled,
         timeout: source.timeout,
         handshakeTimeout: source.handshakeTimeout,
         ...getSourceCodecInfo(source._id),

@@ -197,7 +197,7 @@ export function onvifVideoSources(cameras: DBCamera[]): OnvifVideoSource[] {
       token: camera._id,
       name: camera.name,
       profiles: ONVIF_PROFILE_ROLES.flatMap((role) =>
-        camera.sources.filter((source) => source.role === role).map((source) => createSourceName(camera.name, source.name)),
+        camera.sources.filter((source) => source.role === role && !source.onvifDisabled).map((source) => createSourceName(camera.name, source.name)),
       ),
     }))
     .filter((videoSource) => videoSource.profiles.length > 0)

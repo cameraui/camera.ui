@@ -163,6 +163,30 @@
                 />
               </CuiToggleRow>
             </Field>
+            <Field
+              v-if="source.role !== 'snapshot'"
+              v-slot="{ errors }"
+              :model-value="source.onvifDisabled"
+              :value="true"
+              :unchecked-value="false"
+              type="checkbox"
+              :name="`sources[${i}].onvifDisabled`"
+            >
+              <CuiToggleRow
+                :label="$t('components.form.label.onvif_export')"
+                :hint="$t('components.form.hint.onvif_export')"
+                :label-for="`sources[${i}].onvifDisabled`"
+                :error-name="`sources[${i}].onvifDisabled`"
+              >
+                <ToggleSwitch
+                  :model-value="!source.onvifDisabled"
+                  :input-id="`sources[${i}].onvifDisabled`"
+                  :invalid="errors.length > 0"
+                  :loading
+                  @value-change="(e) => (source.onvifDisabled = !e)"
+                />
+              </CuiToggleRow>
+            </Field>
           </div>
 
           <Field
@@ -441,6 +465,7 @@ function newSource(): void {
       preload: true,
       muted: false,
       backchannelDisabled: false,
+      onvifDisabled: false,
     });
   }
 }
