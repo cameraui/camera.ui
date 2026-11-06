@@ -6,6 +6,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.theme_info') }}</span>
+
               <div class="flex flex-col field-gap">
                 <label class="cui-label">{{ $t('components.form.label.theme') }}</label>
                 <Select v-model="theme" :options="colors" :disabled="autoMode" />
@@ -26,6 +28,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.locale_info') }}</span>
+
               <div class="flex flex-col field-gap">
                 <label class="cui-label">{{ $t('components.form.label.language') }}</label>
                 <Select v-model="language" :options="languageOptions" option-label="label" option-value="value" />
@@ -40,6 +44,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.interface_info') }}</span>
+
               <div class="flex flex-col field-gap">
                 <label class="cui-label">{{ $t('components.form.label.default_landing_page') }}</label>
                 <Select v-model="uiSettings.interface.landingPage" :options="landingOptions" option-label="label" option-value="value" />
@@ -75,19 +81,23 @@
         <span class="card-title">{{ $t('views.settings.navigation') }}</span>
         <Card class="cui-card">
           <template #content>
-            <div class="w-full flex flex-col gap-2">
-              <CuiToggleRow :label="$t('components.form.label.nav_settings_in_nav')" :hint="$t('components.form.hint.nav_settings_in_nav')">
-                <ToggleSwitch :model-value="settingsInNav" @update:model-value="(value: boolean) => setSettingsInNav(value)" />
-              </CuiToggleRow>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.navigation_info') }}</span>
 
-              <CuiToggleRow
-                v-for="group in collapsibleGroups"
-                :key="group"
-                :label="$t('components.form.label.nav_group_collapsible', { group: $t(`navigation.group_${group}`) })"
-                :hint="$t('components.form.hint.nav_group_collapsible', { group: $t(`navigation.group_${group}`) })"
-              >
-                <ToggleSwitch :model-value="isCollapsible(group)" @update:model-value="(value: boolean) => setCollapsible(group, value)" />
-              </CuiToggleRow>
+              <div class="w-full flex flex-col gap-2">
+                <CuiToggleRow :label="$t('components.form.label.nav_settings_in_nav')" :hint="$t('components.form.hint.nav_settings_in_nav')">
+                  <ToggleSwitch :model-value="settingsInNav" @update:model-value="(value: boolean) => setSettingsInNav(value)" />
+                </CuiToggleRow>
+
+                <CuiToggleRow
+                  v-for="group in collapsibleGroups"
+                  :key="group"
+                  :label="$t('components.form.label.nav_group_collapsible', { group: $t(`navigation.group_${group}`) })"
+                  :hint="$t('components.form.hint.nav_group_collapsible', { group: $t(`navigation.group_${group}`) })"
+                >
+                  <ToggleSwitch :model-value="isCollapsible(group)" @update:model-value="(value: boolean) => setCollapsible(group, value)" />
+                </CuiToggleRow>
+              </div>
             </div>
           </template>
         </Card>

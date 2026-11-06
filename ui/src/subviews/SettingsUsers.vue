@@ -6,6 +6,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.registered_users_info') }}</span>
+
               <CuiDataTable
                 :value="users?.result"
                 :paginator="pagination.page! > 1 || (users?.result && users.result.length > 15)"
@@ -88,53 +90,57 @@
         <span class="card-title">{{ $t('views.settings.logged_in_users') }}</span>
         <Card class="cui-card">
           <template #content>
-            <CuiDataTable :value="sessions" :loading="sessionsLoading" :pt="tablePtOptions" striped-rows scrollable>
-              <template #loading>
-                <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
-              </template>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.logged_in_users_info') }}</span>
 
-              <Column field="status" :header="''" style="width: 3rem">
-                <template #body="{ data }">
-                  <div class="flex items-center justify-center">
-                    <Badge
-                      v-tooltip="{ value: data.is_current ? $t('components.user_table.you') : undefined }"
-                      :style="{ background: data.is_current ? 'var(--primary-500)' : 'transparent' }"
-                    />
-                  </div>
+              <CuiDataTable :value="sessions" :loading="sessionsLoading" :pt="tablePtOptions" striped-rows scrollable>
+                <template #loading>
+                  <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
                 </template>
-              </Column>
-              <Column field="device.name" :header="$t('components.user_table.title_device')">
-                <template #body="{ data }">
-                  <span class="font-medium block max-w-[200px] truncate">{{ data.device.name }}</span>
+
+                <Column field="status" :header="''" style="width: 3rem">
+                  <template #body="{ data }">
+                    <div class="flex items-center justify-center">
+                      <Badge
+                        v-tooltip="{ value: data.is_current ? $t('components.user_table.you') : undefined }"
+                        :style="{ background: data.is_current ? 'var(--primary-500)' : 'transparent' }"
+                      />
+                    </div>
+                  </template>
+                </Column>
+                <Column field="device.name" :header="$t('components.user_table.title_device')">
+                  <template #body="{ data }">
+                    <span class="font-medium block max-w-[200px] truncate">{{ data.device.name }}</span>
+                  </template>
+                </Column>
+                <Column field="device.ip" :header="$t('components.user_table.title_address')">
+                  <template #body="{ data }">
+                    {{ data.device.ip ?? '-' }}
+                  </template>
+                </Column>
+                <Column field="device.kind" :header="$t('components.user_table.title_kind')" />
+                <Column field="action" class="text-right">
+                  <template #body="{ data }">
+                    <Button
+                      v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
+                      severity="danger"
+                      text
+                      rounded
+                      :loading="revokeLoading"
+                      class="cui-icon-md"
+                      @click="revokeSession({ id: data.id })"
+                    >
+                      <template #icon>
+                        <i-mdi:logout width="100%" height="100%" />
+                      </template>
+                    </Button>
+                  </template>
+                </Column>
+                <template #empty>
+                  <span class="text-muted text-sm">{{ $t('views.settings.no_sessions') }}</span>
                 </template>
-              </Column>
-              <Column field="device.ip" :header="$t('components.user_table.title_address')">
-                <template #body="{ data }">
-                  {{ data.device.ip ?? '-' }}
-                </template>
-              </Column>
-              <Column field="device.kind" :header="$t('components.user_table.title_kind')" />
-              <Column field="action" class="text-right">
-                <template #body="{ data }">
-                  <Button
-                    v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
-                    severity="danger"
-                    text
-                    rounded
-                    :loading="revokeLoading"
-                    class="cui-icon-md"
-                    @click="revokeSession({ id: data.id })"
-                  >
-                    <template #icon>
-                      <i-mdi:logout width="100%" height="100%" />
-                    </template>
-                  </Button>
-                </template>
-              </Column>
-              <template #empty>
-                <span class="text-muted text-sm">{{ $t('views.settings.no_sessions') }}</span>
-              </template>
-            </CuiDataTable>
+              </CuiDataTable>
+            </div>
           </template>
         </Card>
       </div>

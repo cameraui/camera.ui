@@ -236,9 +236,13 @@
             </div>
 
             <div v-else class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.scheduled_backup_info') }}</span>
+
               <CuiToggleRow :label="$t('components.form.label.enabled')">
                 <template #hint>
-                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ $t('views.settings.scheduled_backup_info') }}</Message>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{
+                    $t('views.settings.scheduled_backup_enabled_hint')
+                  }}</Message>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{ lastRunText }}</Message>
                 </template>
                 <ToggleSwitch v-model="schedulerForm.enabled" :disabled="schedulerSaving" />
@@ -325,7 +329,7 @@
                 />
                 <Button
                   :loading="schedulerSaving"
-                  :disabled="schedulerRunning || !timeValid"
+                  :disabled="schedulerRunning || !timeValid || !schedulerDirty"
                   class="cui-button-medium"
                   :label="$t('components.form.button.save')"
                   @click="saveScheduler"
@@ -392,6 +396,7 @@
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
 import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import {
@@ -472,7 +477,10 @@ const schedulerForm = reactive<Omit<DBBackupSchedulerSettings, 'lastRun'>>({
   destinationPath: '',
 });
 
+const savedScheduler = ref<Omit<DBBackupSchedulerSettings, 'lastRun'>>();
+
 const timeValid = computed(() => /^([01]\d|2[0-3]):[0-5]\d$/.test(schedulerForm.time));
+const schedulerDirty = computed(() => !!savedScheduler.value && !isEqual({ ...schedulerForm }, savedScheduler.value));
 
 const jobPercent = computed(() => (job.value?.phase === 'packing' && job.value.total ? Math.round((job.value.done / job.value.total) * 100) : null));
 
@@ -780,6 +788,7 @@ async function loadScheduler(): Promise<void> {
     const state = await getBackupSchedulerFn();
     const { lastRun: storedLastRun, ...settings } = state.settings;
     Object.assign(schedulerForm, settings);
+    savedScheduler.value = { ...settings };
     lastRun.value = storedLastRun;
     scheduledBackups.value = state.backups;
     defaultDestination.value = state.defaultDestination;

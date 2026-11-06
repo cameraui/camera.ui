@@ -28,7 +28,7 @@
                     :severity="saveButtonColor"
                     type="submit"
                     :loading
-                    :disabled="disableButton"
+                    :disabled="disableButton || !groupDirty(group)"
                     :label="saveButtonLabel || $t('components.form.button.save')"
                   />
                 </div>
@@ -125,10 +125,12 @@
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
 import {
   evaluateCondition,
   generateConfigFromSchemas,
   generateZodSchema,
+  getValueByKey,
   isButtonType,
   isConfigDefault,
   isStringType,
@@ -208,6 +210,8 @@ const isGroupStorable = computed(() => {
   return schemaGroupIsStorable(schemaForm.value.schema, selectedGroup.value);
 });
 
+const savedValues = computed<PluginConfig>(() => ({ ...generateConfigFromSchemas(schemaForm.value.schema), ...deepToRaw(schemaForm.value.config ?? {}) }));
+
 const ungroupedSchemas = computed(() => {
   return schemaForm.value.schema.filter((schema) => {
     return !(schema as any).group && !(schema as any).hidden;
@@ -218,6 +222,10 @@ function filteredSchemas(group: string) {
   return schemaForm.value.schema.filter((schema) => {
     return (schema as any).group === group && !(schema as any).hidden;
   });
+}
+
+function groupDirty(group: string): boolean {
+  return filteredSchemas(group).some((schema) => !isEqual(getValueByKey(formValues.value, schema.key), getValueByKey(savedValues.value, schema.key)));
 }
 
 function showCardSaveButton(group: string): boolean {

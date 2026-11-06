@@ -5,7 +5,7 @@ export interface UseTabSwipeOptions {
 }
 
 const INTERACTIVE_ELEMENTS = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'];
-const DEFAULT_EXCLUDE = ['.p-datatable', '.no-tab-swipe'];
+const DEFAULT_EXCLUDE = ['.p-datatable', '.ace_editor', '.no-tab-swipe'];
 
 export function useTabSwipe(target: Ref<HTMLElement | null>, onTabSwipe: (direction: 'left' | 'right') => void, options: UseTabSwipeOptions = {}): void {
   const { isTouch } = useSharedCuiUserAgent();

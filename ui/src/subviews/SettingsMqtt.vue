@@ -28,6 +28,8 @@
           <Card class="cui-card">
             <template #content>
               <div class="flex flex-col gap-6">
+                <span class="text-sm">{{ $t('views.settings.mqtt_broker_info') }}</span>
+
                 <CuiToggleRow :label="$t('components.form.label.enabled')" :hint="$t('views.settings.mqtt_enabled_info')" label-for="enabled">
                   <ToggleSwitch v-model="mqttForm.enabled" />
                 </CuiToggleRow>
@@ -196,7 +198,13 @@
                     :label="$t('views.settings.mqtt_test')"
                     @click="onTest"
                   />
-                  <Button type="submit" :loading="patchMutation.isPending.value" class="cui-button-medium ml-auto" :label="$t('components.form.button.save')" />
+                  <Button
+                    type="submit"
+                    :loading="patchMutation.isPending.value"
+                    :disabled="!dirty"
+                    class="cui-button-medium ml-auto"
+                    :label="$t('components.form.button.save')"
+                  />
                 </div>
               </div>
             </template>
@@ -208,6 +216,7 @@
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
 import { ErrorMessage, Field, Form } from 'vee-validate';
 import CopyIcon from '~icons/fluent/copy-16-filled';
 
@@ -248,6 +257,10 @@ const passwordSet = computed(() => mqttInfo.value?.passwordSet ?? false);
 
 const status = computed(() => liveStatus.value ?? mqttInfo.value?.status ?? null);
 
+const dirty = computed(
+  () => !!mqttForm.value && !!mqttInfo.value && (!!passwordInput.value || !isEqual(buildPatch(mqttForm.value), buildPatch(mqttInfo.value.settings))),
+);
+
 const statusSeverity = computed(() => {
   switch (status.value?.state) {
     case 'connected':
@@ -275,8 +288,8 @@ const statusHint = computed(() => {
 
 const brokerAddress = computed(() => `mqtt://${window.location.hostname}:${mqttForm.value?.broker.port ?? 1883}`);
 
-function buildPatch(): PatchMqttInput {
-  const form = deepToRaw(mqttForm.value!);
+function buildPatch(settings: MqttFormState): PatchMqttInput {
+  const form = deepToRaw(settings);
 
   const patch: PatchMqttInput = {
     enabled: form.enabled,
@@ -313,14 +326,15 @@ function buildPatch(): PatchMqttInput {
 
 async function onSave(): Promise<void> {
   if (!mqttForm.value) return;
-  await patchMutation.mutateAsync(buildPatch());
+  const saved = await patchMutation.mutateAsync(buildPatch(mqttForm.value));
+  mqttForm.value = deepToRaw(saved.settings);
   passwordInput.value = '';
 }
 
 async function onTest(): Promise<void> {
   if (!mqttForm.value) return;
 
-  const result = await testMutation.mutateAsync(buildPatch());
+  const result = await testMutation.mutateAsync(buildPatch(mqttForm.value));
   if (result.ok) {
     toast.add({ severity: 'success', detail: t('components.toast.mqtt_test_success'), life: 3000 });
   } else {

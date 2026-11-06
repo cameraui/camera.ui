@@ -3281,13 +3281,13 @@ export default {
       certificate_problem_unreadable: 'Dieses Zertifikat konnte nicht gelesen werden.',
       certificate: 'Zertifikat',
       certificate_info:
-        'Laden Sie hier das SSL-Zertifikat der Webseite herunter. Durch das Hinzufügen dieses Zertifikats zu Ihrem Keychain oder Ihrer Zertifikatsverwaltung wird die Seite als sicher erkannt. Dies verbessert die Browsererfahrung und vermeidet Sicherheitswarnungen.',
+        'Lade das Zertifikat dieses Servers herunter und füge es der Zertifikatsverwaltung deines Geräts hinzu. Browser vertrauen der Verbindung dann und warnen nicht mehr.',
       cloud: 'Cloud',
       cloud_info: 'Registriere diesen Server mit deinem camera.ui-Konto und erreiche ihn von überall, ohne Einrichtung am Router. Die Apps nutzen das unterwegs.',
       connection: 'Verbindung',
       create_backup: 'Backup erstellen',
       create_backup_info:
-        'Erstellen Sie ein Backup der aktuellen Konfiguration. Das Archiv ist mit dem Backup-Schlüssel dieses Servers verschlüsselt und enthält Ihr camera.ui Speicherverzeichnis, aber nicht Ihre Aufnahmen und deren Ereignisverlauf. Kopieren Sie den Aufnahmen-Ordner dafür selbst. Das Archiv können Sie später auf jeder Plattform wiederherstellen, auf der camera.ui läuft.',
+        'Sichert den camera.ui-Speicherordner, verschlüsselt mit dem Backup-Schlüssel. Aufnahmen und ihr Ereignisverlauf sind nicht enthalten, den Aufnahmen-Ordner kopierst du selbst.',
       backup_job_snapshot: 'Datenbanken werden kopiert...',
       backup_job_packing: 'Backup wird gepackt...',
       backup_job_lost: 'Das Backup wurde abgebrochen, weil der Server neu gestartet ist.',
@@ -3295,7 +3295,7 @@ export default {
       backup_last_never: 'noch keins',
       backup_key: 'Backup-Schlüssel',
       backup_key_info:
-        'Heruntergeladene und geplante Backups sind mit diesem Schlüssel verschlüsselt. Ein Restore auf diesem Server öffnet sie von selbst, ein anderer Server fragt nach dem Schlüssel. Ohne den Schlüssel kann niemand die Backups öffnen.',
+        'Heruntergeladene und geplante Backups sind mit diesem Schlüssel verschlüsselt. Ein anderer Server öffnet sie nur damit, bewahre ihn also sicher auf.',
       backup_key_save: 'Schlüsseldatei speichern',
       backup_key_saved: 'Gespeichert am {date}.',
       backup_key_not_saved: 'Bewahren Sie den Schlüssel außerhalb dieses Servers auf, zum Beispiel in einem Passwortmanager.',
@@ -3310,9 +3310,12 @@ export default {
       backup_key_copied: 'Kopiert',
       edit: 'Bearbeiten',
       navigation: 'Navigation',
+      navigation_info: 'Was die Seitenleiste zeigt und welche ihrer Gruppen sich einklappen lassen. Das Layout wird mit deinem Konto gespeichert.',
       interface: 'Interface',
+      interface_info: 'Startseiten, Tabellengröße und Seitenleiste von camera.ui auf diesem Gerät. Andere Geräte behalten ihre eigene Wahl.',
       invalid_domain: 'Ungültige Domain',
       locale: 'Sprache',
+      locale_info: 'Die Sprache der Oberfläche. Automatisch folgt der Sprache deines Browsers oder Systems.',
       network: 'Netzwerk',
       network_info:
         'Wie Apps und Browser diesen Server im Netzwerk erreichen. Die Adressen bestimmen auch, wo Kamera-Streams angeboten werden, die lokale Adresse nur, womit die Apps sprechen.',
@@ -3434,8 +3437,11 @@ export default {
       not_available_updates_info: 'Ihre camera.ui Version ist auf dem neuesten Stand.',
       password: 'Passwort',
       profile: 'Profil',
+      profile_info: 'Dein Benutzername, Profilbild und Passwort für camera.ui. Ein Klick auf das Bild oben wählt ein neues.',
       registered_users: 'Registrierte Benutzer',
+      registered_users_info: 'Alle, die sich an diesem Server anmelden können. Die Rolle bestimmt, was sie sehen und ändern dürfen.',
       logged_in_users: 'Derzeit angemeldete Benutzer',
+      logged_in_users_info: 'Geräte aller Nutzer, die gerade angemeldet sind. Abmelden beendet die Sitzung auf diesem Gerät.',
       no_sessions: 'Keine angemeldeten Benutzer',
       remote_access_info:
         'Konfigurieren Sie hier die Remote-Zugriffseinstellungen. Diese Einstellungen ermöglichen es Ihnen, von überall auf Ihre camera.ui Umgebung zuzugreifen.',
@@ -3460,14 +3466,12 @@ export default {
       remove: 'Entfernen',
       registered: 'Registriert',
       reset_server: 'Server zurücksetzen',
-      reset_server_info:
-        'Durch Klicken auf diesen Button setzen Sie die Konfiguration auf die Standardwerte zurück. Dies entfernt alle Ihre Einstellungen und Daten. Diese Aktion kann nicht rückgängig gemacht werden.',
+      reset_server_info: 'Setzt camera.ui auf die Standardwerte zurück und entfernt alle Einstellungen und Daten. Das lässt sich nicht rückgängig machen.',
       restart_server: 'Server neustarten',
-      restart_server_info:
-        'Durch Klicken auf diesen Button starten Sie den Server neu. Ein Ladebildschirm wird angezeigt, bis der Neustart abgeschlossen ist. Anschließend wird die Seite automatisch aktualisiert und steht Ihnen wieder zur Verfügung.',
+      restart_server_info: 'Startet den Server neu. Bis er wieder da ist, erscheint ein Ladebildschirm, danach lädt die Seite von selbst neu.',
       restore_backup: 'Backup wiederherstellen',
       restore_backup_info:
-        'Stellen Sie ein Sicherungsarchiv wieder her, das Sie zuvor mit camera.ui erstellt haben. Ihre camera.ui Konfiguration, Datenbank und Benutzerkonten werden wiederhergestellt. Aufnahmen sind nicht Teil des Archivs, die Aufnahmen auf diesem Server bleiben erhalten. Bevor sich etwas ändert, sehen Sie, was das Backup enthält.',
+        'Stellt Konfiguration, Datenbank und Benutzerkonten aus einem camera.ui-Backup wieder her. Die Aufnahmen auf diesem Server bleiben, und du siehst vorher, was das Backup enthält.',
       last_restore: 'Letzte Wiederherstellung',
       restore_waiting: 'Ein Backup wartet auf Bestätigung.',
       restore_running: 'Eine Wiederherstellung läuft.',
@@ -3495,6 +3499,7 @@ export default {
       },
       active_sessions: {
         title: 'Aktive Sitzungen',
+        info: 'Geräte, die gerade mit deinem Konto angemeldet sind. Ein abgemeldetes Gerät muss sich neu anmelden.',
         empty: 'Keine aktiven Sitzungen',
         this_device: 'Dieses Gerät',
         revoke: 'Abmelden',
@@ -3522,7 +3527,8 @@ export default {
         created_warning: 'Dieser Token wird nur einmal angezeigt. Kopiere ihn jetzt und bewahre ihn sicher auf.',
       },
       scheduled_backup: 'Backup-Zeitplan',
-      scheduled_backup_info: 'Backups automatisch nach Zeitplan erstellen und nur die neuesten Archive behalten',
+      scheduled_backup_info: 'Erstellt verschlüsselte Backups nach Zeitplan und behält nur die neuesten Archive. Wie manuelle Backups enthalten sie keine Aufnahmen.',
+      scheduled_backup_enabled_hint: 'Erstellt Backups nach dem Zeitplan unten.',
       backup_interval: 'Häufigkeit',
       backup_interval_daily: 'Täglich',
       backup_interval_weekly: 'Wöchentlich',
@@ -3539,6 +3545,7 @@ export default {
       backup_existing: 'Vorhandene Backups',
       status: 'Status',
       theme: 'Design',
+      theme_info: 'Die Farben von camera.ui auf diesem Gerät. Mit der Systemeinstellung folgt es dem hellen oder dunklen Modus deines Geräts.',
       title: 'Einstellungen',
       title_account: 'Konto',
       title_assistant: 'Assistent',
@@ -3552,7 +3559,7 @@ export default {
       notifications: {
         general: 'Allgemein',
         general_info:
-          'Der Hauptschalter aktiviert oder deaktiviert sämtliche Benachrichtigungen auf einen Schlag. Wenn er aus ist, sind alle Quellen darunter stumm. Ruhezeiten unterdrücken die externe Auslieferung an Ihre registrierten Geräte während des täglichen Zeitfensters; nur Critical-Ereignisse durchbrechen die Stille. Die In-App-Benachrichtigungsliste bleibt unabhängig von den Ruhezeiten aktuell.',
+          'Der Hauptschalter schaltet alle Benachrichtigungen ein oder aus. In den Ruhezeiten bleiben deine Geräte still, außer bei kritischen Ereignissen, die Liste in der App bleibt aktuell.',
         enable: 'Benachrichtigungen aktivieren',
         os_permission_denied: 'Benachrichtigungen sind auf diesem Gerät auf Systemebene blockiert.',
         os_permission_link: 'Berechtigungen öffnen',
@@ -3570,16 +3577,14 @@ export default {
         to: 'Bis',
         timezone: 'Zeitzone',
         system_notifications: 'System-Benachrichtigungen',
-        system_notifications_info:
-          'Eingebaute Ereignisse von camera.ui selbst: typischerweise Lebenszyklus- und Update-Hinweise, etwa wenn ein Plugin abstürzt oder eine neuere Server-Version verfügbar ist. Jeder Eintrag kann einzeln umgeschaltet werden, sodass Sie nur das sehen, was Sie interessiert.',
+        system_notifications_info: 'Hinweise von camera.ui selbst, etwa ein abgestürztes Plugin oder eine neue Server-Version. Schalte ab, was du nicht brauchst.',
         no_system_types: 'Keine System-Benachrichtigungstypen verfügbar.',
         plugin_notifications: 'Plugin-Benachrichtigungen',
-        plugin_notifications_info:
-          'Aktivierte Plugins dürfen camera.ui über eigene Ereignisse benachrichtigen, immer wenn etwas passiert, das Ihre Aufmerksamkeit braucht. Diese Benachrichtigungen werden dann gemäß Ihren Einstellungen ausgeliefert. Deaktivierte Plugins werden vom Benachrichtigungs-Service stillschweigend ignoriert.',
+        plugin_notifications_info: 'Plugins, die über eigene Ereignisse benachrichtigen dürfen. Nachrichten eines abgeschalteten Plugins werden verworfen.',
         no_plugin_sources: 'Aktuell darf kein Plugin Benachrichtigungen senden.',
         devices: 'Geräte',
         devices_info:
-          'Registrierte Geräte sind die Ziele, an die Benachrichtigungen ausgeliefert werden. Jedes Gerät gehört dem Plugin, das es registriert hat. Die Plugin-Spalte zeigt, welches. Mit dem Active-Schalter pausieren Sie die Auslieferung, ohne das Gerät abzumelden; das Mülleimer-Symbol entfernt es vollständig.',
+          'Die Geräte, an die Benachrichtigungen gehen, jedes von einem Plugin registriert. Mit dem Schalter pausierst du ein Gerät, das Mülleimer-Symbol entfernt es.',
         no_devices: 'Noch keine Benachrichtigungsgeräte registriert.',
         col_name: 'Name',
         col_plugin: 'Plugin',
@@ -3626,6 +3631,8 @@ export default {
       title_mqtt: 'MQTT',
       title_streaming: 'Streaming',
       mqtt_broker: 'MQTT-Broker',
+      mqtt_broker_info:
+        'Verbindet camera.ui mit einem MQTT-Broker, dem eingebauten oder einem, den du schon betreibst. Home Assistant übernimmt Kameras und Sensoren per Discovery.',
       mqtt_status_info: 'Live-Verbindungsstatus der MQTT-Bridge.',
       mqtt_state_connected: 'Verbunden',
       mqtt_state_connecting: 'Verbinde…',
@@ -3690,7 +3697,7 @@ export default {
       assistant_model_placeholder: 'Modellname eingeben oder Liste laden',
       assistant_model_info: 'Beim Speichern werden Werkzeuge und Bilder getestet.',
       assistant_models_failed: 'Modelle konnten nicht geladen werden: {message}',
-      assistant_models_info: 'Das Standardmodell antwortet, wenn kein Profil und kein Gespräch ein anderes wählt.',
+      assistant_models_info: 'Die Modelle, die der Assistent nutzen kann. Das Standardmodell antwortet, wenn kein Profil und kein Gespräch ein anderes wählt.',
       assistant_models_empty: 'Noch keine Modelle.',
       assistant_model_add: 'Modell hinzufügen',
       assistant_model_edit: 'Modell bearbeiten',
@@ -3714,7 +3721,8 @@ export default {
       assistant_capability_failed: 'Test fehlgeschlagen',
       assistant_send_images_no_vision: 'Das Modell hat den Bildtest nicht bestanden, das hat keine Wirkung.',
       assistant_plugins: 'Plugin-Zugriff',
-      assistant_plugins_info: 'Plugins mit Zugriff nutzen das gewählte Modell über camera.ui. Der Schlüssel bleibt auf dem Server.',
+      assistant_plugins_info:
+        'Plugins mit Zugriff nutzen das gewählte Modell über camera.ui und sehen dessen API-Schlüssel nie. Ohne Zugriff kann ein Plugin kein Modell nutzen.',
       assistant_plugins_empty: 'Kein installiertes Plugin nutzt Modelle.',
       assistant_plugin_no_access: 'Kein Zugriff',
       assistant_test_failed: 'Test fehlgeschlagen: {message}',
@@ -3722,6 +3730,7 @@ export default {
       assistant_test_tools_declared: 'Dieses Modell kommt ohne Werkzeuge. Der Assistent kann damit nur plaudern.',
       assistant_test_vision_missing: 'Das Modell hat das Testbild abgelehnt. Es arbeitet ohne Bilder.',
       assistant_behavior: 'Verhalten',
+      assistant_behavior_info: 'Wie der Assistent arbeitet: was er sich merkt, in welcher Sprache er antwortet und wie viel er in einer Antwort tun darf.',
       assistant_memory: 'Fakten über Nutzer merken',
       assistant_memory_info: 'Behält Fakten wie Namen und Vorlieben über Gespräche hinweg. Jeder Nutzer sieht und löscht seine Liste im Chat.',
       assistant_terminal: 'Shell-Befehle',
@@ -3752,6 +3761,7 @@ export default {
       assistant_extra_prompt_placeholder: 'Die Kamera "Tor" zeigt auf die Straße, vorbeifahrende Autos ignorieren.',
       assistant_extra_prompt_info: 'Ergänzt die eingebauten Anweisungen, für Hausregeln und Kamera-Hinweise.',
       assistant_tools: 'Werkzeuge',
+      assistant_tools_info: 'Alles, was der Assistent tun kann, aus camera.ui und von verbundenen MCP-Servern. Werkzeuge mit Freigabe fragen nach, bevor sie laufen.',
       assistant_tools_empty: 'Noch keine Werkzeuge registriert.',
       assistant_tool_approval: 'fragt nach',
       assistant_tool_admin: 'Admin',
@@ -3803,7 +3813,8 @@ export default {
       assistant_text_alert_delete: 'Textalarm löschen',
       assistant_text_alert_model_hint: 'Prüft die Bilder vor dem Push. Leer lassen, dann prüft das Modell des NVR-Plugins aus Plugin-Zugriff.',
       assistant_mcp: 'MCP',
-      assistant_mcp_info: 'MCP-Clients wie Claude Code oder Cursor nutzen diese Instanz mit ihrem eigenen Modell.',
+      assistant_mcp_info:
+        'MCP-Clients wie Claude Code oder Cursor nutzen diese Instanz mit ihrem eigenen Modell. Sie melden sich mit einem API-Token aus deinem Konto an.',
       assistant_mcp_enabled_label: 'MCP-Endpunkt aktivieren',
       assistant_mcp_enabled_info: 'Braucht ein API-Token aus den Kontoeinstellungen.',
       assistant_mcp_writes_label: 'Änderungen erlauben',
@@ -3814,7 +3825,7 @@ export default {
       assistant_mcp_client_label: 'Einrichtung für',
       assistant_mcp_snippet_info: 'Ersetze <api token> durch dein Token. Die Werkzeuge folgen der Rolle des Token-Besitzers.',
       assistant_usage: 'Verbrauch',
-      assistant_usage_info: 'Tokens und geschätzte Kosten pro Monat. Die Schätzung nutzt öffentliche Listenpreise.',
+      assistant_usage_info: 'Tokens und geschätzte Kosten pro Monat für jeden Nutzer, jedes Plugin und Modell. Die Schätzung nutzt öffentliche Listenpreise.',
       assistant_usage_empty: 'Noch keine Läufe erfasst.',
       assistant_usage_month: 'Monat',
       assistant_usage_user: 'Nutzer',
@@ -3874,15 +3885,15 @@ export default {
         group_info_license:
           'Ihr camera.ui Plan, die enthaltenen Aufnahme-Slots und welche Kameras gerade einen belegen. Die Werte kommen aus der Cloud und aktualisieren sich selbst.',
         group_info_storage:
-          'Wo Aufnahmen gespeichert werden, wie viel Speicherplatz sie belegen dürfen und wie lange sie aufbewahrt werden. Wird der Platz knapp, entscheidet der Aufbewahrungsmodus, ob alte Aufnahmen überschrieben werden oder die Aufnahme pausiert.',
+          'Wo Aufnahmen gespeichert werden, wie viel Platz sie belegen dürfen und wie lange sie bleiben. Wird der Platz knapp, entscheidet der Aufbewahrungsmodus zwischen Überschreiben und Pausieren.',
         group_info_faces:
-          'Gesichtserkennung für bekannte Personen. Der Schwellwert bestimmt, wie streng ein Treffer sein muss, die Limits, wie viele Bilder fürs Training und wie viele Unbekannte behalten werden.',
+          'Gesichtserkennung für bekannte Personen. Der Schwellwert bestimmt, wie streng ein Treffer ist, die Limits, wie viele Trainingsbilder und Unbekannte behalten werden.',
         group_info_genai:
           'Der KI-Anbieter, der die Ereignisbeschreibungen schreibt. Funktioniert mit Cloud-Anbietern oder einem lokalen Modell, die Verbindung lässt sich direkt hier testen.',
         group_info_moments:
-          'KI-Beschreibungen für die Momente eines Ereignisses. Sie ersetzen den einfachen Erkennungs-Push; die Verzögerung bestimmt, wie lange ein Ereignis ruhig bleiben muss, bevor die Zusammenfassung rausgeht.',
+          'KI-Beschreibungen für die Momente eines Ereignisses, verschickt statt des einfachen Erkennungs-Pushs. Die Verzögerung bestimmt, wie lange ein Ereignis ruhig bleibt, bevor die Zusammenfassung rausgeht.',
         group_info_episodes:
-          'Fasst zusammengehörige Sichtungen mehrerer Kameras zu einer Episode zusammen, mit einer Geschichte vom KI-Anbieter oder ohne ihn mit einem Titel. Die Zeiteinstellungen bestimmen, wann eine Episode endet.',
+          'Fasst zusammengehörige Sichtungen mehrerer Kameras zu einer Episode zusammen, erzählt vom KI-Anbieter oder mit einem einfachen Titel. Die Zeiteinstellungen bestimmen, wann eine Episode endet.',
         not_available: 'Nicht verfügbar',
         license_title: 'Lizenz & Cloud',
         license_description: 'Verbinden Sie diesen NVR mit der camera.ui Cloud für Lizenz- und Cloud-Funktionen.',

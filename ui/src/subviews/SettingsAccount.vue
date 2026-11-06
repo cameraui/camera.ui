@@ -72,7 +72,9 @@
           <span class="card-title">{{ $t('views.settings.profile') }}</span>
           <Card class="cui-card">
             <template #content>
-              <div class="flex flex-col gap-6">
+              <Form v-slot="{ values }" ref="profileFormRef" :validation-schema="profileSchema" class="flex flex-col gap-6" @submit="saveProfile($event as ProfileInput)">
+                <span class="text-sm pr-24">{{ $t('views.settings.profile_info') }}</span>
+
                 <div class="flex flex-col field-gap">
                   <label for="username" class="cui-label">{{ $t('components.form.label.username') }}</label>
                   <InputGroup>
@@ -80,43 +82,38 @@
                   </InputGroup>
                 </div>
 
-                <div class="flex flex-row items-end justify-end">
-                  <Button :loading="profileLoading" class="cui-button-medium" :label="$t('components.form.button.update_profile')" @click="saveProfile" />
-                </div>
-              </div>
-            </template>
-          </Card>
-        </div>
+                <template v-if="!isIngress">
+                  <Field v-slot="{ field, errors }" name="password" as="div" class="flex flex-col field-gap">
+                    <label for="password" class="cui-label">{{ $t('components.form.label.new_password') }}</label>
+                    <InputGroup>
+                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
+                    </InputGroup>
 
-        <div v-if="!isIngress">
-          <span class="card-title">{{ $t('views.settings.password') }}</span>
-          <Card class="cui-card">
-            <template #content>
-              <Form ref="passwordFormRef" :validation-schema="passwordSchema" class="flex flex-col gap-6" @submit="savePassword($event as PasswordInput)">
-                <Field v-slot="{ field, errors }" name="password" as="div" class="flex flex-col field-gap">
-                  <label for="password" class="cui-label">{{ $t('components.form.label.new_password') }}</label>
-                  <InputGroup>
-                    <Password :invalid="errors.length > 0" v-bind="field" :loading="passwordLoading" :feedback="false" toggle-mask />
-                  </InputGroup>
+                    <Transition name="fade">
+                      <ErrorMessage name="password" class="cui-input-error" />
+                    </Transition>
+                  </Field>
 
-                  <Transition name="fade">
-                    <ErrorMessage name="password" class="cui-input-error" />
-                  </Transition>
-                </Field>
+                  <Field v-slot="{ field, errors }" name="passwordConfirm" as="div" class="flex flex-col field-gap">
+                    <label for="passwordConfirm" class="cui-label">{{ $t('components.form.label.new_password_confirm') }}</label>
+                    <InputGroup>
+                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
+                    </InputGroup>
 
-                <Field v-slot="{ field, errors }" name="passwordConfirm" as="div" class="flex flex-col field-gap">
-                  <label for="passwordConfirm" class="cui-label">{{ $t('components.form.label.new_password_confirm') }}</label>
-                  <InputGroup>
-                    <Password :invalid="errors.length > 0" v-bind="field" :loading="passwordLoading" :feedback="false" toggle-mask />
-                  </InputGroup>
-
-                  <Transition name="fade">
-                    <ErrorMessage name="passwordConfirm" class="cui-input-error" />
-                  </Transition>
-                </Field>
+                    <Transition name="fade">
+                      <ErrorMessage name="passwordConfirm" class="cui-input-error" />
+                    </Transition>
+                  </Field>
+                </template>
 
                 <div class="flex flex-row items-end justify-end">
-                  <Button type="submit" :loading="passwordLoading" class="cui-button-medium" :label="$t('components.form.button.change_password')" />
+                  <Button
+                    type="submit"
+                    :loading="profileLoading"
+                    :disabled="!profileChanged && !values.password && !values.passwordConfirm"
+                    class="cui-button-medium"
+                    :label="$t('components.form.button.save')"
+                  />
                 </div>
               </Form>
             </template>
@@ -232,7 +229,7 @@
           <Card class="cui-card">
             <template #content>
               <div class="flex flex-col gap-6">
-                <span class="text-sm text-muted">{{ $t('views.settings.api_tokens.info') }}</span>
+                <span class="text-sm">{{ $t('views.settings.api_tokens.info') }}</span>
 
                 <CuiDataTable :value="apiTokens ?? []" data-key="id" :loading="apiTokensLoading" :pt="sessionsTablePt" striped-rows scrollable>
                   <template #loading>
@@ -300,6 +297,8 @@
           <Card class="cui-card">
             <template #content>
               <div class="flex flex-col gap-6">
+                <span class="text-sm">{{ $t('views.settings.active_sessions.info') }}</span>
+
                 <CuiDataTable :value="sessions ?? []" data-key="id" :loading="sessionsLoading" :pt="sessionsTablePt" striped-rows scrollable>
                   <template #loading>
                     <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
@@ -415,12 +414,12 @@ const { data: apiTokens, isBusy: apiTokensLoading } = authQuery.toggleQueryActiv
 const { mutateAsync: createApiToken, isPending: createTokenLoading } = authQuery.createApiTokenQuery();
 const { mutateAsync: revokeApiToken } = authQuery.revokeApiTokenQuery();
 
-const passwordSchema = z
+const profileSchema = z
   .object({
-    password: userPasswordSchema,
-    passwordConfirm: z.string().min(1),
+    password: z.union([z.literal(''), userPasswordSchema]).optional(),
+    passwordConfirm: z.string().optional(),
   })
-  .refine((data) => data.password === data.passwordConfirm, {
+  .refine((data) => (data.password ?? '') === (data.passwordConfirm ?? ''), {
     message: 'Passwords do not match',
     path: ['passwordConfirm'],
   });
@@ -436,20 +435,18 @@ const firststepsSchema = z
     path: ['passwordConfirm'],
   });
 
-type PasswordInput = z.infer<typeof passwordSchema>;
+type ProfileInput = z.infer<typeof profileSchema>;
 
 const isIngress = isHaIngress();
 const isProxy = isProxySignIn();
 
 const formRef = useTemplateRef<InstanceType<typeof Form>>('formRef');
-const passwordFormRef = useTemplateRef<InstanceType<typeof Form>>('passwordFormRef');
+const profileFormRef = useTemplateRef<InstanceType<typeof Form>>('profileFormRef');
 
 const file = shallowRef<File>();
 const avatarSrc = ref('avatar');
 const profileUsername = ref(user.value?.username ?? '');
 const profileLoading = ref(false);
-
-const passwordLoading = ref(false);
 
 const setupData = ref<{ secret: string } | null>(null);
 const setupCode = ref('');
@@ -464,6 +461,7 @@ const biometricToggling = ref(false);
 
 const biometricCardVisible = computed(() => isCapacitor && biometryAvailable.value && !firststeps.value);
 const apiTokensVisible = computed(() => !isIngress || user.value?.role === 'master');
+const profileChanged = computed(() => !!file.value || profileUsername.value !== (user.value?.username ?? ''));
 
 const sessionsTablePt: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: {
@@ -654,7 +652,7 @@ async function changeInput(event: any): Promise<void> {
   avatarSrc.value = (await readImgUpload(event)) ?? avatarSrc.value;
 }
 
-async function saveProfile(): Promise<void> {
+async function saveProfile(values: ProfileInput): Promise<void> {
   profileLoading.value = true;
 
   try {
@@ -666,42 +664,25 @@ async function saveProfile(): Promise<void> {
     }
 
     const usernameChanged = user.value?.username !== profileUsername.value;
+    const userData = {
+      ...(usernameChanged && { username: profileUsername.value }),
+      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm }),
+    };
 
-    if (usernameChanged) {
-      await authStore.updateUser({ username: profileUsername.value }, formData);
-    } else if (formData) {
-      await authStore.updateUser(undefined, formData);
-    } else {
-      profileLoading.value = false;
-      return;
-    }
+    await authStore.updateUser(Object.keys(userData).length ? userData : undefined, formData);
 
-    toast.add({ severity: 'success', detail: t('components.toast.profile_updated'), life: 3000 });
+    toast.add({ severity: 'success', detail: t(values.password ? 'components.toast.password_updated' : 'components.toast.profile_updated'), life: 3000 });
     file.value = undefined;
+    profileFormRef.value?.resetForm();
 
-    if (usernameChanged) {
+    if (usernameChanged || (values.password && !isProxy)) {
       authStore.logout();
     }
   } catch {
-    // ignore
+    // the mutation already shows the error
+  } finally {
+    profileLoading.value = false;
   }
-
-  profileLoading.value = false;
-}
-
-async function savePassword(values: { password: string; passwordConfirm: string }): Promise<void> {
-  passwordLoading.value = true;
-
-  try {
-    await authStore.updateUser({ password: values.password, passwordConfirm: values.passwordConfirm });
-    toast.add({ severity: 'success', detail: t('components.toast.password_updated'), life: 3000 });
-    passwordFormRef.value?.resetForm();
-    if (!isProxy) authStore.logout();
-  } catch (error: any) {
-    toast.add({ severity: 'error', detail: error, life: 3000 });
-  }
-
-  passwordLoading.value = false;
 }
 
 async function refreshBiometricState(): Promise<void> {

@@ -25,6 +25,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.assistant_models_info') }}</span>
+
               <CuiToggleRow :label="$t('components.form.label.enabled')" :hint="$t('views.settings.assistant_enabled_info')" label-for="enabled">
                 <ToggleSwitch
                   :model-value="info?.settings.enabled ?? false"
@@ -33,8 +35,6 @@
                   @update:model-value="(value) => patchMutation.mutate({ enabled: value })"
                 />
               </CuiToggleRow>
-
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_models_info') }}</Message>
 
               <div v-if="models.length" class="flex flex-col divide-y divide-(--border-color)">
                 <div v-for="entry in models" :key="entry._id" class="flex items-start gap-3 py-3 text-sm">
@@ -134,7 +134,7 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_plugins_info') }}</Message>
+              <span class="text-sm">{{ $t('views.settings.assistant_plugins_info') }}</span>
 
               <template v-if="info?.plugins.length">
                 <div v-for="plugin in info.plugins" :key="plugin.id" class="flex flex-col field-gap">
@@ -164,6 +164,7 @@
                 <Button
                   type="button"
                   :loading="patchMutation.isPending.value"
+                  :disabled="!dirty.plugins"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.save')"
                   @click="onSave"
@@ -179,6 +180,8 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.assistant_behavior_info') }}</span>
+
               <div class="flex flex-col gap-2">
                 <CuiToggleRow :label="$t('views.settings.assistant_memory')" :hint="$t('views.settings.assistant_memory_info')" label-for="memoryEnabled">
                   <ToggleSwitch v-model="form.memoryEnabled" input-id="memoryEnabled" />
@@ -252,7 +255,14 @@
                     <i-mdi:restore class="w-4 h-4" />
                   </template>
                 </Button>
-                <Button type="button" :loading="patchMutation.isPending.value" class="cui-button-medium" :label="$t('components.form.button.save')" @click="onSave" />
+                <Button
+                  type="button"
+                  :loading="patchMutation.isPending.value"
+                  :disabled="!dirty.behavior"
+                  class="cui-button-medium"
+                  :label="$t('components.form.button.save')"
+                  @click="onSave"
+                />
               </div>
             </div>
           </template>
@@ -264,7 +274,7 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_mcp_info') }}</Message>
+              <span class="text-sm">{{ $t('views.settings.assistant_mcp_info') }}</span>
 
               <div class="flex flex-col gap-2">
                 <CuiToggleRow :label="$t('views.settings.assistant_mcp_enabled_label')" :hint="$t('views.settings.assistant_mcp_enabled_info')">
@@ -317,6 +327,7 @@
                 <Button
                   type="button"
                   :loading="patchMutation.isPending.value"
+                  :disabled="!dirty.mcp"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.save')"
                   @click="onSave"
@@ -332,7 +343,7 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_external_info') }}</Message>
+              <span class="text-sm">{{ $t('views.settings.assistant_external_info') }}</span>
 
               <div v-for="server in form.mcpServers" :key="server.id" class="cui-assistant-server overflow-hidden rounded-xl">
                 <button
@@ -425,6 +436,7 @@
                 <Button
                   type="button"
                   :loading="patchMutation.isPending.value"
+                  :disabled="!dirty.external"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.save')"
                   @click="onSave"
@@ -440,7 +452,7 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_schedules_info') }}</Message>
+              <span class="text-sm">{{ $t('views.settings.assistant_schedules_info') }}</span>
 
               <div v-if="schedules?.length" class="flex flex-col divide-y divide-(--border-color)">
                 <div v-for="schedule in schedules" :key="schedule._id" class="flex items-start gap-3 py-3 text-sm">
@@ -578,7 +590,7 @@
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_text_alerts_info') }}</Message>
+              <span class="text-sm">{{ $t('views.settings.assistant_text_alerts_info') }}</span>
 
               <div v-if="textAlerts.length" class="flex flex-col divide-y divide-(--border-color)">
                 <div v-for="alert in textAlerts" :key="alert.id" class="flex items-start gap-3 py-3 text-sm">
@@ -625,8 +637,9 @@
         <span class="card-title">{{ $t('views.settings.assistant_usage') }}</span>
         <Card class="cui-card">
           <template #content>
-            <div class="flex flex-col gap-3">
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_usage_info') }}</Message>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.assistant_usage_info') }}</span>
+
               <CuiDataTable :value="usage ?? []" data-key="key" :loading="usageLoading" :pt="usageTablePt" striped-rows scrollable>
                 <template #loading>
                   <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
@@ -683,9 +696,11 @@
         <span class="card-title">{{ $t('views.settings.assistant_tools') }}</span>
         <Card class="cui-card">
           <template #content>
-            <div v-if="!toolSources.length" class="text-sm text-muted">{{ $t('views.settings.assistant_tools_empty') }}</div>
-            <div v-else class="flex flex-col gap-6">
-              <Tabs v-model:value="toolSource" scrollable>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.assistant_tools_info') }}</span>
+
+              <div v-if="!toolSources.length" class="text-sm text-muted">{{ $t('views.settings.assistant_tools_empty') }}</div>
+              <Tabs v-else v-model:value="toolSource" scrollable>
                 <TabList class="mb-3">
                   <Tab v-for="source in toolSources" :key="source.key" :value="source.key" class="text-sm">{{ source.label }} ({{ source.tools.length }})</Tab>
                 </TabList>
@@ -729,6 +744,7 @@
                 <Button
                   type="button"
                   :loading="patchMutation.isPending.value"
+                  :disabled="!dirty.external"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.save')"
                   @click="onSave"
@@ -746,6 +762,7 @@
 
 <script setup lang="ts">
 import { useTextAlerts } from '@camera.ui/nvr';
+import { isEqual } from '@camera.ui/common/utils';
 import { LANGUAGES } from '@shared/types';
 import ModelIcon from '~icons/mdi/brain';
 import CopyIcon from '~icons/mdi/content-copy';
@@ -808,6 +825,23 @@ const BEHAVIOR_DEFAULTS = {
   historyThreads: 50,
   historyImages: 24,
 } satisfies Partial<AssistantMaskedSettings>;
+const CARD_FIELDS = {
+  plugins: ['plugins'],
+  behavior: [
+    'memoryEnabled',
+    'terminalEnabled',
+    'language',
+    'reasoning',
+    'maxIterations',
+    'maxToolCalls',
+    'contextTokens',
+    'historyThreads',
+    'historyImages',
+    'systemPromptExtra',
+  ],
+  mcp: ['mcpEnabled', 'mcpWrites'],
+  external: ['mcpServers'],
+} satisfies Record<string, (keyof AssistantMaskedSettings)[]>;
 const NUMERIC_COLUMN_PT = { columnHeaderContent: { class: 'justify-end' } };
 const usageTablePt: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: { class: 'text-sm text-secondary' },
@@ -888,6 +922,16 @@ const usage = computed(() => usageRows.value?.map((row) => ({ ...row, key: `${ro
 const cameraNames = computed(() => new Map((cameras.value?.result ?? []).map((camera) => [camera._id, camera.name])));
 
 const status = computed(() => info.value?.status);
+const dirty = computed(() => {
+  const changed = (card: keyof typeof CARD_FIELDS) =>
+    CARD_FIELDS[card].some((field) => !!form.value && !!info.value && !isEqual(comparable(form.value, field), comparable(info.value.settings, field)));
+  return {
+    plugins: changed('plugins'),
+    behavior: changed('behavior'),
+    mcp: changed('mcp'),
+    external: changed('external') || Object.values(serverTokens.value).some(Boolean),
+  };
+});
 
 const languageOptions = computed(() => {
   const names = new Intl.DisplayNames([locale.value], { type: 'language' });
@@ -1094,8 +1138,15 @@ function resetBehavior(): void {
 
 async function onSave(): Promise<void> {
   if (!form.value) return;
-  await patchMutation.mutateAsync(buildPatch());
+  const saved = await patchMutation.mutateAsync(buildPatch());
+  form.value = deepToRaw(saved.settings);
   serverTokens.value = {};
+}
+
+function comparable(settings: AssistantMaskedSettings, field: keyof AssistantMaskedSettings): unknown {
+  // a plugin row moves to the end when changed, the order means nothing
+  if (field === 'plugins') return Object.fromEntries(settings.plugins.map((row) => [row.pluginId, row.modelId]));
+  return settings[field];
 }
 
 function providerLabel(provider: DBAssistantProvider): string {
