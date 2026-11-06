@@ -530,6 +530,7 @@ export default {
       camera_prop_audio_timeout: 'Audio-Timeout (s)',
       camera_prop_audio_min_decibels: 'Audio Min. Dezibel',
       camera_prop_audio_confidence: 'Audio-Konfidenz',
+      camera_prop_audio_labels: 'Audio-Geräusche',
       camera_prop_sensor_timeout: 'Sensor-Timeout (s)',
       camera_prop_cascade_detection: 'Kaskaden-Erkennung',
       camera_prop_cascade_timeout: 'Kaskaden-Timeout (s)',
@@ -1098,6 +1099,7 @@ export default {
         object_timeout: 'Wie lange eine Erkennung eines kamerabasierten Objekt-Sensors ohne Ende-Meldung aktiv bleibt (min. 10s). Frame-basierte Erkennung ignoriert das',
         audio_timeout: 'Zeit in Sekunden nach dem letzten Audio-Trigger, bis das Audioereignis endet (min. 10s)',
         audio_min_decibels: 'Audio-Frames unterhalb dieses Lautstärkepegels (in dBFS) werden übersprungen. -100 = Stille, 0 = Maximum',
+        audio_sounds: 'Nur die ausgewählten Geräusche zählen für Ereignisse und Automationen',
         audio_confidence: 'Erkannte Geräusche unterhalb dieser Konfidenz werden für Ereignisse und Automationen ignoriert',
         face_confidence: 'Gesichter unterhalb dieser Konfidenz werden für Ereignisse und Automationen ignoriert',
         face_match_sensitivity:
@@ -1229,6 +1231,7 @@ export default {
         object_timeout: 'Objekt Timeout',
         audio_timeout: 'Audio-Timeout',
         audio_min_decibels: 'Min. Lautstärke (dBFS)',
+        audio_sounds: 'Geräusche',
         audio_confidence: 'Audio-Konfidenz',
         face_confidence: 'Gesichts-Konfidenz',
         face_match_sensitivity: 'Gesichter erkennen',

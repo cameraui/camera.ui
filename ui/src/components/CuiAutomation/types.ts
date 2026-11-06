@@ -1,6 +1,6 @@
-import { OBJECT_DETECTION_LABELS } from '@camera.ui/sdk';
+import { BASE_AUDIO_LABELS, OBJECT_DETECTION_LABELS } from '@camera.ui/sdk';
 
-import { detectionLabelKey } from '@/common/eventLabels.js';
+import { audioLabelKey, detectionLabelKey } from '@/common/eventLabels.js';
 
 import type { DBAutomation } from '@shared/types';
 import type { Edge, Node } from '@vue-flow/core';
@@ -445,6 +445,10 @@ export interface CameraControlPropertyDefinition {
 }
 
 const OBJECT_LABEL_OPTIONS = OBJECT_DETECTION_LABELS.map((label) => ({ labelKey: detectionLabelKey(label), value: label as string }));
+const AUDIO_SOUND_OPTIONS = [
+  ...BASE_AUDIO_LABELS.map((label) => ({ labelKey: audioLabelKey(label), value: label as string })),
+  { labelKey: 'components.camera_options.notify_audio_other', value: 'other' },
+];
 
 export const CAMERA_CONTROL_PROPERTY_DEFINITIONS: CameraControlPropertyDefinition[] = [
   { key: 'detectionSettings.snooze', labelKey: 'components.automation_nodes.camera_prop_snooze', inputType: 'boolean', defaultValue: 'false' },
@@ -537,6 +541,13 @@ export const CAMERA_CONTROL_PROPERTY_DEFINITIONS: CameraControlPropertyDefinitio
     max: 1,
     step: 0.05,
     defaultValue: '0.7',
+  },
+  {
+    key: 'detectionSettings.audio.labels',
+    labelKey: 'components.automation_nodes.camera_prop_audio_labels',
+    inputType: 'multiselect',
+    options: AUDIO_SOUND_OPTIONS,
+    defaultValue: JSON.stringify(AUDIO_SOUND_OPTIONS.map((option) => option.value)),
   },
   { key: 'detectionSettings.object.suppressStatic', labelKey: 'components.automation_nodes.camera_prop_suppress_static', inputType: 'boolean', defaultValue: 'true' },
   { key: 'detectionSettings.object.timeout', labelKey: 'components.automation_nodes.camera_prop_object_timeout', inputType: 'number', min: 10, defaultValue: '15' },

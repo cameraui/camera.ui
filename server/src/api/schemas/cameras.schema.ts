@@ -1,4 +1,5 @@
 import { uuidv4 } from '@camera.ui/common/utils';
+import { BASE_AUDIO_LABELS } from '@camera.ui/sdk';
 import * as zod from 'zod';
 
 import { normalizeZones } from '../../camera/zones.js';
@@ -141,6 +142,8 @@ export const zoneConfigSchema = zod
   })
   .strict();
 
+export const DEFAULT_AUDIO_LABELS = [...BASE_AUDIO_LABELS, 'other'] as const;
+
 export const detectionSettingsSchema = zod.object({
   motion: zod.object({
     resolution: zod.union([zod.literal('low'), zod.literal('medium'), zod.literal('high')]),
@@ -161,6 +164,7 @@ export const detectionSettingsSchema = zod.object({
     minDecibels: zod.number().min(-100, 'Minimum -100 dBFS').max(0, 'Maximum 0 dBFS'),
     timeout: zod.number().min(10, 'Minimum 10 seconds'),
     confidence: zod.number().min(0, 'Minimum 0').max(1, 'Maximum 1').default(0.7),
+    labels: zod.array(zod.enum(DEFAULT_AUDIO_LABELS)).default(() => [...DEFAULT_AUDIO_LABELS]),
   }),
   face: zod
     .object({
@@ -577,6 +581,7 @@ export const createCameraBaseSchema = zod
         minDecibels: -40,
         timeout: 30,
         confidence: 0.7,
+        labels: [...DEFAULT_AUDIO_LABELS],
       },
       face: {
         confidence: 0.5,

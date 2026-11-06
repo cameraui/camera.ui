@@ -529,6 +529,7 @@ export default {
       camera_prop_audio_timeout: 'Audio Timeout (s)',
       camera_prop_audio_min_decibels: 'Audio Min Decibels',
       camera_prop_audio_confidence: 'Audio Confidence',
+      camera_prop_audio_labels: 'Audio Sounds',
       camera_prop_sensor_timeout: 'Sensor Timeout (s)',
       camera_prop_cascade_detection: 'Cascade Detection',
       camera_prop_cascade_timeout: 'Cascade Timeout (s)',
@@ -1086,6 +1087,7 @@ export default {
         object_timeout: 'How long a detection reported by a camera-based object sensor stays active without an end report (min. 10s). Frame-based detection ignores this',
         audio_timeout: 'Time in seconds after the last audio trigger before the audio event ends (min. 10s)',
         audio_min_decibels: 'Audio frames below this volume level (in dBFS) are skipped. -100 = silence, 0 = maximum',
+        audio_sounds: 'Only the selected sounds count for events and automations',
         audio_confidence: 'Recognized sounds below this confidence are ignored for events and automations',
         face_confidence: 'Faces below this confidence are ignored for events and automations',
         face_match_sensitivity:
@@ -1216,6 +1218,7 @@ export default {
         object_timeout: 'Object timeout',
         audio_timeout: 'Audio timeout',
         audio_min_decibels: 'Min. volume (dBFS)',
+        audio_sounds: 'Sounds',
         audio_confidence: 'Audio confidence',
         face_confidence: 'Face confidence',
         face_match_sensitivity: 'Recognize faces',

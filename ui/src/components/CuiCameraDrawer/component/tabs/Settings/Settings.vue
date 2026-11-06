@@ -554,6 +554,33 @@
 
           <Field
             v-slot="{ errors }"
+            :model-value="cameraForm.detectionSettings.audio.labels"
+            name="detectionSettings.audio.labels"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label for="detectionSettings.audio.labels" class="cui-label">{{ $t('components.form.label.audio_sounds') }}</label>
+            <MultiSelect
+              :model-value="cameraForm.detectionSettings.audio.labels"
+              :invalid="errors.length > 0"
+              :options="audioSoundOptions"
+              :max-selected-labels="2"
+              option-label="label"
+              option-value="value"
+              filter
+              class="w-full min-w-0"
+              @update:model-value="(e) => (cameraForm.detectionSettings.audio.labels = e)"
+            />
+            <Transition name="fade">
+              <ErrorMessage name="detectionSettings.audio.labels" class="cui-input-error" />
+            </Transition>
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+              $t('components.form.hint.audio_sounds')
+            }}</Message>
+          </Field>
+
+          <Field
+            v-slot="{ errors }"
             :model-value="cameraForm.detectionSettings.audio.confidence"
             name="detectionSettings.audio.confidence"
             as="div"
@@ -1887,10 +1914,12 @@ const faceMatchSensitivities = computed(() =>
   (['strict', 'balanced', 'relaxed'] as const).map((value) => ({ label: t(`components.form.option.face_match_${value}`), value })),
 );
 
-const notifyAudioOptions = computed(() => [
-  ...BASE_AUDIO_LABELS.filter((label) => label !== 'doorbell').map((label) => ({ label: t(audioLabelKey(label)), value: label as string })),
+const audioSoundOptions = computed(() => [
+  ...BASE_AUDIO_LABELS.map((label) => ({ label: t(audioLabelKey(label)), value: label as string })),
   { label: t('components.camera_options.notify_audio_other'), value: 'other' },
 ]);
+
+const notifyAudioOptions = computed(() => audioSoundOptions.value.filter((option) => option.value !== 'doorbell'));
 
 const notifySensorOptions = computed(() => NOTIFY_SENSOR_TYPES.map((type) => ({ label: t(sensorLabelKey(type)), value: type })));
 const snapshotModeOptions = computed(() => Object.entries(SNAPSHOT_MODE_KEYS).map(([value, keys]) => ({ label: t(keys.label), value })));

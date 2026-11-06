@@ -1,6 +1,6 @@
 import { PromiseTimeout, sleep } from '@camera.ui/common/utils';
 import { isNoRespondersError, RPCMethod } from '@camera.ui/rpc';
-import { SensorType } from '@camera.ui/sdk';
+import { BASE_AUDIO_LABELS, SensorType } from '@camera.ui/sdk';
 import { NamespaceManager } from '../../rpc/namespaces.js';
 import { DETECTION_SENSOR_TYPES } from '../../sensors/types.js';
 import { PrivacyMask } from '../privacy/mask.js';
@@ -150,6 +150,7 @@ const CADENCE_MIN_SAMPLES = 5;
 const CADENCE_OUTLIER_BAND = 2.5;
 const CADENCE_OUTLIER_RESEED = 5;
 const IDLE_TICK_MS = 200;
+const BASE_SOUNDS = new Set<string>(BASE_AUDIO_LABELS);
 const ACTIVE_TICK_MS = 100;
 const MOTION_INTERVAL_MS = 200;
 const TICK_SLACK_MS = 20;
@@ -974,16 +975,18 @@ export class DetectionCoordinator {
   }
 
   private handleAudioLoopResult(sensorId: string, result: AudioResult): void {
-    // only the cascade trigger lives here, the audio dwell is handled in ingest
-    if (result.detected && this.cascadeEnabled) {
-      this.cascade.triggerMomentary(this.config.detectionSettings.audio.timeout);
-    }
-
-    this.ingestDetectionResult(SensorType.Audio, sensorId, {
+    const properties = this.applyAudioFilters({
       detected: result.detected,
       detections: result.detections ?? [],
       ...(result.decibels !== undefined ? { decibels: result.decibels } : {}),
     });
+
+    // only the cascade trigger lives here, the audio dwell is handled in ingest
+    if (properties.detected === true && this.cascadeEnabled) {
+      this.cascade.triggerMomentary(this.config.detectionSettings.audio.timeout);
+    }
+
+    this.ingestDetectionResult(SensorType.Audio, sensorId, properties);
   }
 
   private recordWitness(sensorId: string, properties: Record<string, unknown>): void {
@@ -1151,14 +1154,18 @@ export class DetectionCoordinator {
     };
   }
 
-  private applyAudioConfidence(properties: Record<string, unknown>): Record<string, unknown> {
-    const minConfidence = this.config.detectionSettings.audio.confidence ?? 0;
-    if (minConfidence <= 0) return properties;
+  private applyAudioFilters(properties: Record<string, unknown>): Record<string, unknown> {
+    const { confidence = 0, labels } = this.config.detectionSettings.audio;
+    const selected = labels && new Set<string>(labels);
 
     const detections = properties.detections as Detection[] | undefined;
-    if (!Array.isArray(detections) || detections.length === 0) return properties;
+    if (!Array.isArray(detections) || detections.length === 0) {
+      // a bare detected flag names no sound, so only "other" lets it through
+      if (properties.detected !== true || !selected || selected.has('other')) return properties;
+      return { ...properties, detected: false };
+    }
 
-    const filtered = detections.filter((d) => (d.confidence ?? 0) >= minConfidence);
+    const filtered = detections.filter((d) => (d.confidence ?? 0) >= confidence && this.soundSelected(d, selected));
     if (filtered.length === detections.length) return properties;
 
     return { ...properties, detections: filtered, detected: filtered.length > 0 };
@@ -1166,7 +1173,7 @@ export class DetectionCoordinator {
 
   private ingestDetectionResult(sensorType: SensorType, sensorId: string, properties: Record<string, unknown>, pluginId?: string): void {
     if (sensorType === SensorType.Audio) {
-      properties = this.applyAudioConfidence(properties);
+      properties = this.applyAudioFilters(properties);
     }
 
     this.updateBufferForType(sensorType, properties, pluginId);
@@ -2499,5 +2506,11 @@ export class DetectionCoordinator {
 
     const result = await PromiseTimeout(assist.proxy.detectObjects(scaled.model), DETECT_TIMEOUT_MS, undefined, `Object assist timed out after ${DETECT_TIMEOUT_MS}ms`);
     return FrameScaler.undoLetterbox(ensureDetectionBoxes(result?.detections ?? []), scaled.geometry);
+  }
+
+  private soundSelected(detection: Detection, selected: Set<string> | undefined): boolean {
+    if (!selected) return true;
+    const sound = (detection.attribute ?? detection.label).toLowerCase();
+    return selected.has(sound) || (!BASE_SOUNDS.has(sound) && selected.has('other'));
   }
 }
