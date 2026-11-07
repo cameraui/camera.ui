@@ -1,12 +1,15 @@
 import { IS_ELECTRON } from '@camera.ui/common/utils';
-import { RPCMethod } from '@camera.ui/rpc';
+import { RPCMethod, sessionSignal } from '@camera.ui/rpc';
 import pty from '@scrypted/node-pty';
+import { SerializeAddon } from '@xterm/addon-serialize';
+import xtermHeadless from '@xterm/headless';
 import { randomUUID } from 'node:crypto';
 
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { IPty } from '@scrypted/node-pty';
+import type { Terminal } from '@xterm/headless';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
   TerminalManagerInterface,
@@ -14,46 +17,55 @@ import type {
   TerminalManagerProxyGenericEvent,
   TerminalOptions,
   TerminalSessionInfo,
+  TerminalSessionUpdate,
 } from '../rpc/interfaces/terminal.js';
 import type { LoggerService } from '../services/logger/index.js';
 
-class AsyncQueue<T> {
-  private queue: T[] = [];
-  private resolvers: ((value: IteratorResult<T>) => void)[] = [];
-  private closed = false;
+class OutputQueue {
+  public bytes = 0;
 
-  async enqueue(item: T): Promise<void> {
-    if (this.closed) return;
+  private chunks: Uint8Array[] = [];
+  private waiting?: (result: IteratorResult<Uint8Array>) => void;
+  private ended = false;
 
-    if (this.resolvers.length > 0) {
-      const resolve = this.resolvers.shift()!;
-      resolve({ value: item, done: false });
-    } else {
-      this.queue.push(item);
+  constructor(private onTake: () => void) {}
+
+  public push(chunk: Uint8Array): void {
+    if (this.ended) return;
+
+    if (this.waiting) {
+      const resolve = this.waiting;
+      this.waiting = undefined;
+      resolve({ value: chunk, done: false });
+      return;
     }
+
+    this.chunks.push(chunk);
+    this.bytes += chunk.length;
   }
 
-  end(): void {
-    this.closed = true;
-    for (const resolve of this.resolvers) {
-      resolve({ value: undefined, done: true });
-    }
-    this.resolvers = [];
+  public end(): void {
+    this.ended = true;
+    this.waiting?.({ value: undefined, done: true });
+    this.waiting = undefined;
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<T> {
+  public [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
     return {
-      next: (): Promise<IteratorResult<T>> => {
-        if (this.queue.length > 0) {
-          return Promise.resolve({ value: this.queue.shift()!, done: false });
+      next: (): Promise<IteratorResult<Uint8Array>> => {
+        const chunk = this.chunks.shift();
+        if (chunk) {
+          this.bytes -= chunk.length;
+          this.onTake();
+          return Promise.resolve({ value: chunk, done: false });
         }
 
-        if (this.closed) {
-          return Promise.resolve({ value: undefined as unknown as T, done: true });
+        if (this.ended) {
+          return Promise.resolve({ value: undefined, done: true });
         }
 
         return new Promise((resolve) => {
-          this.resolvers.push(resolve);
+          this.waiting = resolve;
         });
       },
     };
@@ -62,10 +74,17 @@ class AsyncQueue<T> {
 
 interface TerminalSession {
   sessionId: string;
+  name?: string;
+  persistent: boolean;
   pty: IPty;
-  outputQueue: AsyncQueue<Uint8Array>;
+  screen: Terminal;
+  serializer: SerializeAddon;
+  attachments: Set<OutputQueue>;
   dimensions: { cols: number; rows: number };
   closed: boolean;
+  paused: boolean;
+  mouseEncoding?: number;
+  cursorHidden: boolean;
   lastActivity: Date;
 }
 
@@ -80,6 +99,8 @@ export class TerminalManager implements TerminalManagerInterface {
   private static readonly BACKPRESSURE_THRESHOLD = 64 * 1024;
   private static readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000;
   private static readonly CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+  private static readonly MOUSE_ENCODINGS = new Set([1005, 1006, 1015, 1016]);
+  private static readonly SCROLLBACK_LINES = 1000;
 
   private static readonly ALLOWED_SHELLS =
     process.platform === 'win32'
@@ -148,66 +169,85 @@ export class TerminalManager implements TerminalManagerInterface {
       },
     });
 
-    const outputQueue = new AsyncQueue<Uint8Array>();
-    let bufferedLength = 0;
-    let isPaused = false;
+    const screen = new xtermHeadless.Terminal({ cols, rows, scrollback: TerminalManager.SCROLLBACK_LINES, allowProposedApi: true });
+    const serializer = new SerializeAddon();
+    screen.loadAddon(serializer);
 
     const session: TerminalSession = {
       sessionId,
+      name: options?.name,
+      persistent: options?.persistent ?? false,
       pty: ptyProcess,
-      outputQueue,
+      screen,
+      serializer,
+      attachments: new Set(),
       dimensions: { cols, rows },
       closed: false,
+      paused: false,
+      cursorHidden: false,
       lastActivity: new Date(),
     };
+    this.trackModes(session);
 
     ptyProcess.onData((data) => {
       if (session.closed) return;
 
-      const buffer = Buffer.from(data);
-      bufferedLength += buffer.length;
+      screen.write(data);
+      const chunk = Buffer.from(data);
+      for (const queue of session.attachments) {
+        queue.push(chunk);
+      }
 
-      outputQueue.enqueue(buffer).then(() => {
-        bufferedLength -= buffer.length;
-
-        if (isPaused && bufferedLength < TerminalManager.BACKPRESSURE_THRESHOLD / 2) {
-          isPaused = false;
-          ptyProcess.resume?.();
-        }
-      });
-
-      if (!isPaused && bufferedLength >= TerminalManager.BACKPRESSURE_THRESHOLD) {
-        isPaused = true;
+      if (!session.paused && this.isBacklogged(session)) {
+        session.paused = true;
         ptyProcess.pause?.();
       }
     });
 
     ptyProcess.onExit(({ exitCode }) => {
       this.logger.trace(`Terminal session ${sessionId} exited with code ${exitCode}`);
-      session.closed = true;
-      outputQueue.end();
-      this.sessions.delete(sessionId);
+      this.dispose(session);
       this.publishTerminalManagerEvent('sessionClosed', { sessionId });
     });
 
     this.sessions.set(sessionId, session);
 
-    return {
-      sessionId,
-      pid: ptyProcess.pid,
-      dimensions: { cols, rows },
-    };
+    return this.describe(session);
+  }
+
+  @RPCMethod
+  public async listSessions(): Promise<TerminalSessionInfo[]> {
+    return [...this.sessions.values()].filter((session) => session.persistent).map((session) => this.describe(session));
   }
 
   @RPCMethod
   public async *generateOutput(sessionId: string): AsyncGenerator<Uint8Array> {
     const session = this.sessions.get(sessionId);
-    if (!session) {
+    if (!session || session.closed) {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    for await (const chunk of session.outputQueue) {
-      yield chunk;
+    const queue = new OutputQueue(() => this.resumeIfDrained(session));
+    session.attachments.add(queue);
+    // holds what the shell printed before this client came, taken in the attach's tick so nothing arrives twice or not at all
+    const snapshot = this.snapshot(session);
+
+    const signal = sessionSignal();
+    const detach = (): void => queue.end();
+    signal?.addEventListener('abort', detach, { once: true });
+
+    try {
+      const screen = await snapshot;
+      if (screen) {
+        yield Buffer.from(screen);
+      }
+
+      for await (const chunk of queue) {
+        yield chunk;
+      }
+    } finally {
+      signal?.removeEventListener('abort', detach);
+      this.detach(session, queue);
     }
   }
 
@@ -228,7 +268,17 @@ export class TerminalManager implements TerminalManagerInterface {
     if (!session || session.closed) return;
 
     session.pty.resize(dimensions.cols, dimensions.rows);
+    session.screen.resize(dimensions.cols, dimensions.rows);
     session.dimensions = dimensions;
+  }
+
+  @RPCMethod
+  public async updateSession(sessionId: string, update: TerminalSessionUpdate): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.closed) return;
+
+    session.name = update.name ?? session.name;
+    session.persistent = update.persistent ?? session.persistent;
   }
 
   @RPCMethod
@@ -237,10 +287,92 @@ export class TerminalManager implements TerminalManagerInterface {
     if (!session) return;
 
     this.logger.trace(`Closing terminal session ${sessionId}`);
-    session.closed = true;
+    this.dispose(session);
     session.pty.kill();
-    session.outputQueue.end();
-    this.sessions.delete(sessionId);
+  }
+
+  private describe(session: TerminalSession): TerminalSessionInfo {
+    return {
+      sessionId: session.sessionId,
+      pid: session.pty.pid,
+      dimensions: session.dimensions,
+      name: session.name,
+      persistent: session.persistent,
+    };
+  }
+
+  private snapshot(session: TerminalSession): Promise<string> {
+    return new Promise((resolve) => {
+      session.screen.write('', () => resolve(session.serializer.serialize() + this.serializeMissingModes(session)));
+    });
+  }
+
+  private trackModes(session: TerminalSession): void {
+    session.screen.parser.registerCsiHandler({ prefix: '?', final: 'h' }, (params) => this.setModes(session, params, true));
+    session.screen.parser.registerCsiHandler({ prefix: '?', final: 'l' }, (params) => this.setModes(session, params, false));
+    session.screen.parser.registerEscHandler({ final: 'c' }, () => {
+      session.mouseEncoding = undefined;
+      session.cursorHidden = false;
+      return false;
+    });
+  }
+
+  private setModes(session: TerminalSession, params: (number | number[])[], enabled: boolean): boolean {
+    for (const param of params) {
+      if (param === 25) {
+        session.cursorHidden = !enabled;
+      } else if (typeof param === 'number' && TerminalManager.MOUSE_ENCODINGS.has(param)) {
+        if (enabled) session.mouseEncoding = param;
+        else if (session.mouseEncoding === param) session.mouseEncoding = undefined;
+      }
+    }
+    // xterm still applies the mode itself
+    return false;
+  }
+
+  private serializeMissingModes(session: TerminalSession): string {
+    let modes = '';
+    if (session.mouseEncoding) modes += `\x1b[?${session.mouseEncoding}h`;
+    if (session.cursorHidden) modes += '\x1b[?25l';
+    return modes;
+  }
+
+  private detach(session: TerminalSession, queue: OutputQueue): void {
+    session.attachments.delete(queue);
+    this.resumeIfDrained(session);
+
+    if (!session.persistent && !session.attachments.size) {
+      this.closeSession(session.sessionId);
+    }
+  }
+
+  private isBacklogged(session: TerminalSession): boolean {
+    for (const queue of session.attachments) {
+      if (queue.bytes >= TerminalManager.BACKPRESSURE_THRESHOLD) return true;
+    }
+    return false;
+  }
+
+  private resumeIfDrained(session: TerminalSession): void {
+    if (!session.paused) return;
+
+    for (const queue of session.attachments) {
+      if (queue.bytes >= TerminalManager.BACKPRESSURE_THRESHOLD / 2) return;
+    }
+
+    session.paused = false;
+    session.pty.resume?.();
+  }
+
+  private dispose(session: TerminalSession): void {
+    if (session.closed) return;
+
+    session.closed = true;
+    for (const queue of session.attachments) {
+      queue.end();
+    }
+    session.screen.dispose();
+    this.sessions.delete(session.sessionId);
   }
 
   private getDefaultShell(): string {
@@ -254,6 +386,8 @@ export class TerminalManager implements TerminalManagerInterface {
     const now = Date.now();
 
     for (const [sessionId, session] of this.sessions) {
+      if (session.persistent) continue;
+
       const inactiveTime = now - session.lastActivity.getTime();
 
       if (inactiveTime > TerminalManager.SESSION_TIMEOUT_MS) {
