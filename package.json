@@ -26,15 +26,15 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "chalk": "^6.0.1",
-    "concurrently": "^10.0.6",
+    "concurrently": "^10.0.7",
     "cross-env": "^10.1.0",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",
-    "updates": "^20.0.0"
+    "updates": "^20.0.1"
   },
   "dependencies": {
-    "commander": "^15.0.0",
+    "commander": "^15.1.0",
     "ora": "^10.0.0"
   }
 }
