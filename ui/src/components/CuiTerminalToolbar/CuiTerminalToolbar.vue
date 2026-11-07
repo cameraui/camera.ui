@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div @mousedown.prevent>
     <div
       class="cui-terminal-toolbar flex items-center gap-1 px-2 py-1.5 bg-black/80 border-t border-white/10 overflow-x-auto no-scrollbar"
       :class="{

@@ -5,6 +5,7 @@
     :class="{ 'opacity-40': isDragging, 'select-none': !renaming }"
     data-keep-keyboard
     @pointerdown="keepFocus"
+    @mousedown="keepFocusAfterTap"
     @contextmenu.prevent
   >
     <InputText
@@ -60,6 +61,7 @@ const renaming = ref(false);
 const draft = ref('');
 
 let lastClickAt = 0;
+let touchTap = false;
 
 const isDragging = computed(() => collect.value.isDragging);
 
@@ -73,8 +75,14 @@ function setDragRef(item: any) {
 }
 
 function keepFocus(event: PointerEvent) {
+  touchTap = event.pointerType !== 'mouse' && !renaming.value;
   // a tap must not take focus from the terminal, the keyboard would close
-  if (event.pointerType !== 'mouse' && !renaming.value) event.preventDefault();
+  if (touchTap) event.preventDefault();
+}
+
+function keepFocusAfterTap(event: MouseEvent) {
+  // ios moves the focus on the mousedown it sends after a tap, a canceled pointerdown does not stop that
+  if (touchTap) event.preventDefault();
 }
 
 function onClick() {

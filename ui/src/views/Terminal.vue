@@ -75,7 +75,7 @@
       class="absolute right-3 z-11"
       :pt="{ root: { style: 'pointer-events: none' } }"
       data-keep-keyboard
-      @pointerdown="keepFocus"
+      @mousedown.prevent
       :style="{
         bottom: `calc(0.75rem + ${toolbarSize.height.value}px)`,
         transition: 'bottom 150ms ease-out',
@@ -297,11 +297,6 @@ function setTerminalRef(tabId: string, el: any) {
 
 function getActiveTerminalRef() {
   return terminalRefs.get(activeTabId.value);
-}
-
-function keepFocus(event: PointerEvent) {
-  // a tap must not take focus from the terminal, the keyboard would close
-  if (event.pointerType !== 'mouse') event.preventDefault();
 }
 
 function showActiveTerminal() {
