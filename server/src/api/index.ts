@@ -7,7 +7,7 @@ import FastifyMultipart from '@fastify/multipart';
 import FastifyStatic from '@fastify/static';
 import FastifySwagger from '@fastify/swagger';
 import FastifySwaggerUI from '@fastify/swagger-ui';
-import Fastify, { LogController } from 'fastify';
+import Fastify, { errorCodes, LogController } from 'fastify';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { createWriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -199,6 +199,14 @@ export class Server {
     });
     this.app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_req, body, done) => {
       done(null, parseFormBody(body as string));
+    });
+    this.app.addContentTypeParser('*', { parseAs: 'buffer' }, (req, body, done) => {
+      // cloudflared's http2 tunnel forwards a request without body as chunked and without content type
+      if (req.headers['content-type'] === undefined && (body as Buffer).length === 0) {
+        done(null, undefined);
+        return;
+      }
+      done(new errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE(), undefined);
     });
 
     this.trackConnections(this.app.server);
