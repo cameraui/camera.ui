@@ -648,6 +648,9 @@
   --cui-topnavbar-item-hover-bg: #eff2f6;
   --cui-topnavbar-item-active-bg: #e2e8f0;
   --cui-topnavbar-item-active-color: #334155;
+  --p-button-text-secondary-color: #64748b;
+  --p-button-text-secondary-hover-background: #e2e8f0;
+  --p-button-text-secondary-active-background: #cbd5e1;
   --p-form-field-background: #f8fafc;
   --p-form-field-border-color: #cbd5e1;
   --p-form-field-hover-border-color: #94a3b8;
