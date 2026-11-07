@@ -512,6 +512,7 @@
     "useTemplateRefsList": true,
     "useTemporalNow": true,
     "useTerminal": true,
+    "useTerminalSessions": true,
     "useTextDirection": true,
     "useTextSelection": true,
     "useTextareaAutosize": true,

@@ -270,7 +270,6 @@ declare module 'vue' {
     'ICarbon:arrowLeft': typeof import('~icons/carbon/arrow-left')['default']
     'ICarbon:download': typeof import('~icons/carbon/download')['default']
     'ICarbon:downToBottom': typeof import('~icons/carbon/down-to-bottom')['default']
-    'ICarbon:reset': typeof import('~icons/carbon/reset')['default']
     'ICarbon:save': typeof import('~icons/carbon/save')['default']
     'ICarbon:search': typeof import('~icons/carbon/search')['default']
     'ICarbon:settings': typeof import('~icons/carbon/settings')['default']
