@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.9]
+
+### Added
+
+- **Move and rename terminal tabs.** Drag a tab to move it, on a phone hold it briefly first. A double click or double tap renames it.
+
+- **Keep a terminal session running.** The pin in the terminal's menu keeps a tab and its shell running on the server. After a reload or on another device, the tab opens the same shell with its output. Reconnect moved into the same menu.
+
+### Fixed
+
+- **Buttons work over remote access through Cloudflare.** Some of them failed with "Unsupported Media Type", such as turning on a plugin for a camera, restarting a plugin or the server, and signing out.
+
+- **The terminal on phones leaves the keyboard as it is.** The key bar, the tabs and the buttons no longer open the keyboard when it is closed, or close it when it is open.
+
+- **Zoom on the camera page in landscape.** A double tap zooms there too, not only pinching. A zoom started in landscape stays when you turn the phone upright, and the player grows taller with it.
+
+- **Smaller fixes in the interface.** The dots below the timeline hide while you export or delete, and the close button of a terminal tab no longer turns dark on hover in light mode.
+
 ## [2.4.8]
 
 ### After the update
