@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 
 - **Choose the sounds per camera.** Settings → Detection lists the sounds that count for a camera, all selected at first. A sound you deselect starts no event, push or automation on that camera. Automations can change the selection with Camera control. See [Audio detection](https://docs.cameraui.com/detection/audio).
 
+- **Apple TV: choose the cameras for the Top Shelf.** Settings → Top Shelf picks the cameras whose events show there.
+
+- **Apple TV: more filters for events.** Filter in the Events tab narrows the list to cameras or rooms, favorites, events or episodes, single sounds, and vehicle type and color.
+
 ### Changed
 
 - **Camview has a control bar at the bottom.** It replaces the button in the corner and holds the same controls. The microphone in its middle talks to all cameras right away, without a dialog. The arrow at its end folds the bar back into a button, in fullscreen a button at the top shows it.
@@ -32,6 +36,12 @@ All notable changes to this project will be documented in this file.
 
 - **Settings pages replace the config editor.** The new Streaming page holds RTSP, the ONVIF export, WebRTC with STUN and TURN and the other ports. System adds ports, address, local discovery and logging, Remote Access the reverse proxy, sign-in through a proxy and the tunnel protocol. Most changes apply without a restart, and the YAML files stay under Advanced on System and Streaming. See [Streaming](https://docs.cameraui.com/admin/streaming).
 
+- **Recordings show when a filter is active.** A dot on the filter button marks it, also while the filter sidebar is closed, and Reset filters at the bottom of the sidebar clears them all. On the desktop the filter button replaces the arrow beside the title.
+
+- **The camera page on a phone in landscape shows the camera larger.** The camera takes the width its picture needs at full height, and the timeline beside it gets the rest. On a narrow timeline, filter, export and delete sit behind a button with three dots, and the zoom buttons are hidden.
+
+- **Number fields have the same buttons everywhere.** Values you change in steps, like a confidence, a timeout or a count, have arrows in the field, on phones and tablets − and + on both sides. Tapping them changes the value without opening the keyboard. Ports and other values you type in full have none.
+
 - **Smaller changes in the settings.** The list of settings pages is sorted alphabetically, Save stays off until something in its card changed, Profile and Password are one card, every card opens with a short description, and the German texts say "du" throughout.
 
 ### Fixed
@@ -41,6 +51,8 @@ All notable changes to this project will be documented in this file.
 - **A camera opened right after Camview plays its main stream.** It kept the low stream from Camview until you opened it a second time.
 
 - **The detections list beside a camera no longer flickers when motion is shown in its filter.** It went blank for a moment every second.
+
+- **Smaller fixes on phones.** Fields with decimals, such as the detection confidences, show the keyboard with a decimal separator.
 
 ## [2.4.7]
 
