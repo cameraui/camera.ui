@@ -3152,6 +3152,7 @@ export default {
       content_kind_events: 'Ereignisse',
       content_kind_episodes: 'Episoden',
       content_kind_episodes_hint: 'Für Episoden gelten nur Kamera, Zeitraum und die Ansichtsoptionen.',
+      reset_filters: 'Filter zurücksetzen',
       confidence: 'Konfidenz',
       date: 'Datum',
       download: 'Aufnahme herunterladen',

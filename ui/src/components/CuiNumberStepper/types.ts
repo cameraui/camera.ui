@@ -12,6 +12,12 @@ export interface CuiNumberStepperProps extends /* @vue-ignore */ InputNumberProp
   maxFractionDigits?: number;
 }
 
+export interface InputNumberSpinner {
+  disabled: boolean;
+  repeat: (event: Event, interval: number | null, direction: number) => void;
+  clearTimer: () => void;
+}
+
 export const CUI_NUMBER_STEPPER_DEFAULTS = {
   showButtons: true,
 } satisfies Partial<CuiNumberStepperProps>;

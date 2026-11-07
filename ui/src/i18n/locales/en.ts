@@ -3133,6 +3133,7 @@ export default {
       content_kind_events: 'Events',
       content_kind_episodes: 'Episodes',
       content_kind_episodes_hint: 'Only camera, time range and the view options apply to episodes.',
+      reset_filters: 'Reset filters',
       confidence: 'Confidence',
       date: 'Date',
       download: 'Download recording',

@@ -78,6 +78,7 @@ export interface RecordingsSensorFilterProps {
 
 export interface RecordingsFilterSidebarProps {
   filters: RecordingsFilterState;
+  filtersActive: boolean;
   cameras: { id: string; name: string; room?: string }[];
   isOpen: boolean;
   isOverlay: boolean;
@@ -100,6 +101,7 @@ export interface RecordingsFilterSidebarEmits {
   'semantic-search': [query: string];
   'assistant-search': [text: string];
   'image-search': [image: File];
+  reset: [];
   close: [];
 }
 

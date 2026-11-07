@@ -14,7 +14,7 @@
           // 'h-[50%]': smBreakpoint,
         }"
         :style="{
-          paddingRight: sideTimeline ? `calc(${timeline.width.value || 400}px + 0.5rem)` : '0px',
+          paddingRight: sideTimeline ? `${sideTimelineWidth + SIDE_TIMELINE_GAP}px` : '0px',
         }"
       >
         <div
@@ -107,14 +107,13 @@
         v-if="!cardTimeline"
         v-show="!cameraCardIsFullscreen"
         id="camera-sidebar"
-        ref="timelineRef"
         :class="{
           'min-w-[300px]': smBreakpoint,
-          'min-w-[400px]': !smBreakpoint,
           'border-t-[1px] border-color': smBreakpoint,
           'fixed right-safe-offset-2 bottom-[var(--cui-bottom-gap)]': sideTimeline,
         }"
         :style="{
+          width: sideTimeline ? `${sideTimelineWidth}px` : undefined,
           height: `calc(100% - ${topbarOffset}px - var(--safe-area-inset-top) - 0.5rem - var(--cui-bottom-gap))`,
         }"
       />
@@ -233,7 +232,7 @@
               </template>
             </Button>
 
-            <template v-if="(recordingsInSheet || horizontalTimeline) && timelineSegment === 'timeline'">
+            <template v-if="(smBreakpoint || horizontalTimeline) && timelineSegment === 'timeline'">
               <Button
                 v-tooltip.left="{ value: $t('components.form.tooltip.zoom_in') }"
                 rounded
@@ -319,10 +318,13 @@ const { data: camera } = camerasQuery.getCameraQuery(cameraName);
 const CAMERA_SHARE_DEFAULT = 0.5;
 const CAMERA_SHARE_MIN = 0.2;
 const TABS_MIN_HEIGHT = 160;
+const SIDE_TIMELINE_WIDTH = 400;
+const SIDE_TIMELINE_MIN_WIDTH = 280;
+const SIDE_TIMELINE_GAP = 8;
+const CAMERA_CARD_CHROME = { x: 2, y: 62 };
 
 const cameraCardRef = useTemplateRef<InstanceType<typeof CuiCameraPipCard>>('cameraCardRef');
 const cuiTimelineRef = useTemplateRef<InstanceType<typeof CuiTimeline>>('cuiTimelineRef');
-const timelineRef = useTemplateRef('timelineRef');
 const cameraColumnRef = useTemplateRef('cameraColumnRef');
 const cameraPaneRef = useTemplateRef('cameraPaneRef');
 const cameraShare = useLocalStorage('cui-camera-view-split', CAMERA_SHARE_DEFAULT);
@@ -365,7 +367,20 @@ const currentTraceEvent = computed<RecordedEvent | undefined>(() => {
   return id ? eventStore.getEvent(id) : undefined;
 });
 
-const timeline = useElementSize(timelineRef);
+const cameraColumn = useElementSize(cameraColumnRef, undefined, { box: 'border-box' });
+const cameraPane = useElementSize(cameraPaneRef);
+
+const cameraAspect = computed(() => {
+  const [width, height] = (camera.value?.interfaceSettings.aspectRatio ?? '16:9').split(':').map(Number);
+  return width && height ? width / height : 16 / 9;
+});
+
+const sideTimelineWidth = computed(() => {
+  if (!shortBreakpoint.value || !cameraPane.height.value) return SIDE_TIMELINE_WIDTH;
+  const cardWidth = (cameraPane.height.value - CAMERA_CARD_CHROME.y) * cameraAspect.value + CAMERA_CARD_CHROME.x;
+  const rest = cameraColumn.width.value - cardWidth - SIDE_TIMELINE_GAP;
+  return Math.round(Math.min(SIDE_TIMELINE_WIDTH, Math.max(SIDE_TIMELINE_MIN_WIDTH, rest)));
+});
 
 const playbackSourceRole = computed(() => camera.value?.interfaceSettings?.playbackSource ?? 'auto');
 

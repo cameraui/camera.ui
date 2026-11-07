@@ -4,13 +4,18 @@
       <span class="font-semibold text-xl truncate">{{ $t('views.recordings.title') }}</span>
     </CuiTopbarSlot>
 
-    <CuiTopbarSlot position="left">
+    <DefineFilterButton>
       <Button id="recordings-sidebar-toggle" severity="secondary" class="cui-button p-2 text-color" text rounded @click="toggleSidebar">
         <template #icon>
-          <i-mage:filter v-if="sidebarState === 'closed'" width="100%" height="100%" />
-          <i-mage:filter-fill v-else width="100%" height="100%" />
+          <i-mage:filter-fill v-if="filtersActive" width="100%" height="100%" />
+          <i-mage:filter v-else width="100%" height="100%" />
+          <Badge v-if="filtersActive" class="absolute min-w-[8px] w-[8px] h-[8px] right-[7px] top-[7px] shadow-[0_0_0_2px_var(--ground-background)]" />
         </template>
       </Button>
+    </DefineFilterButton>
+
+    <CuiTopbarSlot position="left">
+      <FilterButton />
     </CuiTopbarSlot>
 
     <CuiTopbarSlot position="right">
@@ -23,6 +28,7 @@
 
     <RecordingsFilterSidebar
       :filters="filters"
+      :filters-active="filtersActive"
       :cameras="availableCameras"
       :is-open="sidebarOpen"
       :is-overlay="sidebarIsOverlay"
@@ -40,6 +46,7 @@
       @semantic-search="onSemanticSearch"
       @assistant-search="onAssistantSearch"
       @image-search="openImageSearch"
+      @reset="resetFilters"
       @close="closeSidebar"
     />
 
@@ -65,12 +72,9 @@
         <div v-if="!smBreakpoint" class="w-full flex flex-row h-[calc(40px+1rem)] py-2 items-center fixed z-10">
           <div class="ml-2" />
 
-          <Button v-if="!xlBreakpoint" id="recordings-sidebar-toggle" severity="secondary" class="mr-2 cui-icon-lg relative z-2" text rounded @click="toggleSidebar">
-            <template #icon>
-              <i-solar:round-alt-arrow-left-bold v-if="sidebarOpen" width="100%" height="100%" />
-              <i-solar:round-alt-arrow-right-bold v-else width="100%" height="100%" />
-            </template>
-          </Button>
+          <div v-if="!xlBreakpoint" class="mr-2 relative z-2">
+            <FilterButton />
+          </div>
 
           <h1 class="relative z-2 page-title !m-0">
             {{ $t('views.recordings.title') }}
@@ -280,6 +284,7 @@
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
 import { useClipReindex, useDetectionEvents, useEventStore, useNvrDataEpoch, useSemanticSearch, useSimilarSearch } from '@camera.ui/nvr';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
@@ -317,6 +322,7 @@ const assistantQuery = new AssistantQuery();
 const camerasQuery = new CamerasQuery();
 const usersQuery = new UsersQuery();
 
+const [DefineFilterButton, FilterButton] = createReusableTemplate();
 const dialog = useCuiDialog();
 const authStore = useAuthStore();
 const { bottombarHeight } = useSharedCuiStates();
@@ -388,6 +394,7 @@ const TIME_RANGE_MS: Record<string, number> = {
   '1w': 7 * 24 * 60 * 60 * 1000,
   '1m': 30 * 24 * 60 * 60 * 1000,
 };
+const NON_NARROWING_FILTERS: (keyof RecordingsFilterState)[] = ['filterLogicTriggers', 'filterLogicAttributes', 'minSemanticScore'];
 
 const gridRef = useTemplateRef<{ scrollToTop: () => void; scrollY: number; loadingMore: boolean }>('gridRef');
 const viewMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('viewMenuRef');
@@ -488,6 +495,12 @@ const contentFiltered = computed(() => {
     f.minConfidence !== 0.5
   );
 });
+
+const filtersActive = computed(() =>
+  (Object.keys(DEFAULT_FILTERS) as (keyof RecordingsFilterState)[]).some(
+    (key) => !NON_NARROWING_FILTERS.includes(key) && !isEqual(filters.value[key], DEFAULT_FILTERS[key]),
+  ),
+);
 
 const episodesWanted = computed(() => {
   const f = filters.value;
@@ -800,6 +813,11 @@ function onFilterUpdate(newFilters: RecordingsFilterState): void {
     clearSemantic();
   }
   filters.value = newFilters;
+}
+
+function resetFilters(): void {
+  assistantNote.value = '';
+  onFilterUpdate({ ...DEFAULT_FILTERS });
 }
 
 async function onAssistantSearch(text: string): Promise<void> {

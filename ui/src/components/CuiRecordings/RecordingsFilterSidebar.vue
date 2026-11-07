@@ -1,14 +1,14 @@
 <template>
   <nav
     ref="sidebarRef"
-    class="recordings-sidebar fixed transition-all duration-200 overflow-x-hidden overflow-y-auto md:!pl-0 pl-safe flex flex-col z-4"
+    class="recordings-sidebar fixed transition-all duration-200 overflow-hidden md:!pl-0 pl-safe flex flex-col z-4"
     :style="{
       width: `${sidebarWidth}px`,
       borderRightWidth: isOpen ? '1px' : '0px',
       paddingBottom: `calc(var(--safe-area-inset-top) + ${topbarOffset}px + var(--cui-bottom-bar) + var(--cui-bottom-gap))`,
     }"
   >
-    <div class="flex flex-col gap-4 px-4 pt-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">
+    <div class="flex-1 min-h-0 flex flex-col gap-4 p-4 overflow-x-hidden overflow-y-auto" :style="{ width: `${SIDEBAR_WIDTH}px` }">
       <div class="flex flex-col gap-2">
         <label class="sidebar-section-title">{{ $t('views.recordings.content_kind') }}</label>
         <SelectButton
@@ -323,6 +323,10 @@
         </div>
       </template>
     </div>
+
+    <div class="sidebar-footer shrink-0 p-4" :style="{ width: `${SIDEBAR_WIDTH}px` }">
+      <Button :label="$t('views.recordings.reset_filters')" severity="secondary" size="small" class="w-full text-xs" :disabled="!filtersActive" @click="emit('reset')" />
+    </div>
   </nav>
 </template>
 
@@ -518,6 +522,13 @@ function toggleSection(section: keyof typeof sections): void {
   sections[section] = !sections[section];
 }
 
+watch(
+  () => props.filters.semanticQuery,
+  (query) => {
+    if (!query) semanticInput.value = '';
+  },
+);
+
 watch(semanticInput, (val) => {
   if (!val?.trim() && props.filters.semanticQuery) {
     updateFilter('semanticQuery', '');
@@ -555,6 +566,10 @@ defineExpose({
   background: none;
   border: none;
   padding: 0;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border-color);
 }
 
 .sidebar-divider {
