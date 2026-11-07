@@ -425,6 +425,7 @@ declare global {
   const useTemplateRefsList: typeof import('@vueuse/core').useTemplateRefsList
   const useTemporalNow: typeof import('@vueuse/core').useTemporalNow
   const useTerminal: typeof import('@camera.ui/browser').useTerminal
+  const useTerminalSessions: typeof import('@camera.ui/browser').useTerminalSessions
   const useTextDirection: typeof import('@vueuse/core').useTextDirection
   const useTextSelection: typeof import('@vueuse/core').useTextSelection
   const useTextareaAutosize: typeof import('@vueuse/core').useTextareaAutosize
@@ -1030,6 +1031,7 @@ declare module 'vue' {
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>
     readonly useTemporalNow: UnwrapRef<typeof import('@vueuse/core')['useTemporalNow']>
     readonly useTerminal: UnwrapRef<typeof import('@camera.ui/browser')['useTerminal']>
+    readonly useTerminalSessions: UnwrapRef<typeof import('@camera.ui/browser')['useTerminalSessions']>
     readonly useTextDirection: UnwrapRef<typeof import('@vueuse/core')['useTextDirection']>
     readonly useTextSelection: UnwrapRef<typeof import('@vueuse/core')['useTextSelection']>
     readonly useTextareaAutosize: UnwrapRef<typeof import('@vueuse/core')['useTextareaAutosize']>

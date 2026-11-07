@@ -223,6 +223,7 @@ declare module 'vue' {
     CuiSwitchControl: typeof import('./../components/CuiSwitchControl/CuiSwitchControl.vue')['default']
     CuiTemperatureInfo: typeof import('./../components/CuiTemperatureInfo/CuiTemperatureInfo.vue')['default']
     CuiTerminal: typeof import('./../components/CuiTerminal/CuiTerminal.vue')['default']
+    CuiTerminalTab: typeof import('./../components/CuiTerminalTab/CuiTerminalTab.vue')['default']
     CuiTerminalToolbar: typeof import('./../components/CuiTerminalToolbar/CuiTerminalToolbar.vue')['default']
     CuiThemeSwitch: typeof import('./../components/CuiThemeSwitch/CuiThemeSwitch.vue')['default']
     CuiTimelineExport: typeof import('./../components/CuiTimelineExport/CuiTimelineExport.vue')['default']

@@ -31,7 +31,7 @@
       </button>
     </div>
 
-    <div v-if="showSettings" class="flex flex-wrap gap-1.5 px-2 py-2 bg-black/90 border-t border-white/10">
+    <div v-if="showSettings" class="flex flex-wrap gap-1.5 px-2 py-2 bg-black/90 border-t border-white/10" data-keep-keyboard>
       <button
         v-for="key in ALL_KEYS"
         :key="key.id"
@@ -40,6 +40,7 @@
           'bg-white/20 border-white/30 text-white': visibleKeyIds.includes(key.id),
           'bg-white/5 border-white/10 text-white/30': !visibleKeyIds.includes(key.id),
         }"
+        @pointerdown.prevent
         @click="toggleKeyVisibility(key.id)"
       >
         {{ key.label }}

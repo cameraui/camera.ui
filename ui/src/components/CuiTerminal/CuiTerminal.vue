@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<CuiTerminalProps>(), {
 
 const emit = defineEmits<CuiTerminalEmits>();
 
-const { isConnected, isConnecting, isClientConnected, error, connect, write, resize, close } = useTerminal();
+const { isConnected, isConnecting, isClientConnected, error, connect, write, resize, setPersistent, rename, close, terminate } = useTerminal();
 
 const { options } = toRefs(props);
 
@@ -95,10 +95,7 @@ function refreshTerminal(): void {
 
   nextTick(() => {
     fitTerminal();
-    if (term.value) {
-      term.value.refresh(0, term.value.rows - 1);
-      term.value.focus();
-    }
+    term.value?.refresh(0, term.value.rows - 1);
   });
 }
 
@@ -158,7 +155,12 @@ async function connectTerminal(): Promise<void> {
     rows: term.value.rows,
     cwd: props.cwd,
     shell: props.shell,
+    sessionId: props.sessionId,
+    name: props.name,
+    persistent: props.persistent,
     onData: handlePtyOutput,
+    onReplay: () => term.value?.reset(),
+    onSession: (session) => emit('session', session),
     onClose: () => {
       term.value?.write('\r\n\x1b[33mSession closed.\x1b[0m\r\n');
     },
@@ -201,7 +203,6 @@ watch(
 watch(isConnected, (next) => {
   if (next) {
     emit('connected');
-    nextTick(() => term.value?.focus());
   } else {
     emit('disconnected');
   }
@@ -231,6 +232,9 @@ onUnmounted(() => {
 defineExpose({
   connect: connectTerminal,
   disconnect: disconnectTerminal,
+  terminate,
+  setPersistent,
+  rename,
   clear: clearTerminal,
   focus: focusTerminal,
   resize: resizeHandler,

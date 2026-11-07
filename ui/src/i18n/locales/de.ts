@@ -2564,6 +2564,8 @@ export default {
       new_tab: 'Neuer Tab',
       reconnect: 'Neu verbinden',
       tab_name: 'Tab-Name',
+      session_kept: 'Session läuft nach dem Verlassen weiter',
+      session_not_kept: 'Session endet beim Verlassen',
     },
     sensors: {
       title: 'Sensoren',

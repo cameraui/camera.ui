@@ -260,6 +260,7 @@ export default defineConfig(({ command }) => ({
             'useCameraStream',
             'useSnapshot',
             'useTerminal',
+            'useTerminalSessions',
             'useCuiFullscreen',
             'useTabVisibility',
           ],
