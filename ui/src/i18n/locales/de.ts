@@ -2563,6 +2563,7 @@ export default {
       disconnected: 'Getrennt',
       new_tab: 'Neuer Tab',
       reconnect: 'Neu verbinden',
+      tab_name: 'Tab-Name',
     },
     sensors: {
       title: 'Sensoren',

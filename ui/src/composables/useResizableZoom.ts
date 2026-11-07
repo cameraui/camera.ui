@@ -197,8 +197,8 @@ export function useResizableZoom(options: ResizableZoomOptions) {
       const now = Date.now();
       const dist = Math.hypot(touch.clientX - tapPos.x, touch.clientY - tapPos.y);
       if (now - tapTime < DOUBLE_TAP_DELAY && dist < DOUBLE_TAP_DISTANCE) {
-        if (onDoubleTap) onDoubleTap(touch.clientX, touch.clientY);
-        else if (toValue(enabled) && canDoubleTap()) toggleAt(touch.clientX);
+        if (!toValue(enabled)) onDoubleTap?.(touch.clientX, touch.clientY);
+        else if (canDoubleTap()) toggleAt(touch.clientX);
         tapTime = 0;
         tapPos = { x: 0, y: 0 };
       } else {
@@ -322,13 +322,22 @@ export function useResizableZoom(options: ResizableZoomOptions) {
 
   watch(
     () => toValue(enabled),
-    () => {
+    (on) => {
       stopMousePan();
       stopResize();
       pinching = false;
+      // a zoom from the other layout carries over, the box grows with it
+      if (on && zoom.value > 1) return;
       reset();
     },
   );
+
+  watch([maxZoom, containerWidth, measuredWidth], ([max]) => {
+    if (!toValue(enabled) || zoom.value <= 1) return;
+    const level = Math.min(zoom.value, max);
+    zoom.value = level;
+    pan.value = constrain(pan.value, level);
+  });
 
   useEventListener(window, 'blur', () => {
     stopMousePan();

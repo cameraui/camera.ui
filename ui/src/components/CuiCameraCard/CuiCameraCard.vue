@@ -220,6 +220,7 @@
             :class="{ 'zoom-constraining': isConstraining, 'touch-none': resizable }"
             @panned="onZoomPan"
             @zoom="onZoomPan"
+            @pointerdown.capture="rememberPointer"
             @dblclick="onDoubleClickZoom"
             @touchstart="onContentTouchStart"
             @touchmove="onContentTouchMove"
@@ -1107,6 +1108,7 @@ const userMediaStream = shallowRef<MediaStream>();
 const isAdapting = ref(false);
 const panValue = ref({ x: 0, y: 0 });
 let panAtPointerDown = { x: 0, y: 0 };
+let lastPointerType = 'mouse';
 const zoomValue = ref(1);
 const zoomState = { pan: panValue, zoom: zoomValue };
 const lastZoom = ref(1);
@@ -1190,7 +1192,7 @@ const {
   zoom: zoomValue,
   pan: panValue,
   canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !liveResting.value && !isDisabled.value,
-  onDoubleTap: (clientX, clientY) => onDoubleClickZoom({ clientX, clientY, preventDefault: () => {}, stopPropagation: () => {} } as MouseEvent),
+  onDoubleTap: toggleZoomAt,
 });
 
 const cameraName = computed(() => (typeof cameraInfo.value === 'string' ? cameraInfo.value : cameraInfo.value.name));
@@ -1838,16 +1840,27 @@ function toggleExpand() {
   emit('expand', next);
 }
 
+function rememberPointer(event: PointerEvent) {
+  lastPointerType = event.pointerType;
+}
+
 function onDoubleClickZoom(event: MouseEvent) {
+  // a touch double tap already zoomed in the touch handler, the dblclick a browser adds would undo it
+  if (lastPointerType === 'touch') return;
   if (resizable.value) {
     onResizableDoubleClick(event);
     return;
   }
-  if (!doubleClickZoom.value) return;
-  if (!isHoveredZoom.value || timelineState.value || liveResting.value || isDisabled.value) return;
+  if (!isHoveredZoom.value) return;
 
   event.preventDefault();
   event.stopPropagation();
+  toggleZoomAt(event.clientX, event.clientY);
+}
+
+function toggleZoomAt(clientX: number, clientY: number) {
+  if (!doubleClickZoom.value || timelineState.value || liveResting.value || isDisabled.value) return;
+
   // reset first so a fast second double-click can interrupt the previous one
   isConstraining.value = true;
 
@@ -1861,8 +1874,8 @@ function onDoubleClickZoom(event: MouseEvent) {
     if (!playerContainerRef.value) return;
 
     const containerRect = playerContainerRef.value.getBoundingClientRect();
-    const clickX = event.clientX - containerRect.left;
-    const clickY = event.clientY - containerRect.top;
+    const clickX = clientX - containerRect.left;
+    const clickY = clientY - containerRect.top;
     const centerX = containerRect.width / 2;
     const centerY = containerRect.height / 2;
     const maxZoom = effectiveMaxZoom.value;
@@ -2403,9 +2416,13 @@ watch(findViewOpen, (open) => {
   if (open && canFind.value && embeddedTimeline.value && cameraStream.isFullscreen.value && !timelineState.value) timelineState.value = true;
 });
 
-watch(resizable, () => {
+watch(resizable, (on) => {
   lastZoom.value = 1;
   isConstraining.value = false;
+  // vue-zoomable leaves its transform on the element once its selector stops matching
+  if (on) {
+    for (const property of ['transform', 'transform-origin', 'transform-box', 'transition']) videoBoxRef.value?.style.removeProperty(property);
+  }
 });
 
 watch(

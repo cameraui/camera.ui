@@ -2545,6 +2545,7 @@ export default {
       disconnected: 'Disconnected',
       new_tab: 'New tab',
       reconnect: 'Reconnect',
+      tab_name: 'Tab name',
     },
     sensors: {
       title: 'Sensors',
