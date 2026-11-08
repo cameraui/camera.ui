@@ -1025,7 +1025,8 @@ watch(
 
 watch(
   isHoveringMap,
-  () => {
+  async () => {
+    await nextTick();
     Object.entries(isHoveringMap.value).forEach(([key, value]) => {
       if (value && previewMenuRefs.value[key]) {
         const el = shortcutElementRefs.value[key];
@@ -1035,8 +1036,7 @@ watch(
       }
     });
   },
-  // post: a popover mounts on the first hover, its ref exists only after the render
-  { deep: true, flush: 'post' },
+  { deep: true },
 );
 
 watch(visible, (isVisible) => {
