@@ -309,6 +309,15 @@
 
   --table-row-odd-background: var(--p-surface-50);
 
+  --markdown-code-background: var(--p-surface-100);
+  --markdown-code-keyword: #cf222e;
+  --markdown-code-function: #8250df;
+  --markdown-code-constant: #0550ae;
+  --markdown-code-string: #0a3069;
+  --markdown-code-builtin: #953800;
+  --markdown-code-comment: #6e7781;
+  --markdown-code-tag: #116329;
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -405,6 +414,15 @@
   --text-danger-color: var(--p-red-400);
 
   --table-row-odd-background: var(--p-surface-850);
+
+  --markdown-code-background: var(--p-surface-800);
+  --markdown-code-keyword: #ff7b72;
+  --markdown-code-function: #d2a8ff;
+  --markdown-code-constant: #79c0ff;
+  --markdown-code-string: #a5d6ff;
+  --markdown-code-builtin: #ffa657;
+  --markdown-code-comment: #8b949e;
+  --markdown-code-tag: #7ee787;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);

@@ -314,7 +314,7 @@
   margin: 0;
   padding: 0 1em;
   color: var(--text-primary-color);
-  border-left: 0.25em solid #d0d7de;
+  border-left: 0.25em solid var(--border-color-inner);
 }
 
 .markdown-body ul,
@@ -598,23 +598,8 @@
   font-weight: 600;
 }
 
-.markdown-body table th,
-.markdown-body table td {
-  padding: 6px 13px;
-  border: 1px solid #d0d7de;
-}
-
 .markdown-body table td > :last-child {
   margin-bottom: 0;
-}
-
-.markdown-body table tr {
-  background-color: #ffffff;
-  border-top: 1px solid var(--border-color);
-}
-
-.markdown-body table tr:nth-child(2n) {
-  background-color: #f6f8fa;
 }
 
 .markdown-body table img {
@@ -729,7 +714,7 @@
   margin: 0;
   font-size: 85%;
   white-space: break-spaces;
-  background-color: rgba(175, 184, 193, 0.2);
+  background-color: var(--chip-background);
   border-radius: 6px;
 }
 
@@ -775,7 +760,7 @@
   font-size: 85%;
   line-height: 1.45;
   color: var(--text-color);
-  background-color: #313131;
+  background-color: var(--markdown-code-background);
   border-radius: 6px;
 }
 
@@ -829,8 +814,7 @@
 
 .markdown-body .footnotes {
   font-size: 12px;
-  color: var(--text-primary-color);
-  border-top: 1px solid #d0d7de;
+  color: var(--text-color-faded);
 }
 
 .markdown-body .footnotes ol {
@@ -1023,9 +1007,28 @@
   display: none;
 }
 
-.markdown-body .task-list-item-checkbox {
-  margin: 0 0.2em 0.25em -1.4em;
+.markdown-body .markdown-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 0.25em 0.2em -1.75em;
   vertical-align: middle;
+  border: 1px solid var(--p-form-field-border-color);
+  border-radius: var(--p-border-radius-sm);
+  background: var(--p-form-field-background);
+}
+
+.markdown-body .markdown-checkbox[aria-checked='true'] {
+  border-color: var(--p-primary-color);
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
+}
+
+.markdown-body .markdown-checkbox svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .markdown-body .contains-task-list:dir(rtl) .task-list-item-checkbox {
@@ -1061,7 +1064,7 @@
   padding: 0 1em;
   margin-bottom: 16px;
   color: inherit;
-  border-left: 0.25em solid #d0d7de;
+  border-left: 0.25em solid var(--markdown-alert-color);
 }
 
 .markdown-body .markdown-alert > :first-child {
@@ -1072,16 +1075,31 @@
   margin-bottom: 0;
 }
 
-.markdown-body .markdown-alert.markdown-alert-note {
-  border-left-color: #0969da;
+.markdown-body .markdown-alert-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--markdown-alert-color);
 }
 
-.markdown-body .markdown-alert.markdown-alert-important {
-  border-left-color: #8250df;
+.markdown-body .markdown-alert-note {
+  --markdown-alert-color: var(--text-info-color);
 }
 
-.markdown-body .markdown-alert.markdown-alert-warning {
-  border-left-color: #9a6700;
+.markdown-body .markdown-alert-tip {
+  --markdown-alert-color: var(--text-success-color);
+}
+
+.markdown-body .markdown-alert-important {
+  --markdown-alert-color: var(--p-purple-500);
+}
+
+.markdown-body .markdown-alert-warning {
+  --markdown-alert-color: var(--text-warning-color);
+}
+
+.markdown-body .markdown-alert-caution {
+  --markdown-alert-color: var(--text-danger-color);
 }
 
 .markdown-body table {
@@ -1106,7 +1124,7 @@
 }
 
 .markdown-body table tr:nth-child(2n) {
-  background-color: var(--border-color);
+  background-color: var(--table-row-odd-background);
 }
 
 .markdown-body table th,
@@ -1132,4 +1150,64 @@
 
 .markdown-body ul {
   list-style: unset;
+}
+
+.markdown-body .hljs-doctag,
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-template-tag,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-type,
+.markdown-body .hljs-variable.language_ {
+  color: var(--markdown-code-keyword);
+}
+
+.markdown-body .hljs-title {
+  color: var(--markdown-code-function);
+}
+
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-meta,
+.markdown-body .hljs-number,
+.markdown-body .hljs-operator,
+.markdown-body .hljs-section,
+.markdown-body .hljs-selector-attr,
+.markdown-body .hljs-selector-class,
+.markdown-body .hljs-selector-id,
+.markdown-body .hljs-variable {
+  color: var(--markdown-code-constant);
+}
+
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-string {
+  color: var(--markdown-code-string);
+}
+
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-bullet,
+.markdown-body .hljs-symbol {
+  color: var(--markdown-code-builtin);
+}
+
+.markdown-body .hljs-code,
+.markdown-body .hljs-comment,
+.markdown-body .hljs-formula {
+  color: var(--markdown-code-comment);
+}
+
+.markdown-body .hljs-name,
+.markdown-body .hljs-quote,
+.markdown-body .hljs-selector-pseudo,
+.markdown-body .hljs-selector-tag {
+  color: var(--markdown-code-tag);
+}
+
+.markdown-body .hljs-section,
+.markdown-body .hljs-strong {
+  font-weight: 600;
+}
+
+.markdown-body .hljs-emphasis {
+  font-style: italic;
 }
