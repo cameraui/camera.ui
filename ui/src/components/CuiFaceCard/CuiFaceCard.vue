@@ -52,6 +52,9 @@
           <Button v-tooltip.top="$t('views.faces.restore')" severity="secondary" rounded size="small" class="cui-icon-sm text-white" @click.stop="$emit('restore')">
             <template #icon><i-mdi:eye width="100%" height="100%" /></template>
           </Button>
+          <Button v-tooltip.top="$t('views.faces.discard')" severity="danger" rounded size="small" class="cui-icon-sm text-white" @click.stop="$emit('skip')">
+            <template #icon><i-mdi:delete width="100%" height="100%" /></template>
+          </Button>
         </template>
 
         <template v-else>

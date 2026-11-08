@@ -310,6 +310,7 @@
                           :timestamp="face.timestamp"
                           :clarity="face.clarity"
                           @restore="restoreFace(face)"
+                          @skip="discardIgnoredFace(face)"
                         />
                       </div>
                     </AccordionContent>
@@ -741,6 +742,14 @@ async function ignoreFace(face: UnknownFace) {
   try {
     await faceStore.ignoreFaces([face.id]);
     toast.add({ severity: 'success', detail: t('views.faces.face_ignored'), life: 3000 });
+  } catch (err) {
+    toast.add({ severity: 'error', detail: err, life: 3000 });
+  }
+}
+
+async function discardIgnoredFace(face: IgnoredFace) {
+  try {
+    await faceStore.deleteIgnoredFaces([face.id]);
   } catch (err) {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   }
