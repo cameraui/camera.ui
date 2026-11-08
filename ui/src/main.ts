@@ -25,6 +25,7 @@ import { bootApp, consumeAuthParam, consumeEmbedSession, isCapacitor } from '@/c
 import { instanceOverride } from '@/connection/instance.js';
 import { registerEcosystemPlugins } from '@/plugins/cameraui.js';
 import { registerCapacitor } from '@/plugins/capacitor/index.js';
+import { installHoverGate } from '@/plugins/hover.js';
 import { registerUiPlugins } from '@/plugins/index.js';
 import Router from '@/router/index.js';
 
@@ -44,6 +45,7 @@ const vueLog = new Logger('Vue');
 app.config.errorHandler = (err, _instance, info) => vueLog.error(`[${info}]`, err);
 
 registerUiPlugins(app);
+installHoverGate();
 bridgeConnectionToQueryOnline(connection);
 registerEcosystemPlugins(app, connection);
 

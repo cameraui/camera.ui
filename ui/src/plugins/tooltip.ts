@@ -1,3 +1,5 @@
+import { hoverActive } from './hover.js';
+
 import type { DirectiveBinding, ObjectDirective } from 'vue';
 
 export type TooltipValue = string | { value?: string; disabled?: boolean; class?: string; pt?: { root?: { class?: string } } } | null | undefined;
@@ -112,7 +114,7 @@ function onHideEvent(event: Event): void {
 }
 
 function onPointerEnter(event: PointerEvent): void {
-  if (event.pointerType !== 'touch') onShowEvent(event);
+  if (event.pointerType !== 'touch' && hoverActive()) onShowEvent(event);
 }
 
 function onPointerLeave(event: PointerEvent): void {
@@ -123,7 +125,8 @@ function onClick(event: MouseEvent): void {
   const state = states.get(event.currentTarget as Element);
   if (!state) return;
   if (state === active) hide();
-  else if (lastPointerType === 'touch' && !state.target.closest(INTERACTIVE)) show(state);
+  // a tap on a button inside the host (a wrapper div) is meant for the button
+  else if (lastPointerType === 'touch' && !(event.target as Element).closest(INTERACTIVE)) show(state);
 }
 
 function onPointerDown(event: PointerEvent): void {

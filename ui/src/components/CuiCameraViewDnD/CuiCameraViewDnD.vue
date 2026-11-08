@@ -598,6 +598,10 @@ defineExpose({
   opacity: 1;
 }
 
+:root:not(.cui-hover) .grid-stack:not(.grid-stack-static) > .grid-stack-item > .ui-resizable-se {
+  opacity: 1;
+}
+
 .grid-stack:not(.grid-stack-static) > .grid-stack-item > .grid-stack-item-content {
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.2);
