@@ -100,7 +100,7 @@
                 </template>
               </Column>
 
-              <Column field="name" :header="$t('views.workers.camera')" header-class="p-2 min-w-40" class="p-2 min-w-40">
+              <Column field="name" :header="$t('views.workers.camera')" header-class="p-2 w-full min-w-40" class="p-2 w-full min-w-40">
                 <template #body="{ data }">
                   <div class="flex items-center gap-1.5">
                     <span class="font-bold text-color text-sm">{{ data.name }}</span>
@@ -109,7 +109,7 @@
                 </template>
               </Column>
 
-              <Column :header="$t('views.workers.workers')" header-class="p-2 w-full" class="p-2 w-full">
+              <Column :header="$t('views.workers.workers')" header-class="p-2" class="p-2">
                 <template #body="{ data }">
                   <Select
                     :model-value="cameraDraft(data).agentId"
@@ -117,7 +117,7 @@
                     option-label="label"
                     option-value="value"
                     :placeholder="$t('views.workers.local')"
-                    class="w-full"
+                    class="w-64"
                     show-clear
                     :loading="isAssigning(data._id)"
                     :disabled="savingCameras"
@@ -169,7 +169,7 @@
                 </template>
               </Column>
 
-              <Column field="displayName" :header="$t('views.workers.plugin')" header-class="p-2 min-w-40" class="p-2 min-w-40">
+              <Column field="displayName" :header="$t('views.workers.plugin')" header-class="p-2 w-full min-w-40" class="p-2 w-full min-w-40">
                 <template #body="{ data }">
                   <div class="flex flex-col">
                     <span class="font-bold text-color text-sm">{{ data.displayName }}</span>
@@ -178,7 +178,7 @@
                 </template>
               </Column>
 
-              <Column :header="$t('views.workers.workers')" header-class="p-2 w-full" class="p-2 w-full">
+              <Column :header="$t('views.workers.workers')" header-class="p-2" class="p-2">
                 <template #body="{ data }">
                   <Select
                     :model-value="pluginDraft(data).agentId"
@@ -187,7 +187,7 @@
                     option-value="value"
                     option-disabled="disabled"
                     :placeholder="$t('views.workers.local')"
-                    class="w-full"
+                    class="w-64"
                     show-clear
                     :loading="isAssigningPlugin(data.pluginName)"
                     :disabled="savingPlugins"
