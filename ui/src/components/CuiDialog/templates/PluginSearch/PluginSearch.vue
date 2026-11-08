@@ -58,13 +58,13 @@
           <i-material-symbols:refresh-rounded width="100%" height="100%" />
         </template>
       </Button>
-      <Badge size="small" class="ml-2 rounded-full" :value="String(listPlugins.length)" />
+      <Badge size="small" class="ml-2 rounded-full" :value="String(filteredPlugins.length)" />
     </div>
 
     <ProgressBar v-if="pluginsAreLoading" mode="indeterminate" class="my-3 !h-[1px]"></ProgressBar>
     <Divider v-else class="m-0 py-3" />
 
-    <div v-if="!pluginsAreLoading && !listPlugins.length" class="text-center py-10">
+    <div v-if="!pluginsAreLoading && !filteredPlugins.length" class="text-center py-10">
       <div class="text-muted mb-2">
         <i-mdi:package-variant-plus class="w-12 h-12 mx-auto opacity-30" />
       </div>
@@ -77,7 +77,7 @@
 
     <div v-else class="w-full plugin-list">
       <CuiPluginStoreCard
-        v-for="plugin in listPlugins"
+        v-for="plugin in filteredPlugins"
         :key="plugin.pluginName"
         v-tooltip="{ value: isPluginInProgress(plugin.pluginName) ? $t('components.plugin_search.in_progress') : undefined }"
         :plugin
@@ -110,7 +110,6 @@ const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
 const searchValue = ref('');
 const query = ref<PQuery>({});
-const notInstalledPlugins = ref<CameraUiPlugin[]>([]);
 const categoryFilter = ref('all');
 const trustFilter = ref('all');
 const sortBy = ref<'downloads' | 'updated' | 'name'>('name');
@@ -142,7 +141,7 @@ const sortOptions = computed(() => [
 ]);
 
 const filteredPlugins = computed(() => {
-  let list = notInstalledPlugins.value.slice();
+  let list = plugins.value?.result.slice() ?? [];
 
   if (categoryFilter.value !== 'all') {
     list = list.filter((plugin) => plugin.category === categoryFilter.value);
@@ -167,7 +166,6 @@ const filteredPlugins = computed(() => {
 });
 
 const featuredPlugins = computed(() => filteredPlugins.value.filter((plugin) => plugin.featured));
-const listPlugins = computed(() => filteredPlugins.value.filter((plugin) => !plugin.featured));
 
 function isPluginInProgress(pluginName: string): boolean | undefined {
   return pluginsProgress.value?.result.some((p) => p.pluginName === pluginName);
@@ -213,22 +211,13 @@ function openDetail(plugin: CameraUiPlugin) {
     data: {
       title: t('components.dialog.title.details'),
       confirmText: t('components.form.button.install'),
+      hideConfirmButton: Boolean(plugin.installPath),
       contentProps: {
         plugin: unref(plugin),
       },
     },
   });
 }
-
-watch(
-  plugins,
-  (p) => {
-    if (p?.result) {
-      notInstalledPlugins.value = p.result.filter((plugin) => !plugin.installPath);
-    }
-  },
-  { immediate: true, deep: true },
-);
 
 defineExpose({
   isLoading,

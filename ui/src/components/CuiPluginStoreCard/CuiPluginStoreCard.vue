@@ -16,6 +16,7 @@
           <div class="flex items-center gap-2 min-w-0">
             <h4 class="font-medium text-base truncate">{{ plugin.displayName }}</h4>
             <CuiPluginTrustBadge :trust="plugin.trust" :show-label="false" class="flex-shrink-0" />
+            <i-mdi:star v-if="plugin.featured" v-tooltip.top="{ value: $t('components.plugin_search.featured') }" class="w-4 h-4 flex-shrink-0 text-primary" />
           </div>
           <div class="text-sm text-muted truncate">{{ plugin.pluginName }}</div>
         </div>
@@ -77,7 +78,8 @@
         </Button>
       </div>
 
-      <Button class="cui-button-medium ml-auto" :label="$t('components.form.button.install')" :disabled="inProgress" @click="emit('install', plugin)" />
+      <Tag v-if="plugin.installPath" class="ml-auto" severity="success" :value="$t('components.plugin_card.installed')" />
+      <Button v-else class="cui-button-medium ml-auto" :label="$t('components.form.button.install')" :disabled="inProgress" @click="emit('install', plugin)" />
     </div>
   </div>
 </template>

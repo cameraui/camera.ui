@@ -42,7 +42,7 @@
           <i-material-symbols:refresh-rounded width="100%" height="100%" />
         </template>
       </Button>
-      <Badge size="small" class="ml-2 rounded-full" :value="String(listEntries.length)" />
+      <Badge size="small" class="ml-2 rounded-full" :value="String(filteredEntries.length)" />
     </div>
 
     <ProgressBar v-if="isLoading" mode="indeterminate" class="my-3 !h-[1px]"></ProgressBar>
@@ -52,7 +52,7 @@
       <Skeleton v-for="i in 4" :key="i" class="mb-2" height="120px"></Skeleton>
     </div>
 
-    <div v-else-if="!listEntries.length && !featuredEntries.length" class="text-center py-10">
+    <div v-else-if="!filteredEntries.length" class="text-center py-10">
       <div class="text-muted mb-2">
         <i-material-symbols:automation class="w-12 h-12 mx-auto opacity-30" />
       </div>
@@ -60,7 +60,7 @@
     </div>
 
     <div v-else class="automation-store-list">
-      <CuiAutomationStoreCard v-for="entry in listEntries" :key="entry.id" :entry @open="openDetail" />
+      <CuiAutomationStoreCard v-for="entry in filteredEntries" :key="entry.id" :entry @open="openDetail" />
     </div>
   </div>
 </template>
@@ -125,7 +125,6 @@ const filteredEntries = computed(() => {
 });
 
 const featuredEntries = computed(() => filteredEntries.value.filter((entry) => entry.featured));
-const listEntries = computed(() => filteredEntries.value.filter((entry) => !entry.featured));
 
 function openDetail(entry: AutomationCatalogEntry) {
   dialog.openComponentDialog<AutomationStoreDetailProps>(AutomationStoreDetailDialog, {
