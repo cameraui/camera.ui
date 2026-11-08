@@ -25,7 +25,7 @@
       @nodes-change="onNodesChange"
     >
       <Background :gap="16" />
-      <Controls />
+      <Controls class="automation-controls" :class="{ 'automation-controls--mobile': mobile }" />
 
       <template v-if="!nodes.length" #default>
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -328,6 +328,16 @@ defineExpose({
 
 .automation-canvas .vue-flow__minimap-mask {
   fill: var(--mask-background);
+}
+
+.automation-canvas .vue-flow__panel.automation-controls {
+  margin: 0;
+  left: 1.25rem;
+  bottom: 0.75rem;
+}
+
+.automation-canvas .vue-flow__panel.automation-controls--mobile {
+  bottom: 1.25rem;
 }
 
 .automation-canvas .vue-flow__controls-button {

@@ -33,14 +33,9 @@
       <p class="text-muted text-sm">{{ emptyText }}</p>
     </div>
 
-    <div
-      v-if="!eventsUnavailable"
-      class="absolute right-3 bottom-3 z-10 flex flex-col transition-all duration-200 ease-in-out"
-      :class="scrollHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
-    >
+    <CuiFloatingButtonGroup v-if="!eventsUnavailable" contained :scroll-y="gridScrollY">
       <CuiFloatingButton
         v-if="gridSearch"
-        grouped
         :tooltip-props="{ value: $t('components.timeline.filter_zone_enable') }"
         :button-props="{ severity: gridSearch.active.value ? 'primary' : 'secondary' }"
         :icon="ZoneIcon"
@@ -48,14 +43,13 @@
         @click="toggleZone"
       />
       <CuiFloatingButton
-        grouped
         :tooltip-props="{ value: $t('views.camera.recordings_filter') }"
         :button-props="{ severity: filterActive ? 'primary' : 'secondary' }"
         :icon="filterActive ? FilterActiveIcon : FilterIcon"
         :icon-props="{ width: '100%', height: '100%' }"
         @click="openFilter"
       />
-    </div>
+    </CuiFloatingButtonGroup>
   </div>
 </template>
 
@@ -105,7 +99,7 @@ const filter = ref<CameraRecordingsFilterState>({ ...CAMERA_RECORDINGS_FILTER_DE
 
 let regionFillPages = 0;
 
-const scrollHidden = useScrollHide(() => gridRef.value?.scrollY ?? 0);
+const gridScrollY = computed(() => gridRef.value?.scrollY ?? 0);
 
 const cameraIds = computed(() => [props.cameraId]);
 

@@ -1388,6 +1388,9 @@ export default {
       segment_tab_settings: 'Settings',
       segment_tab_sources: 'Sources',
     },
+    floating_buttons: {
+      show: 'Show buttons',
+    },
     polygon: {
       kind_motion: 'Motion',
       kind_object: 'Object',
@@ -4130,10 +4133,10 @@ export default {
         'Remove "{name}"? Its credentials are revoked and the connection is dropped, assigned cameras fall back to this machine. The internal message broker restarts briefly.',
       version: 'Version',
       version_mismatch: 'Worker runs {version}, update it to match the server',
+      version_update: 'Update to v{version} available',
       update_worker: 'Update to {version}',
       update_worker_short: 'Update Worker',
       restart_worker: 'Restart Worker',
-      version_update: 'Update to v{version} available',
       updating: 'Updating, the worker restarts when it is done',
       update_failed: 'Update failed: {error}',
       status: 'Status',

@@ -53,51 +53,16 @@
         </div>
       </div>
 
-      <SpeedDial
+      <CuiSpeedDial
         :model="speedDialItems"
-        direction="up"
-        :transition-delay="80"
-        :tooltip-options="{ position: 'left', event: undefined }"
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + ${hasChanges ? '4.25rem' : '1.25rem'} + var(--safe-area-inset-bottom))`,
+          bottom: hasChanges ? 'calc(var(--cui-fab-bottom) + 3rem)' : 'var(--cui-fab-bottom)',
           right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
           transition: 'right 0.2s ease-in-out, bottom 0.2s ease-in-out',
         }"
-        :pt="{ root: { style: 'pointer-events: none' } }"
-      >
-        <template #button="{ visible, toggleCallback }">
-          <Button rounded severity="secondary" class="pointer-events-auto" @click="toggleCallback">
-            <template #icon>
-              <div class="relative w-6 h-6">
-                <div
-                  class="absolute top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                  :class="{ 'w-4 h-[2px] rotate-45 top-1/2 -translate-y-1/2 rounded-none': visible }"
-                  :style="{ backgroundColor: 'var(--text-color)' }"
-                />
-                <div
-                  class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-all duration-100"
-                  :class="{ 'opacity-0 scale-0': visible }"
-                  :style="{ backgroundColor: 'var(--text-color)' }"
-                />
-                <div
-                  class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                  :class="{ 'w-4 h-[2px] -rotate-45 bottom-1/2 translate-y-1/2 rounded-none': visible }"
-                  :style="{ backgroundColor: 'var(--text-color)' }"
-                />
-              </div>
-            </template>
-          </Button>
-        </template>
-        <template #item="{ item, toggleCallback }">
-          <Button v-tooltip="{ value: item.label }" severity="secondary" v-bind="item.buttonProps" rounded class="pointer-events-auto" @click="toggleCallback">
-            <template #icon>
-              <component :is="item.icon" />
-            </template>
-          </Button>
-        </template>
-      </SpeedDial>
+      />
 
       <Button
         v-if="smBreakpoint"
@@ -107,7 +72,7 @@
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+          bottom: 'var(--cui-fab-bottom)',
           right: 'calc(4.75rem + var(--safe-area-inset-right))',
         }"
         @click="showMobilePalette = true"
@@ -126,7 +91,7 @@
         :style="{
           position: 'fixed',
           zIndex: 15,
-          bottom: `calc(${bottombarHeight}px + 1.25rem + var(--safe-area-inset-bottom))`,
+          bottom: 'var(--cui-fab-bottom)',
           right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
           transition: 'right 0.2s ease-in-out',
         }"
@@ -175,6 +140,7 @@ import CuiAutomationMobileNodeConfig from '@/components/CuiAutomation/mobile/Cui
 import { getNodeDefinition } from '@/components/CuiAutomation/nodeDefinitions.js';
 
 import type { AutomationFlow, AutomationNode, AutomationNodeType, CuiAutomationMobileNodeConfigProps } from '@/components/CuiAutomation/types.js';
+import type { CuiSpeedDialItem } from '@/components/CuiSpeedDial/types.js';
 
 const CuiAutomationRunsDialog = asyncComponent(() => import('@/components/CuiAutomation/CuiAutomationRunsDialog.vue'));
 
@@ -184,7 +150,6 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
-const { bottombarHeight } = useSharedCuiStates();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 
@@ -229,7 +194,7 @@ const fabRight = computed(() => {
 const speedDialItems = computed(() => {
   const hasManualTrigger = draft.value?.nodes.some((n) => n.type === 'trigger-manual') ?? false;
 
-  const items: { label: string; icon: any; buttonProps?: any; command: () => void }[] = [
+  const items: CuiSpeedDialItem[] = [
     ...(hasManualTrigger
       ? [
           {

@@ -114,7 +114,6 @@
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="sortedCameras.length > 1"
-          grouped
           :tooltip-props="{ value: viewMode === 'default' ? $t('components.form.tooltip.view_grouped') : $t('components.form.tooltip.view_default') }"
           :button-props="{ severity: viewMode === 'default' ? 'secondary' : 'primary' }"
           :icon="viewMode === 'default' ? GridIcon : GroupIcon"
@@ -122,7 +121,6 @@
           @click="toggleViewMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: uiSettings.cameras.dragDisabled ? $t('components.form.tooltip.edit_layout') : $t('components.form.tooltip.lock_layout') }"
           :button-props="{ severity: uiSettings.cameras.dragDisabled ? 'secondary' : 'success' }"
           :icon="uiSettings.cameras.dragDisabled ? LockIcon : LockOpenIcon"
@@ -131,7 +129,6 @@
         />
         <CuiFloatingButton
           v-if="uiSettings.cameras.showEvents"
-          grouped
           :tooltip-props="{ value: $t('components.camera_events.filter') }"
           :button-props="{ severity: recentEventsFiltered ? 'primary' : 'secondary' }"
           :icon="recentEventsFiltered ? FilterActiveIcon : FilterIcon"
@@ -140,7 +137,6 @@
         />
         <CuiFloatingButton
           v-if="isAdmin"
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.select_cameras') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -151,7 +147,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -159,7 +154,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -167,7 +161,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelectedDisabled ? $t('components.form.tooltip.enable_selected') : $t('components.form.tooltip.disable_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="allSelectedDisabled ? VideoOnIcon : VideoOffIcon"
@@ -175,7 +168,6 @@
           @click="bulkToggleDisabled"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelectedSnoozed ? $t('components.form.tooltip.unsnooze_selected') : $t('components.form.tooltip.snooze_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="SnoozeIcon"
@@ -183,7 +175,6 @@
           @click="bulkToggleSnooze"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelectedRecording ? $t('components.form.tooltip.recording_off_selected') : $t('components.form.tooltip.recording_on_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="allSelectedRecording ? RecordOffIcon : RecordIcon"
@@ -191,7 +182,6 @@
           @click="bulkToggleRecording"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.delete_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashIcon"

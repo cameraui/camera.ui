@@ -170,6 +170,7 @@ const bottomVars = computed(() => ({
     ? `max(calc(${BOTTOMBAR_SIZE.HEIGHT}px + var(--safe-area-inset-bottom)), var(--keyboard-inset, 0px))`
     : 'var(--keyboard-inset, 0px)',
   '--cui-bottom-gap': showBottombar.value ? '8px' : 'max(8px, calc(var(--safe-area-inset-bottom) - var(--keyboard-inset, 0px)))',
+  '--cui-fab-bottom': `calc(${showBottombar.value ? BOTTOMBAR_SIZE.HEIGHT : 0}px + 1.25rem + var(--safe-area-inset-bottom))`,
 }));
 
 const containerPaddingBottom = computed(() => (routeMeta.paddingBottom.value === false || routeMeta.flushBottom.value ? '0px' : 'var(--cui-bottom-gap)'));

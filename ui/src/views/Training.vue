@@ -181,10 +181,9 @@
       </template>
     </div>
 
-    <CuiFloatingButtonGroup v-if="filtered.length || selectionMode" :force-visible="selectionMode" :scroll-hidden="scrollHidden">
+    <CuiFloatingButtonGroup v-if="filtered.length || selectionMode" :force-visible="selectionMode" :scroll-y="scrollY">
       <template v-if="!selectionMode">
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.training.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -192,7 +191,6 @@
           @click="enterSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: readyIds.length ? $t('views.training.submit_ready', readyIds.length) : $t('views.training.submit_disabled') }"
           :button-props="{ class: 'text-white', disabled: !readyIds.length || submitCandidates.isPending.value }"
           :icon="SubmitIcon"
@@ -203,7 +201,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -211,7 +208,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? $t('views.training.deselect_all') : $t('views.training.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -219,7 +215,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.training.submit_selected') }"
           :button-props="{ disabled: !selectedVerifiedIds.length || submitCandidates.isPending.value }"
           :icon="SubmitIcon"
@@ -227,7 +222,6 @@
           @click="confirmSubmit(selectedVerifiedIds)"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.training.delete_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashIcon"
@@ -297,7 +291,6 @@ const loadMoreRef = useTemplateRef<HTMLElement>('loadMoreRef');
 const scrollRef = useTemplateRef<HTMLElement>('scrollRef');
 
 const { y: scrollY } = useScroll(scrollRef);
-const scrollHidden = useScrollHide(scrollY);
 const { registerScrollToTop } = useCuiTopbarSlots();
 
 const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(auto-fill, minmax(${smBreakpoint.value ? '220px' : '260px'}, 1fr))` }));

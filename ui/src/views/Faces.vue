@@ -327,20 +327,17 @@
       </template>
     </template>
 
-    <div
+    <CuiFloatingButtonGroup
       v-if="isAdmin && faceStore.knownFaces.value.length"
-      class="fixed z-10"
-      :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
-      :style="{
-        left: `calc(${reindexAnchorLeft}px + 0.75rem)`,
-        bottom: bottomPadding,
-        transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
-      }"
+      side="left"
+      :offset="`calc(${reindexAnchorLeft}px + 0.75rem)`"
+      :force-visible="reindexStatus?.running"
+      :class="{ 'transition-none!': !layoutReady }"
     >
       <Button
         severity="secondary"
         rounded
-        class="shadow-lg"
+        class="shadow-lg m-1"
         :disabled="reindexStatus?.running"
         :label="
           reindexChecking
@@ -356,13 +353,12 @@
           <ReindexIcon v-else />
         </template>
       </Button>
-    </div>
+    </CuiFloatingButtonGroup>
 
     <CuiFloatingButtonGroup :force-visible="selectionMode">
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="allUnknownFaces.length"
-          grouped
           :tooltip-props="{ value: $t('views.faces.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -371,7 +367,6 @@
         />
         <CuiFloatingButton
           v-if="faceStore.knownFaces.value.length"
-          grouped
           :tooltip-props="{ value: $t('views.faces.rescan_events') }"
           :button-props="{ severity: 'secondary', disabled: rescanning }"
           :icon="rescanning ? SpinnerIcon : RescanIcon"
@@ -379,7 +374,6 @@
           @click="rescanFaces"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.faces.add_face') }"
           :button-props="{ class: 'text-white' }"
           :icon="PlusIcon"
@@ -390,7 +384,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -398,7 +391,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -406,7 +398,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.faces.assign') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="AssignIcon"
@@ -414,7 +405,6 @@
           @click="promptAssignSelected"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.faces.remove_from_cluster') }"
           :button-props="{ severity: 'secondary', disabled: !selectedClusteredIds.length || bulkBusy }"
           :icon="RemoveIcon"
@@ -422,7 +412,6 @@
           @click="bulkRemoveFromGroup"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.faces.ignore') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="IgnoreIcon"
@@ -430,7 +419,6 @@
           @click="bulkIgnore"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.faces.discard') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashIcon"
@@ -471,7 +459,6 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { width: windowWidth } = useSharedWindowSize();
-const { bottombarHeight } = useSharedCuiStates();
 const faceStore = useFaceStore();
 
 const clustered = faceStore.clusteredUnknowns;
@@ -498,8 +485,6 @@ const layoutReady = ref(false);
 const openedPanels = ref(new Set<string>());
 
 const { status: reindexStatus, checking: reindexChecking } = useFacesReindex();
-const { y: windowScrollY } = useScroll(window, { throttle: 100 });
-const reindexScrollHidden = useScrollHide(() => windowScrollY.value);
 
 const allUnknownFaces = computed(() => [...clustered.value.clusters.flatMap((cluster) => cluster.faces), ...clustered.value.ungrouped]);
 const clusterPanels = computed(() => clustered.value.clusters.map((cluster) => ({ cluster, marks: countUnassignedMarks(cluster.faces) })));
@@ -512,8 +497,6 @@ const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterS
 
 const isAdmin = computed(() => hasPermission(undefined, 'admin'));
 
-const reindexHidden = computed(() => reindexScrollHidden.value && !reindexStatus.value?.running);
-
 const selectedClusteredIds = computed(() => {
   const clusteredFaceIds = new Set(clustered.value.clusters.flatMap((cluster) => cluster.faces.map((face) => face.id)));
   return [...selectedIds.value].filter((id) => clusteredFaceIds.has(id));
@@ -524,14 +507,6 @@ const knownSkeletonCount = computed(() => {
   windowWidth.value; // reactive on resize
   const containerWidth = knownSkeletonRef.value?.clientWidth ?? windowWidth.value;
   return Math.floor((containerWidth + KNOWN_CARD_GAP) / (KNOWN_CARD_WIDTH + KNOWN_CARD_GAP)) || 4;
-});
-
-const bottomPadding = computed(() => {
-  const isBottomVisible = bottombarHeight.value > 0;
-  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
-  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
-  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
-  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
 });
 
 function groupSelectionState(faces: UnknownFace[]): 'none' | 'some' | 'all' {
@@ -747,14 +722,6 @@ async function ignoreFace(face: UnknownFace) {
   }
 }
 
-async function discardIgnoredFace(face: IgnoredFace) {
-  try {
-    await faceStore.deleteIgnoredFaces([face.id]);
-  } catch (err) {
-    toast.add({ severity: 'error', detail: err, life: 3000 });
-  }
-}
-
 async function ignoreCluster(cluster: { clusterId: string }) {
   try {
     await faceStore.ignoreCluster(cluster.clusterId);
@@ -777,6 +744,14 @@ async function bulkIgnore() {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   } finally {
     bulkBusy.value = false;
+  }
+}
+
+async function discardIgnoredFace(face: IgnoredFace) {
+  try {
+    await faceStore.deleteIgnoredFaces([face.id]);
+  } catch (err) {
+    toast.add({ severity: 'error', detail: err, life: 3000 });
   }
 }
 

@@ -80,7 +80,6 @@
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="isAdmin && flows.length"
-          grouped
           :tooltip-props="{ value: t('views.automations.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -88,7 +87,6 @@
           @click="enterSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.automations.create') }"
           :button-props="{ class: 'text-white' }"
           :icon="PlusIcon"
@@ -99,7 +97,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -107,7 +104,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? t('views.automations.deselect_all') : t('views.automations.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -115,7 +111,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelectedDisabled ? t('views.automations.enable_selected') : t('views.automations.disable_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy }"
           :icon="allSelectedDisabled ? PlayIcon : PauseIcon"
@@ -123,7 +118,6 @@
           @click="bulkToggleEnabled"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.automations.delete_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashIcon"

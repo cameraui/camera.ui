@@ -78,7 +78,6 @@
 
     <CuiFloatingButtonGroup>
       <CuiFloatingButton
-        grouped
         :tooltip-props="{ value: $t('views.console.refresh') }"
         :button-props="{ severity: 'secondary' }"
         :icon="RefreshIcon"
@@ -86,7 +85,6 @@
         @click="refresh"
       />
       <CuiFloatingButton
-        grouped
         :tooltip-props="{ value: logging ? $t('views.console.stop_logging') : $t('views.console.start_logging') }"
         :button-props="{ class: 'text-white' }"
         :icon="logging ? StopIcon : RecordIcon"

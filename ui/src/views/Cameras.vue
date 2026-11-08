@@ -161,14 +161,15 @@
       </div>
     </template>
 
-    <CuiFloatingButton
-      v-if="hasPermission(undefined, 'admin')"
-      :tooltip-props="{ value: $t('views.cameras.add_camera') }"
-      :button-props="{ class: 'text-white' }"
-      :icon="PlusIcon"
-      :icon-props="{ width: '30px', height: '30px' }"
-      @click="openAddCameraDialog"
-    />
+    <CuiFloatingButtonGroup v-if="hasPermission(undefined, 'admin')">
+      <CuiFloatingButton
+        :tooltip-props="{ value: $t('views.cameras.add_camera') }"
+        :button-props="{ class: 'text-white' }"
+        :icon="PlusIcon"
+        :icon-props="{ width: '30px', height: '30px' }"
+        @click="openAddCameraDialog"
+      />
+    </CuiFloatingButtonGroup>
   </div>
 </template>
 

@@ -52,66 +52,7 @@
       <CuiConsole ref="consoleRef" :options @resize="logsSocket.reportSize" />
     </div>
 
-    <SpeedDial
-      :model="items"
-      direction="up"
-      :transition-delay="80"
-      :tooltip-options="{ position: 'left', event: undefined }"
-      class="absolute right-3 bottom-3 z-11"
-      :pt="{ root: { style: 'pointer-events: none' } }"
-    >
-      <template #button="{ visible, toggleCallback }">
-        <Button
-          severity="secondary"
-          class="dark-mode opacity-40 hover:opacity-100 active:opacity-100 focus:opacity-100 transition pointer-events-auto"
-          :class="{
-            'opacity-100': visible,
-          }"
-          rounded
-          :loading="isLoading"
-          @click="toggleCallback"
-        >
-          <template #icon>
-            <div class="relative w-6 h-6">
-              <div
-                class="absolute top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                :class="{
-                  'w-4 h-[2px] rotate-45 top-1/2 -translate-y-1/2 rounded-none': visible,
-                }"
-                :style="{
-                  backgroundColor: 'var(--text-color)',
-                }"
-              />
-              <div
-                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-all duration-100"
-                :class="{
-                  'opacity-0 scale-0': visible,
-                }"
-                :style="{
-                  backgroundColor: 'var(--text-color)',
-                }"
-              />
-              <div
-                class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transform transition-all duration-100 origin-center"
-                :class="{
-                  'w-4 h-[2px] -rotate-45 bottom-1/2 translate-y-1/2 rounded-none': visible,
-                }"
-                :style="{
-                  backgroundColor: 'var(--text-color)',
-                }"
-              />
-            </div>
-          </template>
-        </Button>
-      </template>
-      <template #item="{ item, toggleCallback }">
-        <Button v-tooltip="{ value: item.label }" :loading="isLoading" severity="secondary" v-bind="item.buttonProps" rounded @click="toggleCallback">
-          <template #icon>
-            <component :is="item.icon" />
-          </template>
-        </Button>
-      </template>
-    </SpeedDial>
+    <CuiSpeedDial :model="items" :loading="isLoading" subtle class="absolute right-3 bottom-3 z-11" />
 
     <Button
       class="dark-mode opacity-40 transition absolute bottom-3 right-14 z-11 text-white"
@@ -162,7 +103,7 @@ import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { LogSource } from '@/composables/sockets/useLogsSocket.js';
 import type { ITerminalInitOnlyOptions, ITerminalOptions } from '@xterm/xterm';
-import type { CuiButtonAttrs } from '@/components/CuiButton/types.js';
+import type { CuiSpeedDialItem } from '@/components/CuiSpeedDial/types.js';
 
 const camerasQuery = new CamerasQuery();
 const pluginsQuery = new PluginsQuery();
@@ -395,7 +336,7 @@ function zoomOut(): void {
   uiSettings.value.console.zoom--;
 }
 
-const items = ref<{ label: string; icon: any; buttonProps?: CuiButtonAttrs; command: () => void }[]>([
+const items = ref<CuiSpeedDialItem[]>([
   {
     label: t('components.form.tooltip.download'),
     icon: DownloadIcon,

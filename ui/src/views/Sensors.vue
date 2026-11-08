@@ -278,7 +278,6 @@
       <template v-if="!selectionMode && !discoveredSelectionMode">
         <CuiFloatingButton
           v-if="rows.length"
-          grouped
           :tooltip-props="{ value: t('views.sensors.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -287,7 +286,6 @@
         />
         <CuiFloatingButton
           v-if="discoveredRows.length"
-          grouped
           :tooltip-props="{ value: t('views.sensors.select_discovered') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectDiscoveredIcon"
@@ -295,7 +293,6 @@
           @click="startDiscoveredSelection"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.sensors.create_virtual') }"
           :button-props="{ class: 'text-white' }"
           :icon="PlusIcon"
@@ -306,7 +303,6 @@
 
       <template v-else-if="selectionMode">
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -314,7 +310,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -322,7 +317,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.sensors.delete_selected') }"
           :button-props="{ severity: 'danger', disabled: !deletableSelected.length || bulkBusy }"
           :icon="TrashIcon"
@@ -333,7 +327,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -341,7 +334,6 @@
           @click="exitDiscoveredSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: discoveredAllSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -349,7 +341,6 @@
           @click="toggleDiscoveredSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.sensors.hide_selected') }"
           :button-props="{ severity: 'secondary', disabled: !discoveredSelectedItems.length || discoveredBulkBusy }"
           :icon="EyeOffIcon"
@@ -357,7 +348,6 @@
           @click="hideSelected"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.sensors.adopt_selected') }"
           :button-props="{ class: 'text-white', disabled: !discoveredSelectedItems.length || discoveredBulkBusy }"
           :icon="AdoptIcon"

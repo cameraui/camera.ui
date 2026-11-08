@@ -187,20 +187,19 @@
       </div>
     </main>
 
-    <div
+    <CuiFloatingButtonGroup
       v-if="isAdmin && availableCameras.length"
-      class="fixed z-10"
-      :class="reindexHidden ? 'scale-0 opacity-0' : 'scale-100 opacity-100'"
-      :style="{
-        left: reindexHidden ? `calc(${mainPaddingLeft} + 0.75rem + var(--safe-area-inset-left))` : `calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem)`,
-        bottom: bottomPadding,
-        transition: layoutReady ? 'left 200ms, transform 200ms ease-in-out, opacity 200ms ease-in-out' : undefined,
-      }"
+      side="left"
+      :offset="`calc(${reindexAnchorLeft}px + ${mainPaddingLeft} + 0.75rem)`"
+      :scroll-y="gridScrollY"
+      :force-visible="reindexStatus?.running"
+      :hidden="sidebarOpen && sidebarIsOverlay"
+      :class="{ 'transition-none!': !layoutReady }"
     >
       <Button
         severity="secondary"
         rounded
-        class="shadow-lg"
+        class="shadow-lg m-1"
         :disabled="reindexStatus?.running"
         :label="
           reindexChecking
@@ -216,13 +215,12 @@
           <ReindexIcon v-else />
         </template>
       </Button>
-    </div>
+    </CuiFloatingButtonGroup>
 
-    <CuiFloatingButtonGroup v-if="availableCameras.length" :force-visible="selectionMode" :scroll-hidden="scrollHidden">
+    <CuiFloatingButtonGroup v-if="availableCameras.length" :force-visible="selectionMode" :scroll-y="gridScrollY">
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="isAdmin && listedEvents.length && !isSimilarActive"
-          grouped
           :tooltip-props="{ value: $t('views.recordings.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -230,7 +228,6 @@
           @click="enterSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.recordings.export.title') }"
           :button-props="{ class: 'text-white' }"
           :icon="DownloadIcon"
@@ -241,7 +238,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -249,7 +245,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -257,7 +252,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.delete_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashIcon"
@@ -325,7 +319,6 @@ const usersQuery = new UsersQuery();
 const [DefineFilterButton, FilterButton] = createReusableTemplate();
 const dialog = useCuiDialog();
 const authStore = useAuthStore();
-const { bottombarHeight } = useSharedCuiStates();
 const { status: reindexStatus, checking: reindexChecking } = useClipReindex();
 
 const { openEventTrace } = useEventTraceDialog();
@@ -424,14 +417,6 @@ let _prevFilterJSON = JSON.stringify(serverFilter.value);
 
 const { left: reindexAnchorLeft } = useElementBounding(reindexAnchorRef);
 
-const bottomPadding = computed(() => {
-  const isBottomVisible = bottombarHeight.value > 0;
-  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
-  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
-  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
-  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
-});
-
 const sidebarOpen = computed(() => {
   if (xlBreakpoint.value) return true;
   return sidebarState.value === 'opened';
@@ -439,12 +424,7 @@ const sidebarOpen = computed(() => {
 
 const sidebarIsOverlay = computed(() => mdBreakpoint.value);
 
-const scrollHidden = useScrollHide(() => gridRef.value?.scrollY ?? 0);
-
-const reindexHidden = computed(() => {
-  if (sidebarOpen.value && sidebarIsOverlay.value) return true;
-  return scrollHidden.value && !reindexStatus.value?.running;
-});
+const gridScrollY = computed(() => gridRef.value?.scrollY ?? 0);
 
 const mainPaddingLeft = computed(() => {
   if (mdBreakpoint.value) return '0px';

@@ -62,7 +62,6 @@
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="allInstances.length"
-          grouped
           :tooltip-props="{ value: t('views.instances.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -70,7 +69,6 @@
           @click="enterSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.instances.add') }"
           :button-props="{ class: 'text-white' }"
           :icon="PlusIcon"
@@ -81,7 +79,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -89,7 +86,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? t('views.instances.deselect_all') : t('views.instances.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -97,7 +93,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.instances.remove_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy }"
           :icon="TrashOutlineIcon"

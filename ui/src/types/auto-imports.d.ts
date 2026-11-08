@@ -290,6 +290,7 @@ declare global {
   const useFileDownload: typeof import('../composables/useFileDownload').useFileDownload
   const useFileSystemAccess: typeof import('@vueuse/core').useFileSystemAccess
   const useFindObject: typeof import('../composables/useFindObject').useFindObject
+  const useFloatingMini: typeof import('../composables/useFloatingMini').useFloatingMini
   const useFloorplanSocket: typeof import('../composables/sockets/useFloorplanSocket').useFloorplanSocket
   const useFocus: typeof import('@vueuse/core').useFocus
   const useFocusWithin: typeof import('@vueuse/core').useFocusWithin
@@ -307,8 +308,8 @@ declare global {
   const useImage: typeof import('@vueuse/core').useImage
   const useInertiaScroll: typeof import('../composables/useFn').useInertiaScroll
   const useInfiniteScroll: typeof import('@vueuse/core').useInfiniteScroll
-  const useInstanceStore: typeof import('../stores/instances').useInstanceStore
   const useInstallProgressDialog: typeof import('../composables/useInstallProgressDialog').useInstallProgressDialog
+  const useInstanceStore: typeof import('../stores/instances').useInstanceStore
   const useIntersectionObserver: typeof import('@vueuse/core').useIntersectionObserver
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
@@ -390,7 +391,6 @@ declare global {
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
   const useScroll: typeof import('@vueuse/core').useScroll
-  const useScrollHide: typeof import('../composables/useScrollHide').useScrollHide
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
   const useSensorsSocket: typeof import('../composables/sockets/useSensorsSocket').useSensorsSocket
   const useServerCompatibility: typeof import('../composables/useServerCompatibility').useServerCompatibility
@@ -898,6 +898,7 @@ declare module 'vue' {
     readonly useFileDownload: UnwrapRef<typeof import('../composables/useFileDownload')['useFileDownload']>
     readonly useFileSystemAccess: UnwrapRef<typeof import('@vueuse/core')['useFileSystemAccess']>
     readonly useFindObject: UnwrapRef<typeof import('../composables/useFindObject')['useFindObject']>
+    readonly useFloatingMini: UnwrapRef<typeof import('../composables/useFloatingMini')['useFloatingMini']>
     readonly useFloorplanSocket: UnwrapRef<typeof import('../composables/sockets/useFloorplanSocket')['useFloorplanSocket']>
     readonly useFocus: UnwrapRef<typeof import('@vueuse/core')['useFocus']>
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
@@ -915,8 +916,8 @@ declare module 'vue' {
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
     readonly useInertiaScroll: UnwrapRef<typeof import('../composables/useFn')['useInertiaScroll']>
     readonly useInfiniteScroll: UnwrapRef<typeof import('@vueuse/core')['useInfiniteScroll']>
-    readonly useInstanceStore: UnwrapRef<typeof import('../stores/instances')['useInstanceStore']>
     readonly useInstallProgressDialog: UnwrapRef<typeof import('../composables/useInstallProgressDialog')['useInstallProgressDialog']>
+    readonly useInstanceStore: UnwrapRef<typeof import('../stores/instances')['useInstanceStore']>
     readonly useIntersectionObserver: UnwrapRef<typeof import('@vueuse/core')['useIntersectionObserver']>
     readonly useInterval: UnwrapRef<typeof import('@vueuse/core')['useInterval']>
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
@@ -998,7 +999,6 @@ declare module 'vue' {
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
-    readonly useScrollHide: UnwrapRef<typeof import('../composables/useScrollHide')['useScrollHide']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useSensorsSocket: UnwrapRef<typeof import('../composables/sockets/useSensorsSocket')['useSensorsSocket']>
     readonly useServerCompatibility: UnwrapRef<typeof import('../composables/useServerCompatibility')['useServerCompatibility']>

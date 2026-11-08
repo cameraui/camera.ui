@@ -1400,6 +1400,9 @@ export default {
       segment_tab_settings: 'Einstellungen',
       segment_tab_sources: 'Quellen',
     },
+    floating_buttons: {
+      show: 'Buttons anzeigen',
+    },
     polygon: {
       kind_motion: 'Bewegung',
       kind_object: 'Objekt',
@@ -4166,10 +4169,10 @@ export default {
         '"{name}" entfernen? Die Zugangsdaten werden widerrufen und die Verbindung gekappt, zugewiesene Kameras laufen wieder auf dieser Maschine. Der interne Message-Broker startet kurz neu.',
       version: 'Version',
       version_mismatch: 'Worker läuft mit {version}, auf die Server-Version aktualisieren',
+      version_update: 'Update auf v{version} verfügbar',
       update_worker: 'Auf {version} aktualisieren',
       update_worker_short: 'Worker aktualisieren',
       restart_worker: 'Worker neu starten',
-      version_update: 'Update auf v{version} verfügbar',
       updating: 'Wird aktualisiert, der Worker startet danach neu',
       update_failed: 'Update fehlgeschlagen: {error}',
       status: 'Status',

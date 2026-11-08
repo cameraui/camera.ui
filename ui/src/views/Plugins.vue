@@ -152,7 +152,6 @@
       <template v-if="!selectionMode">
         <CuiFloatingButton
           v-if="filteredPlugins.length"
-          grouped
           :tooltip-props="{ value: t('views.plugins.select') }"
           :button-props="{ severity: 'secondary' }"
           :icon="SelectIcon"
@@ -160,7 +159,6 @@
           @click="enterSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: viewMode === 'cards' ? t('views.plugins.view_table') : t('views.plugins.view_cards') }"
           :button-props="{ severity: 'secondary' }"
           :icon="viewMode === 'cards' ? TableIcon : GridIcon"
@@ -168,7 +166,6 @@
           @click="toggleViewMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('views.plugins.search_plugins') }"
           :button-props="{ class: 'text-white' }"
           :icon="PlusIcon"
@@ -179,7 +176,6 @@
 
       <template v-else>
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: $t('components.form.tooltip.cancel_selection') }"
           :button-props="{ severity: 'secondary' }"
           :icon="CloseIcon"
@@ -187,7 +183,6 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
@@ -195,7 +190,6 @@
           @click="toggleSelectAll"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.plugins.update_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedWithUpdates.length || bulkBusy || updatesRunActive }"
           :icon="UpdateIcon"
@@ -203,7 +197,6 @@
           @click="bulkUpdateSelected"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.plugins.enable_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="PlayIcon"
@@ -211,7 +204,6 @@
           @click="bulkEnableSelected"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.plugins.disable_selected') }"
           :button-props="{ severity: 'secondary', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="StopIcon"
@@ -219,7 +211,6 @@
           @click="bulkDisableSelected"
         />
         <CuiFloatingButton
-          grouped
           :tooltip-props="{ value: t('views.plugins.uninstall_selected') }"
           :button-props="{ severity: 'danger', disabled: !selectedIds.size || bulkBusy || updatesRunActive }"
           :icon="TrashIcon"

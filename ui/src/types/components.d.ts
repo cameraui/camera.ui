@@ -218,6 +218,7 @@ declare module 'vue' {
     CuiSimilarPicker: typeof import('./../components/CuiSimilarPicker/CuiSimilarPicker.vue')['default']
     CuiSirenControl: typeof import('./../components/CuiSirenControl/CuiSirenControl.vue')['default']
     CuiSmokeSensor: typeof import('./../components/CuiSmokeSensor/CuiSmokeSensor.vue')['default']
+    CuiSpeedDial: typeof import('./../components/CuiSpeedDial/CuiSpeedDial.vue')['default']
     CuiSubNavbar: typeof import('./../components/CuiSubNavbar/CuiSubNavbar.vue')['default']
     CuiSubNavItem: typeof import('./../components/CuiSubNavItem/CuiSubNavItem.vue')['default']
     CuiSwitchControl: typeof import('./../components/CuiSwitchControl/CuiSwitchControl.vue')['default']

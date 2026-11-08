@@ -1,18 +1,5 @@
 <template>
-  <div
-    class="transition-all duration-300 ease-in-out cui-icon-3xl"
-    :class="[
-      {
-        'fixed right-safe-offset-5 z-10': !grouped,
-        'scale-0 opacity-0': !grouped && !forceVisible && !atTop,
-        'scale-100 opacity-100': !grouped && (forceVisible || atTop),
-        'scale-110': isHovered,
-      },
-    ]"
-    :style="!grouped ? { bottom: bottomPadding } : undefined"
-    v-element-hover="[onHover, {}]"
-    v-tooltip.left="tooltipProps"
-  >
+  <div class="transition-all duration-300 ease-in-out cui-icon-3xl hover:scale-110" v-tooltip.left="tooltipProps">
     <Button v-bind="buttonProps" rounded @click="$emit('click')" :label="label" class="shadow-lg">
       <template v-if="icon" #icon>
         <component :is="icon" v-bind="iconProps" />
@@ -22,47 +9,11 @@
 </template>
 
 <script setup lang="ts">
-import { vElementHover } from '@vueuse/components';
-
 import type { CuiFloatingButtonEmits, CuiFloatingButtonProps } from './types.js';
 
-const props = defineProps<CuiFloatingButtonProps>();
+defineProps<CuiFloatingButtonProps>();
 
-const emit = defineEmits<CuiFloatingButtonEmits>();
-
-const { bottombarHeight } = useSharedCuiStates();
-
-const { buttonProps, tooltipProps, label, icon, iconProps, grouped, forceVisible } = toRefs(props);
-const isHovered = ref(false);
-
-const { y } = useScroll(window, { throttle: 100 });
-const atTop = computed(() => y.value <= 10);
-
-const bottomPadding = computed(() => {
-  const isBottomVisible = bottombarHeight.value > 0;
-  const bottomOffetWithBar = 'calc(1.25rem + var(--safe-area-inset-bottom))';
-  const bottomOffsetWithoutBar = 'calc(max(8px, var(--safe-area-inset-bottom)) + 0px)';
-  const bottomOffset = isBottomVisible ? bottomOffetWithBar : bottomOffsetWithoutBar;
-  return `calc(${bottombarHeight.value}px + ${bottomOffset})`;
-});
-
-function onHover(state: boolean) {
-  isHovered.value = state;
-  emit('hover', state);
-}
-
-watch(
-  y,
-  () => {
-    if (grouped?.value) return;
-    if (forceVisible?.value || atTop.value) {
-      emit('expand');
-    } else {
-      emit('shrink');
-    }
-  },
-  { immediate: true, deep: true },
-);
+defineEmits<CuiFloatingButtonEmits>();
 </script>
 
 <style scoped></style>
