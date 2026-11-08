@@ -15,6 +15,8 @@
 </template>
 
 <script setup lang="ts">
+import type { UpdatesItemKind } from '@shared/types';
+
 const FINISHED_NOTICE_MS = 4_000;
 
 const router = useRouter();
@@ -27,6 +29,7 @@ const { isLoggedIn, user } = storeToRefs(authStore);
 
 const finishedText = ref(false);
 let finishedTimer: ReturnType<typeof setTimeout> | undefined;
+let doneInDialog = false;
 
 const isAdmin = computed(() => user.value?.role === 'admin' || user.value?.role === 'master');
 
@@ -39,7 +42,8 @@ const updating = computed(() => payload.value?.updating === true);
 const runActive = computed(() => payload.value?.runActive === true);
 const runDone = computed(() => payload.value?.items.filter((item) => item.status === 'success' || item.status === 'error').length ?? 0);
 const runTotal = computed(() => payload.value?.items.length ?? 0);
-const visible = computed(() => isLoggedIn.value && !restarting.value && (updating.value || finishedText.value));
+const shownInDialog = computed(() => !runActive.value && updatingItems.value.length > 0 && updatingItems.value.every(isShownInDialog));
+const visible = computed(() => isLoggedIn.value && !restarting.value && !shownInDialog.value && (updating.value || finishedText.value));
 
 const text = computed(() => {
   if (finishedText.value) {
@@ -77,6 +81,11 @@ function itemLabel(item: { name: string; displayName?: string }): string {
   return item.displayName || item.name;
 }
 
+function isShownInDialog(item: { kind: UpdatesItemKind; name: string }): boolean {
+  if (item.kind === 'worker') return false;
+  return isInstallProgressShown(item.kind === 'server' ? 'server' : item.name);
+}
+
 watch(
   isLoggedIn,
   (loggedIn) => {
@@ -89,12 +98,21 @@ watch(
   { immediate: true },
 );
 
+watch(shownInDialog, (shown) => {
+  if (updating.value) doneInDialog = shown;
+});
+
 watch(updating, (now, was) => {
   if (was && !now) {
+    if (doneInDialog) {
+      doneInDialog = false;
+      return;
+    }
     finishedText.value = true;
     clearTimeout(finishedTimer);
     finishedTimer = setTimeout(clearFinished, FINISHED_NOTICE_MS);
   } else if (now) {
+    doneInDialog = shownInDialog.value;
     clearFinished();
   }
 });

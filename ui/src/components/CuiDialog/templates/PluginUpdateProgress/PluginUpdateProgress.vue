@@ -23,6 +23,8 @@ const props = defineProps<PluginUpdateProgressProps>();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { runOf } = usePluginUpdates();
 
+useInstallProgressDialog(() => props.pluginName);
+
 const consoleRef = useTemplateRef<InstanceType<typeof CuiConsole>>('consoleRef');
 
 let written = 0;

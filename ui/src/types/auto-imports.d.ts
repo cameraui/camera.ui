@@ -74,6 +74,7 @@ declare global {
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
   const isDefined: typeof import('@vueuse/core').isDefined
+  const isInstallProgressShown: typeof import('../composables/useInstallProgressDialog').isInstallProgressShown
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
@@ -307,6 +308,7 @@ declare global {
   const useInertiaScroll: typeof import('../composables/useFn').useInertiaScroll
   const useInfiniteScroll: typeof import('@vueuse/core').useInfiniteScroll
   const useInstanceStore: typeof import('../stores/instances').useInstanceStore
+  const useInstallProgressDialog: typeof import('../composables/useInstallProgressDialog').useInstallProgressDialog
   const useIntersectionObserver: typeof import('@vueuse/core').useIntersectionObserver
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
@@ -681,6 +683,7 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isInstallProgressShown: UnwrapRef<typeof import('../composables/useInstallProgressDialog')['isInstallProgressShown']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
@@ -913,6 +916,7 @@ declare module 'vue' {
     readonly useInertiaScroll: UnwrapRef<typeof import('../composables/useFn')['useInertiaScroll']>
     readonly useInfiniteScroll: UnwrapRef<typeof import('@vueuse/core')['useInfiniteScroll']>
     readonly useInstanceStore: UnwrapRef<typeof import('../stores/instances')['useInstanceStore']>
+    readonly useInstallProgressDialog: UnwrapRef<typeof import('../composables/useInstallProgressDialog')['useInstallProgressDialog']>
     readonly useIntersectionObserver: UnwrapRef<typeof import('@vueuse/core')['useIntersectionObserver']>
     readonly useInterval: UnwrapRef<typeof import('@vueuse/core')['useInterval']>
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>

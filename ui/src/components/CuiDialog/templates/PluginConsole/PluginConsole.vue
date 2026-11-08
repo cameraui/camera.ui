@@ -21,6 +21,8 @@ const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
 const { plugin, isInstalling } = toRefs(props);
 
+useInstallProgressDialog(() => plugin.value.pluginName);
+
 const logsSocket = useLogsSocket({
   target: plugin.value.pluginName,
   onStdout: (data) => consoleRef.value?.writeTerminal(data),

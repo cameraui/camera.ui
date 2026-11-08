@@ -143,6 +143,8 @@ const showCompatWarning = ref(false);
 const compatChecked = ref(false);
 const compatWarningReady = ref(false);
 
+useInstallProgressDialog(() => (showConsole.value ? logTarget.value : undefined));
+
 const versionsLoading = computed(() => pluginVersionsLoading.value || serverVersionsLoading.value);
 
 const isLoading = computed(() =>
