@@ -76,20 +76,14 @@
                     :class="{ 'text-muted': !isSensorActive(data.sensor) }"
                     :style="isSensorActive(data.sensor) ? ACTIVE_ICON_STYLE : undefined"
                   />
-                  <div class="flex flex-col min-w-0">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
-                      <i-mdi:eye-off-outline v-if="!data.sensor.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
-                    </div>
-                    <span v-if="smBreakpoint" class="text-xs text-muted truncate">{{ data.typeLabel }} · {{ data.pluginLabel }}</span>
-                    <span v-if="smBreakpoint && data.nativeLabel" v-tooltip="data.nativeLabel" class="text-xs text-muted truncate font-mono">{{ data.nativeLabel }}</span>
-                    <span v-if="smBreakpoint && data.state !== 'connected'" class="text-xs truncate" :style="{ color: data.stateColor }">{{ data.stateLabel }}</span>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
+                    <i-mdi:eye-off-outline v-if="!data.sensor.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
                   </div>
                 </div>
               </template>
             </Column>
             <Column
-              v-if="!smBreakpoint"
               field="nativeLabel"
               :header="t('views.sensors.native_id')"
               sortable
@@ -104,7 +98,6 @@
               </template>
             </Column>
             <Column
-              v-if="!smBreakpoint"
               field="typeLabel"
               :header="t('views.sensors.type')"
               sortable
@@ -116,7 +109,6 @@
               </template>
             </Column>
             <Column
-              v-if="!smBreakpoint"
               field="pluginLabel"
               :header="t('views.sensors.plugin')"
               sortable
@@ -227,19 +219,12 @@
                 </div>
               </template>
             </Column>
-            <Column v-if="!smBreakpoint" field="type" :header="t('views.sensors.type')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
+            <Column field="type" :header="t('views.sensors.type')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
               <template #body="{ data }">
                 <span class="text-xs text-muted whitespace-nowrap">{{ t(`components.camera_options.sensor_type_${data.type}`) }}</span>
               </template>
             </Column>
-            <Column
-              v-if="!smBreakpoint"
-              field="room"
-              :header="t('components.form.label.room')"
-              sortable
-              header-class="p-2 whitespace-nowrap"
-              class="p-2 whitespace-nowrap"
-            >
+            <Column field="room" :header="t('components.form.label.room')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
               <template #body="{ data }">
                 <Chip v-if="data.room" :label="data.room" class="text-xs whitespace-nowrap" />
               </template>
