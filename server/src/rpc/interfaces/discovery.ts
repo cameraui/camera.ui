@@ -28,6 +28,7 @@ export interface DiscoveryManagerInterface {
 export interface DiscoveryManagerProxyEvents {
   'cameras:discovered': { devices: DeviceListItem[]; source: string };
   'cameras:deleted': { cameraId: string; pluginId?: string };
+  'cameras:removed': { discoveredIds: string[] };
   'cameras:scanning': { isScanning: boolean };
   'cameras:connection-status': { discoveredId: string; status: ConnectionStatus; errorMessage?: string };
   'cameras:camera-connected': { discoveredId: string; cameraId: string; cameraName: string };

@@ -245,8 +245,6 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
   }
 
   public async forceRescan(): Promise<void> {
-    this.sourceCache.clear();
-    this.discoveredCamerasCache.clear();
     this.initialScanLogged = false;
     this.lastScanCompletedAt = 0;
 
@@ -490,6 +488,9 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
   }
 
   private updateSourceCache(sourceId: string, cameras: DiscoveredCameraInternal[], error?: string): void {
+    const ids = new Set(cameras.map((camera) => camera.id));
+    const gone = (this.sourceCache.get(sourceId)?.cameras ?? []).filter((camera) => !ids.has(camera.id));
+
     this.sourceCache.set(sourceId, {
       sourceId,
       cameras,
@@ -501,19 +502,28 @@ export class DiscoveryManager implements DiscoveryManagerInterface {
     for (const camera of cameras) {
       this.discoveredCamerasCache.set(camera.id, camera);
     }
+
+    this.forgetDiscovered(gone);
   }
 
   private cleanupOrphanedCameras(activeSources: Set<string>): void {
     for (const sourceId of this.sourceCache.keys()) {
       if (!activeSources.has(sourceId)) {
-        const entry = this.sourceCache.get(sourceId);
-        if (entry) {
-          for (const camera of entry.cameras) {
-            this.discoveredCamerasCache.delete(camera.id);
-          }
-        }
+        this.forgetDiscovered(this.sourceCache.get(sourceId)?.cameras ?? []);
         this.sourceCache.delete(sourceId);
       }
+    }
+  }
+
+  private forgetDiscovered(cameras: DiscoveredCameraInternal[]): void {
+    if (!cameras.length) return;
+
+    for (const camera of cameras) {
+      this.discoveredCamerasCache.delete(camera.id);
+    }
+
+    if (this.subscriberCount > 0) {
+      this.publishDiscoveryEvent('cameras:removed', { discoveredIds: cameras.map((camera) => camera.id) });
     }
   }
 

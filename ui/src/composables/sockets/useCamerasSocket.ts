@@ -145,6 +145,11 @@ function ensureChannel(): SocketChannel {
     ch.on<DiscoveryManagerProxyEvents['cameras:deleted']>('cameras:deleted', (data) => {
       state.devices = state.devices.filter((d) => d.cameraId !== data.cameraId);
     });
+
+    ch.on<DiscoveryManagerProxyEvents['cameras:removed']>('cameras:removed', (data) => {
+      const removed = new Set(data.discoveredIds);
+      state.devices = state.devices.filter((d) => !d.discoveredId || !removed.has(d.discoveredId));
+    });
   });
 
   return channel!;
