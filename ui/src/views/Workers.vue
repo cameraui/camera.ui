@@ -306,6 +306,7 @@
 <script setup lang="ts">
 import CopyIcon from '~icons/fluent/copy-16-filled';
 import RestartIcon from '~icons/ic/round-restart-alt';
+import UpdateAvailableIcon from '~icons/icon-park-solid/up-c';
 import UpdateIcon from '~icons/material-symbols/deployed-code-update';
 import RemoveIcon from '~icons/mdi/delete-outline';
 import EditIcon from '~icons/mdi/pencil-outline';
@@ -487,12 +488,12 @@ const workerHeaders = computed<TableHeader[]>(() => [
   },
   {
     type: 'category',
-    field: (item: WorkerInfo) => {
-      if (!item.version) return '—';
-      if (isBehind(item) && masterVersion.value) return `v${item.version} → v${masterVersion.value}`;
-      return `v${item.version}`;
-    },
+    field: (item: WorkerInfo) => (item.version ? `v${item.version}` : '—'),
     name: t('views.workers.version'),
+    hint: (item: WorkerInfo) => {
+      if (!item.version || !isBehind(item) || !masterVersion.value) return undefined;
+      return { icon: UpdateAvailableIcon, tooltip: t('views.workers.version_update', { version: masterVersion.value }), class: 'text-green-500' };
+    },
     asChip: true,
     columnProps: {
       headerClass: 'min-w-30',

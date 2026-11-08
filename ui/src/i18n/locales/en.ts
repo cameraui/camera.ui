@@ -4133,6 +4133,7 @@ export default {
       update_worker: 'Update to {version}',
       update_worker_short: 'Update Worker',
       restart_worker: 'Restart Worker',
+      version_update: 'Update to v{version} available',
       updating: 'Updating, the worker restarts when it is done',
       update_failed: 'Update failed: {error}',
       status: 'Status',

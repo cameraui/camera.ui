@@ -50,6 +50,13 @@
                         <span>{{ header.altName ? header.altName : typeof header.field === 'string' ? data[header.field] : header.field(data) }}</span>
                         <span v-if="header.suffix">{{ header.suffix }}</span>
                       </span>
+                      <component
+                        :is="header.hint(data)!.icon"
+                        v-if="header.hint?.(data)"
+                        v-tooltip="{ value: header.hint(data)!.tooltip }"
+                        :class="header.hint(data)!.class"
+                        class="shrink-0"
+                      />
                       <Chip
                         v-if="header.badge?.(data)"
                         v-tooltip="{ value: header.badgeTooltip?.(data) }"

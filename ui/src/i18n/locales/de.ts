@@ -4169,6 +4169,7 @@ export default {
       update_worker: 'Auf {version} aktualisieren',
       update_worker_short: 'Worker aktualisieren',
       restart_worker: 'Worker neu starten',
+      version_update: 'Update auf v{version} verfügbar',
       updating: 'Wird aktualisiert, der Worker startet danach neu',
       update_failed: 'Update fehlgeschlagen: {error}',
       status: 'Status',

@@ -1,7 +1,7 @@
 import type { PaginationQuery } from '@shared/types';
 import type { ChartData, ChartOptions } from 'chart.js';
 import type { ChipProps, ColumnProps, DataTableProps } from 'openvue';
-import type { HTMLAttributes } from 'vue';
+import type { Component, HTMLAttributes } from 'vue';
 import type { CuiButtonAttrs } from '../CuiButton/types.js';
 
 interface TableHeaderBase {
@@ -47,12 +47,19 @@ export interface TableHeaderChart extends TableHeaderBase {
   for: string;
 }
 
+export interface TableCellHint {
+  icon: Component;
+  tooltip?: string;
+  class?: string;
+}
+
 export interface TableHeaderCategory extends TableHeaderBase {
   type: 'category';
   asChip?: boolean;
   chipProps?: ChipProps;
   suffix?: string;
   tooltip?: (item: any) => string | undefined;
+  hint?: (item: any) => TableCellHint | undefined;
   badge?: (item: any) => string | undefined;
   badgeTooltip?: (item: any) => string | undefined;
 }
