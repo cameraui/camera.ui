@@ -326,7 +326,7 @@
                   <Column field="action" header-class="p-2 h-7 min-h-7 max-h-7" class="p-2 h-7 min-h-7 max-h-7 text-right">
                     <template #body="{ data }">
                       <Button
-                        v-if="!data.is_current"
+                        v-if="!data.is_current && !data.managed"
                         v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
                         severity="danger"
                         text
@@ -474,7 +474,7 @@ const sessionsTablePt: PassThrough<DataTablePassThroughOptions> = {
   },
 };
 
-const otherSessionsCount = computed(() => (sessions.value ?? []).filter((s) => !s.is_current).length);
+const otherSessionsCount = computed(() => (sessions.value ?? []).filter((s) => !s.is_current && !s.managed).length);
 
 const otpauthUri = computed(() => {
   if (!setupData.value?.secret || !user.value?.username) return '';

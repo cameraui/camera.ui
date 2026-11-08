@@ -122,6 +122,7 @@
                 <Column field="action" class="text-right">
                   <template #body="{ data }">
                     <Button
+                      v-if="!data.is_current && !data.managed"
                       v-tooltip="{ value: $t('views.settings.active_sessions.revoke') }"
                       severity="danger"
                       text

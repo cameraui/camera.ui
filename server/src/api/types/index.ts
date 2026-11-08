@@ -190,6 +190,7 @@ export interface SessionInfo {
   id: string;
   device: DBTokenDevice;
   is_current: boolean;
+  managed: boolean;
   persistent: boolean;
   refresh_token_expires_at: number;
 }
