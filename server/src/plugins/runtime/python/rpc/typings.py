@@ -1,7 +1,8 @@
-from typing import Any, Protocol, TypedDict
+from typing import Any, NotRequired, Protocol, TypedDict
 
 from _camera_ui_tools.camera_ui_sdk import (
     Camera,
+    CameraConfigInputSettings,
     CreateDownloadOptions,
     CreateStreamDownloadOptions,
     DiscoveredCamera,
@@ -35,8 +36,19 @@ class CoreManagerInterface(Protocol):
     async def assistantAccess(self, pluginId: str) -> AssistantAccess: ...
 
 
+class CameraSourceChange(TypedDict):
+    camera: Camera
+    sourceId: NotRequired[str]
+
+
 class DeviceManagerInterface(Protocol):
     async def getCamera(self, camera_name_or_id: str, plugin_id: str) -> Camera | None: ...
+    async def addCameraSource(
+        self, plugin_id: str, camera_id: str, source: CameraConfigInputSettings
+    ) -> CameraSourceChange: ...
+    async def removeCameraSource(
+        self, plugin_id: str, camera_id: str, source_id: str
+    ) -> CameraSourceChange: ...
 
 
 class CameraDeviceInterface(Protocol):

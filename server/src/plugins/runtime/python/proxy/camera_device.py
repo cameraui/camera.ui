@@ -14,6 +14,7 @@ from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
     BehaviorSubject,
     Camera,
+    CameraConfigInputSettings,
     CameraDetectionSettings,
     CameraDeviceSource,
     CameraFrameWorkerSettings,
@@ -55,6 +56,7 @@ from _camera_ui_tools.camera_ui_sdk import CameraDevice as CameraDeviceInterface
 from plugins.runtime.python.camera.utils import build_snapshot_url, build_target_url
 from plugins.runtime.python.namespaces import (
     CameraNamespaces,
+    DeviceManagerNamespaces,
     FrameWorkerDetectionNamespaces,
     FrameWorkerNamespaces,
     NamespaceManager,
@@ -69,6 +71,7 @@ from plugins.runtime.python.proxy.sensor import (
     sensor_handler_options,
 )
 from plugins.runtime.python.remote_urls import rewrite_source_urls_for_remote
+from plugins.runtime.python.rpc.typings import CameraSourceChange, DeviceManagerInterface
 from plugins.runtime.python.typings import (
     CameraEventMessage,
     PluginInfo,
@@ -335,6 +338,11 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         return self._proxy.create_proxy(self._namespaces[0].camera_controller_rpc)
 
     @cached_property
+    def _device_manager_proxy(self) -> DeviceManagerInterface:
+        namespaces: DeviceManagerNamespaces = NamespaceManager.device_manager_namespaces()
+        return self._proxy.create_proxy(namespaces.device_manager_rpc, DeviceManagerInterface)
+
+    @cached_property
     def _sensor_registry_proxy(self) -> SensorRegistryInterface:
         return self._proxy.create_proxy(self._namespaces[3].sensors_rpc)
 
@@ -378,6 +386,30 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
 
         self._connect_wanted = False
         await self._camera_controller_proxy.disconnect()
+
+    async def addSource(self, source: CameraConfigInputSettings) -> CameraDeviceSource:
+        self._assert_source_owner()
+        change = await self._device_manager_proxy.addCameraSource(self._plugin["id"], self.id, source)
+        self._apply_source_change(change)
+
+        source_id = change.get("sourceId")
+        added = self.getSourceById(source_id) if source_id else None
+        if added is None:
+            raise RuntimeError(f'Source "{source["name"]}" missing after it was added')
+        return added
+
+    async def removeSource(self, sourceId: str) -> None:
+        self._assert_source_owner()
+        change = await self._device_manager_proxy.removeCameraSource(self._plugin["id"], self.id, sourceId)
+        self._apply_source_change(change)
+
+    def _assert_source_owner(self) -> None:
+        if not self.pluginInfo or self.pluginInfo["id"] != self._plugin["id"]:
+            raise RuntimeError(f'Only the plugin that controls camera "{self.name}" can change its sources')
+
+    def _apply_source_change(self, change: CameraSourceChange) -> None:
+        # the camera update event follows on its own; applying the answer now lets callers read the new sources right away
+        self._camera_subject.next(change["camera"])
 
     async def reattach(self) -> None:
         plugin_id = self._plugin["id"]
