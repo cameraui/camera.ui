@@ -8,8 +8,8 @@
             <div class="flex flex-col gap-6">
               <span class="text-sm">{{ $t('views.settings.permissions.general_info') }}</span>
 
-              <div class="flex flex-col gap-2">
-                <CuiToggleRow v-for="row in rows" :key="row.name" :label="$t(`views.settings.permissions.${row.name}`)">
+              <div class="flex flex-col gap-6">
+                <CuiToggleRow v-for="row in rows" :key="row.name" plain :label="$t(`views.settings.permissions.${row.name}`)">
                   <template #hint>
                     <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">
                       {{ $t(`views.settings.permissions.${row.name}_info`) }}
