@@ -56,7 +56,7 @@ import { describeUploads, extractUploads, messagesForModel } from './uploads.js'
 import { AssistantUsageStore } from './usage.js';
 
 import type { AssistantAccess, AssistantAskResult, AssistantModelSpec } from '@camera.ui/sdk';
-import type { ChatMiddleware, FetchWrapper, Interrupt, ModelMessage, RunErrorEvent, StreamChunk, StreamDurability, UIMessage } from '@tanstack/ai';
+import type { ChatMiddleware, ChatMiddlewareConfig, FetchWrapper, Interrupt, ModelMessage, RunErrorEvent, StreamChunk, StreamDurability, UIMessage } from '@tanstack/ai';
 import type { MemoryAdapter, MemoryTurn } from '@tanstack/ai-memory';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Database } from '../api/database/index.js';
@@ -794,6 +794,7 @@ export class AssistantManager {
     const abortController = new AbortController();
     const timer = setTimeout(() => abortController.abort(), 5 * 60_000);
     let text = '';
+    let afterTool = false;
     const attachments: Record<string, DBAssistantAttachment> = {};
     const stats = newStats();
 
@@ -805,18 +806,32 @@ export class AssistantManager {
         tools,
         context: ctx,
         systemPrompts,
-        agentLoopStrategy: maxIterations(settings.maxIterations),
+        agentLoopStrategy: maxIterations(settings.maxIterations + 1),
         lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
         ...tuningOf(model),
         retry: MODEL_RETRY,
-        middleware: [countUsage(stats), plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE],
+        middleware: [
+          countUsage(stats),
+          plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE,
+          lastRoundAnswers(settings.maxIterations),
+        ],
         abortController,
       });
 
       for await (const chunk of stream as AsyncIterable<StreamChunk>) {
-        if (chunk.type === EventType.TEXT_MESSAGE_CONTENT) text += chunk.delta ?? '';
-        else if (chunk.type === EventType.RUN_ERROR) throw new Error(withProviderDetails(chunk.message, chunk));
-        else collectAttachment(chunk, attachments);
+        if (chunk.type === EventType.TEXT_MESSAGE_CONTENT) {
+          // text before a tool call was a lead-in, the answer comes after the results
+          if (afterTool && chunk.delta.trim()) {
+            text = '';
+            afterTool = false;
+          }
+          text += chunk.delta;
+        } else if (chunk.type === EventType.RUN_ERROR) throw new Error(withProviderDetails(chunk.message, chunk));
+        else if (chunk.type === EventType.RUN_FINISHED && finishReasonOf(chunk) === 'content_filter') throw new Error('The provider blocked the answer');
+        else {
+          if (chunk.type === EventType.TOOL_CALL_START) afterTool = true;
+          collectAttachment(chunk, attachments);
+        }
       }
     } finally {
       clearTimeout(timer);
@@ -901,9 +916,7 @@ export class AssistantManager {
       onConfig: async (ctx, config) => {
         const exhausted = ctx.iteration >= settings.maxIterations || stats.toolCalls >= settings.maxToolCalls;
         const providerMessages = messagesForModel(repairHistory(config.providerMessages ?? config.messages), settings.sendImages, maxPictures);
-        if (exhausted && config.tools.length) {
-          return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
-        }
+        if (exhausted && config.tools.length) return finalTurn(config, providerMessages);
 
         const offered = new Set(config.tools.map((tool) => tool.name));
         const named = ((await skillTools?.(config.messages)) ?? []).filter((tool) => !offered.has(tool.name));
@@ -1233,6 +1246,17 @@ export class AssistantManager {
       if (chunk.type === EventType.RUN_ERROR) throw new Error(withProviderDetails(chunk.message, chunk));
     }
   }
+}
+
+function finalTurn(config: ChatMiddlewareConfig, providerMessages: ModelMessage[]): Partial<ChatMiddlewareConfig> {
+  return { providerMessages: flattenToolHistory(providerMessages), tools: [], systemPrompts: [...config.systemPrompts, FINAL_TURN_PROMPT] };
+}
+
+function lastRoundAnswers(rounds: number): ChatMiddleware {
+  return {
+    name: 'camera.ui-last-round',
+    onConfig: (ctx, config) => (ctx.iteration >= rounds && config.tools.length ? finalTurn(config, config.providerMessages ?? config.messages) : undefined),
+  };
 }
 
 function finishReasonOf(chunk: StreamChunk): string | undefined {
