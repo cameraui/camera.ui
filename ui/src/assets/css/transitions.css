@@ -169,6 +169,20 @@
   transition-delay: 0.35s;
 }
 
+.fade-switch-enter-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-switch-leave-active {
+  position: absolute;
+  opacity: 0;
+}
+
+.fade-switch-enter-from,
+.fade-switch-leave-to {
+  opacity: 0;
+}
+
 .slide-up-enter-active {
   transition-duration: 0.3s;
   transition-property: all;
