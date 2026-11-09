@@ -1,7 +1,7 @@
 <template>
   <div class="h-full w-full relative overflow-hidden flex flex-col">
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -395,6 +395,7 @@ interface PlanDrop {
   y: number;
 }
 
+const { goBack } = useBackNavigation();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 const { bottombarHeight } = useSharedCuiStates();

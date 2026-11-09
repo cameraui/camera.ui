@@ -1,7 +1,7 @@
 <template>
   <div class="h-full w-full relative overflow-hidden flex flex-col">
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="onBack">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/automations')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -146,6 +146,7 @@ const CuiAutomationRunsDialog = asyncComponent(() => import('@/components/CuiAut
 
 const automationsQuery = new AutomationsQuery();
 
+const { goBack } = useBackNavigation();
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
@@ -486,10 +487,6 @@ function confirmDeleteFlow() {
       router.push('/automations');
     },
   });
-}
-
-function onBack() {
-  router.push('/automations');
 }
 
 watch(

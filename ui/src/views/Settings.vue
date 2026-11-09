@@ -5,7 +5,7 @@
     </CuiTopbarSlot>
 
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push(isListRoute ? '/menu' : '/settings')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack(isListRoute ? '/menu' : '/settings')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -67,6 +67,7 @@
 import type CuiSubNavbar from '@/components/CuiSubNavbar/CuiSubNavbar.vue';
 import type { SubNavbarState } from '@/components/CuiSubNavbar/types.js';
 
+const { goBack } = useBackNavigation();
 const router = useRouter();
 const routeMeta = useRouteMeta();
 const { bus } = useCuiBus();

@@ -208,6 +208,7 @@ declare global {
   const useAttrs: typeof import('vue').useAttrs
   const useAuthStore: typeof import('../stores/auth').useAuthStore
   const useAutomationsStore: typeof import('../stores/automations').useAutomationsStore
+  const useBackNavigation: typeof import('../composables/useBackNavigation').useBackNavigation
   const useBackupRestore: typeof import('../composables/useBackupRestore').useBackupRestore
   const useBackupRestoreDialog: typeof import('../composables/useBackupRestoreDialog').useBackupRestoreDialog
   const useBase64: typeof import('@vueuse/core').useBase64
@@ -816,6 +817,7 @@ declare module 'vue' {
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useAuthStore: UnwrapRef<typeof import('../stores/auth')['useAuthStore']>
     readonly useAutomationsStore: UnwrapRef<typeof import('../stores/automations')['useAutomationsStore']>
+    readonly useBackNavigation: UnwrapRef<typeof import('../composables/useBackNavigation')['useBackNavigation']>
     readonly useBackupRestore: UnwrapRef<typeof import('../composables/useBackupRestore')['useBackupRestore']>
     readonly useBackupRestoreDialog: UnwrapRef<typeof import('../composables/useBackupRestoreDialog')['useBackupRestoreDialog']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>

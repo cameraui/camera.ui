@@ -295,6 +295,7 @@
     "useAttrs": true,
     "useAuthStore": true,
     "useAutomationsStore": true,
+    "useBackNavigation": true,
     "useBackupRestore": true,
     "useBackupRestoreDialog": true,
     "useBase64": true,

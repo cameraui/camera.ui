@@ -5,7 +5,7 @@
     </CuiTopbarSlot>
 
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -143,6 +143,7 @@ import type { UIMessage } from '@tanstack/ai';
 
 const assistantQuery = new AssistantQuery();
 
+const { goBack } = useBackNavigation();
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();

@@ -5,7 +5,7 @@
     </h1>
 
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -333,6 +333,7 @@ const pluginsQuery = new PluginsQuery();
 const frameWorkerQuery = new FrameWorkerQuery();
 const serverQuery = new ServerQuery();
 
+const { goBack } = useBackNavigation();
 const { t } = useI18n();
 const dialog = useCuiDialog();
 const toast = useCuiToast();

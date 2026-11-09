@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center gap-2 px-3 py-2 border-bottom-color card-background min-h-[48px]">
-    <Button v-if="!smBreakpoint" severity="secondary" text rounded class="cui-icon-md shrink-0" @click="$router.push('/automations')">
+    <Button v-if="!smBreakpoint" severity="secondary" text rounded class="cui-icon-md shrink-0" @click="goBack('/automations')">
       <template #icon>
         <i-weui:back-filled width="100%" height="100%" />
       </template>
@@ -61,6 +61,7 @@ const props = defineProps<CuiAutomationToolbarProps>();
 
 const emit = defineEmits<CuiAutomationToolbarEmits>();
 
+const { goBack } = useBackNavigation();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
 

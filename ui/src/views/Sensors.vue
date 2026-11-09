@@ -5,7 +5,7 @@
     </h1>
 
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -440,6 +440,7 @@ const DETECTED_ACTIVE_TYPES: ReadonlySet<string> = new Set([
 const sensorsQuery = new SensorsQuery();
 const camerasQuery = new CamerasQuery();
 
+const { goBack } = useBackNavigation();
 const dialog = useCuiDialog();
 const sensorsSocket = useSensorsSocket();
 const queryClient = useQueryClient();

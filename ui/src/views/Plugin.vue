@@ -1,7 +1,7 @@
 <template>
   <div :key="resolvedPluginName">
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/plugins')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/plugins')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -222,6 +222,7 @@ interface SegmentItem {
 const camerasQuery = new CamerasQuery();
 const pluginsQuery = new PluginsQuery();
 
+const { goBack } = useBackNavigation();
 const log = useLogger();
 const drawer = useCuiCameraDrawer();
 const route = useRoute();

@@ -996,6 +996,7 @@ const activityMode = defineModel<CuiCameraCardModels['activityMode']>('activityM
 const sourceRole = defineModel<CuiCameraCardModels['sourceRole']>('sourceRole');
 const streamingMode = defineModel<CuiCameraCardModels['streamingMode']>('streamingMode');
 
+const { previousPath } = useBackNavigation();
 const log = useLogger();
 const router = useRouter();
 const routerStore = useRouterStore();
@@ -1717,12 +1718,10 @@ function toggleFullscreen() {
 }
 
 function goBack() {
-  const back = router.options.history.state.back;
-  if (typeof back === 'string' && back.startsWith('/camview')) {
-    router.back();
-  } else {
-    router.push('/home');
-  }
+  const previous = previousPath();
+  // from another camera it goes home, stepping back through every camera would take a tap each
+  if (previous && !previous.startsWith('/cameras/')) router.back();
+  else router.push('/home');
 }
 
 function zoomMinimapStyle(): CSSProperties | null {

@@ -9,7 +9,7 @@
     </Message>
 
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -246,6 +246,7 @@ import { usePluginUpdates } from '@/composables/usePluginUpdates.js';
 const pluginsQuery = new PluginsQuery();
 const configQuery = new ConfigQuery();
 
+const { goBack } = useBackNavigation();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const { t } = useI18n();

@@ -1,7 +1,7 @@
 <template>
   <div class="h-full w-full dark-mode relative overflow-hidden">
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -129,6 +129,7 @@ const props = withDefaults(
   },
 );
 
+const { goBack } = useBackNavigation();
 const log = useLogger();
 const { t } = useI18n();
 
