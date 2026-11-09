@@ -39,7 +39,7 @@
     "@bjia56/portable-python": "^0.1.176",
     "@camera.ui/cloudflared": "^2026.10.4",
     "@camera.ui/common": "~0.0.62",
-    "@camera.ui/go2rtc": "^1.9.15-cui.4",
+    "@camera.ui/go2rtc": "^1.9.15-cui.6",
     "@camera.ui/nats": "^2.15.2",
     "@camera.ui/rpc": "^1.1.2",
     "@camera.ui/rust-detector": "~0.0.13",
