@@ -2,47 +2,50 @@
   <div>
     <div class="flex flex-col w-full gap-6">
       <div>
-        <Card class="cui-card">
-          <template #content>
-            <div>
-              <CuiToggleRow plain :label="$t('views.settings.beta_updates')" :hint="$t('views.settings.beta_updates_info')" label-for="betaChannel">
-                <ToggleSwitch input-id="betaChannel" :model-value="isBeta" @update:model-value="onBetaToggle" />
-              </CuiToggleRow>
-            </div>
-          </template>
-        </Card>
-      </div>
-
-      <div>
         <span class="card-title">camera.ui</span>
         <Card class="cui-card">
           <template #content>
             <div class="flex flex-col gap-6">
-              <div v-if="isElectronApp" class="flex flex-row items-center justify-between">
-                <span class="text-sm">{{ $t('views.settings.app') }}</span>
+              <CuiToggleRow :label="$t('views.settings.beta_updates')" :hint="$t('views.settings.beta_updates_info')" label-for="betaChannel">
+                <ToggleSwitch input-id="betaChannel" :model-value="isBeta" @update:model-value="onBetaToggle" />
+              </CuiToggleRow>
+
+              <CuiToggleRow v-if="isElectronApp" plain :label="$t('views.settings.app')" :hint="$t('views.settings.app_info')">
                 <ProgressSpinner v-if="isLoading" class="w-[15px] h-[15px] m-0" stroke-width="5" />
                 <span v-else class="text-sm font-bold">v{{ currentElectronVersion }}</span>
-              </div>
+              </CuiToggleRow>
 
-              <div v-if="isCapacitor && appVersion" class="flex flex-row items-center justify-between">
-                <span class="text-sm">{{ $t('views.settings.app') }}</span>
+              <CuiToggleRow v-if="isCapacitor && appVersion" plain :label="$t('views.settings.app')" :hint="$t('views.settings.app_info')">
                 <span class="text-sm font-bold">
                   v{{ appVersion }}<span v-if="nativeVersion && nativeVersion !== appVersion" class="text-muted font-normal"> ({{ nativeVersion }})</span>
                 </span>
-              </div>
+              </CuiToggleRow>
 
-              <div class="flex flex-row items-center justify-between">
-                <span class="text-sm">{{ $t('views.settings.server') }}</span>
+              <CuiToggleRow plain :label="$t('views.settings.server')" :hint="$t('views.settings.server_version_info')">
                 <ProgressSpinner v-if="isLoading" class="w-[15px] h-[15px] m-0" stroke-width="5" />
                 <span v-else class="text-sm font-bold">
                   v{{ currentVersion }}<template v-if="restartRequired"> &rarr; v{{ installedVersion }}</template>
                 </span>
-              </div>
+              </CuiToggleRow>
 
-              <div v-if="lastBackupAt !== undefined" class="flex flex-row items-center justify-between">
-                <span class="text-sm">{{ $t('views.settings.backup_last') }}</span>
+              <CuiToggleRow v-if="lastBackupAt !== undefined" plain :label="$t('views.settings.backup_last')" :hint="$t('views.settings.backup_last_info')">
                 <span class="text-sm font-bold">{{ lastBackupAt ? formatRelativeTime(lastBackupAt) : $t('views.settings.backup_last_never') }}</span>
-              </div>
+              </CuiToggleRow>
+
+              <CuiToggleRow plain :label="$t('views.settings.system.language')" :hint="$t('views.settings.system.language_hint')" label-for="instanceLanguage">
+                <Select
+                  input-id="instanceLanguage"
+                  :model-value="serverInfo?.language"
+                  :options="instanceLanguageOptions"
+                  option-label="label"
+                  option-value="value"
+                  :loading="setLanguagePending"
+                  :disabled="!serverInfo || setLanguagePending"
+                  filter
+                  class="w-40"
+                  @update:model-value="setLanguage"
+                />
+              </CuiToggleRow>
 
               <div v-if="!isElectronBuild" class="flex w-full items-center gap-2">
                 <div class="ml-auto"></div>
@@ -313,6 +316,7 @@ import { ApiQuery, apiInfo as fetchApiInfo } from '@/api/routes/api.js';
 import { getBackupSchedulerFn } from '@/api/routes/backup.js';
 import { downloadCertFn, getCertificate, removeCertificate, restartGo2RtcFn, ServerQuery, uploadCertificate } from '@/api/routes/server.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
+import { languageOptions } from '@/common/languageOptions.js';
 import { formatRelativeTime } from '@/common/utils.js';
 import { isCapacitor } from '@/connection/index.js';
 
@@ -329,7 +333,7 @@ const serverQuery = new ServerQuery();
 const log = useLogger();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { isElectronApp, electron } = useElectron();
 const { isOnline } = useConnection();
 const { restarting, beginServerRestart } = useServerRestart();
@@ -363,6 +367,7 @@ const { data: apiInfo, isBusy: apiInfoLoading } = apiQuery.apiInfoQuery();
 const { data: serverInfo } = serverQuery.getServerInfoQuery();
 const { mutate: restartServer, isPending: restartServerLoading } = serverQuery.restartServerQuery();
 const { mutateAsync: resetServer, isPending: resetServerLoading } = serverQuery.resetServerQuery();
+const { mutate: setLanguage, isPending: setLanguagePending } = serverQuery.setLanguageQuery();
 
 const LOG_LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
 const STREAMING_LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
@@ -409,6 +414,8 @@ const hostOptions = computed(() => {
   if (saved && !options.some(({ value }) => value === saved)) options.push({ value: saved, label: saved });
   return options;
 });
+
+const instanceLanguageOptions = computed(() => languageOptions(locale.value));
 
 const logLevelOptions = computed(() => levelOptions(LOG_LEVELS));
 const streamingLogLevelOptions = computed(() => levelOptions(STREAMING_LOG_LEVELS));

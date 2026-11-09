@@ -3225,6 +3225,7 @@ export default {
     },
     settings: {
       app: 'App',
+      app_info: 'The version of this app.',
       available_updates: 'Available updates',
       available_updates_info: 'Updates are available for camera.ui.',
       beta_updates: 'Beta updates',
@@ -3278,6 +3279,7 @@ export default {
       backup_job_lost: 'The backup stopped because the server restarted.',
       backup_last: 'Last backup',
       backup_last_never: 'none yet',
+      backup_last_info: 'When the scheduled backup last ran.',
       backup_key: 'Backup key',
       backup_key_info: 'Downloaded and scheduled backups are encrypted with this key. Another server can only open them with it, so keep a copy in a safe place.',
       backup_key_save: 'Save key file',
@@ -3350,6 +3352,8 @@ export default {
       open_editor: 'Edit {file}',
       locked_by: 'Set by the environment variable {variable}.',
       system: {
+        language: 'Instance language',
+        language_hint: 'For notifications and the texts plugins write, such as AI descriptions.',
         port: 'HTTPS port',
         server_info: 'The ports and network address camera.ui listens on for the web interface and the apps, and whether apps in your network find it on their own.',
         port_hint: 'Port for the web interface and the apps.',
@@ -3467,6 +3471,7 @@ export default {
       search_by_name: 'Search by name',
       searching_updates: 'Searching for updates...',
       server: 'Server',
+      server_version_info: 'The camera.ui version on the server.',
       biometric: {
         title: 'Biometric login',
         label: 'Use Face ID / Touch ID',
