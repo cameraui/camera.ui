@@ -2,6 +2,7 @@ import { APP_SERVER_NAME, IS_ELECTRON } from '@camera.ui/common/utils';
 import { Severity } from '@camera.ui/sdk';
 
 import { inject, tryInject } from '../../../container.js';
+import { t } from '../../../i18n/index.js';
 import { SystemNotificationTypeId } from '../../../manager/types.js';
 import { ConfigService } from '../../../services/config/index.js';
 import { serverNodeIssue } from '../../../utils/engines.js';
@@ -105,8 +106,8 @@ export class ServerNamespace {
       this.proxyServer.notificationManager.notify({
         source: { kind: 'system', id: SystemNotificationTypeId.WorkerUpdateAvailable },
         notification: {
-          title: 'Worker Update',
-          body: 'New worker updates available',
+          title: t('updates.worker_title'),
+          body: t('updates.worker_available'),
           severity: Severity.Info,
           tag: SystemNotificationTypeId.WorkerUpdateAvailable,
           deepLink: '/updates',
@@ -138,8 +139,8 @@ export class ServerNamespace {
         this.proxyServer.notificationManager.notify({
           source: { kind: 'system', id: SystemNotificationTypeId.PluginUpdateAvailable },
           notification: {
-            title: 'Plugin Update',
-            body: 'New plugin updates available',
+            title: t('updates.plugin_title'),
+            body: t('updates.plugin_available'),
             severity: Severity.Info,
             tag: SystemNotificationTypeId.PluginUpdateAvailable,
             deepLink: '/updates',
@@ -177,8 +178,8 @@ export class ServerNamespace {
         this.proxyServer.notificationManager.notify({
           source: { kind: 'system', id: SystemNotificationTypeId.UpdateAvailable },
           notification: {
-            title: this.serverUpdate.betaUpdateAvailable ? 'Beta update' : 'Update',
-            body: this.serverUpdate.latestVersion ? `camera.ui ${this.serverUpdate.latestVersion} is available` : 'New camera.ui update available',
+            title: t(this.serverUpdate.betaUpdateAvailable ? 'updates.beta_update_title' : 'updates.update_title'),
+            body: this.serverUpdate.latestVersion ? t('updates.server_available', { version: this.serverUpdate.latestVersion }) : t('updates.server_available_unknown'),
             severity: Severity.Info,
             tag: SystemNotificationTypeId.UpdateAvailable,
             deepLink: '/updates',
@@ -235,8 +236,8 @@ export class ServerNamespace {
       this.proxyServer.notificationManager.notify({
         source: { kind: 'system', id: SystemNotificationTypeId.AppUpdateAvailable },
         notification: {
-          title: 'Update',
-          body: `camera.ui ${message.version} is ready to install`,
+          title: t('updates.update_title'),
+          body: t('updates.app_ready', { version: message.version }),
           severity: Severity.Info,
           tag: SystemNotificationTypeId.AppUpdateAvailable,
           deepLink: '/updates',

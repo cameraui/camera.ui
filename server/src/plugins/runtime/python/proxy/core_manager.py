@@ -140,6 +140,9 @@ class CoreManagerProxy(CoreManager):
     async def getInstanceId(self) -> str:
         return await self.__core_manager_proxy.getInstanceId()
 
+    async def getLanguage(self) -> str:
+        return await self.__core_manager_proxy.getLanguage()
+
     async def getPluginsByInterface(self, interfaceName: PluginInterface) -> list[PluginInfo]:
         return await self.__core_manager_proxy.getPluginsByInterface(interfaceName)
 

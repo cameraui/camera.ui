@@ -44,7 +44,6 @@ export interface UseAssistantChatOptions {
   threadId: Ref<string>;
   initialMessages?: UIMessage[];
   initialAttachments?: Record<string, DBAssistantAttachment>;
-  language: Ref<string>;
   disabledGroups?: Ref<string[]>;
   instructions?: Ref<string>;
   modelId?: Ref<string | null>;
@@ -172,7 +171,6 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   ];
 
   const forwardedProps: Record<string, unknown> = {
-    language: options.language.value,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 

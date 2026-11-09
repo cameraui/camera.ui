@@ -194,7 +194,7 @@
 
               <div class="flex flex-col field-gap">
                 <label for="language" class="cui-label">{{ $t('views.settings.assistant_language_label') }}</label>
-                <Select v-model="form.language" input-id="language" :options="languageOptions" option-label="label" option-value="value" filter fluid />
+                <Select v-model="form.language" input-id="language" :options="assistantLanguageOptions" option-label="label" option-value="value" filter fluid />
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_language_info') }}</Message>
               </div>
 
@@ -763,7 +763,6 @@
 <script setup lang="ts">
 import { useTextAlerts } from '@camera.ui/nvr';
 import { isEqual } from '@camera.ui/common/utils';
-import { LANGUAGES } from '@shared/types';
 import ModelIcon from '~icons/mdi/brain';
 import CopyIcon from '~icons/mdi/content-copy';
 import DeleteIcon from '~icons/mdi/delete-outline';
@@ -778,6 +777,7 @@ import { AssistantQuery } from '@/api/routes/assistant.js';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@/common/assistantModels.js';
 import { NVR_PLUGIN_NAME } from '@/common/constants.js';
+import { languageOptions } from '@/common/languageOptions.js';
 import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
@@ -933,13 +933,10 @@ const dirty = computed(() => {
   };
 });
 
-const languageOptions = computed(() => {
-  const names = new Intl.DisplayNames([locale.value], { type: 'language' });
-  const languages = LANGUAGES.map((code) => ({ label: names.of(code) ?? code, value: code as LanguageAbbreviations | null })).sort((a, b) =>
-    a.label.localeCompare(b.label, locale.value),
-  );
-  return [{ label: t('views.settings.assistant_language_auto'), value: null }, ...languages];
-});
+const assistantLanguageOptions = computed(() => [
+  { label: t('views.settings.assistant_language_instance'), value: null as LanguageAbbreviations | null },
+  ...languageOptions(locale.value),
+]);
 
 const reasoningOptions = computed(() =>
   (['default', 'off', 'low', 'high'] as const).map((value) => ({ label: t(`views.settings.assistant_reasoning_${value}`), value })),
@@ -1026,7 +1023,6 @@ async function onAddSchedule(): Promise<void> {
     prompt: scheduleForm.value.prompt,
     cron: scheduleCron.value,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    language: locale.value,
     deliver: scheduleForm.value.deliver,
     profileId: scheduleForm.value.profileId,
     modelId: scheduleForm.value.modelId,

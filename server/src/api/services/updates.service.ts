@@ -7,6 +7,7 @@ import { pathExists, readJson, remove, writeJson } from 'fs-extra/esm';
 import { coerce, satisfies } from 'semver';
 
 import { inject, tryInject } from '../../container.js';
+import { t } from '../../i18n/index.js';
 import { SystemNotificationTypeId } from '../../manager/types.js';
 import { ConfigService } from '../../services/config/index.js';
 import { assertServerUpdateSpace } from '../../utils/disk-space.js';
@@ -609,8 +610,8 @@ export class UpdatesService {
       ?.notificationManager.notify({
         source: { kind: 'system', id: SystemNotificationTypeId.UpdateFailed },
         notification: {
-          title: 'Update failed',
-          body: `${names.join(', ')} could not be updated.`,
+          title: t('updates.failed_title'),
+          body: t('updates.failed_body', { names: names.join(', ') }),
           severity: Severity.Warn,
           tag: `${SystemNotificationTypeId.UpdateFailed}:${tag}`,
           deepLink: '/updates',

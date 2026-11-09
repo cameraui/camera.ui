@@ -25,6 +25,7 @@ import { RoomsService } from '../api/services/rooms.service.js';
 import { UsersService } from '../api/services/users.service.js';
 import { decryptPassword, encryptPassword } from '../api/utils/encryption.js';
 import { inject, provide } from '../container.js';
+import { instanceLanguage } from '../i18n/index.js';
 import { ALWAYS_EAGER, planRun, promote, toolTokens } from './budget.js';
 import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
@@ -424,7 +425,20 @@ export class AssistantManager {
 
   public access(pluginId: string): AssistantAccess {
     const entry = this.pluginModel(pluginId);
-    return { allowed: entry !== undefined, model: entry?.model ?? null, vision: entry?.capabilities?.vision ?? null, language: this.settings().language };
+    return {
+      allowed: entry !== undefined,
+      model: entry?.model ?? null,
+      vision: entry?.capabilities?.vision ?? null,
+      language: this.settings().language ?? instanceLanguage(),
+    };
+  }
+
+  public announceAccess(pluginIds: Iterable<string> = this.settings().plugins.map((row) => row.pluginId)): void {
+    const coreManager = inject('proxy').coreManager;
+    for (const pluginId of new Set(pluginIds)) {
+      const access = this.access(pluginId);
+      coreManager?.publishCoreManagerEvent('assistantModelChanged', { pluginId, configured: access.allowed && access.model !== null });
+    }
   }
 
   public async ask(request: AssistantAskRequest): Promise<AssistantAskResult> {
@@ -592,13 +606,12 @@ export class AssistantManager {
     const ctx: AssistantRunContext = {
       userId: request.user._id,
       role: request.user.role,
-      language: pickString(forwarded.language) ?? request.language ?? settings.language ?? request.user.preferences?.language ?? 'en',
+      language: request.language ?? settings.language ?? instanceLanguage(),
       timezone: pickString(forwarded.timezone) ?? request.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       sendImages: model.sendImages,
       authorization: request.authorization,
       visionMissing: entry.capabilities?.vision === false ? entry.name : undefined,
     };
-    if (ctx.language === 'auto') ctx.language = 'en';
     ctx.uploads = extractUploads(params.messages);
     ctx.instructions = pickString(forwarded.instructions)?.slice(0, 2000);
     ctx.answers = new Map();
@@ -722,7 +735,7 @@ export class AssistantManager {
     const ctx: AssistantRunContext = {
       userId: opts.user._id,
       role: opts.user.role,
-      language: opts.language ?? settings.language ?? preferredLanguage(opts.user) ?? 'en',
+      language: opts.language ?? settings.language ?? instanceLanguage(),
       timezone: opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       sendImages: true,
       authorization: opts.authorization,
@@ -752,7 +765,7 @@ export class AssistantManager {
     const ctx: AssistantRunContext = {
       userId: user._id,
       role: user.role,
-      language: opts.language ?? settings.language ?? preferredLanguage(user) ?? 'en',
+      language: opts.language ?? settings.language ?? instanceLanguage(),
       timezone: opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       sendImages: model.sendImages,
     };
@@ -828,7 +841,7 @@ export class AssistantManager {
     const ctx: AssistantRunContext = {
       userId: user._id,
       role: user.role,
-      language: opts.language ?? settings.language ?? preferredLanguage(user) ?? 'en',
+      language: opts.language ?? settings.language ?? instanceLanguage(),
       timezone: opts.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       sendImages: false,
     };
@@ -1299,11 +1312,6 @@ function usageEvent(settings: Pick<AssistantSettings, 'provider' | 'model'>, sta
     model: settings.model,
     costUsd: estimateCost(settings.provider, settings.model, calls),
   };
-}
-
-function preferredLanguage(user: DBUser): string | undefined {
-  const language = user.preferences?.language;
-  return language && language !== 'auto' ? language : undefined;
 }
 
 function collectAttachment(chunk: StreamChunk, attachments: Record<string, DBAssistantAttachment>): void {

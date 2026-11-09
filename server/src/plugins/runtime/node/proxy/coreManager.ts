@@ -132,6 +132,10 @@ export class CoreManagerProxy implements CoreManager {
     return await this.#coreManagerProxy.getInstanceId();
   }
 
+  public async getLanguage(): Promise<string> {
+    return await this.#coreManagerProxy.getLanguage();
+  }
+
   public async getPluginsByInterface(interfaceName: PluginInterface): Promise<PluginInfo[]> {
     return await this.#coreManagerProxy.getPluginsByInterface(interfaceName);
   }

@@ -1,6 +1,7 @@
 import { Severity } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
+import { t } from '../i18n/index.js';
 import { SystemNotificationTypeId } from '../manager/types.js';
 
 import type { PluginEventPayload } from '../internal-bus.js';
@@ -105,8 +106,8 @@ export class PluginHealthMonitor {
         .notify({
           source: { kind: 'system', id: SystemNotificationTypeId.PluginCrashed },
           notification: {
-            title: 'Plugin Recovered',
-            body: `${displayName} is back online after a crash`,
+            title: t('plugins.recovered_title'),
+            body: t('plugins.recovered_body', { plugin: displayName }),
             severity: Severity.Info,
             tag: `${SystemNotificationTypeId.PluginCrashed}:recovered:${pluginId}`,
             deepLink: `/plugins/${pluginName}`,
@@ -132,8 +133,8 @@ export class PluginHealthMonitor {
       .notify({
         source: { kind: 'system', id: SystemNotificationTypeId.PluginCrashed },
         notification: {
-          title: 'Plugin Crashed',
-          body: `${state.displayName} crashed unexpectedly`,
+          title: t('plugins.crashed_title'),
+          body: t('plugins.crashed_body', { plugin: state.displayName }),
           severity: Severity.Warn,
           tag: `${SystemNotificationTypeId.PluginCrashed}:crashed:${pluginId}`,
           deepLink: `/plugins/${state.pluginName}`,

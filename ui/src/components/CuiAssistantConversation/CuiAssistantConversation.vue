@@ -282,7 +282,7 @@ const props = withDefaults(defineProps<CuiAssistantConversationProps>(), {
 });
 const emit = defineEmits<CuiAssistantConversationEmits>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const toast = useCuiToast();
 const coarsePointer = useMediaQuery('(pointer: coarse)');
 const { keyboardInset } = useKeyboardInset();
@@ -319,7 +319,6 @@ const chat = useAssistantChat({
   threadId,
   initialMessages: props.initialMessages,
   initialAttachments: props.initialAttachments,
-  language: locale,
   disabledGroups,
   instructions,
   modelId,

@@ -7,6 +7,7 @@ import { RoomsService } from '../api/services/rooms.service.js';
 import { ServerService } from '../api/services/server.service.js';
 import { WorkersService } from '../api/services/workers.service.js';
 import { inject } from '../container.js';
+import { instanceLanguage } from '../i18n/index.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { AssistantAccess, AssistantAskResult, PluginInterface } from '@camera.ui/sdk';
@@ -140,6 +141,11 @@ export class CoreManager implements CoreManagerInterface {
   @RPCMethod
   public async getInstanceId(): Promise<string> {
     return inject('dbs').settingsDB.get('settings')?.instanceId ?? '';
+  }
+
+  @RPCMethod
+  public async getLanguage(): Promise<string> {
+    return instanceLanguage();
   }
 
   @RPCMethod

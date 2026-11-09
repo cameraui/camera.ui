@@ -4,7 +4,7 @@ import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
 import type { UpdateServerInput } from '@/schemas/server.schema.js';
-import type { CustomCertificateState, DBServer, Go2RtcInfo, MethodKeys, ServerInfo } from '@shared/types';
+import type { CustomCertificateState, DBServer, Go2RtcInfo, LanguageAbbreviations, MethodKeys, ServerInfo } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
@@ -15,6 +15,11 @@ export async function getServerInfo(): Promise<ServerInfo> {
 
 export async function patchServerInfo(systemData: Partial<DBServer>): Promise<DBServer> {
   const response: AxiosResponse<DBServer> = await api.patch('/server', systemData);
+  return response.data;
+}
+
+export async function setServerLanguage(language: LanguageAbbreviations): Promise<{ language: LanguageAbbreviations }> {
+  const response: AxiosResponse<{ language: LanguageAbbreviations }> = await api.put('/server/language', { language });
   return response.data;
 }
 
@@ -133,6 +138,16 @@ export class ServerQuery {
   public patchSystemInfoQuery() {
     return useMutation({
       mutationFn: patchServerInfo,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['server'], exact: true });
+        this.toast.add({ severity: 'success', detail: this.t('components.toast.server_updated'), life: 3000 });
+      },
+    });
+  }
+
+  public setLanguageQuery() {
+    return useMutation({
+      mutationFn: setServerLanguage,
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['server'], exact: true });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.server_updated'), life: 3000 });

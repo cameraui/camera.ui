@@ -3,6 +3,7 @@ import { Severity } from '@camera.ui/sdk';
 
 import { CamerasService } from '../api/services/cameras.service.js';
 import { inject, tryInject } from '../container.js';
+import { t } from '../i18n/index.js';
 import { emitInternalEvent } from '../internal-bus.js';
 import { SystemNotificationTypeId } from '../manager/types.js';
 import { PLUGIN_COMMAND, PLUGIN_STATUS } from '../plugins/types.js';
@@ -363,11 +364,8 @@ export class PluginWorker {
         .notify({
           source: { kind: 'system', id: SystemNotificationTypeId.PluginIncompatible },
           notification: {
-            title: 'Plugin Not Started',
-            body:
-              compat === 'pluginTooOld'
-                ? `${this.plugin.displayName} needs an update to work with this camera.ui version`
-                : `${this.plugin.displayName} needs a newer camera.ui version`,
+            title: t('plugins.not_started_title'),
+            body: t(compat === 'pluginTooOld' ? 'plugins.needs_plugin_update' : 'plugins.needs_server_update', { plugin: this.plugin.displayName }),
             severity: Severity.Warn,
             tag: `${SystemNotificationTypeId.PluginIncompatible}:${this.plugin.id}`,
             deepLink: `/plugins/${this.plugin.pluginName}`,

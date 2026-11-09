@@ -57,11 +57,7 @@ export class AssistantService {
     if (removed.size && fallback) await this.manager.profiles.reassignModel(removed, fallback._id);
 
     if (patch.models || patch.plugins || patch.defaultModelId !== undefined || patch.language !== undefined) {
-      const proxy = inject('proxy');
-      for (const pluginId of new Set([...before.plugins, ...this.manager.settings().plugins].map((row) => row.pluginId))) {
-        const access = this.manager.access(pluginId);
-        proxy.coreManager?.publishCoreManagerEvent('assistantModelChanged', { pluginId, configured: access.allowed && access.model !== null });
-      }
+      this.manager.announceAccess([...before.plugins, ...this.manager.settings().plugins].map((row) => row.pluginId));
     }
     if (patch.mcpServers) this.manager.reloadExternal();
     return this.manager.info();

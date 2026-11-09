@@ -1,18 +1,18 @@
 import { Severity } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
+import { t } from '../i18n/index.js';
 import { SystemNotificationTypeId } from '../manager/types.js';
 
-// a short network drop is over before anyone could act on it
 const OFFLINE_CONFIRM_MS = 120_000;
 const BACK_STABLE_MS = 60_000;
 
-const LOST_REASONS: Record<string, string> = {
-  'no heartbeat': 'stopped answering',
-  'did not connect': 'did not connect after camera.ui started',
-  'lease fenced': 'gets no answers from the main server',
-  'did not come back after the restart': 'did not come back after a restart',
-};
+const LOST_REASONS = {
+  'no heartbeat': 'workers.lost_no_heartbeat',
+  'did not connect': 'workers.lost_not_connected',
+  'lease fenced': 'workers.lost_fenced',
+  'did not come back after the restart': 'workers.lost_not_back',
+} as const;
 
 interface Workloads {
   moved: number;
@@ -59,7 +59,7 @@ export class WorkerNotices {
 
     notice.timer = setTimeout(() => {
       this.notices.delete(agentId);
-      this.notify(agentId, 'online', 'Worker back online', `${name} is online again.`, Severity.Info);
+      this.notify(agentId, 'online', t('workers.online_title'), t('workers.online_body', { worker: name }), Severity.Info);
     }, BACK_STABLE_MS);
   }
 
@@ -78,13 +78,9 @@ export class WorkerNotices {
     notice.notified = true;
     notice.timer = undefined;
 
-    const where =
-      waiting === 0
-        ? 'Its cameras and plugins run on the main server until it is back.'
-        : moved === 0
-          ? 'Its cameras and plugins wait for it.'
-          : 'Some of its cameras and plugins run on the main server, the rest wait for it.';
-    this.notify(agentId, 'offline', 'Worker offline', `${name} ${LOST_REASONS[reason] ?? reason}. ${where}`, Severity.Warn);
+    const where = t(waiting === 0 ? 'workers.all_moved' : moved === 0 ? 'workers.all_waiting' : 'workers.some_moved');
+    const lostKey = LOST_REASONS[reason as keyof typeof LOST_REASONS] ?? 'workers.lost_other';
+    this.notify(agentId, 'offline', t('workers.offline_title'), `${t(lostKey, { worker: name, reason })} ${where}`, Severity.Warn);
   }
 
   private notify(agentId: string, state: 'offline' | 'online', title: string, body: string, severity: Severity): void {

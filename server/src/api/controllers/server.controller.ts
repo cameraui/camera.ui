@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 
 import { inject } from '../../container.js';
+import { instanceLanguage } from '../../i18n/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { getVersionsAndDistTags } from '../../utils/npm/index.js';
 import { ServerService } from '../services/server.service.js';
@@ -24,6 +25,7 @@ import type {
   NatsInfo,
   ServerChangelogRequest,
   ServerInfo,
+  ServerLanguageRequest,
   ServerPatchRequest,
   ServerUpdateRequest,
 } from '../types/index.js';
@@ -93,6 +95,7 @@ export class ServerController {
         availableAddresses: networkAddresses,
         serverAddresses: info.serverAddresses ?? [],
         localUrl: info.localUrl ?? '',
+        language: instanceLanguage(),
       };
 
       return reply.code(200).send(serverInfo);
@@ -184,6 +187,18 @@ export class ServerController {
       }
 
       return reply.code(200).send(serverInfo);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async setLanguage(req: FastifyRequest<AuthLoginRequest & ServerLanguageRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.setLanguage(req.body.language);
+      return reply.code(200).send({ language: req.body.language });
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

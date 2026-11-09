@@ -4,6 +4,7 @@ import { readdir, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 
 import { inject, provide, tryInject } from '../../container.js';
+import { t } from '../../i18n/index.js';
 import { SystemNotificationTypeId } from '../../manager/types.js';
 import { backupKeyId, parseBackupKey, readArchiveLayout } from '../../services/config/backup-archive.js';
 import { BACKUP_IGNORE_FILE, removeExpiredRestoreData } from '../../services/config/restore.js';
@@ -264,7 +265,7 @@ export class BackupSchedulerService {
       ?.notificationManager.notify({
         source: { kind: 'system', id: SystemNotificationTypeId.BackupFailed },
         notification: {
-          title: 'Scheduled backup failed',
+          title: t('backup.failed_title'),
           body: message,
           severity: Severity.Warn,
           tag: SystemNotificationTypeId.BackupFailed,

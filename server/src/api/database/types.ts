@@ -124,6 +124,7 @@ export interface DBSettings {
   restoreGeneration?: string;
   backupKeyConfirmedAt?: number;
   lastBackupAt?: number;
+  language?: LanguageAbbreviations;
 }
 
 export interface DBKnownWorker {

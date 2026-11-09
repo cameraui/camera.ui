@@ -42,6 +42,7 @@ export interface CoreManagerInterface {
   getCloudServerId(): Promise<string>;
   getRestoreGeneration(): Promise<string>;
   getInstanceId(): Promise<string>;
+  getLanguage(): Promise<string>;
   getPlugin(pluginName: string): Promise<HostPluginInfo | undefined>;
   getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]>;
   getFloorPlan(): Promise<FloorPlan>;
@@ -55,6 +56,7 @@ export interface CoreManagerProxyEvents {
   trainingSettingsChanged: { enabled: boolean };
   assistantModelChanged: { pluginId: string; configured: boolean };
   pluginStatusChanged: { pluginName: string; running: boolean };
+  languageChanged: { language: string };
 }
 
 export interface CoreManagerProxyEventCallbacks {

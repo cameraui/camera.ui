@@ -81,7 +81,7 @@ import type {
 } from '../schemas/plugins.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
-import type { PatchServerInput, ServerChangelogQueryInput, UpdateServerInput } from '../schemas/server.schema.js';
+import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { RunUpdatesInput } from '../schemas/updates.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
 import type {
@@ -89,6 +89,7 @@ import type {
   CreateUserInput,
   CreateViewInput,
   EventTypesByCameraInput,
+  LanguageAbbreviations,
   LoginUserInput,
   PatchShortcutInput,
   PatchUserInput,
@@ -582,6 +583,10 @@ export interface UsersPatchRequest {
 
 export interface ServerPatchRequest {
   Body: PatchServerInput;
+}
+
+export interface ServerLanguageRequest {
+  Body: ServerLanguageInput;
 }
 
 export interface ServerUpdateRequest {
@@ -1278,6 +1283,7 @@ export interface FrameWorker {
 
 export interface ServerInfo extends DBServer {
   availableAddresses: UsableNetworkAddress[];
+  language: LanguageAbbreviations;
 }
 
 export interface RemoteInfo {

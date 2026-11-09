@@ -1,6 +1,7 @@
 import { Severity } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
+import { t } from '../i18n/index.js';
 import { SystemNotificationTypeId } from '../manager/types.js';
 
 const CHECK_INTERVAL_MS = 60_000;
@@ -39,7 +40,7 @@ export class RemoteNotices {
 
     if (reachable) {
       if (this.notified) {
-        this.notify('up', 'Remote access restored', 'camera.ui is reachable from outside your network again.', Severity.Info);
+        this.notify('up', t('remote.up_title'), t('remote.up_body'), Severity.Info);
       }
       this.downSince = 0;
       this.notified = false;
@@ -49,7 +50,7 @@ export class RemoteNotices {
     this.downSince ||= Date.now();
     if (this.notified || Date.now() - this.downSince < DOWN_CONFIRM_MS) return;
     this.notified = true;
-    this.notify('down', 'Remote access down', 'camera.ui has not been reachable from outside your network for 10 minutes.', Severity.Warn);
+    this.notify('down', t('remote.down_title'), t('remote.down_body'), Severity.Warn);
   }
 
   private notify(state: 'down' | 'up', title: string, body: string, severity: Severity): void {

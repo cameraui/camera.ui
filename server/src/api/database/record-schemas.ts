@@ -154,6 +154,7 @@ export const dbSettingsSchema = zod.object({
     .optional(),
   backupKeyConfirmedAt: zod.number().optional(),
   lastBackupAt: zod.number().optional(),
+  language: zod.enum(LANGUAGES).default('en'),
 });
 
 export const dbServerSchema = zod.object({

@@ -1,6 +1,7 @@
 import { Severity } from '@camera.ui/sdk';
 
 import { tryInject } from '../../container.js';
+import { t } from '../../i18n/index.js';
 import { SystemNotificationTypeId } from '../../manager/types.js';
 import { RemoteService } from '../../api/services/remote.service.js';
 import { cloudFetch } from './instance.js';
@@ -84,8 +85,8 @@ export class CloudCredentialStore {
       ?.notificationManager.notify({
         source: { kind: 'system', id: SystemNotificationTypeId.CloudReauth },
         notification: {
-          title: 'Cloud sign-in required',
-          body: 'This server was signed out of cameraui.com. Reconnect it under Settings, Remote.',
+          title: t('cloud.reauth_title'),
+          body: t('cloud.reauth_body'),
           severity: Severity.Warn,
           tag: SystemNotificationTypeId.CloudReauth,
           deepLink: '/settings/remote',
