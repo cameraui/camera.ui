@@ -3601,8 +3601,6 @@ export default {
         device_revoked: 'Gerät entfernt.',
         revoke_failed: 'Gerät konnte nicht entfernt werden.',
         update_failed: 'Gerät konnte nicht aktualisiert werden.',
-        save: 'Speichern',
-        reset: 'Zurücksetzen',
         saved: 'Benachrichtigungseinstellungen gespeichert.',
         save_failed: 'Speichern der Benachrichtigungseinstellungen fehlgeschlagen.',
         system_types: {

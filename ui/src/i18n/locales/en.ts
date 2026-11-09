@@ -3574,8 +3574,6 @@ export default {
         device_revoked: 'Device revoked.',
         revoke_failed: 'Failed to revoke device.',
         update_failed: 'Failed to update device.',
-        save: 'Save',
-        reset: 'Reset',
         saved: 'Notification settings saved.',
         save_failed: 'Failed to save notification settings.',
         system_types: {

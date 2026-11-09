@@ -82,6 +82,17 @@
                   </div>
                 </div>
               </div>
+
+              <div v-if="draft?.enabled" class="flex">
+                <Button
+                  type="button"
+                  :loading="saving === 'general'"
+                  :disabled="!dirty.general || !!saving"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="saveCard('general')"
+                />
+              </div>
             </div>
           </template>
         </Card>
@@ -106,6 +117,17 @@
                 <CuiToggleRow v-for="info in sources.system" :key="info.type" :label="systemLabel(info)" :hint="info.description">
                   <ToggleSwitch :model-value="isSystemTypeEnabled(info.type)" @update:model-value="(v) => setSystemTypeEnabled(info.type, v as boolean)" />
                 </CuiToggleRow>
+              </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  :loading="saving === 'system'"
+                  :disabled="!dirty.system || !!saving"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="saveCard('system')"
+                />
               </div>
             </div>
           </template>
@@ -132,6 +154,17 @@
                   <ToggleSwitch :model-value="isPluginSourceEnabled(plugin.id)" @update:model-value="(v) => setPluginSourceEnabled(plugin.id, v as boolean)" />
                 </CuiToggleRow>
               </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  :loading="saving === 'plugins'"
+                  :disabled="!dirty.plugins || !!saving"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="saveCard('plugins')"
+                />
+              </div>
             </div>
           </template>
         </Card>
@@ -156,12 +189,10 @@
                 <Column field="name" :header="$t('views.settings.notifications.col_name')">
                   <template #body="{ data }">
                     <InputText
-                      :model-value="renameDrafts[data.id] ?? data.name"
-                      :disabled="patchingId === data.id"
+                      :model-value="deviceEdits[data.id]?.name ?? data.name"
                       class="w-full max-w-xs min-w-[150px]"
-                      @update:model-value="(v) => (renameDrafts[data.id] = v ?? '')"
-                      @blur="commitRename(data)"
-                      @keyup.enter="commitRename(data)"
+                      @update:model-value="(v) => editDevice(data.id, { name: v ?? '' })"
+                      @blur="dropEmptyName(data.id)"
                     />
                   </template>
                 </Column>
@@ -172,7 +203,7 @@
                 </Column>
                 <Column field="active" :header="$t('views.settings.notifications.col_active')" style="width: 7rem">
                   <template #body="{ data }">
-                    <ToggleSwitch :model-value="data.active" :loading="patchingId === data.id" @update:model-value="(next) => onToggleActive(data.id, next as boolean)" />
+                    <ToggleSwitch :model-value="deviceEdits[data.id]?.active ?? data.active" @update:model-value="(v) => editDevice(data.id, { active: v as boolean })" />
                   </template>
                 </Column>
                 <Column field="actions" :header="''" style="width: 6rem">
@@ -193,24 +224,37 @@
                   </template>
                 </Column>
               </CuiDataTable>
+
+              <div v-if="devices?.length" class="flex">
+                <Button
+                  type="button"
+                  :loading="saving === 'devices'"
+                  :disabled="!dirty.devices || !!saving"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="saveDevices"
+                />
+              </div>
             </div>
           </template>
         </Card>
-      </div>
-
-      <div v-if="draft && isDirty" class="flex justify-end gap-2">
-        <Button severity="secondary" outlined class="cui-button-medium" :disabled="isSaving" :label="$t('views.settings.notifications.reset')" @click="resetDraft" />
-        <Button severity="success" class="cui-button-medium" :loading="isSaving" :label="$t('views.settings.notifications.save')" @click="onSave" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { isEqual } from '@camera.ui/common/utils';
+
 import { NotificationsQuery } from '@/api/routes/notifications.js';
 import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
 
-import type { DBNotificationSettings, NotifierDeviceWithSource, SystemNotificationType } from '@shared/types';
+import type { UpdateNotifierDevicePatch } from '@/api/routes/notifications.js';
+import type { DBNotificationSettings, SystemNotificationType } from '@shared/types';
+
+type Card = 'general' | 'system' | 'plugins';
+
+const CARD_FIELDS = { general: 'quietHours', system: 'systemTypes', plugins: 'sources' } as const satisfies Record<Card, keyof DBNotificationSettings>;
 
 const notificationsQuery = new NotificationsQuery();
 
@@ -225,38 +269,64 @@ const { states: permissionStates, refresh: refreshPermissions } = usePermissions
 const { data: settings, isLoading: settingsLoading } = notificationsQuery.getSettingsQuery();
 const { data: devices, isLoading: devicesLoading } = notificationsQuery.listDevicesQuery(() => true);
 const { data: sources, isLoading: sourcesLoading } = notificationsQuery.listSourcesQuery();
-const { mutate: saveSettings, isPending: saveSettingsLoading } = notificationsQuery.setSettingsQuery();
+const { mutate: saveSettings } = notificationsQuery.setSettingsQuery();
 const { mutateAsync: saveSettingsSilent } = notificationsQuery.setSettingsQuerySilent();
 const { mutate: revokeDevice } = notificationsQuery.revokeDeviceQuery();
-const { mutate: updateDevice } = notificationsQuery.updateDeviceQuery();
+const { mutateAsync: updateDevice } = notificationsQuery.updateDeviceQuery();
 
 const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 const draft = ref<DBNotificationSettings | null>(null);
-const original = ref('');
+const saving = ref<Card | 'devices' | null>(null);
 const enabling = ref(false);
 const deviceSynced = ref(false);
 const syncing = ref(false);
 const desktopEnabled = ref(true);
 const desktopLoading = ref(false);
 const revokingId = ref<string | null>(null);
-const renameDrafts = reactive<Record<string, string>>({});
-const patchingId = ref<string | null>(null);
+const deviceEdits = reactive<Record<string, UpdateNotifierDevicePatch>>({});
 
-const isDirty = computed(() => !!draft.value && JSON.stringify(draft.value) !== original.value);
+const dirty = computed(() => {
+  const changed = (card: Card) => !!draft.value && !!settings.value && !isEqual(cardValue(draft.value, card), cardValue(settings.value, card));
+  return { general: changed('general'), system: changed('system'), plugins: changed('plugins'), devices: devicePatches.value.length > 0 };
+});
+const devicePatches = computed(() =>
+  (devices.value ?? []).flatMap((device) => {
+    const edit = deviceEdits[device.id];
+    const patch: UpdateNotifierDevicePatch = {};
+    const name = edit?.name?.trim();
+    if (name && name !== device.name) patch.name = name;
+    if (edit?.active !== undefined && edit.active !== device.active) patch.active = edit.active;
+    return Object.keys(patch).length ? [{ deviceId: device.id, patch }] : [];
+  }),
+);
 const showRest = computed(() => !!draft.value?.enabled);
-const isSaving = computed(() => saveSettingsLoading.value);
 const quietHoursFrom = computed(() => parseTime(draft.value?.quietHours?.from));
 const quietHoursTo = computed(() => parseTime(draft.value?.quietHours?.to));
 
-function syncDraft(incoming?: DBNotificationSettings) {
-  if (!incoming) return;
-  draft.value = JSON.parse(JSON.stringify(incoming));
-  original.value = JSON.stringify(incoming);
+function syncDraft(saved: DBNotificationSettings | undefined, previous: DBNotificationSettings | undefined) {
+  if (!saved) return;
+  const next: DBNotificationSettings = JSON.parse(JSON.stringify(saved));
+  const current = draft.value;
+  if (current && previous) {
+    for (const card of Object.keys(CARD_FIELDS) as Card[]) {
+      const field = CARD_FIELDS[card];
+      if (!isEqual(cardValue(current, card), cardValue(previous, card))) Object.assign(next, { [field]: current[field] });
+    }
+  }
+  draft.value = next;
 }
 
-function resetDraft() {
-  syncDraft(settings.value);
+function cardValue(values: DBNotificationSettings, card: Card) {
+  const value = values[CARD_FIELDS[card]];
+  return value && Object.keys(value).length ? value : null;
+}
+
+function saveCard(card: Card) {
+  if (!draft.value || !settings.value) return;
+  const field = CARD_FIELDS[card];
+  saving.value = card;
+  saveSettings({ settings: { ...settings.value, [field]: draft.value[field] } }, { onSettled: () => (saving.value = null) });
 }
 
 function toggleQuietHours(enabled: boolean) {
@@ -322,17 +392,11 @@ function systemLabel(info: SystemNotificationType): string {
   return te(key) ? t(key) : info.label;
 }
 
-function onSave() {
-  if (!draft.value) return;
-  saveSettings({ settings: draft.value }, { onSuccess: (saved) => syncDraft(saved) });
-}
-
 async function onToggleEnabled(next: boolean) {
   if (!draft.value || !settings.value) return;
   enabling.value = true;
   try {
-    const saved = await saveSettingsSilent({ settings: { ...settings.value, enabled: next } });
-    syncDraft(saved);
+    await saveSettingsSilent({ settings: { ...settings.value, enabled: next } });
   } catch (err: any) {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   } finally {
@@ -388,6 +452,7 @@ function onRevoke(deviceId: string) {
     { deviceId },
     {
       onSuccess: async () => {
+        delete deviceEdits[deviceId];
         if (serverId) await forgetIfThisDevice(serverId, deviceId);
         refreshDeviceSync();
       },
@@ -396,30 +461,27 @@ function onRevoke(deviceId: string) {
   );
 }
 
-function commitRename(device: NotifierDeviceWithSource) {
-  const next = renameDrafts[device.id];
-  if (next == null) return;
-  const trimmed = next.trim();
-  if (!trimmed || trimmed === device.name) {
-    delete renameDrafts[device.id];
-    return;
+function editDevice(deviceId: string, change: UpdateNotifierDevicePatch) {
+  deviceEdits[deviceId] = { ...deviceEdits[deviceId], ...change };
+}
+
+function dropEmptyName(deviceId: string) {
+  if (deviceEdits[deviceId]?.name?.trim() === '') delete deviceEdits[deviceId].name;
+}
+
+async function saveDevices() {
+  saving.value = 'devices';
+  try {
+    await Promise.all(devicePatches.value.map(({ deviceId, patch }) => updateDevice({ deviceId, patch }).then(() => delete deviceEdits[deviceId])));
+    toast.add({ severity: 'success', detail: t('views.settings.notifications.saved'), life: 3000 });
+  } catch {
+    // the mutation shows the error
+  } finally {
+    saving.value = null;
   }
-  patchingId.value = device.id;
-  updateDevice(
-    { deviceId: device.id, patch: { name: trimmed } },
-    {
-      onSuccess: () => delete renameDrafts[device.id],
-      onSettled: () => (patchingId.value = null),
-    },
-  );
 }
 
-function onToggleActive(deviceId: string, active: boolean) {
-  patchingId.value = deviceId;
-  updateDevice({ deviceId, patch: { active } }, { onSettled: () => (patchingId.value = null) });
-}
-
-watch(settings, syncDraft, { immediate: true });
+watch(settings, (saved, previous) => syncDraft(saved, previous), { immediate: true });
 
 watch(devices, () => isCapacitor && refreshDeviceSync(), { immediate: true });
 
