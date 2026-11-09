@@ -1,7 +1,7 @@
 <template>
   <div class="h-full w-full dark-mode relative">
     <CuiTopbarSlot position="left">
-      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="$router.push('/menu')">
+      <Button severity="secondary" text class="cui-button p-2 text-color non-draggable-region" @click="goBack('/menu')">
         <template #icon>
           <i-weui:back-filled class="w-6 h-6" />
         </template>
@@ -49,7 +49,7 @@
         paddingTop: `${TOPNAVBAR_HEIGHT}px`,
       }"
     >
-      <CuiConsole ref="consoleRef" :options @resize="logsSocket.reportSize" />
+      <CuiLogConsole ref="consoleRef" :options :search="searchQuery" @resize="reportSize" />
     </div>
 
     <CuiSpeedDial :model="items" :loading="isLoading" subtle class="absolute right-3 bottom-3 z-11" />
@@ -63,7 +63,7 @@
       rounded
       :loading="isLoading"
       :disabled="consoleRef?.atBottom"
-      @click="consoleRef?.scrollToBottom"
+      @click="consoleRef?.jumpToEnd()"
     >
       <template #icon>
         <i-carbon:down-to-bottom class="text-white" />
@@ -96,13 +96,12 @@ import ZoomOutIcon from '~icons/tabler/zoom-out';
 import { CamerasQuery, clearLogFn as clearCameraLogFn, downloadLogFn as downloadCameraLogFn } from '@/api/routes/cameras.js';
 import { clearLogFn as clearPluginLogFn, downloadLogFn as downloadPluginLogFn, PluginsQuery } from '@/api/routes/plugins.js';
 import { clearLogFn as clearServerLogFn, downloadLogFn as downloadServerLogFn } from '@/api/routes/server.js';
-import CuiConsole from '@/components/CuiConsole/CuiConsole.vue';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
+import type CuiLogConsole from '@/components/CuiLogConsole/CuiLogConsole.vue';
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
-import type { LogSource } from '@/composables/sockets/useLogsSocket.js';
-import type { ITerminalInitOnlyOptions, ITerminalOptions } from '@xterm/xterm';
+import type { ITerminalOptions } from '@xterm/xterm';
 import type { CuiSpeedDialItem } from '@/components/CuiSpeedDial/types.js';
 
 const camerasQuery = new CamerasQuery();
@@ -119,9 +118,13 @@ const props = withDefaults(
   },
 );
 
+const { goBack } = useBackNavigation();
 const { t } = useI18n();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
+const route = useRoute();
+const router = useRouter();
+const logsSocket = useSocket('/logs');
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
@@ -129,7 +132,6 @@ const { uiSettings } = storeToRefs(uiStore);
 const { data: cameras } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
 const { data: plugins } = pluginsQuery.getPluginsQuery({ page: 1, pageSize: -1 });
 
-const MAX_BUFFER_SIZE = 5000;
 const SYSTEM_SOURCES: { id: string; label: string }[] = [
   { id: 'server', label: 'Server' },
   { id: 'go2rtc', label: 'go2rtc' },
@@ -137,60 +139,53 @@ const SYSTEM_SOURCES: { id: string; label: string }[] = [
   { id: 'tunnel', label: 'tunnel' },
 ];
 
+const SCROLLBACK_ROWS = 12_000;
+
 const { navbarWidth, navbarLeft } = toRefs(props);
-const consoleRef = useTemplateRef<InstanceType<typeof CuiConsole>>('consoleRef');
+const consoleRef = useTemplateRef<InstanceType<typeof CuiLogConsole>>('consoleRef');
 const menuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('menuRef');
 const mobileSearchInput = useTemplateRef<{ $el: HTMLElement }>('mobileSearchInput');
-const activeSource = ref<LogSource>({ kind: 'all' });
+const activeSource = ref('all');
 const searchQuery = ref('');
-const logBuffer = ref<string[]>([]);
 const mobileSearchActive = ref(false);
 const isLoading = ref(false);
 
+let consoleCols = 0;
+
 const navbarOffset = computed(() => navbarWidth.value + navbarLeft.value);
 
-const activeSourceKey = computed(() => (activeSource.value.kind === 'all' ? 'all' : activeSource.value.id));
-
-const currentSourceLabel = computed(() => {
-  const source = activeSource.value;
-  if (source.kind === 'all') return 'All';
-  if (source.kind === 'system') return SYSTEM_SOURCES.find((system) => system.id === source.id)?.label ?? source.id ?? '';
-  return source.id ?? '';
-});
-
-const sourceItems = computed<MenuItem[]>(() => {
-  const list: MenuItem[] = [];
-
-  const entry = (source: LogSource, label: string, group?: string): MenuItem => ({
-    key: `${source.kind}:${source.id ?? ''}`,
-    label,
-    group,
-    active: isActiveSource(source),
-    onClick: () => switchTo(source),
-  });
-
-  list.push(entry({ kind: 'all' }, 'All'));
+const sourceList = computed(() => {
+  const list: { id: string; label: string; group?: string }[] = [{ id: 'all', label: 'All' }];
 
   for (const system of SYSTEM_SOURCES) {
-    list.push(entry({ kind: 'system', id: system.id }, system.label, t('views.logs.groups.system')));
+    list.push({ id: `system:${system.id}`, label: system.label, group: t('views.logs.groups.system') });
   }
-
-  const pluginGroup = t('views.logs.groups.plugins');
   for (const plugin of plugins.value?.result ?? []) {
-    list.push(entry({ kind: 'plugin', id: plugin.pluginName }, plugin.pluginName, pluginGroup));
+    list.push({ id: `plugin:${plugin.id}`, label: plugin.pluginName, group: t('views.logs.groups.plugins') });
   }
-
-  const cameraGroup = t('views.logs.groups.cameras');
   for (const camera of cameras.value?.result ?? []) {
-    list.push(entry({ kind: 'camera', id: camera.name }, camera.name, cameraGroup));
+    list.push({ id: `camera:${camera._id}`, label: camera.name, group: t('views.logs.groups.cameras') });
   }
 
   return list;
 });
 
-const options = computed<ITerminalOptions & ITerminalInitOnlyOptions>(() => {
+const currentSourceLabel = computed(() => sourceList.value.find((source) => source.id === activeSource.value)?.label ?? activeSource.value);
+
+const sourceItems = computed<MenuItem[]>(() =>
+  sourceList.value.map((source) => ({
+    key: source.id,
+    label: source.label,
+    group: source.group,
+    active: source.id === activeSource.value,
+    onClick: () => switchTo(source.id),
+  })),
+);
+
+const options = computed<Partial<ITerminalOptions>>(() => {
   return {
     fontSize: uiSettings.value.console.zoom,
+    scrollback: SCROLLBACK_ROWS,
   };
 });
 
@@ -206,82 +201,49 @@ function closeMobileSearch(): void {
   searchQuery.value = '';
 }
 
-function matchesSearch(line: string, query: string): boolean {
-  if (!query.trim()) return true;
-  const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
-  return cleanLine.toLowerCase().includes(query.toLowerCase());
+function switchTo(sourceId: string, at?: number): void {
+  activeSource.value = sourceId;
+  consoleRef.value?.show(sourceId, at);
+  reportSize(consoleCols);
 }
 
-function resetView(): void {
-  logBuffer.value = [];
-  consoleRef.value?.clearTerminal();
+function reportSize(cols: number): void {
+  consoleCols = cols;
+  // update and install output wraps to the width of the view showing it
+  const { kind, id } = sourceParts();
+  const target = kind === 'system' ? id : kind === 'plugin' ? pluginName(id) : undefined;
+  if (target && cols > 0) logsSocket.emit('term-size', { target, cols });
 }
 
-function applySearch(): void {
-  if (!consoleRef.value) return;
+function openFromQuery(): void {
+  const { source, at } = route.query;
+  if (typeof source !== 'string') return;
 
-  consoleRef.value.clearTerminal();
-  for (const line of logBuffer.value) {
-    if (matchesSearch(line, searchQuery.value)) {
-      consoleRef.value.writeTerminal(line);
-    }
-  }
+  const time = Number(at);
+  switchTo(source, Number.isFinite(time) && time > 0 ? time : undefined);
+  router.replace({ query: {} });
 }
 
-const debouncedApplySearch = useDebounceFn(applySearch, 300);
-
-function isActiveSource(source: LogSource): boolean {
-  return activeSource.value.kind === source.kind && activeSource.value.id === source.id;
+function sourceParts(): { kind: string; id: string } {
+  const [kind, ...rest] = activeSource.value.split(':');
+  return { kind, id: rest.join(':') };
 }
 
-function switchTo(source: LogSource): void {
-  activeSource.value = source;
-  resetView();
-  logsSocket.switchSource(source);
+function pluginName(pluginId: string): string | undefined {
+  return plugins.value?.result.find((plugin) => plugin.id === pluginId)?.pluginName;
 }
-
-const logsSocket = useLogsSocket({
-  onStdout: (data) => {
-    const lines = data.split(/(?<=\r?\n)/);
-    for (const line of lines) {
-      if (line.trim()) {
-        logBuffer.value.push(line);
-      }
-    }
-
-    if (logBuffer.value.length > MAX_BUFFER_SIZE) {
-      logBuffer.value = logBuffer.value.slice(-MAX_BUFFER_SIZE);
-    }
-
-    if (matchesSearch(data, searchQuery.value)) {
-      consoleRef.value?.writeTerminal(data);
-    }
-  },
-  onDisconnect: () => consoleRef.value?.writeTerminal('\r\nWebsocket failed to connect! Is the server running?\r\n\r\n'),
-  onClearLog: (source) => {
-    if (source === activeSourceKey.value) {
-      resetView();
-    }
-  },
-  onReconnected: () => {
-    resetView();
-    consoleRef.value?.writeTerminal('--- Reconnected ---\r\n\r\n');
-  },
-});
 
 async function clearLog(): Promise<void> {
   isLoading.value = true;
   try {
-    const source = activeSource.value;
-    if (source.kind === 'camera' && source.id) {
-      await clearCameraLogFn({ cameraname: source.id });
-      resetView();
-    } else if (source.kind === 'plugin' && source.id) {
-      await clearPluginLogFn({ pluginName: source.id });
-      resetView();
+    const { kind, id } = sourceParts();
+    const plugin = kind === 'plugin' ? pluginName(id) : undefined;
+    if (kind === 'camera') {
+      await clearCameraLogFn({ cameraname: id });
+    } else if (plugin) {
+      await clearPluginLogFn({ pluginName: plugin });
     } else {
-      // the server broadcasts clear-log, onClearLog resets the view
-      await clearServerLogFn(source.kind === 'system' ? source.id : undefined);
+      await clearServerLogFn(kind === 'system' ? id : undefined);
     }
     toast.add({ severity: 'success', detail: t('components.toast.log_cleared'), life: 3000 });
   } finally {
@@ -292,22 +254,23 @@ async function clearLog(): Promise<void> {
 async function downloadLog(): Promise<void> {
   isLoading.value = true;
   try {
-    const source = activeSource.value;
+    const { kind, id } = sourceParts();
     const controller = new AbortController();
+    const plugin = kind === 'plugin' ? pluginName(id) : undefined;
 
     let part: BlobPart;
     let filename: string;
 
-    if (source.kind === 'camera' && source.id) {
-      part = await downloadCameraLogFn({ cameraname: source.id, signal: controller.signal });
-      filename = `camera.ui.${source.id}.log.txt`;
-    } else if (source.kind === 'plugin' && source.id) {
-      part = await downloadPluginLogFn({ pluginName: source.id, signal: controller.signal });
-      filename = `camera.ui.${source.id}.log.txt`;
+    if (kind === 'camera') {
+      part = await downloadCameraLogFn({ cameraname: id, signal: controller.signal });
+      filename = `camera.ui.${currentSourceLabel.value.replace(/ /g, '_')}.log.txt`;
+    } else if (plugin) {
+      part = await downloadPluginLogFn({ pluginName: plugin, signal: controller.signal });
+      filename = `camera.ui.${plugin}.log.txt`;
     } else {
-      const src = source.kind === 'system' ? source.id : 'all';
+      const src = kind === 'system' ? id : 'all';
       part = await downloadServerLogFn({ signal: controller.signal, source: src });
-      filename = src && src !== 'all' ? `${src}.log.txt` : 'camera.ui.log.txt';
+      filename = src !== 'all' ? `${src}.log.txt` : 'camera.ui.log.txt';
     }
 
     await download({
@@ -390,16 +353,13 @@ const items = ref<CuiSpeedDialItem[]>([
   },
 ]);
 
-watch(searchQuery, () => {
-  debouncedApplySearch();
-});
+watch(() => route.query.source, openFromQuery);
 
-onBeforeMount(() => {
-  logsSocket.connect();
-  logsSocket.switchSource({ kind: 'all' });
-});
-
-onUnmounted(() => {
-  logsSocket.disconnect();
+onMounted(() => {
+  if (typeof route.query.source === 'string') {
+    openFromQuery();
+  } else {
+    switchTo('all');
+  }
 });
 </script>

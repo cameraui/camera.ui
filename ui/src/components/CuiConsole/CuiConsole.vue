@@ -33,8 +33,8 @@ import { Terminal } from '@xterm/xterm';
 
 import { copyToClipboard, copyToClipboardSync } from '@/common/utils.js';
 
-import type { ITerminalAddon, ITerminalOptions } from '@xterm/xterm';
-import type { VConsoleOptions } from './types.js';
+import type { IDecoration, ITerminalAddon, ITerminalOptions } from '@xterm/xterm';
+import type { ConsoleLinePosition, ConsoleScroll, VConsoleOptions } from './types.js';
 
 const props = withDefaults(defineProps<VConsoleOptions>(), {
   options: () => ({
@@ -73,6 +73,10 @@ let scrollInterval: ReturnType<typeof setInterval>;
 let writeBuffer = '';
 let pendingNewline = false;
 let freshStart = true;
+let replacing = false;
+
+const HIGHLIGHT_MS = 4000;
+const HIGHLIGHT_COLOR = '#5c4300';
 
 const terminalContainer = useElementSize(terminalContainerRef);
 
@@ -85,6 +89,8 @@ const atBottom = computed(() => {
   const maxScrollPosition = buffer.length - term.value.rows;
   return scrollPosition.value >= maxScrollPosition;
 });
+
+const atTop = computed(() => scrollPosition.value <= 0);
 
 function updateScrollPosition(): void {
   if (term.value) {
@@ -140,15 +146,16 @@ function writeTerminal(data: string): void {
   }
 
   if (pendingNewline) {
-    writeBuffer += '\n';
+    // xterm runs without convertEol, a bare LF keeps the column
+    writeBuffer += '\r\n';
     pendingNewline = false;
   }
 
-  if (data.endsWith('\n')) {
-    writeBuffer += data.slice(0, -1);
-    pendingNewline = true;
-  } else if (data.endsWith('\r\n')) {
+  if (data.endsWith('\r\n')) {
     writeBuffer += data.slice(0, -2);
+    pendingNewline = true;
+  } else if (data.endsWith('\n')) {
+    writeBuffer += data.slice(0, -1);
     pendingNewline = true;
   } else {
     writeBuffer += data;
@@ -173,6 +180,96 @@ function clearTerminal(): void {
   freshStart = true;
   term.value?.reset();
   debouncedUpdateScrollPosition();
+}
+
+function writeAndWait(data: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!term.value) {
+      resolve();
+      return;
+    }
+    term.value.write(data, resolve);
+  });
+}
+
+function rowOfLine(line: number): number {
+  const buffer = term.value!.buffer.active;
+  // xterm wraps a long line over several rows
+  let count = -1;
+  for (let row = 0; row < buffer.length; row++) {
+    if (!buffer.getLine(row)?.isWrapped) count++;
+    if (count === line) return row;
+  }
+  return Math.max(0, buffer.length - 1);
+}
+
+function topLine(): ConsoleLinePosition {
+  if (!term.value) {
+    return { line: 0, rowOffset: 0 };
+  }
+
+  const buffer = term.value.buffer.active;
+  let line = -1;
+  let firstRow = 0;
+  for (let row = 0; row <= buffer.viewportY; row++) {
+    if (!buffer.getLine(row)?.isWrapped) {
+      line++;
+      firstRow = row;
+    }
+  }
+  return { line: Math.max(0, line), rowOffset: buffer.viewportY - firstRow };
+}
+
+async function replaceLines(lines: string[], scroll: ConsoleScroll): Promise<void> {
+  if (!term.value) {
+    return;
+  }
+
+  stopWriteFlush();
+  writeBuffer = '';
+  // the viewport passes the bottom while the lines are written, that must not count as reaching it
+  replacing = true;
+  term.value.reset();
+  await writeAndWait(lines.join('\r\n'));
+  replacing = false;
+  pendingNewline = lines.length > 0;
+  freshStart = lines.length === 0;
+
+  if (scroll.kind === 'bottom') {
+    term.value.scrollToBottom();
+  } else if (scroll.kind === 'keep') {
+    term.value.scrollToLine(rowOfLine(scroll.line) + scroll.rowOffset);
+  } else {
+    term.value.scrollToLine(Math.max(0, rowOfLine(scroll.line) - Math.floor(term.value.rows / 3)));
+  }
+  updateScrollPosition();
+}
+
+function highlightLines(lines: number[]): void {
+  if (!term.value || !lines.length) {
+    return;
+  }
+
+  const buffer = term.value.buffer.active;
+  const cursorRow = buffer.baseY + buffer.cursorY;
+  const decorations: IDecoration[] = [];
+
+  for (const line of lines) {
+    const row = rowOfLine(line);
+    let height = 1;
+    while (buffer.getLine(row + height)?.isWrapped) height++;
+
+    const marker = term.value.registerMarker(row - cursorRow);
+    const decoration = marker && term.value.registerDecoration({ marker, backgroundColor: HIGHLIGHT_COLOR, width: term.value.cols, height, layer: 'bottom' });
+    if (decoration) decorations.push(decoration);
+  }
+
+  setTimeout(() => {
+    for (const decoration of decorations) {
+      decoration.marker.dispose();
+      decoration.dispose();
+    }
+  }, HIGHLIGHT_MS);
 }
 
 function getBufferText(): string {
@@ -497,7 +594,7 @@ onMounted(() => {
   }
 
   term.value.onScroll(() => {
-    updateScrollPosition();
+    if (!replacing) updateScrollPosition();
   });
 
   term.value.onSelectionChange(() => {
@@ -524,11 +621,15 @@ onUnmounted(() => {
 defineExpose({
   clearTerminal,
   writeTerminal,
+  replaceLines,
+  topLine,
+  highlightLines,
   resizeHandler,
   scrollToBottom,
   copySelection,
   copyAll,
   atBottom,
+  atTop,
 });
 </script>
 

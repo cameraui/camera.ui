@@ -321,6 +321,7 @@ declare global {
   const useLiveAnnouncer: typeof import('@vueuse/core').useLiveAnnouncer
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useLocaleStore: typeof import('../stores/locale').useLocaleStore
+  const useLogHistory: typeof import('../composables/useLogHistory').useLogHistory
   const useLogger: typeof import('../composables/useLogger').useLogger
   const useLogsSocket: typeof import('../composables/sockets/useLogsSocket').useLogsSocket
   const useLongPressPreview: typeof import('../composables/useLongPressPreview').useLongPressPreview
@@ -540,6 +541,9 @@ declare global {
   export type { KeyboardInsetTransition } from '../composables/useKeyboardInset'
   import('../composables/useKeyboardInset')
   // @ts-ignore
+  export type { LogConsole, LogHistoryOptions } from '../composables/useLogHistory'
+  import('../composables/useLogHistory')
+  // @ts-ignore
   export type { NavLayoutGroup, NavLayoutEntry } from '../composables/useNavLayout'
   import('../composables/useNavLayout')
   // @ts-ignore
@@ -567,7 +571,7 @@ declare global {
   export type { HiddenDevice, CamerasSocketState } from '../composables/sockets/useCamerasSocket'
   import('../composables/sockets/useCamerasSocket')
   // @ts-ignore
-  export type { LogTarget, LogSource, LogsSocketOptions } from '../composables/sockets/useLogsSocket'
+  export type { LogTarget, LogsSocketOptions } from '../composables/sockets/useLogsSocket'
   import('../composables/sockets/useLogsSocket')
   // @ts-ignore
   export type { MetricsSocketState } from '../composables/sockets/useMetricsSocket'
@@ -930,6 +934,7 @@ declare module 'vue' {
     readonly useLiveAnnouncer: UnwrapRef<typeof import('@vueuse/core')['useLiveAnnouncer']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useLocaleStore: UnwrapRef<typeof import('../stores/locale')['useLocaleStore']>
+    readonly useLogHistory: UnwrapRef<typeof import('../composables/useLogHistory')['useLogHistory']>
     readonly useLogger: UnwrapRef<typeof import('../composables/useLogger')['useLogger']>
     readonly useLogsSocket: UnwrapRef<typeof import('../composables/sockets/useLogsSocket')['useLogsSocket']>
     readonly useLongPressPreview: UnwrapRef<typeof import('../composables/useLongPressPreview')['useLongPressPreview']>

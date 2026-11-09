@@ -2552,6 +2552,12 @@ export default {
         plugins: 'Plugins',
         cameras: 'Kameras',
       },
+      beginning: 'Anfang des Protokolls',
+      new_lines: '{count} neue Zeile | {count} neue Zeilen',
+      gone_since: 'Dieser Teil des Protokolls ist nicht mehr vorhanden, es beginnt am {time}.',
+      gone: 'Dieser Teil des Protokolls ist nicht mehr vorhanden.',
+      not_found: 'Protokollquelle nicht gefunden.',
+      load_failed: 'Das Protokoll konnte nicht geladen werden.',
     },
     home: {
       title: 'Startseite',

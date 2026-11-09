@@ -2534,6 +2534,12 @@ export default {
         plugins: 'Plugins',
         cameras: 'Cameras',
       },
+      beginning: 'Beginning of the log',
+      new_lines: '{count} new line | {count} new lines',
+      gone_since: 'This part of the log is no longer available, it starts at {time}.',
+      gone: 'This part of the log is no longer available.',
+      not_found: 'Log source not found.',
+      load_failed: 'The log could not be loaded.',
     },
     home: {
       title: 'Home',

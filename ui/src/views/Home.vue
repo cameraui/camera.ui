@@ -62,7 +62,7 @@
                   class="shadow-lg rounded-xl transition-transform"
                   view-transition
                   @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
-                  @open-console="openConsoleDialog(camera.name)"
+                  @open-console="openConsoleDialog(camera)"
                   @open-settings="drawer.open({ cameraName: camera.name })"
                   @toggle-hidden="onToggleHidden(camera)"
                   @click="onCardClick(camera)"
@@ -96,7 +96,7 @@
                     class="shadow-lg rounded-xl transition-transform"
                     view-transition
                     @refresh-snapshot="snapshotRefs[camera.name]?.refresh()"
-                    @open-console="openConsoleDialog(camera.name)"
+                    @open-console="openConsoleDialog(camera)"
                     @open-settings="drawer.open({ cameraName: camera.name })"
                     @toggle-hidden="onToggleHidden(camera)"
                     @click="onCardClick(camera)"
@@ -502,7 +502,7 @@ function openRecentEventsFilter() {
   });
 }
 
-function openConsoleDialog(cameraName: string) {
+function openConsoleDialog(camera: DBCamera) {
   dialog.openComponentDialog<CameraConsoleProps>(CameraConsoleDialog, {
     data: {
       title: t('components.dialog.title.log'),
@@ -510,7 +510,8 @@ function openConsoleDialog(cameraName: string) {
       loading: isLoading,
       stayActive: true,
       contentProps: {
-        cameraName,
+        cameraId: camera._id,
+        cameraName: camera.name,
       },
       dialogContentClass: 'not-md:px-0 h-full md:h-[50vh]',
     },
@@ -543,7 +544,7 @@ watch(
 
     router.replace({ query: { ...route.query, console: undefined } });
     const camera = cams.result.find((cam) => cam._id === cameraId);
-    if (camera) openConsoleDialog(camera.name);
+    if (camera) openConsoleDialog(camera);
   },
   { immediate: true },
 );
