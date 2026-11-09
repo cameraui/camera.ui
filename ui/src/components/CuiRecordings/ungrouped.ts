@@ -1,4 +1,4 @@
-import { segmentHidden } from '@camera.ui/nvr';
+import { eventCardTime, segmentHidden } from '@camera.ui/nvr';
 
 import type { RecordedEpisode, RecordedEvent } from '@camera.ui/nvr';
 
@@ -15,7 +15,7 @@ export function ungroupedItemTime(item: UngroupedItem): number {
     const segment = item.event.segments?.[item.segIndex];
     if (segment) return segment.firstSeen;
   }
-  return item.event.thumbnailAt ?? item.event.startTime;
+  return eventCardTime(item.event);
 }
 
 export function newestFirst(a: UngroupedItem, b: UngroupedItem): number {

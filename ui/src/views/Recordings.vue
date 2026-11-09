@@ -646,11 +646,9 @@ const gridItems = computed<UngroupedItem[]>(() => {
   if (episodesOnly.value) return [...episodeGridItems.value].sort(newestFirst);
   const items: UngroupedItem[] =
     ungrouped.value && ungroupedItems.value.length ? [...ungroupedItems.value] : displayEvents.value.map((event) => ({ event, key: event.id }));
-  if (episodeGridItems.value.length) {
-    items.push(...episodeGridItems.value);
-    items.sort(newestFirst);
-  }
-  return items;
+  items.push(...episodeGridItems.value);
+  // the plugin pages by the newest activity, a card shows the time of its picture
+  return items.sort(newestFirst);
 });
 
 const totalWithEpisodes = computed(() => filters.value.contentKind !== 'events' && !contentFiltered.value);

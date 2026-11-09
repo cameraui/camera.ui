@@ -108,7 +108,7 @@ import DownloadIcon from '~icons/tabler/download';
 import TraceIcon from '~icons/tabler/list-search';
 
 import { closeOpenMenu } from '@/common/menuRegistry.js';
-import { extractErrorMessage, formatCardTime } from '@/common/utils.js';
+import { extractErrorMessage, formatCardTimeRange, formatTimeRange } from '@/common/utils.js';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
 import type { MenuItem } from '@/components/CuiMenu/types.js';
@@ -194,12 +194,9 @@ const previewCamera = computed(() => {
   return props.cameraById.get(preview.previewCameraId.value)?.name;
 });
 
-const formatDateTime = computed(() => formatCardTime(props.episode.startTime));
+const formatDateTime = computed(() => formatCardTimeRange(props.episode.startTime, props.episode.endTime));
 
-const formatTime = computed(() => {
-  const date = new Date(props.episode.startTime);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-});
+const formatTime = computed(() => formatTimeRange(props.episode.startTime, props.episode.endTime));
 
 async function triggerLoad(retries = 3): Promise<void> {
   const mosaic = await eventStore.loadEpisodeMosaic(props.episode.id);

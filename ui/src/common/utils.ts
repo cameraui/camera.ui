@@ -41,10 +41,26 @@ export function formatTimestamp(timestamp: number, hideSeconds?: boolean): Forma
 }
 
 export function formatCardTime(ms: number): string {
+  return withCardDate(ms, formatClock(ms));
+}
+
+export function formatCardTimeRange(startMs: number, endMs: number): string {
+  return withCardDate(startMs, formatTimeRange(startMs, endMs));
+}
+
+export function formatTimeRange(startMs: number, endMs: number): string {
+  const start = formatClock(startMs);
+  const end = formatClock(endMs);
+  return start === end ? start : `${start}–${end}`;
+}
+
+function formatClock(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function withCardDate(ms: number, time: string): string {
   const date = new Date(ms);
-  const now = new Date();
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (date.toDateString() === now.toDateString()) return time;
+  if (date.toDateString() === new Date().toDateString()) return time;
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
 }
 
