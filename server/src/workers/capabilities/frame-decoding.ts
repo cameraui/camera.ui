@@ -195,16 +195,17 @@ export class FrameDecodingHandler implements CapabilityHandler<WorkerCapability.
   }
 
   private processLogLine(line: string, cameraId: string, pid?: number): void {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.includes('returning true from eof_received')) {
+    // stack frames keep their indent
+    const text = line.trimEnd();
+    if (!text.trim() || text.includes('returning true from eof_received')) {
       return;
     }
 
-    const entry: LogEntry = Logger.parseChildLog(trimmed) ?? {
+    const entry: LogEntry = Logger.parseChildLog(text) ?? {
       timestamp: Date.now(),
       level: 'raw',
       prefix: '',
-      message: trimmed,
+      message: text,
       targetId: cameraId,
       targetType: 'camera',
       source: 'child',

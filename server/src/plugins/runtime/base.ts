@@ -239,16 +239,17 @@ export abstract class BasePluginRuntime extends EventEmitter {
   }
 
   private processLogLine(line: string): void {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.includes('returning true from eof_received')) {
+    // stack frames keep their indent
+    const text = line.trimEnd();
+    if (!text.trim() || text.includes('returning true from eof_received')) {
       return;
     }
 
-    const entry: LogEntry = Logger.parseChildLog(trimmed) ?? {
+    const entry: LogEntry = Logger.parseChildLog(text) ?? {
       timestamp: Date.now(),
       level: 'raw',
       prefix: '',
-      message: trimmed,
+      message: text,
       targetId: this.plugin.id,
       targetType: 'plugin',
       source: 'child',
