@@ -17,7 +17,7 @@
                 <span class="text-xs text-muted">{{ time }}</span>
               </div>
             </div>
-            <p class="text-xs text-muted mt-1 text-left line-clamp-2 overflow-hidden">{{ notification.subtitle || notification.body }}</p>
+            <p class="text-xs text-muted mt-1 text-left line-clamp-2 overflow-hidden">{{ summaryOf(notification) }}</p>
           </div>
         </div>
       </Button>
@@ -67,6 +67,7 @@ const props = defineProps<CuiNotificationItemProps>();
 const emit = defineEmits<CuiNotificationItemEmits>();
 
 const { isTouch } = useSharedCuiUserAgent();
+const { summaryOf } = useNotificationDisplay();
 const swipedId = inject(NotificationSwipeKey)!;
 
 const swipeScope = effectScope();

@@ -25,7 +25,6 @@ export async function actionNotification(ctx: ActionContext, data: Record<string
     severity,
     deepLink: deepLink || undefined,
     thumbnail,
-    tag: `automation:${ctx.flowId}`,
   };
 
   const targets = normaliseTargets(data.targets);

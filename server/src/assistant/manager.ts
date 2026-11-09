@@ -338,7 +338,6 @@ export class AssistantManager {
       attachments: Record<string, DBAssistantAttachment>;
       push: boolean;
       thread: boolean;
-      tag: string;
     },
   ): Promise<void> {
     if (input.thread) {
@@ -361,7 +360,6 @@ export class AssistantManager {
           body: pushBody(input.text, input.thread),
           severity: Severity.Info,
           thumbnail: input.image ? new Uint8Array(Buffer.from(input.image.data, 'base64')) : undefined,
-          tag: input.tag,
         },
         source: { kind: 'system', id: 'assistant' },
         targets,

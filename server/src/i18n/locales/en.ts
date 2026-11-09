@@ -28,6 +28,11 @@ export default {
     reauth_title: 'Cloud sign-in required',
     reauth_body: 'This server was signed out of cameraui.com. Reconnect it under Settings, Remote.',
   },
+  notifications: {
+    flood_title: '{source} sent {count} notifications within a minute',
+    flood_held: '{count} were held back.',
+    flood_held_one: 'One was held back.',
+  },
   remote: {
     down_title: 'Remote access down',
     down_body: 'camera.ui has not been reachable from outside your network for 10 minutes.',

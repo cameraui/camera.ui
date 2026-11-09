@@ -1,12 +1,66 @@
 import { NotificationsController } from '../controllers/notifications.controller.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import { deviceParamsSchema, notificationSettingsSchema, registerDeviceSchema, updateDeviceSchema } from '../schemas/notifications.schema.js';
+import {
+  deviceParamsSchema,
+  notificationIdsSchema,
+  notificationListQuerySchema,
+  notificationSettingsSchema,
+  registerDeviceSchema,
+  updateDeviceSchema,
+} from '../schemas/notifications.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstance): Promise<void> => {
   const controller = new NotificationsController(app);
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: controller.list.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'List notifications, newest first',
+      querystring: notificationListQuerySchema,
+    },
+  });
+
+  app.route({
+    url: '/',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded],
+    handler: controller.clearHistory.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Delete all notifications',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/seen',
+    method: 'POST',
+    preValidation: [validJWTNeeded],
+    handler: controller.markManySeen.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Mark the given notifications as seen, or all without ids',
+      body: notificationIdsSchema.partial().nullish(),
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/delete',
+    method: 'POST',
+    preValidation: [validJWTNeeded],
+    handler: controller.removeMany.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Delete the given notifications',
+      body: notificationIdsSchema,
+    },
+  });
 
   app.route({
     url: '/settings',
@@ -116,7 +170,7 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     url: '/history/seen',
     method: 'POST',
     preValidation: [validJWTNeeded],
-    handler: controller.markAllSeen.bind(controller),
+    handler: controller.markManySeen.bind(controller),
     schema: {
       tags: ['Notifications'],
       summary: 'Mark all notifications as seen',
@@ -155,6 +209,54 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     schema: {
       tags: ['Notifications'],
       summary: 'Get the stored clip of a notification',
+      params: deviceParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:id',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: controller.get.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Get one notification',
+      params: deviceParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:id',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded],
+    handler: controller.remove.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Delete a notification',
+      params: deviceParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:id/seen',
+    method: 'POST',
+    preValidation: [validJWTNeeded],
+    handler: controller.markSeen.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Mark a notification as seen',
+      params: deviceParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/:id/unseen',
+    method: 'POST',
+    preValidation: [validJWTNeeded],
+    handler: controller.markUnseen.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Mark a notification as unseen',
       params: deviceParamsSchema,
     },
   });

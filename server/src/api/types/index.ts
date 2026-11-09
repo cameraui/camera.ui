@@ -6,7 +6,7 @@ import type { Readable } from 'node:stream';
 import type { ApplicationResponse, DeviceSourceType } from '../../go2rtc/types.js';
 import type { PLUGIN_STATUS } from '../../plugins/types.js';
 import type { AuthConfig } from '../../rpc/interfaces/config.js';
-import type { DBCamera, DBCamviewLayout, DBNotificationSettings, DBRemote, DBRoles, DBServer, DBUser } from '../database/types.js';
+import type { DBCamera, DBCamviewLayout, DBNotificationSettings, DBRemote, DBRoles, DBServer, DBUser, StoredNotification } from '../database/types.js';
 import type {
   AssistantChatCancelInput,
   AssistantChatResumeInput,
@@ -79,6 +79,7 @@ import type {
   TestMotionInput,
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
+import type { NotificationFilter, NotificationIdsInput, NotificationListQueryInput } from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, UpdateServerInput } from '../schemas/server.schema.js';
@@ -1533,6 +1534,32 @@ export interface NotificationsRevokeDeviceRequest {
 export interface NotificationsUpdateDeviceRequest {
   Params: { id: string };
   Body: Record<string, unknown>;
+}
+
+export interface NotificationsListRequest {
+  Querystring: NotificationListQueryInput;
+}
+
+export interface NotificationsEntryRequest {
+  Params: { id: string };
+}
+
+export interface NotificationsIdsRequest {
+  Body?: NotificationIdsInput;
+}
+
+export interface NotificationPage {
+  items: StoredNotification[];
+  cursor?: string;
+  counts?: Record<NotificationFilter, number>;
+  sources?: NotificationSourceCount[];
+  unread: number;
+}
+
+export interface NotificationSourceCount {
+  id: string;
+  name: string;
+  count: number;
 }
 
 export interface RemotePairPollRequest {

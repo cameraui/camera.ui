@@ -19,6 +19,7 @@ export const SENSORS_ID = 'sensors';
 export const SENSOR_HISTORY_ID = 'sensor-history';
 export const NOTIFICATIONS_ID = 'notifications';
 export const NOTIFICATION_HISTORY_ID = 'notification-history';
+export const NOTIFICATION_ENTRIES_ID = 'notification-entries';
 export const DOWNLOADS_ID = 'downloads';
 export const WORKER_STATE_ID = 'worker-state';
 export const TRAINING_CANDIDATES_ID = 'training-candidates';

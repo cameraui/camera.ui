@@ -5,6 +5,8 @@ import type { NotifierDeviceWithSource, SourcesListing } from '../../manager/typ
 import type { ProxyServer } from '../../rpc/index.js';
 import type { Database } from '../database/index.js';
 import type { DBNotificationSettings, DBRoles, StoredNotification } from '../database/types.js';
+import type { NotificationListQueryInput } from '../schemas/notifications.schema.js';
+import type { NotificationPage } from '../types/index.js';
 
 export interface RegisterDeviceInput {
   pluginName: string;
@@ -53,6 +55,18 @@ export class NotificationsService {
     return this.proxyServer.notificationManager.getHistory(userId);
   }
 
+  public list(userId: string, query: NotificationListQueryInput): NotificationPage {
+    return this.proxyServer.notificationManager.page(userId, query);
+  }
+
+  public get(userId: string, id: string): StoredNotification | undefined {
+    return this.proxyServer.notificationManager.getEntry(userId, id);
+  }
+
+  public async remove(userId: string, ids?: string[]): Promise<void> {
+    await this.proxyServer.notificationManager.remove(userId, ids);
+  }
+
   public getHistoryImagePath(userId: string, id: string): string | null {
     return this.proxyServer.notificationManager.getImagePath(userId, id);
   }
@@ -61,16 +75,12 @@ export class NotificationsService {
     return this.proxyServer.notificationManager.getVideoPath(userId, id);
   }
 
-  public async clearHistory(userId: string): Promise<void> {
-    await this.proxyServer.notificationManager.clearHistory(userId);
+  public async markSeen(userId: string, ids?: string[]): Promise<void> {
+    await this.proxyServer.notificationManager.markSeen(userId, ids);
   }
 
-  public async markSeen(userId: string, id: string): Promise<void> {
-    await this.proxyServer.notificationManager.markSeen(userId, id);
-  }
-
-  public async markAllSeen(userId: string): Promise<void> {
-    await this.proxyServer.notificationManager.markAllSeen(userId);
+  public async markUnseen(userId: string, id: string): Promise<void> {
+    await this.proxyServer.notificationManager.markUnseen(userId, id);
   }
 
   public async registerDevice(userId: string, body: RegisterDeviceInput): Promise<NotifierDevice> {

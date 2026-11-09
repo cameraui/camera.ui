@@ -1,6 +1,5 @@
 import { toolDefinition } from '@tanstack/ai';
 import { existsSync } from 'node:fs';
-import { open } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as zod from 'zod';
 
@@ -8,6 +7,7 @@ import { PluginsService } from '../../api/services/plugins.service.js';
 import { UsersService } from '../../api/services/users.service.js';
 import { inject, tryInject } from '../../container.js';
 import { getSensorDiscovery } from '../../sensors/discovery.js';
+import { readLogTail } from '../../services/logger/logReader.js';
 import { approvalSchema, toolError } from './shared.js';
 
 import type { ServerNamespace } from '../../api/websocket/nsp/server.js';
@@ -33,7 +33,7 @@ const ACTIONS = {
   adopt_sensor: 'adopt a discovered sensor (args: pluginId, sensorId); admin',
   mark_notifications_seen: 'mark all notifications of the user as seen',
   clear_notifications: 'delete the notification history of the user',
-  remove_notification: 'delete one notification (args: tag)',
+  remove_notification: 'delete one notification (args: id)',
 } as const;
 
 const SYSTEM_LOGS = new Set(['server', 'go2rtc', 'nats', 'tunnel']);
@@ -125,12 +125,12 @@ async function runQuery(action: QueryName, args: Args, ctx: ToolContext): Promis
       return sensorDiscovery(await getSensorDiscovery().snapshot());
     case 'notifications': {
       const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
-      const unseenOnly = args.unseenOnly === true;
-      const history = proxy.notificationManager.getHistory(ctx.context.userId).filter((n) => !unseenOnly || !n.seenAt);
+      const filter = args.unseenOnly === true ? 'unread' : 'all';
+      const page = proxy.notificationManager.page(ctx.context.userId, { limit, filter });
       return {
-        total: history.length,
-        unseen: history.filter((n) => !n.seenAt).length,
-        notifications: history.slice(0, limit).map((n) => ({
+        total: page.counts?.[filter] ?? page.items.length,
+        unseen: page.unread,
+        notifications: page.items.map((n) => ({
           id: n.id,
           at: new Date(n.createdAt).toISOString(),
           title: n.title,
@@ -140,6 +140,11 @@ async function runQuery(action: QueryName, args: Args, ctx: ToolContext): Promis
           tag: n.tag,
           seen: Boolean(n.seenAt),
           source: n.source.kind,
+          log: n.log && {
+            count: n.log.count,
+            last: new Date(n.log.lastAt).toISOString(),
+            messages: n.log.messages.slice(0, 5).map(({ text, count }) => ({ text, count })),
+          },
         })),
       };
     }
@@ -202,15 +207,15 @@ async function runAction(action: ActionName, args: Args, ctx: ToolContext): Prom
       return { ok: true, sensor: sensor.name };
     }
     case 'mark_notifications_seen':
-      proxy.notificationManager.markAllSeen(ctx.context.userId);
+      proxy.notificationManager.markSeen(ctx.context.userId);
       return { ok: true };
     case 'clear_notifications':
-      proxy.notificationManager.clearHistory(ctx.context.userId);
+      proxy.notificationManager.remove(ctx.context.userId);
       return { ok: true };
     case 'remove_notification': {
-      const tag = text(args, 'tag');
-      if (!tag) return toolError('tag is required, take it from the notifications query.');
-      proxy.notificationManager.removeByTag(ctx.context.userId, tag);
+      const id = text(args, 'id');
+      if (!id) return toolError('id is required, take it from the notifications query.');
+      proxy.notificationManager.remove(ctx.context.userId, [id]);
       return { ok: true };
     }
     default:
@@ -262,24 +267,13 @@ async function readLog(source: string, lines: number, filter?: string): Promise<
   if (!file) return toolError(`No log source "${source}". Use server, go2rtc, nats, tunnel, all, a camera name or a plugin name.`);
   if (!existsSync(file)) return { source, lines: [], note: 'The log file does not exist yet.' };
 
-  const handle = await open(file, 'r');
-  try {
-    const size = (await handle.stat()).size;
-    const start = Math.max(0, size - LOG_TAIL_BYTES);
-    const buffer = Buffer.alloc(size - start);
-    await handle.read(buffer, 0, buffer.length, start);
-    let entries = buffer
-      .toString('utf8')
-      .replace(ANSI, '')
-      .split('\n')
-      .filter((line) => line.trim());
-    if (start > 0) entries = entries.slice(1);
-    const needle = filter?.toLowerCase();
-    if (needle) entries = entries.filter((line) => line.toLowerCase().includes(needle));
-    return { source, lines: entries.slice(-lines) };
-  } finally {
-    await handle.close();
-  }
+  let entries = (await readLogTail(file, LOG_TAIL_BYTES))
+    .replace(ANSI, '')
+    .split('\n')
+    .filter((line) => line.trim());
+  const needle = filter?.toLowerCase();
+  if (needle) entries = entries.filter((line) => line.toLowerCase().includes(needle));
+  return { source, lines: entries.slice(-lines) };
 }
 
 function logFile(source: string, config: ConfigService): string | undefined {

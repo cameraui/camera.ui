@@ -1,4 +1,7 @@
+import { Severity } from '@camera.ui/sdk';
+
 import type { Notification, NotifierDevice } from '@camera.ui/sdk';
+import type { NotificationFilter } from '../api/schemas/notifications.schema.js';
 
 export type NotificationSourceKind = 'plugin' | 'system' | 'automation';
 
@@ -37,6 +40,7 @@ export const SystemNotificationTypeId = {
   WorkerOffline: 'system.worker.offline',
   RemoteOffline: 'system.remote.offline',
   UpdateFailed: 'system.update.failed',
+  PluginErrors: 'system.plugin.errors',
 } as const;
 
 export type SystemNotificationTypeId = (typeof SystemNotificationTypeId)[keyof typeof SystemNotificationTypeId];
@@ -54,6 +58,53 @@ export const SYSTEM_NOTIFICATION_TYPES: readonly SystemNotificationType[] = [
   { type: SystemNotificationTypeId.RemoteOffline, label: 'Remote access down / restored' },
   { type: SystemNotificationTypeId.UpdateFailed, label: 'Update failed' },
 ] as const;
+
+export function notificationCameraId(n: { data?: Record<string, unknown> }): string | undefined {
+  const cameraId = n.data?.cameraId;
+  return typeof cameraId === 'string' && cameraId ? cameraId : undefined;
+}
+
+export function notificationPluginId(n: { source: NotificationSource; data?: Record<string, unknown> }): string | undefined {
+  if (n.source.kind === 'plugin') return n.source.id;
+  const pluginId = n.data?.pluginId;
+  return typeof pluginId === 'string' && pluginId ? pluginId : undefined;
+}
+
+export function notificationSourceId(n: { source: NotificationSource; data?: Record<string, unknown> }): string | undefined {
+  return notificationCameraId(n) ?? notificationPluginId(n);
+}
+
+export function notificationBucket(n: { source: NotificationSource; data?: Record<string, unknown> }): string {
+  const cameraId = notificationCameraId(n);
+  if (cameraId) return `camera:${cameraId}`;
+  const pluginId = notificationPluginId(n);
+  if (pluginId) return `plugin:${pluginId}`;
+  if (n.source.kind === 'automation') return `automation:${n.source.id}`;
+  return n.source.id === 'assistant' ? 'assistant' : 'system';
+}
+
+export function matchesNotificationFilter(
+  n: { source: NotificationSource; data?: Record<string, unknown>; severity?: Severity },
+  unread: boolean,
+  filter: NotificationFilter,
+): boolean {
+  switch (filter) {
+    case 'unread':
+      return unread;
+    case 'problems':
+      return n.severity === Severity.Warn || n.severity === Severity.Error || n.severity === Severity.Critical;
+    case 'cameras':
+      return !!notificationCameraId(n);
+    case 'plugins':
+      return !!notificationPluginId(n) && !notificationCameraId(n);
+    case 'system':
+      return n.source.kind === 'system' && !notificationPluginId(n);
+    case 'automations':
+      return n.source.kind === 'automation';
+    default:
+      return true;
+  }
+}
 
 export interface SourcesListing {
   plugins: { id: string; name: string }[];

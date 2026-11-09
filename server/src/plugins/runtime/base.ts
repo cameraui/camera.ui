@@ -257,6 +257,9 @@ export abstract class BasePluginRuntime extends EventEmitter {
     };
 
     this.logManager.handleChildLog(entry);
-    this.logForwarder?.(entry);
+
+    // on a worker the master notes the line when the forwarded copy arrives
+    if (this.logForwarder) this.logForwarder(entry);
+    else this.proxyServer.notificationManager.notePluginLog(this.plugin.id, entry);
   }
 }

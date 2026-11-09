@@ -229,7 +229,6 @@ export class AssistantScheduler {
         body: pushBody(text, schedule.deliver === 'both'),
         severity: Severity.Info,
         thumbnail: image ? new Uint8Array(Buffer.from(image.data, 'base64')) : undefined,
-        tag: `assistant-schedule:${schedule._id}`,
       },
       source: { kind: 'system', id: 'assistant' },
       targets,

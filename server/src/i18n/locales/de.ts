@@ -30,6 +30,11 @@ export default {
     reauth_title: 'Cloud-Anmeldung nötig',
     reauth_body: 'Von cameraui.com abgemeldet. Unter Einstellungen, Remote Zugriff neu verbinden.',
   },
+  notifications: {
+    flood_title: '{source} hat {count} Benachrichtigungen in einer Minute gesendet',
+    flood_held: '{count} wurden zurückgehalten.',
+    flood_held_one: 'Eine wurde zurückgehalten.',
+  },
   remote: {
     down_title: 'Remote Zugriff ausgefallen',
     down_body: 'Seit 10 Minuten von außerhalb deines Netzwerks nicht erreichbar.',

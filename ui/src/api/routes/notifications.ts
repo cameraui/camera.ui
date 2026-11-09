@@ -2,7 +2,16 @@ import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
 import type { NotifierDevice } from '@camera.ui/sdk';
-import type { DBNotificationSettings, MethodKeys, NotifierDeviceWithSource, ResolvedNotification, SourcesListing } from '@shared/types';
+import type {
+  DBNotificationSettings,
+  MethodKeys,
+  NotificationFilter,
+  NotificationPage,
+  NotifierDeviceWithSource,
+  ResolvedNotification,
+  SourcesListing,
+  StoredNotification,
+} from '@shared/types';
 import type { AxiosResponse } from 'axios';
 
 export interface RegisterNotifierDeviceBody {
@@ -13,6 +22,14 @@ export interface RegisterNotifierDeviceBody {
 export interface UpdateNotifierDevicePatch {
   name?: string;
   active?: boolean;
+}
+
+export interface NotificationListParams {
+  cursor?: string;
+  limit?: number;
+  filter?: NotificationFilter;
+  q?: string;
+  source?: string;
 }
 
 export async function getNotificationSettingsFn({ signal }: { signal: AbortSignal }): Promise<DBNotificationSettings> {
@@ -42,6 +59,36 @@ export async function getNotificationHistoryFn({ signal }: { signal: AbortSignal
 
 export async function clearNotificationHistoryFn(): Promise<void> {
   await api.delete('/notifications/history');
+}
+
+export async function listNotificationsFn(params: NotificationListParams, signal?: AbortSignal): Promise<NotificationPage> {
+  const response: AxiosResponse<NotificationPage> = await api.get('/notifications', { params, signal });
+  return response.data;
+}
+
+export async function getNotificationFn(id: string): Promise<StoredNotification> {
+  const response: AxiosResponse<StoredNotification> = await api.get(`/notifications/${encodeURIComponent(id)}`);
+  return response.data;
+}
+
+export async function markNotificationSeenFn(id: string, seen: boolean): Promise<void> {
+  await api.post(`/notifications/${encodeURIComponent(id)}/${seen ? 'seen' : 'unseen'}`);
+}
+
+export async function markNotificationsSeenFn(ids?: string[]): Promise<void> {
+  await api.post('/notifications/seen', { ids });
+}
+
+export async function deleteNotificationFn(id: string): Promise<void> {
+  await api.delete(`/notifications/${encodeURIComponent(id)}`);
+}
+
+export async function deleteNotificationsFn(ids: string[]): Promise<void> {
+  await api.post('/notifications/delete', { ids });
+}
+
+export async function deleteAllNotificationsFn(): Promise<void> {
+  await api.delete('/notifications');
 }
 
 export async function revokeNotifierDeviceFn({ deviceId }: { deviceId: string }): Promise<void> {

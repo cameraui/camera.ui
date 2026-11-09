@@ -12,4 +12,10 @@ export interface CuiNotificationItemEmits {
   remove: [notification: StoredNotification];
 }
 
+export type NotificationDetailEvents = {
+  navigate: () => void;
+  toggleSeen: (notification: StoredNotification) => void;
+  remove: (notification: StoredNotification) => void;
+};
+
 export const NotificationSwipeKey: InjectionKey<Ref<string | undefined>> = Symbol('NotificationSwipe');

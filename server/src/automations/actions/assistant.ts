@@ -36,7 +36,6 @@ export async function actionAssistant(ctx: ActionContext, data: Record<string, u
       attachments: result.attachments,
       push: deliver === 'push' || deliver === 'both',
       thread: deliver === 'thread' || deliver === 'both',
-      tag: `automation:${ctx.flowId}`,
     });
   } catch (err) {
     ctx.logger.warn(`[automation:${ctx.flowName}] action-assistant failed: ${(err as Error).message}`);

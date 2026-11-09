@@ -9,7 +9,7 @@
     <Popover
       ref="notificationsMenuRef"
       append-to="self"
-      :dismissable="!detailDialogOpen"
+      :dismissable="!detailOpen"
       class="w-[20rem] shadow-lg cui-rounded-corner notification-menu isolate overscroll-contain non-draggable-region"
       @hide="onHide"
     >
@@ -30,7 +30,7 @@
         <div class="flex justify-between items-center mb-4 h-9">
           <div class="flex items-center gap-2">
             <h3 class="text-base font-semibold">{{ $t('components.notification_menu.notifications') }}</h3>
-            <Badge class="rounded-full text-xs p-1" :value="notifications.length > 99 ? '99+' : String(notifications.length)" />
+            <Badge v-if="unreadCount" class="rounded-full text-xs p-1" :value="unreadCount > 99 ? '99+' : String(unreadCount)" />
           </div>
           <div class="flex items-center gap-1">
             <Button
@@ -83,8 +83,24 @@
         <div v-if="notifications.length === 0" class="text-center py-8 text-muted text-sm">
           {{ $t('components.notification_menu.no_notifications') }}
         </div>
+
+        <Divider class="mt-2 mb-1" />
+        <Button severity="secondary" text class="cui-button w-full justify-center text-sm" :label="$t('components.notification_menu.show_all')" @click="goToAll" />
       </template>
     </Popover>
+
+    <CuiBottomSheet v-model="sheetOpen">
+      <div class="-mx-4">
+        <CuiNotificationDetail
+          v-if="sheetNotification"
+          :notification="sheetNotification"
+          center-link
+          @navigate="closeAll"
+          @toggle-seen="toggleSeen"
+          @remove="removeFromDetail"
+        />
+      </div>
+    </CuiBottomSheet>
   </div>
 </template>
 
@@ -92,20 +108,22 @@
 import { Severity } from '@camera.ui/sdk';
 
 import { NotificationsQuery } from '@/api/routes/notifications.js';
-import { notificationImageUrl } from '@/common/utils.js';
-import NotificationDetail from '@/components/CuiDialog/templates/NotificationDetail/NotificationDetail.vue';
+import CuiNotificationDetail from '@/components/CuiNotificationDetail/CuiNotificationDetail.vue';
 import CuiNotificationItem from './CuiNotificationItem.vue';
 import { NotificationSwipeKey } from './types.js';
 
-import type { NotificationDetailProps } from '@/components/CuiDialog/templates/NotificationDetail/types.js';
+import type { CuiNotificationDetailProps } from '@/components/CuiNotificationDetail/types.js';
 import type { IpcRendererEvent } from '@/types/electron';
 import type { StoredNotification } from '@shared/types';
 import type { Popover } from 'openvue';
+import type { DynamicDialogInstance } from 'openvue/dynamicdialogoptions';
+import type { NotificationDetailEvents } from './types.js';
 
 const router = useRouter();
 const dialog = useCuiDialog();
 const { t } = useI18n();
 const { isElectronApp, electron } = useElectron();
+const { mdBreakpoint } = useSharedCuiBreakpoint();
 
 const notificationsQuery = new NotificationsQuery();
 
@@ -115,12 +133,15 @@ const { data: settings, isLoading: settingsLoading } = notificationsQuery.getSet
 
 const notificationsMenuRef = useTemplateRef<InstanceType<typeof Popover>>('notificationsMenuRef');
 const swipedId = ref<string>();
-const detailDialogOpen = ref(false);
+const sheetOpen = ref(false);
+const sheetNotification = ref<StoredNotification>();
+const detailDialog = shallowRef<DynamicDialogInstance>();
 
 const notifications = computed(() => notificationsSocket.notifications.value);
 const unreadCount = computed(() => notificationsSocket.unreadCount.value);
 const notificationsEnabled = computed(() => settings.value?.enabled ?? false);
 const settingsResolved = computed(() => !settingsLoading.value || settings.value !== undefined);
+const detailOpen = computed(() => sheetOpen.value || !!detailDialog.value);
 
 provide(NotificationSwipeKey, swipedId);
 
@@ -134,6 +155,11 @@ function markAllSeen() {
 
 function markSeen(notification: StoredNotification) {
   notificationsSocket.markSeen(notification);
+}
+
+function goToAll() {
+  notificationsMenuRef.value?.hide();
+  router.push({ path: '/notifications' });
 }
 
 function goToSettings() {
@@ -155,61 +181,63 @@ function formatTimestamp(timestamp: number): string {
   return `${Math.floor(days / 365)}${t('components.notification_menu.short_years')}`;
 }
 
-function handleNotificationClick(notification: StoredNotification) {
-  const link = notification.deepLink;
-  notificationsMenuRef.value?.hide();
-  removeNotification(notification);
-  if (link) {
-    router.push(link);
-  }
-}
-
-function removeNotification(notification?: StoredNotification) {
-  if (notification) {
-    notificationsSocket.removeNotification(notification);
-  }
+function removeNotification(notification: StoredNotification) {
+  notificationsSocket.removeNotification(notification);
 }
 
 function clearNotifications(): void {
   notificationsSocket.clearNotifications();
 }
 
+function toggleSeen(notification: StoredNotification) {
+  if (notification.seenAt == null) notificationsSocket.markSeen(notification);
+  else notificationsSocket.markUnseen(notification);
+}
+
+function removeFromDetail(notification: StoredNotification) {
+  removeNotification(notification);
+  sheetOpen.value = false;
+  detailDialog.value?.close();
+}
+
+function closeAll() {
+  sheetOpen.value = false;
+  detailDialog.value?.close();
+  notificationsMenuRef.value?.hide();
+}
+
 function openDialog(notification: StoredNotification) {
-  const detail = [notification.subtitle, notification.body].filter(Boolean).join('\n');
-  const confirmText = !notification?.deepLink ? t('components.form.button.mark_as_read') : t('components.form.button.go_to_message');
-  const src = notificationImageUrl(notification.imageUrl);
-  const videoSrc = notificationImageUrl(notification.videoUrl);
+  notificationsSocket.markSeen(notification);
 
-  detailDialogOpen.value = true;
-
-  if (src || videoSrc) {
-    dialog.openComponentDialog<NotificationDetailProps>(NotificationDetail, {
-      data: {
-        title: notification.title,
-        confirmText,
-        contentClickConfirms: !!notification.deepLink,
-        contentProps: { src, videoSrc, text: detail },
-      },
-      dialogSize: {
-        desktop: { width: '480px', maxWidth: '90vw', maxHeight: '90vh' },
-      },
-      onConfirm: () => handleNotificationClick(notification),
-      onCancel: () => removeNotification(notification),
-      onSettled: () => (detailDialogOpen.value = false),
-    });
+  if (notificationsSocket.isLocal(notification)) {
+    notificationsMenuRef.value?.hide();
+    if (notification.deepLink) router.push(notification.deepLink);
     return;
   }
 
-  dialog.openTextDialog({
+  if (mdBreakpoint.value) {
+    sheetNotification.value = notification;
+    sheetOpen.value = true;
+    return;
+  }
+
+  detailDialog.value = dialog.openComponentDialog<CuiNotificationDetailProps, NotificationDetailEvents>(CuiNotificationDetail, {
     data: {
       title: notification.title,
-      contentText: detail,
-      contentClickConfirms: !!notification.deepLink,
-      confirmText,
+      hideCancelButton: true,
+      hideConfirmButton: true,
+      dialogContentClass: 'px-0!',
+      contentProps: { notification, showTitle: false, centerLink: true },
     },
-    onConfirm: () => handleNotificationClick(notification),
-    onCancel: () => removeNotification(notification),
-    onSettled: () => (detailDialogOpen.value = false),
+    dialogSize: {
+      desktop: { width: '480px', maxWidth: '90vw', maxHeight: '90vh' },
+    },
+    events: {
+      navigate: closeAll,
+      toggleSeen,
+      remove: removeFromDetail,
+    },
+    onSettled: () => (detailDialog.value = undefined),
   });
 }
 

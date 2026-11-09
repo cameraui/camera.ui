@@ -56,6 +56,7 @@ declare global {
   const defineStore: typeof import('pinia').defineStore
   const deleteToken: typeof import('../composables/firebase-messaging-stub').deleteToken
   const download: typeof import('../composables/useFileDownload').download
+  const dropNotifications: typeof import('../composables/sockets/useNotificationsSocket').dropNotifications
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
   const extendRef: typeof import('@vueuse/core').extendRef
@@ -73,6 +74,7 @@ declare global {
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
+  const insertNewest: typeof import('../composables/sockets/useNotificationsSocket').insertNewest
   const isDefined: typeof import('@vueuse/core').isDefined
   const isInstallProgressShown: typeof import('../composables/useInstallProgressDialog').isInstallProgressShown
   const isProxy: typeof import('vue').isProxy
@@ -89,7 +91,9 @@ declare global {
   const mapState: typeof import('pinia').mapState
   const mapStores: typeof import('pinia').mapStores
   const mapWritableState: typeof import('pinia').mapWritableState
+  const markAllRead: typeof import('../composables/sockets/useNotificationsSocket').markAllRead
   const markRaw: typeof import('vue').markRaw
+  const markRead: typeof import('../composables/sockets/useNotificationsSocket').markRead
   const nextTick: typeof import('vue').nextTick
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
@@ -135,6 +139,7 @@ declare global {
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
   const registerKeyboardInset: typeof import('../composables/useKeyboardInset').registerKeyboardInset
+  const replaceNotification: typeof import('../composables/sockets/useNotificationsSocket').replaceNotification
   const resetCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').resetCamerasSocket
   const resetCuiBus: typeof import('../composables/useCuiAppBus').resetCuiBus
   const resetFloorplanSocket: typeof import('../composables/sockets/useFloorplanSocket').resetFloorplanSocket
@@ -342,6 +347,8 @@ declare global {
   const useNavLayout: typeof import('../composables/useNavLayout').useNavLayout
   const useNavigatorLanguage: typeof import('@vueuse/core').useNavigatorLanguage
   const useNetwork: typeof import('@vueuse/core').useNetwork
+  const useNotificationCenter: typeof import('../composables/useNotificationCenter').useNotificationCenter
+  const useNotificationDisplay: typeof import('../composables/useNotificationDisplay').useNotificationDisplay
   const useNotificationsSocket: typeof import('../composables/sockets/useNotificationsSocket').useNotificationsSocket
   const useNow: typeof import('@vueuse/core').useNow
   const useObjectUrl: typeof import('@vueuse/core').useObjectUrl
@@ -546,6 +553,9 @@ declare global {
   // @ts-ignore
   export type { NavLayoutGroup, NavLayoutEntry } from '../composables/useNavLayout'
   import('../composables/useNavLayout')
+  // @ts-ignore
+  export type { NotificationCenterOptions } from '../composables/useNotificationCenter'
+  import('../composables/useNotificationCenter')
   // @ts-ignore
   export type { AppPermissionState, AppPermissionName } from '../composables/usePermissions'
   import('../composables/usePermissions')
@@ -955,6 +965,8 @@ declare module 'vue' {
     readonly useNavLayout: UnwrapRef<typeof import('../composables/useNavLayout')['useNavLayout']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
+    readonly useNotificationCenter: UnwrapRef<typeof import('../composables/useNotificationCenter')['useNotificationCenter']>
+    readonly useNotificationDisplay: UnwrapRef<typeof import('../composables/useNotificationDisplay')['useNotificationDisplay']>
     readonly useNotificationsSocket: UnwrapRef<typeof import('../composables/sockets/useNotificationsSocket')['useNotificationsSocket']>
     readonly useNow: UnwrapRef<typeof import('@vueuse/core')['useNow']>
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>

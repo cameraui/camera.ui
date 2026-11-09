@@ -1,24 +1,33 @@
 import { Badge } from '@capawesome/capacitor-badge';
 
 import { listCastTargetsFn } from '@/api/routes/cast.js';
+import { deleteAllNotificationsFn, deleteNotificationFn, listNotificationsFn, markNotificationSeenFn, markNotificationsSeenFn } from '@/api/routes/notifications.js';
 import { isCapacitor } from '@/connection/index.js';
 import { setFaviconBadge } from '@/utils/faviconBadge.js';
+import { dropNotifications, insertNewest, markRead, replaceNotification } from '@/utils/notificationList.js';
 
 import type { CastTarget } from '@/api/routes/cast.js';
 import type { SocketChannel } from '@/connection/index.js';
+import type { SeenDelta } from '@/utils/notificationList.js';
 import type { StoredNotification } from '@shared/types';
 
 export interface NotificationsSocketState {
   notifications: StoredNotification[];
+  local: StoredNotification[];
+  unread: number;
   castTargets: CastTarget[];
 }
 
-const HISTORY_LIMIT = 100;
+const BELL_LIMIT = 30;
 
 const state = reactive<NotificationsSocketState>({
   notifications: [],
+  local: [],
+  unread: 0,
   castTargets: [],
 });
+
+const unreadCount = computed(() => state.unread + state.local.filter((n) => n.seenAt == null).length);
 
 let scope: ReturnType<typeof effectScope> | null = null;
 let channel: SocketChannel | null = null;
@@ -33,19 +42,19 @@ function ensureChannel(): SocketChannel {
     // assign before onReady: it fires synchronously on a connected socket, and fetchNotifications() reads `channel`
     channel = ch;
 
-    ch.on<StoredNotification>('notification', (n) => {
-      if (n.tag) {
-        const existingIndex = state.notifications.findIndex((h) => h.tag === n.tag);
-        if (existingIndex !== -1) state.notifications.splice(existingIndex, 1);
-      }
-      state.notifications.unshift(n);
-      if (state.notifications.length > HISTORY_LIMIT) {
-        state.notifications.length = HISTORY_LIMIT;
-      }
-      forwardToDesktop(n);
+    ch.on<StoredNotification>('added', (n) => {
+      insertNewest(state.notifications, n, BELL_LIMIT);
+      if (!n.listOnly) forwardToDesktop(n);
     });
-
-    ch.on<StoredNotification[]>('history', takeServerList);
+    ch.on<StoredNotification>('updated', (n) => replaceNotification(state.notifications, n));
+    ch.on<{ ids: string[] }>('removed', ({ ids }) => {
+      dropNotifications(state.notifications, ids);
+      if (state.notifications.length < BELL_LIMIT) fetchNotifications();
+    });
+    ch.on<SeenDelta>('seen', (delta) => markRead(state.notifications, delta));
+    ch.on<number>('unread', (count) => {
+      state.unread = count;
+    });
 
     ch.on<CastTarget[]>('castTargets', (data) => {
       state.castTargets = data;
@@ -58,24 +67,17 @@ function ensureChannel(): SocketChannel {
 
     useTabVisibility().onTabVisible(() => fetchNotifications());
 
-    watch(() => state.notifications.filter((n) => n.seenAt == null).length, applyBadge);
+    watch(unreadCount, applyBadge);
   });
 
   return channel!;
 }
 
-function takeServerList(list: StoredNotification[]): void {
-  state.notifications = list;
-  badgeReady = true;
-  applyBadge();
-}
-
 function applyBadge(): void {
   if (!badgeReady) return;
   // the iOS extension counts pushes up itself, so the badge is set even when the count did not change
-  const count = state.notifications.filter((n) => n.seenAt == null).length;
-  setNativeBadge(count);
-  setFaviconBadge(count > 0);
+  setNativeBadge(unreadCount.value);
+  setFaviconBadge(unreadCount.value > 0);
 }
 
 function forwardToDesktop(n: StoredNotification): void {
@@ -87,7 +89,7 @@ function forwardToDesktop(n: StoredNotification): void {
     title: n.title,
     subtitle: n.subtitle,
     body: n.body,
-    deepLink: n.deepLink,
+    deepLink: n.deepLink ?? `/notifications?id=${encodeURIComponent(n.id)}`,
     tag: n.tag,
     severity: n.severity,
     silent: n.silent,
@@ -123,10 +125,22 @@ async function fetchCastTargets(): Promise<void> {
 async function fetchNotifications(): Promise<void> {
   if (!channel?.ready.value) return;
   try {
-    takeServerList(await channel.request<StoredNotification[]>('get-notifications'));
+    const page = await listNotificationsFn({ limit: BELL_LIMIT });
+    state.notifications = page.items;
+    state.unread = page.unread;
+    badgeReady = true;
+    applyBadge();
   } catch {
     // unreachable, the reconnect fetches again
   }
+}
+
+function findNotification(id: string): StoredNotification | undefined {
+  return state.local.find((n) => n.id === id) ?? state.notifications.find((n) => n.id === id);
+}
+
+function isLocal(notification: StoredNotification): boolean {
+  return state.local.some((n) => n.id === notification.id);
 }
 
 export function useNotificationsSocket() {
@@ -138,53 +152,63 @@ export function useNotificationsSocket() {
     // teardown runs in resetNotificationsSocket()
   }
 
-  function removeNotification(notification: StoredNotification): void {
-    const index = state.notifications.findIndex((n) => n.id === notification.id);
-    if (index !== -1) state.notifications.splice(index, 1);
-    if (notification.tag) channel?.emit('remove-notification', notification.tag);
-    else channel?.emit('remove-notification-id', notification.id);
+  async function setSeen(notification: StoredNotification, seen: boolean): Promise<void> {
+    if ((notification.seenAt == null) !== seen) return;
+
+    const item = findNotification(notification.id);
+    if (item) item.seenAt = seen ? Date.now() : null;
+    if (isLocal(notification)) return;
+
+    state.unread = Math.max(0, state.unread + (seen ? -1 : 1));
+    await markNotificationSeenFn(notification.id, seen).catch(() => fetchNotifications());
   }
 
-  function clearNotifications(): void {
-    state.notifications.splice(0, state.notifications.length);
-    channel?.emit('clear-notifications');
+  async function markAllSeen(): Promise<void> {
+    markRead(state.local, { at: Date.now() });
+    markRead(state.notifications, { at: Date.now() });
+    state.unread = 0;
+    await markNotificationsSeenFn().catch(() => fetchNotifications());
   }
 
-  function markAllSeen(): void {
-    const now = Date.now();
-    for (const n of state.notifications) {
-      if (n.seenAt == null) n.seenAt = now;
-    }
-    channel?.emit('mark-all-seen');
+  async function removeNotification(notification: StoredNotification): Promise<void> {
+    const local = isLocal(notification);
+    dropNotifications(state.local, [notification.id]);
+    dropNotifications(state.notifications, [notification.id]);
+    if (local) return;
+
+    if (notification.seenAt == null) state.unread = Math.max(0, state.unread - 1);
+    await deleteNotificationFn(notification.id).catch(() => fetchNotifications());
   }
 
-  function markSeen(notification: StoredNotification): void {
-    const item = state.notifications.find((n) => n.id === notification.id);
-    if (item && item.seenAt == null) item.seenAt = Date.now();
-    channel?.emit('mark-seen', notification.id);
+  async function clearNotifications(): Promise<void> {
+    state.local = [];
+    state.notifications = [];
+    state.unread = 0;
+    await deleteAllNotificationsFn().catch(() => fetchNotifications());
   }
 
   function addLocalNotification(notification: StoredNotification): void {
-    if (!state.notifications.find((n) => n.id === notification.id)) {
-      state.notifications.unshift(notification);
+    if (!state.local.some((n) => n.id === notification.id)) {
+      state.local.unshift(notification);
     }
   }
 
   return {
     isConnected: computed(() => channel?.connected.value ?? false),
-    notifications: computed(() => state.notifications),
-    notificationCount: computed(() => state.notifications.length),
-    unreadCount: computed(() => state.notifications.filter((n) => n.seenAt == null).length),
+    notifications: computed(() => [...state.local, ...state.notifications]),
+    unreadCount,
     castTargets: computed(() => state.castTargets),
 
     connect,
     disconnect,
     fetchNotifications,
+    markSeen: (notification: StoredNotification) => setSeen(notification, true),
+    markUnseen: (notification: StoredNotification) => setSeen(notification, false),
+    markAllSeen,
     removeNotification,
     clearNotifications,
-    markAllSeen,
-    markSeen,
     addLocalNotification,
+    isLocal,
   };
 }
 
@@ -194,6 +218,8 @@ export function resetNotificationsSocket(): void {
   channel = null;
   badgeReady = false;
   state.notifications = [];
+  state.local = [];
+  state.unread = 0;
   state.castTargets = [];
   setNativeBadge(0);
   setFaviconBadge(false);

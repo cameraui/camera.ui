@@ -819,6 +819,29 @@ export interface StoredNotification {
   source: NotificationSource;
   data?: Record<string, unknown>;
   silent?: boolean;
+  bucket?: string;
+  listOnly?: boolean;
+  log?: NotificationLogBurst;
+  sourceName?: string;
+  cameraName?: string;
+}
+
+export interface NotificationLogMessage {
+  text: string;
+  count: number;
+  lastAt: number;
+}
+
+export interface NotificationLogBurst {
+  count: number;
+  lastAt: number;
+  messages: NotificationLogMessage[];
+}
+
+export interface DBNotificationEntry extends Omit<StoredNotification, 'seenAt' | 'bucket' | 'sourceName' | 'cameraName'> {
+  bucket: string;
+  recipients: string[];
+  seenBy: Record<string, number>;
 }
 
 export interface DBNotificationHistory {

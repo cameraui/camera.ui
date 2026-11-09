@@ -88,6 +88,7 @@ const Workers = () => import('@/views/Workers.vue');
 const Settings = () => import('@/views/Settings.vue');
 const Menu = () => import('@/views/Menu.vue');
 const About = () => import('@/views/About.vue');
+const Notifications = () => import('@/views/Notifications.vue');
 const Console = () => import('@/views/Console.vue');
 
 const SettingsAccount = () => import('@/subviews/SettingsAccount.vue');
@@ -442,6 +443,31 @@ export const routes: RouteRecordRaw[] = [
         containerSettings: {
           showTitle: true,
           padding: true,
+        },
+        showNavbar: true,
+        showTopbar: true,
+        showBottombar: true,
+        showRouterLoading: true,
+      },
+    },
+  },
+  {
+    name: 'Notifications',
+    path: '/notifications',
+    component: Notifications,
+    meta: {
+      name: 'notifications',
+      auth: {
+        requiresAuth: true,
+        role: 'user',
+      },
+      ui: {
+        containerSettings: {
+          showTitle: true,
+          padding: true,
+          paddingBottom: false,
+          disableScroll: true,
+          flushBottom: true,
         },
         showNavbar: true,
         showTopbar: true,

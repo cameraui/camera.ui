@@ -7,6 +7,9 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DBNotificationSettings } from '../database/types.js';
 import type {
   AuthLoginRequest,
+  NotificationsEntryRequest,
+  NotificationsIdsRequest,
+  NotificationsListRequest,
   NotificationsRegisterDeviceRequest,
   NotificationsRevokeDeviceRequest,
   NotificationsSettingsRequest,
@@ -61,6 +64,49 @@ export class NotificationsController {
     }
   }
 
+  public async list(req: FastifyRequest<AuthLoginRequest & NotificationsListRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      return reply.code(200).send(this.service.list(req.locals.user!._id, req.query));
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async get(req: FastifyRequest<AuthLoginRequest & NotificationsEntryRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    const entry = this.service.get(req.locals.user!._id, req.params.id);
+    if (!entry) {
+      return reply.code(404).send({ statusCode: 404, message: 'Notification not found' });
+    }
+    return reply.code(200).send(entry);
+  }
+
+  public async remove(req: FastifyRequest<AuthLoginRequest & NotificationsEntryRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.remove(req.locals.user!._id, [req.params.id]);
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async removeMany(req: FastifyRequest<AuthLoginRequest & NotificationsIdsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.remove(req.locals.user!._id, req.body?.ids);
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async markUnseen(req: FastifyRequest<AuthLoginRequest & NotificationsEntryRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.markUnseen(req.locals.user!._id, req.params.id);
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async getHistory(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const history = this.service.getHistory(req.locals.user!._id);
@@ -72,7 +118,7 @@ export class NotificationsController {
 
   public async clearHistory(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      await this.service.clearHistory(req.locals.user!._id);
+      await this.service.remove(req.locals.user!._id);
       return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
@@ -120,18 +166,18 @@ export class NotificationsController {
     }
   }
 
-  public async markSeen(req: FastifyRequest<AuthLoginRequest & { Params: { id: string } }>, reply: FastifyReply): Promise<FastifyReply> {
+  public async markSeen(req: FastifyRequest<AuthLoginRequest & NotificationsEntryRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      await this.service.markSeen(req.locals.user!._id, req.params.id);
+      await this.service.markSeen(req.locals.user!._id, [req.params.id]);
       return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
   }
 
-  public async markAllSeen(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async markManySeen(req: FastifyRequest<AuthLoginRequest & NotificationsIdsRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      await this.service.markAllSeen(req.locals.user!._id);
+      await this.service.markSeen(req.locals.user!._id, req.body?.ids);
       return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });

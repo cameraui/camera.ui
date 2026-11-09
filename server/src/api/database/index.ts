@@ -37,6 +37,7 @@ import {
   INSTANCES_CONFIG_ID,
   INSTANCES_ID,
   MQTT_ID,
+  NOTIFICATION_ENTRIES_ID,
   NOTIFICATION_HISTORY_ID,
   NOTIFICATIONS_ID,
   PLUGINS_ID,
@@ -90,6 +91,7 @@ import type {
   DBInstance,
   DBInstancesConfig,
   DBMqtt,
+  DBNotificationEntry,
   DBNotificationHistory,
   DBNotificationSettings,
   DBPlugin,
@@ -107,7 +109,7 @@ import type {
 } from './types.js';
 
 export class Database {
-  static readonly VERSION = '2.4.8';
+  static readonly VERSION = '2.4.10';
 
   public workerStateDB!: DB<DBWorkerState, 'state'>;
 
@@ -132,6 +134,7 @@ export class Database {
   public sensorHistoryDB!: DB<DBSensorHistoryEntry, string>;
   public notificationsDB!: DB<DBNotificationSettings, string>;
   public notificationHistoryDB!: DB<DBNotificationHistory, string>;
+  public notificationEntriesDB!: DB<DBNotificationEntry, string>;
   public downloadsDB!: DB<DBDownloadEntry, string>;
   public trainingCandidatesDB!: DB<DBTrainingCandidate, string>;
   public instancesDB!: DB<DBInstance, string>;
@@ -202,6 +205,7 @@ export class Database {
     this.sensorHistoryDB = this.lowdb.openDB({ name: SENSOR_HISTORY_ID });
     this.notificationsDB = this.lowdb.openDB({ name: NOTIFICATIONS_ID });
     this.notificationHistoryDB = this.lowdb.openDB({ name: NOTIFICATION_HISTORY_ID });
+    this.notificationEntriesDB = this.lowdb.openDB({ name: NOTIFICATION_ENTRIES_ID });
     this.downloadsDB = this.lowdb.openDB({ name: DOWNLOADS_ID });
     this.trainingCandidatesDB = this.lowdb.openDB({ name: TRAINING_CANDIDATES_ID });
 

@@ -44,7 +44,7 @@
             <span
               v-else-if="item.badge"
               v-bind="item.badgeProps"
-              class="text-[0.65rem] font-medium px-1.5 py-0.5 rounded-full leading-none bg-surface-200 dark:bg-surface-700 text-muted-color"
+              class="ml-auto min-w-6 text-xs font-medium tabular-nums text-center px-2 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-muted-color"
               >{{ item.badge }}</span
             >
           </div>

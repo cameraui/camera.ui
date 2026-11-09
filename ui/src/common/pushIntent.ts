@@ -11,7 +11,8 @@ export function intentFromTapData(data: Record<string, string>): PendingNotifica
   if (AUTH_EVENT_TYPES.has(data.type)) {
     return { kind: 'auth-event', data };
   }
-  const deepLink = typeof data.deepLink === 'string' ? data.deepLink : undefined;
+  const entryLink = typeof data.notificationId === 'string' ? `/notifications?id=${encodeURIComponent(data.notificationId)}` : undefined;
+  const deepLink = typeof data.deepLink === 'string' && data.deepLink ? data.deepLink : entryLink;
   const serverId = typeof data.originServerId === 'string' ? data.originServerId : undefined;
   const serverName = typeof data.originName === 'string' ? data.originName : undefined;
   if (serverId || deepLink) {

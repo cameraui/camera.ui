@@ -2067,7 +2067,11 @@ export class WorkerManager {
   }
 
   private handleForwardedLog(agentId: string, entry: LogEntry): void {
-    tryInject('logManager')?.handleChildLog(this.scopeForwardedLog(agentId, entry));
+    const scoped = this.scopeForwardedLog(agentId, entry);
+    tryInject('logManager')?.handleChildLog(scoped);
+
+    const pluginId = scoped.targetType === 'plugin' ? scoped.targetId : scoped.pluginId;
+    if (pluginId) this.proxyServer.notificationManager.notePluginLog(pluginId, scoped);
   }
 
   private scopeForwardedLog(agentId: string, entry: LogEntry): LogEntry {
