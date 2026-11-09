@@ -3,7 +3,6 @@ export interface CuiFloatingButtonGroupProps {
   side?: 'left' | 'right';
   offset?: string;
   contained?: boolean;
-  collapsible?: boolean;
   scrollY?: number;
   forceVisible?: boolean;
   hidden?: boolean;

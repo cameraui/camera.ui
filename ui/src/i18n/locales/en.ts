@@ -1388,9 +1388,6 @@ export default {
       segment_tab_settings: 'Settings',
       segment_tab_sources: 'Sources',
     },
-    floating_buttons: {
-      show: 'Show buttons',
-    },
     polygon: {
       kind_motion: 'Motion',
       kind_object: 'Object',

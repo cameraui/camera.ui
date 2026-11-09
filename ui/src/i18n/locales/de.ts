@@ -1400,9 +1400,6 @@ export default {
       segment_tab_settings: 'Einstellungen',
       segment_tab_sources: 'Quellen',
     },
-    floating_buttons: {
-      show: 'Buttons anzeigen',
-    },
     polygon: {
       kind_motion: 'Bewegung',
       kind_object: 'Objekt',
