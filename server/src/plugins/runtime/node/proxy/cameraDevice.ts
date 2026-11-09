@@ -14,6 +14,7 @@ import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
 import type {
   Camera,
+  CameraConfigInputSettings,
   CameraDeviceSource,
   CameraImplementation,
   CameraInput,
@@ -32,7 +33,13 @@ import type {
 } from '@camera.ui/sdk';
 import type { DetectionEventMessage, SensorJSON } from '@camera.ui/sdk/internal';
 import type { DetectionCoordinatorInterface } from '../../../../rpc/interfaces/detection.js';
-import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates } from '../../../../rpc/interfaces/device.js';
+import type {
+  CameraDeviceInterface,
+  CameraDeviceListenerMessagePayload,
+  CameraSourceChange,
+  DeviceManagerInterface,
+  RefreshedStates,
+} from '../../../../rpc/interfaces/device.js';
 import type { SensorRegistryInterface } from '../../../../rpc/interfaces/sensor.js';
 import type { CameraNamespaces, FrameWorkerDetectionNamespaces, PluginCameraNamespaces, SensorRegistryNamespaces } from '../../../../rpc/namespaces.js';
 import type { StorageController } from '../storageController.js';
@@ -102,6 +109,10 @@ export class CameraDeviceProxy extends CameraDevice {
 
   get #cameraControllerProxy(): Promisify<CameraDeviceInterface> {
     return this.#proxy.createProxy<CameraDeviceInterface>(this.#namespaces.cameraControllerRpc);
+  }
+
+  get #deviceManagerProxy(): Promisify<DeviceManagerInterface> {
+    return this.#proxy.createProxy<DeviceManagerInterface>(NamespaceManager.deviceManagerNamespaces().deviceManagerRpc);
   }
 
   get #sensorRegistryProxy(): Promisify<SensorRegistryInterface> {
@@ -214,6 +225,35 @@ export class CameraDeviceProxy extends CameraDevice {
 
   protected async probeStream(sourceId: string, probeConfig?: ProbeConfig, refresh = false) {
     return this.#cameraControllerProxy.probeStream(sourceId, probeConfig, refresh);
+  }
+
+  public async addSource(source: CameraConfigInputSettings): Promise<CameraDeviceSource> {
+    this.#assertSourceOwner();
+    const change = await this.#deviceManagerProxy.addCameraSource(this.#plugin.id, this.id, source);
+    this.#applySourceChange(change);
+
+    const added = change.sourceId ? this.getSourceById(change.sourceId) : undefined;
+    if (!added) {
+      throw new Error(`Source "${source.name}" missing after it was added`);
+    }
+    return added;
+  }
+
+  public async removeSource(sourceId: string): Promise<void> {
+    this.#assertSourceOwner();
+    const change = await this.#deviceManagerProxy.removeCameraSource(this.#plugin.id, this.id, sourceId);
+    this.#applySourceChange(change);
+  }
+
+  #assertSourceOwner(): void {
+    if (this.pluginInfo?.id !== this.#plugin.id) {
+      throw new Error(`Only the plugin that controls camera "${this.name}" can change its sources`);
+    }
+  }
+
+  // the camera update event follows on its own; applying the answer now lets callers read the new sources right away
+  #applySourceChange(change: CameraSourceChange): void {
+    super.updateCamera(change.camera);
   }
 
   public addSensor<T extends object>(sensor: Sensor<T>): Promise<void> {
