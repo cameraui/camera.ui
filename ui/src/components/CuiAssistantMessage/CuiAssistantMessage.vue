@@ -161,7 +161,7 @@
     </div>
 
     <div v-if="stopped && !streaming" class="mt-2 flex items-center gap-2 text-[12.5px] text-muted">
-      <span>{{ $t('views.assistant.answer_stopped') }}</span>
+      <span>{{ $t(stopped === 'length' ? 'views.assistant.answer_cut' : 'views.assistant.answer_stopped') }}</span>
       <Button type="button" size="small" severity="secondary" text :label="$t('views.assistant.continue_answer')" :disabled="busy" @click="emit('continue')">
         <template #icon>
           <i-mdi:play-outline class="w-3.5 h-3.5" />

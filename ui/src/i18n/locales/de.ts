@@ -2257,6 +2257,8 @@ export default {
       branch_unsaved: 'Dieses Gespräch ist noch nicht gespeichert, schick zuerst eine Nachricht.',
       continue_answer: 'Weiter',
       answer_stopped: 'Antwort abgebrochen.',
+      answer_cut: 'Antwort abgeschnitten.',
+      answer_blocked: 'Der Anbieter hat diese Antwort blockiert.',
       steps: '{n} Schritte',
       tools_title: 'Gesprächseinstellungen',
       tools_count: '{n} Werkzeuge',

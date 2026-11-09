@@ -2241,6 +2241,8 @@ export default {
       branch_unsaved: 'This conversation is not saved yet, send a message first.',
       continue_answer: 'Continue',
       answer_stopped: 'Answer stopped.',
+      answer_cut: 'Answer cut off.',
+      answer_blocked: 'The provider blocked this answer.',
       steps: '{n} steps',
       tools_title: 'Conversation settings',
       tools_count: '{n} tools',

@@ -102,7 +102,7 @@
           :working="waiting && row.lastIndex === chat.messages.value.length - 1 && row.message.role === 'assistant'"
           :busy="chat.busy.value"
           :continuation="row.continuation"
-          :stopped="row.ids.includes(chat.stoppedId.value ?? '')"
+          :stopped="stopOf(row)"
           :tool-images="chat.toolImages.value"
           :tool-references="chat.toolReferences.value"
           :tool-cards="chat.toolCards.value"
@@ -149,6 +149,8 @@
         />
 
         <div v-if="chat.pausedElsewhere.value" class="cui-assistant-note pl-3 text-[13.5px] text-muted">{{ $t('views.assistant.paused_elsewhere') }}</div>
+
+        <div v-if="chat.blocked.value && !chat.busy.value" class="cui-assistant-note pl-3 text-[13.5px] text-muted">{{ $t('views.assistant.answer_blocked') }}</div>
 
         <div v-if="chat.error.value" class="cui-assistant-note pl-3 text-[13.5px] text-muted">
           <strong class="font-medium text-color-faded">{{ chat.failureText(chat.error.value) }}</strong>
@@ -265,6 +267,7 @@ import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
 import { KEYBOARD_EASING, KEYBOARD_GAP, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
 
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
+import type { AssistantStop } from '@/components/CuiAssistantMessage/types.js';
 import type { ComposerSubmission } from '@/components/CuiAssistantComposer/types.js';
 import type { AssistantTrayPanel } from '@/components/CuiAssistantTray/types.js';
 import type { AssistantUsageEvent, DBAssistantThread } from '@shared/types';
@@ -400,6 +403,11 @@ function mergedAnswer(sources: UIMessage[]): UIMessage {
   const message = { ...sources[0], parts: sources.flatMap((source) => source.parts) };
   mergedAnswers.set(sources[0], { sources, message });
   return message;
+}
+
+function stopOf(row: ConversationRow): AssistantStop | undefined {
+  const stop = chat.stopped.value;
+  return stop && row.ids.includes(stop.id) ? stop.reason : undefined;
 }
 
 function rowUsage(row: ConversationRow): AssistantUsageEvent | undefined {

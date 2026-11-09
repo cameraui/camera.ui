@@ -9,6 +9,7 @@ import { fetchAuthHeaders } from '@/connection/fetchAuth.js';
 import { getConnection } from '@/connection/instance.js';
 
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
+import type { AssistantStop } from '@/components/CuiAssistantMessage/types.js';
 import type { ToolResultImage } from '@/components/CuiAssistantToolCall/types.js';
 import type {
   AssistantQuestion,
@@ -19,7 +20,7 @@ import type {
   DBAssistantAttachmentNotice,
   DBAssistantCard,
 } from '@shared/types';
-import type { JSONSchema, RunErrorEvent } from '@tanstack/ai';
+import type { JSONSchema, RunErrorEvent, RunFinishedEvent } from '@tanstack/ai';
 import type { UIMessage } from '@tanstack/ai-vue';
 import type { Ref } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
@@ -180,7 +181,8 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   const toolSettings = ref<Record<string, AssistantSettingKey[]>>({});
   const toolNotices = ref<Record<string, DBAssistantAttachmentNotice[]>>({});
   const usage = ref<Record<string, AssistantUsageEvent>>({});
-  const stoppedId = ref<string | null>(null);
+  const stopped = ref<{ id: string; reason: AssistantStop } | null>(null);
+  const blocked = ref(false);
   let failure: RunErrorEvent | undefined;
 
   function syncForwarded(regenerate = false): void {
@@ -232,6 +234,7 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
     onError: options.onError,
     onChunk: (chunk) => {
       if (chunk.type === EventType.RUN_ERROR) failure = chunk;
+      else if (chunk.type === EventType.RUN_FINISHED) noteFinish(chunk);
     },
     onCustomEvent: (eventType, data, context) => {
       if (eventType === 'assistant.usage') {
@@ -287,13 +290,13 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   const busy = computed(() => chat.isLoading.value || chat.resuming.value);
 
   async function sendMessage(content: Parameters<typeof chat.sendMessage>[0]): Promise<void> {
-    stoppedId.value = null;
+    clearStop();
     syncForwarded();
     await chat.sendMessage(content);
   }
 
   async function reload(): Promise<void> {
-    stoppedId.value = null;
+    clearStop();
     syncForwarded(true);
     await chat.reload();
   }
@@ -301,7 +304,18 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
   function stop(): void {
     chat.stop();
     const last = chat.messages.value.at(-1);
-    stoppedId.value = last?.role === 'assistant' ? last.id : null;
+    stopped.value = last?.role === 'assistant' ? { id: last.id, reason: 'user' } : null;
+  }
+
+  function noteFinish(chunk: RunFinishedEvent): void {
+    blocked.value = chunk.finishReason === 'content_filter';
+    const last = chat.messages.value.at(-1);
+    if (chunk.finishReason === 'length' && last?.role === 'assistant') stopped.value = { id: last.id, reason: 'length' };
+  }
+
+  function clearStop(): void {
+    stopped.value = null;
+    blocked.value = false;
   }
 
   async function continueAnswer(): Promise<void> {
@@ -338,6 +352,7 @@ export function useAssistantChat(options: UseAssistantChatOptions) {
     toolSettings,
     toolNotices,
     usage,
-    stoppedId,
+    stopped,
+    blocked,
   };
 }
