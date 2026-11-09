@@ -1,8 +1,7 @@
 import { orderBy } from '@camera.ui/common/utils';
-import { createReadStream, truncate } from 'node:fs';
-import { Readable } from 'node:stream';
 
 import { inject, tryInject } from '../../container.js';
+import { createLogDownload } from '../../services/logger/logReader.js';
 import { createSourceName } from '../../utils/camera.js';
 import { withoutSourceCredentials } from '../../utils/credentials.js';
 import { isAdminRequest } from '../middlewares/authPermission.middleware.js';
@@ -17,6 +16,7 @@ import type { CameraUiAPI } from '../../api.js';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { Go2RTCProbe } from '../../go2rtc/types.js';
 import type { ConfigService } from '../../services/config/index.js';
+import type { LogManager } from '../../services/logger/logManager.js';
 import type { DBCamera } from '../database/types.js';
 import type {
   AuthLoginRequest,
@@ -46,6 +46,7 @@ export class CamerasController {
   private api: CameraUiAPI;
   private go2rtcApi: Go2RtcApi;
   private configService: ConfigService;
+  private logManager: LogManager;
   private service: CamerasService;
   private pluginsService: PluginsService;
 
@@ -55,6 +56,7 @@ export class CamerasController {
 
     this.api = inject('api');
     this.configService = inject('configService');
+    this.logManager = inject('logManager');
     this.go2rtcApi = inject('go2rtcApi');
   }
 
@@ -615,7 +617,7 @@ export class CamerasController {
     }
   }
 
-  public clearLog(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest>, reply: FastifyReply): FastifyReply | void {
+  public async clearLog(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const cameraController = this.api.getCamera(req.params.cameraname);
 
@@ -626,18 +628,10 @@ export class CamerasController {
         });
       }
 
-      truncate(cameraController.logPath, (error) => {
-        if (error) {
-          return reply.code(500).send({
-            statusCode: 500,
-            message: error.message,
-          });
-        }
+      await this.logManager.clearLog(cameraController.logPath);
+      this.app.io.of('/logs').emit('log:cleared', `camera:${cameraController.id}`);
 
-        this.app.io.of('/logs').emit('clear-camera-log', cameraController.name);
-
-        return reply.code(204).send();
-      });
+      return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
@@ -657,23 +651,10 @@ export class CamerasController {
         });
       }
 
-      const buffer = new Readable();
-      buffer._read = () => {};
-
-      const readStream = createReadStream(cameraController.logPath);
-
-      readStream.on('data', (data) => {
-        buffer.push(data.toString('utf8').replace(/\x1b\[[0-9;]*m/g, ''));
-      });
-
-      readStream.on('end', () => {
-        buffer.push(null);
-      });
-
       reply.header('Content-Type', 'application/octet-stream');
       reply.header('Content-Disposition', `attachment; filename=camera.ui.${cameraController.name.replace(/ /g, '_')}.log.txt`);
 
-      return reply.code(200).send(buffer);
+      return reply.code(200).send(createLogDownload(cameraController.logPath));
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

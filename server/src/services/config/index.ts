@@ -206,7 +206,7 @@ export class ConfigService {
   }
 
   public get BACKUP_EXCLUDED_PATHS(): string[] {
-    return [this.INTERFACE_CACHE_PATH, this.LOGS_PATH, this.LOG_FILE, this.PIDS_FILE, this.REPORTS_FILE, this.HOST_CERT_FILE, this.HOST_KEY_FILE];
+    return [this.INTERFACE_CACHE_PATH, this.LOGS_PATH, this.LOG_FILE, `${this.LOG_FILE}.1`, this.PIDS_FILE, this.REPORTS_FILE, this.HOST_CERT_FILE, this.HOST_KEY_FILE];
   }
 
   public get RESTORE_PRESERVED_PATHS(): string[] {

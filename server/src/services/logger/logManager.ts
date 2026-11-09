@@ -1,22 +1,33 @@
 import { Logger } from '@camera.ui/common/logger';
+import { MAIN_LOG_SIZE } from '@camera.ui/common/node';
 import { EventEmitter } from 'node:events';
-import { rmSync } from 'node:fs';
+import { rm, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { sweepLogs } from './logSweep.js';
 import { FileTransport } from './transports/fileTransport.js';
 
-import type { LogEntry } from '@camera.ui/common/logger';
+import type { LogEntry, LogTargetType } from '@camera.ui/common/logger';
+import type { KnownLogIds } from './logSweep.js';
+
+const SOURCE_LOG_SIZE = 2 * 1024 * 1024;
+const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const WORKER_LOG_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface LogManagerOptions {
   logsPath: string;
   systemLogPath: string;
   logLevel?: 'log' | 'debug' | 'trace';
+  rotateMainLog?: boolean;
 }
 
 export class LogManager extends EventEmitter {
   private loggers = new Map<string, Logger>();
-  private fileTransports = new Map<string, FileTransport>();
+  private transports = new Map<string, FileTransport>();
   private systemTransport: FileTransport;
+  private sweepTimer?: NodeJS.Timeout;
+  private warnLogger?: Logger;
+  private closed = false;
 
   private readonly logsPath: string;
   private debugEnabled = false;
@@ -34,11 +45,7 @@ export class LogManager extends EventEmitter {
       this.traceEnabled = true;
     }
 
-    this.systemTransport = new FileTransport({
-      filePath: options.systemLogPath,
-      bufferSize: 5,
-      flushInterval: 200,
-    });
+    this.systemTransport = this.openTransport(options.systemLogPath, { bufferSize: 5, flushInterval: 200, rotate: options.rotateMainLog ?? true });
 
     this.ensureSystemTransport('server', 'Server');
   }
@@ -52,13 +59,7 @@ export class LogManager extends EventEmitter {
       return logger;
     }
 
-    const filePath = join(this.logsPath, `camera-${cameraId}.log`);
-    const transport = new FileTransport({
-      filePath,
-      bufferSize: 1,
-    });
-    transport.writeHeader(cameraName);
-    this.fileTransports.set(key, transport);
+    this.openTransport(this.getCameraLogPath(cameraId)).writeHeader(cameraName);
 
     logger = new Logger({
       prefix: cameraName,
@@ -82,14 +83,7 @@ export class LogManager extends EventEmitter {
       return logger;
     }
 
-    const filePath = join(this.logsPath, `plugin-${pluginId}.log`);
-    const transport = new FileTransport({
-      filePath,
-      bufferSize: 1,
-    });
-    const headerTitle = version ? `${pluginName}@${version}` : pluginName;
-    transport.writeHeader(headerTitle);
-    this.fileTransports.set(key, transport);
+    this.openTransport(this.getPluginLogPath(pluginId)).writeHeader(version ? `${pluginName}@${version}` : pluginName);
 
     logger = new Logger({
       prefix: pluginName,
@@ -132,22 +126,6 @@ export class LogManager extends EventEmitter {
     return logger;
   }
 
-  private ensureSystemTransport(sourceId: string, title?: string): void {
-    const key = `system:${sourceId}`;
-    if (this.fileTransports.has(key)) {
-      return;
-    }
-
-    const transport = new FileTransport({
-      filePath: join(this.logsPath, `system-${sourceId}.log`),
-      bufferSize: 1,
-    });
-    if (title) {
-      transport.writeHeader(title);
-    }
-    this.fileTransports.set(key, transport);
-  }
-
   public handleChildLog(entry: LogEntry): void {
     entry.source = 'child';
 
@@ -182,14 +160,33 @@ export class LogManager extends EventEmitter {
     return join(this.logsPath, `system-${sourceId}.log`);
   }
 
-  public removeCameraLogger(cameraId: string): void {
-    const key = `camera:${cameraId}`;
-    this.removeLogger(key);
+  public async syncLog(path: string): Promise<void> {
+    await this.transports.get(path)?.sync();
   }
 
-  public removePluginLogger(pluginId: string): void {
-    const key = `plugin:${pluginId}`;
-    this.removeLogger(key);
+  public generationOf(path: string): number {
+    return this.transports.get(path)?.generation ?? 0;
+  }
+
+  public async clearLog(path: string): Promise<void> {
+    const transport = this.transports.get(path);
+    if (transport) {
+      await transport.clear();
+      return;
+    }
+
+    await rm(`${path}.1`, { force: true });
+    await truncate(path).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') throw error;
+    });
+  }
+
+  public removeCameraLogger(cameraId: string): Promise<void> {
+    return this.removeLogger(`camera:${cameraId}`, this.getCameraLogPath(cameraId));
+  }
+
+  public removePluginLogger(pluginId: string): Promise<void> {
+    return this.removeLogger(`plugin:${pluginId}`, this.getPluginLogPath(pluginId));
   }
 
   public setLogLevel(level: 'log' | 'debug' | 'trace'): void {
@@ -211,61 +208,114 @@ export class LogManager extends EventEmitter {
     };
   }
 
+  public startSweep(knownIds?: () => KnownLogIds): void {
+    if (this.sweepTimer || this.closed) return;
+
+    // a worker knows no ids and goes by file age
+
+    const run = () => {
+      this.sweep(knownIds?.()).catch((error) => this.warn(`Log cleanup failed: ${error.message}`));
+    };
+    this.sweepTimer = setInterval(run, SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref();
+    run();
+  }
+
   public async close(): Promise<void> {
-    const closePromises: Promise<void>[] = [];
+    this.closed = true;
+    clearInterval(this.sweepTimer);
+    this.sweepTimer = undefined;
 
-    for (const transport of this.fileTransports.values()) {
-      closePromises.push(transport.close());
-    }
-    closePromises.push(this.systemTransport.close());
-
-    await Promise.all(closePromises);
+    await Promise.all(Array.from(this.transports.values(), (transport) => transport.close()));
 
     this.loggers.clear();
-    this.fileTransports.clear();
+    this.transports.clear();
+  }
+
+  private ensureSystemTransport(sourceId: string, title?: string): void {
+    const path = this.getSystemLogPath(sourceId);
+    if (this.transports.has(path)) {
+      return;
+    }
+
+    const transport = this.openTransport(path);
+    if (title) {
+      transport.writeHeader(title);
+    }
+  }
+
+  private openTransport(path: string, options: { bufferSize?: number; flushInterval?: number; rotate?: boolean } = {}): FileTransport {
+    let transport = this.transports.get(path);
+    if (!transport) {
+      transport = new FileTransport({
+        filePath: path,
+        maxSize: this.sizeOf(path),
+        bufferSize: options.bufferSize ?? 1,
+        flushInterval: options.flushInterval,
+        rotate: options.rotate,
+        onWarning: (message) => this.warn(message),
+      });
+      this.transports.set(path, transport);
+    }
+    return transport;
+  }
+
+  private sizeOf(path: string): number {
+    return path === this.options.systemLogPath ? MAIN_LOG_SIZE : SOURCE_LOG_SIZE;
+  }
+
+  private transportFor(targetType: LogTargetType, targetId: string): FileTransport | undefined {
+    if (targetType === 'camera') return this.transports.get(this.getCameraLogPath(targetId));
+    if (targetType === 'plugin') return this.transports.get(this.getPluginLogPath(targetId));
+    return this.transports.get(this.getSystemLogPath(targetId));
   }
 
   private route(entry: LogEntry): void {
     this.systemTransport.write(entry);
 
     if (entry.targetId && entry.targetType) {
-      const key = `${entry.targetType}:${entry.targetId}`;
-      const transport = this.fileTransports.get(key);
-      if (transport) {
-        transport.write(entry);
-      }
+      this.transportFor(entry.targetType, entry.targetId)?.write(entry);
     }
 
     // camera logs from a plugin also go to the plugin's log, unless routed there above
     if (entry.pluginId && !(entry.targetType === 'plugin' && entry.targetId === entry.pluginId)) {
-      const pluginKey = `plugin:${entry.pluginId}`;
-      const pluginTransport = this.fileTransports.get(pluginKey);
-      if (pluginTransport) {
-        pluginTransport.write(entry);
-      }
+      this.transportFor('plugin', entry.pluginId)?.write(entry);
     }
 
     this.emit('log', entry);
   }
 
-  private async removeLogger(key: string): Promise<void> {
+  private async removeLogger(key: string, path: string): Promise<void> {
     const logger = this.loggers.get(key);
     if (logger) {
       logger.removeAllListeners();
       this.loggers.delete(key);
     }
 
-    const transport = this.fileTransports.get(key);
-    if (transport) {
-      const filePath = transport.getFilePath();
-      await transport.close();
-      this.fileTransports.delete(key);
+    await this.transports.get(path)?.close();
+    this.transports.delete(path);
 
-      try {
-        rmSync(filePath);
-      } catch {
-        // ignore
-      }
-    }
+    await Promise.all([rm(path, { force: true }), rm(`${path}.1`, { force: true })]).catch(() => {});
+  }
+
+  private sweep(known?: KnownLogIds): Promise<void> {
+    return sweepLogs({
+      logsPath: this.logsPath,
+      mainLogPath: this.options.systemLogPath,
+      known,
+      maxIdleMs: known ? undefined : WORKER_LOG_IDLE_MS,
+      sizeOf: (path) => this.sizeOf(path),
+      isOpen: (path) => this.transports.has(path),
+      alter: async (path, task) => {
+        const transport = this.transports.get(path.endsWith('.1') ? path.slice(0, -2) : path);
+        await (transport ? transport.hold(task) : task());
+      },
+      warn: (message) => this.warn(message),
+    });
+  }
+
+  private warn(message: string): void {
+    this.warnLogger ??= this.createSystemLogger('Logs', 'server');
+    this.warnLogger.warn(message);
   }
 }

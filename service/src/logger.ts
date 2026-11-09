@@ -1,21 +1,12 @@
 import { Logger } from '@camera.ui/common';
-import { createWriteStream, existsSync, ftruncate, read } from 'node:fs';
-import { open, stat } from 'node:fs/promises';
-import { promisify } from 'node:util';
+import { MAIN_LOG_SIZE, rotateFullLogFile } from '@camera.ui/common/node';
+import { appendFileSync } from 'node:fs';
 
 import { printSymbol } from './spinner.js';
 
-import type { WriteStream } from 'node:fs';
-
-const truncatePromise = promisify(ftruncate);
-const readPromise = promisify(read);
-
 export class CLILogger {
-  private truncateInterval?: NodeJS.Timeout;
-  private truncateIntervalMs: number = 1000 * 60 * 60 * 2;
-
   private logger: Logger;
-  private fileStream?: WriteStream;
+  private writing = false;
 
   constructor(
     private logPath: string,
@@ -25,17 +16,27 @@ export class CLILogger {
   }
 
   public init(): void {
-    this.fileStream = createWriteStream(this.logPath, { flags: 'a' });
+    this.writing = true;
 
     this.logger.onLog((entry) => {
-      if (this.fileStream?.writable) {
-        const text = Logger.formatAsText(entry);
-        this.fileStream.write(text + '\n');
+      if (!this.writing) return;
+
+      try {
+        // open, append, close: the server rotates this file, no handle may stay on the old one
+        appendFileSync(this.logPath, Logger.formatAsText(entry) + '\n');
+      } catch {
+        // a full disk must not stop the launcher
       }
     });
+  }
 
-    this.truncateInterval = setInterval(() => this.truncateLog(), this.truncateIntervalMs);
-    this.truncateLog();
+  public async rotate(): Promise<void> {
+    try {
+      const rotation = await rotateFullLogFile(this.logPath, MAIN_LOG_SIZE);
+      if (rotation && !rotation.rotated) this.log(`Could not rotate the log file (${rotation.error}), cut it in place instead`, 'warn');
+    } catch (error) {
+      this.log(`Could not shorten the log file: ${error.message}`, 'fail');
+    }
   }
 
   public log(msg: string, level: 'info' | 'succeed' | 'fail' | 'warn' | 'debug' | 'raw' = 'info', write?: boolean): void {
@@ -53,45 +54,7 @@ export class CLILogger {
   }
 
   public close(): void {
-    clearInterval(this.truncateInterval);
-    this.fileStream?.end();
-    this.fileStream = undefined;
-  }
-
-  private async truncateLog(): Promise<void> {
-    if (!existsSync(this.logPath)) {
-      return;
-    }
-
-    const maxSize = 1000000;
-    const truncateSize = 200000;
-
-    try {
-      const logStats = await stat(this.logPath);
-
-      if (logStats.size < maxSize) {
-        this.log(`Log file size is less than ${maxSize} bytes, skipping truncate`, 'debug');
-        return;
-      }
-
-      this.log(`Truncating log file to ${truncateSize} bytes...`, 'debug');
-
-      const logStartPosition = logStats.size - truncateSize;
-      const logBuffer = Buffer.alloc(truncateSize);
-      const fileHandle = await open(this.logPath, 'r+');
-
-      try {
-        await readPromise(fileHandle.fd, logBuffer, 0, truncateSize, logStartPosition);
-        await truncatePromise(fileHandle.fd, 0);
-        await fileHandle.write(logBuffer, 0, truncateSize, 0);
-      } finally {
-        await fileHandle.close();
-      }
-
-      this.log('Log file truncated successfully', 'debug');
-    } catch (e) {
-      this.log(`Failed to truncate log file: ${e.message}`, 'fail');
-    }
+    this.writing = false;
   }
 
   private getLoggingLevel(level: 'info' | 'succeed' | 'fail' | 'warn' | 'debug' | 'raw'): 'log' | 'warn' | 'error' | 'success' | 'debug' | 'raw' {

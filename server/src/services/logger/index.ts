@@ -1,9 +1,11 @@
 import { Logger } from '@camera.ui/common/logger';
+import { LOG_APPEND_ONLY_ENV } from '@camera.ui/common/node';
 
 import { provide } from '../../container.js';
 import { LogManager } from './logManager.js';
 
 import type { LoggerOptions } from '@camera.ui/common/logger';
+import type { KnownLogIds } from './logSweep.js';
 
 export class LoggerService extends Logger {
   private logManager?: LogManager;
@@ -18,6 +20,7 @@ export class LoggerService extends Logger {
       logsPath,
       systemLogPath,
       logLevel,
+      rotateMainLog: process.env[LOG_APPEND_ONLY_ENV] === '1' || !process.send,
     });
 
     provide('logManager', this.logManager);
@@ -64,6 +67,10 @@ export class LoggerService extends Logger {
 
   public getSystemLogPath(sourceId: string): string | undefined {
     return this.logManager?.getSystemLogPath(sourceId);
+  }
+
+  public startLogSweep(knownIds?: () => KnownLogIds): void {
+    this.logManager?.startSweep(knownIds);
   }
 
   public removeCameraLogger(cameraId: string): void {

@@ -293,6 +293,10 @@ export class CameraUi {
   private setStatus(status: 'loading' | 'ready'): void {
     this.status = status;
     this.server.app?.io.of('/camera.ui').emit('status', status);
+
+    if (status === 'ready') {
+      this.logger.startLogSweep(() => ({ cameras: new Set(this.database.camerasDB.getKeys()), plugins: new Set(this.database.pluginsDB.getKeys()) }));
+    }
   }
 
   private async reportUpdateState(): Promise<void> {

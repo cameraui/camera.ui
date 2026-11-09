@@ -9,6 +9,7 @@ export function followFile(path: string, onLine: (line: string) => void): () => 
   let target = cursor;
   let remainder = '';
   let reading = false;
+  let restarts = 0;
 
   const pump = (): void => {
     if (reading || target <= cursor) {
@@ -17,6 +18,7 @@ export function followFile(path: string, onLine: (line: string) => void): () => 
 
     reading = true;
     const end = target;
+    const restart = restarts;
     const stream = createReadStream(path, { start: cursor, end: end - 1, encoding: 'utf8' });
 
     stream.on('data', (chunk) => {
@@ -29,7 +31,7 @@ export function followFile(path: string, onLine: (line: string) => void): () => 
     });
 
     stream.on('end', () => {
-      cursor = end;
+      if (restart === restarts) cursor = end;
       reading = false;
       pump();
     });
@@ -39,11 +41,11 @@ export function followFile(path: string, onLine: (line: string) => void): () => 
     });
   };
 
-  const onChange = (current: Stats): void => {
-    // truncated in place, without this it stays silent until it grows past the old size
-    if (current.size < cursor) {
+  const onChange = (current: Stats, previous: Stats): void => {
+    if (current.ino !== previous.ino || current.size < cursor) {
       cursor = 0;
       remainder = '';
+      restarts++;
     }
 
     target = current.size;

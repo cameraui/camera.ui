@@ -79,6 +79,7 @@ class CameraUiWorker {
 
     this.agent = new WorkerAgent((reason) => this.owner.shutdown(reason), pairing);
     await this.agent.start();
+    this.logger.startLogSweep();
   }
 
   public async close(): Promise<void> {

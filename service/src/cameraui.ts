@@ -127,6 +127,10 @@ export class CameraUiCLI {
     this.logging.log(msg, level, write);
   }
 
+  public rotateLog(): Promise<void> {
+    return this.logging.rotate();
+  }
+
   public async printPostInstallInstructions(type: 'start' | 'restart' | 'status'): Promise<void> {
     if (this.worker) {
       const master = this.readWorkerMaster();

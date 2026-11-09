@@ -1,22 +1,40 @@
 import { Logger } from '@camera.ui/common/logger';
 import { existsSync } from 'node:fs';
-import { open } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { inject, tryInject } from '../../../container.js';
+import { readLogAround, readLogChunk, readLogTail, stampTime } from '../../../services/logger/logReader.js';
 import { paint } from '../../../utils/colors.js';
 import { setTerminalCols } from '../../utils/install-logger.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
+import type { Database } from '../../database/index.js';
 import type { CameraUi } from '../../../master.js';
 import type { PluginManager } from '../../../plugins/index.js';
 import type { ConfigService } from '../../../services/config/index.js';
+import type { LogChunk } from '../../../services/logger/logReader.js';
 import type { SocketNsp } from '../types.js';
 
 const MAIN_TARGET = 'main';
 const REPLAY_BYTES = 50_000;
+
+interface LogQuery {
+  source?: string;
+  before?: number;
+  after?: number;
+  around?: number;
+  aroundStamp?: string;
+}
+
+interface LogSourceFile {
+  path: string;
+  target: string;
+  filter?: string | number;
+}
+
+type LogChunkReply = (LogChunk & { generation: number }) | { error: 'not_found' | 'failed' };
 
 interface LogSubscriber {
   socket: Socket;
@@ -40,12 +58,14 @@ export class LogsNamespace {
   private api: CameraUiAPI;
   private cameraui: CameraUi;
   private configService: ConfigService;
+  private dbs: Database;
   private pluginManager: PluginManager;
 
   constructor(io: Server) {
     this.api = inject('api');
     this.cameraui = inject('cameraui');
     this.configService = inject('configService');
+    this.dbs = inject('dbs');
     this.pluginManager = inject('pluginManager');
 
     this.nsp = io.of(this.nspName);
@@ -54,6 +74,8 @@ export class LogsNamespace {
       socket.on('get-system-log', (sourceId: string, options?: { sinceLastStart?: boolean }) => this.getSystemLog(socket, sourceId, options));
       socket.on('get-camera-log', (cameraName: string, options?: { sinceLastStart?: boolean }) => this.getCameraLog(socket, cameraName, options));
       socket.on('get-plugin-log', (pluginName: string, options?: { sinceLastStart?: boolean }) => this.getPluginLog(socket, pluginName, options));
+      socket.on('log:open', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.openLog(socket, query, ack));
+      socket.on('log:chunk', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.readChunk(query, ack));
       socket.on('term-size', (payload: { target?: string; cols?: number }) => {
         if (payload?.target && typeof payload.cols === 'number') {
           setTerminalCols(payload.target, payload.cols);
@@ -109,6 +131,73 @@ export class LogsNamespace {
     this.streamLog(socket, plugin.logPath, emitTo, `plugin:${plugin.id}`, plugin.displayName, options, unsubscribes);
   }
 
+  private async openLog(socket: Socket, query: LogQuery, ack?: (reply: LogChunkReply) => void) {
+    if (typeof ack !== 'function') return;
+
+    const source = this.resolveSource(query?.source);
+    if (!source) {
+      ack({ error: 'not_found' });
+      return;
+    }
+
+    // subscribed before the read, the client drops the lines it gets twice
+    this.subscribe(socket, source.target, `log:${query.source}`, source.filter);
+    ack(await this.chunkReply(source, query));
+  }
+
+  private async readChunk(query: LogQuery, ack?: (reply: LogChunkReply) => void) {
+    if (typeof ack !== 'function') return;
+
+    const source = this.resolveSource(query?.source);
+    ack(source ? await this.chunkReply(source, query) : { error: 'not_found' });
+  }
+
+  private resolveSource(source?: string): LogSourceFile | undefined {
+    if (source === 'all') {
+      return { path: this.configService.LOG_FILE, target: MAIN_TARGET };
+    }
+
+    const separator = source?.indexOf(':') ?? -1;
+    if (!source || separator === -1) return undefined;
+
+    const kind = source.slice(0, separator);
+    const id = source.slice(separator + 1);
+    const logsPath = this.configService.LOGS_PATH;
+
+    if (kind === 'system' && LogsNamespace.SYSTEM_SOURCES.has(id)) {
+      return { path: join(logsPath, `system-${id}.log`), target: source };
+    }
+    if (kind === 'camera') {
+      const camera = this.dbs.camerasDB.get(id);
+      return camera && { path: join(logsPath, `camera-${id}.log`), target: source, filter: camera.name };
+    }
+    if (kind === 'plugin' && this.dbs.pluginsDB.get(id)) {
+      const plugin = Array.from(this.pluginManager.plugins.values()).find((entry) => entry.id === id);
+      return { path: join(logsPath, `plugin-${id}.log`), target: source, filter: plugin?.displayName };
+    }
+    return undefined;
+  }
+
+  private async chunkReply(source: LogSourceFile, query: LogQuery): Promise<LogChunkReply> {
+    const logManager = tryInject('logManager');
+    const generationOf = () => logManager?.generationOf(source.path) ?? 0;
+    const around = typeof query.aroundStamp === 'string' ? stampTime(query.aroundStamp) : query.around;
+    await logManager?.syncLog(source.path);
+
+    // a rotation during the read shifts every offset, read again
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const generation = generationOf();
+      const read = typeof around === 'number' ? readLogAround(source.path, around) : readLogChunk(source.path, { before: query.before, after: query.after });
+      const chunk = await read.catch(() => undefined);
+      if (!chunk) break;
+      if (generationOf() !== generation) continue;
+
+      const filter = source.filter;
+      return { ...chunk, lines: filter === undefined ? chunk.lines : chunk.lines.map((line) => this.filterLine(line, filter)), generation };
+    }
+    return { error: 'failed' };
+  }
+
   private async lookupAfterStartup<T>(socket: Socket, channel: string, lookup: () => T | undefined): Promise<T | undefined> {
     const ready = () => this.cameraui.status === 'ready';
     let found = lookup();
@@ -137,7 +226,7 @@ export class LogsNamespace {
     }
 
     try {
-      const content = await readTail(logFile, REPLAY_BYTES);
+      const content = await readLogTail(logFile, REPLAY_BYTES);
       if (socket.disconnected || this.unsubscribeCount(socket, channel) !== unsubscribes) {
         return;
       }
@@ -283,18 +372,5 @@ export class LogsNamespace {
     }
 
     return targets;
-  }
-}
-
-async function readTail(path: string, maxBytes: number): Promise<string> {
-  const handle = await open(path, 'r');
-  try {
-    const { size } = await handle.stat();
-    const length = Math.min(size, maxBytes);
-    const buffer = Buffer.alloc(length);
-    const { bytesRead } = await handle.read(buffer, 0, length, size - length);
-    return buffer.toString('utf8', 0, bytesRead);
-  } finally {
-    await handle.close();
   }
 }

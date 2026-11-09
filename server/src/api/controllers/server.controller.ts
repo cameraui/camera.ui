@@ -1,12 +1,12 @@
 import { fetchViableNetworkAddresses } from '@camera.ui/common/network';
 import { APP_SERVER_NAME, isEqual } from '@camera.ui/common/utils';
-import { createReadStream, readFile, truncate } from 'node:fs';
+import { readFile } from 'node:fs';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
 
 import { inject } from '../../container.js';
 import { instanceLanguage } from '../../i18n/index.js';
 import { ConfigService } from '../../services/config/index.js';
+import { createLogDownload } from '../../services/logger/logReader.js';
 import { getVersionsAndDistTags } from '../../utils/npm/index.js';
 import { ServerService } from '../services/server.service.js';
 import { updatesService } from '../services/updates.service.js';
@@ -17,6 +17,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
+import type { LogManager } from '../../services/logger/logManager.js';
 import type { DBServer } from '../database/types.js';
 import type {
   AuthLoginRequest,
@@ -46,6 +47,7 @@ export class ServerController {
   private go2rtcApi: Go2RtcApi;
   private proxy: ProxyServer;
   private logger: LoggerService;
+  private logManager: LogManager;
   private socketService: SocketService;
 
   private service: ServerService;
@@ -55,6 +57,7 @@ export class ServerController {
     this.go2rtcApi = inject('go2rtcApi');
     this.proxy = inject('proxy');
     this.logger = inject('logger');
+    this.logManager = inject('logManager');
     this.socketService = inject('socketService');
 
     this.service = new ServerService();
@@ -289,23 +292,15 @@ export class ServerController {
     }
   }
 
-  public clearLog(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply | void {
+  public async clearLog(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const source = (req.query as { source?: string } | undefined)?.source;
-      const logFile = this.resolveLogFile(source);
+      await this.logManager.clearLog(this.resolveLogFile(source));
 
-      truncate(logFile, (error) => {
-        if (error) {
-          return reply.code(500).send({
-            statusCode: 500,
-            message: error.message,
-          });
-        }
+      this.app.io.of('/logs').emit('clear-log', source ?? 'all');
+      this.app.io.of('/logs').emit('log:cleared', source && SYSTEM_LOG_SOURCES.has(source) ? `system:${source}` : 'all');
 
-        this.app.io.of('/logs').emit('clear-log', source ?? 'all');
-
-        return reply.code(204).send();
-      });
+      return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
@@ -317,26 +312,12 @@ export class ServerController {
   public downloadLog(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply | void {
     try {
       const source = (req.query as { source?: string } | undefined)?.source;
-      const logFile = this.resolveLogFile(source);
       const filename = source && source !== 'all' ? `${source}.log.txt` : 'camera.ui.log.txt';
-
-      const buffer = new Readable();
-      buffer._read = () => {};
-
-      const readStream = createReadStream(logFile);
-
-      readStream.on('data', (data) => {
-        buffer.push(data.toString('utf8').replace(/\x1b\[[0-9;]*m/g, ''));
-      });
-
-      readStream.on('end', () => {
-        buffer.push(null);
-      });
 
       reply.header('Content-Type', 'application/octet-stream');
       reply.header('Content-Disposition', `attachment; filename=${filename}`);
 
-      return reply.code(200).send(buffer);
+      return reply.code(200).send(createLogDownload(this.resolveLogFile(source)));
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

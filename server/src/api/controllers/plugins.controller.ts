@@ -1,15 +1,14 @@
 import { orderBy } from '@camera.ui/common/utils';
 import { canCreateCameras, canProvideSensorsToAnyCameras, hasInterface, PluginInterface, PluginRole } from '@camera.ui/sdk';
 import { pathExists, remove } from 'fs-extra/esm';
-import { createReadStream, truncate } from 'node:fs';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
 
 import { inject } from '../../container.js';
 import { PluginManager } from '../../plugins/index.js';
 import { ConfigService } from '../../services/config/index.js';
+import { createLogDownload } from '../../services/logger/logReader.js';
 import { checkEngineCompatibility, checkProtocolCompat } from '../../utils/engines.js';
 import { squarePng } from '../../utils/image.js';
 import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
@@ -27,6 +26,7 @@ import type { Server } from 'socket.io';
 import type { Plugin } from '../../plugins/plugin.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
+import type { LogManager } from '../../services/logger/logManager.js';
 import type { NpmSearchObject } from '../../utils/npm/index.js';
 import type { CatalogEntry, VerifiedEntry } from '../../utils/plugin-registry/index.js';
 import type {
@@ -72,6 +72,7 @@ function normalizeRepoUrl(url: string): string {
 
 export class PluginsController {
   private logger: LoggerService;
+  private logManager: LogManager;
   private configService: ConfigService;
   private io: Server;
   private pluginManager: PluginManager;
@@ -86,6 +87,7 @@ export class PluginsController {
     this.camerasService = new CamerasService();
 
     this.logger = inject('logger');
+    this.logManager = inject('logManager');
     this.configService = inject('configService');
     this.pluginManager = inject('pluginManager');
     this.proxyServer = inject('proxy');
@@ -583,7 +585,7 @@ export class PluginsController {
     }
   }
 
-  public clearLog(req: FastifyRequest<AuthLoginRequest & PluginsParamsNameRequest>, reply: FastifyReply): FastifyReply | void {
+  public async clearLog(req: FastifyRequest<AuthLoginRequest & PluginsParamsNameRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const pluginName = resolvePluginName(req.params);
       const plugin = this.service.getPluginByName(pluginName);
@@ -595,18 +597,10 @@ export class PluginsController {
         });
       }
 
-      truncate(plugin.logPath, (error) => {
-        if (error) {
-          return reply.code(500).send({
-            statusCode: 500,
-            message: error.message,
-          });
-        }
+      await this.logManager.clearLog(plugin.logPath);
+      this.app.io.of('/logs').emit('log:cleared', `plugin:${plugin.id}`);
 
-        this.app.io.of('/logs').emit('clear-plugin-log', pluginName);
-
-        return reply.code(204).send();
-      });
+      return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
@@ -627,23 +621,10 @@ export class PluginsController {
         });
       }
 
-      const buffer = new Readable();
-      buffer._read = () => {};
-
-      const readStream = createReadStream(plugin.logPath);
-
-      readStream.on('data', (data) => {
-        buffer.push(data.toString('utf8').replace(/\x1b\[[0-9;]*m/g, ''));
-      });
-
-      readStream.on('end', () => {
-        buffer.push(null);
-      });
-
       reply.header('Content-Type', 'application/octet-stream');
       reply.header('Content-Disposition', `attachment; filename=camera.ui.${plugin.pluginName}.log.txt`);
 
-      return reply.code(200).send(buffer);
+      return reply.code(200).send(createLogDownload(plugin.logPath));
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

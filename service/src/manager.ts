@@ -1,6 +1,7 @@
 import { APP_SERVER_NAME, IS_DEV, npmCommand } from '@camera.ui/common';
 import {
   killTree,
+  LOG_APPEND_ONLY_ENV,
   readRegistrySync,
   REAP_GRACE_MS,
   reapRegistry,
@@ -235,6 +236,8 @@ export class ServerManager {
     }
 
     await this.finalizeStagedInstall();
+    // no server runs at this point, so nothing else holds the log
+    await this.cli.rotateLog();
 
     if (this.stopRequested) {
       return;
@@ -250,6 +253,7 @@ export class ServerManager {
       ...process.env,
       FORCE_COLOR: '1',
       [SUPERVISOR_IPC_ENV]: String(SUPERVISOR_IPC_LEVEL),
+      [LOG_APPEND_ONLY_ENV]: '1',
       ...(IS_DEV ? { TSX_TSCONFIG_PATH: join(this.serverPath, 'tsconfig.json') } : {}),
     };
 
