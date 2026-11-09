@@ -48,7 +48,15 @@ export class AssistantUsageStore {
 
   public async removeAll(userId: string): Promise<void> {
     const prefix = `${userId}/`;
-    const keys = Array.from(this.dbs.assistantUsageDB.getKeys({ start: prefix, end: `${prefix}${KEY_END}` }));
+    await this.remove(this.dbs.assistantUsageDB.getKeys({ start: prefix, end: `${prefix}${KEY_END}` }));
+  }
+
+  public async clear(): Promise<void> {
+    await this.remove(this.dbs.assistantUsageDB.getKeys({}));
+  }
+
+  private async remove(range: Iterable<string>): Promise<void> {
+    const keys = Array.from(range);
     await this.dbs.assistantUsageDB.transaction(() => {
       for (const key of keys) this.dbs.assistantUsageDB.remove(key);
     });

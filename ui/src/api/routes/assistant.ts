@@ -99,6 +99,10 @@ export async function getAssistantUsageAll({ signal }: { signal: AbortSignal }):
   return response.data;
 }
 
+export async function clearAssistantUsage(): Promise<void> {
+  await api.delete('/assistant/usage/all');
+}
+
 export async function listAssistantMemory({ signal }: { signal: AbortSignal }): Promise<DBAssistantMemoryFact[]> {
   const response: AxiosResponse<DBAssistantMemoryFact[]> = await api.get('/assistant/memory', { signal });
   return response.data;
@@ -231,6 +235,15 @@ export class AssistantQuery {
       queryKey: ['assistant', 'usage', 'all'],
       queryFn: ({ signal }) => getAssistantUsageAll({ signal }),
       staleTime: 30_000,
+    });
+  }
+
+  public clearUsageMutation() {
+    return useMutation({
+      mutationFn: clearAssistantUsage,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['assistant', 'usage'] });
+      },
     });
   }
 

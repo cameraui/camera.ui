@@ -137,6 +137,10 @@ export class AssistantService {
     });
   }
 
+  public async clearUsage(): Promise<void> {
+    await this.manager.usage.clear();
+  }
+
   public listMemory(userId: string): DBAssistantMemoryFact[] {
     return this.manager.memory.list(userId);
   }

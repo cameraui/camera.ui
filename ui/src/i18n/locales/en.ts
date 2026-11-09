@@ -3852,6 +3852,8 @@ export default {
       assistant_usage_in: 'Tokens in',
       assistant_usage_out: 'Tokens out',
       assistant_usage_cost: 'Cost',
+      assistant_usage_reset: 'Reset usage',
+      assistant_usage_reset_confirm: 'Delete the recorded usage of every user, plugin and model? The table starts empty again.',
       assistant_external: 'External MCP servers',
       assistant_external_info: 'Use the tools of other systems with an MCP server, like Home Assistant. The assistant asks before it changes something there.',
       assistant_external_new: 'New server',

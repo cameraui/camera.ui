@@ -687,6 +687,22 @@
                   <template #body="{ data }">{{ data.costUsd ? `$${data.costUsd.toFixed(data.costUsd < 1 ? 3 : 2)}` : '–' }}</template>
                 </Column>
               </CuiDataTable>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  severity="secondary"
+                  outlined
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.reset')"
+                  :disabled="!usage?.length"
+                  @click="confirmClearUsage"
+                >
+                  <template #icon>
+                    <i-mdi:restore class="w-4 h-4" />
+                  </template>
+                </Button>
+              </div>
             </div>
           </template>
         </Card>
@@ -857,6 +873,7 @@ const { t, locale } = useI18n();
 const { alerts: textAlerts, setEnabled: setTextAlertEnabled, setModel: setTextAlertModel, remove: removeTextAlert } = useTextAlerts();
 
 const { data: usageRows, isLoading: usageLoading } = assistantQuery.usageAllQuery();
+const clearUsageMutation = assistantQuery.clearUsageMutation();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
 const patchMutation = assistantQuery.patchAssistantInfoMutation();
 const { data: profiles } = assistantQuery.listProfilesQuery();
@@ -1293,6 +1310,20 @@ function confirmDeleteModel(entry: AssistantModelView): void {
     },
     onConfirm: async () => {
       await saveModels(models.value.filter((model) => model._id !== entry._id).map(modelInput));
+    },
+  });
+}
+
+function confirmClearUsage(): void {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.assistant_usage_reset'),
+      contentText: t('views.settings.assistant_usage_reset_confirm'),
+      confirmText: t('components.form.button.reset'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: async () => {
+      await clearUsageMutation.mutateAsync();
     },
   });
 }

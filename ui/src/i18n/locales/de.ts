@@ -3840,6 +3840,8 @@ export default {
       assistant_usage_in: 'Tokens rein',
       assistant_usage_out: 'Tokens raus',
       assistant_usage_cost: 'Kosten',
+      assistant_usage_reset: 'Verbrauch zurücksetzen',
+      assistant_usage_reset_confirm: 'Den erfassten Verbrauch aller Nutzer, Plugins und Modelle löschen? Die Tabelle beginnt danach wieder leer.',
       assistant_external: 'Externe MCP-Server',
       assistant_external_info: 'Werkzeuge anderer Systeme mit MCP-Server nutzen, etwa Home Assistant. Bevor dort etwas geändert wird, fragt der Assistent nach.',
       assistant_external_new: 'Neuer Server',

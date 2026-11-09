@@ -259,6 +259,17 @@ export const AssistantRoute: FastifyPluginAsync = async (app: FastifyInstance): 
   });
 
   app.route({
+    url: '/usage/all',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.clearUsage.bind(controller),
+    schema: {
+      tags: ['Assistant'],
+      summary: 'Reset the token usage of every user',
+    },
+  });
+
+  app.route({
     url: '/memory',
     method: 'GET',
     preValidation: [validJWTNeeded],

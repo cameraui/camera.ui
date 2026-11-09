@@ -235,6 +235,15 @@ export class AssistantController {
     }
   }
 
+  public async clearUsage(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.clearUsage();
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async listMemory(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       return reply.code(200).send(this.service.listMemory(req.locals.user!._id));
