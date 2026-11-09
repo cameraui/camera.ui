@@ -26,7 +26,7 @@
     "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run"
   },
   "dependencies": {
-    "@camera.ui/common": "~0.0.61",
+    "@camera.ui/common": "~0.0.62",
     "commander": "^15.1.0",
     "js-yaml": "^5.5.0",
     "systeminformation": "^5.33.19"
@@ -36,7 +36,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "26.6.6",
     "@types/tail": "^2.2.3",
-    "@typescript-eslint/parser": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.2",
     "eslint": "9.39.2",
     "fs-extra": "^11.4.1",
     "globals": "^17.14.0",
@@ -48,7 +48,7 @@
     "tsx": "^4.23.15",
     "tsyringe": "^4.10.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.72.1",
+    "typescript-eslint": "^8.72.2",
     "updates": "^20.0.1",
     "vitest": "^5.1.0"
   },
