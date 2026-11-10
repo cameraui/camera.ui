@@ -155,6 +155,31 @@
             <div class="flex flex-col gap-6">
               <span class="text-sm">{{ $t('views.settings.webrtc_info') }}</span>
 
+              <CuiToggleRow :label="$t('views.settings.streaming.relay')" :hint="$t('views.settings.streaming.relay_hint')" label-for="webrtcRelay">
+                <ToggleSwitch
+                  :model-value="relay?.enabled ?? false"
+                  input-id="webrtcRelay"
+                  :disabled="!relay || putRelayLoading"
+                  @update:model-value="(value: boolean) => putRelay(value)"
+                />
+                <template v-if="relay?.enabled" #below>
+                  <div class="flex items-center gap-4">
+                    <span class="text-sm">{{ $t('views.settings.status') }}</span>
+                    <div class="ml-auto shrink-0">
+                      <ProgressSpinner v-if="relay.status === 'checking'" class="w-[15px] h-[15px] m-0" stroke-width="5" />
+                      <RouterLink v-else-if="relay.status === 'unlinked'" :to="{ name: 'SettingsRemote' }" class="text-sm font-bold text-primary">{{
+                        $t('views.settings.streaming.relay_unlinked')
+                      }}</RouterLink>
+                      <Tag
+                        v-else
+                        :severity="relay.status === 'ready' ? 'success' : 'secondary'"
+                        :value="relay.status === 'ready' ? $t('views.settings.streaming.relay_ready') : $t('views.settings.streaming.relay_unavailable')"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </CuiToggleRow>
+
               <div class="flex flex-col sm:flex-row gap-6">
                 <div class="flex flex-col field-gap w-full sm:w-40 shrink-0">
                   <label for="webrtcPort" class="cui-label">{{ $t('views.settings.port') }}</label>
@@ -387,6 +412,8 @@ const { settings, form, errors, saving, pending, dirty, changesOf, showIssues, s
 const { data: serverInfo } = serverQuery.getServerInfoQuery();
 const { data: webrtcSettings, isBusy: webrtcLoading } = remoteQuery.getWebrtcQuery();
 const { mutateAsync: putWebrtc, isPending: putWebrtcLoading } = remoteQuery.putWebrtcMutation();
+const { data: relay } = remoteQuery.getRelayQuery();
+const { mutate: putRelay, isPending: putRelayLoading } = remoteQuery.putRelayMutation();
 
 const QUERY_PRESETS = [
   { value: 'video&audio', label: 'query_video_audio' },

@@ -8,6 +8,7 @@ import type {
   ManagedTunnelStatus,
   MethodKeys,
   PutWebrtcInput,
+  RelayInfo,
   RemoteInfo,
   RemoteTestResult,
   TunnelStatus,
@@ -106,6 +107,16 @@ export async function putWebrtc(settings: PutWebrtcInput): Promise<WebrtcSetting
   return response.data;
 }
 
+export async function getRelay({ signal }: { signal: AbortSignal }): Promise<RelayInfo> {
+  const response: AxiosResponse<RelayInfo> = await api.get('/remote/relay', { signal });
+  return response.data;
+}
+
+export async function putRelay(enabled: boolean): Promise<RelayInfo> {
+  const response: AxiosResponse<RelayInfo> = await api.put('/remote/relay', { enabled });
+  return response.data;
+}
+
 export async function getIceServers(): Promise<RTCIceServer[]> {
   const response: AxiosResponse<RTCIceServer[]> = await api.get('/remote/webrtc/ice-servers');
   return response.data;
@@ -139,6 +150,10 @@ export class RemoteQuery {
     },
     {
       name: 'getWebrtcQuery',
+      enabled: true,
+    },
+    {
+      name: 'getRelayQuery',
       enabled: true,
     },
   ]);
@@ -307,6 +322,26 @@ export class RemoteQuery {
       onSuccess: (settings) => {
         this._queryClient.setQueryData(['remote', 'webrtc'], settings);
         this.toast.add({ severity: 'success', detail: this.t('components.toast.webrtc_updated'), life: 3000 });
+      },
+    });
+  }
+
+  public getRelayQuery(active: () => boolean = () => true) {
+    return useQueryEnhanced({
+      queryKey: ['remote', 'relay'],
+      queryFn: ({ signal }) => getRelay({ signal }),
+      enabled: () => active() && this.queryActivator.value.some((query) => query.name === 'getRelayQuery' && query.enabled),
+      refetchInterval(query) {
+        return query.state.data?.status === 'checking' ? 1500 : false;
+      },
+    });
+  }
+
+  public putRelayMutation() {
+    return useMutation({
+      mutationFn: putRelay,
+      onSuccess: (relay) => {
+        this._queryClient.setQueryData(['remote', 'relay'], relay);
       },
     });
   }

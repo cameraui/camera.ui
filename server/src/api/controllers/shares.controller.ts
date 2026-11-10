@@ -1,4 +1,4 @@
-import { inject } from '../../container.js';
+import { inject, tryInject } from '../../container.js';
 import { browserIceServers, browserStunServers } from '../../services/config/ice-servers.js';
 import { SharesService } from '../services/shares.service.js';
 
@@ -115,7 +115,7 @@ export class SharesController {
       const jwtToken = await this.service.issueViewerToken(share);
       await this.service.countView(token);
 
-      return reply.code(200).send(this.viewerSession(share, jwtToken, streamName));
+      return reply.code(200).send(await this.viewerSession(share, jwtToken, streamName));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
@@ -158,20 +158,21 @@ export class SharesController {
         return reply.code(401).send({ statusCode: 401, message: 'Viewer token required', error: 'unauthorized' });
       }
 
-      return reply.code(200).send(this.viewerSession(actualShare, jwtToken, streamName));
+      return reply.code(200).send(await this.viewerSession(actualShare, jwtToken, streamName));
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
     }
   }
 
-  private viewerSession(share: DBShare, accessToken: string, streamName: string): ViewerSession {
+  private async viewerSession(share: DBShare, accessToken: string, streamName: string): Promise<ViewerSession> {
     const iceServers = this.configService.iceServers;
+    const servers = share.turn ? browserIceServers(iceServers) : browserStunServers(iceServers);
     return {
       access_token: accessToken,
       camera_id: share.cameraId,
       stream_name: streamName,
       expires_in: 300,
-      ice_servers: share.turn ? browserIceServers(iceServers) : browserStunServers(iceServers),
+      ice_servers: (await tryInject('remoteAccessManager')?.turnRelay.viewerIceServers(servers, true)) ?? servers,
     };
   }
 }

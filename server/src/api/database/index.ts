@@ -466,6 +466,7 @@ export class Database {
     await this.remoteDB.put('remote', {
       enabled: false,
       directEnabled: false,
+      relay: false,
       directMode: 'cloudflare',
       customDomain: { url: null },
       cloudflare: { mode: 'quick', hostname: null, token: null, tunnelId: null },

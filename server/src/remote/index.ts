@@ -6,6 +6,7 @@ import { RemoteNotices } from './notices.js';
 import { PushService } from './push.js';
 import { RemoteAccessService } from './services/index.js';
 import { ProxyService } from './tunnel/index.js';
+import { TurnRelay } from './turnRelay.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { CameraUiAPI } from '../api.js';
@@ -15,6 +16,8 @@ import type { ManagedTunnelStatus } from './services/cloudflare-managed.js';
 import type { RemoteAccessStatus, RemoteTestResult, TunnelStatus } from './types.js';
 
 export class RemoteAccessManager {
+  public readonly turnRelay: TurnRelay;
+
   private api: CameraUiAPI;
   private logger: Logger;
   private configService: ConfigService;
@@ -40,6 +43,7 @@ export class RemoteAccessManager {
     this.proxyService = new ProxyService(this.pushService, this.logger);
     this.remoteAccessService = new RemoteAccessService(this.logger, this.proxyService);
     this.notices = new RemoteNotices(() => this.remoteAccessService.reachableFromOutside());
+    this.turnRelay = new TurnRelay(this.remoteService, this.logger);
 
     this.api.setMaxListeners(this.api.getMaxListeners() + 1);
     this.api.once(API_EVENT.SHUTDOWN, () => {

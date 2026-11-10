@@ -165,6 +165,7 @@ export const dbServerSchema = zod.object({
 export const dbRemoteSchema = zod.object({
   enabled: zod.boolean().default(false),
   directEnabled: zod.boolean().default(false),
+  relay: zod.boolean().default(false),
   directMode: zod.enum(['cloudflare', 'customDomain']).default('cloudflare'),
   customDomain: zod.object({ url: zod.string().nullable().default(null) }).default({ url: null }),
   cloudflare: zod

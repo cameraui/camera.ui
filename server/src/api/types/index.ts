@@ -80,7 +80,7 @@ import type {
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
 import type { NotificationFilter, NotificationIdsInput, NotificationListQueryInput } from '../schemas/notifications.schema.js';
-import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutWebrtcInput } from '../schemas/remote.schema.js';
+import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { RunUpdatesInput } from '../schemas/updates.schema.js';
@@ -707,6 +707,10 @@ export interface RemoteWebrtcPutRequest {
   Body: PutWebrtcInput;
 }
 
+export interface RemoteRelayPutRequest {
+  Body: PutRelayInput;
+}
+
 export interface ViewsParamsRequest {
   Params: { viewid: string };
 }
@@ -1299,6 +1303,13 @@ export interface WebrtcSettings {
   stun: string[];
   turn: { urls: string[]; username: string; credentialSet: boolean }[];
   defaultStun: string[];
+}
+
+export type RelayStatus = 'off' | 'unlinked' | 'checking' | 'ready' | 'unavailable';
+
+export interface RelayInfo {
+  enabled: boolean;
+  status: RelayStatus;
 }
 
 export interface RemoteRegistrationStatus {

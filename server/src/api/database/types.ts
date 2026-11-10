@@ -177,6 +177,7 @@ export type DBCloudflareMode = 'quick' | 'token' | 'managed';
 export interface DBRemote {
   enabled: boolean;
   directEnabled: boolean;
+  relay: boolean;
   directMode: DBRemoteDirectMode;
   customDomain: {
     url: string | null;

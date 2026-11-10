@@ -5,6 +5,7 @@ import { inject, provide, tryInject } from '../../container.js';
 import { createSourceName } from '../../utils/camera.js';
 import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
+import { Go2rtcSender } from './go2rtcSender.js';
 import { NatsSubFirewall } from './natsSubFirewall.js';
 import { FrameDeflater, isRemoteClient, wantsFrameDeflate, worthCompressing } from './relayCompression.js';
 
@@ -12,11 +13,13 @@ import type { FastifyInstance, FastifyPluginAsync, HookHandlerDoneFunction } fro
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import type { ClientOptions, RawData } from 'ws';
+import type { TurnRelay } from '../../remote/turnRelay.js';
 import type { ProxyServer } from '../../rpc/index.js';
 import type { AuthConfig } from '../../rpc/interfaces/config.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { Database } from '../database/index.js';
 import type { DBToken } from '../types/index.js';
+import type { Go2rtcMessage } from './go2rtcSender.js';
 
 export interface ProxyTLSOptions {
   cert: string | Buffer;
@@ -364,6 +367,11 @@ class WebSocketProxy {
         return;
       }
 
+      const turnRelay =
+        this.target === 'go2rtc' && (isRemoteClient(request) || dbToken.user_id.startsWith(SHARE_USER_PREFIX)) ? tryInject('remoteAccessManager')?.turnRelay : undefined;
+
+      turnRelay?.prefetch();
+
       const wsOptions: ClientOptions = {
         perMessageDeflate: false,
         handshakeTimeout: UPSTREAM_HANDSHAKE_TIMEOUT_MS,
@@ -426,7 +434,7 @@ class WebSocketProxy {
         clientWs.once('close', () => this.relays.remove(relay));
         serverWs.off('message', hold);
         const framed = remote && wantsFrameDeflate(request, url) && !clientWs.extensions.includes('permessage-deflate');
-        this.proxyWebSockets(clientWs, serverWs, natsCreds, firewallConnId, firewallUserId, go2rtcViewer, early, framed ? new FrameDeflater() : undefined);
+        this.proxyWebSockets(clientWs, serverWs, natsCreds, firewallConnId, firewallUserId, go2rtcViewer, turnRelay, early, framed ? new FrameDeflater() : undefined);
       });
 
       // handleUpgrade calls back synchronously or never, never means the client left
@@ -445,6 +453,7 @@ class WebSocketProxy {
     firewallConnId: string | null,
     firewallUserId: string | undefined,
     go2rtcViewer: boolean,
+    turnRelay: TurnRelay | undefined,
     early: [RawData, boolean][],
     deflater?: FrameDeflater,
   ): void {
@@ -486,6 +495,7 @@ class WebSocketProxy {
       });
     } else {
       let connectHandled = false;
+      const go2rtc = this.target === 'go2rtc' ? new Go2rtcSender(server, turnRelay, this.logger) : undefined;
 
       client.on('message', (data, isBinary) => {
         if (server.readyState !== WebSocket.OPEN) return;
@@ -500,7 +510,7 @@ class WebSocketProxy {
             client.close(4403, 'forbidden: message type not allowed');
             return;
           }
-          server.send(message);
+          go2rtc?.send(message);
           return;
         }
 
@@ -522,7 +532,8 @@ class WebSocketProxy {
           }
         }
 
-        server.send(data, { binary: isBinary });
+        if (go2rtc) go2rtc.forward(data, isBinary);
+        else server.send(data, { binary: isBinary });
       });
     }
 
@@ -825,7 +836,7 @@ class WebSocketProxy {
     return Math.max(others, inject('go2rtcState').countConsumersByTag(dbToken.user_id) - 1);
   }
 
-  private viewerMessage(data: RawData): string | undefined {
+  private viewerMessage(data: RawData): Go2rtcMessage | undefined {
     let message: { type?: unknown; value?: unknown } | null;
     try {
       message = JSON.parse(this.extractMessage(data));
@@ -835,7 +846,7 @@ class WebSocketProxy {
     if (typeof message?.type !== 'string' || !GO2RTC_VIEWER_MESSAGES.has(message.type)) {
       return undefined;
     }
-    return JSON.stringify({ type: message.type, value: message.value });
+    return { type: message.type, value: message.value };
   }
 
   private startsGo2rtcReplay(data: Buffer): boolean {

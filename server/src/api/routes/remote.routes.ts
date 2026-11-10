@@ -6,6 +6,7 @@ import {
   pairInitSchema,
   pairPollSchema,
   patchRemoteSchema,
+  putRelaySchema,
   putWebrtcSchema,
   testRemoteSchema,
   updateServerNameSchema,
@@ -208,6 +209,29 @@ export const RemoteRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
       tags: ['Remote'],
       summary: 'Set the STUN and TURN servers for WebRTC, restarts go2rtc when they change',
       body: putWebrtcSchema,
+    },
+  });
+
+  app.route({
+    url: '/relay',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: remoteController.getRelay.bind(remoteController),
+    schema: {
+      tags: ['Remote'],
+      summary: 'Get whether remote live view may use the cameraui.com relay, and whether it is ready',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/relay',
+    method: 'PUT',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: remoteController.putRelay.bind(remoteController),
+    schema: {
+      tags: ['Remote'],
+      summary: 'Switch the cameraui.com relay for remote live view on or off',
+      body: putRelaySchema,
     },
   });
 

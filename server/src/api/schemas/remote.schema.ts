@@ -99,9 +99,12 @@ export const putWebrtcSchema = zod
   })
   .strict();
 
+export const putRelaySchema = zod.object({ enabled: zod.boolean() }).strict();
+
 export type PatchRemoteInput = zod.output<typeof patchRemoteSchema>;
 export type TestRemoteInput = zod.output<typeof testRemoteSchema>;
 export type PairInitInput = zod.output<typeof pairInitSchema>;
 export type PairPollInput = zod.output<typeof pairPollSchema>;
 export type CloudflareManagedConnectInput = zod.output<typeof cloudflareManagedConnectSchema>;
 export type PutWebrtcInput = zod.output<typeof putWebrtcSchema>;
+export type PutRelayInput = zod.output<typeof putRelaySchema>;

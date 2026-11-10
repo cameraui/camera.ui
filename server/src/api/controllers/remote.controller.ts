@@ -4,6 +4,7 @@ import { isEqual } from '@camera.ui/common/utils';
 import { inject } from '../../container.js';
 import { DEFAULT_ICE_SERVERS } from '../../services/config/constants.js';
 import { browserIceServers, isTurnServer } from '../../services/config/ice-servers.js';
+import { isRemoteClient } from '../plugins/relayCompression.js';
 import { TURN_URL_PATTERN } from '../schemas/remote.schema.js';
 import { RemoteService } from '../services/remote.service.js';
 import { ServerService } from '../services/server.service.js';
@@ -18,10 +19,12 @@ import type { LoggerService } from '../../services/logger/index.js';
 import type {
   AuthLoginRequest,
   CloudflareManagedConnectRequest,
+  RelayInfo,
   RemoteInfo,
   RemotePairPollRequest,
   RemotePatchRequest,
   RemoteRegisterRequest,
+  RemoteRelayPutRequest,
   RemoteTestRequest,
   RemoteUpdateServerNameRequest,
   RemoteWebrtcPutRequest,
@@ -284,8 +287,30 @@ export class RemoteController {
     return reply.code(200).send(webrtcSettings(this.configService.iceServers));
   }
 
-  public getIceServers(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
-    return reply.code(200).send(browserIceServers(this.configService.iceServers));
+  public getRelay(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    const relay = this.remoteAccessManager.turnRelay;
+    relay.check();
+    const info: RelayInfo = { enabled: this.service.info().relay, status: relay.status() };
+    return reply.code(200).send(info);
+  }
+
+  public async putRelay(req: FastifyRequest<AuthLoginRequest & RemoteRelayPutRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const relay = this.remoteAccessManager.turnRelay;
+      await relay.setEnabled(req.body.enabled);
+      const info: RelayInfo = { enabled: req.body.enabled, status: relay.status() };
+      return reply.code(200).send(info);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async getIceServers(req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    const servers = browserIceServers(this.configService.iceServers);
+    return reply.code(200).send(await this.remoteAccessManager.turnRelay.viewerIceServers(servers, isRemoteClient(req.raw)));
   }
 
   public async putWebrtc(req: FastifyRequest<AuthLoginRequest & RemoteWebrtcPutRequest>, reply: FastifyReply): Promise<FastifyReply> {
