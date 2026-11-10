@@ -1,7 +1,8 @@
 import { Severity } from '@camera.ui/sdk';
-import { notificationCameraId, notificationPluginId } from '@shared/types';
+import { isCameraEventNotification, notificationCameraId, notificationPluginId } from '@shared/types';
 import CameraIcon from '~icons/bx/cctv';
 import AutomationIcon from '~icons/material-symbols/automation-outline';
+import AlarmIcon from '~icons/mdi/alarm-light';
 import WarnIcon from '~icons/mdi/alert';
 import ErrorIcon from '~icons/mdi/alert-circle';
 import PluginIcon from '~icons/mdi/puzzle-outline';
@@ -60,18 +61,30 @@ export function useNotificationDisplay() {
     return notificationImageUrl(item.videoUrl);
   }
 
+  function isAlarm(item: StoredNotification): boolean {
+    return isCameraEventNotification(item) && item.severity === Severity.Critical;
+  }
+
+  function shownSeverity(item: StoredNotification): Severity | undefined {
+    if (isCameraEventNotification(item)) return isAlarm(item) ? Severity.Critical : undefined;
+    return item.severity;
+  }
+
   function isError(item: StoredNotification): boolean {
-    return item.severity === Severity.Error || item.severity === Severity.Critical;
+    const severity = shownSeverity(item);
+    return severity === Severity.Error || severity === Severity.Critical;
   }
 
   function severityLabel(item: StoredNotification): string | undefined {
-    if (item.severity === Severity.Warn) return t('components.notification_menu.warn');
+    if (isAlarm(item)) return t('components.notification_menu.alarm');
+    if (shownSeverity(item) === Severity.Warn) return t('components.notification_menu.warn');
     if (isError(item)) return t('components.notification_menu.error');
     return undefined;
   }
 
   function severityIcon(item: StoredNotification): Component | undefined {
-    if (item.severity === Severity.Warn) return WarnIcon;
+    if (isAlarm(item)) return AlarmIcon;
+    if (shownSeverity(item) === Severity.Warn) return WarnIcon;
     if (isError(item)) return ErrorIcon;
     return undefined;
   }
@@ -82,7 +95,7 @@ export function useNotificationDisplay() {
 
   function tileClass(item: StoredNotification): string {
     if (isError(item)) return 'bg-red-500/10 text-red-500';
-    if (item.severity === Severity.Warn) return 'bg-orange-500/10 text-orange-500';
+    if (shownSeverity(item) === Severity.Warn) return 'bg-orange-500/10 text-orange-500';
     return 'bg-primary-500/10 text-primary-500';
   }
 
@@ -111,6 +124,8 @@ export function useNotificationDisplay() {
     imageOf,
     videoOf,
     isError,
+    isAlarm,
+    shownSeverity,
     severityLabel,
     severityIcon,
     severityTextClass,

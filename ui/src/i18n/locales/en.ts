@@ -1365,6 +1365,7 @@ export default {
       mark_read: 'Mark as read',
       delete: 'Delete',
       debug: 'Debug',
+      alarm: 'Alarm',
       error: 'Error',
       info: 'Info',
       disabled: 'Notifications are turned off',

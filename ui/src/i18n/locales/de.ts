@@ -1377,6 +1377,7 @@ export default {
       mark_read: 'Als gelesen markieren',
       delete: 'Löschen',
       debug: 'Debug',
+      alarm: 'Alarm',
       error: 'Fehler',
       info: 'Info',
       disabled: 'Benachrichtigungen sind deaktiviert',

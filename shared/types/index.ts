@@ -41,7 +41,14 @@ export type * from '../../server/src/assistant/types.js';
 export type { AutomationRun, RunTraceEntry } from '../../server/src/automations/trace.js';
 export * from '../../server/src/go2rtc/types.js';
 export type * from '../../server/src/manager/types.js';
-export { matchesNotificationFilter, notificationBucket, notificationCameraId, notificationPluginId, notificationSourceId } from '../../server/src/manager/types.js';
+export {
+  isCameraEventNotification,
+  matchesNotificationFilter,
+  notificationBucket,
+  notificationCameraId,
+  notificationPluginId,
+  notificationSourceId,
+} from '../../server/src/manager/types.js';
 export { NOTIFICATION_FILTERS } from '../../server/src/api/schemas/notifications.schema.js';
 export type { NotificationFilter } from '../../server/src/api/schemas/notifications.schema.js';
 export type * from '../../server/src/mqtt/types.js';

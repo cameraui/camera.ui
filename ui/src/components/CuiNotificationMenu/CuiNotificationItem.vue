@@ -3,7 +3,7 @@
     <div v-intersection-observer="onIntersection" class="relative transition-all duration-200" :style="{ left: open ? '-75px' : '0' }">
       <Button severity="secondary" text class="cui-button p-2 block w-full" @click="onClick">
         <div class="flex gap-3">
-          <div class="w-2 h-2 rounded-full mt-2" :style="{ backgroundColor: getColor(notification.severity) }" />
+          <div class="w-2 h-2 rounded-full mt-2" :style="{ backgroundColor: getColor(shownSeverity(notification)) }" />
           <div v-if="imageSrc" class="w-14 h-10 rounded-md overflow-hidden shrink-0 self-center bg-black">
             <CuiImage v-if="seen" :src="imageSrc" alt="" :image-style="{ objectFit: 'cover' }" image-container-class="w-full h-full" />
           </div>
@@ -67,7 +67,7 @@ const props = defineProps<CuiNotificationItemProps>();
 const emit = defineEmits<CuiNotificationItemEmits>();
 
 const { isTouch } = useSharedCuiUserAgent();
-const { summaryOf } = useNotificationDisplay();
+const { summaryOf, shownSeverity } = useNotificationDisplay();
 const swipedId = inject(NotificationSwipeKey)!;
 
 const swipeScope = effectScope();

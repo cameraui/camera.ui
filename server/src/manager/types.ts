@@ -59,9 +59,15 @@ export const SYSTEM_NOTIFICATION_TYPES: readonly SystemNotificationType[] = [
   { type: SystemNotificationTypeId.UpdateFailed, label: 'Update failed' },
 ] as const;
 
+const CAMERA_EVENT_TYPES = new Set(['detection', 'episode', 'text-alert', 'text-alert-end']);
+
 export function notificationCameraId(n: { data?: Record<string, unknown> }): string | undefined {
   const cameraId = n.data?.cameraId;
   return typeof cameraId === 'string' && cameraId ? cameraId : undefined;
+}
+
+export function isCameraEventNotification(n: { data?: Record<string, unknown> }): boolean {
+  return CAMERA_EVENT_TYPES.has(String(n.data?.type));
 }
 
 export function notificationPluginId(n: { source: NotificationSource; data?: Record<string, unknown> }): string | undefined {
@@ -92,6 +98,7 @@ export function matchesNotificationFilter(
     case 'unread':
       return unread;
     case 'problems':
+      if (isCameraEventNotification(n)) return false;
       return n.severity === Severity.Warn || n.severity === Severity.Error || n.severity === Severity.Critical;
     case 'cameras':
       return !!notificationCameraId(n);

@@ -21,7 +21,7 @@
 
         <div
           class="relative flex items-center justify-center w-16 aspect-video rounded-md overflow-hidden shrink-0"
-          :class="imageOf(item) ? 'bg-black' : tileClass(item)"
+          :class="[imageOf(item) ? 'bg-black' : tileClass(item), { 'ring-2 ring-red-500': isAlarm(item) }]"
         >
           <img v-if="imageOf(item)" :src="imageOf(item)" alt="" loading="lazy" decoding="async" class="w-full h-full object-cover" />
           <component :is="sourceOf(item).icon" v-else class="w-4.5 h-4.5" />
@@ -32,7 +32,7 @@
 
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5">
-            <span v-if="severityIcon(item)" :title="severityLabel(item)" class="flex shrink-0">
+            <span v-if="severityIcon(item)" v-tooltip.top="{ value: severityLabel(item) }" class="flex shrink-0">
               <component :is="severityIcon(item)" class="w-4 h-4" :class="severityTextClass(item)" />
             </span>
             <span v-if="nested" class="text-sm truncate text-color">{{ item.subtitle || item.body || item.title }}</span>
@@ -268,7 +268,7 @@ const router = useRouter();
 const { t } = useI18n();
 const { smBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { registerScrollToTop } = useCuiTopbarSlots();
-const { sourceOf, summaryOf, occurrencesOf, showsSource, imageOf, videoOf, severityLabel, severityIcon, severityTextClass, tileClass, dayLabel, formatTime } =
+const { sourceOf, summaryOf, occurrencesOf, showsSource, imageOf, videoOf, isAlarm, severityLabel, severityIcon, severityTextClass, tileClass, dayLabel, formatTime } =
   useNotificationDisplay();
 const activeFilter = useLocalStorage<NotificationFilter>('cui-notifications-filter', 'all');
 const [DefineRow, ReuseRow] = createReusableTemplate<{ item: StoredNotification; series?: StoredNotification[]; nested?: boolean }>();
