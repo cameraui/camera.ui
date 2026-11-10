@@ -181,11 +181,31 @@
               </Button>
             </div>
 
+            <i-mdi:alert-circle-outline
+              v-if="showCornerInfo && liveStreamFailed"
+              key="live-failed"
+              v-tooltip.bottom="{ value: liveFailedTooltip }"
+              class="w-5 h-5 shrink-0 text-red-500 drop-shadow-md"
+            />
+
             <i-material-symbols:info-outline
-              v-if="codecDegradedTooltip && !inStandby"
+              v-if="showCornerInfo && codecDegradedTooltip"
               key="codec-degraded"
               v-tooltip.bottom="{ value: codecDegradedTooltip }"
               class="w-5 h-5 shrink-0 text-red-500/70 drop-shadow-md"
+            />
+
+            <i-mdi:cloud-arrow-right-outline
+              v-if="streamPathIcon === 'relay'"
+              key="relay"
+              v-tooltip.bottom="{ value: t('components.player.relay_connected') }"
+              class="w-5 h-5 shrink-0 text-white/80 drop-shadow-md"
+            />
+            <i-material-symbols:info-outline
+              v-else-if="streamPathIcon === 'relay-off'"
+              key="relay-off"
+              v-tooltip.bottom="{ value: t('components.player.relay_off_hint') }"
+              class="w-5 h-5 shrink-0 text-white/80 drop-shadow-md"
             />
           </TransitionGroup>
 
@@ -313,10 +333,7 @@
                 </div>
               </div>
 
-              <div
-                v-if="nvrNoData || nvrLicenseRequired || codecUnsupported || nvrPlaybackFailed || liveStreamFailed"
-                class="absolute inset-0 z-3 pointer-events-none overflow-hidden"
-              >
+              <div v-if="nvrNoData || nvrLicenseRequired || codecUnsupported || nvrPlaybackFailed" class="absolute inset-0 z-3 pointer-events-none overflow-hidden">
                 <div class="w-full h-full blur-xs">
                   <CuiCameraSnapshot v-if="camera" :camera :show-loading-screen="false" :image-style="{ objectFit: 'fill' }" />
                 </div>
@@ -324,7 +341,7 @@
                   <div class="flex flex-col items-center justify-center text-center">
                     <i-mdi:license v-if="nvrLicenseRequired" class="text-white w-[50px] h-[50px]" />
                     <i-mdi:movie-off v-else-if="codecUnsupported" class="text-white w-[50px] h-[50px]" />
-                    <i-mdi:alert-circle-outline v-else-if="nvrPlaybackFailed || liveStreamFailed" class="text-white w-[50px] h-[50px]" />
+                    <i-mdi:alert-circle-outline v-else-if="nvrPlaybackFailed" class="text-white w-[50px] h-[50px]" />
                     <i-mdi:video-off v-else class="text-white w-[50px] h-[50px]" />
                     <p v-if="isFullPlayer" class="text-white/80 text-sm max-w-xs mt-3">
                       {{
@@ -336,13 +353,8 @@
                               : $t('components.player.codec_unsupported')
                             : nvrPlaybackFailed
                               ? $t('components.player.playback_failed')
-                              : liveStreamFailed
-                                ? $t('components.player.stream_unavailable')
-                                : $t('components.player.no_recording')
+                              : $t('components.player.no_recording')
                       }}
-                    </p>
-                    <p v-if="isFullPlayer && liveStreamFailed && streamError" class="text-white/50 text-xs max-w-xs mt-1 px-4 break-words line-clamp-3">
-                      {{ streamError.message }}
                     </p>
                   </div>
                 </div>
@@ -969,6 +981,7 @@ import { frozenReaction } from '@/utils/frozenPicture.js';
 import { createLongPress } from '@/utils/longPress.js';
 import { maskPrivacyZones } from '@/utils/privacyMask.js';
 import { CAMERA_CARD_DEFAULTS } from './types.js';
+import { useStreamPathInfo } from './useStreamPathInfo.js';
 
 import type CuiBBoxPlayground from '@/components/CuiBBoxPlayground/CuiBBoxPlayground.vue';
 import type { ShareFormProps } from '@/components/CuiDialog/templates/ShareForm/types.js';
@@ -1107,9 +1120,9 @@ const arBoxSize = useElementSize(arBoxRef);
 
 const userMediaStream = shallowRef<MediaStream>();
 const isAdapting = ref(false);
+const liveFailing = ref(false);
+const liveFailureReason = shallowRef<Error>();
 const panValue = ref({ x: 0, y: 0 });
-let panAtPointerDown = { x: 0, y: 0 };
-let lastPointerType = 'mouse';
 const zoomValue = ref(1);
 const zoomState = { pan: panValue, zoom: zoomValue };
 const lastZoom = ref(1);
@@ -1133,6 +1146,8 @@ const bboxEnabled = ref(false);
 const controlBarPopoverOpen = ref(false);
 const morePopoverOpen = ref(false);
 
+let panAtPointerDown = { x: 0, y: 0 };
+let lastPointerType = 'mouse';
 let isUserChangingResolution = false;
 let classifierWatchers: WatchHandle[] = [];
 let isUnmounting = false;
@@ -1238,6 +1253,9 @@ const codecDegradedTooltip = computed(() => {
   if (degraded.reason === 'coverage') return t('components.player.quality_degraded', { from: roleLabel(degraded.from), quality });
   return t('components.player.codec_degraded', { quality });
 });
+const liveFailedTooltip = computed(() =>
+  liveFailureReason.value ? t('components.player.stream_unavailable_reason', { reason: liveFailureReason.value.message }) : t('components.player.stream_unavailable'),
+);
 
 const selectedStreamingMode = computed<VideoStreamingMode>(() => streamingMode.value ?? camera.value?.interfaceSettings.streamingMode ?? 'auto');
 const selectedSourceRole = computed<StreamingRole>(() => sourceRole.value ?? camera.value?.interfaceSettings.streamingSource ?? 'high-resolution');
@@ -1275,8 +1293,9 @@ const {
   isReconnecting: reconnecting,
   inStandby,
   stalled: streamStalled,
-  error: streamError,
 } = cameraStream;
+
+const streamPathInfo = useStreamPathInfo(cameraStream.connectionPath, cameraStream.webrtcUnreachable);
 
 const { start: startDetectionIndicatorTimeout } = useTimeoutFn(
   () => {
@@ -1367,7 +1386,7 @@ const infoText = computed<string | undefined>(() => undefined);
 const hovered = computed(() => (isHovered.value || initialHover.value) && control.value && !shortcutsEditMode.value);
 const isDisabled = computed(() => camera.value?.disabled === true);
 const liveResting = computed(() => inStandby.value && !nvrPlaybackVisible.value);
-const liveStreamFailed = computed(() => !nvrPlaybackVisible.value && !isDisabled.value && !liveResting.value && streamStatus.value === 'error');
+const liveStreamFailed = computed(() => !nvrPlaybackVisible.value && !isDisabled.value && !liveResting.value && (streamStatus.value === 'error' || liveFailing.value));
 const canPickObject = computed(() => hasPermission(undefined, 'admin') && Boolean(camera.value?.assignments?.object) && !isDisabled.value);
 const canFind = computed(() => Boolean(find?.pickable.value) && canPickObject.value && control.value);
 const canLongPress = computed(() => canFind.value && !frozen.value && !liveResting.value && !gridSearchActive.value);
@@ -1387,7 +1406,7 @@ const isLoading = computed(() => {
 const showCenterSpinner = computed(() => {
   if (isDisabled.value) return false;
   if (nvrPlaybackVisible.value) return nvrLoading.value;
-  return streamStatus.value !== 'error' && (isLoading.value || streamStalled.value);
+  return isLoading.value || streamStalled.value;
 });
 const streamHasSound = computed(() => {
   if (nvrPlaybackVisible.value) return nvr.value?.hasAudio.value ?? false;
@@ -1416,6 +1435,8 @@ const showPlayPauseIcon = computed(() => {
   return playing.value;
 });
 const showPtz = computed(() => ptzState.value && isFullPlayer.value && hasPtz.value);
+const showCornerInfo = computed(() => !showPtz.value && !inStandby.value);
+const streamPathIcon = computed(() => (showCornerInfo.value && !nvrPlaybackVisible.value ? streamPathInfo.value : undefined));
 const showPtzToolbar = computed(
   () => showControl.value && hasPtz.value && subcontrol.value && subcontrolPtzButton.value && isFullPlayer.value && !timelineState.value && !nvrPlaybackVisible.value,
 );
@@ -1673,6 +1694,11 @@ function assistantPrompt(): string {
   if (!nvrPlaybackVisible.value || !nvrCurrentTimestamp.value) return t('components.player.ask_assistant_prompt', { camera: cameraName.value });
   const time = new Date(nvrCurrentTimestamp.value / 1000).toLocaleString();
   return t('components.player.ask_assistant_prompt_playback', { camera: cameraName.value, time });
+}
+
+function clearLiveFailure() {
+  liveFailing.value = false;
+  liveFailureReason.value = undefined;
 }
 
 function onCardPointerDown(event: PointerEvent) {
@@ -2454,12 +2480,21 @@ watch(streamStatus, (status) => {
   } else if (status === 'connected') {
     isAdapting.value = false;
   }
+
+  if (status === 'error') liveFailing.value = true;
+  else if (status === 'idle' || status === 'closed' || status === 'unsupported') clearLiveFailure();
+});
+
+watch(streamFinishedLoading, (playing) => {
+  if (playing) clearLiveFailure();
 });
 
 watch(
   () => cameraStream.error.value,
   (error) => {
-    if (error) log.error(cameraName.value, error);
+    if (!error) return;
+    log.error(cameraName.value, error);
+    liveFailureReason.value = error;
   },
 );
 
