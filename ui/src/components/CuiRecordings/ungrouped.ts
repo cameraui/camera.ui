@@ -1,4 +1,4 @@
-import { eventCardTime, segmentHidden } from '@camera.ui/nvr';
+import { eventCardTime } from '@camera.ui/nvr';
 
 import type { RecordedEpisode, RecordedEvent } from '@camera.ui/nvr';
 
@@ -22,12 +22,11 @@ export function newestFirst(a: UngroupedItem, b: UngroupedItem): number {
   return ungroupedItemTime(b) - ungroupedItemTime(a);
 }
 
-export function buildUngroupedItems(events: RecordedEvent[], keepOrder = false, hiddenTypes?: readonly string[]): UngroupedItem[] {
+export function buildUngroupedItems(events: RecordedEvent[], keepOrder = false): UngroupedItem[] {
   const items: UngroupedItem[] = [];
   for (const event of events) {
     const segments = event.segments ?? [];
-    const shown = segments.flatMap((segment, index) => (segment && !segmentHidden(segment, hiddenTypes) ? [index] : []));
-    // listed for its motion, a sound or a sensor while every span is hidden
+    const shown = segments.flatMap((segment, index) => (segment ? [index] : []));
     if (segments.length <= 1 || shown.length === 0) {
       items.push({ event, key: event.id });
       continue;

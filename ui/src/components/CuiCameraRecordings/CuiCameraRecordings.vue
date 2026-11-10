@@ -54,12 +54,13 @@
 </template>
 
 <script setup lang="ts">
-import { timelineFilterQuery, useDetectionEvents, useTimelineFilter } from '@camera.ui/nvr';
+import { useDetectionEvents } from '@camera.ui/nvr';
 import { DETECTION_ATTRIBUTES } from '@camera.ui/sdk';
 import FilterIcon from '~icons/mage/filter';
 import FilterActiveIcon from '~icons/mage/filter-fill';
 import ZoneIcon from '~icons/tabler/grid-scan';
 
+import { UsersQuery } from '@/api/routes/users.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { GridSearchKey } from '@/components/CuiGridSearch/types.js';
 import { boxOverlapsRegions } from '@/components/CuiGridSearch/utils.js';
@@ -67,7 +68,8 @@ import CuiRecordingsGrid from '@/components/CuiRecordings/CuiRecordingsGrid.vue'
 import { triggerQuery, vehicleAttributeLabels } from '@/components/CuiRecordings/filters.js';
 import { buildUngroupedItems } from '@/components/CuiRecordings/ungrouped.js';
 import { provideEventHoverPreview } from '@/composables/provideEventHoverPreview.js';
-import { cameraFilterSet } from './filter.js';
+import { defaultMotionTypes } from '@/utils/motionDefault.js';
+import { cameraFilterSet, contentPicked, savedSelection } from './filter.js';
 import { CAMERA_RECORDINGS_FILTER_DEFAULTS } from './types.js';
 
 import type { CameraRecordingsFilterProps } from '@/components/CuiDialog/templates/CameraRecordingsFilter/types.js';
@@ -84,7 +86,12 @@ const emit = defineEmits<CuiCameraRecordingsEmits>();
 const { t } = useI18n();
 const dialog = useCuiDialog();
 const { openEventTrace } = useEventTraceDialog();
-const { hiddenTypes } = useTimelineFilter(() => props.cameraId);
+const authStore = useAuthStore();
+const queryClient = useQueryClient();
+const usersQuery = new UsersQuery();
+
+const username = computed(() => authStore.user?.username ?? '');
+const { data: currentUser, isError: userLoadFailed } = usersQuery.getUserQuery(username);
 
 const gridSearch = inject(GridSearchKey, undefined);
 
@@ -96,6 +103,7 @@ const REGION_FILL_PAGES = 5;
 
 const gridRef = useTemplateRef<{ scrollY: number }>('gridRef');
 const filter = ref<CameraRecordingsFilterState>({ ...CAMERA_RECORDINGS_FILTER_DEFAULTS });
+const filterRestored = ref(false);
 
 let regionFillPages = 0;
 
@@ -107,8 +115,10 @@ const serverFilter = computed<GetEventsOptions>(() => {
   const { types, day, minConfidence, search, sensorEvents, audioLabels, vehicleColors, vehicleTypes } = filter.value;
   const attributes = types.filter((type) => ATTR_SET.has(type));
   const labels = types.filter((type) => !ATTR_SET.has(type));
+  const content = contentPicked(filter.value);
   return {
-    ...timelineFilterQuery(hiddenTypes.value, cameraIds.value),
+    hasDetections: !content,
+    shownTypes: content ? undefined : defaultMotionTypes(props.camera ? [props.camera] : []),
     ...triggerQuery(sensorEvents, audioLabels),
     types: labels.length > 0 ? labels : undefined,
     attributes: attributes.length > 0 ? attributes : undefined,
@@ -133,6 +143,7 @@ const {
   realtime: true,
   pageSize: 30,
   filter: serverFilter,
+  enabled: () => Boolean(props.camera) && (filterRestored.value || userLoadFailed.value),
 });
 
 const displayEvents = computed(() => {
@@ -146,7 +157,7 @@ const displayEvents = computed(() => {
   return result;
 });
 
-const displayItems = computed(() => buildUngroupedItems(displayEvents.value, false, hiddenTypes.value));
+const displayItems = computed(() => buildUngroupedItems(displayEvents.value));
 
 const regionsKey = computed(() => JSON.stringify(gridSearch?.regions.value ?? []));
 
@@ -175,8 +186,14 @@ function openFilter(): void {
     },
     onConfirm: (result: CameraRecordingsFilterState) => {
       filter.value = result;
+      saveFilter(result);
     },
   });
+}
+
+async function saveFilter(result: CameraRecordingsFilterState): Promise<void> {
+  await authStore.updateUser({ preferences: { recordings: { cameras: { [props.cameraId]: savedSelection(result) } } } });
+  await queryClient.invalidateQueries({ queryKey: ['users', username.value] });
 }
 
 function toggleZone(): void {
@@ -184,6 +201,16 @@ function toggleZone(): void {
   gridSearch.active.value = !gridSearch.active.value;
   if (!gridSearch.active.value) gridSearch.regions.value = [];
 }
+
+watch(
+  currentUser,
+  (user) => {
+    if (!user || filterRestored.value) return;
+    filter.value = { ...CAMERA_RECORDINGS_FILTER_DEFAULTS, ...user.preferences?.recordings?.cameras?.[props.cameraId] };
+    filterRestored.value = true;
+  },
+  { immediate: true },
+);
 
 watch([regionsKey, serverFilter], () => {
   regionFillPages = 0;

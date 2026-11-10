@@ -189,9 +189,21 @@ export const userPreferencesRecordingsFilters = zod
   })
   .partial();
 
+export const userPreferencesCameraRecordingsFilter = zod
+  .object({
+    types: filterValues,
+    sensorEvents: filterValues,
+    audioLabels: filterValues,
+    vehicleColors: filterValues,
+    vehicleTypes: filterValues,
+    minConfidence: zod.number().min(0).max(1),
+  })
+  .partial();
+
 export const userPreferencesRecordings = zod.object({
   ungrouped: zod.boolean().optional(),
   filters: userPreferencesRecordingsFilters.optional(),
+  cameras: zod.record(zod.string().trim().min(1), userPreferencesCameraRecordingsFilter).optional(),
 });
 
 const timelineFilter = zod

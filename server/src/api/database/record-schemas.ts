@@ -11,6 +11,7 @@ import {
   sensorShortcutTypeSchema,
   userLanguageSchema,
   userPreferencesCamviewViewsLayoutCameras,
+  userPreferencesCameraRecordingsFilter,
   userPreferencesRecordingsFilters,
   userPreferencesTimeline,
 } from '../schemas/users.schema.js';
@@ -70,7 +71,13 @@ export const dbUserSchema = zod.object({
           hiddenSensors: zod.object({ pluginName: zod.string(), id: zod.string() }).array().default([]),
         })
         .optional(),
-      recordings: zod.object({ ungrouped: zod.boolean().optional(), filters: userPreferencesRecordingsFilters.optional() }).optional(),
+      recordings: zod
+        .object({
+          ungrouped: zod.boolean().optional(),
+          filters: userPreferencesRecordingsFilters.optional(),
+          cameras: zod.record(zod.string(), userPreferencesCameraRecordingsFilter).optional(),
+        })
+        .optional(),
       home: zod.object({ hiddenCameras: zod.string().array().default([]) }).optional(),
       timeline: userPreferencesTimeline.optional(),
     })

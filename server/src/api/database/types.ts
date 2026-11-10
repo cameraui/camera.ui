@@ -575,6 +575,15 @@ export interface DBRecordingsFilters {
   onlyWithRecordings?: boolean;
 }
 
+export interface DBCameraRecordingsFilter {
+  types?: string[];
+  sensorEvents?: string[];
+  audioLabels?: string[];
+  vehicleColors?: string[];
+  vehicleTypes?: string[];
+  minConfidence?: number;
+}
+
 export interface DBTimelineFilter {
   hiddenTypes?: string[];
   scope?: 'camera' | 'all';
@@ -610,6 +619,7 @@ export interface DBUserPreferences {
   recordings?: {
     ungrouped?: boolean;
     filters?: DBRecordingsFilters;
+    cameras?: Record<string, DBCameraRecordingsFilter | undefined>;
   };
   home?: {
     hiddenCameras: string[];
