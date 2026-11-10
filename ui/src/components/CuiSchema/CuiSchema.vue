@@ -116,7 +116,7 @@
         :severity="saveButtonColor"
         type="submit"
         :loading
-        :disabled="disableButton"
+        :disabled="disableButton || (!showButton && !formDirty)"
         :label="saveButtonLabel || $t('components.form.button.save')"
       >
       </Button>
@@ -224,8 +224,14 @@ function filteredSchemas(group: string) {
   });
 }
 
+const formDirty = computed(() => changed(schemaForm.value.schema.filter((schema) => !(schema as any).hidden)));
+
+function changed(schemas: JsonSchema[]): boolean {
+  return schemas.some((schema) => !isEqual(getValueByKey(formValues.value, schema.key), getValueByKey(savedValues.value, schema.key)));
+}
+
 function groupDirty(group: string): boolean {
-  return filteredSchemas(group).some((schema) => !isEqual(getValueByKey(formValues.value, schema.key), getValueByKey(savedValues.value, schema.key)));
+  return changed(filteredSchemas(group));
 }
 
 function showCardSaveButton(group: string): boolean {

@@ -187,6 +187,7 @@
 
 <script setup lang="ts">
 import { usePluginStorage } from '@camera.ui/browser';
+import { isEqual } from '@camera.ui/common/utils';
 import { hasInterface, PluginInterface, PluginRole } from '@camera.ui/sdk';
 import { generateStorableConfig, PLUGIN_STATUS } from '@shared/types';
 import CctvIcon from '~icons/bxs/cctv';
@@ -273,7 +274,7 @@ const isNvr = computed(() => !!pluginContract.value && hasInterface(pluginContra
 
 const isPluginRunning = computed(() => pluginStatus.value === PLUGIN_STATUS.READY || pluginStatus.value === PLUGIN_STATUS.STARTED);
 const isPluginStarting = computed(() => pluginStatus.value === PLUGIN_STATUS.STARTING && !(pluginPlacement.value && WAITING_PHASES.has(pluginPlacement.value.phase)));
-const settingsLoading = computed(() => pluginLoading.value || pluginConfigLoading.value || !pluginStatus.value);
+const settingsLoading = computed(() => (pluginLoading.value && !plugin.value) || (pluginConfigLoading.value && !pluginConfig.value) || !pluginStatus.value);
 
 const showSettingsTab = computed(() => {
   if (!isPluginRunning.value) return false;
@@ -297,6 +298,7 @@ async function onAction(state: { key: string }): Promise<void> {
 
 async function onSubmit(state: { key: string; payload: any }): Promise<void> {
   try {
+    await saveConfig(state.payload);
     const response = await storage.submitValue(state.key, state.payload);
 
     if (response?.toast) {
@@ -323,17 +325,22 @@ async function onSubmit(state: { key: string; payload: any }): Promise<void> {
 }
 
 async function onFormSubmit(configData: PluginConfig): Promise<void> {
-  if (!pluginConfig.value?.schema.length) {
-    return;
-  }
-
   try {
-    const newConfig = generateStorableConfig(pluginConfig.value.schema, configData);
-    await storage.setConfig(newConfig);
+    await saveConfig(configData);
     toast.add({ severity: 'success', detail: t('components.toast.config_updated'), life: 3000 });
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
+}
+
+async function saveConfig(configData: PluginConfig): Promise<void> {
+  const schema = pluginConfig.value?.schema;
+  if (!schema?.length) return;
+
+  const newConfig = generateStorableConfig(schema, configData);
+  if (isEqual(newConfig, generateStorableConfig(schema, pluginConfig.value?.config ?? {}))) return;
+
+  await storage.setConfig(newConfig);
 }
 
 async function toggleCamera(camera: PluginContractCamera) {
