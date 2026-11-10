@@ -25,16 +25,18 @@
 </template>
 
 <script setup lang="ts">
+import { EVENT_CATEGORIES } from '@camera.ui/nvr';
 import { DETECTION_ATTRIBUTES } from '@camera.ui/sdk';
 
 import { attributeLabelKey, detectionLabelKey } from '@/common/eventLabels.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
+import { showsMotionByDefault } from '@/utils/motionDefault.js';
 
 import { RECENT_EVENTS_FILTER_TYPES, RECENT_EVENTS_OPT_IN_TYPES } from './types.js';
 
 import type { RecentEventTypes } from '@/composables/useRecentEventTypes.js';
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
-import type { EventTypesByCamera } from '@shared/types';
+import type { DBCamera, EventTypesByCamera } from '@shared/types';
 import type { RecentEventsFilterProps } from './types.js';
 
 const props = defineProps<RecentEventsFilterProps>();
@@ -66,10 +68,13 @@ function withoutEmpty(byCamera: EventTypesByCamera): EventTypesByCamera {
   return Object.fromEntries(Object.entries(byCamera).filter(([, types]) => types.length > 0));
 }
 
+function optIn(type: string, camera: DBCamera): boolean {
+  return OPT_IN.has(type) && !(type === EVENT_CATEGORIES.motion && showsMotionByDefault(camera));
+}
+
 function shownOn(type: string): string[] {
-  const optIn = OPT_IN.has(type);
   return props.cameras
-    .filter((camera) => (optIn ? shownDraft.value[camera._id]?.includes(type) : !hiddenDraft.value[camera._id]?.includes(type)))
+    .filter((camera) => (optIn(type, camera) ? shownDraft.value[camera._id]?.includes(type) : !hiddenDraft.value[camera._id]?.includes(type)))
     .map((camera) => camera._id);
 }
 
@@ -80,15 +85,19 @@ function shownLabel(type: string): string {
 }
 
 function setShownOn(type: string, cameraIds: string[]): void {
-  const optIn = OPT_IN.has(type);
-  const draft = optIn ? shownDraft : hiddenDraft;
-  const shown = new Set(cameraIds);
-  const next = { ...draft.value };
+  const picked = new Set(cameraIds);
+  const hidden = { ...hiddenDraft.value };
+  const shown = { ...shownDraft.value };
   for (const camera of props.cameras) {
-    const types = (next[camera._id] ?? []).filter((entry) => entry !== type);
-    next[camera._id] = shown.has(camera._id) === optIn ? [...types, type] : types;
+    const id = camera._id;
+    const on = optIn(type, camera);
+    hidden[id] = (hidden[id] ?? []).filter((entry) => entry !== type);
+    shown[id] = (shown[id] ?? []).filter((entry) => entry !== type);
+    if (on && picked.has(id)) shown[id].push(type);
+    if (!on && !picked.has(id)) hidden[id].push(type);
   }
-  draft.value = next;
+  hiddenDraft.value = hidden;
+  shownDraft.value = shown;
 }
 
 defineExpose<CustomDialogComponent>({

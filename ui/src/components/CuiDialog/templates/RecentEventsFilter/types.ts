@@ -7,5 +7,5 @@ export interface RecentEventsFilterProps extends RecentEventTypes {
 
 export const RECENT_EVENTS_FILTER_TYPES = ['person', 'vehicle', 'animal', 'face', 'license_plate', 'sensor', 'alarm_sound'] as const;
 
-// off until a camera is picked, stored as shown types
+// off until a camera is picked, stored as shown types; motion starts on for cameras without an object sensor
 export const RECENT_EVENTS_OPT_IN_TYPES = ['other_sound', 'motion'] as const;

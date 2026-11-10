@@ -1,12 +1,15 @@
-import { TIMELINE_DEFAULT_HIDDEN, TimelineFilterKey } from '@camera.ui/nvr';
+import { EVENT_CATEGORIES, TIMELINE_DEFAULT_HIDDEN, TimelineFilterKey } from '@camera.ui/nvr';
 
+import { CamerasQuery } from '@/api/routes/cameras.js';
 import { patchUserFn, UsersQuery } from '@/api/routes/users.js';
+import { showsMotionByDefault } from '@/utils/motionDefault.js';
 
 import type { DBTimelineFilter, DBTimelinePreferences } from '@shared/types';
 import type { MaybeRefOrGetter } from 'vue';
 
 export function provideTimelineFilter(): void {
   const usersQuery = new UsersQuery();
+  const camerasQuery = new CamerasQuery();
   const queryClient = useQueryClient();
   const authStore = useAuthStore();
   const instanceStore = useInstanceStore();
@@ -14,6 +17,7 @@ export function provideTimelineFilter(): void {
 
   const username = computed(() => user.value?.username ?? '');
   const { data: currentUser, refetch } = usersQuery.getUserQuery(username);
+  const { data: cameras, refetch: refetchCameras } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 }, () => Boolean(username.value));
 
   const pending = ref<DBTimelinePreferences>();
   const timeline = computed<DBTimelinePreferences>(() => pending.value ?? currentUser.value?.preferences?.timeline ?? {});
@@ -45,9 +49,15 @@ export function provideTimelineFilter(): void {
     }
   }
 
-  function field<K extends keyof DBTimelineFilter>(cameraId: MaybeRefOrGetter<string | undefined>, key: K, fallback: NonNullable<DBTimelineFilter[K]>) {
+  function defaultHidden(cameraId: string | undefined): string[] {
+    const camera = cameraId ? cameras.value?.result.find((entry) => entry._id === cameraId) : undefined;
+    if (camera && showsMotionByDefault(camera)) return TIMELINE_DEFAULT_HIDDEN.filter((type) => type !== EVENT_CATEGORIES.motion);
+    return [...TIMELINE_DEFAULT_HIDDEN];
+  }
+
+  function field<K extends keyof DBTimelineFilter>(cameraId: MaybeRefOrGetter<string | undefined>, key: K, fallback: MaybeRefOrGetter<NonNullable<DBTimelineFilter[K]>>) {
     return computed({
-      get: () => read(toValue(cameraId))[key] ?? fallback,
+      get: () => read(toValue(cameraId))[key] ?? toValue(fallback),
       set: (value) => {
         write(toValue(cameraId), { [key]: value });
       },
@@ -58,12 +68,15 @@ export function provideTimelineFilter(): void {
   watch(
     () => instanceStore.switchKey,
     () => {
-      if (username.value) refetch();
+      if (!username.value) return;
+      refetch();
+      refetchCameras();
     },
   );
 
   provide(TimelineFilterKey, (cameraId) => ({
-    hiddenTypes: field(cameraId, 'hiddenTypes', [...TIMELINE_DEFAULT_HIDDEN]),
+    hiddenTypes: field(cameraId, 'hiddenTypes', () => defaultHidden(toValue(cameraId))),
+    defaultHiddenTypes: computed(() => defaultHidden(toValue(cameraId))),
     scope: field(cameraId, 'scope', 'camera'),
     onlyMatches: field(cameraId, 'onlyMatches', true),
   }));

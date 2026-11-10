@@ -11,7 +11,7 @@
       <h1 v-if="!smBreakpoint" class="page-title mb-2">
         {{ $t('components.camera_events.title') }}
       </h1>
-      <CuiCameraEvents :cameras="cameras?.result" :hidden-types="hiddenEventTypes" :shown-types="shownEventTypes" :pending="!eventTypesReady" />
+      <CuiCameraEvents :cameras="cameras?.result" :hidden-types="recentEventsQuery.hidden" :shown-types="recentEventsQuery.shown" :pending="!eventTypesReady" />
     </div>
 
     <div class="flex flex-col flex-1 overflow-x-hidden">
@@ -250,21 +250,22 @@ const { smBreakpoint } = useSharedCuiBreakpoint();
 const { isTouch } = useSharedCuiUserAgent();
 const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 
+const { data: cameras, isLoading: camerasLoading } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
+
 const {
   hidden: hiddenEventTypes,
   shown: shownEventTypes,
+  query: recentEventsQuery,
   active: recentEventsFiltered,
   ready: eventTypesReady,
   saving: eventTypesSaving,
   save: saveEventTypes,
-} = useRecentEventTypes();
+} = useRecentEventTypes(() => cameras.value?.result);
 
 const { hiddenIds: hiddenCameraIds, toggle: toggleCameraHidden } = useHiddenHomeCameras();
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
-
-const { data: cameras, isLoading: camerasLoading } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
 
 const snapshotRefs = shallowRef<Record<string, InstanceType<typeof CuiCameraSnapshot>>>({});
 

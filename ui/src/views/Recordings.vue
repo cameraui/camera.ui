@@ -303,6 +303,7 @@ import { triggerQuery, vehicleAttributeLabels } from '@/components/CuiRecordings
 import { buildUngroupedItems, newestFirst } from '@/components/CuiRecordings/ungrouped.js';
 import { mergeSimilarItems, similarItems } from '@/components/CuiSimilarResults/utils.js';
 import { provideEventHoverPreview } from '@/composables/provideEventHoverPreview.js';
+import { defaultMotionTypes } from '@/utils/motionDefault.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
 import type { SimilarImageSearchProps } from '@/components/CuiDialog/templates/SimilarImageSearch/types.js';
@@ -860,6 +861,7 @@ function toServerFilter(f: RecordingsFilterState): GetEventsOptions {
     search: f.search || undefined,
     minConfidence: f.minConfidence > 0 ? f.minConfidence : undefined,
     hasDetections: !hasAnyContentFilter,
+    shownTypes: hasAnyContentFilter ? undefined : defaultMotionTypes(camerasData.value?.result ?? []),
     withRecordingInfo: true,
     hasRecording: f.onlyWithRecordings || undefined,
     favoritesOnly: f.favoritesOnly || undefined,
@@ -973,8 +975,8 @@ watch(
 );
 
 watch(
-  filters,
-  (f) => {
+  [filters, () => camerasData.value?.result],
+  ([f]) => {
     const next = toServerFilter(f);
     const nextJSON = JSON.stringify(next);
     if (nextJSON !== _prevFilterJSON) {

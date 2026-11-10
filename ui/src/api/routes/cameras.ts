@@ -18,6 +18,7 @@ import type {
   SubmitStorageInput,
 } from '@shared/types';
 import type { AxiosResponse } from 'axios';
+import type { MaybeRefOrGetter } from 'vue';
 import type { AckResponse } from '..';
 
 export async function createCameraFn({ cameraData }: { cameraData: CreateCameraInput }): Promise<DBCamera> {
@@ -414,12 +415,12 @@ export class CamerasQuery {
     });
   }
 
-  public getCamerasQuery(pagination: PaginationQuery | Ref<PaginationQuery> | ComputedRef<PaginationQuery>) {
+  public getCamerasQuery(pagination: PaginationQuery | Ref<PaginationQuery> | ComputedRef<PaginationQuery>, enabled: MaybeRefOrGetter<boolean> = true) {
     return useQueryEnhanced({
       queryKey: ['camerasList', pagination],
       queryFn: ({ signal }) => getCamerasFn({ parameter: unref(pagination), signal }),
       placeholderData: (previousData: any) => previousData,
-      enabled: () => this.queryActivator.value.some((query) => query.name === 'getCamerasQuery' && query.enabled),
+      enabled: () => toValue(enabled) && this.queryActivator.value.some((query) => query.name === 'getCamerasQuery' && query.enabled),
     });
   }
 
