@@ -37,7 +37,7 @@
       <div v-if="notification.log">
         <span class="section-title mb-1">{{ $t('views.notifications.messages') }}</span>
         <ul class="flex flex-col divide-y divide-(--border-color)">
-          <li v-for="message in notification.log.messages.slice(0, 5)" :key="message.text" class="flex flex-col gap-1 py-2.5">
+          <li v-for="message in shownMessages" :key="message.text" class="flex flex-col gap-1 py-2.5">
             <code class="font-mono text-xs text-color break-words">{{ message.text }}</code>
             <span class="text-xs text-muted">{{ occurrenceLabel(message.count, message.lastAt) }}</span>
           </li>
@@ -145,6 +145,7 @@ const video = computed(() => videoOf(props.notification));
 const cameraName = computed(() => cameraNameOf(props.notification));
 const isRecordingLink = computed(() => !!props.notification.deepLink?.includes('startTs='));
 const assistantReady = computed(() => assistantStatus.value?.state === 'ready');
+const shownMessages = computed(() => props.notification.log?.messages.slice(0, 5) ?? []);
 
 const logLink = computed(() => {
   const { log, cameraName: currentCamera, sourceName } = props.notification;
@@ -188,8 +189,18 @@ function assistantPrompt(): string {
   const label = source.value.label;
   if (item.log) {
     const { count, lastAt, messages } = item.log;
-    const values = { source: label, camera: cameraName.value, count, first: formatDateTime(item.createdAt), last: formatDateTime(lastAt), message: messages[0].text };
-    return t(cameraName.value ? 'views.notifications.ask_assistant_log_camera' : 'views.notifications.ask_assistant_log', values, count);
+    const values = { source: label, camera: cameraName.value, first: formatDateTime(item.createdAt), last: formatDateTime(lastAt) };
+    if (messages.length === 1) {
+      return t(
+        cameraName.value ? 'views.notifications.ask_assistant_log_camera' : 'views.notifications.ask_assistant_log',
+        { ...values, count, message: messages[0].text },
+        count,
+      );
+    }
+    const lines = shownMessages.value.map((message) => t('views.notifications.ask_assistant_log_line', { text: message.text, count: message.count }, message.count));
+    const others = messages.length - lines.length;
+    if (others) lines.push(`- ${t('views.notifications.log_other', { count: others }, others)}`);
+    return t(cameraName.value ? 'views.notifications.ask_assistant_logs_camera' : 'views.notifications.ask_assistant_logs', { ...values, messages: lines.join('\n') });
   }
 
   const text = [item.title, item.subtitle, item.body].filter(Boolean).join(': ');

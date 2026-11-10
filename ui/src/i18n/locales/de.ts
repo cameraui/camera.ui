@@ -2833,6 +2833,11 @@ export default {
         'Das Plugin {source} hat das um {first} gemeldet: "{message}". Schau dir sein Log aus der Zeit an und sag mir, was das bedeutet und was ich tun kann. | Das Plugin {source} hat das {count}-mal zwischen {first} und {last} gemeldet: "{message}". Schau dir sein Log aus der Zeit an und sag mir, was das bedeutet und was ich tun kann.',
       ask_assistant_log_camera:
         'Das Plugin {source} hat das für die Kamera {camera} um {first} gemeldet: "{message}". Schau dir das Log der Kamera aus der Zeit an und sag mir, was das bedeutet und was ich tun kann. | Das Plugin {source} hat das {count}-mal für die Kamera {camera} zwischen {first} und {last} gemeldet: "{message}". Schau dir das Log der Kamera aus der Zeit an und sag mir, was das bedeutet und was ich tun kann.',
+      ask_assistant_logs:
+        'Das Plugin {source} hat zwischen {first} und {last} Folgendes gemeldet:\n{messages}\nSchau dir sein Log aus der Zeit an und sag mir, was das bedeutet und was ich tun kann.',
+      ask_assistant_logs_camera:
+        'Das Plugin {source} hat für die Kamera {camera} zwischen {first} und {last} Folgendes gemeldet:\n{messages}\nSchau dir das Log der Kamera aus der Zeit an und sag mir, was das bedeutet und was ich tun kann.',
+      ask_assistant_log_line: '- "{text}", einmal | - "{text}", {count}-mal',
       ask_assistant_entry: 'Ich habe diese Benachrichtigung von {source} bekommen ({time}): "{text}". Was bedeutet das, und muss ich etwas tun?',
       messages: 'Meldungen',
       log_count: 'Einmal um {time} | {count}-mal, zuletzt um {time}',

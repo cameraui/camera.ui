@@ -2815,6 +2815,11 @@ export default {
         'The plugin {source} reported this at {first}: "{message}". Look at its log from that time and tell me what it means and what I can do about it. | The plugin {source} reported this {count} times between {first} and {last}: "{message}". Look at its log from that time and tell me what it means and what I can do about it.',
       ask_assistant_log_camera:
         'The plugin {source} reported this for the camera {camera} at {first}: "{message}". Look at the camera\'s log from that time and tell me what it means and what I can do about it. | The plugin {source} reported this {count} times for the camera {camera} between {first} and {last}: "{message}". Look at the camera\'s log from that time and tell me what it means and what I can do about it.',
+      ask_assistant_logs:
+        'The plugin {source} reported these messages between {first} and {last}:\n{messages}\nLook at its log from that time and tell me what they mean and what I can do about them.',
+      ask_assistant_logs_camera:
+        "The plugin {source} reported these messages for the camera {camera} between {first} and {last}:\n{messages}\nLook at the camera's log from that time and tell me what they mean and what I can do about them.",
+      ask_assistant_log_line: '- "{text}", once | - "{text}", {count} times',
       ask_assistant_entry: 'I got this notification from {source} ({time}): "{text}". What does it mean, and is there anything I should do?',
       messages: 'Messages',
       log_count: 'Once at {time} | {count} times, last at {time}',
