@@ -810,11 +810,7 @@ export class AssistantManager {
         lazyToolsConfig: { includeDescription: plan.catalogDescriptions },
         ...tuningOf(model),
         retry: MODEL_RETRY,
-        middleware: [
-          countUsage(stats),
-          plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE,
-          lastRoundAnswers(settings.maxIterations),
-        ],
+        middleware: [countUsage(stats), plan.skillsOnDemand ? (withSkills(skillSources()) as ChatMiddleware) : NO_MIDDLEWARE, lastRoundAnswers(settings.maxIterations)],
         abortController,
       });
 
