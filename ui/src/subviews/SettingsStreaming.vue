@@ -162,23 +162,27 @@
                   :disabled="!relay || putRelayLoading"
                   @update:model-value="(value: boolean) => putRelay(value)"
                 />
-                <template v-if="relay?.enabled" #below>
-                  <div class="flex items-center gap-4">
-                    <span class="text-sm">{{ $t('views.settings.status') }}</span>
-                    <div class="ml-auto shrink-0">
-                      <ProgressSpinner v-if="relay.status === 'checking'" class="w-[15px] h-[15px] m-0" stroke-width="5" />
-                      <RouterLink v-else-if="relay.status === 'unlinked'" :to="{ name: 'SettingsRemote' }" class="text-sm font-bold text-primary">{{
-                        $t('views.settings.streaming.relay_unlinked')
-                      }}</RouterLink>
-                      <Tag
-                        v-else
-                        :severity="relay.status === 'ready' ? 'success' : 'secondary'"
-                        :value="relay.status === 'ready' ? $t('views.settings.streaming.relay_ready') : $t('views.settings.streaming.relay_unavailable')"
-                      />
-                    </div>
-                  </div>
-                </template>
               </CuiToggleRow>
+
+              <div v-if="relay?.enabled" class="flex items-center gap-4">
+                <div class="flex min-w-0 flex-col field-switch-gap">
+                  <span class="text-sm">{{ $t('views.settings.status') }}</span>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-switch-hint">{{
+                    $t('views.settings.streaming.relay_status_hint')
+                  }}</Message>
+                </div>
+                <div class="ml-auto shrink-0">
+                  <ProgressSpinner v-if="relay.status === 'checking'" class="w-[15px] h-[15px] m-0" stroke-width="5" />
+                  <RouterLink v-else-if="relay.status === 'unlinked'" :to="{ name: 'SettingsRemote' }" class="text-sm font-bold text-amber-500">{{
+                    $t('views.settings.streaming.relay_unlinked')
+                  }}</RouterLink>
+                  <Tag
+                    v-else
+                    :severity="relay.status === 'ready' ? 'success' : 'secondary'"
+                    :value="relay.status === 'ready' ? $t('views.settings.streaming.relay_ready') : $t('views.settings.streaming.relay_unavailable')"
+                  />
+                </div>
+              </div>
 
               <div class="flex flex-col sm:flex-row gap-6">
                 <div class="flex flex-col field-gap w-full sm:w-40 shrink-0">

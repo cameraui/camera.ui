@@ -3410,6 +3410,7 @@ export default {
         relay_ready: 'Ready',
         relay_unavailable: 'Currently unavailable',
         relay_unlinked: 'Not linked to cameraui.com',
+        relay_status_hint: 'Shows whether the relay can be reached right now.',
         ports: 'Other ports',
         ports_info: 'Further ports Go2RTC opens for camera streams, next to RTSP and WebRTC. Each one has to be free on this computer.',
         srtp_port: 'SRTP (HomeKit)',
