@@ -40,6 +40,10 @@
       <CuiAssistantReferences :references="references" />
     </div>
 
+    <div v-if="inlineAttachments && sources.length" class="px-3 pb-2">
+      <CuiAssistantSources :sources="sources" />
+    </div>
+
     <div v-if="expanded" class="cui-assistant-tool-details px-3 py-2 flex flex-col gap-2">
       <div v-if="argsText">
         <span class="text-xs uppercase tracking-wide text-muted">{{ $t('views.assistant.tool_arguments') }}</span>
@@ -54,6 +58,9 @@
 </template>
 
 <script setup lang="ts">
+import { isProviderExecutedToolCall } from '@tanstack/ai';
+
+import { searchSources } from '@/components/CuiAssistantSources/types.js';
 import { resultContentParts, resultImages, safeParseJson, toolDisplayName } from './types.js';
 
 import type { CuiAssistantToolCallProps, ToolResultImage } from './types.js';
@@ -67,7 +74,11 @@ const expanded = ref(false);
 
 const displayName = computed(() => toolDisplayName(props.part.name));
 
-const started = computed(() => ['awaiting-input', 'input-streaming', 'input-complete', 'approval-responded'].includes(props.part.state) && !props.result);
+// the provider runs its own tools, no result part follows
+const started = computed(
+  () =>
+    ['awaiting-input', 'input-streaming', 'input-complete', 'approval-responded'].includes(props.part.state) && !props.result && !isProviderExecutedToolCall(props.part),
+);
 const running = computed(() => started.value && props.busy);
 const unfinished = computed(() => started.value && !props.busy);
 const awaitingApproval = computed(() => props.part.state === 'approval-requested');
@@ -80,6 +91,7 @@ const statusLabel = computed(() => {
   if (awaitingApproval.value) return t('views.assistant.tool_waiting_approval');
   if (rejected.value) return t('views.assistant.tool_rejected');
   if (failed.value) return t('views.assistant.tool_failed');
+  if (sources.value.length) return t('views.assistant.tool_sources', { n: sources.value.length });
   return '';
 });
 
@@ -91,6 +103,8 @@ const argsText = computed(() => {
 });
 
 const resultParts = computed(() => resultContentParts(props.result));
+
+const sources = computed(() => searchSources(props.part));
 
 const resultText = computed(() => {
   if (props.result?.error) return props.result.error;

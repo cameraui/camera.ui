@@ -39,6 +39,7 @@ export const patchAssistantSchema = zod
     historyThreads: zod.number().int().min(5).max(500).optional(),
     historyImages: zod.number().int().min(0).max(200).optional(),
     terminalEnabled: zod.boolean().optional(),
+    webSearchEnabled: zod.boolean().optional(),
     reasoning: zod.enum(['default', 'off', 'low', 'high']).optional(),
     systemPromptExtra: zod.string().max(4000, 'Additional instructions cannot be more than 4000 characters').optional(),
     mcpEnabled: zod.boolean().optional(),

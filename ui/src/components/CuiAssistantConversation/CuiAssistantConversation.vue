@@ -264,7 +264,7 @@
 import { AssistantQuery, branchAssistantThread, getAssistantThread, replaceAssistantThreadMessages } from '@/api/routes/assistant.js';
 import { defaultModel } from '@/common/assistantModels.js';
 import { isContinueMark } from '@/components/CuiAssistantMessage/types.js';
-import { KEYBOARD_EASING, KEYBOARD_GAP, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
+import { BUILTIN_TOOL_GROUPS, KEYBOARD_EASING, KEYBOARD_GAP, KEYBOARD_MS, PENDING_ANSWER } from './types.js';
 
 import type CuiAssistantComposer from '@/components/CuiAssistantComposer/CuiAssistantComposer.vue';
 import type { AssistantStop } from '@/components/CuiAssistantMessage/types.js';
@@ -361,18 +361,13 @@ const rows = computed<ConversationRow[]>(() => {
 const toolGroups = computed<ToolGroupOption[]>(() => {
   const groups = new Map<string, ToolGroupOption>();
   for (const tool of props.tools) {
-    const label =
-      tool.group === 'core'
-        ? t('views.assistant.tool_group_core')
-        : tool.group === 'docs'
-          ? t('views.assistant.tool_group_docs')
-          : tool.group === 'terminal'
-            ? t('views.assistant.tool_group_terminal')
-            : tool.source.kind === 'plugin'
-              ? tool.source.pluginName
-              : tool.source.kind === 'external'
-                ? tool.source.serverName
-                : tool.group;
+    const label = BUILTIN_TOOL_GROUPS.includes(tool.group)
+      ? t(`views.assistant.tool_group_${tool.group}`)
+      : tool.source.kind === 'plugin'
+        ? tool.source.pluginName
+        : tool.source.kind === 'external'
+          ? tool.source.serverName
+          : tool.group;
     const entry = groups.get(tool.group) ?? { id: tool.group, label, count: 0 };
     entry.count += 1;
     groups.set(tool.group, entry);

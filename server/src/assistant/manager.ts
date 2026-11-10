@@ -5,6 +5,7 @@ import {
   convertMessagesToModelMessages,
   DISCOVERY_TOOL_NAME,
   EventType,
+  getProviderExecutedMetadata,
   maxIterations,
   modelMessagesToUIMessages,
   toolDefinition,
@@ -38,7 +39,7 @@ import { pluginOfProvider } from './plugin-models.js';
 import { estimateCost, warmPrices } from './pricing.js';
 import { AssistantProfileStore } from './profiles.js';
 import { composePrompt, promptSections } from './prompt.js';
-import { createAdapter, listModels, providerNeedsKey } from './providers.js';
+import { createAdapter, listModels, providerNeedsKey, webSearchTool } from './providers.js';
 import { reasoningFor } from './reasoning.js';
 import { RECAP_TOOL, recapCard } from './recap.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
@@ -79,6 +80,7 @@ import type { PromptSections, RunPlan } from './budget.js';
 import type { ExternalServer } from './external.js';
 import type { AssistantQuestion } from './interrupts.js';
 import type { MemoryChange } from './memory.js';
+import type { WebSearchState } from './prompt.js';
 import type { AssistantAdapter } from './providers.js';
 import type { CoreTool, ToolImage } from './tools/shared.js';
 import type {
@@ -93,6 +95,7 @@ import type {
   AssistantSettings,
   AssistantStatus,
   AssistantTestResult,
+  AssistantToolInfo,
   AssistantUsageEvent,
 } from './types.js';
 
@@ -110,6 +113,15 @@ const DEFAULT_CONTEXT_TOKENS = 48_000;
 const DEFAULT_HISTORY_THREADS = 50;
 const DEFAULT_HISTORY_IMAGES = 24;
 const TERMINAL_GROUP = 'terminal';
+const WEB_GROUP = 'web';
+const WEB_TOOL_INFO: AssistantToolInfo = {
+  name: 'web_search',
+  description: 'Searches the internet through the model provider',
+  source: { kind: 'core' },
+  group: WEB_GROUP,
+  approval: false,
+  adminOnly: false,
+};
 const TOOL_CACHE_TTL_MS = 45_000;
 
 const CACHED_TOOLS = [
@@ -236,6 +248,7 @@ export class AssistantManager {
         historyThreads: DEFAULT_HISTORY_THREADS,
         historyImages: DEFAULT_HISTORY_IMAGES,
         terminalEnabled: false,
+        webSearchEnabled: false,
       },
       this.dbs.assistantDB.get('assistant')!,
     );
@@ -298,7 +311,10 @@ export class AssistantManager {
         .filter((plugin) => hasInterface(plugin.contract, PluginInterface.AssistantTools))
         .map((plugin) => ({ id: plugin.id, name: plugin.displayName, pluginName: plugin.pluginName })),
       modelProviders: this.registry.modelProviders,
-      tools: this.registry.describe(role).filter((tool) => settings.terminalEnabled || tool.group !== TERMINAL_GROUP),
+      tools: [
+        ...this.registry.describe(role).filter((tool) => settings.terminalEnabled || tool.group !== TERMINAL_GROUP),
+        ...(settings.webSearchEnabled ? [WEB_TOOL_INFO] : []),
+      ],
       external: this.registry.externalStatus(this.externalServers(this.settings())),
     };
   }
@@ -631,7 +647,8 @@ export class AssistantManager {
     const disabledGroups = new Set(Array.isArray(forwarded.disabledGroups) ? forwarded.disabledGroups.filter((group) => typeof group === 'string') : []);
     if (!settings.terminalEnabled) disabledGroups.add(TERMINAL_GROUP);
     const available = entry.capabilities?.toolCalling === false ? [] : this.registry.toolsFor(ctx.role).filter((tool) => !disabledGroups.has(toolGroup(tool)));
-    const sections = promptSections(ctx, this.promptFacts(request.user));
+    const web = webSearchFor(settings, entry, disabledGroups);
+    const sections = promptSections(ctx, this.promptFacts(request.user, web.state));
     const plan = this.plan(settings, entry, sections, available);
     const stats = newStats();
     const picks = !resume.length && this.routesTools(entry) ? await this.route(model, entry, params.messages, available, plan, stats) : null;
@@ -646,7 +663,7 @@ export class AssistantManager {
     const fetched = resume.length ? fetchedThisTurn(params.messages) : undefined;
     const listed = fetched ? offered.map((tool) => (tool.lazy && fetched.has(tool.name) ? { ...tool, lazy: false } : tool)) : offered;
     // an approval is bound to the hash of the lean schema, the resume checks it against these tools before any onConfig
-    const tools = leanTools(listed);
+    const tools = [...leanTools(listed), ...web.tools];
     const prompt = composePrompt(sections, routed ? { ...plan, demoted: 0, hidden: [], routed: picks } : plan);
     // a procedure names tools the router did not pick, the room for them comes off the history
     const skillRoom = routed && plan.skillsOnDemand ? Math.min(SKILL_TOOLS_TOKENS, Math.floor(plan.historyTokens * SKILL_TOOLS_SHARE)) : 0;
@@ -773,9 +790,10 @@ export class AssistantManager {
       entry.capabilities?.toolCalling === false
         ? []
         : this.registry.toolsFor(ctx.role).filter((tool) => !tool.needsApproval && !isBrowserTool(tool) && !disabledGroups.has(toolGroup(tool)));
-    const sections = promptSections(ctx, this.promptFacts(user));
+    const web = webSearchFor(settings, entry, disabledGroups);
+    const sections = promptSections(ctx, this.promptFacts(user, web.state));
     const plan = this.plan(settings, entry, sections, available);
-    const tools = applyPlan(available, plan);
+    const tools = [...applyPlan(available, plan), ...web.tools];
     const systemPrompts = [
       ...composePrompt(sections, plan),
       'This run is scheduled and unattended: nobody reads along and nobody can confirm anything. Answer completely in one go, no questions back.',
@@ -948,6 +966,7 @@ export class AssistantManager {
       },
       onChunk: (_ctx, chunk) => {
         if (chunk.type === EventType.RUN_ERROR) failure = chunk;
+        stats.webSearches += searchesIn(chunk);
       },
       onError: (_ctx, info) => {
         log.warn(`Assistant run failed: ${withProviderDetails(describeError(info.error), failure)}`);
@@ -1057,7 +1076,7 @@ export class AssistantManager {
     }
   }
 
-  private promptFacts(user: DBUser) {
+  private promptFacts(user: DBUser, webSearch: WebSearchState) {
     const api = inject('api');
     const rooms = new RoomsService();
     const cameras = new CamerasService().list().map((camera) => ({
@@ -1082,6 +1101,7 @@ export class AssistantManager {
         .map((server) => server.name),
       extra: this.settings().systemPromptExtra,
       terminal: this.settings().terminalEnabled,
+      webSearch,
     };
   }
 
@@ -1263,9 +1283,12 @@ function tuningOf(model: AssistantSettings): { reasoning?: never; modelOptions?:
   return reasoningFor(model) as { reasoning?: never; modelOptions?: never; wrapFetch?: FetchWrapper };
 }
 
-function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware>, 'name' | 'onUsage'> {
+function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware>, 'name' | 'onUsage' | 'onChunk'> {
   return {
     name: 'camera.ui-usage',
+    onChunk: (_ctx, chunk) => {
+      stats.webSearches += searchesIn(chunk);
+    },
     onUsage: (_ctx, usage) => {
       const call = {
         promptTokens: usage.promptTokens ?? 0,
@@ -1317,8 +1340,28 @@ function newStats(): AssistantRunStats {
     reasoningTokens: 0,
     iterations: 0,
     toolCalls: 0,
+    webSearches: 0,
     calls: [],
   };
+}
+
+function webSearchFor(
+  settings: Pick<DBAssistant, 'webSearchEnabled'>,
+  entry: DBAssistantModel,
+  disabledGroups: ReadonlySet<string>,
+): { state: WebSearchState; tools: CoreTool[] } {
+  const tool = entry.capabilities?.toolCalling === false || disabledGroups.has(WEB_GROUP) ? null : webSearchTool(entry.provider);
+  if (!tool) return { state: 'none', tools: [] };
+  return settings.webSearchEnabled ? { state: 'on', tools: [tool as CoreTool] } : { state: 'off', tools: [] };
+}
+
+function searchesIn(chunk: StreamChunk): number {
+  if (chunk.type !== EventType.TOOL_CALL_START) return 0;
+  const metadata = getProviderExecutedMetadata(chunk);
+  if (!metadata) return 0;
+  // gemini runs several queries under one call and bills each
+  const queries = (metadata.gemini as { groundingMetadata?: { webSearchQueries?: unknown[] } } | undefined)?.groundingMetadata?.webSearchQueries;
+  return Math.max(queries?.length ?? 0, 1);
 }
 
 function usageEvent(settings: Pick<AssistantSettings, 'provider' | 'model'>, stats: AssistantRunStats): AssistantUsageEvent {
@@ -1328,7 +1371,7 @@ function usageEvent(settings: Pick<AssistantSettings, 'provider' | 'model'>, sta
     durationMs: Date.now() - startedAt,
     provider: settings.provider,
     model: settings.model,
-    costUsd: estimateCost(settings.provider, settings.model, calls),
+    costUsd: estimateCost(settings.provider, settings.model, calls, stats.webSearches),
   };
 }
 

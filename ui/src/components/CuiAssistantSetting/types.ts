@@ -5,4 +5,4 @@ export interface CuiAssistantSettingProps {
   modelId?: string | null;
 }
 
-export const ASSISTANT_SETTING_KEYS: AssistantSettingKey[] = ['terminalEnabled', 'memoryEnabled', 'sendImages'];
+export const ASSISTANT_SETTING_KEYS: AssistantSettingKey[] = ['terminalEnabled', 'memoryEnabled', 'sendImages', 'webSearchEnabled'];

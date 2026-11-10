@@ -1,6 +1,8 @@
 import type { AssistantToolInfo, DBAssistantAttachment, DBAssistantThread } from '@shared/types';
 import type { UIMessage } from '@tanstack/ai';
 
+export const BUILTIN_TOOL_GROUPS = ['core', 'docs', 'terminal', 'web'];
+
 export const KEYBOARD_EASING = 'cubic-bezier(0.38, 0.7, 0.125, 1)';
 export const KEYBOARD_MS = 280;
 export const KEYBOARD_GAP = 12;

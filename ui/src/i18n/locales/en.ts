@@ -2156,6 +2156,9 @@ export default {
       setting_memoryEnabled_off: 'Off. When on, the assistant keeps facts like names across conversations.',
       setting_sendImages_title: 'Send images to the model',
       setting_sendImages_off: 'Off. When on, the model sees the pictures and can describe them. With a cloud model they leave the instance.',
+      setting_webSearchEnabled_title: 'Web search',
+      setting_webSearchEnabled_off:
+        'Off. When on, the assistant looks things up on the internet through the provider of the model, firmware or error messages for example.',
       notice_vision_title: '{model} does not see pictures',
       notice_vision_text: 'The pictures show up here, the model only gets the text of the tool results.',
       notice_vision_attach: 'Plugin detectors still run on attached pictures, the model itself does not see them.',
@@ -2234,6 +2237,7 @@ export default {
       usage_tokens: '{input} in, {output} out',
       usage_speed: '{n} t/s',
       usage_cost: 'approx. {cost}',
+      usage_searches: 'Web searches: {n}.',
       usage_details:
         'Model {model}. {turns} model turns, {tools} tool calls, {cached} cached tokens, {reasoning} reasoning tokens. The cost is an estimate from public list prices.',
       regenerate: 'Regenerate',
@@ -2255,6 +2259,8 @@ export default {
       tool_group_core: 'camera.ui',
       tool_group_terminal: 'Shell commands',
       tool_group_docs: 'Documentation',
+      tool_group_web: 'Web search',
+      tool_sources: 'Sources: {n}',
       instructions_label: 'Instructions',
       instructions_placeholder: 'Answer in one sentence, only look at the garden camera.',
       profiles_label: 'Profile',
@@ -3818,6 +3824,9 @@ export default {
       assistant_memory_info: 'Keeps facts like names and preferences across conversations. Users see and clear their own list in the chat.',
       assistant_terminal: 'Shell commands',
       assistant_terminal_info: 'Admins can let the assistant run diagnostic commands on the host. Each command waits for their approval.',
+      assistant_web_search: 'Web search',
+      assistant_web_search_info:
+        'Lets the assistant search the internet through the provider of the model: Anthropic, Gemini, OpenAI or OpenRouter. The provider charges each search.',
       assistant_send_images: 'Send images to the model',
       assistant_send_images_info: 'With a cloud provider, snapshots and event pictures leave this machine.',
       assistant_language_label: 'Answer language',

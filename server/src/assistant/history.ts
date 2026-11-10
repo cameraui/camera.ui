@@ -1,3 +1,5 @@
+import { isProviderExecutedToolCall } from '@tanstack/ai';
+
 import type { ModelMessage } from '@tanstack/ai';
 
 const INTERRUPTED_RESULT = 'No result: the previous run ended before this tool answered.';
@@ -37,7 +39,8 @@ export function repairHistory(messages: readonly ModelMessage[]): ModelMessage[]
       out.push(result);
     }
     for (const call of calls) {
-      if (answered.has(call.id)) continue;
+      // the provider ran it, its result rides in the call
+      if (answered.has(call.id) || isProviderExecutedToolCall(call)) continue;
       out.push({ role: 'tool', toolCallId: call.id, name: call.function.name, content: INTERRUPTED_RESULT });
     }
     index = next - 1;

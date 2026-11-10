@@ -53,6 +53,7 @@ export interface AssistantRunStats {
   reasoningTokens: number;
   iterations: number;
   toolCalls: number;
+  webSearches: number;
   calls: AssistantUsageTotals[];
 }
 
@@ -171,7 +172,7 @@ export interface AssistantPluginTools {
   specs: AssistantToolSpec[];
 }
 
-export type AssistantSettingKey = 'terminalEnabled' | 'memoryEnabled' | 'sendImages';
+export type AssistantSettingKey = 'terminalEnabled' | 'memoryEnabled' | 'sendImages' | 'webSearchEnabled';
 
 export interface AssistantSearchFilters {
   contentKind: 'all' | 'events' | 'episodes';

@@ -356,6 +356,7 @@ export const dbAssistantSchema = zod.object({
   historyThreads: zod.number().int().min(5).max(500).default(50),
   historyImages: zod.number().int().min(0).max(200).default(24),
   terminalEnabled: zod.boolean().default(false),
+  webSearchEnabled: zod.boolean().default(false),
   reasoning: zod.enum(['default', 'off', 'low', 'high']).default('default'),
   systemPromptExtra: zod.string().default(''),
   mcpEnabled: zod.boolean().default(false),

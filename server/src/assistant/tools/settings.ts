@@ -6,14 +6,14 @@ import { ASSISTANT_SETTING_EVENT } from './shared.js';
 import type { AssistantSettingKey } from '../types.js';
 import type { CoreTool, ToolContext } from './shared.js';
 
-const SETTING_KEYS = ['terminalEnabled', 'memoryEnabled', 'sendImages'] as const satisfies readonly AssistantSettingKey[];
+const SETTING_KEYS = ['terminalEnabled', 'memoryEnabled', 'sendImages', 'webSearchEnabled'] as const satisfies readonly AssistantSettingKey[];
 
 const suggestSetting = toolDefinition({
   name: 'suggest_setting',
   lazy: true,
   description:
     'Show a switch for an assistant setting that is off and would answer the request: terminalEnabled (shell commands), memoryEnabled (remember facts), ' +
-    'sendImages (pictures to the model). Call it instead of describing where the setting lives.',
+    'sendImages (pictures to the model), webSearchEnabled (searching the internet). Call it instead of describing where the setting lives.',
   inputSchema: zod.object({
     setting: zod.enum(SETTING_KEYS),
   }),

@@ -190,6 +190,10 @@
                 <CuiToggleRow :label="$t('views.settings.assistant_terminal')" :hint="$t('views.settings.assistant_terminal_info')" label-for="terminalEnabled">
                   <ToggleSwitch v-model="form.terminalEnabled" input-id="terminalEnabled" />
                 </CuiToggleRow>
+
+                <CuiToggleRow :label="$t('views.settings.assistant_web_search')" :hint="$t('views.settings.assistant_web_search_info')" label-for="webSearchEnabled">
+                  <ToggleSwitch v-model="form.webSearchEnabled" input-id="webSearchEnabled" />
+                </CuiToggleRow>
               </div>
 
               <div class="flex flex-col field-gap">
@@ -833,6 +837,7 @@ const DELETE_ITEM: MenuItem = {
 const BEHAVIOR_DEFAULTS = {
   memoryEnabled: true,
   terminalEnabled: false,
+  webSearchEnabled: false,
   language: null,
   reasoning: 'default',
   maxIterations: 8,
@@ -846,6 +851,7 @@ const CARD_FIELDS = {
   behavior: [
     'memoryEnabled',
     'terminalEnabled',
+    'webSearchEnabled',
     'language',
     'reasoning',
     'maxIterations',
@@ -1123,6 +1129,7 @@ function buildPatch(): PatchAssistantInput {
     historyThreads: raw.historyThreads,
     historyImages: raw.historyImages,
     terminalEnabled: raw.terminalEnabled,
+    webSearchEnabled: raw.webSearchEnabled,
     reasoning: raw.reasoning,
     systemPromptExtra: raw.systemPromptExtra,
     mcpEnabled: raw.mcpEnabled,

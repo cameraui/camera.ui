@@ -12,8 +12,10 @@ type Price = [input: number, cached: number | null, output: number, cacheWrite?:
 
 const PRICES: Partial<Record<DBAssistantProvider, Record<string, Price>>> = {
   anthropic: {
+    'claude-mythos-5-2': [8, 0.2, 40],
     'claude-mythos-5-1': [10, 0.25, 50],
     'claude-mythos-5': [10, 1, 50],
+    'claude-fable-5-2': [8, 0.2, 40],
     'claude-fable-5-1': [10, 0.25, 50],
     'claude-fable-5': [10, 1, 50],
     'claude-opus-5-5': [4, 0.2, 20],
@@ -34,6 +36,7 @@ const PRICES: Partial<Record<DBAssistantProvider, Record<string, Price>>> = {
   },
   openai: {
     'gpt-6.1-sol': [2, 0.1, 10],
+    'gpt-6.1-terra': [1, 0.05, 5],
     'gpt-6-astra': [10, 1, 50],
     'gpt-6-sol': [2, 0.2, 10],
     'gpt-6-luna': [0.1, 0.01, 0.5],
@@ -76,7 +79,7 @@ const PRICES: Partial<Record<DBAssistantProvider, Record<string, Price>>> = {
     o1: [15, 7.5, 60],
   },
   gemini: {
-    // launch prices, Google raises them on 2027-01-01
+    'gemini-4-argon': [2, 0.1, 10],
     'gemini-3.8-flash': [0.75, 0.075, 3.75],
     'gemini-3.7-flash': [0.75, 0.075, 3.75],
     'gemini-3.6-flash': [0.75, 0.075, 3.75],
@@ -96,6 +99,33 @@ const LONG_PROMPT: Partial<Record<DBAssistantProvider, Record<string, { above: n
   anthropic: {
     'claude-haiku-5-5': { above: 100_000, price: [0.5, 0.05, 2.5] },
   },
+  openai: {
+    'gpt-6.1-sol': { above: 272_000, price: [4, 0.2, 15] },
+    'gpt-6.1-terra': { above: 272_000, price: [2, 0.1, 7.5] },
+    'gpt-6-astra': { above: 272_000, price: [20, 2, 75] },
+    'gpt-6-sol': { above: 272_000, price: [4, 0.4, 15] },
+    'gpt-6-luna': { above: 272_000, price: [0.2, 0.02, 0.75] },
+    'gpt-5.6-sol': { above: 272_000, price: [8, 0.8, 30] },
+    'gpt-5.6-terra': { above: 272_000, price: [4, 0.4, 18] },
+    'gpt-5.6-luna': { above: 272_000, price: [0.4, 0.04, 1.8] },
+    'gpt-5.5-pro': { above: 272_000, price: [60, null, 270] },
+    'gpt-5.5': { above: 272_000, price: [10, 1, 45] },
+    'gpt-5.4-pro': { above: 272_000, price: [60, null, 270] },
+    'gpt-5.4': { above: 272_000, price: [5, 0.5, 22.5] },
+  },
+  gemini: {
+    'gemini-3.1-pro': { above: 200_000, price: [4, 0.4, 18] },
+    'gemini-2.5-pro': { above: 200_000, price: [2.5, 0.25, 15] },
+  },
+};
+
+const RAISED: Partial<Record<DBAssistantProvider, Record<string, { from: number; price: Price }>>> = {
+  gemini: {
+    'gemini-4-argon': { from: Date.UTC(2026, 11, 1), price: [4, 0.2, 20] },
+    'gemini-3.8-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
+    'gemini-3.7-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
+    'gemini-3.6-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
+  },
 };
 
 const ANTHROPIC_CACHE_WRITE = 1.25;
@@ -106,9 +136,9 @@ const OPENROUTER_TTL_MS = 6 * 60 * 60_000;
 let openrouterPrices: { at: number; prices: Record<string, Price> } | undefined;
 let openrouterLoading: Promise<void> | undefined;
 
-export function estimateCost(provider: DBAssistantProvider, model: string, calls: AssistantUsageTotals[]): number | null {
+export function estimateCost(provider: DBAssistantProvider, model: string, calls: AssistantUsageTotals[], webSearches = 0): number | null {
   if (!priceOf(provider, model, 0)) return null;
-  let cost = 0;
+  let cost = webSearches * searchPrice(provider, model) * 1_000_000;
   for (const usage of calls) {
     const price = priceOf(provider, model, usage.promptTokens);
     if (!price) return null;
@@ -145,9 +175,17 @@ export function warmPrices(provider: DBAssistantProvider): void {
 
 function priceOf(provider: DBAssistantProvider, model: string, promptTokens: number): Price | undefined {
   if (provider === 'openrouter') return openrouterPrices?.prices[model];
-  const price = longestPrefix(PRICES[provider], model);
+  const raised = longestPrefix(RAISED[provider], model);
+  const price = raised && Date.now() >= raised.from ? raised.price : longestPrefix(PRICES[provider], model);
   const long = longestPrefix(LONG_PROMPT[provider], model);
   return long && price && promptTokens > long.above ? long.price : price;
+}
+
+function searchPrice(provider: DBAssistantProvider, model: string): number {
+  if (provider === 'anthropic' || provider === 'openai') return 0.01;
+  // the free monthly allowance is not known here, every search counts
+  if (provider === 'gemini') return model.startsWith('gemini-2.') ? 0.035 : 0.014;
+  return 0;
 }
 
 function perMillion(value: string | undefined): number | undefined {

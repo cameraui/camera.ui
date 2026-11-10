@@ -1,10 +1,15 @@
 import { createAnthropicChat } from '@tanstack/ai-anthropic';
+import { webSearchTool as anthropicWebSearch } from '@tanstack/ai-anthropic/tools';
 import { createGeminiChat } from '@tanstack/ai-gemini';
+import { googleSearchTool } from '@tanstack/ai-gemini/tools';
 import { createOllamaChat } from '@tanstack/ai-ollama';
 import { createOpenaiChat } from '@tanstack/ai-openai';
 import { openaiCompatibleText } from '@tanstack/ai-openai/compatible';
+import { webSearchTool as openaiWebSearch } from '@tanstack/ai-openai/tools';
 import { createOpenRouterText } from '@tanstack/ai-openrouter';
+import { webSearchTool as openrouterWebSearch } from '@tanstack/ai-openrouter/tools';
 
+import type { Tool } from '@tanstack/ai';
 import type { DBAssistantBuiltinProvider, DBAssistantModel, DBAssistantProvider } from '../api/database/types.js';
 
 export type AssistantAdapter = ReturnType<typeof createOllamaChat>;
@@ -19,6 +24,10 @@ const DEFAULT_BASE_URLS: Record<DBAssistantBuiltinProvider, string | null> = {
 };
 
 const MODELS_TIMEOUT_MS = 10_000;
+
+const SEARCHES_PER_CALL = 5;
+
+const SEARCH_RESULTS_PER_CALL = 15;
 
 const OPENROUTER_RETRY = {
   retryCodes: ['429', '5XX'],
@@ -35,6 +44,21 @@ export function defaultBaseURL(provider: DBAssistantProvider): string | null {
 
 export function providerNeedsKey(provider: DBAssistantProvider): boolean {
   return provider === 'openai' || provider === 'anthropic' || provider === 'gemini' || provider === 'openrouter';
+}
+
+export function webSearchTool(provider: DBAssistantProvider): Tool | null {
+  switch (provider) {
+    case 'anthropic':
+      return anthropicWebSearch({ type: 'web_search_20250305', name: 'web_search', max_uses: SEARCHES_PER_CALL });
+    case 'openai':
+      return openaiWebSearch({ type: 'web_search' });
+    case 'gemini':
+      return googleSearchTool();
+    case 'openrouter':
+      return openrouterWebSearch({ maxTotalResults: SEARCH_RESULTS_PER_CALL });
+    default:
+      return null;
+  }
 }
 
 export function createAdapter(settings: Pick<DBAssistantModel, 'provider' | 'baseURL' | 'model'>, apiKey: string | null): AssistantAdapter {

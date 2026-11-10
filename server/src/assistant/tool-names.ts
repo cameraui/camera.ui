@@ -1,4 +1,4 @@
-import { EventType } from '@tanstack/ai';
+import { EventType, isProviderExecutedToolCall } from '@tanstack/ai';
 
 import { wrapChatStream } from './retry.js';
 
@@ -12,7 +12,7 @@ export function withToolNameRepair(adapter: AssistantAdapter, onRepair: (from: s
   async function* chatStream(options: ChatStreamOptions): AsyncGenerator<StreamChunk> {
     const known = (options.tools ?? []).map((tool) => tool.name);
     for await (const chunk of adapter.chatStream(options) as AsyncIterable<StreamChunk>) {
-      if (chunk.type !== EventType.TOOL_CALL_START || known.includes(chunk.toolCallName)) {
+      if (chunk.type !== EventType.TOOL_CALL_START || known.includes(chunk.toolCallName) || isProviderExecutedToolCall(chunk)) {
         yield chunk;
         continue;
       }

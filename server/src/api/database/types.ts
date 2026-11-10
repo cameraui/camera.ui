@@ -362,6 +362,7 @@ export interface DBAssistant {
   historyThreads: number;
   historyImages: number;
   terminalEnabled: boolean;
+  webSearchEnabled: boolean;
 }
 
 export type DBAssistantScheduleDelivery = 'push' | 'thread' | 'both';

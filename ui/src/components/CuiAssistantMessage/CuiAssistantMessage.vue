@@ -157,6 +157,7 @@
           :text="$t(`views.assistant.notice_${notice.capability}_text`)"
         />
         <CuiAssistantReferences v-if="results.references.length" :references="results.references" />
+        <CuiAssistantSources v-if="results.sources.length" :sources="results.sources" />
       </template>
     </div>
 
@@ -229,13 +230,16 @@
 </template>
 
 <script setup lang="ts">
+import { isProviderExecutedToolCall } from '@tanstack/ai';
 import CopyIcon from '~icons/mdi/content-copy';
 
 import { copyToClipboard } from '@/common/utils.js';
+import { searchSources } from '@/components/CuiAssistantSources/types.js';
 import { resultContentParts, resultImages, toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import { ATTACHMENT_PREFIX, messageText } from './types.js';
 
 import type { AssistantReference } from '@/components/CuiAssistantReferences/types.js';
+import type { AssistantSource } from '@/components/CuiAssistantSources/types.js';
 import type { ToolResultImage } from '@/components/CuiAssistantToolCall/types.js';
 import type { AssistantSettingKey, DBAssistantAttachmentNotice, DBAssistantCard } from '@shared/types';
 import type { ToolCallPart, ToolResultPart } from '@tanstack/ai';
@@ -253,6 +257,7 @@ const { openImageDialog } = useCuiDialog();
 
 const RUNNING_STATES = ['awaiting-input', 'input-streaming', 'input-complete', 'approval-responded'];
 const MAX_RESULT_REFERENCES = 6;
+const MAX_RESULT_SOURCES = 6;
 
 const editRef = useTemplateRef<{ $el: HTMLTextAreaElement }>('editRef');
 const editing = ref(false);
@@ -324,6 +329,7 @@ const results = computed(() => {
   const references: AssistantReference[] = [];
   const settings: AssistantSettingKey[] = [];
   const notices: DBAssistantAttachmentNotice[] = [];
+  const sources: AssistantSource[] = [];
   const seen = new Set<string>();
   for (const entry of entries.value) {
     if (entry.kind !== 'tool') continue;
@@ -338,12 +344,13 @@ const results = computed(() => {
       const key = `${reference.kind}:${reference.id}`;
       if (!seen.has(key) && seen.add(key)) references.push(reference);
     }
+    for (const source of searchSources(entry.part)) if (!seen.has(source.url) && seen.add(source.url)) sources.push(source);
   }
   const linked = new Set(cards.flatMap((card) => card.items.flatMap((item) => [item.episodeId, item.eventId].filter(Boolean))));
   const downloads = references.filter((reference) => reference.kind === 'download');
   const rest = [...downloads, ...references.filter((reference) => reference.kind !== 'download' && !linked.has(reference.id)).slice(0, MAX_RESULT_REFERENCES)];
-  return images.length || cards.length || rest.length || settings.length || notices.length
-    ? { images, cards, settings, notices, references: rest, all: references }
+  return images.length || cards.length || rest.length || settings.length || notices.length || sources.length
+    ? { images, cards, settings, notices, references: rest, all: references, sources: sources.slice(0, MAX_RESULT_SOURCES) }
     : null;
 });
 
@@ -368,13 +375,14 @@ const usageLine = computed(() => {
 const usageDetails = computed(() => {
   const usage = props.usage;
   if (!usage) return '';
-  return t('views.assistant.usage_details', {
+  const details = t('views.assistant.usage_details', {
     model: usage.model,
     turns: usage.iterations,
     tools: usage.toolCalls,
     cached: compactNumber(usage.cachedTokens),
     reasoning: compactNumber(usage.reasoningTokens),
   });
+  return usage.webSearches ? `${details} ${t('views.assistant.usage_searches', { n: usage.webSearches })}` : details;
 });
 
 function compactNumber(value: number): string {
@@ -387,7 +395,7 @@ function formatCost(usd: number): string {
 }
 
 function stepsRunning(entry: { items: ToolEntry[] }): boolean {
-  return Boolean(props.busy) && entry.items.some((item) => !item.result && RUNNING_STATES.includes(item.part.state));
+  return Boolean(props.busy) && entry.items.some((item) => !item.result && !isProviderExecutedToolCall(item.part) && RUNNING_STATES.includes(item.part.state));
 }
 
 async function startEdit(): Promise<void> {
