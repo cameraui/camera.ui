@@ -49,7 +49,7 @@
         </template>
       </Button>
     </div>
-    <Divider v-if="divider" class="my-0 py-1" />
+    <Divider class="my-0 py-1" />
   </div>
 </template>
 

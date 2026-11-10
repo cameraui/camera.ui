@@ -2,8 +2,11 @@
   <div class="flex flex-col h-full min-h-0">
     <DefineRow v-slot="{ item, series, nested }">
       <div
-        class="notification-row flex items-start gap-3 sm:gap-4 px-2 cursor-pointer select-none"
-        :class="[nested ? 'py-2' : 'py-3', { 'notification-row-active': !selectionMode && item.id === selected?.id && (!mdBreakpoint || sheetOpen) }]"
+        class="notification-row flex gap-3 sm:gap-4 px-2 cursor-pointer select-none"
+        :class="[
+          nested ? 'py-2 items-center' : 'py-3 items-start',
+          { 'notification-row-active': !selectionMode && item.id === selected?.id && (!mdBreakpoint || sheetOpen) },
+        ]"
         @click="onRowClick(item)"
       >
         <div
@@ -14,7 +17,7 @@
           <i-mdi:check v-if="selectedIds.has(item.id)" class="w-4 h-4 text-white" />
         </div>
 
-        <span class="hidden sm:block w-11 shrink-0 pt-0.5 text-xs text-muted tabular-nums">{{ formatTime(item.createdAt) }}</span>
+        <span class="hidden sm:block w-11 shrink-0 text-xs text-muted tabular-nums" :class="{ 'pt-0.5': !nested }">{{ formatTime(item.createdAt) }}</span>
 
         <div
           class="relative flex items-center justify-center w-16 aspect-video rounded-md overflow-hidden shrink-0"
@@ -82,19 +85,14 @@
             </template>
           </Button>
         </InputGroupAddon>
+        <InputGroupAddon v-if="sourcePicker">
+          <Button severity="secondary" text :class="activeSource ? 'text-primary' : 'text-color'" @click="openSourceMenu">
+            <template #icon>
+              <component :is="activeFilter === 'cameras' ? CameraIcon : PluginIcon" class="w-4 h-4" />
+            </template>
+          </Button>
+        </InputGroupAddon>
       </InputGroup>
-      <Button
-        v-tooltip.left="{ value: t('components.notification_menu.mark_all_read') }"
-        severity="secondary"
-        outlined
-        class="cui-button shrink-0"
-        :disabled="!unread"
-        @click="center.markSeen()"
-      >
-        <template #icon>
-          <i-mdi:check-all class="w-4.5 h-4.5" />
-        </template>
-      </Button>
       <Button
         v-tooltip.left="{ value: t('views.notifications.settings') }"
         severity="secondary"
@@ -108,17 +106,6 @@
       </Button>
     </div>
 
-    <CuiChipGroup v-if="sources.length > 1 || activeSource" v-model="activeSource" mandatory class="flex-nowrap! sm:flex-wrap! overflow-x-auto hide-scrollbar -mt-1 mb-4">
-      <CuiChip value="" size="small" class="shrink-0">
-        {{ t('views.notifications.filter_all') }}
-        <span class="ml-1 opacity-60 tabular-nums">{{ counts[activeFilter] ?? 0 }}</span>
-      </CuiChip>
-      <CuiChip v-for="source in sources" :key="source.id" :value="source.id" size="small" class="shrink-0">
-        {{ source.name }}
-        <span class="ml-1 opacity-60 tabular-nums">{{ source.count }}</span>
-      </CuiChip>
-    </CuiChipGroup>
-
     <div class="flex flex-1 min-h-0 gap-4">
       <div class="relative flex-1 min-w-0">
         <div ref="listRef" class="h-full overflow-y-auto overscroll-contain pb-[var(--cui-bottom-gap)]">
@@ -129,9 +116,9 @@
                 <div class="flex flex-col divide-y divide-(--border-color)">
                   <div v-for="row in group.rows" :key="row.head.id">
                     <ReuseRow :item="row.head" :series="row.series" />
-                    <template v-if="row.series.length && expandedIds.has(row.head.id)">
+                    <div v-if="row.series.length && expandedIds.has(row.head.id)" class="ml-4 mb-2 border-l-2 border-primary-500/30">
                       <ReuseRow v-for="child in row.series" :key="child.id" :item="child" :nested="true" />
-                    </template>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -192,17 +179,27 @@
       </div>
     </CuiBottomSheet>
 
-    <CuiMenu ref="filterMenuRef" :items="filterMenuItems" :popover="{ pt: { root: { class: 'min-w-56' }, content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
+    <CuiMenu ref="filterMenuRef" :items="filterMenuItems" :popover="menuPopover" />
+    <CuiMenu ref="sourceMenuRef" :items="sourceMenuItems" :popover="menuPopover" />
 
     <CuiFloatingButtonGroup v-if="items.length" :force-visible="selectionMode" :scroll-y="scrollY">
-      <CuiFloatingButton
-        v-if="!selectionMode"
-        :tooltip-props="{ value: t('views.notifications.select') }"
-        :button-props="{ severity: 'secondary' }"
-        :icon="SelectIcon"
-        :icon-props="{ width: '100%', height: '100%' }"
-        @click="enterSelectionMode"
-      />
+      <template v-if="!selectionMode">
+        <CuiFloatingButton
+          :tooltip-props="{ value: t('views.notifications.select') }"
+          :button-props="{ severity: 'secondary' }"
+          :icon="SelectIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="enterSelectionMode"
+        />
+        <CuiFloatingButton
+          v-if="unread"
+          :tooltip-props="{ value: t('components.notification_menu.mark_all_read') }"
+          :button-props="{ class: 'text-white' }"
+          :icon="CheckAllIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="center.markSeen()"
+        />
+      </template>
 
       <template v-else>
         <CuiFloatingButton
@@ -240,10 +237,13 @@
 
 <script setup lang="ts">
 import { NOTIFICATION_FILTERS, notificationBucket, notificationCameraId } from '@shared/types';
+import CameraIcon from '~icons/bx/cctv';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CheckIcon from '~icons/mdi/check';
+import CheckAllIcon from '~icons/mdi/check-all';
 import CloseIcon from '~icons/mdi/close';
 import TrashIcon from '~icons/mdi/delete-outline';
+import PluginIcon from '~icons/mdi/puzzle-outline';
 import SelectIcon from '~icons/tabler/dots-filled';
 
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
@@ -274,6 +274,7 @@ const activeFilter = useLocalStorage<NotificationFilter>('cui-notifications-filt
 const [DefineRow, ReuseRow] = createReusableTemplate<{ item: StoredNotification; series?: StoredNotification[]; nested?: boolean }>();
 
 const SERIES_GAP = 5 * 60_000;
+const menuPopover = { pt: { root: { class: 'min-w-56' }, content: { class: 'p-0! rounded-xl! overflow-hidden!' } } };
 
 const searchQuery = ref('');
 const appliedQuery = ref('');
@@ -282,6 +283,7 @@ const sheetOpen = ref(false);
 const expandedIds = ref(new Set<string>());
 const stuckDay = ref<string>();
 const filterMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('filterMenuRef');
+const sourceMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('sourceMenuRef');
 const listRef = useTemplateRef<HTMLElement>('listRef');
 
 const center = useNotificationCenter({ filter: activeFilter, query: appliedQuery, source: activeSource, isAtTop: () => (listRef.value?.scrollTop ?? 0) <= 40 });
@@ -303,6 +305,29 @@ const filterMenuItems = computed<MenuItem[]>(() =>
     };
   }),
 );
+
+const sourcePicker = computed(() => (activeFilter.value === 'cameras' || activeFilter.value === 'plugins') && (sources.value.length > 1 || !!activeSource.value));
+
+const sourceMenuItems = computed<MenuItem[]>(() => [
+  {
+    key: 'all',
+    label: t('views.notifications.filter_all'),
+    badge: String(counts.value[activeFilter.value] ?? 0),
+    active: !activeSource.value,
+    onClick: () => {
+      activeSource.value = '';
+    },
+  },
+  ...sources.value.map((source) => ({
+    key: source.id,
+    label: source.name,
+    badge: String(source.count),
+    active: activeSource.value === source.id,
+    onClick: () => {
+      activeSource.value = source.id;
+    },
+  })),
+]);
 
 const groups = computed<NotificationGroup[]>(() => {
   const byDay = new Map<string, StoredNotification[]>();
@@ -327,6 +352,11 @@ useEventListener(listRef, 'scroll', updateStuckDay, { passive: true });
 function openFilterMenu(event: Event) {
   center.refreshCounts();
   filterMenuRef.value?.toggleMenu(event);
+}
+
+function openSourceMenu(event: Event) {
+  center.refreshCounts();
+  sourceMenuRef.value?.toggleMenu(event);
 }
 
 function showIncoming() {

@@ -69,11 +69,10 @@
           }"
         >
           <CuiNotificationItem
-            v-for="(notification, index) in notifications"
+            v-for="notification in notifications"
             :key="notification.id"
             :notification
             :time="formatTimestamp(notification.createdAt)"
-            :divider="index !== notifications.length - 1"
             @open="openDialog"
             @mark-seen="markSeen"
             @remove="removeNotification"
@@ -84,8 +83,7 @@
           {{ $t('components.notification_menu.no_notifications') }}
         </div>
 
-        <Divider class="mt-2 mb-1" />
-        <Button severity="secondary" text class="cui-button w-full justify-center text-sm" :label="$t('components.notification_menu.show_all')" @click="goToAll" />
+        <Button severity="secondary" text class="cui-button w-full justify-center text-sm mt-1" :label="$t('components.notification_menu.show_all')" @click="goToAll" />
       </template>
     </Popover>
 

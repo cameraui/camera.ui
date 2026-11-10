@@ -3,7 +3,6 @@ import type { StoredNotification } from '@shared/types';
 export interface CuiNotificationItemProps {
   notification: StoredNotification;
   time: string;
-  divider: boolean;
 }
 
 export interface CuiNotificationItemEmits {
