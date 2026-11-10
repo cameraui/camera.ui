@@ -1,6 +1,7 @@
 import { registerNotifierDeviceFn } from '@/api/routes/notifications.js';
 import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { getPushDeviceId } from '@/common/deviceId';
+import { serverFlags } from '@/common/serverFlags.js';
 import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
 
 import type { NotifierDeviceWithSource } from '@shared/types';
@@ -29,6 +30,7 @@ export interface PushSyncState {
 }
 
 const _registering = ref(false);
+const _removedHere = serverFlags('cui.push.removedHere');
 
 let _pushCrypto: Promise<{ plugin: PushCryptoPlugin | null }> | null = null;
 
@@ -59,6 +61,7 @@ export function usePushRegistration() {
       });
 
       await writeRegistration(serverId, { deviceId: device.id, enabledAt: Date.now() });
+      await _removedHere.set(serverId, false);
     } catch (err) {
       // rethrow so the settings view can toast
       log.warn('failed to enable push for server:', err);
@@ -72,6 +75,8 @@ export function usePushRegistration() {
     if (!serverId) return;
     const reg = await readRegistration(serverId);
     if (!reg || reg.deviceId !== deviceId) return;
+    // set before the marker goes, mayAutoSync reads them in the opposite order
+    await _removedHere.set(serverId, true);
     await removeRegistration(serverId);
     await deletePushKey(serverId);
   };
@@ -92,6 +97,8 @@ export function usePushRegistration() {
     return { status: 'registered', device: mine };
   };
 
+  const mayAutoSync = async (serverId: string): Promise<boolean> => !(await readRegistration(serverId)) && !(await _removedHere.has(serverId));
+
   const restoreMarker = async (serverId: string, deviceId: string): Promise<void> => {
     if (await readRegistration(serverId)) return;
     await writeRegistration(serverId, { deviceId, enabledAt: Date.now() });
@@ -101,6 +108,7 @@ export function usePushRegistration() {
     registerForPush,
     forgetIfThisDevice,
     getSyncState,
+    mayAutoSync,
     restoreMarker,
   };
 }
