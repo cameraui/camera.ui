@@ -476,13 +476,15 @@ export const interfaceSettingsSchema = zod.object({
   aspectRatio: aspectRatioSchema,
 });
 
+const cameraInfoText = zod.preprocess((value) => (typeof value === 'number' ? String(value) : value), zod.string().trim());
+
 export const cameraInfoSchema = zod.object({
-  model: zod.string().trim().optional(),
-  manufacturer: zod.string().trim().optional(),
-  hardware: zod.string().trim().optional(),
-  serialNumber: zod.string().trim().optional(),
-  firmwareVersion: zod.string().trim().optional(),
-  supportUrl: zod.string().trim().optional(),
+  model: cameraInfoText.optional(),
+  manufacturer: cameraInfoText.optional(),
+  hardware: cameraInfoText.optional(),
+  serialNumber: cameraInfoText.optional(),
+  firmwareVersion: cameraInfoText.optional(),
+  supportUrl: cameraInfoText.optional(),
   power: zod.enum(['mains', 'battery']).optional(),
 });
 
