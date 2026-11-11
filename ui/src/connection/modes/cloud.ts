@@ -7,7 +7,7 @@ import { createAuthApi } from '../auth/api.js';
 import { createDiscoverCloud } from '../auth/discover.js';
 import { createProbe } from '../auth/probe.js';
 import { createRefresh } from '../auth/refresh.js';
-import { clearCapacitorCloudPreferences } from '../cloudHandoff.js';
+import { bounceToCloudFrontend } from '../cloudHandoff.js';
 import { createCloudSession } from '../cloudSession.js';
 import { createCloudSessionLifecycle } from '../cloudSessionLifecycle.js';
 import { isCapacitor } from '../runtime.js';
@@ -38,10 +38,7 @@ export function buildCloudMode(options: CloudModeOptions): CloudModeBundle {
     cloudSession,
     readL1AccessToken: isCapacitor ? readL1AccessTokenFromSecureStorage : undefined,
     onL1Unavailable: isCapacitor
-      ? async () => {
-          await clearCapacitorCloudPreferences();
-          window.location.href = '../index.html';
-        }
+      ? bounceToCloudFrontend
       : async () => {
           window.location.href = options.initialSession.cloudApiBase ? `${options.initialSession.cloudApiBase}/` : '/';
         },

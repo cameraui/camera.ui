@@ -152,7 +152,7 @@ import { getDeviceId, getDeviceName } from '@/composables/useDeviceIdentity.js';
 import { redirectOrigin } from '@/connection/authParamHandoff.js';
 import { clearCapacitorCloudPreferences, getServerKey, getServerName } from '@/connection/cloudHandoff.js';
 import { getDirectServer, useBootMode } from '@/connection/index.js';
-import { isCapacitor } from '@/connection/runtime.js';
+import { isCapacitor, showSplashScreen } from '@/connection/runtime.js';
 import { authValidationSchema } from '@/schemas/users.schema.js';
 
 import type { RestoreNotice, RestoreStatus } from '@shared/types';
@@ -352,12 +352,7 @@ function onBack(): void {
 
 async function goToCloud(): Promise<void> {
   if (isCapacitor) {
-    try {
-      const { SplashScreen } = await import('@capacitor/splash-screen');
-      await SplashScreen.show({ autoHide: false, fadeInDuration: 0 });
-    } catch {
-      // ignore
-    }
+    await showSplashScreen();
     // otherwise the next launch skips the server pick
     await clearCapacitorCloudPreferences();
     window.location.replace(`${window.location.origin}/`);

@@ -3,7 +3,7 @@ import { bootConnectionInstance } from './instance.js';
 import { buildCloudMode } from './modes/cloud.js';
 import { detectMode } from './modes/detectMode.js';
 import { buildDirectMode } from './modes/direct.js';
-import { isCapacitor } from './runtime.js';
+import { isCapacitor, showSplashScreen } from './runtime.js';
 
 import type { Logger } from '@camera.ui/logger';
 import type { AuthApi, CloudSessionHolder, Connection, ConnectionMode } from './types.js';
@@ -30,6 +30,7 @@ export async function bootApp(opts: BootOptions = {}): Promise<BootResult> {
   if (detected.mode === 'cloud') {
     if (!detected.cloudSession) {
       if (isCapacitor) {
+        await showSplashScreen();
         window.location.href = '../index.html';
       } else {
         window.location.href = CLOUD_SERVICE_URL;

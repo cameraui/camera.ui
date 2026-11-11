@@ -116,13 +116,15 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
     if (override) return override;
 
     await ensureHydrated();
-    await cloudSessionLifecycle.ensureFresh(signal);
-    if (signal.aborted) return [];
-
-    const session = cloudSession.state.value;
-    if (!session) throw new Error('cloud session not initialised after ensureFresh');
 
     try {
+      // a cloud outage blocks the proxy refresh, the cached pool still reaches the server
+      await cloudSessionLifecycle.ensureFresh(signal);
+      if (signal.aborted) return [];
+
+      const session = cloudSession.state.value;
+      if (!session) throw new Error('cloud session not initialised after ensureFresh');
+
       let addresses = await api.tunnelCheck(session.proxyUrl, session.proxyToken, signal);
       let pool = buildPool(addresses);
 
@@ -159,6 +161,7 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
       storage?.set(poolKey, JSON.stringify({ pool, at: cachedPoolAt, ca: cachedCa } satisfies PersistedPool));
       return withTrust(pool, addresses.ca);
     } catch (err) {
+      if (signal.aborted) throw err;
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
 
       if (status === 401 || status === 403) {
@@ -173,7 +176,7 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
         const pool = cachedPool;
         cachedPool = null;
         cachedPoolAt = 0;
-        logger?.debug('discover', `tunnel/check failed (${stringifyDiscoverError(err)}) — using cached pool fallback (${pool.length} endpoints, single-use)`);
+        logger?.debug('discover', `cloud lookup failed (${stringifyDiscoverError(err)}), using cached pool fallback (${pool.length} endpoints, single-use)`);
         return withTrust(pool, cachedCa);
       }
       throw err;

@@ -2,7 +2,7 @@ import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
 
 import { getBootResult } from './bootApp.js';
 import { forgetSelectedDirectServer, getDirectServer } from './directServer.js';
-import { isCapacitor } from './runtime.js';
+import { isCapacitor, showSplashScreen } from './runtime.js';
 
 let _bouncing = false;
 
@@ -74,15 +74,7 @@ export async function bounceToCloudFrontend(): Promise<void> {
   if (_bouncing) return;
   _bouncing = true;
 
-  if (isCapacitor) {
-    try {
-      const { SplashScreen } = await import('@capacitor/splash-screen');
-      await SplashScreen.show({ autoHide: false, fadeInDuration: 0 });
-    } catch {
-      // ignore
-    }
-  }
-
+  await showSplashScreen();
   await clearCloudHandoff();
 
   if (isCapacitor) {
