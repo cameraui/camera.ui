@@ -8,7 +8,7 @@
       </RouterLink>
     </section>
 
-    <section v-for="section in sections" :key="section.key" class="px-4 mb-4">
+    <section v-for="section in sections" :key="section.key" class="px-2 mb-4">
       <span class="card-title">{{ $t(`navigation.group_${section.key}`) }}</span>
       <CuiList size="large" dividers>
         <CuiListItem v-for="item in section.items" :key="item.to" :to="item.to">
@@ -23,7 +23,7 @@
       </CuiList>
     </section>
 
-    <section class="px-4">
+    <section class="px-2">
       <span class="card-title">{{ $t('views.menu.section_actions') }}</span>
       <CuiList size="large" dividers>
         <CuiListItem to="/about">

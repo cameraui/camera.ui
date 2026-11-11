@@ -39,7 +39,7 @@
                 <slot :is-exact-active="isExactActive ?? false"></slot>
               </div>
 
-              <div v-if="$slots.subtitle" :is-exact-active="isExactActive ?? false" class="text-sm text-muted mt-0.5">
+              <div v-if="$slots.subtitle" :is-exact-active="isExactActive ?? false" class="text-xs text-muted mt-0.5">
                 <slot name="subtitle"></slot>
               </div>
             </div>
