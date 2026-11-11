@@ -1,112 +1,77 @@
 <template>
-  <CuiAuthCard :logo-url="getImageUrl('logo_animated.svg')">
-    <template v-if="canGoBack || showCloudButton" #footer-left>
-      <Button v-if="canGoBack" severity="secondary" text size="small" class="text-muted" :label="$t('components.instance_switcher.go_back')" @click="goBack">
-        <template #icon>
-          <i-mdi:arrow-left class="w-4 h-4" />
-        </template>
-      </Button>
-      <Button v-else severity="secondary" text size="small" class="text-muted" :label="$t('views.login.pick_server')" @click="goToCloud">
-        <template #icon>
-          <i-mdi:cloud-outline class="w-4 h-4" />
-        </template>
-      </Button>
-    </template>
-
-    <Transition name="slide-fade" mode="out-in">
-      <div v-if="showConnecting" key="connecting" class="flex flex-col items-center justify-center h-full gap-4">
-        <ProgressSpinner stroke-width="4" class="!w-12 !h-12" />
+  <CuiScreen brand center :back="canGoBack || showCloudButton" :subtitle="serverName" @back="onBack">
+    <Transition name="fade-switch" mode="out-in">
+      <div v-if="showConnecting" key="connecting" class="flex flex-col items-center gap-4 pb-12">
+        <ProgressSpinner stroke-width="4" class="w-12! h-12!" />
         <p class="text-muted text-sm text-center">{{ connectingText }}</p>
         <Button v-if="inTrouble" size="small" severity="secondary" :label="$t('connection.retry')" @click="onRetry" />
       </div>
 
-      <Form v-else-if="!requires2FA" key="login" ref="formRef" :validation-schema="authValidationSchema" class="flex flex-col h-full" @submit="onLogin">
-        <Message v-if="movedAway" severity="warn" size="small" class="mb-6">{{ $t('restore.moved_away') }}</Message>
-        <Message v-if="restoreNotice" :severity="restoreNoticeSeverity" size="small" class="mb-6">
+      <Form v-else-if="!requires2FA" id="login-form" key="login" ref="formRef" :validation-schema="authValidationSchema" class="flex flex-col gap-6" @submit="onLogin">
+        <Message v-if="movedAway" severity="warn" size="small">{{ $t('restore.moved_away') }}</Message>
+        <Message v-if="restoreNotice" :severity="restoreNoticeSeverity" size="small">
           <div class="flex flex-col gap-1">
             <span>{{ restoreNoticeText }}</span>
             <span v-if="restoreAccounts" class="font-semibold select-text">{{ restoreAccounts }}</span>
           </div>
         </Message>
 
-        <div class="flex flex-col gap-10 sm:gap-6 w-full mt-10 sm:mt-0">
-          <Field v-slot="{ field, errors }" v-model.trim="username" name="username" as="div" class="flex flex-col field-gap">
-            <label for="username" class="cui-label">{{ $t('components.form.label.username') }}</label>
-            <InputGroup>
-              <InputText :invalid="errors.length > 0" type="text" size="large" :loading="loginLoading" v-bind="field" />
-            </InputGroup>
-            <Transition name="fade">
-              <ErrorMessage name="username" class="cui-input-error" />
-            </Transition>
-          </Field>
+        <Field v-slot="{ field, errors }" v-model.trim="username" name="username" as="div" class="flex flex-col field-gap" :validate-on-blur="false">
+          <label for="username" class="cui-label">{{ $t('components.form.label.username') }}</label>
+          <InputGroup>
+            <InputText :invalid="errors.length > 0" type="text" size="large" :loading="loginLoading" v-bind="field" />
+          </InputGroup>
+          <Transition name="fade">
+            <ErrorMessage name="username" class="cui-input-error" />
+          </Transition>
+        </Field>
 
-          <Field v-slot="{ field, errors }" v-model="password" name="password" as="div" class="flex flex-col field-gap">
-            <label for="password" class="cui-label">{{ $t('components.form.label.password') }}</label>
-            <InputGroup>
-              <Password :invalid="errors.length > 0" size="large" :loading="loginLoading" :feedback="false" toggle-mask v-bind="field" />
-            </InputGroup>
-            <Transition name="fade">
-              <ErrorMessage name="password" class="cui-input-error" />
-            </Transition>
-          </Field>
-        </div>
+        <Field v-slot="{ field, errors }" v-model="password" name="password" as="div" class="flex flex-col field-gap" :validate-on-blur="false">
+          <label for="password" class="cui-label">{{ $t('components.form.label.password') }}</label>
+          <InputGroup>
+            <Password :invalid="errors.length > 0" size="large" :loading="loginLoading" :feedback="false" toggle-mask v-bind="field" />
+          </InputGroup>
+          <Transition name="fade">
+            <ErrorMessage name="password" class="cui-input-error" />
+          </Transition>
+        </Field>
 
-        <div class="flex flex-col gap-6 mt-10">
-          <Field
-            v-if="!isCapacitor"
-            v-slot="{ field, errors }"
-            :model-value="rememberMe"
-            name="rememberMe"
-            type="checkbox"
-            :checked-value="true"
-            :unchecked-value="false"
-            as="div"
-            class="flex flex-col field-gap"
-          >
-            <div class="flex items-center field-checkbox-gap">
-              <Checkbox
-                :model-value="rememberMe"
-                v-bind="field"
-                :invalid="errors.length > 0"
-                class="mr-2"
-                binary
-                :loading="loginLoading"
-                @value-change="rememberMe = $event"
-              />
-              <label for="rememberMe" class="cui-label-checkbox">{{ $t('components.form.label.remember_me') }}</label>
-            </div>
-            <Transition name="fade">
-              <ErrorMessage name="rememberMe" class="cui-input-checkbox-error" />
-            </Transition>
-          </Field>
-
-          <Button type="submit" class="text-white font-semibold cui-button-large" :loading="loginLoading" :label="$t('components.form.button.login')" fluid />
-
-          <Button
-            v-if="biometricButtonVisible"
-            type="button"
-            severity="secondary"
-            class="cui-button-large"
-            text
-            :loading="biometricLoading"
-            :label="$t('components.form.button.biometric_login')"
-            fluid
-            @click="onBiometricLogin"
-          >
-            <template #icon>
-              <i-mdi:face-recognition class="w-5 h-5 mr-2" />
-            </template>
-          </Button>
-        </div>
+        <Field
+          v-if="!isCapacitor"
+          v-slot="{ field, errors }"
+          :model-value="rememberMe"
+          name="rememberMe"
+          type="checkbox"
+          :checked-value="true"
+          :unchecked-value="false"
+          as="div"
+          class="flex flex-col field-gap"
+        >
+          <div class="flex items-center field-checkbox-gap">
+            <Checkbox
+              :model-value="rememberMe"
+              v-bind="field"
+              :invalid="errors.length > 0"
+              class="mr-2"
+              binary
+              :loading="loginLoading"
+              @value-change="rememberMe = $event"
+            />
+            <label for="rememberMe" class="cui-label-checkbox">{{ $t('components.form.label.remember_me') }}</label>
+          </div>
+          <Transition name="fade">
+            <ErrorMessage name="rememberMe" class="cui-input-checkbox-error" />
+          </Transition>
+        </Field>
       </Form>
 
-      <div v-else key="2fa" v-focustrap class="flex flex-col h-full">
-        <div class="flex flex-col items-center text-center mt-10 sm:mt-0">
+      <div v-else key="2fa" v-focustrap class="flex flex-col items-center text-center gap-6">
+        <div class="flex flex-col items-center">
           <h2 class="text-lg font-semibold mb-2">{{ $t('views.login.2fa_title') }}</h2>
           <p class="text-muted text-sm">{{ useBackupCode ? $t('views.login.2fa_backup_description') : $t('views.login.2fa_description') }}</p>
         </div>
 
-        <div class="flex flex-col items-center mt-10">
+        <div class="flex flex-col items-center">
           <InputOtp v-if="!useBackupCode" v-model="otpCode" :length="OTP_LENGTH" integer-only size="large" />
           <InputText
             v-else
@@ -129,21 +94,50 @@
             @click="onToggle2FAMode"
           />
         </div>
-
-        <div class="flex flex-col gap-3 mt-auto pt-10">
-          <Button
-            class="text-white font-semibold cui-button-large"
-            :loading="loginLoading"
-            :disabled="!canVerify2FA"
-            :label="$t('views.login.2fa_verify')"
-            fluid
-            @click="onVerify2FA"
-          />
-          <Button severity="secondary" class="cui-button-large" text :label="$t('components.form.button.cancel')" fluid @click="onCancel2FA" />
-        </div>
       </div>
     </Transition>
-  </CuiAuthCard>
+
+    <template v-if="!showConnecting" #footer>
+      <template v-if="!requires2FA">
+        <Button
+          type="submit"
+          form="login-form"
+          class="text-white font-semibold cui-button-large"
+          :loading="loginLoading"
+          :label="$t('components.form.button.login')"
+          fluid
+        />
+
+        <Button
+          v-if="biometricButtonVisible"
+          type="button"
+          severity="secondary"
+          class="cui-button-large"
+          text
+          :loading="biometricLoading"
+          :label="$t('components.form.button.biometric_login')"
+          fluid
+          @click="onBiometricLogin"
+        >
+          <template #icon>
+            <i-mdi:face-recognition class="w-5 h-5 mr-2" />
+          </template>
+        </Button>
+      </template>
+
+      <template v-else>
+        <Button
+          class="text-white font-semibold cui-button-large"
+          :loading="loginLoading"
+          :disabled="!canVerify2FA"
+          :label="$t('views.login.2fa_verify')"
+          fluid
+          @click="onVerify2FA"
+        />
+        <Button severity="secondary" class="cui-button-large" text :label="$t('components.form.button.cancel')" fluid @click="onCancel2FA" />
+      </template>
+    </template>
+  </CuiScreen>
 </template>
 
 <script setup lang="ts">
@@ -151,13 +145,13 @@ import { ErrorMessage, Field, Form } from 'vee-validate';
 
 import { movedAwayStateFn } from '@/api/routes/backup.js';
 import { CLOUD_SERVICE_URL } from '@/common/constants.js';
-import { extractErrorMessage, getImageUrl } from '@/common/utils.js';
-import CuiAuthCard from '@/components/CuiAuthCard/CuiAuthCard.vue';
+import { extractErrorMessage } from '@/common/utils.js';
+import CuiScreen from '@/components/CuiScreen/CuiScreen.vue';
 import { checkBiometryAvailable, clearCredentials, hasStoredCredentials, saveCredentials, unlockCredentials } from '@/composables/useBiometricCredentials.js';
 import { getDeviceId, getDeviceName } from '@/composables/useDeviceIdentity.js';
 import { redirectOrigin } from '@/connection/authParamHandoff.js';
-import { clearCapacitorCloudPreferences } from '@/connection/cloudHandoff.js';
-import { useBootMode } from '@/connection/index.js';
+import { clearCapacitorCloudPreferences, getServerKey, getServerName } from '@/connection/cloudHandoff.js';
+import { getDirectServer, useBootMode } from '@/connection/index.js';
 import { isCapacitor } from '@/connection/runtime.js';
 import { authValidationSchema } from '@/schemas/users.schema.js';
 
@@ -196,9 +190,17 @@ const movedAway = ref(false);
 
 const canGoBack = computed(() => !instanceStore.isHomeActive || instanceStore.redirectInfo !== null);
 const canVerify2FA = computed(() => (useBackupCode.value ? backupCode.value.trim().length === BACKUP_CODE_LENGTH : otpCode.value.length === OTP_LENGTH));
-const showCloudButton = computed(() => mode === 'cloud' && instanceStore.isHomeActive);
+const isDirectServer = getDirectServer() !== null;
+const showCloudButton = computed(() => (mode === 'cloud' || isDirectServer) && instanceStore.isHomeActive);
 const showConnecting = computed(() => !isOnline.value && !isNeedsAuth.value && !loginLoading.value && !requires2FA.value);
-const connectingText = computed(() => (inTrouble.value ? t('connection.unreachable') : t('connection.connecting_remote')));
+const connectingText = computed(() => {
+  if (inTrouble.value) return t('connection.unreachable');
+  const name = getServerName();
+  return name ? t('connection.connecting_to', { name }) : t('connection.connecting_remote');
+});
+
+// a remote instance logs in under its own name, the saved one belongs to the home server
+const serverName = computed(() => (instanceStore.isHomeActive ? (getServerName() ?? undefined) : undefined));
 
 const biometricButtonVisible = computed(() => isCapacitor && biometryAvailable.value && hasCredsForServer.value);
 
@@ -279,7 +281,7 @@ async function onLogin(): Promise<void> {
 }
 
 async function onBiometricLogin(): Promise<void> {
-  const serverId = await readCurrentServerId();
+  const serverId = credentialsServerKey();
   if (!serverId) return;
   biometricLoading.value = true;
   try {
@@ -298,22 +300,16 @@ async function onBiometricLogin(): Promise<void> {
   }
 }
 
-async function readCurrentServerId(): Promise<string | null> {
+function credentialsServerKey(): string | null {
   // saved credentials belong to the home server, a remote must not use or replace them
   if (!isCapacitor || !instanceStore.isHomeActive) return null;
-  try {
-    const { Preferences } = await import('@capacitor/preferences');
-    const { value } = await Preferences.get({ key: 'currentServerId' });
-    return value ?? null;
-  } catch {
-    return null;
-  }
+  return getServerKey();
 }
 
 async function maybePromptSaveCredentials(creds: { username: string; password: string }): Promise<void> {
   if (!isCapacitor) return;
   if (!biometryAvailable.value) return;
-  const serverId = await readCurrentServerId();
+  const serverId = credentialsServerKey();
   if (!serverId) return;
   if (hasCredsForServer.value) {
     await saveCredentials(serverId, creds);
@@ -344,6 +340,14 @@ async function maybePromptSaveCredentials(creds: { username: string; password: s
       }
     },
   });
+}
+
+function onBack(): void {
+  if (canGoBack.value) {
+    goBack();
+    return;
+  }
+  goToCloud();
 }
 
 async function goToCloud(): Promise<void> {
@@ -402,26 +406,9 @@ watch(
 
 onMounted(async () => {
   if (!isCapacitor) return;
-  const serverId = await readCurrentServerId();
+  const serverId = credentialsServerKey();
   const [biometry, hasCreds] = await Promise.all([checkBiometryAvailable(), hasStoredCredentials(serverId)]);
   biometryAvailable.value = biometry.available;
   hasCredsForServer.value = hasCreds;
 });
 </script>
-
-<style scoped>
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-fade-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.slide-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-</style>

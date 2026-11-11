@@ -354,6 +354,7 @@
     "useDevicePixelRatio": true,
     "useDevicesList": true,
     "useDialogSidePanel": true,
+    "useDirectServerSync": true,
     "useDisplayMedia": true,
     "useDocumentVisibility": true,
     "useDraggable": true,

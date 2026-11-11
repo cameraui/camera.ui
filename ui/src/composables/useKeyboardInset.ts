@@ -203,6 +203,7 @@ function setInset(px: number): void {
   const finish = [...transitions].map((transition) => transition());
   keyboardInset.value = px;
   document.documentElement.style.setProperty('--keyboard-inset', `${px}px`);
+  document.documentElement.classList.toggle('cui-keyboard-open', px > 0);
   for (const done of finish) done?.();
 }
 
@@ -219,11 +220,15 @@ function scrollFocusedIntoView(): void {
     if (!isTextEntryElement(active)) return;
 
     const rect = active.getBoundingClientRect();
+    const scroller = findScrollableAncestor(active);
+    const top = (scroller ? scroller.getBoundingClientRect().top : visibleTop()) + 16;
     const limit = window.innerHeight - keyboardInset.value - 8;
-    const delta = Math.min(rect.bottom - limit, Math.max(0, rect.top - 80));
+    const button = submitButtonOf(active)?.getBoundingClientRect();
+    // the submit button comes along only when it fits on screen together with the field
+    const bottom = button && button.bottom - rect.top <= limit - top ? Math.max(rect.bottom, button.bottom) : rect.bottom;
+    const delta = Math.min(bottom - limit, rect.top - top);
     if (delta <= 0) return;
 
-    const scroller = findScrollableAncestor(active);
     if (scroller) scroller.scrollBy({ top: delta, behavior: 'smooth' });
     else if (!isPageParked()) window.scrollBy({ top: delta, behavior: 'smooth' });
   }, 250);
@@ -246,6 +251,10 @@ function dropLiftedOverlay(): void {
   liftedOverlay = undefined;
 }
 
+function visibleTop(): number {
+  return document.querySelector('.cui-topbar')?.getBoundingClientRect().bottom ?? safeAreaTop();
+}
+
 function safeAreaTop(): number {
   const probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)';
@@ -253,6 +262,12 @@ function safeAreaTop(): number {
   const value = parseFloat(getComputedStyle(probe).paddingTop) || 0;
   probe.remove();
   return value;
+}
+
+function submitButtonOf(input: Element): Element | null {
+  const form = input.closest('form');
+  if (!form) return null;
+  return form.querySelector('[type="submit"]') ?? (form.id ? document.querySelector(`[type="submit"][form="${CSS.escape(form.id)}"]`) : null);
 }
 
 function findScrollableAncestor(element: Element): Element | null {

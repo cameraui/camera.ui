@@ -3,10 +3,18 @@ import { isCapacitor } from '@/connection/index.js';
 
 import type { SupportedThemes, ThemeLocalStorage } from '@shared/types';
 
-async function syncNativeStatusBar(t: SupportedThemes): Promise<void> {
+interface NativeAppearancePlugin {
+  setStyle(options: { style: SupportedThemes | 'system' }): Promise<void>;
+}
+
+async function syncNativeTheme(t: SupportedThemes, followSystem: boolean): Promise<void> {
   if (!isCapacitor) return;
-  const { StatusBar, Style } = await import('@capacitor/status-bar');
+  const [{ StatusBar, Style }, { registerPlugin }] = await Promise.all([import('@capacitor/status-bar'), import('@capacitor/core')]);
   await StatusBar.setStyle({ style: t === 'dark' ? Style.Dark : Style.Light });
+  // app builds without the plugin reject the call
+  await registerPlugin<NativeAppearancePlugin>('Appearance')
+    .setStyle({ style: followSystem ? 'system' : t })
+    .catch(() => {});
 }
 
 function readForcedTheme(): SupportedThemes | null {
@@ -94,8 +102,6 @@ export const useThemeStore = defineStore('theme', () => {
 
     document.documentElement.style.background = t === 'dark' ? '#0d0d0d' : '#f8fafc';
     applyThemeClasses(document.documentElement, t);
-
-    syncNativeStatusBar(t);
   }
 
   function registerThemeRoot(el: Element): () => void {
@@ -150,6 +156,14 @@ export const useThemeStore = defineStore('theme', () => {
       theme.value = isDark ? 'dark' : 'light';
     }
   });
+
+  watch(
+    [theme, autoMode],
+    () => {
+      syncNativeTheme(currentTheme(), autoMode.value);
+    },
+    { immediate: true },
+  );
 
   setAppTheme(currentTheme());
 

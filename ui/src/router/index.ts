@@ -59,7 +59,7 @@ import PluginsIconActive from '~icons/tabler/puzzle-filled';
 import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
 import { dropParkedPage, holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
-import { isCapacitor, isInCloudSession, useConnection } from '@/connection/index.js';
+import { isCapacitor, isInAppSession, useConnection } from '@/connection/index.js';
 import { scrollPageToTop } from '@/composables/useCuiTopbarSlots.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
@@ -132,9 +132,9 @@ export const routes: RouteRecordRaw[] = [
         role: 'none',
       },
       ui: {
-        background: computed(() => {
-          return smBreakpoint.value ? 'var(--card-background)' : undefined;
-        }),
+        containerSettings: {
+          disableScroll: true,
+        },
       },
     },
   },
@@ -1503,7 +1503,7 @@ router.absUrl = (url: string = '#', newTab: boolean = true): void => {
 };
 
 router.beforeEach(async (to, from) => {
-  if (isCapacitor && !isInCloudSession()) {
+  if (isCapacitor && !isInAppSession()) {
     window.location.replace(`${window.location.origin}/`);
     return false;
   }

@@ -441,6 +441,30 @@
   }
 }
 
+.screen-forward-enter-active,
+.screen-forward-leave-active,
+.screen-back-enter-active,
+.screen-back-leave-active {
+  position: absolute;
+  inset: 0;
+}
+
+.screen-forward-enter-active {
+  animation: menu-slide-in-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.screen-forward-leave-active {
+  animation: menu-slide-out-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.screen-back-enter-active {
+  animation: menu-slide-in-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.screen-back-leave-active {
+  animation: menu-slide-out-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
 .fade-scale-enter-active {
   transition-duration: 0.3s;
   transition-property: all;

@@ -1,5 +1,5 @@
 <template>
-  <div class="loader flex flex-col justify-center items-center">
+  <div class="loader flex flex-col justify-center items-center" :class="{ animated: reload }">
     <InlineSvg :src="getImageUrl('logo_loading_circle.svg')" :width="width" :height="height" title="camera.ui" aria-label="camera.ui" />
 
     <div v-if="icon || text" class="absolute flex flex-col items-center justify-center pb-safe bottom-10">
@@ -64,7 +64,7 @@ onMounted(() => {
   max-height: 100dvh;
 }
 
-div :deep(.cameraLens) {
+.animated :deep(.cameraLens) {
   -webkit-animation:
     lensMove 0.8s cubic-bezier(0.47, 1.84, 0.21, 0.8) forwards,
     lensRotate 0.8s ease-in-out 0.4s forwards,
@@ -87,7 +87,7 @@ div :deep(.cameraLens) {
   transform-origin: 35% 55%;
 }
 
-div :deep(.cameraLetter) {
+.animated :deep(.cameraLetter) {
   -moz-animation:
     letterScale 0.4s cubic-bezier(0.47, 1.84, 0.21, 0.8) forwards,
     letterScaleBack 0.4s cubic-bezier(0.47, 1.84, 0.21, 0.8) 1.2s forwards;
