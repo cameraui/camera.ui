@@ -81,15 +81,25 @@ export function setupAppUpdate() {
   }
 }
 
-function setupCapacitorUpdates(): void {
-  import('@capgo/capacitor-updater').then(({ CapacitorUpdater }) => {
-    CapacitorUpdater.addListener('updateAvailable', () => {
-      applyImpl = async () => {
-        await CapacitorUpdater.reload();
-      };
-      updateAvailable.value = true;
-    });
+async function setupCapacitorUpdates(): Promise<void> {
+  const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+  const offerReload = () => {
+    applyImpl = async () => {
+      await CapacitorUpdater.reload();
+    };
+    updateAvailable.value = true;
+  };
+
+  CapacitorUpdater.addListener('updaterEvent', (event) => {
+    if (event.type === 'updateAvailable') offerReload();
   });
+
+  try {
+    const [next, { bundle }] = await Promise.all([CapacitorUpdater.getNextBundle(), CapacitorUpdater.current()]);
+    if (next && next.id !== bundle.id && (next.status === 'pending' || next.status === 'success')) offerReload();
+  } catch {
+    // the next update check announces it again
+  }
 }
 
 function setupServiceWorkerUpdates(): void {
