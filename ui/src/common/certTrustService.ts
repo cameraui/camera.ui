@@ -4,8 +4,7 @@ import { isCapacitor } from '@/connection/runtime.js';
 import type { CertTrustPayload } from '@/types/electron.js';
 
 interface CertTrustPlugin {
-  trust(options: { ca: string; hosts: string[] }): Promise<void>;
-  clear(): Promise<void>;
+  trust(options: { ca?: string; leafSha256?: string; hosts: string[]; direct?: boolean }): Promise<void>;
 }
 
 const log = useLogger();
@@ -16,7 +15,8 @@ export function installCertTrustBridge(): void {
   const { electron } = useElectron();
   if (electron) {
     // older desktop builds reject the call, trustInternalCa swallows that
-    setCertTrustInstaller(async (ca, hosts) => {
+    setCertTrustInstaller(async ({ ca, hosts }) => {
+      if (!ca) return;
       await electron.invoke('cert-trust', { ca, hosts: [...hosts] } satisfies CertTrustPayload);
       log.debug(`[cert-trust] instance CA handed to the desktop app for ${hosts.length} host(s)`);
     });
@@ -25,12 +25,12 @@ export function installCertTrustBridge(): void {
 
   if (!isCapacitor) return;
 
-  setCertTrustInstaller(async (ca, hosts) => {
+  setCertTrustInstaller(async ({ hosts, ...trust }) => {
     if (!plugin) {
       const { registerPlugin } = await import('@capacitor/core');
       plugin = registerPlugin<CertTrustPlugin>('CertTrust');
     }
-    await plugin.trust({ ca, hosts: [...hosts] });
-    log.debug(`[cert-trust] instance CA trusted for ${hosts.length} host(s)`);
+    await plugin.trust({ ...trust, hosts: [...hosts] });
+    log.debug(`[cert-trust] instance trust set for ${hosts.length} host(s)`);
   });
 }

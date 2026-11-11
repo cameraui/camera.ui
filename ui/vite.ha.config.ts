@@ -177,7 +177,6 @@ export default defineConfig({
   },
   define: {
     __CAPACITOR__: false,
-    __DEV_LOCAL_SERVER__: JSON.stringify(''),
     __UI_VERSION__: JSON.stringify(UI_VERSION),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },

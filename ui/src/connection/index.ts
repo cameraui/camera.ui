@@ -29,8 +29,20 @@ export { createDiscoverCloud, createDiscoverDirect } from './auth/discover.js';
 export { createProbe } from './auth/probe.js';
 export { createRefresh } from './auth/refresh.js';
 
-export { bounceToCloudFrontend, clearCapacitorCloudPreferences, clearCloudHandoff, getCurrentServerId, isInCloudSession } from './cloudHandoff.js';
-export { devLocalServer, isCapacitor } from './runtime.js';
+export {
+  bounceToCloudFrontend,
+  clearCapacitorCloudPreferences,
+  clearCloudHandoff,
+  getCurrentServerId,
+  getServerKey,
+  getServerName,
+  isInAppSession,
+  isInCloudSession,
+} from './cloudHandoff.js';
+export { getDirectServer, routeNoteFor, updateDirectServer } from './directServer.js';
+export { trustDirectServer } from './certTrust.js';
+export { screenTunnelAddresses } from './auth/api.js';
+export { isCapacitor } from './runtime.js';
 
 export type {
   AuthApi,

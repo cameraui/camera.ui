@@ -378,7 +378,7 @@ import TwoFactorBackupCodesDialog from '@/components/CuiDialog/templates/TwoFact
 import TwoFactorDisableDialog from '@/components/CuiDialog/templates/TwoFactorDisable/TwoFactorDisable.vue';
 import TwoFactorRegenerateDialog from '@/components/CuiDialog/templates/TwoFactorRegenerate/TwoFactorRegenerate.vue';
 import { checkBiometryAvailable, clearCredentials, hasStoredCredentials } from '@/composables/useBiometricCredentials.js';
-import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
+import { getServerKey, isCapacitor } from '@/connection/index.js';
 import { userPasswordSchema } from '@/schemas/users.schema.js';
 
 import type { ApiTokenCreatedProps } from '@/components/CuiDialog/templates/ApiTokenCreated/types.js';
@@ -687,7 +687,7 @@ async function saveProfile(values: ProfileInput): Promise<void> {
 
 async function refreshBiometricState(): Promise<void> {
   if (!isCapacitor) return;
-  const [biometry, hasCreds] = await Promise.all([checkBiometryAvailable(), hasStoredCredentials(getCurrentServerId())]);
+  const [biometry, hasCreds] = await Promise.all([checkBiometryAvailable(), hasStoredCredentials(getServerKey())]);
   biometryAvailable.value = biometry.available;
   biometricEnabled.value = hasCreds;
 }
@@ -701,7 +701,7 @@ async function onToggleBiometric(next: boolean): Promise<void> {
   }
   biometricToggling.value = true;
   try {
-    await clearCredentials(getCurrentServerId());
+    await clearCredentials(getServerKey());
     biometricEnabled.value = false;
     toast.add({ severity: 'success', detail: t('views.settings.biometric.cleared'), life: 3000 });
   } finally {

@@ -3,7 +3,7 @@ import { apiInfo } from '@/api/routes/api.js';
 import { getPluginFn } from '@/api/routes/plugins.js';
 import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { outdatedComponents } from '@/common/serverCompatibility.js';
-import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
+import { getServerKey, isCapacitor } from '@/connection/index.js';
 
 import type { OutdatedComponent } from '@/common/serverCompatibility.js';
 
@@ -41,7 +41,7 @@ export function useServerCompatibility(): void {
   async function check(): Promise<void> {
     const endpoint = connection.endpoint.value;
     // every cloud server sits behind the same proxy url
-    const server = `${getCurrentServerId() ?? ''}|${endpoint}`;
+    const server = `${getServerKey() ?? ''}|${endpoint}`;
     if (!endpoint || (!isCapacitor && instances.isHomeActive) || compatible.has(server)) {
       hide();
       return;

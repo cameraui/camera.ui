@@ -5,7 +5,7 @@ import { localAccessExpiry } from '@camera.ui/transport';
 import { createInstanceFn, deleteInstanceFn, getInstancesFn, isRequires2fa, loginToRemoteFn, toggleFavoriteFn, updateInstanceFn } from '@/api/routes/instances.js';
 import InstanceTwoFactorPrompt from '@/components/CuiDialog/templates/InstanceTwoFactorPrompt/InstanceTwoFactorPrompt.vue';
 import { createStorageAdapter } from '@/connection/adapters/storage.js';
-import { getCurrentServerId } from '@/connection/cloudHandoff.js';
+import { getServerKey } from '@/connection/cloudHandoff.js';
 import { getConnection, instanceOverride } from '@/connection/instance.js';
 import { isCapacitor } from '@/connection/runtime.js';
 import { i18n } from '@/i18n/index.js';
@@ -72,12 +72,12 @@ function serializeUserData(tokens: Tokens, user?: { _id: string; username: strin
 }
 
 function homeSlotKey(): string {
-  const serverId = getCurrentServerId();
+  const serverId = getServerKey();
   return serverId ? `${HOME_SLOT}:${serverId}` : HOME_SLOT;
 }
 
 function activeStorageKey(): string {
-  const serverId = getCurrentServerId();
+  const serverId = getServerKey();
   if (!serverId) return ACTIVE_KEY;
 
   const key = `${ACTIVE_KEY}:${serverId}`;

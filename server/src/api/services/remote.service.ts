@@ -50,6 +50,10 @@ export class RemoteService {
     return this.dbs.cloudDB.get('cloud') ?? {};
   }
 
+  public serverName(): string {
+    return this.getCloud().name ?? hostname();
+  }
+
   public async patchCloud(patch: Partial<DBCloud>): Promise<DBCloud> {
     const before = this.getCloud().oauth?.grant_id;
     const cloud = (await this.dbs.commit(this.dbs.cloudDB, 'cloud', (current) => ({ ...(current ?? {}), ...patch }))) ?? {};
@@ -78,7 +82,7 @@ export class RemoteService {
     pollInterval: number;
   }> {
     const cloud = this.getCloud();
-    const serverName = name?.trim() ?? cloud.name ?? hostname();
+    const serverName = name?.trim() ?? this.serverName();
 
     const requestedServerId = cloud.oauth?.needs_reauth ? cloud.oauth.server_id : undefined;
     const resp = await this.cloudApi.oauthRoute.startDeviceFlow(requestedServerId);
@@ -154,7 +158,7 @@ export class RemoteService {
     if (!(await this.cloudApi.credentialStore.peek())) {
       return; // not paired
     }
-    await this.cloudApi.serverRoute.update({ name: this.getCloud().name ?? hostname(), disabled: !enabled });
+    await this.cloudApi.serverRoute.update({ name: this.serverName(), disabled: !enabled });
   }
 
   public async unregisterCloudServer(): Promise<void> {
@@ -172,7 +176,7 @@ export class RemoteService {
     return {
       isRegistered: !!cloud.oauth,
       needsReauth: !!cloud.oauth?.needs_reauth,
-      serverName: cloud.name ?? hostname(),
+      serverName: this.serverName(),
     };
   }
 
@@ -201,7 +205,7 @@ export class RemoteService {
       return;
     }
     await this.cloudApi.serverRoute.update({
-      name: this.getCloud().name ?? hostname(),
+      name: this.serverName(),
       disabled: !enabled,
       ...(registrationId ? { fcm_token: registrationId } : {}),
     });

@@ -3,8 +3,10 @@ import { localAccessExpiry } from '@camera.ui/transport';
 import { homeOrigin } from '@/common/base.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
 
+import { loadSelectedDirectServer } from '../directServer.js';
 import { isCapacitor } from '../runtime.js';
 
+import type { DirectServer } from '../directServer.js';
 import type { CloudSession, ConnectionMode } from '../types.js';
 
 const CLOUD_REFRESH_TIMEOUT_MS = 10_000;
@@ -12,7 +14,9 @@ const CLOUD_REFRESH_TIMEOUT_MS = 10_000;
 export interface DetectedMode {
   readonly mode: ConnectionMode;
   readonly directEndpointUrl?: string;
+  readonly directServer?: DirectServer;
   readonly cloudSession?: CloudSession;
+  readonly serverName?: string;
 }
 
 export async function detectMode(): Promise<DetectedMode> {
@@ -34,15 +38,19 @@ function isOnCloudProxyHost(): boolean {
 }
 
 async function detectCapacitorMode(): Promise<DetectedMode> {
+  const directServer = await loadSelectedDirectServer();
+  if (directServer) return { mode: 'direct', directEndpointUrl: directServer.url, directServer };
+
   const { Preferences } = await import('@capacitor/preferences');
   const { SecureStorage } = await import('@aparajita/capacitor-secure-storage');
-  const [origin, proxyToken, proxyRefresh, proxyTokenExp, proxyRefreshExp, serverId, cloudApiBase] = await Promise.all([
+  const [origin, proxyToken, proxyRefresh, proxyTokenExp, proxyRefreshExp, serverId, serverName, cloudApiBase] = await Promise.all([
     Preferences.get({ key: 'mobileOrigin' }),
     SecureStorage.get('proxyAuthToken'),
     SecureStorage.get('proxyRefreshToken'),
     Preferences.get({ key: 'proxyTokenExpiresAt' }),
     Preferences.get({ key: 'proxyRefreshTokenExpiresAt' }),
     Preferences.get({ key: 'currentServerId' }),
+    Preferences.get({ key: 'currentServerName' }),
     Preferences.get({ key: 'cloudApiBase' }),
   ]);
 
@@ -64,6 +72,7 @@ async function detectCapacitorMode(): Promise<DetectedMode> {
       serverId: serverId.value ?? undefined,
       cloudApiBase: cloudApiBase.value ?? undefined,
     },
+    serverName: serverName.value ?? undefined,
   };
 }
 

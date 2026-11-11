@@ -1,6 +1,7 @@
 import { fetchViableNetworkAddresses } from '@camera.ui/common/network';
 import { getResponder } from '@homebridge/ciao';
 
+import { RemoteService } from '../../api/services/remote.service.js';
 import { inject } from '../../container.js';
 import { ConfigService } from '../config/index.js';
 
@@ -37,6 +38,7 @@ export class MdnsService {
         txt: {
           version: ConfigService.VERSION,
           id: instanceId,
+          name: new RemoteService().serverName(),
           https: '1',
         },
       });

@@ -1,6 +1,7 @@
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
 
 import { getBootResult } from './bootApp.js';
+import { forgetSelectedDirectServer, getDirectServer } from './directServer.js';
 import { isCapacitor } from './runtime.js';
 
 let _bouncing = false;
@@ -14,6 +15,24 @@ export function getCurrentServerId(): string | null {
   }
 }
 
+export function getServerKey(): string | null {
+  return getCurrentServerId() ?? getDirectServer()?.id ?? null;
+}
+
+export function getServerName(): string | null {
+  const direct = getDirectServer();
+  if (direct) return direct.name;
+  try {
+    return getBootResult().serverName ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function isInAppSession(): boolean {
+  return isInCloudSession() || getDirectServer() !== null;
+}
+
 export async function clearCapacitorCloudPreferences(): Promise<void> {
   if (!isCapacitor) return;
   try {
@@ -23,9 +42,11 @@ export async function clearCapacitorCloudPreferences(): Promise<void> {
       Preferences.remove({ key: 'proxyTokenExpiresAt' }),
       Preferences.remove({ key: 'proxyRefreshTokenExpiresAt' }),
       Preferences.remove({ key: 'currentServerId' }),
+      Preferences.remove({ key: 'currentServerName' }),
       Preferences.remove({ key: 'cloudApiBase' }),
       SecureStorage.remove('proxyAuthToken'),
       SecureStorage.remove('proxyRefreshToken'),
+      forgetSelectedDirectServer(),
     ]);
   } catch {
     // the bounce and reload go ahead anyway

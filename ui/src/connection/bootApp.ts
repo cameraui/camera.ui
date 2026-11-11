@@ -13,6 +13,7 @@ export interface BootResult {
   readonly api: AuthApi;
   readonly mode: ConnectionMode;
   readonly cloudSession?: CloudSessionHolder;
+  readonly serverName?: string;
 }
 
 export interface BootOptions {
@@ -40,14 +41,14 @@ export async function bootApp(opts: BootOptions = {}): Promise<BootResult> {
       logger: opts.logger,
     });
     const connection = bootConnectionInstance(options);
-    _bootResult = { connection, api, mode: 'cloud', cloudSession };
+    _bootResult = { connection, api, mode: 'cloud', cloudSession, serverName: detected.serverName };
     return _bootResult;
   }
 
   if (!detected.directEndpointUrl) {
     throw new Error('direct mode detected but no endpoint URL resolved');
   }
-  const { options, api } = buildDirectMode(detected.directEndpointUrl, opts.logger);
+  const { options, api } = buildDirectMode(detected.directEndpointUrl, opts.logger, detected.directServer);
   const connection = bootConnectionInstance(options);
   _bootResult = { connection, api, mode: 'direct' };
   return _bootResult;

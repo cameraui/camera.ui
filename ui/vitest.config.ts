@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [AutoImport({ imports: ['vue'], dts: false })],
   define: {
     __CAPACITOR__: 'false',
-    __DEV_LOCAL_SERVER__: '""',
     __UI_VERSION__: '"test"',
   },
   resolve: {

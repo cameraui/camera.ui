@@ -2,6 +2,7 @@ import { raceFirst } from '@camera.ui/transport';
 
 import { homeOrigin } from '@/common/base.js';
 import { getBootResult } from './bootApp.js';
+import { directServerPool, getDirectServer } from './directServer.js';
 import { instanceOverride } from './instance.js';
 import { isTwoFactorPending } from './types.js';
 
@@ -13,11 +14,10 @@ interface ResolvedEndpoint {
   readonly extraTokens?: Pick<TokensType, 'proxySession' | 'proxySessionExpiresAt' | 'proxyRefresh'>;
 }
 
-export async function loginDirect(connection: Connection, api: AuthApi, endpointUrl: string, credentials: LoginCredentials): Promise<LoginOutcome> {
-  const outcome = await api.loginDirect(endpointUrl, credentials);
+export async function loginDirect(connection: Connection, api: AuthApi, endpoint: Endpoint, credentials: LoginCredentials): Promise<LoginOutcome> {
+  const outcome = await api.loginDirect(endpoint.url, credentials);
   if (isTwoFactorPending(outcome)) return outcome;
 
-  const endpoint: Endpoint = { url: endpointUrl, mode: 'direct-lan', priority: 0 };
   await connection.seedAndRetry({ endpoint, tokens: outcome.tokens });
   return outcome;
 }
@@ -40,9 +40,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginOutcome
     if (!boot.cloudSession) throw new Error('login(): cloud mode but cloudSession missing');
     return loginCloud(boot.connection, boot.api, boot.cloudSession, credentials);
   }
-  // log in against the active instance, the home origin would silently switch the user back home
-  const endpointUrl = instanceOverride.value ?? homeOrigin();
-  return loginDirect(boot.connection, boot.api, endpointUrl, credentials);
+  return loginDirect(boot.connection, boot.api, await resolveDirectEndpoint(boot.api, boot.connection), credentials);
 }
 
 export async function verify2FA(tempToken: string, code: string): Promise<LoginResult> {
@@ -56,8 +54,7 @@ export async function verify2FA(tempToken: string, code: string): Promise<LoginR
     endpoint = resolved.endpoint;
     extraTokens = resolved.extraTokens;
   } else {
-    const endpointUrl = instanceOverride.value ?? homeOrigin();
-    endpoint = { url: endpointUrl, mode: 'direct-lan', priority: 0 };
+    endpoint = await resolveDirectEndpoint(boot.api, boot.connection);
   }
 
   const result = await boot.api.verify2FA(endpoint.url, tempToken, code);
@@ -96,44 +93,52 @@ function usesCloudLogin(mode: string): boolean {
   return mode === 'cloud' && !instanceOverride.value;
 }
 
+async function resolveDirectEndpoint(api: AuthApi, connection: Connection): Promise<Endpoint> {
+  // log in against the active instance, the home origin would silently switch the user back home
+  if (instanceOverride.value) return { url: instanceOverride.value, mode: 'direct-lan', priority: 0 };
+  const server = getDirectServer();
+  if (!server) return { url: homeOrigin(), mode: 'direct-lan', priority: 0 };
+  return pickReachable(api, connection, directServerPool(server));
+}
+
 async function resolveCloudEndpoint(api: AuthApi, cloudSession: CloudSessionHolder, connection: Connection): Promise<ResolvedEndpoint> {
   const session = cloudSession.state.value;
   if (!session) throw new Error('resolveCloudEndpoint(): cloud session not initialised');
 
   const addresses = await api.tunnelCheck(session.proxyUrl, session.proxyToken);
-  const internals = addresses.internalAddresses;
-  const externals = addresses.externalAddresses;
-  if (internals.length === 0 && externals.length === 0) {
+  const pool: Endpoint[] = [
+    ...addresses.internalAddresses.map((url): Endpoint => ({ url, mode: 'direct-lan' })),
+    ...addresses.externalAddresses.map((url): Endpoint => ({ url, mode: 'direct-wan' })),
+  ];
+  if (pool.length === 0) {
     throw new Error('tunnel/check returned no reachable addresses');
   }
 
-  const reached = connection.lastReachableEndpoint.value;
-  let resolvedUrl: string | null = reached && (internals.includes(reached) || externals.includes(reached)) ? reached : null;
-
-  if (!resolvedUrl && internals.length + externals.length > 1) {
-    const candidates: RaceCandidate<true>[] = [
-      ...internals.map((url): RaceCandidate<true> => ({ endpoint: { url, mode: 'direct-lan' }, run: probeReachability(api, url) })),
-      ...externals.map((url): RaceCandidate<true> => ({ endpoint: { url, mode: 'direct-wan' }, run: probeReachability(api, url) })),
-    ];
-    try {
-      const winner = await raceFirst(candidates);
-      resolvedUrl = winner.endpoint.url;
-    } catch {
-      // all candidates unreachable
-    }
-  }
-
-  resolvedUrl ??= internals[0] ?? externals[0]!;
-
-  const mode: 'direct-lan' | 'direct-wan' = internals.includes(resolvedUrl) ? 'direct-lan' : 'direct-wan';
   return {
-    endpoint: { url: resolvedUrl, mode, priority: 0 },
+    endpoint: await pickReachable(api, connection, pool),
     extraTokens: {
       proxySession: session.proxyToken,
       proxySessionExpiresAt: session.proxyTokenExpiresAt,
       proxyRefresh: session.proxyRefreshToken,
     },
   };
+}
+
+async function pickReachable(api: AuthApi, connection: Connection, pool: readonly Endpoint[]): Promise<Endpoint> {
+  const reached = pool.find((endpoint) => endpoint.url === connection.lastReachableEndpoint.value);
+  let picked = reached ?? (pool.length === 1 ? pool[0] : undefined);
+
+  if (!picked) {
+    const candidates = pool.map((endpoint): RaceCandidate<true> => ({ endpoint, run: probeReachability(api, endpoint.url) }));
+    try {
+      picked = (await raceFirst(candidates)).endpoint;
+    } catch {
+      // all candidates unreachable
+    }
+  }
+
+  const { url, mode } = picked ?? pool[0]!;
+  return { url, mode, priority: 0 };
 }
 
 function probeReachability(api: AuthApi, url: string): (signal: AbortSignal) => Promise<true> {

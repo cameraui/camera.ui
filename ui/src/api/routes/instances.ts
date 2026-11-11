@@ -66,6 +66,11 @@ export async function getIdentityFn(url: string, token: string): Promise<{ homeI
   return (await response.json()) as { homeId: string };
 }
 
+export async function getServerIdentityFn(): Promise<{ homeId: string; name?: string }> {
+  const response: AxiosResponse<{ homeId: string; name?: string }> = await api.get('/instances/identity');
+  return response.data;
+}
+
 export async function createInstanceFn(data: CreateInstancePayload): Promise<InstanceMutationResponse> {
   const response: AxiosResponse<InstanceMutationResponse> = await api.post('/instances', data);
   return response.data;

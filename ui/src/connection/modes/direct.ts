@@ -5,13 +5,14 @@ import { createStorageAdapter } from '../adapters/storage.js';
 import { createVisibilitySource } from '../adapters/visibility.js';
 import { createWakeSource } from '../adapters/wake.js';
 import { createAuthApi } from '../auth/api.js';
-import { createDiscoverDirect } from '../auth/discover.js';
+import { createDiscoverDirect, createDiscoverDirectServer } from '../auth/discover.js';
 import { createProbe } from '../auth/probe.js';
 import { createRefresh } from '../auth/refresh.js';
 import { createEmbedProbe } from '../embedSession.js';
 import { instanceOverride } from '../instance.js';
 
 import type { Logger } from '@camera.ui/logger';
+import type { DirectServer } from '../directServer.js';
 import type { AuthApi, ConnectionOptions } from '../types.js';
 
 export interface DirectModeBundle {
@@ -27,7 +28,12 @@ function sameOrigin(a: string, b: string): boolean {
   }
 }
 
-export function buildDirectMode(endpointUrl: string, logger?: Logger): DirectModeBundle {
+function storageNamespace(directServer: DirectServer | undefined): string | undefined {
+  if (directServer) return `direct:${directServer.id}`;
+  return isEmbedded() ? `embed:${runtimeBase()}` : undefined;
+}
+
+export function buildDirectMode(endpointUrl: string, logger?: Logger, directServer?: DirectServer): DirectModeBundle {
   const api = createAuthApi();
   const network = createNetworkAdapters();
   const refresh = createRefresh(api);
@@ -42,16 +48,16 @@ export function buildDirectMode(endpointUrl: string, logger?: Logger): DirectMod
       wakeSource: createWakeSource(),
     },
     callbacks: {
-      discover: createDiscoverDirect(endpointUrl),
+      discover: directServer ? createDiscoverDirectServer() : createDiscoverDirect(endpointUrl),
       probe: embedHost() || isProxySignIn() ? createEmbedProbe(probe) : probe,
       refresh: refresh.refresh,
       bindRefresh: refresh.bindCoordination,
       onConnectionReset: refresh.clear,
-      ownsEndpoint: (url) => sameOrigin(url, instanceOverride.value ?? endpointUrl),
+      ownsEndpoint: directServer ? undefined : (url) => sameOrigin(url, instanceOverride.value ?? endpointUrl),
     },
     transportOptions: isProxySignIn() ? { http: { authorize: async () => {} } } : undefined,
     logger,
-    storageNamespace: isEmbedded() ? `embed:${runtimeBase()}` : undefined,
+    storageNamespace: storageNamespace(directServer),
   };
 
   return { options, api };

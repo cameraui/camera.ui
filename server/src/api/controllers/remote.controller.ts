@@ -139,6 +139,7 @@ export class RemoteController {
   public async pairInit(req: FastifyRequest<AuthLoginRequest & RemoteRegisterRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const result = await this.service.initPairing(req.body?.name);
+      await inject('server').applyMdns();
       return reply.code(200).send(result);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
@@ -184,6 +185,7 @@ export class RemoteController {
   public async updateServerName(req: FastifyRequest<AuthLoginRequest & RemoteUpdateServerNameRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       await this.service.updateCloudServerName(req.body.name);
+      await inject('server').applyMdns();
       return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({

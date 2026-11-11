@@ -22,7 +22,15 @@
                   <ToggleSwitch :model-value="draft.enabled" :loading="enabling" @update:model-value="onToggleEnabled" />
                 </CuiToggleRow>
 
-                <CuiToggleRow v-if="isCapacitor && draft.enabled && instanceStore.isHomeActive" :label="$t('views.settings.notifications.this_device')">
+                <CuiToggleRow
+                  v-if="isCapacitor && draft.enabled && isDirectServer"
+                  :label="$t('views.settings.notifications.this_device')"
+                  :hint="$t('views.settings.notifications.this_device_direct')"
+                >
+                  <Button class="cui-button-small" :label="$t('views.settings.notifications.cloud_sign_in')" @click="bounceToCloudFrontend" />
+                </CuiToggleRow>
+
+                <CuiToggleRow v-else-if="isCapacitor && draft.enabled && instanceStore.isHomeActive" :label="$t('views.settings.notifications.this_device')">
                   <template #hint>
                     <Message :severity="deviceSynced ? 'secondary' : 'warn'" variant="simple" size="small" class="cui-input-switch-hint">
                       {{ deviceSynced ? $t('views.settings.notifications.this_device_synced') : $t('views.settings.notifications.this_device_unsynced') }}
@@ -247,7 +255,7 @@
 import { isEqual } from '@camera.ui/common/utils';
 
 import { NotificationsQuery } from '@/api/routes/notifications.js';
-import { getCurrentServerId, isCapacitor } from '@/connection/index.js';
+import { bounceToCloudFrontend, getCurrentServerId, getDirectServer, isCapacitor } from '@/connection/index.js';
 
 import type { UpdateNotifierDevicePatch } from '@/api/routes/notifications.js';
 import type { DBNotificationSettings, SystemNotificationType } from '@shared/types';
@@ -262,6 +270,7 @@ const { t, te } = useI18n();
 const toast = useCuiToast();
 const instanceStore = useInstanceStore();
 const isAdmin = hasPermission(undefined, 'admin');
+const isDirectServer = getDirectServer() !== null;
 const { registerForPush, forgetIfThisDevice, getSyncState, restoreMarker } = usePushRegistration();
 const { isElectronApp, electron } = useElectron();
 const { states: permissionStates, refresh: refreshPermissions } = usePermissions();

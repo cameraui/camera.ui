@@ -5,6 +5,7 @@ import { currentLoad, mem } from 'systeminformation';
 import { inject } from '../../container.js';
 import { ConfigService } from '../../services/config/index.js';
 import { decryptPassword, encryptPassword } from '../utils/encryption.js';
+import { RemoteService } from './remote.service.js';
 
 import type { Database } from '../database/index.js';
 import type { DBInstance, DBInstanceCachedUser, DBInstancesConfig } from '../database/types.js';
@@ -67,8 +68,8 @@ export class InstancesService {
     return this.getConfig().homeId;
   }
 
-  public getIdentity(): { homeId: string } {
-    return { homeId: this.getHomeId() };
+  public getIdentity(): { homeId: string; name: string } {
+    return { homeId: this.getHomeId(), name: new RemoteService().serverName() };
   }
 
   public getAll(): { instances: DBInstance[]; homeId: string } {

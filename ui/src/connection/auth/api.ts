@@ -157,7 +157,7 @@ export function createAuthApi(): AuthApi {
   };
 }
 
-function screenTunnelAddresses(internal: unknown, external: unknown): Pick<TunnelAddresses, 'internalAddresses' | 'externalAddresses'> {
+export function screenTunnelAddresses(internal: unknown, external: unknown): Pick<TunnelAddresses, 'internalAddresses' | 'externalAddresses'> {
   const internalAddresses: string[] = [];
   const demoted: string[] = [];
   for (const url of stringsOf(internal)) {

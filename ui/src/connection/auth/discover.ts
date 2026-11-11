@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-import { trustInternalCa } from '../certTrust.js';
+import { trustDirectServer, trustInternalCa } from '../certTrust.js';
+import { directServerPool, getDirectServer } from '../directServer.js';
 import { instanceOverride } from '../instance.js';
 import { isCandidateUrl, isLanCandidate } from './api.js';
 
@@ -54,6 +55,17 @@ function stringifyDiscoverError(err: unknown): string {
 export function createDiscoverDirect(endpointUrl: string): DiscoverFn {
   const defaultPool: Endpoint[] = [{ url: endpointUrl, mode: 'direct-lan', priority: 0 }];
   return async () => overridePool() ?? defaultPool;
+}
+
+export function createDiscoverDirectServer(): DiscoverFn {
+  return async () => {
+    const override = overridePool();
+    if (override) return override;
+    const server = getDirectServer();
+    if (!server) return [];
+    await trustDirectServer(server);
+    return directServerPool(server);
+  };
 }
 
 export interface DiscoverCloudOptions {

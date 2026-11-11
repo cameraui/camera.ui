@@ -3,6 +3,7 @@ import axios from 'axios';
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
+import type { TunnelAddresses } from '@/connection/types.js';
 import type { UpdateServerInput } from '@/schemas/server.schema.js';
 import type { CustomCertificateState, DBServer, Go2RtcInfo, LanguageAbbreviations, MethodKeys, ServerInfo } from '@shared/types';
 import type { AxiosResponse } from 'axios';
@@ -40,6 +41,11 @@ export async function uploadCertificate(files: { cert: File; key: File; chain?: 
 
 export async function removeCertificate(): Promise<CustomCertificateState> {
   const response: AxiosResponse<CustomCertificateState> = await api.delete('/server/certificate');
+  return response.data;
+}
+
+export async function getServerEndpointsFn(): Promise<TunnelAddresses> {
+  const response: AxiosResponse<TunnelAddresses> = await api.get('/server/endpoints');
   return response.data;
 }
 

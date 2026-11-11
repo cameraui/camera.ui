@@ -30,7 +30,6 @@ process.chdir(import.meta.dirname);
 const API_PORT = parseInt(process.env.CAMERA_UI_PORT!);
 const UI_PORT = parseInt(process.env.CAMERA_UI_UI_PORT!);
 const IS_MOBILE = process.env.CAMERA_UI_MOBILE === '1';
-const DEV_LOCAL_SERVER = process.env.CAMERA_UI_DEV_LOCAL_SERVER ?? '';
 const UI_VERSION: string = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 
 const processEnv = { ...process.env };
@@ -330,7 +329,6 @@ export default defineConfig(({ command }) => ({
   ],
   define: {
     __CAPACITOR__: IS_MOBILE,
-    __DEV_LOCAL_SERVER__: JSON.stringify(IS_MOBILE ? DEV_LOCAL_SERVER : ''),
     __UI_VERSION__: JSON.stringify(UI_VERSION),
   },
   resolve: {

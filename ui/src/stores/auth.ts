@@ -3,7 +3,7 @@ import { useEventListener, useLocalStorage } from '@vueuse/core';
 import { getMeFn } from '@/api/routes/auth.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { isEmbedded, proxyLogoutUrl, runtimeBase } from '@/common/base.js';
-import { login as connectionLogin, verify2FA as connectionVerify2FA, getCurrentServerId, isTwoFactorPending, logoutCurrent, useConnection } from '@/connection/index.js';
+import { login as connectionLogin, verify2FA as connectionVerify2FA, getServerKey, isTwoFactorPending, logoutCurrent, useConnection } from '@/connection/index.js';
 import router, { resolveLandingPage } from '@/router/index.js';
 
 import type { NavLayoutSettings } from '@shared/types';
@@ -25,7 +25,7 @@ const log = useLogger('Auth');
 function userStorageKey(): string {
   if (isEmbedded()) return `user:${runtimeBase()}`;
 
-  const serverId = getCurrentServerId();
+  const serverId = getServerKey();
   if (!serverId) return 'user';
 
   const key = `user:${serverId}`;

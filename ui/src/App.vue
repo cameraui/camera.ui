@@ -4,7 +4,7 @@
     class="flex w-full h-full justify-center items-center absolute z-50"
     :style="{ minHeight: isPWA ? '100vh !important' : '100dvh !important' }"
   >
-    <CuiLoadingScreen reload :text="switchingText" />
+    <CuiLoadingScreen :reload="!isCapacitor" :text="switchingText" />
   </div>
 
   <div class="app" v-else :style="bottomVars">
@@ -110,6 +110,7 @@ useLocaleStore();
 setupAppUpdate();
 usePushHandler();
 useServerCompatibility();
+useDirectServerSync();
 useBackupRestoreDialog(() => !showLoadingScreen.value);
 provideTimelineFilter();
 useElectronNotifications();
