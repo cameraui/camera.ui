@@ -12,6 +12,7 @@ import type { AuthApi, CloudSessionHolder, DiscoverFn, TunnelAddresses } from '.
 
 const CACHED_POOL_TTL_MS = 24 * 60 * 60 * 1_000;
 const CACHED_POOL_KEY = 'camera.ui:connection:discoverPool';
+const CLOUD_LOOKUP_GRACE_MS = 3_000;
 
 function buildPool(addresses: TunnelAddresses): Endpoint[] {
   const pool: Endpoint[] = [];
@@ -111,12 +112,20 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
     }
   }
 
-  return async (signal: AbortSignal): Promise<readonly Endpoint[]> => {
-    const override = overridePool();
-    if (override) return override;
+  function hasCachedPool(): boolean {
+    return cachedPool !== null && Date.now() - cachedPoolAt < CACHED_POOL_TTL_MS;
+  }
 
-    await ensureHydrated();
+  function takeCachedPool(reason: string): Promise<readonly Endpoint[]> | null {
+    if (!cachedPool || !hasCachedPool()) return null;
+    const pool = cachedPool;
+    cachedPool = null;
+    cachedPoolAt = 0;
+    logger?.debug('discover', `${reason}, using cached pool fallback (${pool.length} endpoints, single-use)`);
+    return withTrust(pool, cachedCa);
+  }
 
+  async function lookup(signal: AbortSignal): Promise<readonly Endpoint[]> {
     try {
       // a cloud outage blocks the proxy refresh, the cached pool still reaches the server
       await cloudSessionLifecycle.ensureFresh(signal);
@@ -143,16 +152,7 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
         }
       }
 
-      if (pool.length === 0) {
-        if (cachedPool && Date.now() - cachedPoolAt < CACHED_POOL_TTL_MS) {
-          const fallback = cachedPool;
-          cachedPool = null;
-          cachedPoolAt = 0;
-          logger?.debug('discover', `empty pool — using cached pool fallback (${fallback.length} endpoints, single-use)`);
-          return withTrust(fallback, cachedCa);
-        }
-        return pool;
-      }
+      if (pool.length === 0) return takeCachedPool('empty pool') ?? pool;
 
       remintedThisStreak = false;
       cachedPool = pool;
@@ -172,14 +172,31 @@ export function createDiscoverCloud(options: DiscoverCloudOptions): DiscoverFn {
         throw err;
       }
 
-      if (cachedPool && Date.now() - cachedPoolAt < CACHED_POOL_TTL_MS) {
-        const pool = cachedPool;
-        cachedPool = null;
-        cachedPoolAt = 0;
-        logger?.debug('discover', `cloud lookup failed (${stringifyDiscoverError(err)}), using cached pool fallback (${pool.length} endpoints, single-use)`);
-        return withTrust(pool, cachedCa);
-      }
+      const fallback = takeCachedPool(`cloud lookup failed (${stringifyDiscoverError(err)})`);
+      if (fallback) return fallback;
       throw err;
     }
+  }
+
+  return async (signal: AbortSignal): Promise<readonly Endpoint[]> => {
+    const override = overridePool();
+    if (override) return override;
+
+    await ensureHydrated();
+    const result = lookup(signal);
+    if (!hasCachedPool()) return result;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const grace = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), CLOUD_LOOKUP_GRACE_MS);
+    });
+    try {
+      const pool = await Promise.race([result, grace]);
+      if (pool) return pool;
+    } finally {
+      clearTimeout(timer);
+    }
+    result.catch(() => {});
+    return takeCachedPool('cloud lookup is slow') ?? result;
   };
 }
