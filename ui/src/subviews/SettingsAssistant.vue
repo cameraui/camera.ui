@@ -198,7 +198,7 @@
 
               <div class="flex flex-col field-gap">
                 <label for="language" class="cui-label">{{ $t('views.settings.assistant_language_label') }}</label>
-                <Select v-model="form.language" input-id="language" :options="assistantLanguageOptions" option-label="label" option-value="value" filter fluid />
+                <Select v-model="assistantLanguage" input-id="language" :options="assistantLanguageOptions" option-label="label" option-value="value" filter fluid />
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_language_info') }}</Message>
               </div>
 
@@ -819,7 +819,6 @@ import type {
   AssistantUsageRow,
   DBAssistantProvider,
   DBAssistantScheduleDelivery,
-  LanguageAbbreviations,
   PatchAssistantInput,
 } from '@shared/types';
 import type { DataTablePassThroughOptions } from 'openvue';
@@ -828,6 +827,7 @@ type SchedulePreset = 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'hourly' | 
 type ToolSource = { key: string; label: string; serverId?: string; tools: AssistantToolInfo[] };
 
 const NO_PLUGIN_ACCESS = 'none';
+const INSTANCE_LANGUAGE = 'instance';
 const DELETE_ITEM: MenuItem = {
   icon: DeleteIcon,
   iconProps: { class: 'text-red-500' },
@@ -956,10 +956,13 @@ const dirty = computed(() => {
   };
 });
 
-const assistantLanguageOptions = computed(() => [
-  { label: t('views.settings.assistant_language_instance'), value: null as LanguageAbbreviations | null },
-  ...languageOptions(locale.value),
-]);
+const assistantLanguageOptions = computed(() => [{ label: t('views.settings.assistant_language_instance'), value: INSTANCE_LANGUAGE }, ...languageOptions(locale.value)]);
+const assistantLanguage = computed({
+  get: () => form.value?.language ?? INSTANCE_LANGUAGE,
+  set: (value) => {
+    if (form.value) form.value.language = value === INSTANCE_LANGUAGE ? null : value;
+  },
+});
 
 const reasoningOptions = computed(() =>
   (['default', 'off', 'low', 'high'] as const).map((value) => ({ label: t(`views.settings.assistant_reasoning_${value}`), value })),

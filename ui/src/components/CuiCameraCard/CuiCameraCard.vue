@@ -504,7 +504,7 @@
                     @click="toggleMute()"
                   >
                     <template #icon>
-                      <i-heroicons:speaker-wave-16-solid v-if="!muted" class="w-[18px] h-[18px]" />
+                      <i-heroicons:speaker-wave-16-solid v-if="speakerOn" class="w-[18px] h-[18px]" />
                       <i-heroicons:speaker-x-mark-16-solid v-else class="w-[18px] h-[18px]" />
                     </template>
                   </Button>
@@ -690,9 +690,9 @@
                       morePopoverRef?.hide();
                     "
                   >
-                    <i-heroicons:speaker-wave-16-solid v-if="!muted" class="w-[18px] h-[18px] shrink-0" />
+                    <i-heroicons:speaker-wave-16-solid v-if="speakerOn" class="w-[18px] h-[18px] shrink-0" />
                     <i-heroicons:speaker-x-mark-16-solid v-else class="w-[18px] h-[18px] shrink-0" />
-                    <span>{{ muted ? $t('components.form.tooltip.unmute') : $t('components.form.tooltip.mute') }}</span>
+                    <span>{{ speakerOn ? $t('components.form.tooltip.mute') : $t('components.form.tooltip.unmute') }}</span>
                   </button>
 
                   <button
@@ -1412,6 +1412,7 @@ const streamHasSound = computed(() => {
   if (nvrPlaybackVisible.value) return nvr.value?.hasAudio.value ?? false;
   return streamHasAudio.value && streamStatus.value !== 'error';
 });
+const speakerOn = computed(() => !muted.value && streamHasSound.value);
 const streamHasIntercom = computed(() => Boolean(navigator.mediaDevices) && streamHasBackchannel.value);
 const micButtonDisabled = computed(() => !streamHasIntercom.value || isLoading.value || nvrPlaybackVisible.value);
 const streamIsLoading = computed(() => {
@@ -2012,7 +2013,7 @@ async function toggleMicrophone(state?: boolean, enableSpeaker = false) {
     try {
       userMediaStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
       const track = userMediaStream.value.getAudioTracks()[0];
-      muted.value = !enableSpeaker;
+      muted.value = !enableSpeaker || !streamHasSound.value;
       await cameraStream.setMicrophone(track);
       startIntercomService();
     } catch (error: any) {

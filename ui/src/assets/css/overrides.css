@@ -87,6 +87,23 @@
   border-color: #ff1c20;
 }
 
+/* long option labels wrap instead of pushing the overlay past the screen edge */
+.p-select-overlay,
+.p-multiselect-overlay,
+.p-autocomplete-overlay,
+.p-cascadeselect-overlay,
+.p-treeselect-overlay {
+  max-width: calc(100dvw - 2rem);
+}
+
+.p-select-option,
+.p-multiselect-option,
+.p-autocomplete-option,
+.p-cascadeselect-option {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 .p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-handle {
   background-color: #fff;
 }
