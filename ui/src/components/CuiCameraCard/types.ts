@@ -64,6 +64,7 @@ export interface CuiCameraCardProps {
   showShortcuts?: boolean;
 
   toolbar?: boolean;
+  toolbarAskButton?: boolean;
   toolbarClass?: HTMLAttributes['class'];
   toolbarDetectionButton?: boolean;
   toolbarPipToggleButton?: boolean;
@@ -118,6 +119,7 @@ export const CAMERA_CARD_DEFAULTS: InferDefaults<CuiCameraCardProps> = {
   showShortcuts: false,
 
   toolbar: true,
+  toolbarAskButton: false,
   toolbarDetectionButton: true,
   toolbarPipToggleButton: false,
   toolbarPipToggleActive: false,

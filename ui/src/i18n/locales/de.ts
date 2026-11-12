@@ -1438,7 +1438,7 @@ export default {
       no_recording: 'Keine Aufnahmen',
       playback_failed: 'Wiedergabe fehlgeschlagen',
       open_camera: 'Kamera öffnen',
-      options: 'Optionen',
+      layers: 'Ebenen',
       ptz: 'PTZ',
       ptz_go_to_home: 'Zurück zur Startposition',
       ptz_presets: 'Positionen',

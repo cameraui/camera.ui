@@ -34,6 +34,7 @@
             :flat-card="smBreakpoint"
             :resizable="smBreakpoint"
             :control-microphone-button="!smBreakpoint"
+            :toolbar-ask-button="assistantReady && !smBreakpoint"
             :toolbar-timeline-button="cardTimeline"
             fullscreen-timeline
             :toolbar-description-button="nvrAvailable"
@@ -209,6 +210,19 @@
               </template>
             </Button>
 
+            <Button
+              v-if="smBreakpoint && assistantReady && !cameraCardIsFullscreen && !exportMode && !deleteMode"
+              v-tooltip.left="{ value: $t('components.player.ask_assistant') }"
+              rounded
+              severity="secondary"
+              class="shadow-md pointer-events-auto w-[42px] h-[42px]"
+              @click="cameraCardRef?.askAssistant()"
+            >
+              <template #icon>
+                <i-tabler:sparkles width="100%" height="100%" />
+              </template>
+            </Button>
+
             <CuiTimelineExport
               v-if="exportMode && cameraId"
               :timeline="cuiTimelineRef"
@@ -232,7 +246,7 @@
               </template>
             </Button>
 
-            <template v-if="(smBreakpoint || horizontalTimeline) && timelineSegment === 'timeline'">
+            <template v-if="horizontalTimeline && timelineSegment === 'timeline'">
               <Button
                 v-tooltip.left="{ value: $t('components.form.tooltip.zoom_in') }"
                 rounded
@@ -274,6 +288,7 @@
 <script setup lang="ts">
 import { CuiTimeline, playheadUs, useEventStore, useNvrPlayback, useRecordingExport } from '@camera.ui/nvr';
 
+import { AssistantQuery } from '@/api/routes/assistant.js';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { extractErrorMessage } from '@/common/utils.js';
@@ -292,6 +307,7 @@ const CuiCameraTable = asyncComponent(() => import('@/components/CuiCameraTable/
 const CuiCameraShares = asyncComponent(() => import('@/components/CuiCameraShares/CuiCameraShares.vue'));
 const CuiBottomSheet = asyncComponent(() => import('@/components/CuiBottomSheet/CuiBottomSheet.vue'));
 
+const assistantQuery = new AssistantQuery();
 const camerasQuery = new CamerasQuery();
 const eventStore = useEventStore();
 
@@ -308,6 +324,7 @@ const { openSimilarSearch, openOnCamera, cameraSearch, forgetCameraSearch } = us
 const { xmdBreakpoint, smBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
 const { isAvailable: nvrAvailable } = useRecordingExport();
+const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
 
 const routerStore = useRouterStore();
 
@@ -352,6 +369,7 @@ const cameraCardIsFullscreen = computed(() => Boolean(cameraCardRef.value?.isFul
 const cardTimeline = computed(() => xmdBreakpoint.value && !shortBreakpoint.value);
 const sideTimeline = computed(() => !smBreakpoint.value && !cardTimeline.value);
 const recordingsInSheet = computed(() => smBreakpoint.value || shortBreakpoint.value);
+const assistantReady = computed(() => assistantStatus.value?.state === 'ready');
 const horizontalTimeline = computed(() => cardTimeline.value || cameraCardIsFullscreen.value);
 
 const find = useFindObject({

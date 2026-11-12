@@ -1426,7 +1426,7 @@ export default {
       no_recording: 'No recording',
       playback_failed: 'Playback failed',
       open_camera: 'Open camera',
-      options: 'Options',
+      layers: 'Layers',
       ptz: 'PTZ',
       ptz_go_to_home: 'Go to home',
       ptz_presets: 'Presets',
