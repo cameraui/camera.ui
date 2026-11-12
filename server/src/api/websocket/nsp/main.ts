@@ -1,5 +1,6 @@
 import { inject } from '../../../container.js';
 import { createSourceName } from '../../../utils/camera.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
@@ -50,13 +51,13 @@ export class MainNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-status', this.getStatus.bind(this));
+      onClientEvent(socket, 'get-status', this.getStatus.bind(this));
 
-      socket.on('get-stream-status', (options?: { deltas?: boolean }) => {
+      onClientEvent(socket, 'get-stream-status', (options?: { deltas?: boolean }) => {
         this.sendStreamStatus(socket, options?.deltas === true);
       });
 
-      socket.on('stream-status:unsubscribe', () => {
+      onClientEvent(socket, 'stream-status:unsubscribe', () => {
         socket.leave(FULL_ROOM);
         socket.leave(DELTA_ROOM);
       });
@@ -66,7 +67,7 @@ export class MainNamespace {
     this.go2rtcState.on('snapshot', () => this.scheduleBroadcast());
   }
 
-  public async getStatus(_payload: any, callback?: Function): Promise<'loading' | 'ready'> {
+  public async getStatus(_payload: any, callback?: (data: 'loading' | 'ready') => void): Promise<'loading' | 'ready'> {
     const status = this.cameraui.status;
     callback?.(status);
     return status;

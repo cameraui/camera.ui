@@ -1,5 +1,6 @@
 import { inject } from '../../../container.js';
 import { resolveSensorSemantics } from '../../../sensors/semantics.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { DetectionEvent, DetectionEventType } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -52,6 +53,11 @@ interface SensorMessage {
   connected?: boolean;
 }
 
+interface SubscribeReply {
+  subscribed: string[] | 'all';
+  active: string[];
+}
+
 const FORWARDED_TYPES: ReadonlySet<DetectionEventType> = new Set(['start', 'update', 'end', 'segment-start', 'segment-end']);
 
 export function extractDetectionData(event: DetectionEvent): { labels: string[]; attributes: DetectionAttributePayload[] } {
@@ -81,11 +87,11 @@ export class EventsNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('subscribe', (payload: { cameraIds?: string[] | 'all' }, callback?: Function) => {
+      onClientEvent(socket, 'subscribe', (payload?: { cameraIds?: unknown }, callback?: (reply: SubscribeReply) => void) => {
         this.handleSubscribe(socket, payload, callback);
       });
 
-      socket.on('unsubscribe', () => {
+      onClientEvent(socket, 'unsubscribe', () => {
         for (const room of socket.rooms) {
           if (room.startsWith('camera:') || room === 'all') {
             socket.leave(room);
@@ -212,14 +218,14 @@ export class EventsNamespace {
     bus.onEvent(event, handler);
   }
 
-  private handleSubscribe(socket: Socket, payload: { cameraIds?: string[] | 'all' }, callback?: Function): void {
+  private handleSubscribe(socket: Socket, payload?: { cameraIds?: unknown }, callback?: (reply: SubscribeReply) => void): void {
     const cameraIds = payload?.cameraIds ?? 'all';
     let subscribed: string[] | 'all' = 'all';
 
     if (cameraIds === 'all') {
       socket.join('all');
     } else {
-      subscribed = cameraIds.filter((id) => this.api.getCamera(id));
+      subscribed = Array.isArray(cameraIds) ? cameraIds.filter((id): id is string => typeof id === 'string' && !!this.api.getCamera(id)) : [];
       for (const id of subscribed) {
         socket.join(`camera:${id}`);
       }

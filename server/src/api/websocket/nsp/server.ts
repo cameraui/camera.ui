@@ -10,6 +10,7 @@ import { announceUpdateChannel } from '../../../utils/ipc.js';
 import { checkForUpdate } from '../../../utils/npm/index.js';
 import { workerBehind } from '../../../workers/lifecycle/update.js';
 import { PluginsService } from '../../services/plugins.service.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { MqttStatus } from '../../../mqtt/types.js';
@@ -53,8 +54,8 @@ export class ServerNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-updates', this.getUpdates.bind(this));
-      socket.on('get-mqtt-status', this.getMqttStatus.bind(this));
+      onClientEvent(socket, 'get-updates', this.getUpdates.bind(this));
+      onClientEvent(socket, 'get-mqtt-status', this.getMqttStatus.bind(this));
     });
 
     this.checkPlugins();
@@ -67,7 +68,10 @@ export class ServerNamespace {
     }
   }
 
-  public getUpdates(_payload?: any, callback?: Function): { server?: INpmPluginState; plugins: INpmPluginState[]; workerUpdateAvailable: boolean } {
+  public getUpdates(
+    _payload?: any,
+    callback?: (data: { server?: INpmPluginState; plugins: INpmPluginState[]; workerUpdateAvailable: boolean }) => void,
+  ): { server?: INpmPluginState; plugins: INpmPluginState[]; workerUpdateAvailable: boolean } {
     this.refreshWorkerUpdateAvailable();
     const data = {
       server: this.serverUpdate,
@@ -119,7 +123,7 @@ export class ServerNamespace {
     }
   }
 
-  public getMqttStatus(_payload?: any, callback?: Function): MqttStatus | undefined {
+  public getMqttStatus(_payload?: any, callback?: (data: MqttStatus | undefined) => void): MqttStatus | undefined {
     const status = tryInject('mqttManager')?.getStatus();
     callback?.(status);
     return status;

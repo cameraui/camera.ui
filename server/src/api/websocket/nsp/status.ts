@@ -1,5 +1,6 @@
 import { inject } from '../../../container.js';
 import { RUNTIME_STATUS } from '../../../services/config/types.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
@@ -28,13 +29,13 @@ export class StatusNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-process-status', this.watchStats.bind(this, socket));
-      socket.on('get-plugin-process-status', this.watchPluginStats.bind(this, socket));
-      socket.on('get-frameworker-process-status', this.watchFrameWorkerStats.bind(this, socket));
+      onClientEvent(socket, 'get-process-status', this.watchStats.bind(this, socket));
+      onClientEvent(socket, 'get-plugin-process-status', this.watchPluginStats.bind(this, socket));
+      onClientEvent(socket, 'get-frameworker-process-status', this.watchFrameWorkerStats.bind(this, socket));
     });
   }
 
-  public watchStats(socket: Socket, _payload: any, callback?: Function): ServerRuntime {
+  public watchStats(socket: Socket, _payload: any, callback?: (data: ServerRuntime) => void): ServerRuntime {
     const runtimeStatus: ServerRuntime = {
       'camera.ui': { name: 'camera.ui', status: RUNTIME_STATUS.STARTED },
       go2rtc: { name: 'go2rtc', status: this.go2rtc.status },
@@ -47,7 +48,7 @@ export class StatusNamespace {
     return runtimeStatus;
   }
 
-  public watchPluginStats(socket: Socket, _payload: any, callback?: Function): WorkerRuntime {
+  public watchPluginStats(socket: Socket, _payload: any, callback?: (data: WorkerRuntime) => void): WorkerRuntime {
     const pluginWorkers: WorkerRuntime = {};
 
     Array.from(this.pluginManager.plugins).map(([pluginName, plugin]) => {
@@ -60,7 +61,7 @@ export class StatusNamespace {
     return pluginWorkers;
   }
 
-  public watchFrameWorkerStats(socket: Socket, _payload: any, callback?: Function): WorkerRuntime {
+  public watchFrameWorkerStats(socket: Socket, _payload: any, callback?: (data: WorkerRuntime) => void): WorkerRuntime {
     const frameWorkers: WorkerRuntime = {};
 
     const cameraControllers = this.api.getCameras();

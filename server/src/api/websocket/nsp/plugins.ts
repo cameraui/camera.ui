@@ -1,5 +1,6 @@
 import { inject } from '../../../container.js';
 import { PluginsService } from '../../services/plugins.service.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { PluginManager } from '../../../plugins/index.js';
@@ -17,13 +18,16 @@ export class PluginsNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-plugin-status', this.pluginStatus.bind(this));
-      socket.on('get-manage-queue', (_payload: unknown, callback?: (data: unknown) => void) => callback?.(this.pluginsService.installingPlugins()));
+      onClientEvent(socket, 'get-plugin-status', this.pluginStatus.bind(this));
+      onClientEvent(socket, 'get-manage-queue', (_payload: unknown, callback?: (data: unknown) => void) => callback?.(this.pluginsService.installingPlugins()));
       socket.emit('manage-queue', this.pluginsService.installingPlugins());
     });
   }
 
-  public async pluginStatus(pluginName: string, callback?: Function): Promise<void | (PluginRuntimeInfo & { pluginName: string })> {
+  public async pluginStatus(
+    pluginName: string,
+    callback?: (data: PluginRuntimeInfo & { pluginName: string }) => void,
+  ): Promise<void | (PluginRuntimeInfo & { pluginName: string })> {
     const plugin = this.pluginManager.plugins.get(pluginName);
 
     if (plugin) {

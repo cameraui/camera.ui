@@ -2,6 +2,7 @@ import { inject } from '../../../container.js';
 import { NamespaceManager } from '../../../rpc/namespaces.js';
 import { getSensorDiscovery } from '../../../sensors/discovery.js';
 import { UsersService } from '../../services/users.service.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { DiscoveredSensor } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -50,7 +51,8 @@ export class SensorsNamespace {
   }
 
   private onConnection(socket: Socket): void {
-    socket.on(
+    onClientEvent(
+      socket,
       'sensors:subscribe',
       (
         _payload: unknown,
@@ -68,7 +70,7 @@ export class SensorsNamespace {
       },
     );
 
-    socket.on('sensors:unsubscribe', (_payload: unknown, callback?: (data: { success: boolean }) => void) => {
+    onClientEvent(socket, 'sensors:unsubscribe', (_payload: unknown, callback?: (data: { success: boolean }) => void) => {
       const socketWithSub = socket as Socket & { sensorsSubscribed?: boolean };
       if (socketWithSub.sensorsSubscribed) {
         socketWithSub.sensorsSubscribed = false;
@@ -77,7 +79,7 @@ export class SensorsNamespace {
       callback?.({ success: true });
     });
 
-    socket.on('sensors:rescan', async (_payload: unknown, callback?: (data: { success: boolean; error?: string }) => void) => {
+    onClientEvent(socket, 'sensors:rescan', async (_payload: unknown, callback?: (data: { success: boolean; error?: string }) => void) => {
       try {
         await getSensorDiscovery().forceRescan();
         callback?.({ success: true });
@@ -86,22 +88,26 @@ export class SensorsNamespace {
       }
     });
 
-    socket.on('sensors:adopt', async (payload: { pluginId: string; sensor: DiscoveredSensor }, callback?: (data: { success: boolean; error?: string }) => void) => {
-      try {
-        await getSensorDiscovery().adopt(payload.pluginId, payload.sensor);
-        callback?.({ success: true });
-      } catch (error: unknown) {
-        callback?.({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    });
+    onClientEvent(
+      socket,
+      'sensors:adopt',
+      async (payload: { pluginId: string; sensor: DiscoveredSensor }, callback?: (data: { success: boolean; error?: string }) => void) => {
+        try {
+          await getSensorDiscovery().adopt(payload.pluginId, payload.sensor);
+          callback?.({ success: true });
+        } catch (error: unknown) {
+          callback?.({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+      },
+    );
 
-    socket.on('sensors:hide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) => {
-      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.hideSensors(username, sensors));
-    });
+    onClientEvent(socket, 'sensors:hide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) =>
+      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.hideSensors(username, sensors)),
+    );
 
-    socket.on('sensors:unhide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) => {
-      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.unhideSensors(username, sensors));
-    });
+    onClientEvent(socket, 'sensors:unhide', (payload: { sensors: DBHiddenSensor[] }, callback?: (data: HiddenSensorsResult) => void) =>
+      this.handleHiddenSensors(socket, payload, callback, (username, sensors) => this.usersService.unhideSensors(username, sensors)),
+    );
 
     socket.on('disconnect', () => {
       if ((socket as Socket & { sensorsSubscribed?: boolean }).sensorsSubscribed) {

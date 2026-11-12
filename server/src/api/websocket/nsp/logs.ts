@@ -6,6 +6,7 @@ import { inject, tryInject } from '../../../container.js';
 import { readLogAround, readLogChunk, readLogTail, stampTime } from '../../../services/logger/logReader.js';
 import { paint } from '../../../utils/colors.js';
 import { setTerminalCols } from '../../utils/install-logger.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -70,18 +71,18 @@ export class LogsNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-all-logs', () => this.getAllLogs(socket));
-      socket.on('get-system-log', (sourceId: string, options?: { sinceLastStart?: boolean }) => this.getSystemLog(socket, sourceId, options));
-      socket.on('get-camera-log', (cameraName: string, options?: { sinceLastStart?: boolean }) => this.getCameraLog(socket, cameraName, options));
-      socket.on('get-plugin-log', (pluginName: string, options?: { sinceLastStart?: boolean }) => this.getPluginLog(socket, pluginName, options));
-      socket.on('log:open', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.openLog(socket, query, ack));
-      socket.on('log:chunk', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.readChunk(query, ack));
-      socket.on('term-size', (payload: { target?: string; cols?: number }) => {
+      onClientEvent(socket, 'get-all-logs', () => this.getAllLogs(socket));
+      onClientEvent(socket, 'get-system-log', (sourceId: string, options?: { sinceLastStart?: boolean }) => this.getSystemLog(socket, sourceId, options));
+      onClientEvent(socket, 'get-camera-log', (cameraName: string, options?: { sinceLastStart?: boolean }) => this.getCameraLog(socket, cameraName, options));
+      onClientEvent(socket, 'get-plugin-log', (pluginName: string, options?: { sinceLastStart?: boolean }) => this.getPluginLog(socket, pluginName, options));
+      onClientEvent(socket, 'log:open', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.openLog(socket, query, ack));
+      onClientEvent(socket, 'log:chunk', (query: LogQuery, ack?: (reply: LogChunkReply) => void) => this.readChunk(query, ack));
+      onClientEvent(socket, 'term-size', (payload: { target?: string; cols?: number }) => {
         if (payload?.target && typeof payload.cols === 'number') {
           setTerminalCols(payload.target, payload.cols);
         }
       });
-      socket.on('logs:unsubscribe', (payload?: { channel?: unknown }) => {
+      onClientEvent(socket, 'logs:unsubscribe', (payload?: { channel?: unknown }) => {
         if (typeof payload?.channel === 'string') this.unsubscribe(socket, payload.channel);
       });
       socket.on('disconnect', () => this.unsubscribe(socket));

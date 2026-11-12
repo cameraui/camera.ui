@@ -1,6 +1,7 @@
 import { inject } from '../../../container.js';
 import { NamespaceManager } from '../../../rpc/namespaces.js';
 import { UsersService } from '../../services/users.service.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { LoggerService } from '../../../services/logger/index.js';
@@ -35,58 +36,56 @@ export class CamerasNamespace {
   }
 
   private onConnection(socket: Socket): void {
-    socket.on('cameras:subscribe', (_payload: unknown, callback?: (data: { success: boolean; devices?: DeviceListItem[] }) => void) => {
-      this.handleSubscribe(socket, callback);
-    });
+    onClientEvent(socket, 'cameras:subscribe', (_payload: unknown, callback?: (data: { success: boolean; devices?: DeviceListItem[] }) => void) =>
+      this.handleSubscribe(socket, callback),
+    );
 
-    socket.on('cameras:unsubscribe', (_payload: unknown, callback?: (data: { success: boolean }) => void) => {
-      this.handleUnsubscribe(socket, callback);
-    });
+    onClientEvent(socket, 'cameras:unsubscribe', (_payload: unknown, callback?: (data: { success: boolean }) => void) => this.handleUnsubscribe(socket, callback));
 
-    socket.on('cameras:rescan', (_payload: unknown, callback?: (data: { success: boolean; error?: string }) => void) => {
-      this.handleRescan(socket, callback);
-    });
+    onClientEvent(socket, 'cameras:rescan', (_payload: unknown, callback?: (data: { success: boolean; error?: string }) => void) => this.handleRescan(socket, callback));
 
-    socket.on('cameras:get-schema', (payload: { discoveredId: string }, callback?: (data: { success: boolean; schema?: unknown[]; error?: string }) => void) => {
-      this.handleGetSchema(socket, payload, callback);
-    });
+    onClientEvent(
+      socket,
+      'cameras:get-schema',
+      (payload: { discoveredId: string }, callback?: (data: { success: boolean; schema?: unknown[]; error?: string }) => void) =>
+        this.handleGetSchema(socket, payload, callback),
+    );
 
-    socket.on(
+    onClientEvent(
+      socket,
       'cameras:connect',
       (
         payload: { discoveredId: string; credentials: Record<string, unknown> },
         callback?: (data: { success: boolean; cameraId?: string; cameraName?: string; error?: string }) => void,
-      ) => {
-        this.handleConnect(socket, payload, callback);
-      },
+      ) => this.handleConnect(socket, payload, callback),
     );
 
-    socket.on(
+    onClientEvent(
+      socket,
       'cameras:prepare',
-      (payload: { discoveredId: string; credentials: Record<string, unknown> }, callback?: (data: { success: boolean; draft?: DBCamera; error?: string }) => void) => {
-        this.handlePrepare(socket, payload, callback);
-      },
+      (payload: { discoveredId: string; credentials: Record<string, unknown> }, callback?: (data: { success: boolean; draft?: DBCamera; error?: string }) => void) =>
+        this.handlePrepare(socket, payload, callback),
     );
 
-    socket.on(
+    onClientEvent(
+      socket,
       'cameras:confirm',
-      (payload: { draft: DBCamera; discoveredId?: string }, callback?: (data: { success: boolean; cameraId?: string; cameraName?: string; error?: string }) => void) => {
-        this.handleConfirm(socket, payload, callback);
-      },
+      (payload: { draft: DBCamera; discoveredId?: string }, callback?: (data: { success: boolean; cameraId?: string; cameraName?: string; error?: string }) => void) =>
+        this.handleConfirm(socket, payload, callback),
     );
 
-    socket.on(
+    onClientEvent(
+      socket,
       'cameras:hide-device',
-      (payload: { device: DBHiddenDevice }, callback?: (data: { success: boolean; hiddenDevices?: DBHiddenDevice[]; error?: string }) => void) => {
-        this.handleHideDevice(socket, payload, callback);
-      },
+      (payload: { device: DBHiddenDevice }, callback?: (data: { success: boolean; hiddenDevices?: DBHiddenDevice[]; error?: string }) => void) =>
+        this.handleHideDevice(socket, payload, callback),
     );
 
-    socket.on(
+    onClientEvent(
+      socket,
       'cameras:unhide-device',
-      (payload: { deviceId: string }, callback?: (data: { success: boolean; hiddenDevices?: DBHiddenDevice[]; error?: string }) => void) => {
-        this.handleUnhideDevice(socket, payload, callback);
-      },
+      (payload: { deviceId: string }, callback?: (data: { success: boolean; hiddenDevices?: DBHiddenDevice[]; error?: string }) => void) =>
+        this.handleUnhideDevice(socket, payload, callback),
     );
 
     socket.on('disconnect', () => {

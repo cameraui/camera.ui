@@ -5,6 +5,7 @@ import { inject } from '../../../container.js';
 import { StreamRates } from '../../../go2rtc/stream-rates.js';
 import { createSourceName } from '../../../utils/camera.js';
 import { WorkerCapability } from '../../../workers/types.js';
+import { onClientEvent } from '../client-events.js';
 import { deriveWorkerPerf } from './worker-perf.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -75,10 +76,10 @@ export class MetricsNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-system-info', this.handleGetSystemInfo.bind(this));
-      socket.on('get-server-process-info', this.handleGetServerProcessInfo.bind(this));
-      socket.on('get-plugins-process-info', this.handleGetPluginsProcessInfo.bind(this));
-      socket.on('get-frameworker-process-info', this.handleGetFrameWorkerProcessInfo.bind(this));
+      onClientEvent(socket, 'get-system-info', this.handleGetSystemInfo.bind(this));
+      onClientEvent(socket, 'get-server-process-info', this.handleGetServerProcessInfo.bind(this));
+      onClientEvent(socket, 'get-plugins-process-info', this.handleGetPluginsProcessInfo.bind(this));
+      onClientEvent(socket, 'get-frameworker-process-info', this.handleGetFrameWorkerProcessInfo.bind(this));
 
       socket.emit('stream-stats-realtime', this.streamStats);
       this.sendRealtime(socket).catch(() => {});
@@ -378,12 +379,12 @@ export class MetricsNamespace {
     this.nsp.emit('system-infos-realtime', systemData);
   }
 
-  private async handleGetSystemInfo(_payload: any, callback?: Function): Promise<ProcessInfo[]> {
+  private async handleGetSystemInfo(_payload: any, callback?: (data: ProcessInfo[]) => void): Promise<ProcessInfo[]> {
     callback?.(this.history.system);
     return this.history.system;
   }
 
-  private async handleGetServerProcessInfo(_payload: any, callback?: Function): Promise<ServerProcesses> {
+  private async handleGetServerProcessInfo(_payload: any, callback?: (data: ServerProcesses) => void): Promise<ServerProcesses> {
     const data: ServerProcesses = {
       'camera.ui': this.history.processes['camera.ui'],
       go2rtc: this.history.processes.go2rtc,
@@ -393,12 +394,12 @@ export class MetricsNamespace {
     return data;
   }
 
-  private async handleGetPluginsProcessInfo(_payload: any, callback?: Function): Promise<WorkerProcesses> {
+  private async handleGetPluginsProcessInfo(_payload: any, callback?: (data: WorkerProcesses) => void): Promise<WorkerProcesses> {
     callback?.(this.history.plugins);
     return this.history.plugins;
   }
 
-  private async handleGetFrameWorkerProcessInfo(_payload: any, callback?: Function): Promise<WorkerProcesses> {
+  private async handleGetFrameWorkerProcessInfo(_payload: any, callback?: (data: WorkerProcesses) => void): Promise<WorkerProcesses> {
     callback?.(this.history.frameWorkers);
     return this.history.frameWorkers;
   }

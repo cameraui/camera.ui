@@ -1,4 +1,5 @@
 import { inject } from '../../../container.js';
+import { onClientEvent } from '../client-events.js';
 
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { WorkerManager } from '../../../workers/manager.js';
@@ -20,12 +21,12 @@ export class WorkersNamespace {
 
     this.nsp = io.of(this.nspName);
     this.nsp.on('connection', (socket: Socket) => {
-      socket.on('get-workers', this.getWorkers.bind(this));
-      socket.on('get-worker-history', this.getWorkerHistory.bind(this));
+      onClientEvent(socket, 'get-workers', this.getWorkers.bind(this));
+      onClientEvent(socket, 'get-worker-history', this.getWorkerHistory.bind(this));
     });
   }
 
-  public getWorkers(_payload: any, callback?: Function): WorkerInfo[] {
+  public getWorkers(_payload: any, callback?: (data: WorkerInfo[]) => void): WorkerInfo[] {
     const workers = this.workerManager.getWorkers();
     callback?.(workers);
     return workers;
@@ -43,7 +44,7 @@ export class WorkersNamespace {
     delete this.history[agentId];
   }
 
-  private getWorkerHistory(_payload: any, callback?: Function): Record<string, WorkerInfo[]> {
+  private getWorkerHistory(_payload: any, callback?: (data: Record<string, WorkerInfo[]>) => void): Record<string, WorkerInfo[]> {
     callback?.(this.history);
     return this.history;
   }
