@@ -21,6 +21,7 @@ import { followFile } from './follow-file.js';
 import { DarwinInstaller } from './installer/darwin.js';
 import { FreeBSDInstaller } from './installer/freebsd.js';
 import { LinuxInstaller } from './installer/linux.js';
+import { OpenRCInstaller, usesOpenRC } from './installer/openrc.js';
 import { Win32Installer } from './installer/win32.js';
 import { CLILogger } from './logger.js';
 import { ServerManager } from './manager.js';
@@ -291,7 +292,7 @@ export class CameraUiCLI {
   private createInstaller(): void {
     switch (platform()) {
       case 'linux':
-        this.installer = new LinuxInstaller(this);
+        this.installer = usesOpenRC() ? new OpenRCInstaller(this) : new LinuxInstaller(this);
         break;
       case 'win32':
         this.installer = new Win32Installer(this);
@@ -634,8 +635,9 @@ export class CameraUiCLI {
     if (!existsSync(this.logPath)) {
       this.logger(`ERROR: Log file does not exist at expected location: ${this.logPath}`, 'fail');
       this.logger('The log is written by the running service. If it never appeared, the service did not start.', 'fail');
-      if (platform() === 'linux') {
-        this.logger(`Check the service state with: journalctl -u ${this.serviceName.toLowerCase()} -n 50`, 'fail');
+      const stateCommand = this.installer.serviceStateCommand();
+      if (stateCommand) {
+        this.logger(`Check the service state with: ${stateCommand}`, 'fail');
       }
       process.exit(1);
     }

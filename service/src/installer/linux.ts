@@ -185,6 +185,10 @@ export class LinuxInstaller extends BasePlatform {
     }
   }
 
+  public serviceStateCommand(): string {
+    return `journalctl -u ${this.systemdServiceName} -n 50`;
+  }
+
   public async getId(): Promise<{ uid: number; gid: number }> {
     if (process.getuid?.() === 0 && this.cli.asUser) {
       const uid = execSync(`id -u ${this.cli.asUser}`).toString('utf8');
@@ -213,7 +217,7 @@ export class LinuxInstaller extends BasePlatform {
     }
   }
 
-  private async waitForApiAndPrintInstructions(type: 'start' | 'restart'): Promise<void> {
+  protected async waitForApiAndPrintInstructions(type: 'start' | 'restart'): Promise<void> {
     const apiReady = await this.cli.waitForApiHealth();
     if (apiReady) {
       await this.cli.printPostInstallInstructions(type);
@@ -222,7 +226,7 @@ export class LinuxInstaller extends BasePlatform {
       this.cli.logger(
         'WARNING: There might be errors, or the setup might still be in progress.\n' +
         '  You can check the logs using the command: cameraui logs\n' +
-        `  If that log does not exist, the service never started. Check: journalctl -u ${this.systemdServiceName} -n 50`,
+        `  If that log does not exist, the service never started. Check: ${this.serviceStateCommand()}`,
         'warn',
       );
     }
@@ -252,7 +256,7 @@ export class LinuxInstaller extends BasePlatform {
     }
   }
 
-  private checkForRoot(): void {
+  protected checkForRoot(): void {
     if (process.getuid?.() !== 0) {
       this.cli.logger('ERROR: This command must be executed using sudo on Linux', 'fail');
       this.cli.logger(`EXAMPLE: sudo cameraui ${this.cli.action}`, 'fail');
@@ -266,15 +270,15 @@ export class LinuxInstaller extends BasePlatform {
     }
   }
 
-  private async checkUser(): Promise<void> {
+  protected async checkUser(): Promise<void> {
     try {
       execSync(`id ${this.cli.asUser} 2> /dev/null`);
     } catch {
-      execSync(`useradd -m --system ${this.cli.asUser}`);
+      this.createUser();
       this.cli.logger(`Created service user: ${this.cli.asUser}`, 'info');
       this.cli.serviceUserCreated();
       if (this.cli.addGroup) {
-        execSync(`usermod -a -G ${this.cli.addGroup} ${this.cli.asUser}`, { timeout: 10000 });
+        this.addUserToGroups(this.cli.addGroup);
         this.cli.logger(`Added ${this.cli.asUser} to group ${this.cli.addGroup}`, 'info');
       }
     }
@@ -287,6 +291,27 @@ export class LinuxInstaller extends BasePlatform {
       }
     } catch {
       // do nothing
+    }
+  }
+
+  private createUser(): void {
+    if (hasCommand('useradd')) {
+      execSync(`useradd -m --system ${this.cli.asUser}`);
+      return;
+    }
+
+    // busybox (Alpine) has adduser/addgroup instead of the shadow tools
+    execSync(`addgroup -S ${this.cli.asUser} && adduser -S -D -h /home/${this.cli.asUser} -G ${this.cli.asUser} ${this.cli.asUser}`);
+  }
+
+  private addUserToGroups(groups: string): void {
+    if (hasCommand('usermod')) {
+      execSync(`usermod -a -G ${groups} ${this.cli.asUser}`, { timeout: 10000 });
+      return;
+    }
+
+    for (const group of groups.split(',')) {
+      execSync(`addgroup ${this.cli.asUser} ${group}`, { timeout: 10000 });
     }
   }
 
@@ -319,7 +344,7 @@ export class LinuxInstaller extends BasePlatform {
     }
   }
 
-  private async createFirewallRules(): Promise<void> {
+  protected async createFirewallRules(): Promise<void> {
     if (existsSync('/usr/sbin/ufw')) {
       return await this.createUfwRules();
     }
@@ -416,18 +441,20 @@ export class LinuxInstaller extends BasePlatform {
     await chmod(permissionScriptPath, '755');
   }
 
-  private async createSystemdEnvFile(): Promise<void> {
+  protected servicePath(): string {
     const nodeDir = dirname(process.execPath);
     const basePath = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebridge/bin';
-    const servicePath = basePath.split(':').includes(nodeDir) ? basePath : `${nodeDir}:${basePath}`;
+    return basePath.split(':').includes(nodeDir) ? basePath : `${nodeDir}:${basePath}`;
+  }
 
+  private async createSystemdEnvFile(): Promise<void> {
     const envFile = [
       `CAMERA_UI_OPTS=-H "${this.cli.homePath}"${this.cli.worker ? ' --worker' : ''}`,
       `CAMERA_UI_HOME_PATH="${this.cli.homePath}"`,
       `CAMERA_UI_STORAGE_PATH="${this.cli.storagePath}"`,
       '',
       'DISABLE_OPENCOLLECTIVE=true',
-      `PATH=${servicePath}`,
+      `PATH=${this.servicePath()}`,
     ]
       .filter((x) => x !== null)
       .join('\n');
@@ -467,5 +494,14 @@ export class LinuxInstaller extends BasePlatform {
       .join('\n');
 
     await writeFile(this.systemdServicePath, serviceFile);
+  }
+}
+
+function hasCommand(name: string): boolean {
+  try {
+    execSync(`command -v ${name}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
 }

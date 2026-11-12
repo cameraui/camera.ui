@@ -61,4 +61,8 @@ export class BasePlatform {
   }
 
   public warnOutdatedService(): void {}
+
+  public serviceStateCommand(): string | undefined {
+    return undefined;
+  }
 }
