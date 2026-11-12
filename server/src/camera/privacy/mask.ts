@@ -14,10 +14,11 @@ import {
   AV_PIX_FMT_YUVJ422P,
   AV_PIX_FMT_YUVJ444P,
 } from 'node-av/constants';
+import { Frame } from 'node-av/lib';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { CameraZones, PrivacyFallback } from '@camera.ui/sdk';
-import type { Frame } from 'node-av/lib';
+import type { AVPixelFormat } from 'node-av/constants';
 
 type Span = [number, number, number];
 
@@ -34,6 +35,14 @@ interface PixelLayout {
   interleaved: boolean;
   luma: Buffer;
   chroma: Buffer;
+}
+
+interface PackedPlanes {
+  lumaStride: number;
+  chromaStride: number;
+  u: number;
+  v: number;
+  size: number;
 }
 
 function sample8(value: number): Buffer {
@@ -85,6 +94,7 @@ export class PrivacyMask {
   private version = 0;
   private fallback: PrivacyFallback = 'send';
   private warned = false;
+  private staging?: Buffer;
 
   constructor(
     private logger?: Logger,
@@ -157,50 +167,26 @@ export class PrivacyMask {
     return true;
   }
 
-  public apply(frame: Frame): boolean {
-    if (!this.active) return true;
-    if (frame.isHwFrame()) return false;
+  public masked(frame: Frame): Frame | null {
+    if (frame.isHwFrame()) return null;
 
-    const planes = frame.data;
-    if (!planes || planes.length === 0) return false;
-
-    const { width, height, format, linesize } = frame;
-    if (width < 2 || height < 2) return false;
+    const { width, height, format } = frame;
+    if (width < 2 || height < 2) return null;
 
     const layout = PIXEL_LAYOUTS.get(format);
-    if (!layout) return false;
+    if (!layout) return null;
 
-    const spans = this.spansFor(width, height);
-    if (spans.length === 0) return true;
+    const planes = packedPlanes(width, height, layout);
+    if (this.staging?.length !== planes.size) this.staging = Buffer.allocUnsafeSlow(planes.size);
 
-    const [y, u, v] = planes;
-    if (!y || !u) return false;
-    if (!layout.interleaved && !v) return false;
+    // Frame.data hands out copies under Electron, and the decoder still references the frame's own planes
+    const packed = frame.toBuffer(this.staging);
+    blacken(packed, planes, layout, this.spansFor(width, height));
 
-    const bytes = layout.luma.length;
-
-    for (const [row, start, end] of spans) {
-      const lumaRow = row * linesize[0];
-      y.fill(layout.luma, lumaRow + start * bytes, lumaRow + (end + 1) * bytes);
-
-      if (layout.shiftY === 1 && row % 2 !== 0) continue;
-
-      const cRow = row >> layout.shiftY;
-      if (layout.interleaved) {
-        // two components per sample pair, so the pair index doubles
-        const first = (start >> 1) * 2;
-        const last = (end >> 1) * 2 + 1;
-        u.fill(layout.chroma, cRow * linesize[1] + first * bytes, cRow * linesize[1] + (last + 1) * bytes);
-        continue;
-      }
-
-      const first = start >> layout.shiftX;
-      const last = end >> layout.shiftX;
-      u.fill(layout.chroma, cRow * linesize[1] + first * bytes, cRow * linesize[1] + (last + 1) * bytes);
-      v.fill(layout.chroma, cRow * linesize[2] + first * bytes, cRow * linesize[2] + (last + 1) * bytes);
-    }
-
-    return true;
+    const masked = Frame.fromVideoBuffer(packed, { width, height, format: format as AVPixelFormat, pts: frame.pts });
+    masked.copyProps(frame);
+    if (masked.timeBase.num === 0 || masked.timeBase.den === 0) masked.timeBase = { num: 1, den: 90_000 };
+    return masked;
   }
 
   private spansFor(width: number, height: number): Span[] {
@@ -216,6 +202,42 @@ export class PrivacyMask {
 
     this.spans.set(key, spans);
     return spans;
+  }
+}
+
+function packedPlanes(width: number, height: number, layout: PixelLayout): PackedPlanes {
+  const bytes = layout.luma.length;
+  const chromaWidth = (width + (1 << layout.shiftX) - 1) >> layout.shiftX;
+  const chromaHeight = (height + (1 << layout.shiftY) - 1) >> layout.shiftY;
+  const lumaStride = width * bytes;
+  const chromaStride = chromaWidth * bytes * (layout.interleaved ? 2 : 1);
+  const u = lumaStride * height;
+  const v = u + chromaStride * chromaHeight;
+  return { lumaStride, chromaStride, u, v, size: layout.interleaved ? v : v + chromaStride * chromaHeight };
+}
+
+function blacken(packed: Buffer, planes: PackedPlanes, layout: PixelLayout, spans: Span[]): void {
+  const bytes = layout.luma.length;
+
+  for (const [row, start, end] of spans) {
+    const lumaRow = row * planes.lumaStride;
+    packed.fill(layout.luma, lumaRow + start * bytes, lumaRow + (end + 1) * bytes);
+
+    if (layout.shiftY === 1 && row % 2 !== 0) continue;
+
+    const chromaRow = (row >> layout.shiftY) * planes.chromaStride;
+    if (layout.interleaved) {
+      // two components per sample pair, so the pair index doubles
+      const first = (start >> 1) * 2;
+      const last = (end >> 1) * 2 + 1;
+      packed.fill(layout.chroma, planes.u + chromaRow + first * bytes, planes.u + chromaRow + (last + 1) * bytes);
+      continue;
+    }
+
+    const first = start >> layout.shiftX;
+    const last = end >> layout.shiftX;
+    packed.fill(layout.chroma, planes.u + chromaRow + first * bytes, planes.u + chromaRow + (last + 1) * bytes);
+    packed.fill(layout.chroma, planes.v + chromaRow + first * bytes, planes.v + chromaRow + (last + 1) * bytes);
   }
 }
 

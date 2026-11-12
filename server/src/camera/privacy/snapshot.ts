@@ -47,9 +47,10 @@ export class SnapshotPrivacy {
 
     for await (using frame of decoder.frames(demuxer.packets(stream.index))) {
       if (!frame || isDamagedFrame(frame)) continue;
-      if (!this.mask.apply(frame)) return null;
+      using masked = this.mask.masked(frame);
+      if (!masked) return null;
 
-      const encoded = await this.getScaler().toJpeg(frame, { quality: JPEG_QUALITY });
+      const encoded = await this.getScaler().toJpeg(masked, { quality: JPEG_QUALITY });
       return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength) as ArrayBuffer;
     }
 

@@ -54,6 +54,16 @@ export interface LetterboxGeometry {
   window?: { x: number; y: number; width: number; height: number };
 }
 
+interface MaskedFrame {
+  pts: bigint;
+  width: number;
+  height: number;
+  revision: number;
+  frame: Promise<Frame | null>;
+  users: number;
+  retired: boolean;
+}
+
 export interface LetterboxedFrame {
   padded: ScaledFrame;
   inner: ScaledFrame;
@@ -74,7 +84,7 @@ export class FrameScaler {
   private upScaler?: Scaler;
   private disposed = false;
   private privacy: PrivacyMask;
-  private maskedFrame?: { pts: bigint; width: number; height: number; revision: number; frame: Frame };
+  private maskedFrame?: MaskedFrame;
   private readonly outputs = new OutputPool();
 
   constructor(
@@ -299,37 +309,64 @@ export class FrameScaler {
     // a picture that would be black end to end is not worth encoding
     if (this.privacy.covers(region, frame.width, frame.height)) return null;
 
-    if (frame.isSwFrame()) {
-      if (!this.privacy.apply(frame)) return this.unmaskedFallback(frame, options);
-      return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(frame, options));
+    const entry = this.maskedEntry(frame);
+    entry.users++;
+    try {
+      const masked = await entry.frame;
+      if (!masked) return await this.unmaskedFallback(frame, options);
+      return await this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(masked, options));
+    } finally {
+      entry.users--;
+      if (entry.retired) this.freeUnused(entry);
     }
-
-    const masked = await this.maskedCopy(frame);
-    if (!masked) return this.unmaskedFallback(frame, options);
-    return this.withScaler(region.width, options.resize.width, (scaler) => scaler.toJpeg(masked, options));
   }
 
-  private async maskedCopy(frame: Frame): Promise<Frame | null> {
+  private maskedEntry(frame: Frame): MaskedFrame {
     const cached = this.maskedFrame;
-    if (cached?.pts === frame.pts && cached?.width === frame.width && cached?.height === frame.height && cached?.revision === this.privacy.revision) {
-      return cached.frame;
+    if (cached?.pts === frame.pts && cached.width === frame.width && cached.height === frame.height && cached.revision === this.privacy.revision) {
+      return cached;
     }
 
-    const sw = new Frame();
-    sw.alloc();
-    const ret = await frame.hwframeTransferData(sw);
-    if (ret >= 0) {
+    this.retireMasked();
+    this.maskedFrame = {
+      pts: frame.pts,
+      width: frame.width,
+      height: frame.height,
+      revision: this.privacy.revision,
+      frame: this.maskFrame(frame),
+      users: 0,
+      retired: false,
+    };
+    return this.maskedFrame;
+  }
+
+  private async maskFrame(frame: Frame): Promise<Frame | null> {
+    try {
+      if (frame.isSwFrame()) return this.privacy.masked(frame);
+
+      using sw = new Frame();
+      sw.alloc();
+      if ((await frame.hwframeTransferData(sw)) < 0) return null;
       sw.copyProps(frame);
-      if (sw.timeBase.num === 0 || sw.timeBase.den === 0) sw.timeBase = { num: 1, den: 90_000 };
-    }
-    if (ret < 0 || !this.privacy.apply(sw)) {
-      sw.free();
+      return this.privacy.masked(sw);
+    } catch (error) {
+      this.logger?.debug(`Privacy mask failed: ${error}`);
       return null;
     }
+  }
 
-    cached?.frame.free();
-    this.maskedFrame = { pts: frame.pts, width: frame.width, height: frame.height, revision: this.privacy.revision, frame: sw };
-    return sw;
+  private retireMasked(): void {
+    const entry = this.maskedFrame;
+    if (!entry) return;
+
+    this.maskedFrame = undefined;
+    entry.retired = true;
+    this.freeUnused(entry);
+  }
+
+  private freeUnused(entry: MaskedFrame): void {
+    if (entry.users > 0) return;
+    entry.frame.then((frame) => frame?.free());
   }
 
   private async unmaskedFallback(frame: Frame, options: { crop?: ScalerCrop; resize: { width: number; height: number }; quality: number }): Promise<Buffer | null> {
@@ -343,8 +380,7 @@ export class FrameScaler {
     this.upScaler?.[Symbol.dispose]();
     this.downScaler = undefined;
     this.upScaler = undefined;
-    this.maskedFrame?.frame.free();
-    this.maskedFrame = undefined;
+    this.retireMasked();
   }
 
   public updateHardwareContext(context: HardwareContext | null | undefined): void {
