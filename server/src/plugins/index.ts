@@ -4,7 +4,6 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
-import semver from 'semver';
 
 import { PluginsService } from '../api/services/plugins.service.js';
 import { inject, provide, tryInject } from '../container.js';
@@ -151,15 +150,8 @@ export class PluginManager {
   public static normalizeContract(contract: PluginContract, pluginName?: string): PluginContract {
     validateContractConsistency(contract, pluginName);
 
-    if (contract.pythonVersion) {
-      const validPythonVersions = PythonInstaller.versions;
-      const minValidPythonVersion = validPythonVersions[validPythonVersions.length - 1];
-      const maxValidPythonVersion = validPythonVersions[0];
-      const pluginPythonVersion = semver.clean(contract.pythonVersion);
-
-      if (!pluginPythonVersion || !semver.satisfies(pluginPythonVersion, `>=${minValidPythonVersion} <=${maxValidPythonVersion}`)) {
-        contract.pythonVersion = DEFAULT_PY_VERSION;
-      }
+    if (contract.pythonVersion && !PythonInstaller.versions.includes(contract.pythonVersion)) {
+      contract.pythonVersion = DEFAULT_PY_VERSION;
     }
 
     if (contract.dependencies) {
