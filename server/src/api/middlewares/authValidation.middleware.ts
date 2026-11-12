@@ -1,11 +1,12 @@
 import jwt from 'jsonwebtoken';
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { inject } from '../../container.js';
 import { streamTokenMatches } from '../../utils/utils.js';
 import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
 import { API_TOKEN_PREFIX } from '../types/index.js';
+import { AttemptLimiter } from '../utils/attempt-limiter.js';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DBUser } from '../database/types.js';
@@ -26,38 +27,48 @@ const FIRST_LOGIN_ALLOWED_ROUTES: ReadonlySet<string> = new Set([
   'DELETE /api/backup/restore/move',
 ]);
 
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60_000;
+const LOGIN_MAX_FAILURES = 10;
+const UNKNOWN_USER_PASSWORD = '$';
+
+const loginFailures = new AttemptLimiter(LOGIN_FAILURE_WINDOW_MS, LOGIN_MAX_FAILURES);
+
 export function hashPassword(salt: string, password: string): string {
   return createHmac('sha512', salt).update(password).digest('base64');
 }
 
-export function verifyUserPassword(username: string, password: string): DBUser | undefined {
+export function verifyLogin(username: string, password: string, ip: string): DBUser | 'limited' | undefined {
+  const key = `${username}:${ip}`;
+  if (loginFailures.isLimited(key)) return 'limited';
+
   const user = new UsersService().findByName(username);
-  if (!user) {
+  const [salt, expected] = (user?.password ?? UNKNOWN_USER_PASSWORD).split('$');
+  const hash = Buffer.from(hashPassword(salt, password));
+  const wanted = Buffer.from(expected);
+
+  if (!user || hash.length !== wanted.length || !timingSafeEqual(hash, wanted)) {
+    loginFailures.recordFailure(key);
     return undefined;
   }
 
-  const [salt, expected] = user.password.split('$');
-  return hashPassword(salt, password) === expected ? user : undefined;
+  loginFailures.clear(key);
+  return user;
 }
 
 export async function isPasswordAndUserMatch(req: FastifyRequest<AuthNewLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
   const configService = inject('configService');
   req.locals = {};
 
-  const service = new UsersService();
-  const user = service.findByName(req.body.username);
+  const user = verifyLogin(req.body.username, req.body.password, req.ip);
 
-  if (!user) {
-    return reply.code(403).send({
-      statusCode: 403,
-      message: 'Forbidden',
+  if (user === 'limited') {
+    return reply.code(429).send({
+      statusCode: 429,
+      message: 'Too many attempts. Try again later.',
     });
   }
 
-  const passwordFields = user.password.split('$');
-  const hash = hashPassword(passwordFields[0], req.body.password);
-
-  if (hash !== passwordFields[1]) {
+  if (!user) {
     return reply.code(401).send({
       statusCode: 401,
       message: 'Invalid username or password',

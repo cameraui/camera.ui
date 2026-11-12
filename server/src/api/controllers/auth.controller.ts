@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { inject } from '../../container.js';
 import { INGRESS_DEVICE_PREFIX, PROXY_AUTH_DEVICE_PREFIX } from '../../services/config/constants.js';
 import { isExpiredToken } from '../database/tokenSweep.js';
-import { verifyUserPassword } from '../middlewares/authValidation.middleware.js';
+import { verifyLogin } from '../middlewares/authValidation.middleware.js';
 import { AuthService } from '../services/auth.service.js';
 import { ServerService } from '../services/server.service.js';
 import { TwoFactorService } from '../services/twoFactor.service.js';
@@ -133,7 +133,10 @@ export class AuthController {
 
   public async oauthToken(req: FastifyRequest<AuthOAuthTokenRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const user = verifyUserPassword(req.body.username, req.body.password);
+      const user = verifyLogin(req.body.username, req.body.password, req.ip);
+      if (user === 'limited') {
+        return reply.code(429).send({ error: 'invalid_grant', error_description: 'Too many attempts. Try again later.' });
+      }
       if (!user) {
         return reply.code(400).send({ error: 'invalid_grant', error_description: 'Invalid username or password' });
       }

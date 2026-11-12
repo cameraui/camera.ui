@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { inject } from '../../container.js';
 import { SHARE_SERVICE_URL } from '../../services/config/constants.js';
 import { createSourceName } from '../../utils/camera.js';
+import { AttemptLimiter } from '../utils/attempt-limiter.js';
 import { AuthService } from './auth.service.js';
 
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
@@ -38,7 +39,6 @@ type ShareRefusal = 'gone' | 'invalid_code' | 'full';
 
 const VALIDATE_RL_WINDOW_MS = 60_000;
 const VALIDATE_RL_MAX = 10;
-const VALIDATE_RL_MAX_KEYS = 10_000;
 
 const SHARE_USER_PREFIX = 'share_';
 const VIEWER_IDLE_MS = 10 * 60_000;
@@ -46,6 +46,8 @@ const MAX_VIEWER_TOKENS_PER_SHARE = 50;
 const VIEWER_TOKEN_SECONDS = 300;
 
 export class SharesService {
+  public readonly validateAttempts = new AttemptLimiter(VALIDATE_RL_WINDOW_MS, VALIDATE_RL_MAX);
+
   private dbs: Database;
   private configService: ConfigService;
   private logger: LoggerService;
@@ -53,8 +55,6 @@ export class SharesService {
   private cloudApi: CloudApi;
   private go2rtcApi: Go2RtcApi;
   private go2rtcState: Go2RtcState;
-
-  private validateAttempts = new Map<string, { count: number; first: number }>();
 
   constructor() {
     this.dbs = inject('dbs');
@@ -169,37 +169,6 @@ export class SharesService {
     }
 
     return viewer;
-  }
-
-  public isValidateRateLimited(key: string): boolean {
-    const entry = this.validateAttempts.get(key);
-    if (!entry) return false;
-    if (Date.now() - entry.first > VALIDATE_RL_WINDOW_MS) {
-      this.validateAttempts.delete(key);
-      return false;
-    }
-    return entry.count >= VALIDATE_RL_MAX;
-  }
-
-  public recordValidateFailure(key: string): void {
-    const now = Date.now();
-    const entry = this.validateAttempts.get(key);
-    if (entry && now - entry.first <= VALIDATE_RL_WINDOW_MS) {
-      entry.count++;
-      return;
-    }
-
-    // a new window goes last, so the loop meets the oldest first
-    this.validateAttempts.delete(key);
-    for (const [oldKey, old] of this.validateAttempts) {
-      if (now - old.first <= VALIDATE_RL_WINDOW_MS && this.validateAttempts.size < VALIDATE_RL_MAX_KEYS) break;
-      this.validateAttempts.delete(oldKey);
-    }
-    this.validateAttempts.set(key, { count: 1, first: now });
-  }
-
-  public clearValidateRateLimit(key: string): void {
-    this.validateAttempts.delete(key);
   }
 
   public async issueViewerToken(share: DBShare): Promise<string> {

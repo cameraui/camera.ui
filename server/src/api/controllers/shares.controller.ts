@@ -90,13 +90,13 @@ export class SharesController {
       }
 
       const rlKey = `${token}:${req.ip}`;
-      if (this.service.isValidateRateLimited(rlKey)) {
+      if (this.service.validateAttempts.isLimited(rlKey)) {
         return reply.code(429).send({ statusCode: 429, message: 'Too many attempts, please try again later', error: 'rate_limited' });
       }
 
       const share = this.service.validate(token, code);
       if (share === 'invalid_code') {
-        this.service.recordValidateFailure(rlKey);
+        this.service.validateAttempts.recordFailure(rlKey);
         return reply.code(403).send({ statusCode: 403, message: 'Invalid code', error: share });
       }
       if (share === 'gone') {
@@ -105,7 +105,7 @@ export class SharesController {
       if (share === 'full') {
         return reply.code(429).send({ statusCode: 429, message: 'Maximum number of viewers reached', error: share });
       }
-      this.service.clearValidateRateLimit(rlKey);
+      this.service.validateAttempts.clear(rlKey);
 
       const streamName = this.service.getStreamName(share.cameraId, share.sourceId);
       if (!streamName) {
