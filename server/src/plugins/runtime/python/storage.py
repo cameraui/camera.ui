@@ -5,11 +5,10 @@ import inspect
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from deepdiff.diff import DeepDiff
-
 from _camera_ui_tools.camera_ui_common import ObjectPath, merge, merge_with
 from _camera_ui_tools.camera_ui_rpc import RPCMethod
 from _camera_ui_tools.camera_ui_sdk import DeviceStorage as DeviceStorageInterface
+from plugins.runtime.python.compare import deep_equal
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.schema import (
     generate_config_from_schemas,
@@ -145,7 +144,7 @@ class DeviceStorage(DeviceStorageInterface):
                 unchanged = old_value is None
                 ObjectPath.delete(self.values, key)
             else:
-                unchanged = old_value is not None and DeepDiff(old_value, effective_value) == {}
+                unchanged = old_value is not None and deep_equal(old_value, effective_value)
                 stored = (  # pyright: ignore[reportUnknownVariableType]
                     deepcopy(effective_value)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
                     if isinstance(effective_value, (dict, list))
@@ -229,9 +228,8 @@ class DeviceStorage(DeviceStorageInterface):
         await self.__resolve_on_get_functions(schema)
 
         new_value = ObjectPath.get(self.values, schema["key"])
-        if (
-            self.__contains_storable_schema(schema)
-            and DeepDiff(old_value, new_value, ignore_order=True) != {}
+        if self.__contains_storable_schema(schema) and not deep_equal(
+            old_value, new_value, ignore_order=True
         ):
             await self.save()
 
@@ -266,9 +264,8 @@ class DeviceStorage(DeviceStorageInterface):
         await self.__resolve_on_get_functions(self.schemas[index])
 
         new_value = ObjectPath.get(self.values, key)
-        if (
-            self.__contains_storable_schema(self.schemas[index])
-            and DeepDiff(old_value, new_value, ignore_order=True) != {}
+        if self.__contains_storable_schema(self.schemas[index]) and not deep_equal(
+            old_value, new_value, ignore_order=True
         ):
             await self.save()
 
@@ -336,7 +333,7 @@ class DeviceStorage(DeviceStorageInterface):
             old_value: Any = get_value_by_key(old_config, config_key) or {}
             new_value: Any = new_config[config_key]
 
-            if DeepDiff(old_value, new_value, ignore_order=True) != {}:
+            if not deep_equal(old_value, new_value, ignore_order=True):
                 schema = next(
                     (schema for schema in self.schemas if schema["key"] == config_key),
                     None,
@@ -384,7 +381,7 @@ class DeviceStorage(DeviceStorageInterface):
             unchanged = old_value is None
             ObjectPath.delete(self.values, key)
         else:
-            unchanged = old_value is not None and DeepDiff(old_value, value) == {}
+            unchanged = old_value is not None and deep_equal(old_value, value)
             stored = deepcopy(value) if isinstance(value, (dict, list)) else value  # type: ignore
             ObjectPath.set(self.values, key, stored)
         return not unchanged or self.__dirty

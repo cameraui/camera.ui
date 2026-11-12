@@ -14,8 +14,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Literal, cast
 
-import setproctitle
-
 from _camera_ui_tools.camera_ui_common import (
     LoggerOptions,
     LoggerService,
@@ -59,7 +57,12 @@ from plugins.runtime.python.typings import (
 )
 
 process_name = sys.argv[2] if len(sys.argv) > 2 else sys.argv[1] if len(sys.argv) > 1 else "Plugin"
-setproctitle.setproctitle(f"camera.ui - {process_name}")
+
+# Windows has no process title to set (setproctitle only creates a named object there) and no wheel for arm64
+if sys.platform != "win32":
+    import setproctitle
+
+    setproctitle.setproctitle(f"camera.ui - {process_name}")
 
 SHUTDOWN_LISTENER_TIMEOUT = 1.5
 RPC_TEARDOWN_TIMEOUT = 1.0

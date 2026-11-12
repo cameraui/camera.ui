@@ -7,8 +7,6 @@ from copy import deepcopy
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-from deepdiff.diff import DeepDiff
-
 from _camera_ui_tools.camera_ui_common import Subscribed, TaskSet
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
@@ -53,6 +51,7 @@ from _camera_ui_tools.camera_ui_sdk import (
 )
 from _camera_ui_tools.camera_ui_sdk import CameraDevice as CameraDeviceInterface
 from plugins.runtime.python.camera.utils import build_snapshot_url, build_target_url
+from plugins.runtime.python.compare import deep_equal
 from plugins.runtime.python.namespaces import (
     CameraNamespaces,
     FrameWorkerDetectionNamespaces,
@@ -410,14 +409,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         def filter_fn(
             camera: CameraPropertyObservableObject,
         ) -> bool:
-            return (
-                DeepDiff(
-                    camera["old_state"],
-                    camera["new_state"],
-                    ignore_order=True,
-                )
-                != {}
-            )
+            return not deep_equal(camera["old_state"], camera["new_state"], ignore_order=True)
 
         return self._camera_subject.pipe(
             pairwise(),
