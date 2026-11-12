@@ -1,17 +1,16 @@
-import { PortablePython } from '@bjia56/portable-python';
-import { copy, ensureDir, remove } from 'fs-extra/esm';
+import { ensureDir, remove } from 'fs-extra/esm';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { platform } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
-import semver from 'semver';
 
 import { killTree } from '@camera.ui/common/node';
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 
 import { tryInject } from '../container.js';
+import { StandalonePython } from './standalonePython.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { PythonVersion } from '@camera.ui/sdk';
@@ -24,7 +23,7 @@ const POSIX = process.platform !== 'win32';
 export class PythonInstaller {
   static readonly versions: PythonVersion[] = ['3.12', '3.11'];
 
-  readonly python: PortablePython;
+  readonly python: StandalonePython;
   readonly venvPath?: string;
   readonly installPath: string;
 
@@ -85,10 +84,10 @@ export class PythonInstaller {
 
     this.pythonDir = IS_ELECTRON ? 'python-electron' : 'python';
     this.installPath = `${homePath}/${this.pythonDir}`;
-    this.python = new PortablePython(version, this.installPath);
+    this.python = new StandalonePython(version as PythonVersion, this.installPath);
 
     if (venvDir) {
-      this.venvPath = join(venvDir, `${this.pythonDir}-${this.getMajorMinorVersion(this.version)}-${process.platform}-${process.arch}`);
+      this.venvPath = join(venvDir, `${this.pythonDir}-${this.version}-${this.python.target}`);
     }
   }
 
@@ -97,8 +96,8 @@ export class PythonInstaller {
       this.logger.trace(`Installing Python v${this.version} to ${this.installPath}...`);
 
       await ensureDir(this.installPath);
-      await this.removeOldVersions();
       await this.python.install();
+      await this.removeOldVersions();
     }
 
     await this.ensureCertifi();
@@ -109,22 +108,13 @@ export class PythonInstaller {
       }
 
       await this.updateServerDependencies(requirementsPath);
-
-      if (platform() === 'win32') {
-        const binPath = dirname(this.serverPythonPath);
-        const pythonwPath = join(binPath, 'pythonw.exe');
-
-        if (!existsSync(pythonwPath)) {
-          await copy(this.serverPythonPath, pythonwPath);
-        }
-      }
     }
   }
 
   public async installPluginPython(signal?: AbortSignal): Promise<void> {
     this.signal = signal;
     await this.install('plugin');
-    await this.cleanStaleVenvs();
+    await this.removeStaleVenvs();
     await this.createVenv();
   }
 
@@ -151,7 +141,7 @@ export class PythonInstaller {
   }
 
   public async updateServerDependencies(requirementsPath: string): Promise<void> {
-    const requirementsLockPath = resolve(join(this.installPath, `requirements-lock-${this.version}.txt`));
+    const requirementsLockPath = join(this.python.extractPath, 'requirements-lock.txt');
 
     const { needsUpdate, requirementsContent, lockContent, updatedLockContent } = await this.updateRequirements(requirementsPath, requirementsLockPath);
     const { reInstall, uninstall } = await this.analyzeDependencies(requirementsContent, lockContent, needsUpdate);
@@ -512,7 +502,7 @@ export class PythonInstaller {
   private async removeStaleVenvs(): Promise<void> {
     const parent = dirname(this.venvPath!);
     const current = basename(this.venvPath!);
-    const ownVenv = new RegExp(`^${this.pythonDir}-\\d+\\.\\d+-`);
+    const ownVenv = new RegExp(`^${this.pythonDir}-\\d+\\.\\d+`);
 
     const entries = await readdir(parent, { withFileTypes: true }).catch(() => []);
 
@@ -622,60 +612,26 @@ export class PythonInstaller {
     }
   }
 
-  private async cleanStaleVenvs(): Promise<void> {
-    if (!this.venvPath) {
-      return;
-    }
-
-    const parent = dirname(this.venvPath);
-    const current = basename(this.venvPath);
-    const pattern = new RegExp(`^${this.pythonDir}-\\d+\\.\\d+`);
-
-    let entries;
-    try {
-      entries = await readdir(parent, { withFileTypes: true });
-    } catch {
-      return;
-    }
+  private async removeOldVersions(): Promise<void> {
+    const current = basename(this.python.extractPath);
+    const currentMinor = this.getMajorMinorVersion(this.version);
+    const entries = await readdir(this.installPath, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name === current || !pattern.test(entry.name)) {
+      const version = /^(?:cpython|python(?:-headless)?)-(\d+\.\d+\.\d+)/.exec(entry.name)?.[1];
+      if (!entry.isDirectory() || !version || entry.name === current) {
         continue;
       }
 
-      this.logger.trace(`Removing stale venv (arch/version mismatch): ${entry.name}`);
-      await rm(join(parent, entry.name), { recursive: true, force: true });
-    }
-  }
-
-  private async removeOldVersions(): Promise<void> {
-    const currentVersion = this.version;
-    const pythonDirs = await readdir(this.installPath);
-
-    for (const dir of pythonDirs) {
-      const match = /^python-(\d+\.\d+(?:\.\d+)?)(.*)$/.exec(dir);
-
-      if (match) {
-        const version = match[1];
-        const platformSuffix = match[2];
-
-        if (!semver.lt(semver.coerce(version)!, semver.coerce(currentVersion)!)) {
-          continue;
-        }
-
-        const minor = this.getMajorMinorVersion(version);
-        if (minor !== this.getMajorMinorVersion(currentVersion) && PythonInstaller.versions.includes(minor as PythonVersion)) {
-          continue;
-        }
-
-        const fullPath = join(this.installPath, `python-${version}${platformSuffix}`);
-        const requirementsLockPath = join(this.installPath, `requirements-lock-${version}.txt`);
-
-        this.logger.trace(`Removing old Python version: ${version}`);
-
-        await remove(fullPath);
-        await remove(requirementsLockPath);
+      const minor = this.getMajorMinorVersion(version);
+      if (minor !== currentMinor && PythonInstaller.versions.includes(minor as PythonVersion)) {
+        continue;
       }
+
+      this.logger.trace(`Removing old Python build: ${entry.name}`);
+
+      await remove(join(this.installPath, entry.name));
+      await remove(join(this.installPath, `requirements-lock-${version}.txt`));
     }
   }
 

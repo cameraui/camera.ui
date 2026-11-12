@@ -116,8 +116,8 @@ export async function extractTarball(manifest: PackageManifest, dest: string, si
   const tarball = join(staging, 'package.tgz');
 
   try {
-    const digest = await download(manifest.dist.tarball, tarball, signal);
-    verifyIntegrity(manifest, digest);
+    const [sha512, sha1] = await download(manifest.dist.tarball, tarball, ['sha512', 'sha1'], signal);
+    verifyIntegrity(manifest, sha512, sha1);
 
     await emptyDir(dest);
     await extract({
@@ -259,28 +259,33 @@ async function request(url: string, accept: string, signal?: AbortSignal): Promi
   throw lastError ?? registryError(`Request failed: ${url}`, 'EUNKNOWN');
 }
 
-async function download(url: string, dest: string, signal?: AbortSignal): Promise<string> {
+export async function download(url: string, dest: string, algorithms: string[], signal?: AbortSignal): Promise<Buffer[]> {
   const response = await request(url, '*/*', signal);
   if (!response.body) {
     throw registryError(`Empty response for ${url}`, 'EEMPTYBODY');
   }
 
-  const hash = createHash('sha512');
-  const sha1 = createHash('sha1');
+  const hashes = algorithms.map((algorithm) => createHash(algorithm));
   const body = Readable.fromWeb(response.body as never);
 
   body.on('data', (chunk: Buffer) => {
-    hash.update(chunk);
-    sha1.update(chunk);
+    for (const hash of hashes) {
+      hash.update(chunk);
+    }
   });
 
   await pipeline(body, createWriteStream(dest));
 
-  return `sha512-${hash.digest('base64')}|sha1-${sha1.digest('hex')}`;
+  return hashes.map((hash) => hash.digest());
 }
 
-function verifyIntegrity(manifest: PackageManifest, digest: string): void {
-  const [sha512, sha1] = digest.split('|');
+export async function fetchText(url: string): Promise<string> {
+  const response = await request(url, 'text/plain');
+  return response.text();
+}
+
+function verifyIntegrity(manifest: PackageManifest, sha512Digest: Buffer, sha1Digest: Buffer): void {
+  const sha512 = `sha512-${sha512Digest.toString('base64')}`;
   const expected = manifest.dist.integrity;
 
   if (expected) {
@@ -296,7 +301,7 @@ function verifyIntegrity(manifest: PackageManifest, digest: string): void {
   }
 
   if (manifest.dist.shasum) {
-    const actual = sha1.replace('sha1-', '');
+    const actual = sha1Digest.toString('hex');
     if (actual !== manifest.dist.shasum) {
       throw registryError(`Integrity check failed for ${manifest.name}@${manifest.version}: expected ${manifest.dist.shasum}, got ${actual}`, 'EINTEGRITY');
     }
