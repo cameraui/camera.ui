@@ -1,10 +1,9 @@
 import { APP_CLI_NAME, sleep } from '@camera.ui/common';
-import { getNpmGlobalModulesDirectory } from '@camera.ui/common/node';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { osInfo } from 'systeminformation';
 
@@ -126,20 +125,16 @@ export class LinuxInstaller extends BasePlatform {
   }
 
   public async beforeStart(): Promise<void> {
-    const tempModuleName = '.' + APP_CLI_NAME;
-    const backPath = APP_CLI_NAME.split('/')
-      .map(() => '..')
-      .join('/');
-    const baseDir = resolve(__dirname, '..', '..', backPath);
+    // an update cut off midway leaves npm's renamed copy (.camera.ui-xxxx) next to the package
+    const modulesPath = dirname(resolve(__dirname, '..', '..'));
 
-    if ([getNpmGlobalModulesDirectory()].includes(dirname(baseDir))) {
+    if (basename(modulesPath) === 'node_modules') {
       // systemd stops pre-start jobs after 90 s by default, so exit after 60 s
       setTimeout(() => {
         process.exit(0);
       }, 60000);
 
-      const modulesPath = join(dirname(baseDir), APP_CLI_NAME.split('/')[0]);
-      const temporaryDirectoriesToClean = (await readdir(modulesPath)).filter((x) => x.startsWith(tempModuleName));
+      const temporaryDirectoriesToClean = (await readdir(modulesPath)).filter((x) => x.startsWith(`.${APP_CLI_NAME}-`));
 
       for (const directory of temporaryDirectoriesToClean) {
         const pathToRemove = join(modulesPath, directory);
