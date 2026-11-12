@@ -3,7 +3,7 @@ import { createSocket } from 'node:dgram';
 import { createServer, isIP } from 'node:net';
 
 import { inject } from '../../container.js';
-import { DEFAULT_ONVIF_PORT } from '../../services/config/defaults.js';
+import { DEFAULT_ONVIF_PORT, DEFAULT_RTMP_PORT } from '../../services/config/defaults.js';
 import { dropKey, listenPort } from '../../services/config/platform-values.js';
 import { resolveProxyAuth } from '../../services/config/proxy-auth.js';
 import { RUNTIME_STATUS } from '../../services/config/types.js';
@@ -36,9 +36,9 @@ export interface SettingsView {
   streaming: {
     rtsp: { port: number | null; username: string; password: string; defaultQuery: string };
     onvif: { enabled: boolean; port: number };
+    rtmp: { enabled: boolean; port: number };
     webrtc: { port: number | null; candidates: string[] };
     srtpPort: number | null;
-    rtmpPort: number | null;
   };
   locked: Record<string, string>;
   restartPending: boolean;
@@ -99,9 +99,9 @@ export class SettingsService {
           defaultQuery: go2rtc.rtsp.default_query,
         },
         onvif: { enabled: !!go2rtc.onvif.listen, port: portOf(go2rtc.onvif.listen) ?? DEFAULT_ONVIF_PORT },
+        rtmp: { enabled: !!go2rtc.rtmp.listen, port: portOf(go2rtc.rtmp.listen) ?? DEFAULT_RTMP_PORT },
         webrtc: { port: portOf(go2rtc.webrtc.listen), candidates: go2rtc.webrtc.candidates ?? [] },
         srtpPort: portOf(go2rtc.srtp.listen),
-        rtmpPort: portOf(go2rtc.rtmp.listen),
       },
       locked: this.locked(),
       restartPending: inject('server').restartPending,
@@ -280,17 +280,14 @@ function editConfig(config: IConfig, { server, logging, proxy }: SettingsPatchIn
 function editGo2Rtc(go2rtc: Go2RtcConfig, { logging, streaming }: SettingsPatchInput): void {
   if (logging?.streamingLevel) go2rtc.log.level = logging.streamingLevel;
 
-  const { rtsp, onvif, webrtc, srtpPort, rtmpPort } = streaming ?? {};
+  const { rtsp, onvif, rtmp, webrtc, srtpPort } = streaming ?? {};
   if (rtsp?.port !== undefined) go2rtc.rtsp.listen = withPort(go2rtc.rtsp.listen, rtsp.port);
   if (rtsp?.username !== undefined) go2rtc.rtsp.username = rtsp.username;
   if (rtsp?.password !== undefined) go2rtc.rtsp.password = rtsp.password;
   if (rtsp?.defaultQuery !== undefined) go2rtc.rtsp.default_query = rtsp.defaultQuery;
 
-  if (onvif) {
-    const enabled = onvif.enabled ?? !!go2rtc.onvif.listen;
-    const port = onvif.port ?? portOf(go2rtc.onvif.listen) ?? DEFAULT_ONVIF_PORT;
-    go2rtc.onvif.listen = enabled ? withPort(go2rtc.onvif.listen, port) : '';
-  }
+  if (onvif) go2rtc.onvif.listen = switchedListen(go2rtc.onvif.listen, onvif, DEFAULT_ONVIF_PORT);
+  if (rtmp) go2rtc.rtmp.listen = switchedListen(go2rtc.rtmp.listen, rtmp, DEFAULT_RTMP_PORT);
 
   if (webrtc?.port !== undefined) {
     const old = `:${portOf(go2rtc.webrtc.listen)}`;
@@ -305,7 +302,6 @@ function editGo2Rtc(go2rtc: Go2RtcConfig, { logging, streaming }: SettingsPatchI
   }
 
   if (srtpPort !== undefined) go2rtc.srtp.listen = withPort(go2rtc.srtp.listen, srtpPort);
-  if (rtmpPort !== undefined) go2rtc.rtmp.listen = withPort(go2rtc.rtmp.listen, rtmpPort);
 }
 
 function setCandidates(go2rtc: Go2RtcConfig, candidates: string[]): void {
@@ -334,7 +330,7 @@ function listeners(config: IConfig, proxyAuth: ProxyAuthSettings | undefined, go
     go2rtcListener('streaming.onvif.port', 'ONVIF', go2rtc.onvif.listen, ['tcp']),
     go2rtcListener('streaming.webrtc.port', 'WebRTC', go2rtc.webrtc.listen, ['tcp', 'udp']),
     go2rtcListener('streaming.srtpPort', 'SRTP', go2rtc.srtp.listen, ['udp']),
-    go2rtcListener('streaming.rtmpPort', 'RTMP', go2rtc.rtmp.listen, ['tcp']),
+    go2rtcListener('streaming.rtmp.port', 'RTMP', go2rtc.rtmp.listen, ['tcp']),
   ];
 }
 
@@ -402,6 +398,11 @@ function touchedFields(value: unknown, prefix = ''): string[] {
 
 function portOf(listen: string | undefined): number | null {
   return listen ? listenPort(listen) : null;
+}
+
+function switchedListen(listen: string, patch: { enabled?: boolean; port?: number }, defaultPort: number): string {
+  const enabled = patch.enabled ?? !!listen;
+  return enabled ? withPort(listen, patch.port ?? portOf(listen) ?? defaultPort) : '';
 }
 
 function withPort(listen: string, port: number): string {

@@ -49,8 +49,9 @@ export const DEFAULT_GO2RTC_CONFIG_SRTP: SRTP = {
   listen: listenWithOffset('0.0.0.0', 2002),
 };
 export const DEFAULT_GO2RTC_CONFIG_RTMP: RTMP = {
-  listen: listenWithOffset('0.0.0.0', 2003),
+  listen: '',
 };
+export const DEFAULT_RTMP_PORT = withOffset(2003);
 export const DEFAULT_GO2RTC_CONFIG_WEBRTC: Webrtc = {
   listen: `:${withOffset(2004)}`,
   candidates: [`stun:${withOffset(2004)}`],

@@ -5,7 +5,7 @@ import type { Migration } from './types.js';
 
 const migration: Migration = {
   version: '2.4.10',
-  description: 'notifications are stored once with their recipients instead of once per user',
+  description: 'notifications are stored once with their recipients instead of once per user, the RTMP server is off until it is switched on',
   async up(ctx) {
     const { notificationHistoryDB, notificationEntriesDB } = ctx.db;
     const entries = new Map<string, DBNotificationEntry>();
@@ -25,6 +25,11 @@ const migration: Migration = {
     await notificationHistoryDB.clearAsync();
 
     ctx.logger.log(`Notifications: moved ${entries.size} entries to the shared list`);
+
+    if (ctx.configService.go2rtcConfig.rtmp.listen) {
+      await ctx.configService.writeGo2RtcConfigFile({ rtmp: { listen: '' } });
+      ctx.logger.log('RTMP: the server is off now, Settings, Streaming switches it on again');
+    }
   },
 };
 

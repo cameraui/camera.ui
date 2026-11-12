@@ -6,7 +6,7 @@ import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 
 import { DEFAULT_CONFIG, DEFAULT_GO2RTC_CONFIG } from './constants.js';
-import { DESKTOP_PORT_OFFSET, ELECTRON_PORT_OFFSET } from './defaults.js';
+import { DEFAULT_RTMP_PORT, DESKTOP_PORT_OFFSET, ELECTRON_PORT_OFFSET } from './defaults.js';
 
 import type { RestorePlatformChange } from '../../api/types/index.js';
 import type { Go2RtcConfig, IConfig } from './types.js';
@@ -17,11 +17,11 @@ const HA_INGRESS_PORT = 3080;
 const SECRET_KEYS = new Set(['worker.pairingCode']);
 const ANY_HOST = new Set(['', '0.0.0.0', '::', 'localhost', '127.0.0.1', '::1']);
 const GO2RTC_LISTENS = [
-  ['api', 'tls_listen'],
-  ['rtsp', 'listen'],
-  ['srtp', 'listen'],
-  ['rtmp', 'listen'],
-  ['webrtc', 'listen'],
+  ['api', 'tls_listen', listenPort(DEFAULT_GO2RTC_CONFIG.api.tls_listen)],
+  ['rtsp', 'listen', listenPort(DEFAULT_GO2RTC_CONFIG.rtsp.listen)],
+  ['srtp', 'listen', listenPort(DEFAULT_GO2RTC_CONFIG.srtp.listen)],
+  ['rtmp', 'listen', DEFAULT_RTMP_PORT],
+  ['webrtc', 'listen', listenPort(DEFAULT_GO2RTC_CONFIG.webrtc.listen)],
 ] as const;
 
 export async function alignStagedPlatformValues(storagePath: string, environment: string[] | undefined): Promise<RestorePlatformChange[]> {
@@ -85,12 +85,11 @@ export function alignGo2Rtc(go2rtc: Partial<Go2RtcConfig>): RestorePlatformChang
   const values = go2rtc as Record<string, Section | undefined>;
   const changes: RestorePlatformChange[] = [];
 
-  for (const [section, key] of GO2RTC_LISTENS) {
+  for (const [section, key, target] of GO2RTC_LISTENS) {
     const value = values[section]?.[key];
-    const target = (DEFAULT_GO2RTC_CONFIG[section] as unknown as Section)[key] as string;
-    if (typeof value !== 'string' || listenPort(value) === listenPort(target) || !isPlatformDefault(listenPort(value), listenPort(target))) continue;
+    if (typeof value !== 'string' || listenPort(value) === target || !isPlatformDefault(listenPort(value), target)) continue;
 
-    const aligned = `${value.slice(0, value.lastIndexOf(':') + 1)}${listenPort(target)}`;
+    const aligned = `${value.slice(0, value.lastIndexOf(':') + 1)}${target}`;
     values[section]![key] = aligned;
     changes.push({ setting: `go2rtc.${section}.${key}`, from: value, to: aligned });
   }

@@ -506,7 +506,7 @@ export class ConfigService {
 
     const isTls = this._go2rtcConfig.api.listen === '';
 
-    if (mod === 'onvif' && !this._go2rtcConfig.onvif.listen) {
+    if ((mod === 'onvif' || mod === 'rtmp') && !this._go2rtcConfig[mod].listen) {
       return '';
     }
 

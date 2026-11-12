@@ -33,8 +33,8 @@ export const streamingSettingsSchema = zod
       })
       .partial()
       .strict(),
+    rtmp: zod.object({ enabled: zod.boolean(), port: listenPortSchema }).partial().strict(),
     srtpPort: listenPortSchema,
-    rtmpPort: listenPortSchema,
   })
   .partial()
   .strict();

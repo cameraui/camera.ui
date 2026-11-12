@@ -149,6 +149,57 @@
       </div>
 
       <div>
+        <span class="card-title">RTMP</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.streaming.rtmp_info') }}</span>
+
+              <CuiToggleRow :label="$t('views.settings.streaming.rtmp_enabled')" :hint="$t('views.settings.streaming.rtmp_enabled_hint')" label-for="rtmpEnabled">
+                <ToggleSwitch v-model="form.rtmp.enabled" input-id="rtmpEnabled" />
+              </CuiToggleRow>
+
+              <div v-if="form.rtmp.enabled" class="flex flex-col sm:flex-row gap-6">
+                <div class="flex flex-col field-gap w-full sm:w-40 shrink-0">
+                  <label for="rtmpPort" class="cui-label">{{ $t('views.settings.port') }}</label>
+                  <InputNumber v-model="form.rtmp.port" input-id="rtmpPort" :min="1" :max="65535" :use-grouping="false" :invalid="!!errors['rtmp.port']" fluid />
+                  <span v-if="errors['rtmp.port']" class="cui-input-error">{{ errors['rtmp.port'] }}</span>
+                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.rtmp_port_hint') }}</Message>
+                </div>
+
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="rtmpAddress" class="cui-label">{{ $t('views.settings.streaming.rtmp_address') }}</label>
+                  <InputGroup>
+                    <InputText id="rtmpAddress" :model-value="rtmpAddress" readonly class="font-mono text-xs" />
+                    <InputGroupAddon>
+                      <CuiActionButton
+                        :action-text="$t('components.form.tooltip.copied')"
+                        :icon="CopyIcon"
+                        :button-props="{ severity: 'secondary', text: true }"
+                        @action="copyToClipboard(rtmpAddress)"
+                      />
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.rtmp_address_hint') }}</Message>
+                </div>
+              </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  :loading="saving === 'rtmp'"
+                  :disabled="!dirty.rtmp || !!saving"
+                  @click="confirmSave('rtmp')"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div>
         <span class="card-title">WebRTC</span>
         <Card class="cui-card">
           <template #content>
@@ -335,20 +386,11 @@
             <div class="flex flex-col gap-6">
               <span class="text-sm">{{ $t('views.settings.streaming.ports_info') }}</span>
 
-              <div class="flex flex-col sm:flex-row gap-6">
-                <div class="flex flex-col field-gap flex-1 min-w-0">
-                  <label for="srtpPort" class="cui-label">{{ $t('views.settings.streaming.srtp_port') }}</label>
-                  <InputNumber v-model="form.srtpPort" input-id="srtpPort" :min="1" :max="65535" :use-grouping="false" :invalid="!!errors.srtpPort" fluid />
-                  <span v-if="errors.srtpPort" class="cui-input-error">{{ errors.srtpPort }}</span>
-                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.srtp_port_hint') }}</Message>
-                </div>
-
-                <div class="flex flex-col field-gap flex-1 min-w-0">
-                  <label for="rtmpPort" class="cui-label">{{ $t('views.settings.streaming.rtmp_port') }}</label>
-                  <InputNumber v-model="form.rtmpPort" input-id="rtmpPort" :min="1" :max="65535" :use-grouping="false" :invalid="!!errors.rtmpPort" fluid />
-                  <span v-if="errors.rtmpPort" class="cui-input-error">{{ errors.rtmpPort }}</span>
-                  <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.rtmp_port_hint') }}</Message>
-                </div>
+              <div class="flex flex-col field-gap">
+                <label for="srtpPort" class="cui-label">{{ $t('views.settings.streaming.srtp_port') }}</label>
+                <InputNumber v-model="form.srtpPort" input-id="srtpPort" :min="1" :max="65535" :use-grouping="false" :invalid="!!errors.srtpPort" fluid />
+                <span v-if="errors.srtpPort" class="cui-input-error">{{ errors.srtpPort }}</span>
+                <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.srtp_port_hint') }}</Message>
               </div>
 
               <div class="flex">
@@ -390,7 +432,7 @@ import { refreshIceServers } from '@/plugins/cameraui.js';
 
 import type { StreamingSettingsInput } from '@shared/types';
 
-type Section = 'rtsp' | 'onvif' | 'webrtc' | 'ports';
+type Section = 'rtsp' | 'onvif' | 'rtmp' | 'webrtc' | 'ports';
 
 interface TurnServerForm {
   key: string;
@@ -409,8 +451,9 @@ const { t } = useI18n();
 const { settings, form, errors, saving, pending, dirty, changesOf, showIssues, save } = useSettingsForm('streaming', {
   rtsp: ['rtsp'],
   onvif: ['onvif'],
+  rtmp: ['rtmp'],
   webrtc: ['webrtc'],
-  ports: ['srtpPort', 'rtmpPort'],
+  ports: ['srtpPort'],
 });
 
 const { data: serverInfo } = serverQuery.getServerInfoQuery();
@@ -435,6 +478,8 @@ const queryOptions = computed(() => {
   if (saved && !QUERY_PRESETS.some(({ value }) => value === saved)) options.push({ value: saved, label: t('views.settings.streaming.query_custom') });
   return options;
 });
+
+const rtmpAddress = computed(() => `rtmp://${serverInfo.value?.serverAddresses?.[0] ?? window.location.hostname}:${form.value?.rtmp.port}/`);
 
 const onvifAddress = computed(() => `http://${serverInfo.value?.serverAddresses?.[0] ?? window.location.hostname}:${form.value?.onvif.port}/onvif/device_service`);
 
@@ -472,12 +517,17 @@ function confirmSave(section: Section): void {
 
   const restart = patch.rtsp?.port !== undefined || patch.webrtc?.port !== undefined || (patch.srtpPort !== undefined && settings.value!.streaming.srtpPort === null);
   const loginChanged = patch.rtsp?.username !== undefined || patch.rtsp?.password !== undefined;
-  if (!restart && !loginChanged) {
+  const rtmpOpened = patch.rtmp?.enabled === true;
+  if (!restart && !loginChanged && !rtmpOpened) {
     saveSection(section, patch);
     return;
   }
 
-  const notes = [restart && t('views.settings.go2rtc_restart_confirm'), loginChanged && t('views.settings.streaming.login_change_confirm')];
+  const notes = [
+    restart && t('views.settings.go2rtc_restart_confirm'),
+    loginChanged && t('views.settings.streaming.login_change_confirm'),
+    rtmpOpened && t('views.settings.streaming.rtmp_enable_confirm'),
+  ];
   dialog.openTextDialog({
     data: {
       title: t('components.dialog.title.confirm'),
