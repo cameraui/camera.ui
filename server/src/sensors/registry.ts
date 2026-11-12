@@ -738,8 +738,9 @@ export class SensorRegistry {
       const record = this.records.get(sensorId);
       if (!record || !this.runtime.has(sensorId)) continue;
 
+      // a ring is a moment, replaying it would ring again on every restart
       const trigger = SENSOR_TYPE_CONFIG[record.type]?.cascadeTrigger;
-      if (!trigger) continue;
+      if (!trigger?.sustained) continue;
 
       const currentValue = this.propertyValues.get(`${sensorId}:${trigger.property}`);
       if (currentValue !== trigger.value) continue;

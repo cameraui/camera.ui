@@ -41,6 +41,11 @@ export class VirtualSensorHost {
     const rpcNamespace = NamespaceManager.sensorProviderNamespaces(VIRTUAL_SENSOR_OWNER_ID, this.sensorId).sensorRpc;
 
     this.disposers.push(await proxy.registerHandler(rpcNamespace, new VirtualSensorRpcHandler(this)));
+
+    // a restart inside the ring window skips the reset, the stored ring would stay true
+    if (this.type === SensorType.Doorbell && this.registry.getPropertyValue(this.sensorId, DoorbellProperty.Ring) === true) {
+      this.write({ [DoorbellProperty.Ring]: false });
+    }
   }
 
   public async dispose(): Promise<void> {
