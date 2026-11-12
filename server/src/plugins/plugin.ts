@@ -137,6 +137,7 @@ not satisfy the current Node.js version of ${process.version}. You may need to u
   }
 
   private parsePackageJson(pjson: IPackageJson, installPath: string): CameraUiPlugin {
+    const requirement = platformRequirement(pjson);
     const pluginPackageJson: CameraUiPlugin = {
       id: this.id,
       disabled: this.configService.config.plugins.disabledPlugins.includes(this.pluginName),
@@ -159,10 +160,8 @@ not satisfy the current Node.js version of ${process.version}. You may need to u
       isGo: this.isGo,
       isNode: !this.isPython && !this.isGo,
       contract: this._contract,
-      os: pjson.os,
-      cpu: pjson.cpu,
-      libc: pjson.cameraui?.libc,
-      compatible: isPlatformCompatible(platformRequirement(pjson)),
+      ...requirement,
+      compatible: isPlatformCompatible(requirement),
       engineIssues: checkEngineCompatibility(pjson.engines, ConfigService.VERSION, process.version),
       protocolLevel: pjson.cameraui?.protocolLevel,
       protocolCompat: checkProtocolCompat(pjson.cameraui?.protocolLevel),

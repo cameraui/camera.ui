@@ -42,8 +42,15 @@ export function hostPlatform(): WorkerPlatform {
   return { os: process.platform, arch: process.arch, libc: isMusl() ? 'musl' : 'glibc' };
 }
 
-export function platformRequirement(pkg: { os?: string[]; cpu?: string[]; cameraui?: { libc?: string[] } }): PlatformRequirement {
-  return { os: pkg.os, cpu: pkg.cpu, libc: pkg.cameraui?.libc };
+export function platformRequirement(pkg: { os?: unknown; cpu?: unknown; cameraui?: { libc?: unknown } }): PlatformRequirement {
+  return { os: platformList(pkg.os), cpu: platformList(pkg.cpu), libc: platformList(pkg.cameraui?.libc) };
+}
+
+function platformList(value: unknown): string[] | undefined {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : undefined;
 }
 
 export function isPlatformCompatible(requirement: PlatformRequirement, host: WorkerPlatform = hostPlatform()): boolean {
