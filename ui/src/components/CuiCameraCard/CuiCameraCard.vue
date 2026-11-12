@@ -980,7 +980,6 @@ import { CuiTimeline, NvrPlaybackKey, NvrPlaybackMapKey, playheadUs } from '@cam
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { castFn } from '@/api/routes/cast.js';
-import { startIntercomService, stopIntercomService } from '@/common/intercomService.js';
 import { enterNativePip, nativePipActive, registerAutoPipCandidate, unregisterAutoPipCandidate } from '@/common/pipService.js';
 import { randomLetter } from '@/common/utils.js';
 import ShareForm from '@/components/CuiDialog/templates/ShareForm/ShareForm.vue';
@@ -993,6 +992,7 @@ import { frozenReaction } from '@/utils/frozenPicture.js';
 import { createLongPress } from '@/utils/longPress.js';
 import { maskPrivacyZones } from '@/utils/privacyMask.js';
 import { CAMERA_CARD_DEFAULTS } from './types.js';
+import { useCameraMicrophone } from './useCameraMicrophone.js';
 import { useStreamPathInfo } from './useStreamPathInfo.js';
 
 import type CuiBBoxPlayground from '@/components/CuiBBoxPlayground/CuiBBoxPlayground.vue';
@@ -1132,7 +1132,6 @@ const isHoveredZoom = useElementHover(playerContainerRef, { delayLeave: 0 });
 const playerContainer = useElementSize(playerContainerRef);
 const arBoxSize = useElementSize(arBoxRef);
 
-const userMediaStream = shallowRef<MediaStream>();
 const isAdapting = ref(false);
 const liveFailing = ref(false);
 const liveFailureReason = shallowRef<Error>();
@@ -1153,7 +1152,6 @@ const activeDetectionKinds = ref<string[]>([]);
 const detectionKindLastSeen = new Map<string, number>();
 const initialHover = ref(true);
 const muted = ref(true);
-const micActive = ref(false);
 const timelineScrolling = ref(false);
 const embeddedTimelineStart = ref<number>();
 const bboxEnabled = ref(false);
@@ -1166,7 +1164,14 @@ let isUserChangingResolution = false;
 let classifierWatchers: WatchHandle[] = [];
 let isUnmounting = false;
 let releaseNvrContainer: (() => void) | null = null;
-let micRequest = 0;
+
+const microphone = useCameraMicrophone({
+  // talk needs a running stream, and a fresh one knows its backchannel only after the probe
+  ready: async () => (!inStandby.value || (await wakeStream())) && streamHasBackchannel.value,
+  setTrack: (track) => cameraStream.setMicrophone(track),
+  onError: (error) => log.warn(cameraName.value, error),
+});
+const micActive = microphone.active;
 
 const {
   frozen,
@@ -2028,31 +2033,13 @@ function toggleMute(state?: boolean) {
 }
 
 async function toggleMicrophone(state?: boolean, enableSpeaker = false) {
-  const next = state ?? !micActive.value;
-  const request = ++micRequest;
-  // talk needs a running stream, and a fresh one knows its backchannel only after the probe
-  if (next && inStandby.value && !(await wakeStream())) return;
-  if (request !== micRequest || !streamHasBackchannel.value) return;
-
-  micActive.value = next;
-
-  if (micActive.value) {
-    try {
-      userMediaStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const track = userMediaStream.value.getAudioTracks()[0];
-      muted.value = !enableSpeaker || !streamHasSound.value;
-      await cameraStream.setMicrophone(track);
-      startIntercomService();
-    } catch (error: any) {
-      log.warn(cameraName.value, error);
-      micActive.value = false;
-    }
-  } else {
-    userMediaStream.value?.getTracks().forEach((track) => track.stop());
-    userMediaStream.value = undefined;
-    await cameraStream.setMicrophone(null);
-    stopIntercomService();
+  if (!(state ?? !micActive.value)) {
+    await microphone.stop();
+    return;
   }
+  await microphone.start(() => {
+    muted.value = !enableSpeaker || !streamHasSound.value;
+  });
 }
 
 async function toggleSourceRole(state?: StreamingRole) {
@@ -2560,8 +2547,6 @@ onBeforeUnmount(() => {
   unregisterAutoPipCandidate(randomId);
   releaseNvrContainer?.();
   releaseNvrContainer = null;
-  userMediaStream.value?.getTracks().forEach((track) => track.stop());
-  userMediaStream.value = undefined;
 
   classifierWatchers.forEach((unwatch) => unwatch());
   classifierWatchers = [];
