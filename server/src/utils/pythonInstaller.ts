@@ -19,6 +19,14 @@ import type { ChildProcess } from 'node:child_process';
 export const DEFAULT_PY_VERSION = '3.11';
 
 const POSIX = process.platform !== 'win32';
+const UV_VERSION = '0.13.6';
+
+function hasSystemCertificates(): boolean {
+  if (process.platform !== 'linux') {
+    return true;
+  }
+  return ['/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem', '/etc/ssl/cert.pem'].some((file) => existsSync(file));
+}
 
 export class PythonInstaller {
   static readonly versions: PythonVersion[] = ['3.14', '3.13', '3.12', '3.11'];
@@ -40,8 +48,7 @@ export class PythonInstaller {
       throw new Error('Venv path is not defined');
     }
 
-    const binPath = platform() === 'win32' ? 'Scripts' : 'bin';
-    return join(this.venvPath, binPath, 'python');
+    return platform() === 'win32' ? join(this.venvPath, 'Scripts', 'python.exe') : join(this.venvPath, 'bin', 'python');
   }
 
   get serverPythonPath(): string {
@@ -100,6 +107,7 @@ export class PythonInstaller {
       await this.removeOldVersions();
     }
 
+    await this.ensureUv();
     await this.ensureCertifi();
 
     if (type === 'server') {
@@ -188,12 +196,17 @@ export class PythonInstaller {
     return this.installRequirements(this.serverPythonPath, requirementsPath);
   }
 
-  private async ensureVirtualenv(): Promise<void> {
-    if (existsSync(join(this.serverPackagesPath, 'virtualenv'))) {
+  private async ensureUv(): Promise<void> {
+    if (existsSync(join(this.serverPackagesPath, `uv-${UV_VERSION}.dist-info`))) {
       return;
     }
 
-    await this.installServerPackages(['virtualenv']);
+    const args = [this.quotePath(this.serverPythonPath), '-m', 'pip', 'install', `uv==${UV_VERSION}`, '--no-warn-script-location'];
+    if ((process.env.SUDO_UID && process.env.SUDO_GID) || process.getuid?.() === 0) {
+      args.push('--root-user-action=ignore');
+    }
+
+    await this.exec(args, this.serverPythonPath, { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' });
   }
 
   private async ensureCertifi(): Promise<void> {
@@ -298,192 +311,78 @@ export class PythonInstaller {
   }
 
   private async installRequirements(pythonPath: string, requirementsPath: string): Promise<string> {
-    const args = [this.quotePath(pythonPath), '-m', 'pip', 'install', '--upgrade', 'pip', '-r', this.quotePath(requirementsPath)];
-
-    if ((process.env.SUDO_UID && process.env.SUDO_GID) || process.getuid?.() === 0) {
-      args.push('--root-user-action=ignore');
-    }
-
-    args.push('--use-pep517', '--no-warn-script-location');
-
-    const command = args.join(' ');
-    this.logger.trace(`Installing requirements command: ${command}`);
-
-    const child = this.run(command, pythonPath, { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }, pythonPath !== this.serverPythonPath);
-
-    const stdoutLine = createInterface({
-      input: child.stdout!,
-      terminal: false,
-    });
-
-    const stderrLine = createInterface({
-      input: child.stderr!,
-      terminal: false,
-    });
-
-    stdoutLine.on('line', (line: string) => {
-      this.logger.trace(line);
-    });
-
-    stderrLine.on('line', (line: string) => {
-      this.logger.error(line);
-    });
-
-    return new Promise((_resolve, _reject) => {
-      child.on('close', (code) => {
-        stdoutLine.close();
-        stderrLine.close();
-
-        if (code === 0) {
-          _resolve('Requirements installed');
-        } else {
-          _reject(new Error(`Installation process exited with code ${code}`));
-        }
-      });
-    });
+    await this.exec(this.uvPip(pythonPath, 'install', '-r', this.quotePath(requirementsPath)), pythonPath, this.uvEnv());
+    return 'Requirements installed';
   }
 
   private async installPackages(pythonPath: string, pkgs: string[]): Promise<string> {
-    if (pkgs.length === 0) return Promise.resolve('');
+    if (pkgs.length === 0) return '';
 
-    const args = [this.quotePath(pythonPath), '-m', 'pip', 'install', '--upgrade', 'pip'];
-    args.push(...pkgs.map((pkg) => (pkg.includes(' ') ? this.quotePath(pkg) : pkg)));
-
-    if ((process.env.SUDO_UID && process.env.SUDO_GID) || process.getuid?.() === 0) {
-      args.push('--root-user-action=ignore');
-    }
-
-    args.push('--use-pep517', '--no-warn-script-location');
-
-    const command = args.join(' ');
-    this.logger.trace(`Installing packages command: ${command}`);
-
-    const child = this.run(command, pythonPath, { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }, pythonPath !== this.serverPythonPath);
-
-    const stdoutLine = createInterface({
-      input: child.stdout!,
-      terminal: false,
-    });
-
-    const stderrLine = createInterface({
-      input: child.stderr!,
-      terminal: false,
-    });
-
-    stdoutLine.on('line', (line: string) => {
-      this.logger.trace(line);
-    });
-
-    stderrLine.on('line', (line: string) => {
-      this.logger.error(line);
-    });
-
-    return new Promise((_resolve, _reject) => {
-      child.on('close', (code) => {
-        stdoutLine.close();
-        stderrLine.close();
-
-        if (code === 0) {
-          _resolve('Packages installed');
-        } else {
-          _reject(new Error(`Installation process exited with code ${code}`));
-        }
-      });
-    });
+    await this.exec(this.uvPip(pythonPath, 'install', ...this.quotePackages(pkgs)), pythonPath, this.uvEnv());
+    return 'Packages installed';
   }
 
   private async uninstallPackages(pythonPath: string, pkgs: string[]): Promise<string> {
-    if (pkgs.length === 0) return Promise.resolve('');
+    if (pkgs.length === 0) return '';
 
-    const args = [this.quotePath(pythonPath), '-m', 'pip', 'uninstall', '-y'];
-    args.push(...pkgs.map((pkg) => (pkg.includes(' ') ? this.quotePath(pkg) : pkg)));
-
-    if ((process.env.SUDO_UID && process.env.SUDO_GID) || process.getuid?.() === 0) {
-      args.push('--root-user-action=ignore');
-    }
-
-    const command = args.join(' ');
-    this.logger.trace(`Uninstalling packages command: ${command}`);
-
-    const child = this.run(command, pythonPath, { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }, pythonPath !== this.serverPythonPath);
-
-    const stdoutLine = createInterface({
-      input: child.stdout!,
-      terminal: false,
-    });
-
-    const stderrLine = createInterface({
-      input: child.stderr!,
-      terminal: false,
-    });
-
-    stdoutLine.on('line', (line: string) => {
-      this.logger.trace(line);
-    });
-
-    stderrLine.on('line', (line: string) => {
-      this.logger.error(line);
-    });
-
-    return new Promise((_resolve, _reject) => {
-      child.on('close', (code) => {
-        stdoutLine.close();
-        stderrLine.close();
-
-        if (code === 0) {
-          _resolve('Packages uninstalled');
-        } else {
-          _reject(new Error(`Installation process exited with code ${code}`));
-        }
-      });
-    });
+    await this.exec(this.uvPip(pythonPath, 'uninstall', ...this.quotePackages(pkgs)), pythonPath, this.uvEnv());
+    return 'Packages uninstalled';
   }
 
   private async reinstallPackages(pythonPath: string, pkgs: string[]): Promise<string> {
-    if (pkgs.length === 0) return Promise.resolve('');
+    if (pkgs.length === 0) return '';
 
-    const args = [this.quotePath(pythonPath), '-m', 'pip', 'install', '--force-reinstall'];
-    args.push(...pkgs.map((pkg) => (pkg.includes(' ') ? this.quotePath(pkg) : pkg)));
+    await this.exec(this.uvPip(pythonPath, 'install', '--reinstall', ...this.quotePackages(pkgs)), pythonPath, this.uvEnv());
+    return 'Packages reinstalled';
+  }
 
-    if ((process.env.SUDO_UID && process.env.SUDO_GID) || process.getuid?.() === 0) {
-      args.push('--root-user-action=ignore');
+  private uvPip(pythonPath: string, command: string, ...args: string[]): string[] {
+    return [this.quotePath(this.serverPythonPath), '-m', 'uv', 'pip', command, '--python', this.quotePath(pythonPath), ...args];
+  }
+
+  private uvEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      UV_CACHE_DIR: join(this.installPath, 'uv-cache'),
+      UV_PYTHON_DOWNLOADS: 'never',
+      UV_SYSTEM_CERTS: process.env.UV_SYSTEM_CERTS ?? (hasSystemCertificates() ? '1' : undefined),
+      UV_COMPILE_BYTECODE: '1',
+      UV_INDEX_URL: process.env.UV_INDEX_URL ?? process.env.PIP_INDEX_URL,
+      UV_EXTRA_INDEX_URL: process.env.UV_EXTRA_INDEX_URL ?? process.env.PIP_EXTRA_INDEX_URL,
+      UV_INSECURE_HOST: process.env.UV_INSECURE_HOST ?? process.env.PIP_TRUSTED_HOST,
+    };
+  }
+
+  private async exec(args: string[], python: string, env: NodeJS.ProcessEnv, abortable = python !== this.serverPythonPath): Promise<void> {
+    const command = args.join(' ');
+    this.logger.trace(`Running: ${command}`);
+
+    const child = this.run(command, python, env, abortable);
+    const output: string[] = [];
+
+    const lines = [child.stdout!, child.stderr!].map((input) => createInterface({ input, terminal: false }));
+    for (const line of lines) {
+      line.on('line', (text: string) => {
+        output.push(text);
+        this.logger.trace(text);
+      });
     }
 
-    args.push('--use-pep517', '--no-warn-script-location');
-
-    const command = args.join(' ');
-    this.logger.trace(`Reinstalling packages command: ${command}`);
-
-    const child = this.run(command, pythonPath, { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }, pythonPath !== this.serverPythonPath);
-
-    const stdoutLine = createInterface({
-      input: child.stdout!,
-      terminal: false,
-    });
-
-    const stderrLine = createInterface({
-      input: child.stderr!,
-      terminal: false,
-    });
-
-    stdoutLine.on('line', (line: string) => {
-      this.logger.trace(line);
-    });
-
-    stderrLine.on('line', (line: string) => {
-      this.logger.error(line);
-    });
-
-    return new Promise((_resolve, _reject) => {
+    return new Promise((resolve, reject) => {
       child.on('close', (code) => {
-        stdoutLine.close();
-        stderrLine.close();
+        for (const line of lines) {
+          line.close();
+        }
 
         if (code === 0) {
-          _resolve('Packages reinstalled');
-        } else {
-          _reject(new Error(`Installation process exited with code ${code}`));
+          resolve();
+          return;
         }
+
+        for (const text of output.slice(-50)) {
+          this.logger.error(text);
+        }
+        reject(new Error(`${command} exited with code ${code}`));
       });
     });
   }
@@ -527,46 +426,16 @@ export class PythonInstaller {
 
     this.needsUpdate = true;
 
-    await this.ensureVirtualenv();
+    await this.ensureUv();
 
-    const args = [this.quotePath(this.serverPythonPath), '-m', 'virtualenv', this.quotePath(this.venvPath)];
+    const args = [this.quotePath(this.serverPythonPath), '-m', 'uv', 'venv', '--seed', '--python', this.quotePath(this.serverPythonPath), this.quotePath(this.venvPath)];
 
-    const command = args.join(' ');
-    this.logger.trace(`Creating venv using virtualenv: ${command}`);
-
-    const child = this.run(command, this.serverPythonPath, { ...process.env, VIRTUALENV_PYTHON: this.serverPythonPath }, true);
-
-    const stdoutLine = createInterface({
-      input: child.stdout!,
-      terminal: false,
-    });
-
-    const stderrLine = createInterface({
-      input: child.stderr!,
-      terminal: false,
-    });
-
-    stdoutLine.on('line', (line: string) => {
-      this.logger.trace(line);
-    });
-
-    stderrLine.on('line', (line: string) => {
-      this.logger.error(line);
-    });
-
-    return new Promise((_resolve, _reject) => {
-      child.on('close', (code) => {
-        stdoutLine.close();
-        stderrLine.close();
-
-        if (code === 0) {
-          _resolve();
-        } else {
-          // a half-built venv would count as present on the next start
-          rm(this.venvPath!, { recursive: true, force: true }).finally(() => _reject(new Error(`Virtualenv creation process exited with code ${code}`)));
-        }
-      });
-    });
+    try {
+      await this.exec(args, this.serverPythonPath, this.uvEnv(), true);
+    } catch (error) {
+      await rm(this.venvPath, { recursive: true, force: true });
+      throw error;
+    }
   }
 
   private run(command: string, python: string, env: NodeJS.ProcessEnv, abortable: boolean): ChildProcess {
@@ -653,6 +522,10 @@ export class PythonInstaller {
 
   private difference(setA: Set<string>, setB: Set<string>): Set<string> {
     return new Set([...setA].filter((x) => !setB.has(x)));
+  }
+
+  private quotePackages(pkgs: string[]): string[] {
+    return pkgs.map((pkg) => (pkg.includes(' ') ? this.quotePath(pkg) : pkg));
   }
 
   private quotePath(path: string): string {
