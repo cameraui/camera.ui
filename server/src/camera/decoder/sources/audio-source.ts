@@ -1,5 +1,5 @@
 import { Decoder, Demuxer, FilterAPI, FilterPreset } from 'node-av/api';
-import { AV_SAMPLE_FMT_FLT, AV_SAMPLE_FMT_S16 } from 'node-av/constants';
+import { AV_CODEC_ID_OPUS, AV_SAMPLE_FMT_FLT, AV_SAMPLE_FMT_S16, FF_DECODER_LIBOPUS } from 'node-av/constants';
 
 import { ReconnectLoop } from './reconnect-loop.js';
 
@@ -154,9 +154,11 @@ export class AudioSource {
       throw new Error('No audio stream found');
     }
 
-    this.decoder = await Decoder.create(audioStream, {
-      exitOnError: false,
-    });
+    // ffmpeg's own opus decoder turns SILK frames with in-band FEC into noise (Ring)
+    this.decoder =
+      audioStream.codecpar.codecId === AV_CODEC_ID_OPUS
+        ? await Decoder.create(audioStream, FF_DECODER_LIBOPUS, { exitOnError: false })
+        : await Decoder.create(audioStream, { exitOnError: false });
 
     const sampleFmt = this.config.format === 'pcm16' ? AV_SAMPLE_FMT_S16 : AV_SAMPLE_FMT_FLT;
     const layout = this.config.channels === 1 ? 'mono' : 'stereo';

@@ -11,7 +11,7 @@ import {
   FF_ENCODER_LIBFDK_AAC,
   FF_ENCODER_LIBOPUS,
 } from 'node-av/constants';
-import { avGetSampleFmtFromName, Codec } from 'node-av/lib';
+import { avGetSampleFmtFromName, Codec, Rational } from 'node-av/lib';
 import { RtpPacket, RTPStream } from 'node-av/webrtc';
 
 import type {
@@ -151,6 +151,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
         payloadType: this.#options.audio?.payloadType,
         sampleRate: this.#options.audio?.sampleRate,
         channels: this.#options.audio?.channels,
+        transcode: this.#options.audio?.frameDuration !== undefined,
         encoderOptions: {
           frame_duration: this.#options.audio?.frameDuration,
           ...this.#options.audio?.encoderOptions,
@@ -224,7 +225,11 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       throw new Error('No audio stream in backchannel SDP');
     }
 
-    this.#backchannelDecoder = await Decoder.create(audioStream, {
+    // ffmpeg reads Opus RTP timestamps at 48 kHz, HomeKit stamps them at the negotiated rate,
+    // the encoder then takes every frame as overlapping and drops half the audio
+    audioStream.timeBase = new Rational(1, config.clockRate);
+
+    this.#backchannelDecoder = await Decoder.create(audioStream, codec, {
       exitOnError: false,
       signal: this.#abort.signal,
     });
