@@ -4,6 +4,7 @@ import pty from '@seydx/node-pty';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import xtermHeadless from '@xterm/headless';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
@@ -379,7 +380,8 @@ export class TerminalManager implements TerminalManagerInterface {
     if (process.platform === 'win32') {
       return process.env.COMSPEC ?? 'cmd.exe';
     }
-    return process.env.SHELL ?? '/bin/bash';
+    // Alpine and other slim systems come without bash
+    return [process.env.SHELL, '/bin/bash'].find((shell) => shell && existsSync(shell)) ?? '/bin/sh';
   }
 
   private cleanupInactiveSessions(): void {
