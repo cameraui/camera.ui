@@ -345,7 +345,7 @@ const { y: scrollY } = useScroll(listRef, { throttle: 100 });
 
 registerScrollToTop(() => listRef.value?.scrollTo({ top: 0, behavior: 'smooth' }));
 
-useInfiniteScroll(listRef, center.loadMore, { distance: 400, canLoadMore: () => hasMore.value });
+const { reset: checkLoadMore } = useInfiniteScroll(listRef, center.loadMore, { distance: 400, canLoadMore: () => hasMore.value });
 
 useEventListener(listRef, 'scroll', updateStuckDay, { passive: true });
 
@@ -450,6 +450,14 @@ function deleteSelected() {
 watch(scrollY, (y) => {
   if (y < 8 && incoming.value.length) center.mergeIncoming();
 });
+
+// a deletion shrinks the list without a scroll, the next page would never load
+watch(
+  () => items.value.length,
+  (length, previous) => {
+    if (length < previous) checkLoadMore();
+  },
+);
 
 watch([activeFilter, appliedQuery, activeSource], () => {
   listRef.value?.scrollTo({ top: 0 });

@@ -134,6 +134,7 @@ const viewRef = useTemplateRef('viewRef');
 const wrapperRef = useTemplateRef<HTMLDivElement>('wrapperRef');
 const gridRef = useTemplateRef<HTMLDivElement>('gridRef');
 const cardRefs = useTemplateRef<InstanceType<typeof ViewDnDCard>[]>('cardRefs');
+const fsCardRef = useTemplateRef<InstanceType<typeof ViewDnDCard>>('fsCardRef');
 const fullScreenCard = ref<number>();
 const collapsingCard = ref<number>();
 
@@ -172,8 +173,13 @@ const droppedCameras = computed<DBCamera[]>(() => {
   return cards.value.filter((c) => c.lastDroppedCamera).map((c) => c.lastDroppedCamera!);
 });
 
-const micActive = computed(() => (cardRefs.value ?? []).some((card) => card.micActive));
-const micAvailable = computed(() => (cardRefs.value ?? []).some((card) => card.micAvailable));
+const shownCards = computed(() => {
+  if (fullScreenCard.value === undefined) return cardRefs.value ?? [];
+  return fsCardRef.value ? [fsCardRef.value] : [];
+});
+
+const micActive = computed(() => shownCards.value.some((card) => card.micActive));
+const micAvailable = computed(() => shownCards.value.some((card) => card.micAvailable));
 
 function getWidgetPos(idx: number): GsLayoutItem {
   const card = cards.value[idx];
@@ -302,20 +308,20 @@ async function toggleFullscreen(): Promise<void> {
   await toggleFs();
 }
 
-function toggleAllPlayerMute(state?: boolean): void {
-  for (const child of cardRefs.value || []) child.togglePlayerMute(state);
+function toggleShownPlayerMute(state?: boolean): void {
+  for (const child of shownCards.value) child.togglePlayerMute(state);
 }
 
-async function toggleAllPlayerMicrophone(state?: boolean, enableSpeaker?: boolean): Promise<void> {
-  await Promise.allSettled((cardRefs.value || []).map((c) => c.toggleMicrophone(state, enableSpeaker)));
+async function toggleShownPlayerMicrophone(state?: boolean, enableSpeaker?: boolean): Promise<void> {
+  await Promise.allSettled(shownCards.value.map((c) => c.toggleMicrophone(state, enableSpeaker)));
 }
 
-async function toggleAllPlayerSourceRole(state?: StreamingRole): Promise<void> {
-  await Promise.allSettled((cardRefs.value || []).map((c) => c.togglePlayerSourceRole(state)));
+async function toggleShownPlayerSourceRole(state?: StreamingRole): Promise<void> {
+  await Promise.allSettled(shownCards.value.map((c) => c.togglePlayerSourceRole(state)));
 }
 
-async function toggleAllPlayerStreamingMode(state?: VideoStreamingMode): Promise<void> {
-  await Promise.allSettled((cardRefs.value || []).map((c) => c.togglePlayerStreamingMode(state)));
+async function toggleShownPlayerStreamingMode(state?: VideoStreamingMode): Promise<void> {
+  await Promise.allSettled(shownCards.value.map((c) => c.togglePlayerStreamingMode(state)));
 }
 
 function toggleAllPlayerBbox(state?: boolean): void {
@@ -482,10 +488,10 @@ defineExpose({
   micAvailable,
   expandCameraById,
   toggleFullscreen,
-  toggleAllPlayerMute,
-  toggleAllPlayerMicrophone,
-  toggleAllPlayerSourceRole,
-  toggleAllPlayerStreamingMode,
+  toggleShownPlayerMute,
+  toggleShownPlayerMicrophone,
+  toggleShownPlayerSourceRole,
+  toggleShownPlayerStreamingMode,
   toggleAllPlayerBbox,
   toggleAllPip,
   compactGrid,

@@ -363,6 +363,12 @@ import type { StreamingRole } from '@camera.ui/sdk';
 import type { DBCamera, DBCamviewCardFit, DBCamviewLayout, DBCamviewLayoutCamera, DBCamviewViewSize } from '@shared/types';
 import type { HTMLAttributes } from 'vue';
 
+interface PlayerControls {
+  muted: boolean;
+  sourceRole: StreamingRole;
+  streamingMode: VideoStreamingMode;
+}
+
 const usersQuery = new UsersQuery();
 const camerasQuery = new CamerasQuery();
 
@@ -411,21 +417,20 @@ const rearrangeMode = ref(false);
 const timelineState = ref(false);
 const timelineSpaceOccupied = ref(false);
 const timelineAnimating = ref(false);
-const isMuted = ref(true);
 const micPending = ref(false);
 const controlsCollapsed = useLocalStorage('cui-camview-controls-collapsed', false);
 const fullscreenControlsCollapsed = ref(true);
 const exportMode = ref(false);
-const sourceRole = ref<StreamingRole>('low-resolution');
-const streamingMode = ref<VideoStreamingMode>('auto');
+const gridPlayers = reactive<PlayerControls>({ muted: true, sourceRole: 'low-resolution', streamingMode: 'auto' });
+const expandedPlayer = ref<PlayerControls>();
 const cards = ref<CardState[]>([]);
 const cardFitOverride = ref<DBCamviewCardFit>();
 const expandedCameraId = ref<string | null>(null);
 const fullscreenCameraId = ref<string | null>(null);
 const cameraCardModels = reactive<CuiCameraCardModels>({
-  sourceRole: sourceRole.value,
+  sourceRole: gridPlayers.sourceRole,
   activityMode: uiSettings.value.camview.activityMode,
-  streamingMode: streamingMode.value,
+  streamingMode: gridPlayers.streamingMode,
 });
 
 const timelineClearance = 'calc(192px + var(--cui-bottom-gap))';
@@ -534,36 +539,41 @@ const detectionsEnabled = computed(() => uiSettings.value.camview.detections !==
 
 const activityMode = computed(() => uiSettings.value.camview.activityMode);
 
-const controlsStart = computed<CuiCamviewControlItem[]>(() => [
-  {
-    id: 'resolution',
-    label:
-      sourceRole.value === 'low-resolution'
-        ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_low')}`
-        : sourceRole.value === 'mid-resolution'
-          ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_mid')}`
-          : `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_high')}`,
-    icon: sourceRole.value === 'low-resolution' ? SourceRoleLowIcon : sourceRole.value === 'mid-resolution' ? SourceRoleMidIcon : SourceRoleHighIcon,
-    onClick: () => togglePlayerSourceRole(),
-  },
-  {
-    id: 'streaming',
-    label:
-      streamingMode.value === 'auto'
-        ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_auto')}`
-        : streamingMode.value === 'webrtc'
-          ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_webrtc')}`
-          : `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_mse')}`,
-    icon: streamingMode.value === 'auto' ? StreamingModeAutoIcon : streamingMode.value === 'webrtc' ? StreamingModeWebrtcIcon : StreamingModeMseIcon,
-    onClick: () => togglePlayerStreamingMode(),
-  },
-  {
-    id: 'mute',
-    label: isMuted.value ? t('components.form.tooltip.unmute') : t('components.form.tooltip.mute'),
-    icon: isMuted.value ? SpeakerOffIcon : SpeakerOnIcon,
-    onClick: togglePlayerMute,
-  },
-]);
+const playerControls = computed(() => expandedPlayer.value ?? gridPlayers);
+
+const controlsStart = computed<CuiCamviewControlItem[]>(() => {
+  const { muted, sourceRole, streamingMode } = playerControls.value;
+  return [
+    {
+      id: 'resolution',
+      label:
+        sourceRole === 'low-resolution'
+          ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_low')}`
+          : sourceRole === 'mid-resolution'
+            ? `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_mid')}`
+            : `${t('components.form.tooltip.resolution')}: ${t('components.form.tooltip.source_role_high')}`,
+      icon: sourceRole === 'low-resolution' ? SourceRoleLowIcon : sourceRole === 'mid-resolution' ? SourceRoleMidIcon : SourceRoleHighIcon,
+      onClick: () => togglePlayerSourceRole(),
+    },
+    {
+      id: 'streaming',
+      label:
+        streamingMode === 'auto'
+          ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_auto')}`
+          : streamingMode === 'webrtc'
+            ? `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_webrtc')}`
+            : `${t('components.form.tooltip.mode')}: ${t('components.form.tooltip.streaming_mode_mse')}`,
+      icon: streamingMode === 'auto' ? StreamingModeAutoIcon : streamingMode === 'webrtc' ? StreamingModeWebrtcIcon : StreamingModeMseIcon,
+      onClick: () => togglePlayerStreamingMode(),
+    },
+    {
+      id: 'mute',
+      label: muted ? t('components.form.tooltip.unmute') : t('components.form.tooltip.mute'),
+      icon: muted ? SpeakerOffIcon : SpeakerOnIcon,
+      onClick: togglePlayerMute,
+    },
+  ];
+});
 
 const controlsEnd = computed<CuiCamviewControlItem[]>(() => [
   {
@@ -830,6 +840,10 @@ function rearrangeCamera(cameras: DBCamviewLayoutCamera[]): void {
 
 function expandCamera(camera: DBCamera, expanded: boolean): void {
   expandedCameraId.value = expanded ? camera._id : null;
+  // the expanded card mounts muted and with the card models, not with the grid's current state
+  expandedPlayer.value = expanded
+    ? { muted: true, sourceRole: cameraCardModels.sourceRole ?? 'low-resolution', streamingMode: cameraCardModels.streamingMode ?? 'auto' }
+    : undefined;
 }
 
 function onCameraFullscreen(camera: DBCamera, active: boolean): void {
@@ -879,8 +893,9 @@ function toggleFullscreen() {
 }
 
 function togglePlayerMute() {
-  isMuted.value = !isMuted.value;
-  viewDndRef.value?.toggleAllPlayerMute(isMuted.value);
+  const controls = playerControls.value;
+  controls.muted = !controls.muted;
+  viewDndRef.value?.toggleShownPlayerMute(controls.muted);
 }
 
 function togglePlayerActivityMode() {
@@ -889,27 +904,29 @@ function togglePlayerActivityMode() {
 }
 
 async function togglePlayerSourceRole(state?: StreamingRole) {
-  let role = sourceRole.value;
+  const controls = playerControls.value;
+  let role = controls.sourceRole;
   role = state ? state : role === 'low-resolution' ? 'mid-resolution' : role === 'mid-resolution' ? 'high-resolution' : 'low-resolution';
-  await viewDndRef.value?.toggleAllPlayerSourceRole(role);
-  sourceRole.value = role;
+  await viewDndRef.value?.toggleShownPlayerSourceRole(role);
+  controls.sourceRole = role;
 }
 
 async function togglePlayerStreamingMode(state?: VideoStreamingMode) {
-  let currentMode = streamingMode.value;
+  const controls = playerControls.value;
+  let currentMode = controls.streamingMode;
 
   if (currentMode === 'auto') {
     currentMode = 'webrtc';
   }
 
   const mode = state ? state : currentMode === 'mse' ? 'webrtc' : 'mse';
-  await viewDndRef.value?.toggleAllPlayerStreamingMode(mode);
-  streamingMode.value = mode;
+  await viewDndRef.value?.toggleShownPlayerStreamingMode(mode);
+  controls.streamingMode = mode;
 }
 
 async function toggleIntercom(): Promise<void> {
   micPending.value = true;
-  await viewDndRef.value?.toggleAllPlayerMicrophone(!viewDndRef.value.micActive);
+  await viewDndRef.value?.toggleShownPlayerMicrophone(!viewDndRef.value.micActive);
   micPending.value = false;
 }
 
