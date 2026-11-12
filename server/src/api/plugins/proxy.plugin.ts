@@ -307,6 +307,11 @@ class WebSocketProxy {
         return;
       }
 
+      if (this.usersService.findById(dbToken.user_id)?.firstLogin) {
+        this.reject(request, socket, head, 4403, 'forbidden: password change required', token);
+        return;
+      }
+
       let targetUrl = this.upstream;
       let natsCreds: AuthConfig = this.proxy.auth.server;
       let firewallConnId: string | null = null;
