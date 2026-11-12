@@ -21,7 +21,7 @@ export const DEFAULT_PY_VERSION = '3.11';
 const POSIX = process.platform !== 'win32';
 
 export class PythonInstaller {
-  static readonly versions: PythonVersion[] = ['3.12', '3.11'];
+  static readonly versions: PythonVersion[] = ['3.14', '3.13', '3.12', '3.11'];
 
   readonly python: StandalonePython;
   readonly venvPath?: string;

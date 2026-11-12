@@ -16,6 +16,8 @@ const RELEASE_URL = `https://github.com/astral-sh/python-build-standalone/releas
 const BUILDS: Record<PythonVersion, string> = {
   3.11: '3.11.18',
   3.12: '3.12.16',
+  3.13: '3.13.18',
+  3.14: '3.14.10',
 };
 
 const CPUS: Record<string, string> = { x64: 'x86_64', arm64: 'aarch64' };
