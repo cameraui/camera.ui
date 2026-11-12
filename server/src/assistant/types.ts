@@ -95,6 +95,7 @@ export interface AssistantMcpServerView {
   url: string;
   enabled: boolean;
   insecure: boolean;
+  userAccess: boolean;
   tokenSet: boolean;
   toolApproval: Record<string, boolean>;
 }

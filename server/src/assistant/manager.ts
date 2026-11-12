@@ -255,7 +255,7 @@ export class AssistantManager {
     const entry = defaultEntry(record);
     return {
       ...record,
-      mcpServers: record.mcpServers.map((server) => ({ ...server, toolApproval: server.toolApproval ?? {} })),
+      mcpServers: record.mcpServers.map((server) => ({ ...server, userAccess: server.userAccess ?? false, toolApproval: server.toolApproval ?? {} })),
       provider: entry?.provider ?? 'ollama',
       baseURL: entry?.baseURL ?? null,
       apiKey: entry?.apiKey ?? null,
@@ -301,7 +301,7 @@ export class AssistantManager {
 
   public info(role?: DBRoles): AssistantInfo {
     const { apiKey: _apiKey, provider: _provider, baseURL: _baseURL, model: _model, sendImages: _sendImages, mcpServers, models, ...settings } = this.settings();
-    const servers = mcpServers.map(({ token, ...server }) => ({ ...server, tokenSet: token !== null }));
+    const servers = serversFor(mcpServers, role).map(({ token, ...server }) => ({ ...server, tokenSet: token !== null }));
     const views = modelsFor(models, role).map(({ apiKey, ...entry }) => ({ ...entry, apiKeySet: apiKey !== null }));
     return {
       settings: { ...settings, mcpServers: servers, models: views },
@@ -315,7 +315,7 @@ export class AssistantManager {
         ...this.registry.describe(role).filter((tool) => settings.terminalEnabled || tool.group !== TERMINAL_GROUP),
         ...(settings.webSearchEnabled ? [WEB_TOOL_INFO] : []),
       ],
-      external: this.registry.externalStatus(this.externalServers(this.settings())),
+      external: this.registry.externalStatus(servers),
     };
   }
 
@@ -1096,7 +1096,7 @@ export class AssistantManager {
       plugins,
       pluginToolCount: this.registry.pluginToolCount,
       external: this.registry
-        .externalStatus(this.externalServers(this.settings()))
+        .externalStatus(serversFor(this.settings().mcpServers, user.role))
         .filter((server) => server.state === 'connected' && server.toolCount > 0)
         .map((server) => server.name),
       extra: this.settings().systemPromptExtra,
@@ -1464,6 +1464,10 @@ function toolResultTokens(contextBudget: number): number {
 
 function modelsFor(models: DBAssistantModel[], role?: DBRoles): DBAssistantModel[] {
   return role === 'user' ? models.filter((entry) => entry.userAccess !== false) : models;
+}
+
+function serversFor(servers: DBAssistantMcpServer[], role?: DBRoles): DBAssistantMcpServer[] {
+  return role === 'user' ? servers.filter((server) => server.userAccess) : servers;
 }
 
 function isClientToolInterrupt(payload: unknown): boolean {

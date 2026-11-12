@@ -225,6 +225,7 @@ export class AssistantService {
               token,
               enabled: entry.enabled,
               insecure: entry.insecure,
+              userAccess: entry.userAccess ?? existing?.userAccess ?? false,
               toolApproval: entry.toolApproval ?? existing?.toolApproval ?? {},
             };
           });

@@ -4002,6 +4002,8 @@ export default {
       assistant_external_state_disabled: 'aus',
       assistant_external_insecure: 'Selbstsigniertes Zertifikat akzeptieren',
       assistant_external_insecure_info: 'Überspringt die Zertifikatsprüfung. Nur für Server im eigenen Netzwerk.',
+      assistant_external_users: 'Für Nutzer verfügbar',
+      assistant_external_users_info: 'Wenn aus, nutzen nur Admins die Werkzeuge dieses Servers.',
       title_remote: 'Remote Zugriff',
       title_nvr: 'NVR',
       title_permissions: 'Berechtigungen',

@@ -142,7 +142,7 @@ export class AssistantToolRegistry {
     for (const [id, source] of this.external) {
       const next = wanted.get(id);
       if (next && source.sameAs(next)) {
-        source.setToolApproval(next.toolApproval);
+        source.update(next);
         continue;
       }
       this.external.delete(id);
@@ -156,7 +156,7 @@ export class AssistantToolRegistry {
     }
   }
 
-  public externalStatus(servers: ExternalServer[]): AssistantExternalStatus[] {
+  public externalStatus(servers: Pick<ExternalServer, 'id' | 'name'>[]): AssistantExternalStatus[] {
     return servers.map((server) => this.external.get(server.id)?.status() ?? { id: server.id, name: server.name, state: 'disabled', toolCount: 0 });
   }
 

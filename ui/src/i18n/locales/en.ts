@@ -4014,6 +4014,8 @@ export default {
       assistant_external_state_disabled: 'off',
       assistant_external_insecure: 'Accept a self-signed certificate',
       assistant_external_insecure_info: 'Skips the certificate check. Only for servers in your own network.',
+      assistant_external_users: 'Available to users',
+      assistant_external_users_info: 'When off, only admins can use the tools of this server.',
       title_remote: 'Remote Access',
       title_system: 'System',
       title_user: 'User',

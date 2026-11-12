@@ -404,6 +404,13 @@
                       >
                         <ToggleSwitch :input-id="`server-insecure-${server.id}`" v-model="server.insecure" />
                       </CuiToggleRow>
+                      <CuiToggleRow
+                        :label="$t('views.settings.assistant_external_users')"
+                        :hint="$t('views.settings.assistant_external_users_info')"
+                        :label-for="`server-users-${server.id}`"
+                      >
+                        <ToggleSwitch :input-id="`server-users-${server.id}`" v-model="server.userAccess" />
+                      </CuiToggleRow>
                       <div class="flex">
                         <Button
                           type="button"
@@ -1107,7 +1114,7 @@ function externalStateClass(id: string): string {
 function addServer(): void {
   if (!form.value) return;
   const id = randomId();
-  form.value.mcpServers.push({ id, name: '', url: '', enabled: true, insecure: false, tokenSet: false, toolApproval: {} });
+  form.value.mcpServers.push({ id, name: '', url: '', enabled: true, insecure: false, userAccess: false, tokenSet: false, toolApproval: {} });
   openServers.value.push(id);
 }
 
@@ -1147,6 +1154,7 @@ function buildPatch(): PatchAssistantInput {
         url: server.url.trim(),
         enabled: server.enabled,
         insecure: server.insecure,
+        userAccess: server.userAccess,
         toolApproval: server.toolApproval,
         ...(serverTokens.value[server.id] ? { token: serverTokens.value[server.id] } : {}),
       })),

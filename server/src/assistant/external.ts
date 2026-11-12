@@ -33,14 +33,11 @@ export class ExternalMcpSource {
   private lastAttempt = 0;
   private connecting?: Promise<void>;
   private listed: Tool[] = [];
-  private toolApproval: Record<string, boolean>;
 
   constructor(
-    public readonly server: ExternalServer,
+    public server: ExternalServer,
     private logger: LoggerService,
-  ) {
-    this.toolApproval = server.toolApproval;
-  }
+  ) {}
 
   public get id(): string {
     return this.server.id;
@@ -66,8 +63,8 @@ export class ExternalMcpSource {
     return this.connecting;
   }
 
-  public setToolApproval(toolApproval: Record<string, boolean>): void {
-    this.toolApproval = toolApproval;
+  public update(server: ExternalServer): void {
+    this.server = server;
     this.tools = this.listed.map((tool) => this.wrap(tool));
   }
 
@@ -144,13 +141,13 @@ export class ExternalMcpSource {
 
   private wrap(tool: Tool): CoreTool {
     const name = `${slug(this.server.name)}__${tool.name.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
-    const asks = this.toolApproval[tool.name] ?? tool.annotations?.readOnlyHint !== true;
+    const asks = this.server.toolApproval[tool.name] ?? tool.annotations?.readOnlyHint !== true;
     const config = {
       name,
       description: `[${this.server.name}] ${tool.description ?? tool.title ?? tool.name}`,
       inputSchema: tool.inputSchema?.type === 'object' ? tool.inputSchema : EMPTY_SCHEMA,
       lazy: this.listed.length > LAZY_FROM,
-      metadata: { externalId: this.server.id, externalName: this.server.name, externalTool: tool.name, approval: asks },
+      metadata: { adminOnly: !this.server.userAccess, externalId: this.server.id, externalName: this.server.name, externalTool: tool.name, approval: asks },
     };
     const execute = async (input: unknown, ctx: ToolContext) => this.call(tool.name, input, ctx);
     return asks

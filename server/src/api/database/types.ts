@@ -314,6 +314,7 @@ export interface DBAssistantMcpServer {
   token: DBAssistantSecret | null;
   enabled: boolean;
   insecure: boolean;
+  userAccess: boolean;
   toolApproval: Record<string, boolean>;
 }
 
