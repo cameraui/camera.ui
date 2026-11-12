@@ -377,6 +377,9 @@ function timelineScroll(scrolling: boolean) {
 function captureScreenshot() {
   return activeCard.value?.captureScreenshot();
 }
+function askAssistant() {
+  return activeCard.value?.askAssistant();
+}
 
 watch(activityModeA, (val) => (activityMode.value = val));
 
@@ -428,6 +431,7 @@ defineExpose({
   timelineTarget,
   timelineScroll,
   captureScreenshot,
+  askAssistant,
 });
 </script>
 

@@ -138,6 +138,7 @@ export function useNotificationCenter({ filter, query, source, isAtTop }: Notifi
     dropNotifications(items.value, ids);
     dropNotifications(incoming.value, ids);
     if (selected.value && ids.includes(selected.value.id)) selected.value = undefined;
+    if (items.value.length < PAGE_SIZE) loadMore();
   }
 
   channel.on<StoredNotification>('added', (n) => {

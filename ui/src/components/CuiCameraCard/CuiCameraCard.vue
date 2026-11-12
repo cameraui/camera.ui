@@ -782,20 +782,6 @@
 
           <template v-if="!isDisabled">
             <Button
-              v-if="toolbarShareButton && hasPermission(undefined, 'admin')"
-              v-tooltip.top="{ value: $t('components.player.share_camera') }"
-              fluid
-              text
-              severity="contrast"
-              class="cui-icon-lg not-hover:text-surface-400"
-              @click="openShareDialog()"
-            >
-              <template #icon>
-                <i-tabler:share width="100%" height="100%" />
-              </template>
-            </Button>
-
-            <Button
               v-if="toolbarPipToggleButton"
               v-tooltip.top="{ value: $t('components.player.toggle_pip') }"
               fluid
@@ -807,20 +793,6 @@
             >
               <template #icon>
                 <i-mdi:picture-in-picture-bottom-right width="100%" height="100%" />
-              </template>
-            </Button>
-
-            <Button
-              v-if="toolbarSnapshotButton"
-              v-tooltip.top="{ value: $t('components.player.capture_snapshot') }"
-              fluid
-              text
-              severity="contrast"
-              class="cui-icon-lg not-hover:text-surface-400"
-              @click="captureScreenshot"
-            >
-              <template #icon>
-                <i-solar:camera-square-linear width="100%" height="100%" />
               </template>
             </Button>
 
@@ -860,6 +832,20 @@
           </Button>
 
           <Button
+            v-if="toolbarAskButton && !isDisabled"
+            v-tooltip.top="{ value: $t('components.player.ask_assistant') }"
+            fluid
+            text
+            severity="contrast"
+            class="cui-icon-lg not-hover:text-surface-400"
+            @click="askAssistant"
+          >
+            <template #icon>
+              <i-tabler:sparkles width="100%" height="100%" />
+            </template>
+          </Button>
+
+          <Button
             v-if="castTargets.length && hasPermission(undefined, 'admin')"
             v-tooltip.top="{ value: $t('components.player.cast') }"
             fluid
@@ -875,13 +861,27 @@
 
           <Button
             v-if="!isDisabled"
-            v-tooltip.top="{ value: $t('components.player.options') }"
+            v-tooltip.top="{ value: $t('components.player.layers') }"
             fluid
             text
             severity="contrast"
             class="cui-icon-lg"
-            :class="streamMenuActive ? '!text-primary' : 'not-hover:text-surface-400'"
-            @click="toggleOverlay('stream', () => streamMenuRef?.toggleMenu($event))"
+            :class="layerMenuActive ? '!text-primary' : 'not-hover:text-surface-400'"
+            @click="toggleOverlay('layers', () => layerMenuRef?.toggleMenu($event))"
+          >
+            <template #icon>
+              <i-tabler:stack-2 width="100%" height="100%" />
+            </template>
+          </Button>
+
+          <Button
+            v-if="actionMenuItems.length"
+            v-tooltip.top="{ value: $t('components.player.more') }"
+            fluid
+            text
+            severity="contrast"
+            class="cui-icon-lg not-hover:text-surface-400"
+            @click="toggleOverlay('actions', () => actionMenuRef?.toggleMenu($event))"
           >
             <template #icon>
               <i-lucide:more-vertical width="100%" height="100%" />
@@ -908,9 +908,21 @@
     </Card>
 
     <CuiMenu
-      v-if="mountedOverlays.stream"
-      ref="streamMenuRef"
-      :items="streamMenuItems"
+      v-if="mountedOverlays.layers"
+      ref="layerMenuRef"
+      :items="layerMenuItems"
+      :popover="{
+        pt: {
+          content: {
+            class: 'p-0! rounded-xl! overflow-hidden!',
+          },
+        },
+      }"
+    ></CuiMenu>
+    <CuiMenu
+      v-if="mountedOverlays.actions"
+      ref="actionMenuRef"
+      :items="actionMenuItems"
       :popover="{
         pt: {
           content: {
@@ -1014,7 +1026,7 @@ const log = useLogger();
 const router = useRouter();
 const routerStore = useRouterStore();
 const drawer = useCuiCameraDrawer();
-const { mounted: mountedOverlays, toggleOverlay } = useLazyOverlays<'stream' | 'cast' | 'fullscreen' | 'ptzPreset' | 'speed' | 'more'>();
+const { mounted: mountedOverlays, toggleOverlay } = useLazyOverlays<'layers' | 'actions' | 'cast' | 'fullscreen' | 'ptzPreset' | 'speed' | 'more'>();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const notificationsSocket = useNotificationsSocket();
@@ -1060,6 +1072,7 @@ const {
   subcontrol,
   subcontrolPtzButton,
   toolbar,
+  toolbarAskButton,
   toolbarClass,
   toolbarDetectionButton,
   toolbarPipToggleButton,
@@ -1093,7 +1106,8 @@ const speedOptions = [0.25, 0.5, 1, 2, 4, 8];
 
 const showDescription = ref(false);
 
-const streamMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('streamMenuRef');
+const layerMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('layerMenuRef');
+const actionMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('actionMenuRef');
 const castMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('castMenuRef');
 const ptzPresetMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('ptzPresetMenuRef');
 const fullscreenMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('fullscreenMenuRef');
@@ -1515,7 +1529,7 @@ const videoWrapperStyle = computed(() => {
   };
 });
 
-const streamMenuItems = computed<MenuItem[]>(() => {
+const layerMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
 
   if (toolbarDescriptionButton.value) {
@@ -1555,7 +1569,24 @@ const streamMenuItems = computed<MenuItem[]>(() => {
     },
   });
 
-  if (props.onOpenTrace && nvrPlaybackVisible.value && hasPermission(undefined, 'admin')) {
+  return items;
+});
+
+const layerMenuActive = computed(() => layerMenuItems.value.some((item) => item.toggle && item.toggleState));
+
+const actionMenuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [];
+  const admin = hasPermission(undefined, 'admin');
+
+  if (!isDisabled.value && toolbarSnapshotButton.value) {
+    items.push({ key: 'snapshot', label: t('components.player.capture_snapshot'), onClick: () => captureScreenshot() });
+  }
+
+  if (!isDisabled.value && toolbarShareButton.value && admin) {
+    items.push({ key: 'share', label: t('components.player.share_camera'), onClick: () => openShareDialog() });
+  }
+
+  if (!isDisabled.value && props.onOpenTrace && nvrPlaybackVisible.value && admin) {
     items.push({
       key: 'trace',
       label: t('views.recordings.open_trace'),
@@ -1564,16 +1595,8 @@ const streamMenuItems = computed<MenuItem[]>(() => {
     });
   }
 
-  items.push({
-    key: 'ask',
-    label: t('components.player.ask_assistant'),
-    onClick: () => router.push({ path: '/assistant', query: { prompt: assistantPrompt() } }),
-  });
-
   return items;
 });
-
-const streamMenuActive = computed(() => streamMenuItems.value.some((item) => item.toggle && item.toggleState));
 
 const castTargets = notificationsSocket.castTargets;
 
@@ -1690,6 +1713,10 @@ const hasMoreMenuItems = computed(() => {
 });
 
 const displayResolution = computed(() => selectedSourceRole.value);
+
+function askAssistant() {
+  router.push({ path: '/assistant', query: { prompt: assistantPrompt() } });
+}
 
 function assistantPrompt(): string {
   if (!nvrPlaybackVisible.value || !nvrCurrentTimestamp.value) return t('components.player.ask_assistant_prompt', { camera: cameraName.value });
@@ -2568,6 +2595,7 @@ defineExpose({
   timelineDocked,
   timelineScroll,
   captureScreenshot,
+  askAssistant,
 });
 </script>
 
