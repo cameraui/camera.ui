@@ -2,7 +2,7 @@ import semver from 'semver';
 
 import { checkEngineCompatibility, checkProtocolCompat } from '../../utils/engines.js';
 import { getPackument } from '../../utils/npm/index.js';
-import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
+import { describePlatformRequirement, isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { getBlock, getBlocklist } from '../../utils/plugin-registry/index.js';
 
 import type { PluginBackupInfo, RestorePluginIssue, RestorePluginResult } from '../../api/types/index.js';
@@ -95,7 +95,7 @@ export function describeRestorePluginIssue(issue: RestorePluginIssue): string {
     case 'engine':
       return `Version ${issue.version} needs ${issue.engine} ${issue.required}.`;
     case 'platform':
-      return `It needs ${describePlatformRequirement(issue.os, issue.cpu)}.`;
+      return `It needs ${describePlatformRequirement(issue)}.`;
   }
 }
 
@@ -104,8 +104,11 @@ function unavailable(version: string, issue: RestorePluginIssue): RestorePluginT
   return { version, note: 'unavailable', issue, reason: issue.code === 'not-in-registry' ? reason : `${reason} No other version runs on this camera.ui.` };
 }
 
-function describe({ version, os, cpu }: PackageManifest): RestorePluginTarget {
-  if (isPlatformCompatible(os, cpu)) return { version };
-  const issue: RestorePluginIssue = { code: 'platform', ...(os?.length && { os }), ...(cpu?.length && { cpu }) };
+function describe(manifest: PackageManifest): RestorePluginTarget {
+  const { version } = manifest;
+  const requirement = platformRequirement(manifest);
+  if (isPlatformCompatible(requirement)) return { version };
+  const { os, cpu, libc } = requirement;
+  const issue: RestorePluginIssue = { code: 'platform', ...(os?.length && { os }), ...(cpu?.length && { cpu }), ...(libc?.length && { libc }) };
   return { version, note: 'platform', issue, reason: describeRestorePluginIssue(issue) };
 }

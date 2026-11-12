@@ -269,7 +269,7 @@ function pluginReason({ issue, note, reason }: RestorePluginResult): string {
   if (!issue) return reason ?? '';
   const text =
     issue.code === 'platform'
-      ? t('restore.plugin_issue.platform', { platform: describePlatform(issue.os, issue.cpu) })
+      ? t('restore.plugin_issue.platform', { platform: describePlatform(issue.os, issue.cpu, issue.libc) })
       : t(`restore.plugin_issue.${issue.code.replaceAll('-', '_')}`, issue);
   return note === 'unavailable' && issue.code !== 'not-in-registry' ? `${text} ${t('restore.plugin_issue.no_other_version')}` : text;
 }

@@ -8,7 +8,7 @@ import { inject, tryInject } from '../../container.js';
 import { PluginManager } from '../../plugins/index.js';
 import { pythonEnvEntries, writeInstallMarker } from '../../plugins/install-state.js';
 import { extractPackage, getFullManifest, installDependencies } from '../../utils/npm/index.js';
-import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
+import { describeHost, describePlatformRequirement, isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { elidePath, getTerminalCols, InstallLogger } from '../utils/install-logger.js';
 import { CamerasService } from './cameras.service.js';
 import { updatesService } from './updates.service.js';
@@ -401,9 +401,9 @@ export class PluginsService {
       log.done();
 
       const pjson = await readJson(join(targetDir, 'package.json')).catch(() => null);
-      if (pjson && !isPlatformCompatible(pjson.os, pjson.cpu)) {
-        const requirement = describePlatformRequirement(pjson.os, pjson.cpu);
-        log.step(`Skipping dependencies: plugin requires ${requirement}, this host is ${process.platform}/${process.arch} (worker-only plugin)`);
+      if (pjson && !isPlatformCompatible(platformRequirement(pjson))) {
+        const requirement = describePlatformRequirement(platformRequirement(pjson));
+        log.step(`Skipping dependencies: plugin requires ${requirement}, this host is ${describeHost()} (worker-only plugin)`);
         log.done();
       } else {
         log.block('Installing dependencies');

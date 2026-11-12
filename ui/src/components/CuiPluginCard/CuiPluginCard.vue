@@ -218,6 +218,7 @@ const compatWarnings = computed<string[]>(() => {
     const parts: string[] = [];
     if (plugin.value.os?.length) parts.push(`os ${plugin.value.os.join('/')}`);
     if (plugin.value.cpu?.length) parts.push(`cpu ${plugin.value.cpu.join('/')}`);
+    if (plugin.value.libc?.length) parts.push(`libc ${plugin.value.libc.join('/')}`);
     warnings.push(t('components.plugin_card.compat_platform', { requirement: parts.join(', ') }));
   }
 

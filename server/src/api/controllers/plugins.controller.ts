@@ -12,7 +12,7 @@ import { createLogDownload } from '../../services/logger/logReader.js';
 import { checkEngineCompatibility, checkProtocolCompat } from '../../utils/engines.js';
 import { squarePng } from '../../utils/image.js';
 import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
-import { isPlatformCompatible } from '../../utils/platform.js';
+import { isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { computeTrust, getBlock, getBlocklist, getCatalog, getVerified, getWeeklyDownloads, invalidateRegistry } from '../../utils/plugin-registry/index.js';
 import { TtlCache } from '../../utils/ttl-cache.js';
 import { CamerasService } from '../services/cameras.service.js';
@@ -28,6 +28,7 @@ import type { ProxyServer } from '../../rpc/index.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { LogManager } from '../../services/logger/logManager.js';
 import type { NpmSearchObject } from '../../utils/npm/index.js';
+import type { PlatformRequirement } from '../../utils/platform.js';
 import type { CatalogEntry, VerifiedEntry } from '../../utils/plugin-registry/index.js';
 import type {
   AuthLoginRequest,
@@ -220,15 +221,13 @@ export class PluginsController {
       const pluginVersion = req.query.pluginversion ?? 'latest';
 
       let engines: Record<string, string> | undefined;
-      let os: string[] | undefined;
-      let cpu: string[] | undefined;
+      let requirement: PlatformRequirement = {};
       let protocolLevel: number | undefined;
 
       try {
         const manifest = await getFullManifest(`${pluginName}@${pluginVersion}`);
         engines = manifest.engines;
-        os = (manifest as { os?: string[] }).os;
-        cpu = (manifest as { cpu?: string[] }).cpu;
+        requirement = platformRequirement(manifest);
         protocolLevel = manifest.cameraui?.protocolLevel;
       } catch (error: any) {
         this.logger.warn(`Failed to resolve engines for ${pluginName}@${pluginVersion}: ${error.message}`);
@@ -240,9 +239,8 @@ export class PluginsController {
       return reply.code(200).send({
         compatible: issues.length === 0,
         issues,
-        os,
-        cpu,
-        platformCompatible: isPlatformCompatible(os, cpu),
+        ...requirement,
+        platformCompatible: isPlatformCompatible(requirement),
         protocolCompat: checkProtocolCompat(protocolLevel),
       });
     } catch (error: any) {
@@ -1152,6 +1150,7 @@ export class PluginsController {
       }
 
       const manifest = latestVersion ? pkg.versions?.[latestVersion] : undefined;
+      const requirement = platformRequirement(manifest ?? {});
       const packageDisplayName = (pkg as { displayName?: string }).displayName ?? (manifest as { displayName?: string } | undefined)?.displayName;
 
       plugin = {
@@ -1181,9 +1180,8 @@ export class PluginsController {
           interfaces: [],
           name: '',
         },
-        os: (manifest as { os?: string[] } | undefined)?.os,
-        cpu: (manifest as { cpu?: string[] } | undefined)?.cpu,
-        compatible: isPlatformCompatible((manifest as { os?: string[] } | undefined)?.os, (manifest as { cpu?: string[] } | undefined)?.cpu),
+        ...requirement,
+        compatible: isPlatformCompatible(requirement),
       };
 
       this.enrichPlugin(plugin, searchPkg, catalog, verified);

@@ -503,7 +503,7 @@ const workerHeaders = computed<TableHeader[]>(() => [
   },
   {
     type: 'category',
-    field: (item: WorkerInfo) => (item.platform ? `${item.platform.os}/${item.platform.arch}` : '—'),
+    field: (item: WorkerInfo) => (item.platform ? [item.platform.os, item.platform.arch, item.platform.libc].filter(Boolean).join('/') : '—'),
     name: t('views.workers.platform'),
     asChip: true,
     columnProps: {
@@ -889,13 +889,15 @@ function matchesNpmList(list: string[] | undefined, value: string): boolean {
 
 function isPluginCompatibleWithWorker(plugin: CameraUiPlugin, worker: WorkerInfo): boolean {
   if (!worker.platform) return true;
-  return matchesNpmList(plugin.os, worker.platform.os) && matchesNpmList(plugin.cpu, worker.platform.arch);
+  const { os, arch, libc } = worker.platform;
+  return matchesNpmList(plugin.os, os) && matchesNpmList(plugin.cpu, arch) && (!libc || matchesNpmList(plugin.libc, libc));
 }
 
 function platformRequirement(plugin: CameraUiPlugin): string {
   const parts: string[] = [];
   if (plugin.os?.length) parts.push(`os: ${plugin.os.join(', ')}`);
   if (plugin.cpu?.length) parts.push(`cpu: ${plugin.cpu.join(', ')}`);
+  if (plugin.libc?.length) parts.push(`libc: ${plugin.libc.join(', ')}`);
   return parts.join(' · ');
 }
 

@@ -13,7 +13,7 @@ import { NamespaceManager } from '../../rpc/namespaces.js';
 import { workerName } from '../../services/config/defaults.js';
 import { checkProtocolCompat } from '../../utils/engines.js';
 import { extractArtifact, installDependencies } from '../../utils/npm/index.js';
-import { describePlatformRequirement, isPlatformCompatible } from '../../utils/platform.js';
+import { describeHost, describePlatformRequirement, isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { KeyedLock, Slots } from '../lifecycle/limits.js';
 import { ManagedWorkload, ProvisionError } from '../lifecycle/managed-workload.js';
 import { WorkerCapability } from '../types.js';
@@ -434,8 +434,8 @@ export class PluginHostHandler implements CapabilityHandler<WorkerCapability.Plu
   private async buildRuntimePlugin(spec: RemotePluginConfig, installPath: string): Promise<RuntimePlugin> {
     const pjson = (await readJson(join(installPath, 'package.json'))) as IPackageJson;
 
-    if (!isPlatformCompatible(pjson.os, pjson.cpu)) {
-      throw new ProvisionError(`plugin requires ${describePlatformRequirement(pjson.os, pjson.cpu)}, this worker is ${process.platform}/${process.arch}`, 'platform');
+    if (!isPlatformCompatible(platformRequirement(pjson))) {
+      throw new ProvisionError(`plugin requires ${describePlatformRequirement(platformRequirement(pjson))}, this worker is ${describeHost()}`, 'platform');
     }
 
     const protocolCompat = checkProtocolCompat(pjson.cameraui?.protocolLevel);

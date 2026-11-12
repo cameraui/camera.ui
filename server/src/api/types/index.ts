@@ -819,7 +819,7 @@ export type RestorePluginIssue =
   | { code: 'needs-newer-server'; version: string }
   | { code: 'built-for-older-server'; version: string }
   | { code: 'engine'; version: string; engine: string; required: string }
-  | { code: 'platform'; os?: string[]; cpu?: string[] };
+  | { code: 'platform'; os?: string[]; cpu?: string[]; libc?: string[] };
 
 export interface RestorePluginResult {
   name: string;
@@ -1140,7 +1140,7 @@ export interface IPackageJson {
   publishConfig?: { registry?: string };
   exports?: Record<string, any>;
   type?: 'module';
-  cameraui?: { protocolLevel?: number };
+  cameraui?: { protocolLevel?: number; libc?: string[] };
 }
 
 export interface INpmRegistryModule {
@@ -1227,6 +1227,7 @@ export interface EngineCompatResult {
   issues: EngineIssue[];
   os?: string[];
   cpu?: string[];
+  libc?: string[];
   platformCompatible?: boolean;
   protocolCompat?: ProtocolCompat;
 }
@@ -1273,6 +1274,7 @@ export interface CameraUiPlugin {
   isNode: boolean;
   os?: string[];
   cpu?: string[];
+  libc?: string[];
   compatible: boolean;
   engineIssues?: EngineIssue[];
   protocolLevel?: number;

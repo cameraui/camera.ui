@@ -99,9 +99,10 @@
           </span>
         </Tag>
 
-        <div v-if="osLabels.length || cpuLabels.length" class="flex flex-wrap items-center gap-1">
+        <div v-if="osLabels.length || cpuLabels.length || libcLabels.length" class="flex flex-wrap items-center gap-1">
           <Tag v-for="label in osLabels" :key="`os-${label}`" severity="secondary" :value="label" />
           <Tag v-for="label in cpuLabels" :key="`cpu-${label}`" severity="secondary" :value="label" />
+          <Tag v-for="label in libcLabels" :key="`libc-${label}`" severity="secondary" :value="label" />
         </div>
       </template>
 
@@ -144,7 +145,7 @@
 <script setup lang="ts">
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
-import { humanizeCpu, humanizeOs } from '@/common/platformLabels.js';
+import { humanizeCpu, humanizeLibc, humanizeOs } from '@/common/platformLabels.js';
 import { formatCompactNumber, formatRelativeTime } from '@/common/utils.js';
 
 import type { VersionsHandlerProps } from '@/components/CuiDialog/templates/VersionsHandler/types.js';
@@ -180,12 +181,16 @@ const osLabels = computed(() => (compat.value?.os ?? []).map(humanizeOs));
 
 const cpuLabels = computed(() => (compat.value?.cpu ?? []).map(humanizeCpu));
 
-const platformRequirement = computed(() => [...osLabels.value, ...cpuLabels.value].join(' · '));
+const libcLabels = computed(() => (compat.value?.libc ?? []).map(humanizeLibc));
+
+const platformRequirement = computed(() => [...osLabels.value, ...cpuLabels.value, ...libcLabels.value].join(' · '));
 
 const platformCompatible = computed(() => compat.value?.platformCompatible ?? true);
 
 const showCompat = computed(
-  () => Boolean(compat.value) && (osLabels.value.length > 0 || cpuLabels.value.length > 0 || !platformCompatible.value || (compat.value?.issues?.length ?? 0) > 0),
+  () =>
+    Boolean(compat.value) &&
+    (osLabels.value.length > 0 || cpuLabels.value.length > 0 || libcLabels.value.length > 0 || !platformCompatible.value || (compat.value?.issues?.length ?? 0) > 0),
 );
 
 function onConfirm() {

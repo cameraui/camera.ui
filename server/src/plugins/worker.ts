@@ -9,7 +9,7 @@ import { SystemNotificationTypeId } from '../manager/types.js';
 import { PLUGIN_COMMAND, PLUGIN_STATUS } from '../plugins/types.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { isShuttingDown } from '../shutdown-state.js';
-import { describePlatformRequirement } from '../utils/platform.js';
+import { describeHost, describePlatformRequirement } from '../utils/platform.js';
 import { LocalStartAbandoned, RemotePlacement } from '../workers/lifecycle/remote-placement.js';
 import { STORE_LINGER_MS } from '../workers/lifecycle/timing.js';
 import { WORKER_PROTOCOL, WorkerCapability } from '../workers/types.js';
@@ -229,9 +229,10 @@ export class PluginWorker {
 
     if (!this.plugin.info.compatible) {
       this.setStatus(PLUGIN_STATUS.INCOMPATIBLE);
-      const requirement = describePlatformRequirement(this.plugin.info.os, this.plugin.info.cpu);
-      const host = `${process.platform}/${process.arch}`;
-      this.runtime.logger.warn(`Can not start plugin ${this.plugin.displayName} on this system (${host}), it requires ${requirement}. Assign a compatible worker.`);
+      const requirement = describePlatformRequirement(this.plugin.info);
+      this.runtime.logger.warn(
+        `Can not start plugin ${this.plugin.displayName} on this system (${describeHost()}), it requires ${requirement}. Assign a compatible worker.`,
+      );
       return;
     }
 

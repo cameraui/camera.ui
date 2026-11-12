@@ -18,6 +18,7 @@ import { assertServerUpdateSpace } from '../utils/disk-space.js';
 import { MIN_SUPPORTED_PROTOCOL_LEVEL } from '../utils/engines.js';
 import { setInstancePrefix } from '../utils/instance-id.js';
 import { announceUpdateChannel, appUpdateState, canRequestServerUpdate, requestAppUpdateCheck, requestServerUpdate, sendIPCMessage } from '../utils/ipc.js';
+import { hostPlatform } from '../utils/platform.js';
 import { KILL_MARGIN_MS } from '../utils/supervised-child.js';
 import { collectSystemInfo } from '../utils/system-info.js';
 import { FrameDecodingHandler } from './capabilities/frame-decoding.js';
@@ -1200,7 +1201,7 @@ export class WorkerAgent implements WorkerAgentRPC {
       uptime: Date.now() - this.startTime,
       capabilities: this.capabilities,
       version: ConfigService.RUNNING_VERSION,
-      platform: { os: process.platform, arch: process.arch },
+      platform: hostPlatform(),
       addresses: fetchViableNetworkAddresses(),
       system: this.system,
       pid: process.pid,

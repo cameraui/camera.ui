@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { inject } from '../container.js';
 import { ConfigService } from '../services/config/index.js';
 import { checkEngineCompatibility, checkProtocolCompat } from '../utils/engines.js';
-import { isPlatformCompatible } from '../utils/platform.js';
+import { isPlatformCompatible, platformRequirement } from '../utils/platform.js';
 import { PluginManager } from './index.js';
 import { readInstallMarker, readInstallMarkerSync } from './install-state.js';
 import { resolvePluginMain } from './main-file.js';
@@ -161,7 +161,8 @@ not satisfy the current Node.js version of ${process.version}. You may need to u
       contract: this._contract,
       os: pjson.os,
       cpu: pjson.cpu,
-      compatible: isPlatformCompatible(pjson.os, pjson.cpu),
+      libc: pjson.cameraui?.libc,
+      compatible: isPlatformCompatible(platformRequirement(pjson)),
       engineIssues: checkEngineCompatibility(pjson.engines, ConfigService.VERSION, process.version),
       protocolLevel: pjson.cameraui?.protocolLevel,
       protocolCompat: checkProtocolCompat(pjson.cameraui?.protocolLevel),

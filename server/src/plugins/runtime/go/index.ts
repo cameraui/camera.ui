@@ -1,9 +1,10 @@
-import { execSync, spawn } from 'node:child_process';
-import { chmodSync, existsSync, readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { chmodSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { arch, platform } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { isMusl } from '../../../utils/platform.js';
 import { BasePluginRuntime } from '../base.js';
 
 export class GoPluginRuntime extends BasePluginRuntime {
@@ -84,35 +85,4 @@ export class GoPluginRuntime extends BasePluginRuntime {
     const suffix = goos === 'linux' && isMusl() ? '-musl' : '';
     return `${goos}-${goarch}${suffix}`;
   }
-}
-
-let cachedMusl: boolean | undefined;
-
-function isMusl(): boolean {
-  cachedMusl ??= detectMusl();
-  return cachedMusl;
-}
-
-function detectMusl(): boolean {
-  if (platform() !== 'linux') {
-    return false;
-  }
-
-  try {
-    if (readFileSync('/usr/bin/ldd', 'utf-8').includes('musl')) {
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-
-  try {
-    if (execSync('ldd --version 2>&1', { encoding: 'utf-8' }).includes('musl')) {
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-
-  return false;
 }

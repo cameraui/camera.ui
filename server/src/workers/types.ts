@@ -177,6 +177,7 @@ export interface WorkerHealthInfo {
 export interface WorkerPlatform {
   os: string;
   arch: string;
+  libc?: string;
 }
 
 export interface WorkerUpdateState {

@@ -13,7 +13,7 @@ import { NamespaceManager, SUBJECT_TOKEN } from '../rpc/namespaces.js';
 import { DETECTION_SENSOR_TYPES, getAssignmentKey } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
 import { setInstancePrefix } from '../utils/instance-id.js';
-import { describePlatformRequirement, isPlatformCompatible } from '../utils/platform.js';
+import { describeHost, describePlatformRequirement, isPlatformCompatible } from '../utils/platform.js';
 import { clockTime, shortId } from './lifecycle/format.js';
 import { graceRest, hostClock, shutdownRecord } from './lifecycle/grace.js';
 import { answerKind, expectedPresence, isPlaceable, presenceDeadline, reducePresence } from './lifecycle/presence.js';
@@ -971,8 +971,8 @@ export class WorkerManager {
     if (capability === WorkerCapability.PluginHost && !agentId) {
       const plugin = new PluginsService().getPluginByName(id);
       if (plugin && !plugin.info.compatible) {
-        const requirement = describePlatformRequirement(plugin.info.os, plugin.info.cpu);
-        throw new WorkerRequestError(400, `Plugin ${id} requires ${requirement} and cannot run on this server (${process.platform}/${process.arch})`);
+        const requirement = describePlatformRequirement(plugin.info);
+        throw new WorkerRequestError(400, `Plugin ${id} requires ${requirement} and cannot run on this server (${describeHost()})`);
       }
       return;
     }
@@ -996,9 +996,9 @@ export class WorkerManager {
     }
 
     const plugin = new PluginsService().getPluginByName(id);
-    if (plugin && worker.platform && !isPlatformCompatible(plugin.info.os, plugin.info.cpu, worker.platform.os, worker.platform.arch)) {
-      const requirement = describePlatformRequirement(plugin.info.os, plugin.info.cpu);
-      throw new WorkerRequestError(400, `Plugin ${id} requires ${requirement}, but worker ${worker.name} is ${worker.platform.os}/${worker.platform.arch}`);
+    if (plugin && worker.platform && !isPlatformCompatible(plugin.info, worker.platform)) {
+      const requirement = describePlatformRequirement(plugin.info);
+      throw new WorkerRequestError(400, `Plugin ${id} requires ${requirement}, but worker ${worker.name} is ${describeHost(worker.platform)}`);
     }
     const level = plugin?.info.protocolLevel;
     const range = this.pluginProtocols.get(agentId);
@@ -1064,8 +1064,8 @@ export class WorkerManager {
     if (!plugin) {
       return { reason: `plugin ${id} is not installed`, wait: false };
     }
-    if (worker.platform && !isPlatformCompatible(plugin.info.os, plugin.info.cpu, worker.platform.os, worker.platform.arch)) {
-      return { reason: `needs ${describePlatformRequirement(plugin.info.os, plugin.info.cpu)}`, wait: pinned };
+    if (worker.platform && !isPlatformCompatible(plugin.info, worker.platform)) {
+      return { reason: `needs ${describePlatformRequirement(plugin.info)}`, wait: pinned };
     }
     const level = plugin.info.protocolLevel;
     const range = this.pluginProtocols.get(agentId);

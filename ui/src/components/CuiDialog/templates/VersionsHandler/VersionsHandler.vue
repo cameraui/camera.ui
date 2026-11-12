@@ -183,7 +183,7 @@ const compatIssues = computed<EngineIssue[]>(() => pluginCompat.value?.issues ??
 
 const platformIncompatible = computed(() => pluginCompat.value?.platformCompatible === false);
 
-const platformRequirement = computed(() => describePlatform(pluginCompat.value?.os, pluginCompat.value?.cpu));
+const platformRequirement = computed(() => describePlatform(pluginCompat.value?.os, pluginCompat.value?.cpu, pluginCompat.value?.libc));
 
 const changelog = computed<string | undefined>(() => {
   if (isPluginTarget(target.value)) {

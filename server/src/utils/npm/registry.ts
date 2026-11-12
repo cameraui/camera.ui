@@ -35,7 +35,7 @@ export interface PackageManifest {
   cpu?: string[];
   deprecated?: string;
   displayName?: string;
-  cameraui?: { protocolLevel?: number; workerProtocol?: { level?: number; min?: number } };
+  cameraui?: { protocolLevel?: number; workerProtocol?: { level?: number; min?: number }; libc?: string[] };
   [key: string]: unknown;
 }
 
