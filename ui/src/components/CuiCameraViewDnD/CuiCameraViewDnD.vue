@@ -1,7 +1,12 @@
 <template>
   <DndProvider :backend="isTouch ? TouchBackend : HTML5Backend" :options="isTouch ? { enableMouseEvents: true } : undefined">
     <div class="w-full h-full flex flex-row">
-      <div ref="viewRef" class="view-container w-full flex flex-col min-w-0 overflow-y-auto items-center" :class="{ 'px-2': editMode && lgBreakpoint }">
+      <div
+        ref="viewRef"
+        class="view-container w-full flex flex-col min-w-0 overflow-y-auto items-center"
+        :class="{ 'px-2': editMode && lgBreakpoint }"
+        :style="isFullscreen ? { paddingBottom: fullscreenInsetBottom } : undefined"
+      >
         <template v-if="isFullscreen">
           <div class="cui-fs-actions">
             <slot name="fullscreen-actions" />

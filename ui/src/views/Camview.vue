@@ -163,6 +163,7 @@
             :cards
             :camera-card-props
             :camera-card-models
+            :fullscreen-inset-bottom="fullscreenTimelineShown ? timelineHeight : undefined"
             @drop="dropCamera"
             @remove="removeCamera"
             @change-view-size="openDialog('editView')"
@@ -171,6 +172,19 @@
             @rearrange="rearrangeCamera"
           >
             <template #fullscreen-actions>
+              <Button
+                severity="secondary"
+                rounded
+                class="cui-fs-button"
+                :aria-label="timelineState ? $t('components.form.tooltip.hide_timeline') : $t('components.form.tooltip.show_timeline')"
+                @click="timelineState = !timelineState"
+              >
+                <template #icon>
+                  <i-mingcute:timeline-line v-if="!timelineState" class="w-5 h-5" />
+                  <i-mingcute:timeline-fill v-else class="w-5 h-5" />
+                </template>
+              </Button>
+
               <Button
                 severity="secondary"
                 rounded
@@ -191,7 +205,10 @@
                 v-bind="controlsProps"
                 :fab="false"
                 class="fixed inset-x-0 z-[2147483647] px-2 dark-mode"
-                :style="{ bottom: 'calc(var(--safe-area-inset-bottom) + 0.5rem)' }"
+                :style="{
+                  bottom: fullscreenTimelineShown ? `calc(var(--safe-area-inset-bottom) + ${timelineHeight})` : 'calc(var(--safe-area-inset-bottom) + 0.5rem)',
+                  transition: 'bottom 0.25s ease-out',
+                }"
                 @mic="toggleIntercom"
               />
             </template>
@@ -199,60 +216,58 @@
         </div>
       </div>
 
-      <Transition
-        :name="sideTimeline ? 'slide-left' : 'slide-up'"
-        @before-enter="timelineSpaceOccupied = true"
-        @after-enter="timelineAnimating = false"
-        @before-leave="timelineSpaceOccupied = false"
-      >
-        <CuiTimeline
-          v-if="timelineState && !fullscreenCameraId"
-          ref="cuiTimelineRef"
-          v-model:segment="timelineSegment"
-          :views="timelineViews"
-          :find-count="findCount"
-          :camera-ids="timelineCameraIds"
-          :event-camera-ids="viewCameraIds"
-          :camera-names="cameraNameMap"
-          :initial-timestamp="timelineInitialTimestamp"
-          :only-events="findKeys"
-          @event-select="onTimelineEventSelect"
-          :loading="timelineAnimating"
-          :type="sideTimeline ? 'vertical' : 'horizontal'"
-          dark-mode
-          :md-breakpoint="mdBreakpoint || shortBreakpoint"
-          class="shrink-0 transition-[left] duration-200"
-          :class="{
-            'h-full pt-2 pr-2 pb-[var(--cui-bottom-gap)]': sideTimeline,
-            'h-[200px] pt-2 px-2 pb-2 pb-safe-offset fixed right-safe-offset-0 z-10': !sideTimeline,
-            'p-0! pt-2! border-color': smBreakpoint,
-          }"
-          :card-class="{
-            '!shadow-xl': true,
-            '!rounded-none border-l-0! border-r-0!': smBreakpoint,
-          }"
-          :style="
-            sideTimeline
-              ? { width: `${sideTimelineWidth}px` }
-              : { left: `calc(${navbarOffset}px + var(--safe-area-inset-left))`, bottom: 'calc(var(--cui-bottom-bar) + var(--cui-bottom-gap) - 0.5rem)' }
-          "
-          :locale-settings="timelineLocaleSettings"
-          :trim-mode="exportMode"
-          trim-variant="export"
-          :export-available="Boolean(exportCameraId)"
-          @toggle-export-mode="exportMode = !exportMode"
+      <Teleport :to="topmostFullscreen" :disabled="!isFullscreen">
+        <Transition
+          :name="verticalTimeline ? 'slide-left' : 'slide-up'"
+          @before-enter="timelineSpaceOccupied = true"
+          @after-enter="timelineAnimating = false"
+          @before-leave="timelineSpaceOccupied = false"
         >
-          <template #bottom-right>
-            <div v-if="exportMode && exportCameraId" class="flex gap-2 items-center" :class="sideTimeline ? 'flex-col-reverse' : 'flex-row-reverse'">
-              <CuiTimelineExport :timeline="cuiTimelineRef" :camera-id="exportCameraId" :horizontal="!sideTimeline" />
-            </div>
-          </template>
+          <CuiTimeline
+            v-if="timelineState && !fullscreenCameraId"
+            ref="cuiTimelineRef"
+            v-model:segment="timelineSegment"
+            :views="timelineViews"
+            :find-count="findCount"
+            :camera-ids="timelineCameraIds"
+            :event-camera-ids="viewCameraIds"
+            :camera-names="cameraNameMap"
+            :initial-timestamp="timelineInitialTimestamp"
+            :only-events="findKeys"
+            @event-select="onTimelineEventSelect"
+            :loading="timelineAnimating"
+            :type="verticalTimeline ? 'vertical' : 'horizontal'"
+            dark-mode
+            :md-breakpoint="mdBreakpoint || shortBreakpoint"
+            class="shrink-0 transition-[left] duration-200"
+            :class="{
+              'h-full pt-2 pr-2 pb-[var(--cui-bottom-gap)]': verticalTimeline,
+              'h-[200px] pt-2 px-2 pb-2 pb-safe-offset fixed right-safe-offset-0 z-10': !verticalTimeline,
+              'p-0! pt-2! border-color': smBreakpoint,
+            }"
+            :card-class="{
+              '!shadow-xl': true,
+              '!rounded-none border-l-0! border-r-0!': smBreakpoint,
+            }"
+            :style="timelineStyle"
+            :locale-settings="timelineLocaleSettings"
+            :trim-mode="exportMode"
+            trim-variant="export"
+            :export-available="Boolean(exportCameraId)"
+            @toggle-export-mode="exportMode = !exportMode"
+          >
+            <template #bottom-right>
+              <div v-if="exportMode && exportCameraId" class="flex gap-2 items-center" :class="verticalTimeline ? 'flex-col-reverse' : 'flex-row-reverse'">
+                <CuiTimelineExport :timeline="cuiTimelineRef" :camera-id="exportCameraId" :horizontal="!verticalTimeline" />
+              </div>
+            </template>
 
-          <template #find="{ layout }">
-            <CuiFindObjectView :layout @open="openFindMatch" @show-all="openSimilarSearch" />
-          </template>
-        </CuiTimeline>
-      </Transition>
+            <template #find="{ layout }">
+              <CuiFindObjectView :layout @open="openFindMatch" @show-all="openSimilarSearch" />
+            </template>
+          </CuiTimeline>
+        </Transition>
+      </Teleport>
     </div>
 
     <CuiCamviewControls
@@ -307,6 +322,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTopmostFullscreenElement } from '@camera.ui/browser';
 import { CuiTimeline, useMultiNvrPlayback } from '@camera.ui/nvr';
 import StreamingModeMseIcon from '~icons/cbi/iosfacetime';
 import ActivityModeActivityIcon from '~icons/fluent/pulse-24-filled';
@@ -335,12 +351,12 @@ import { FindObjectKey } from '@/components/CuiFindObjectView/types.js';
 import { TOPNAVBAR_HEIGHT } from '@/components/CuiTopNavbar/types.js';
 
 import type { CuiCameraCardModels, CuiCameraCardProps } from '@/components/CuiCameraCard/types.js';
-import type { CuiCamviewControlItem, CuiCamviewControlsProps } from '@/components/CuiCamviewControls/types.js';
 import type { CardState } from '@/components/CuiCameraViewDnD/types.js';
+import type { CuiCamviewControlItem, CuiCamviewControlsProps } from '@/components/CuiCamviewControls/types.js';
 import type { CamviewFormProps } from '@/components/CuiDialog/templates/CamviewForm/types.js';
+import type { FindPick } from '@/components/CuiFindObjectView/types.js';
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
-import type { FindPick } from '@/components/CuiFindObjectView/types.js';
 import type { SimilarResultOpen } from '@/components/CuiSimilarResults/types.js';
 import type { VideoStreamingMode } from '@camera.ui/browser';
 import type { StreamingRole } from '@camera.ui/sdk';
@@ -366,6 +382,7 @@ const timelineLocaleSettings = useTimelineLocale();
 const dialog = useCuiDialog();
 const { bottombarHeight } = useSharedCuiStates();
 const { smBreakpoint, lgBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
+const topmostFullscreen = useTopmostFullscreenElement();
 const { openOnCamera, openSimilarSearch } = useSimilarSearchRoute();
 
 const authStore = useAuthStore();
@@ -412,6 +429,7 @@ const cameraCardModels = reactive<CuiCameraCardModels>({
 });
 
 const timelineClearance = 'calc(192px + var(--cui-bottom-gap))';
+const timelineHeight = '200px';
 
 const isLoading = computed(() => camerasLoading.value || viewsLoading.value || removeViewPending.value || addViewPending.value || patchViewPending.value);
 const viewPending = computed(
@@ -503,6 +521,14 @@ const find = useFindObject({
 const { segment: timelineSegment, views: timelineViews, keys: findKeys, count: findCount } = find;
 
 const isFullscreen = computed(() => Boolean(viewDndRef.value?.isFullscreen));
+const fullscreenTimelineShown = computed(() => isFullscreen.value && timelineState.value && !fullscreenCameraId.value);
+const verticalTimeline = computed(() => sideTimeline.value && !isFullscreen.value);
+
+const timelineStyle = computed<HTMLAttributes['style']>(() => {
+  if (verticalTimeline.value) return { width: `${sideTimelineWidth.value}px` };
+  if (isFullscreen.value) return { left: 'var(--safe-area-inset-left)', bottom: 'var(--safe-area-inset-bottom)' };
+  return { left: `calc(${navbarOffset.value}px + var(--safe-area-inset-left))`, bottom: 'calc(var(--cui-bottom-bar) + var(--cui-bottom-gap) - 0.5rem)' };
+});
 
 const detectionsEnabled = computed(() => uiSettings.value.camview.detections !== false);
 

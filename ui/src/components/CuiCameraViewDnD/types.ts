@@ -69,6 +69,7 @@ export interface CuiCameraViewDnDProps {
   rearrangeMode?: boolean;
   cameraCardProps: Omit<CuiCameraCardProps, 'cameraInfo'>;
   cameraCardModels?: CuiCameraCardModels;
+  fullscreenInsetBottom?: string;
 }
 
 export interface CuiCameraViewDnDEmits {
