@@ -27,7 +27,7 @@ const isHidden = computed(() => props.hidden || (scrollHidden.value && !props.fo
 const position = computed(() => {
   if (props.contained) return { bottom: '0.75rem', [props.side]: '0.75rem' };
   return {
-    bottom: 'var(--cui-fab-bottom)',
+    bottom: props.bottom ?? 'var(--cui-fab-bottom)',
     [props.side]: props.offset ?? `calc(1.25rem + var(--safe-area-inset-${props.side}))`,
   };
 });

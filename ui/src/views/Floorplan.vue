@@ -191,57 +191,35 @@
       />
     </div>
 
-    <CuiSpeedDial
-      v-if="isAdmin && !loading"
-      :model="speedDialItems"
-      :style="{
-        position: 'fixed',
-        zIndex: 15,
-        bottom: hasChanges ? `calc(${fabBottom} + 3rem)` : fabBottom,
-        right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
-        transition: 'right 0.2s ease-in-out, bottom 0.2s ease-in-out',
-      }"
-    />
+    <CuiFloatingButtonGroup v-if="isAdmin && !loading" :offset="fabRight" :bottom="fabBottom" class="pointer-events-none items-center gap-2" :style="{ zIndex: 15 }">
+      <CuiSpeedDial :model="speedDialItems" />
 
-    <Button
-      v-if="isAdmin && hasChanges"
-      v-tooltip="{ value: $t('views.floorplan.save') }"
-      rounded
-      severity="success"
-      class="text-white"
-      :loading="saving"
-      :style="{
-        position: 'fixed',
-        zIndex: 15,
-        bottom: fabBottom,
-        right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
-        transition: 'right 0.2s ease-in-out, bottom 0.2s ease-in-out',
-      }"
-      @click="onSave"
-    >
-      <template #icon>
-        <i-carbon:save class="w-5 h-5" />
-      </template>
-    </Button>
+      <Button
+        v-if="hasChanges"
+        v-tooltip.left="{ value: $t('views.floorplan.save') }"
+        rounded
+        severity="success"
+        class="pointer-events-auto text-white"
+        :loading="saving"
+        @click="onSave"
+      >
+        <template #icon>
+          <i-carbon:save class="w-5 h-5" />
+        </template>
+      </Button>
 
-    <Button
-      v-if="isAdmin && smBreakpoint && !loading"
-      v-tooltip="{ value: $t('views.floorplan.palette') }"
-      rounded
-      class="pointer-events-auto text-white"
-      :style="{
-        position: 'fixed',
-        zIndex: 15,
-        bottom: fabBottom,
-        right: 'calc(4.75rem + var(--safe-area-inset-right))',
-        transition: 'bottom 0.2s ease-in-out',
-      }"
-      @click="showMobilePalette = true"
-    >
-      <template #icon>
-        <i-mdi:plus class="w-5 h-5" />
-      </template>
-    </Button>
+      <Button
+        v-if="smBreakpoint"
+        v-tooltip.left="{ value: $t('views.floorplan.palette') }"
+        rounded
+        class="pointer-events-auto text-white"
+        @click="showMobilePalette = true"
+      >
+        <template #icon>
+          <i-mdi:plus class="w-5 h-5" />
+        </template>
+      </Button>
+    </CuiFloatingButtonGroup>
 
     <CuiBottomSheet v-model="showMobilePalette" :title="$t('views.floorplan.palette')" max-height="70vh">
       <CuiFloorplanPalette :cameras="unplacedCameras" :sensors="unplacedSensors" :rooms="undrawnRooms" :disabled="!levels.length" mode="click" @pick="onMobilePick" />

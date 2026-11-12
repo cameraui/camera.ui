@@ -53,54 +53,48 @@
         </div>
       </div>
 
-      <CuiSpeedDial
-        :model="speedDialItems"
-        :style="{
-          position: 'fixed',
-          zIndex: 15,
-          bottom: hasChanges ? 'calc(var(--cui-fab-bottom) + 3rem)' : 'var(--cui-fab-bottom)',
-          right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
-          transition: 'right 0.2s ease-in-out, bottom 0.2s ease-in-out',
-        }"
-      />
+      <CuiFloatingButtonGroup :offset="fabRight" class="pointer-events-none items-center gap-2" :style="{ zIndex: 15 }">
+        <CuiSpeedDial :model="speedDialItems" />
 
-      <Button
-        v-if="smBreakpoint"
-        v-tooltip="{ value: t('views.automation.add_step') }"
-        rounded
-        class="pointer-events-auto text-white"
-        :style="{
-          position: 'fixed',
-          zIndex: 15,
-          bottom: 'var(--cui-fab-bottom)',
-          right: 'calc(4.75rem + var(--safe-area-inset-right))',
-        }"
-        @click="showMobilePalette = true"
-      >
-        <template #icon>
-          <PlusIcon class="w-5 h-5" />
-        </template>
-      </Button>
+        <Button
+          v-if="hasManualTrigger"
+          v-tooltip.left="{ value: t('views.automation.run') }"
+          rounded
+          severity="secondary"
+          class="pointer-events-auto"
+          :disabled="isNew || hasChanges"
+          @click="onRun"
+        >
+          <template #icon>
+            <PlayIcon class="w-5 h-5" />
+          </template>
+        </Button>
 
-      <Button
-        v-if="hasChanges"
-        v-tooltip="{ value: t('views.automation.save') }"
-        rounded
-        severity="success"
-        class="pointer-events-auto text-white"
-        :style="{
-          position: 'fixed',
-          zIndex: 15,
-          bottom: 'var(--cui-fab-bottom)',
-          right: fabRight || 'calc(1.25rem + var(--safe-area-inset-right))',
-          transition: 'right 0.2s ease-in-out',
-        }"
-        @click="onSave"
-      >
-        <template #icon>
-          <SaveIcon class="w-5 h-5" />
-        </template>
-      </Button>
+        <Button
+          v-if="hasChanges"
+          v-tooltip.left="{ value: t('views.automation.save') }"
+          rounded
+          severity="success"
+          class="pointer-events-auto text-white"
+          @click="onSave"
+        >
+          <template #icon>
+            <SaveIcon class="w-5 h-5" />
+          </template>
+        </Button>
+
+        <Button
+          v-if="smBreakpoint"
+          v-tooltip.left="{ value: t('views.automation.add_step') }"
+          rounded
+          class="pointer-events-auto text-white"
+          @click="showMobilePalette = true"
+        >
+          <template #icon>
+            <PlusIcon class="w-5 h-5" />
+          </template>
+        </Button>
+      </CuiFloatingButtonGroup>
 
       <CuiBottomSheet v-model="showMobilePalette" :title="t('views.automation.add_step')" max-height="70vh">
         <CuiAutomationNodePalette mode="click" @node-click="onMobileAddNode" />
@@ -192,58 +186,44 @@ const fabRight = computed(() => {
   return 'calc(300px + 1.25rem + var(--safe-area-inset-right))';
 });
 
-const speedDialItems = computed(() => {
-  const hasManualTrigger = draft.value?.nodes.some((n) => n.type === 'trigger-manual') ?? false;
+const hasManualTrigger = computed(() => draft.value?.nodes.some((n) => n.type === 'trigger-manual') ?? false);
 
-  const items: CuiSpeedDialItem[] = [
-    ...(hasManualTrigger
-      ? [
-          {
-            label: t('views.automation.run'),
-            icon: PlayIcon,
-            buttonProps: { disabled: isNew.value || hasChanges.value },
-            command: () => onRun(),
-          },
-        ]
-      : []),
-    {
-      label: t('views.automation.undo'),
-      icon: UndoIcon,
-      buttonProps: { disabled: !canUndo.value },
-      command: () => {
-        canvasRef.value?.undo();
-        markDirty();
-      },
+const speedDialItems = computed<CuiSpeedDialItem[]>(() => [
+  {
+    label: t('views.automation.undo'),
+    icon: UndoIcon,
+    buttonProps: { disabled: !canUndo.value },
+    command: () => {
+      canvasRef.value?.undo();
+      markDirty();
     },
-    {
-      label: t('views.automation.redo'),
-      icon: RedoIcon,
-      buttonProps: { disabled: !canRedo.value },
-      command: () => {
-        canvasRef.value?.redo();
-        markDirty();
-      },
+  },
+  {
+    label: t('views.automation.redo'),
+    icon: RedoIcon,
+    buttonProps: { disabled: !canRedo.value },
+    command: () => {
+      canvasRef.value?.redo();
+      markDirty();
     },
-    {
-      label: t('views.automation.export_blueprint'),
-      icon: ShareIcon,
-      command: () => onExportBlueprint(),
-    },
-    {
-      label: t('views.automation.clear'),
-      icon: CleanIcon,
-      command: () => confirmClearFlow(),
-    },
-    {
-      label: t('views.automations.delete'),
-      icon: TrashIcon,
-      buttonProps: { severity: 'danger' },
-      command: () => confirmDeleteFlow(),
-    },
-  ];
-
-  return items;
-});
+  },
+  {
+    label: t('views.automation.export_blueprint'),
+    icon: ShareIcon,
+    command: () => onExportBlueprint(),
+  },
+  {
+    label: t('views.automation.clear'),
+    icon: CleanIcon,
+    command: () => confirmClearFlow(),
+  },
+  {
+    label: t('views.automations.delete'),
+    icon: TrashIcon,
+    buttonProps: { severity: 'danger' },
+    command: () => confirmDeleteFlow(),
+  },
+]);
 
 function syncHistoryState() {
   canUndo.value = canvasRef.value?.canUndo ?? false;
