@@ -55,6 +55,7 @@ declare global {
   const defineComponent: typeof import('vue').defineComponent
   const defineStore: typeof import('pinia').defineStore
   const deleteToken: typeof import('../composables/firebase-messaging-stub').deleteToken
+  const desktopCastDeviceId: typeof import('../composables/useDesktopCastTarget').desktopCastDeviceId
   const download: typeof import('../composables/useFileDownload').download
   const dropNotifications: typeof import('../composables/sockets/useNotificationsSocket').dropNotifications
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
@@ -263,6 +264,7 @@ declare global {
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
   const useDebouncedRefHistory: typeof import('@vueuse/core').useDebouncedRefHistory
+  const useDesktopCastTarget: typeof import('../composables/useDesktopCastTarget').useDesktopCastTarget
   const useDeviceLocation: typeof import('../composables/useDeviceLocation').useDeviceLocation
   const useDeviceManager: typeof import('@camera.ui/browser').useDeviceManager
   const useDeviceMotion: typeof import('@vueuse/core').useDeviceMotion
@@ -288,6 +290,7 @@ declare global {
   const useEpisodeTraceDialog: typeof import('../composables/useEpisodeTraceDialog').useEpisodeTraceDialog
   const useEventBus: typeof import('@vueuse/core').useEventBus
   const useEventListener: typeof import('@vueuse/core').useEventListener
+  const useEventPopup: typeof import('../composables/useEventPopup').useEventPopup
   const useEventSource: typeof import('@vueuse/core').useEventSource
   const useEventTraceDialog: typeof import('../composables/useEventTraceDialog').useEventTraceDialog
   const useEyeDropper: typeof import('@vueuse/core').useEyeDropper
@@ -680,6 +683,7 @@ declare module 'vue' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly deleteToken: UnwrapRef<typeof import('../composables/firebase-messaging-stub')['deleteToken']>
+    readonly desktopCastDeviceId: UnwrapRef<typeof import('../composables/useDesktopCastTarget')['desktopCastDeviceId']>
     readonly download: UnwrapRef<typeof import('../composables/useFileDownload')['download']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
@@ -882,6 +886,7 @@ declare module 'vue' {
     readonly useDebounce: UnwrapRef<typeof import('@vueuse/core')['useDebounce']>
     readonly useDebounceFn: UnwrapRef<typeof import('@vueuse/core')['useDebounceFn']>
     readonly useDebouncedRefHistory: UnwrapRef<typeof import('@vueuse/core')['useDebouncedRefHistory']>
+    readonly useDesktopCastTarget: UnwrapRef<typeof import('../composables/useDesktopCastTarget')['useDesktopCastTarget']>
     readonly useDeviceLocation: UnwrapRef<typeof import('../composables/useDeviceLocation')['useDeviceLocation']>
     readonly useDeviceManager: UnwrapRef<typeof import('@camera.ui/browser')['useDeviceManager']>
     readonly useDeviceMotion: UnwrapRef<typeof import('@vueuse/core')['useDeviceMotion']>
@@ -907,6 +912,7 @@ declare module 'vue' {
     readonly useEpisodeTraceDialog: UnwrapRef<typeof import('../composables/useEpisodeTraceDialog')['useEpisodeTraceDialog']>
     readonly useEventBus: UnwrapRef<typeof import('@vueuse/core')['useEventBus']>
     readonly useEventListener: UnwrapRef<typeof import('@vueuse/core')['useEventListener']>
+    readonly useEventPopup: UnwrapRef<typeof import('../composables/useEventPopup')['useEventPopup']>
     readonly useEventSource: UnwrapRef<typeof import('@vueuse/core')['useEventSource']>
     readonly useEventTraceDialog: UnwrapRef<typeof import('../composables/useEventTraceDialog')['useEventTraceDialog']>
     readonly useEyeDropper: UnwrapRef<typeof import('@vueuse/core')['useEyeDropper']>

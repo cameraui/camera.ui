@@ -71,6 +71,7 @@ const Sensors = () => import('@/views/Sensors.vue');
 const Assistant = () => import('@/views/Assistant.vue');
 const Camera = () => import('@/views/Camera.vue');
 const Camview = () => import('@/views/Camview.vue');
+const EventPopup = () => import('@/views/EventPopup.vue');
 const Recordings = () => import('@/views/Recordings.vue');
 const Floorplan = () => import('@/views/Floorplan.vue');
 const Faces = () => import('@/views/Faces.vue');
@@ -350,6 +351,22 @@ export const routes: RouteRecordRaw[] = [
           default: GridIcon,
           active: GridIconActive,
         },
+      },
+    },
+  },
+  {
+    name: 'EventPopup',
+    path: '/event-popup',
+    component: EventPopup,
+    meta: {
+      name: 'eventpopup',
+      auth: {
+        requiresAuth: true,
+        role: 'user',
+      },
+      ui: {
+        standalone: true,
+        background: '#000000',
       },
     },
   },

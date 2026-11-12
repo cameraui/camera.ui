@@ -1,6 +1,10 @@
 <template>
+  <div v-if="routeMeta.standalone.value" class="fixed inset-0 overflow-hidden" :style="{ background: routeMeta.background.value }">
+    <RouterView v-if="!showLoadingScreen" />
+  </div>
+
   <div
-    v-if="showLoadingScreen"
+    v-else-if="showLoadingScreen"
     class="flex w-full h-full justify-center items-center absolute z-50"
     :style="{ minHeight: isPWA ? '100vh !important' : '100dvh !important' }"
   >

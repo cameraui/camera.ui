@@ -19,6 +19,7 @@ export interface NotificationsSocketState {
 }
 
 const BELL_LIMIT = 30;
+const POPUP_EVENT_TYPES = new Set(['detection', 'text-alert']);
 
 const state = reactive<NotificationsSocketState>({
   notifications: [],
@@ -93,6 +94,18 @@ function forwardToDesktop(n: StoredNotification): void {
     tag: n.tag,
     severity: n.severity,
     silent: n.silent,
+  });
+
+  const { cameraId, cameraName, type, trigger } = n.data ?? {};
+  if (typeof cameraId !== 'string' || typeof cameraName !== 'string' || !POPUP_EVENT_TYPES.has(type as string)) return;
+  useEventPopup().showEventPopup({
+    id: n.id,
+    cameraId,
+    cameraName,
+    title: n.title,
+    subtitle: n.subtitle,
+    imageUrl: n.imageUrl,
+    doorbell: trigger === 'trigger:doorbell',
   });
 }
 
@@ -197,7 +210,7 @@ export function useNotificationsSocket() {
     isConnected: computed(() => channel?.connected.value ?? false),
     notifications: computed(() => [...state.local, ...state.notifications]),
     unreadCount,
-    castTargets: computed(() => state.castTargets),
+    castTargets: computed(() => state.castTargets.filter((target) => target.deviceId !== desktopCastDeviceId())),
 
     connect,
     disconnect,

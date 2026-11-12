@@ -106,6 +106,8 @@
         </Card>
       </div>
 
+      <CuiEventPopupSettings v-if="showRest && isElectronApp" />
+
       <div v-if="showRest && isAdmin">
         <span class="card-title">{{ $t('views.settings.notifications.system_notifications') }}</span>
         <Card class="cui-card">

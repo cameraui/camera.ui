@@ -7,6 +7,7 @@ interface RouteMetaAuth {
 
 interface RouteMetaUi {
   background?: ComputedRef<string | undefined> | string;
+  standalone?: boolean;
 
   showNavbar?: ComputedRef<boolean> | boolean;
   showTopbar?: ComputedRef<boolean> | boolean;

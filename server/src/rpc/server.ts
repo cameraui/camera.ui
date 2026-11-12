@@ -188,6 +188,9 @@ export class NATS {
                   'rpc.plugin.*.child.rpc.searchEventsByText',
                   'rpc.plugin.*.child.rpc.searchEventsByTextQuery',
 
+                  // any account may be a cast target, casting stays an admin call
+                  'cast.presence',
+
                   'rpc.coreManager.rpc.__methods',
                   'rpc.deviceManager.rpc.__methods',
                   'rpc.sensors.rpc.__methods',

@@ -14,6 +14,7 @@ export function useRouteMeta() {
     minifiedTopbar: computed(() => Boolean(toValue(ui.value?.minifiedTopbar))),
 
     background: computed(() => toValue(ui.value?.background) as string | undefined),
+    standalone: computed(() => Boolean(ui.value?.standalone)),
 
     padding: computed(() => Boolean(toValue(ui.value?.containerSettings?.padding))),
     paddingTop: computed(() => toValue(ui.value?.containerSettings?.paddingTop) as boolean | undefined),

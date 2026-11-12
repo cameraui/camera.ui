@@ -122,6 +122,7 @@ const dialog = useCuiDialog();
 const { t } = useI18n();
 const { isElectronApp, electron } = useElectron();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
+useDesktopCastTarget();
 
 const notificationsQuery = new NotificationsQuery();
 
