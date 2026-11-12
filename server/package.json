@@ -12,7 +12,7 @@
     "access": "public"
   },
   "allowScripts": {
-    "@scrypted/node-pty": true,
+    "@seydx/node-pty": true,
     "fsevents": true,
     "lmdb": true,
     "msgpackr-extract": true,
@@ -59,8 +59,8 @@
     "@peculiar/asn1-schema": "^3.0.0",
     "@peculiar/asn1-x509": "^3.0.0",
     "@peculiar/x509": "1.14.3",
-    "@scrypted/node-pty": "^1.0.25",
     "@seydx/node-av-ffmpeg": "^7.0.0-beta.3",
+    "@seydx/node-pty": "^1.2.0-beta.18",
     "@seydx/win-job": "^0.1.0",
     "@tanstack/ai": "^1.4.0",
     "@tanstack/ai-anthropic": "^1.1.1",

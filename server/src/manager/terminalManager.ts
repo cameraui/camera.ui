@@ -1,6 +1,6 @@
 import { IS_ELECTRON } from '@camera.ui/common/utils';
 import { RPCMethod, sessionSignal } from '@camera.ui/rpc';
-import pty from '@scrypted/node-pty';
+import pty from '@seydx/node-pty';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import xtermHeadless from '@xterm/headless';
 import { randomUUID } from 'node:crypto';
@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
-import type { IPty } from '@scrypted/node-pty';
+import type { IPty } from '@seydx/node-pty';
 import type { Terminal } from '@xterm/headless';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
