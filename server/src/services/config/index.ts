@@ -3,11 +3,11 @@ import { APP_SERVER_NAME, IS_DEV, IS_DOCKER, IS_ELECTRON, mergeWith, structuredC
 import { go2rtcPath } from '@camera.ui/go2rtc';
 import { natsServerPath } from '@camera.ui/nats';
 import { tunnelPath } from '@camera.ui/tunnel';
-import { copySync, emptyDirSync, ensureDirSync, ensureFileSync, moveSync, pathExistsSync, readJsonSync, removeSync, writeJsonSync } from 'fs-extra/esm';
+import { copySync, emptyDirSync, ensureDirSync, ensureFileSync, moveSync, pathExistsSync, readJsonSync, removeSync } from 'fs-extra/esm';
 import { dump, load } from 'js-yaml';
 import { ffmpegPath, isFfmpegAvailable } from 'node-av';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { arch, platform, release, tmpdir, type } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -20,6 +20,7 @@ import { CertificateGeneration } from '../../api/utils/cert.js';
 import { CUSTOM_CERT_FILENAME, CUSTOM_KEY_FILENAME, HOST_CERT_FILENAME, HOST_KEY_FILENAME, ROOT_CERT_FILENAME, ROOT_KEY_FILENAME } from '../../api/utils/constants.js';
 import { customCertificatePaths } from '../../api/utils/custom-cert.js';
 import { inject, provide, tryInject } from '../../container.js';
+import { writeFileAtomicSync } from '../../utils/atomic-write.js';
 import { MIN_NODE_VERSION } from '../../utils/engines.js';
 import { announceUpdateChannel } from '../../utils/ipc.js';
 import { execSafePath } from '../../utils/path.js';
@@ -44,6 +45,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const packageJson = __require('../../../package.json');
+
+const REPLACE_REFUSED = new Set(['EBUSY', 'EPERM', 'EACCES']);
 
 const ENVIRONMENT_SETTINGS: Record<string, string> = {
   CAMERA_UI_PORT: 'port',
@@ -364,7 +367,7 @@ export class ConfigService {
       else writeKey(content, setting, value);
     }
     if (this._proxyAuthBlock !== undefined) content.proxyAuth = this._proxyAuthBlock;
-    writeFileSync(this.CONFIG_FILE, dump(content, { lineWidth: -1, noRefs: true }));
+    saveFile(this.CONFIG_FILE, dump(content, { lineWidth: -1, noRefs: true }));
 
     announceUpdateChannel(this._config.betaUpdates ?? false);
   }
@@ -392,7 +395,7 @@ export class ConfigService {
       const go2rtcApi = inject('go2rtcApi');
       await go2rtcApi.configRoute.rewriteConfig(this._go2rtcConfig);
     } else {
-      writeFileSync(this.GO2RTC_CONFIG_FILE, dump(this._go2rtcConfig, { lineWidth: -1, noRefs: true }));
+      saveFile(this.GO2RTC_CONFIG_FILE, dump(this._go2rtcConfig, { lineWidth: -1, noRefs: true }));
     }
   }
 
@@ -805,53 +808,33 @@ export class ConfigService {
   }
 
   private updateSecrets(): Secrets {
-    const createSecrets = (): Secrets => {
-      const secrets: Secrets = {
-        jwtAccessKey: randomBytes(32).toString('hex'),
-        jwtRefreshKey: randomBytes(32).toString('hex'),
-        jwt2faKey: randomBytes(32).toString('hex'),
-        twoFactorKey: randomBytes(32).toString('hex'),
-        backupKey: newBackupKey(),
-      };
-
-      writeJsonSync(this.SECRETS_FILE, secrets, { spaces: 2 });
-
-      return secrets;
+    const stored = this.readSecrets();
+    const secrets: Secrets = {
+      ...stored,
+      jwtAccessKey: stored?.jwtAccessKey ?? randomBytes(32).toString('hex'),
+      jwtRefreshKey: stored?.jwtRefreshKey ?? randomBytes(32).toString('hex'),
+      jwt2faKey: stored?.jwt2faKey ?? randomBytes(32).toString('hex'),
+      twoFactorKey: stored?.twoFactorKey ?? randomBytes(32).toString('hex'),
+      backupKey: stored?.backupKey && parseBackupKey(stored.backupKey) ? stored.backupKey : newBackupKey(),
     };
 
-    if (pathExistsSync(this.SECRETS_FILE)) {
-      try {
-        const secrets: Secrets = readJsonSync(this.SECRETS_FILE);
+    saveFile(this.SECRETS_FILE, `${JSON.stringify(secrets, null, 2)}\n`);
+    return secrets;
+  }
 
-        if (!secrets.jwtAccessKey || !secrets.jwtRefreshKey) {
-          return createSecrets();
-        }
+  private readSecrets(): Secrets | undefined {
+    if (!existsSync(this.SECRETS_FILE)) return undefined;
 
-        // older installations lack the 2FA secrets
-        let needsUpdate = false;
-        if (!secrets.jwt2faKey) {
-          secrets.jwt2faKey = randomBytes(32).toString('hex');
-          needsUpdate = true;
-        }
-        if (!secrets.twoFactorKey) {
-          secrets.twoFactorKey = randomBytes(32).toString('hex');
-          needsUpdate = true;
-        }
-        if (!secrets.backupKey || !parseBackupKey(secrets.backupKey)) {
-          secrets.backupKey = newBackupKey();
-          needsUpdate = true;
-        }
-        if (needsUpdate) {
-          writeJsonSync(this.SECRETS_FILE, secrets, { spaces: 2 });
-        }
+    const content = readFileSync(this.SECRETS_FILE, 'utf-8');
+    if (!content.trim()) return undefined;
 
-        return secrets;
-      } catch {
-        return createSecrets();
-      }
-    } else {
-      return createSecrets();
-    }
+    const secrets = parseSecrets(content);
+    if (secrets) return secrets;
+
+    const kept = `${this.SECRETS_FILE}.damaged-${Date.now()}`;
+    renameSync(this.SECRETS_FILE, kept);
+    this.logger.error(`The secrets file was damaged and is kept as ${kept}. camera.ui starts with new secrets: sign in again and enter stored passwords and keys again.`);
+    return undefined;
   }
 
   private createDirs(): void {
@@ -987,5 +970,25 @@ export class ConfigService {
     this.logger.log(`User: ${process.env.USER ?? process.env.USERNAME}`);
     this.logger.log('Environment:', ConfigService.ENVIRONMENT);
     this.logger.log('---');
+  }
+}
+
+function saveFile(path: string, content: string): void {
+  if (existsSync(path) && readFileSync(path, 'utf-8') === content) return;
+
+  try {
+    writeFileAtomicSync(path, content);
+  } catch (error) {
+    if (!REPLACE_REFUSED.has((error as NodeJS.ErrnoException).code ?? '')) throw error;
+    writeFileSync(path, content);
+  }
+}
+
+function parseSecrets(content: string): Secrets | undefined {
+  try {
+    const secrets = JSON.parse(content) as Partial<Secrets> | null;
+    return secrets?.jwtAccessKey && secrets.jwtRefreshKey ? (secrets as Secrets) : undefined;
+  } catch {
+    return undefined;
   }
 }

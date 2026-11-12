@@ -1,46 +1,11 @@
-import { closeSync, fsyncSync, mkdirSync, openSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { copyFile, mkdir, open, readFile, readdir, rename, unlink } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { copyFile, mkdir, open, readFile, readdir, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 
+import { renameWithRetry, writeFileAtomicSync } from '../../utils/atomic-write.js';
 import { StoreCorruptError, decodeEnvelope, encodeEnvelope } from './envelope.js';
 
 import type { Logger } from '@camera.ui/common';
-
-// windows AV and the search indexer briefly hold the rename target, ~0.5 s of retries
-const RENAME_RETRY_DELAYS_MS = [10, 25, 60, 150, 300];
-
-async function renameWithRetry(tmpPath: string, path: string): Promise<void> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await rename(tmpPath, path);
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      const retryable = process.platform === 'win32' && (code === 'EPERM' || code === 'EACCES');
-      if (!retryable || attempt >= RENAME_RETRY_DELAYS_MS.length) {
-        throw error;
-      }
-      await delay(RENAME_RETRY_DELAYS_MS[attempt]);
-    }
-  }
-}
-
-function renameSyncWithRetry(tmpPath: string, path: string): void {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      renameSync(tmpPath, path);
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      const retryable = process.platform === 'win32' && (code === 'EPERM' || code === 'EACCES');
-      if (!retryable || attempt >= RENAME_RETRY_DELAYS_MS.length) {
-        throw error;
-      }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RENAME_RETRY_DELAYS_MS[attempt]);
-    }
-  }
-}
 
 export async function writeStoreFile(path: string, payload: Record<string, any>): Promise<void> {
   const buf = encodeEnvelope(payload);
@@ -70,33 +35,15 @@ export async function writeStoreFile(path: string, payload: Record<string, any>)
 
 export function writeStoreFileSync(path: string, payload: Record<string, any>): void {
   const buf = encodeEnvelope(payload);
-  const tmpPath = `${path}.tmp-${process.pid}`;
 
   try {
-    let fd: number;
-    try {
-      fd = openSync(tmpPath, 'w');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
-      }
-      mkdirSync(dirname(path), { recursive: true });
-      fd = openSync(tmpPath, 'w');
-    }
-    try {
-      writeFileSync(fd, buf);
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
-    renameSyncWithRetry(tmpPath, path);
+    writeFileAtomicSync(path, buf);
   } catch (error) {
-    try {
-      unlinkSync(tmpPath);
-    } catch {
-      // not there
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
     }
-    throw error;
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileAtomicSync(path, buf);
   }
 }
 
