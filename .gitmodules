@@ -21,3 +21,6 @@
 [submodule "externals/ciao"]
 	path = externals/ciao
 	url = https://github.com/seydx/ciao
+[submodule "externals/node-pty"]
+	path = externals/node-pty
+	url = https://github.com/seydx/node-pty
