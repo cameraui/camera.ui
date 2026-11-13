@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 import { inject } from '../../container.js';
-import { INGRESS_DEVICE_PREFIX, PROXY_AUTH_DEVICE_PREFIX } from '../../services/config/constants.js';
+import { INGRESS_DEVICE_PREFIX } from '../../services/config/constants.js';
 import { isExpiredToken } from '../database/tokenSweep.js';
 import { verifyLogin } from '../middlewares/authValidation.middleware.js';
 import { AuthService } from '../services/auth.service.js';
@@ -9,6 +9,7 @@ import { ServerService } from '../services/server.service.js';
 import { TwoFactorService } from '../services/twoFactor.service.js';
 import { UsersService } from '../services/users.service.js';
 import { TOKEN_LIFETIME } from '../types/index.js';
+import { isManagedDevice } from '../utils/utils.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
@@ -224,7 +225,7 @@ export class AuthController {
       const currentAccessToken = authorization?.[0] === 'Bearer' ? authorization[1] : undefined;
       const current = currentAccessToken ? this.service.findByAccessToken(currentAccessToken) : undefined;
 
-      const tokens = this.service.listSessionsByUserId(requester._id).filter((t) => t.id !== current?.id && !this.isManagedSession(t));
+      const tokens = this.service.listSessionsByUserId(requester._id).filter((t) => t.id !== current?.id && !isManagedDevice(t.device.id));
       await this.service.revoke(tokens);
 
       return reply.code(204).send();
@@ -664,7 +665,7 @@ export class AuthController {
         id: t.id,
         device: t.device,
         is_current: t.access_token === currentToken,
-        managed: this.isManagedSession(t),
+        managed: isManagedDevice(t.device.id),
         persistent: t.persistent,
         refresh_token_expires_at: t.refresh_token_expires_at,
       }))
@@ -727,9 +728,5 @@ export class AuthController {
   private getAddresses(): { internalAddresses: string[]; externalAddresses: string[] } {
     const { internalAddresses, externalAddresses } = this.serverService.networkEndpoints();
     return { internalAddresses, externalAddresses };
-  }
-
-  private isManagedSession(token: DBToken): boolean {
-    return token.device.id.startsWith(INGRESS_DEVICE_PREFIX) || token.device.id.startsWith(PROXY_AUTH_DEVICE_PREFIX);
   }
 }

@@ -83,6 +83,17 @@
                 </div>
 
                 <template v-if="!isIngress">
+                  <Field v-if="!isProxy" v-slot="{ field, errors }" name="currentPassword" as="div" class="flex flex-col field-gap">
+                    <label for="currentPassword" class="cui-label">{{ $t('components.form.label.current_password') }}</label>
+                    <InputGroup>
+                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
+                    </InputGroup>
+
+                    <Transition name="fade">
+                      <ErrorMessage name="currentPassword" class="cui-input-error" />
+                    </Transition>
+                  </Field>
+
                   <Field v-slot="{ field, errors }" name="password" as="div" class="flex flex-col field-gap">
                     <label for="password" class="cui-label">{{ $t('components.form.label.new_password') }}</label>
                     <InputGroup>
@@ -416,12 +427,17 @@ const { mutateAsync: revokeApiToken } = authQuery.revokeApiTokenQuery();
 
 const profileSchema = z
   .object({
+    currentPassword: z.string().optional(),
     password: z.union([z.literal(''), userPasswordSchema]).optional(),
     passwordConfirm: z.string().optional(),
   })
   .refine((data) => (data.password ?? '') === (data.passwordConfirm ?? ''), {
     message: 'Passwords do not match',
     path: ['passwordConfirm'],
+  })
+  .refine((data) => !data.password || isProxy || !!data.currentPassword, {
+    message: 'Current password is required',
+    path: ['currentPassword'],
   });
 
 const firststepsSchema = z
@@ -666,7 +682,7 @@ async function saveProfile(values: ProfileInput): Promise<void> {
     const usernameChanged = user.value?.username !== profileUsername.value;
     const userData = {
       ...(usernameChanged && { username: profileUsername.value }),
-      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm }),
+      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm, currentPassword: values.currentPassword }),
     };
 
     await authStore.updateUser(Object.keys(userData).length ? userData : undefined, formData);

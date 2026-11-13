@@ -308,6 +308,7 @@ export const patchUserSchema = zod
     username: zod.string().trim().min(1, 'Username is required').optional(),
     password: passwordSchema.optional(),
     passwordConfirm: zod.string().trim().optional(),
+    currentPassword: zod.string().optional(),
     role: zod.union([zod.literal('admin'), zod.literal('user')]).optional(),
     upload: zod.optional(uploadSchema(MAX_IMAGE_FILE_SIZE, ACCEPTED_IMAGE_TYPES, 'Max file size is 5MB.', '.jpg, .jpeg, .png files are accepted.')),
     firstLogin: zod.boolean().optional(),

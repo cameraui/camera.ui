@@ -1177,6 +1177,7 @@ export default {
         confidence_animal: 'Tier-Konfidenz',
         connections: 'Verbindungen',
         stream_status: 'Stream-Status',
+        current_password: 'Aktuelles Passwort',
         custom_domain: 'Benutzerdefinierte Domain',
         default_landing_page: 'Startseite',
         default_settings_page: 'Standard Einstellungsseite',

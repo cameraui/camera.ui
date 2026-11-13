@@ -1,5 +1,5 @@
 <template>
-  <Form ref="formRef" class="flex flex-col gap-6" :validation-schema="user ? userPatchSchema : userCreateSchema">
+  <Form ref="formRef" class="flex flex-col gap-6" :validation-schema="schema">
     <Field
       v-slot="{ field, errors }"
       v-model.trim="userData.username"
@@ -15,6 +15,17 @@
 
       <Transition name="fade">
         <ErrorMessage name="username" class="cui-input-error" />
+      </Transition>
+    </Field>
+
+    <Field v-if="asksCurrentPassword" v-slot="{ field, errors }" v-model="currentPassword" name="currentPassword" as="div" class="flex flex-col field-gap">
+      <label for="currentPassword" class="cui-label">{{ $t('components.form.label.current_password') }}</label>
+      <InputGroup>
+        <Password :invalid="errors.length > 0" v-bind="field" :loading="isLoading" :feedback="false" toggle-mask />
+      </InputGroup>
+
+      <Transition name="fade">
+        <ErrorMessage name="currentPassword" class="cui-input-error" />
       </Transition>
     </Field>
 
@@ -64,6 +75,7 @@
 import { ErrorMessage, Field, Form } from 'vee-validate';
 
 import { UsersQuery } from '@/api/routes/users.js';
+import { isHaIngress, isProxySignIn } from '@/common/base.js';
 import { userCreateSchema, userPatchSchema } from '@/schemas/users.schema.js';
 
 import type { CustomDialogComponent, DialogRefProps } from '@/composables/useCuiDialog.js';
@@ -80,12 +92,25 @@ const toast = useCuiToast();
 const { t } = useI18n();
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
+const authStore = useAuthStore();
+
 const { mutateAsync: addUser, isPending: addLoading } = usersQuery.createUserQuery();
 const { mutateAsync: patchUser, isPending: patchLoading } = usersQuery.patchUserQuery();
+
+// behind Home Assistant or a proxy the account never typed a password
+const asksCurrentPassword = !!props.user && props.user._id === authStore.user?._id && !isHaIngress() && !isProxySignIn();
+const patchSchema = asksCurrentPassword
+  ? userPatchSchema.refine((data) => !data.password || !!data.currentPassword, {
+      message: 'Current password is required',
+      path: ['currentPassword'],
+    })
+  : userPatchSchema;
+const schema = props.user ? patchSchema : userCreateSchema;
 
 const { user } = toRefs(props);
 const formRef = useTemplateRef<InstanceType<typeof Form>>('formRef');
 const userData = ref<Partial<CreateUserInput | PatchUserInput>>({});
+const currentPassword = ref('');
 const roles = ref<DBRoles[]>(['user', 'admin']);
 
 const isLoading = computed(() => Boolean(dialogRefProps.loading?.value || addLoading.value || patchLoading.value));
@@ -100,7 +125,10 @@ async function onConfirm(): Promise<void | null> {
   }
 
   if (user.value) {
-    await patchUser({ username: user.value.username, userData: userData.value });
+    await patchUser({
+      username: user.value.username,
+      userData: { ...userData.value, ...(currentPassword.value && { currentPassword: currentPassword.value }) },
+    });
   } else {
     await addUser({ userData: userData.value as CreateUserInput });
   }
