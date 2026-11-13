@@ -890,7 +890,7 @@ export class Server {
           null: null,
           undefined: undefined,
         };
-        if (type === 'value' && str in keywords) {
+        if (type === 'value' && Object.hasOwn(keywords, str)) {
           return keywords[str];
         }
 
