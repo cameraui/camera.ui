@@ -349,10 +349,10 @@ import TvIcon from '~icons/mdi/television';
 import { AuthQuery } from '@/api/routes/auth.js';
 import { isHaIngress, isProxySignIn } from '@/common/base.js';
 import { copyToClipboard, formatRelativeTime, readImgUpload } from '@/common/utils.js';
-import ApiTokenCreatedDialog from '@/components/CuiDialog/templates/ApiTokenCreated/ApiTokenCreated.vue';
 import ChangePasswordDialog from '@/components/CuiDialog/templates/ChangePassword/ChangePassword.vue';
 import ChangeUsernameDialog from '@/components/CuiDialog/templates/ChangeUsername/ChangeUsername.vue';
 import CreateApiTokenDialog from '@/components/CuiDialog/templates/CreateApiToken/CreateApiToken.vue';
+import SecretCreatedDialog from '@/components/CuiDialog/templates/SecretCreated/SecretCreated.vue';
 import TwoFactorBackupCodesDialog from '@/components/CuiDialog/templates/TwoFactorBackupCodes/TwoFactorBackupCodes.vue';
 import TwoFactorDisableDialog from '@/components/CuiDialog/templates/TwoFactorDisable/TwoFactorDisable.vue';
 import TwoFactorRegenerateDialog from '@/components/CuiDialog/templates/TwoFactorRegenerate/TwoFactorRegenerate.vue';
@@ -361,10 +361,10 @@ import { checkBiometryAvailable, clearCredentials, hasStoredCredentials } from '
 import { getServerKey, isCapacitor } from '@/connection/index.js';
 import { userPasswordSchema } from '@/schemas/users.schema.js';
 
-import type { ApiTokenCreatedProps } from '@/components/CuiDialog/templates/ApiTokenCreated/types.js';
 import type { ChangePasswordProps } from '@/components/CuiDialog/templates/ChangePassword/types.js';
 import type { ChangeUsernameProps } from '@/components/CuiDialog/templates/ChangeUsername/types.js';
 import type { CreateApiTokenProps } from '@/components/CuiDialog/templates/CreateApiToken/types.js';
+import type { SecretCreatedProps } from '@/components/CuiDialog/templates/SecretCreated/types.js';
 import type { TwoFactorBackupCodesProps } from '@/components/CuiDialog/templates/TwoFactorBackupCodes/types.js';
 import type { TwoFactorDisableProps } from '@/components/CuiDialog/templates/TwoFactorDisable/types.js';
 import type { TwoFactorRegenerateProps } from '@/components/CuiDialog/templates/TwoFactorRegenerate/types.js';
@@ -493,13 +493,14 @@ function onCreateApiToken(): void {
 }
 
 function openApiTokenCreatedDialog(token: string): void {
-  dialog.openComponentDialog<ApiTokenCreatedProps>(ApiTokenCreatedDialog, {
+  dialog.openComponentDialog<SecretCreatedProps>(SecretCreatedDialog, {
     data: {
       title: t('views.settings.api_tokens.created_title'),
       confirmText: t('components.form.button.close'),
       hideCancelButton: true,
       contentProps: {
-        token,
+        secret: token,
+        warning: t('views.settings.api_tokens.created_warning'),
       },
     },
   });

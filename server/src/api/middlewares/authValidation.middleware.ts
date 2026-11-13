@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { inject } from '../../container.js';
 import { streamTokenMatches } from '../../utils/utils.js';
@@ -36,6 +36,11 @@ const loginFailures = new AttemptLimiter(LOGIN_FAILURE_WINDOW_MS, LOGIN_MAX_FAIL
 
 export function hashPassword(salt: string, password: string): string {
   return createHmac('sha512', salt).update(password).digest('base64');
+}
+
+export function storedPassword(password: string): string {
+  const salt = randomBytes(16).toString('base64');
+  return `${salt}$${hashPassword(salt, password)}`;
 }
 
 export function verifyLogin(username: string, password: string, ip: string): DBUser | 'limited' | undefined {

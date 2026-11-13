@@ -163,13 +163,16 @@
 
 <script setup lang="ts">
 import TrashIcon from '~icons/mdi/delete';
+import ResetPasswordIcon from '~icons/mdi/lock-reset';
 import EditIcon from '~icons/mdi/account-edit';
 
 import { AuthQuery } from '@/api/routes/auth.js';
 import { UsersQuery } from '@/api/routes/users.js';
+import SecretCreatedDialog from '@/components/CuiDialog/templates/SecretCreated/SecretCreated.vue';
 import UserFormDialog from '@/components/CuiDialog/templates/UserForm/UserForm.vue';
 import CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 
+import type { SecretCreatedProps } from '@/components/CuiDialog/templates/SecretCreated/types.js';
 import type { UserFormProps } from '@/components/CuiDialog/templates/UserForm/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { PassThrough } from '@openvue/core';
@@ -183,11 +186,14 @@ const dialog = useCuiDialog();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { t } = useI18n();
 
+const authStore = useAuthStore();
+
 const pagination = ref<PaginationQuery>({ pageSize: 15, page: 1 });
 const sessionsPagination = ref<PaginationQuery>({ page: 1, pageSize: -1 });
 
 const { data: users, isBusy: usersLoading } = usersQuery.getUsersQuery(pagination);
 const { mutate: removeUser, isPending: removeLoading } = usersQuery.removeUserQuery();
+const { mutateAsync: resetUserPassword } = usersQuery.resetUserPasswordQuery();
 const { data: userSessions, isBusy: tokensLoading } = authQuery.listAllSessionsQuery(sessionsPagination);
 const { mutate: revokeSession, isPending: revokeLoading } = authQuery.revokeSessionQuery();
 
@@ -205,6 +211,7 @@ const tablePtOptions: PassThrough<DataTablePassThroughOptions> = {
 const menuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('menuRef');
 
 const isLoading = computed(() => usersLoading.value || removeLoading.value);
+const menuUser = computed(() => menuRef.value?.data as DBUser | undefined);
 
 const sessions = computed(() => userSessions.value ?? []);
 const sessionsLoading = computed(() => Boolean(tokensLoading.value));
@@ -219,6 +226,17 @@ const items = computed<MenuItem[]>(() => {
       },
       onClick: (data: DBUser) => {
         openUserDialog(data);
+      },
+    },
+    {
+      label: t('views.settings.reset_password'),
+      icon: ResetPasswordIcon,
+      hide: !menuUser.value || menuUser.value.role === 'master' || menuUser.value._id === authStore.user?._id,
+      buttonProps: {
+        disabled: isLoading.value,
+      },
+      onClick: (data: DBUser) => {
+        confirmPasswordReset(data);
       },
     },
     {
@@ -249,6 +267,39 @@ function openUserDialog(user?: DBUser) {
       loading: isLoading,
       contentProps: {
         user: toRaw(user),
+        onStartPassword: openStartPasswordDialog,
+      },
+    },
+  });
+}
+
+function confirmPasswordReset(user: DBUser) {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.settings.reset_password'),
+      contentText: t('views.settings.reset_password_confirm', { name: user.username }),
+      confirmText: t('views.settings.reset_password'),
+    },
+    onConfirm: async () => {
+      try {
+        const { startPassword } = await resetUserPassword({ username: user.username });
+        openStartPasswordDialog(user.username, startPassword);
+      } catch {
+        // the mutation already shows the error
+      }
+    },
+  });
+}
+
+function openStartPasswordDialog(username: string, startPassword: string) {
+  dialog.openComponentDialog<SecretCreatedProps>(SecretCreatedDialog, {
+    data: {
+      title: t('views.settings.start_password'),
+      confirmText: t('components.form.button.close'),
+      hideCancelButton: true,
+      contentProps: {
+        secret: startPassword,
+        warning: t('views.settings.start_password_info', { name: username }),
       },
     },
   });

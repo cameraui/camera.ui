@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col gap-6">
-    <Message severity="warn">{{ $t('views.settings.api_tokens.created_warning') }}</Message>
+    <Message severity="warn">{{ warning }}</Message>
 
     <div class="token-box">
-      <span class="token-value">{{ token }}</span>
+      <span class="token-value">{{ secret }}</span>
       <Button v-tooltip="{ value: $t('components.form.button.copy') }" text rounded class="cui-icon-md shrink-0" @click="onCopy">
         <template #icon>
           <CopyIcon width="100%" height="100%" />
@@ -18,17 +18,17 @@ import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import { copyToClipboard } from '@/common/utils.js';
 
-import type { ApiTokenCreatedProps } from './types.js';
+import type { SecretCreatedProps } from './types.js';
 
-const props = defineProps<ApiTokenCreatedProps>();
+const props = defineProps<SecretCreatedProps>();
 
 const toast = useCuiToast();
 const { t } = useI18n();
 
-const { token } = toRefs(props);
+const { secret } = toRefs(props);
 
 async function onCopy(): Promise<void> {
-  const ok = await copyToClipboard(token.value);
+  const ok = await copyToClipboard(secret.value);
   if (ok) {
     toast.add({ severity: 'success', detail: t('components.toast.copied'), life: 1500 });
   } else {

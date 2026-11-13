@@ -86,6 +86,18 @@ export const UsersRoute: FastifyPluginAsync = async (app: FastifyInstance): Prom
   });
 
   app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'POST',
+    url: '/:username/password-reset',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],
+    handler: usersController.resetPassword.bind(usersController),
+    schema: {
+      tags: ['Users'],
+      summary: 'Give a user a start password to replace at the next sign-in',
+      params: usernameParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
     method: 'DELETE',
     url: '/:username',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction, onlySessionCanDoThisAction],

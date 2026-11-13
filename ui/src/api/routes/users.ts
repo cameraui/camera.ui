@@ -13,14 +13,20 @@ import type {
   PaginationQuery,
   PatchShortcutInput,
   PatchViewInput,
+  StartPasswordResponse,
   UsersResponse,
   ViewsResponse,
 } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
 
-export async function createUserFn({ userData }: { userData: CreateUserInput }): Promise<DBUser> {
-  const response: AxiosResponse<DBUser> = await api.post('/users', userData);
+export async function createUserFn({ userData }: { userData: CreateUserInput }): Promise<DBUser & Partial<StartPasswordResponse>> {
+  const response: AxiosResponse<DBUser & Partial<StartPasswordResponse>> = await api.post('/users', userData);
+  return response.data;
+}
+
+export async function resetUserPasswordFn({ username }: { username: string }): Promise<StartPasswordResponse> {
+  const response: AxiosResponse<StartPasswordResponse> = await api.post(`/users/${username}/password-reset`);
   return response.data;
 }
 
@@ -231,6 +237,12 @@ export class UsersQuery {
       onSuccess: async (_data, variables) => {
         await this._queryClient.refetchQueries({ queryKey: ['users', variables.username] });
       },
+    });
+  }
+
+  public resetUserPasswordQuery() {
+    return useMutation({
+      mutationFn: resetUserPasswordFn,
     });
   }
 

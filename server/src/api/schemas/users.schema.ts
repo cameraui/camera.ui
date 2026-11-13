@@ -272,8 +272,8 @@ export const createUserSchema = zod
       .default(uuidv4())
       .transform(() => uuidv4()),
     username: zod.string().trim().min(1, 'Username is required'),
-    password: passwordSchema,
-    passwordConfirm: zod.string().trim().min(1, 'Please confirm your password'),
+    password: passwordSchema.optional(),
+    passwordConfirm: zod.string().trim().optional(),
     role: zod.union([zod.literal('admin'), zod.literal('user')]),
     firstLogin: zod.boolean().default(true),
     preferences: userPreferences.default({

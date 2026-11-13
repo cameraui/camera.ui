@@ -388,6 +388,10 @@ export interface TwoFactorPendingResponse {
   tempToken: string;
 }
 
+export interface StartPasswordResponse {
+  startPassword: string;
+}
+
 export interface TwoFactorSetupResponse {
   secret: string;
 }

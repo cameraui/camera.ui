@@ -1,12 +1,12 @@
 import { orderBy } from '@camera.ui/common/utils';
-import { createHmac, randomBytes } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 
 import { inject } from '../../container.js';
-import { INGRESS_DEVICE_PREFIX, INGRESS_USERNAME } from '../../services/config/constants.js';
-import { currentPasswordRefusal } from '../middlewares/authValidation.middleware.js';
+import { INGRESS_USERNAME } from '../../services/config/constants.js';
+import { currentPasswordRefusal, storedPassword } from '../middlewares/authValidation.middleware.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { UsersService } from '../services/users.service.js';
+import { generateStartPassword, isPanelViewer } from '../utils/utils.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
@@ -21,6 +21,7 @@ import type {
   ShortcutInsertRequest,
   ShortcutParamsRequest,
   ShortcutPatchRequest,
+  StartPasswordResponse,
   UsersInsertRequest,
   UsersParamsRequest,
   UsersPatchRequest,
@@ -54,13 +55,11 @@ export class UsersController {
         });
       }
 
-      const salt = randomBytes(16).toString('base64');
-      const hash = createHmac('sha512', salt).update(req.body.password).digest('base64');
+      const startPassword = req.body.password === undefined ? generateStartPassword() : undefined;
+      if (startPassword) req.body.firstLogin = true;
 
-      req.body.password = salt + '$' + hash;
-      delete (req.body as Partial<UsersInsertRequest['Body']>).passwordConfirm;
-
-      const newUser = (await this.service.createUser(req.body)) as Partial<DBUser>;
+      const { passwordConfirm, ...record } = req.body;
+      const newUser: Partial<DBUser> = await this.service.createUser({ ...record, password: storedPassword(startPassword ?? req.body.password!) });
 
       delete newUser.password;
 
@@ -68,7 +67,7 @@ export class UsersController {
         delete newUser.root;
       }
 
-      return reply.code(201).send(newUser);
+      return reply.code(201).send(startPassword ? { ...newUser, startPassword } : newUser);
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
@@ -175,12 +174,7 @@ export class UsersController {
       }
 
       // a password of its own would keep a panel viewer in after Home Assistant removed the user
-      if (
-        req.body.password !== undefined &&
-        user.role !== 'master' &&
-        req.locals.user!._id === user._id &&
-        req.locals.jwt?.device_id?.startsWith(INGRESS_DEVICE_PREFIX)
-      ) {
+      if (req.body.password !== undefined && req.locals.user!._id === user._id && isPanelViewer(user.role, req.locals.jwt?.device_id)) {
         return reply.code(403).send({
           statusCode: 403,
           message: 'Forbidden: the Home Assistant panel can not set a password for this account',
@@ -236,9 +230,7 @@ export class UsersController {
       delete req.body.currentPassword;
 
       if (req.body.password) {
-        const salt = randomBytes(16).toString('base64');
-        const hash = createHmac('sha512', salt).update(req.body.password).digest('base64');
-        req.body.password = salt + '$' + hash;
+        req.body.password = storedPassword(req.body.password);
         req.body.firstLogin = false;
       }
 
@@ -260,6 +252,37 @@ export class UsersController {
       }
 
       return reply.code(200).send(newUser);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public async resetPassword(req: FastifyRequest<AuthLoginRequest & UsersParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const user = this.service.findByName(req.params.username);
+
+      if (!user) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'User not exists',
+        });
+      }
+
+      if (user.role === 'master' || req.locals.user!._id === user._id) {
+        return reply.code(403).send({
+          statusCode: 403,
+          message: 'Forbidden: this account changes its password itself',
+        });
+      }
+
+      const startPassword = generateStartPassword();
+      await this.service.patchUser(user.username, { password: storedPassword(startPassword), firstLogin: true });
+
+      const response: StartPasswordResponse = { startPassword };
+      return reply.code(200).send(response);
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

@@ -29,7 +29,7 @@
       </Transition>
     </Field>
 
-    <Field v-slot="{ field, errors }" v-model="userData.password" name="password" as="div" class="flex flex-col field-gap">
+    <Field v-if="ownAccount" v-slot="{ field, errors }" v-model="userData.password" name="password" as="div" class="flex flex-col field-gap">
       <label for="password" class="cui-label">{{ $t('components.form.label.new_password') }}</label>
       <InputGroup>
         <Password :invalid="errors.length > 0" v-bind="field" :loading="isLoading" :feedback="false" toggle-mask />
@@ -40,7 +40,7 @@
       </Transition>
     </Field>
 
-    <Field v-slot="{ field, errors }" v-model="userData.passwordConfirm" name="passwordConfirm" as="div" class="flex flex-col field-gap">
+    <Field v-if="ownAccount" v-slot="{ field, errors }" v-model="userData.passwordConfirm" name="passwordConfirm" as="div" class="flex flex-col field-gap">
       <label for="passwordConfirm" class="cui-label">{{ $t('components.form.label.new_password_confirm') }}</label>
       <InputGroup>
         <Password :invalid="errors.length > 0" v-bind="field" :loading="isLoading" :feedback="false" toggle-mask />
@@ -97,8 +97,9 @@ const authStore = useAuthStore();
 const { mutateAsync: addUser, isPending: addLoading } = usersQuery.createUserQuery();
 const { mutateAsync: patchUser, isPending: patchLoading } = usersQuery.patchUserQuery();
 
+const ownAccount = !!props.user && props.user._id === authStore.user?._id;
 // behind Home Assistant or a proxy the account never typed a password
-const asksCurrentPassword = !!props.user && props.user._id === authStore.user?._id && !isHaIngress() && !isProxySignIn();
+const asksCurrentPassword = ownAccount && !isHaIngress() && !isProxySignIn();
 const patchSchema = asksCurrentPassword
   ? userPatchSchema.refine((data) => (!data.password && (!data.username || data.username === props.user?.username)) || !!data.currentPassword, {
       message: 'Current password is required',
@@ -130,7 +131,8 @@ async function onConfirm(): Promise<void | null> {
       userData: { ...userData.value, ...(currentPassword.value && { currentPassword: currentPassword.value }) },
     });
   } else {
-    await addUser({ userData: userData.value as CreateUserInput });
+    const created = await addUser({ userData: userData.value as CreateUserInput });
+    if (created.startPassword) props.onStartPassword?.(created.username, created.startPassword);
   }
 }
 
