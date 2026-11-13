@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { readFile, stat } from 'node:fs/promises';
 
 import { DeviceForbiddenError } from '../../manager/notificationManager.js';
 import { NotificationsService } from '../services/notifications.service.js';
@@ -144,23 +145,24 @@ export class NotificationsController {
       return reply.code(404).send({ statusCode: 404, message: 'No video for this notification' });
     }
     try {
-      const data = await readFile(path);
+      const { size } = await stat(path);
       reply.header('accept-ranges', 'bytes').header('cache-control', 'private, max-age=31536000, immutable').type('video/mp4');
 
       // Safari refuses to play <video> without range responses
       const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
       if (range && (range[1] || range[2])) {
-        const start = range[1] ? Number(range[1]) : Math.max(0, data.length - Number(range[2]));
-        const end = range[1] && range[2] ? Math.min(Number(range[2]), data.length - 1) : data.length - 1;
-        if (start >= data.length || start > end) {
-          return reply.code(416).header('content-range', `bytes */${data.length}`).send();
+        const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+        const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+        if (start >= size || start > end) {
+          return reply.code(416).header('content-range', `bytes */${size}`).send();
         }
         return reply
           .code(206)
-          .header('content-range', `bytes ${start}-${end}/${data.length}`)
-          .send(data.subarray(start, end + 1));
+          .header('content-range', `bytes ${start}-${end}/${size}`)
+          .header('content-length', end - start + 1)
+          .send(createReadStream(path, { start, end }));
       }
-      return reply.code(200).send(data);
+      return reply.code(200).header('content-length', size).send(createReadStream(path));
     } catch {
       return reply.code(404).send({ statusCode: 404, message: 'No video for this notification' });
     }
