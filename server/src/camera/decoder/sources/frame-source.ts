@@ -5,7 +5,7 @@ import { FrameHandle } from './frame-handle.js';
 import { ReconnectLoop } from './reconnect-loop.js';
 import { RtpIndex } from './rtp-index.js';
 import { SnapshotFetcher } from './snapshot-fetcher.js';
-import { createFrameFilter, openVideoInput } from './video-input.js';
+import { configureLowDelayDecoder, createFrameFilter, openVideoInput } from './video-input.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { FrameWorkerDecoderSettings } from '@camera.ui/sdk';
@@ -214,6 +214,7 @@ export class FrameSource implements AnalysisSource {
     this.decoder = await Decoder.create(videoStream, {
       hardware: this._hardwareContext,
       exitOnError: false,
+      configure: configureLowDelayDecoder,
     });
 
     this.logger.debug(`Detection stream: ${videoStream.codecpar.width}x${videoStream.codecpar.height} @ ${fps}fps`);
