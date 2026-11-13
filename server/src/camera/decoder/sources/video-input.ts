@@ -9,12 +9,14 @@ import type { FrameWorkerDecoderSettings } from '@camera.ui/sdk';
 import type { HardwareContext } from 'node-av/api';
 import type { CodecContext, Stream } from 'node-av/lib';
 
+// go2rtc answers the RTSP keepalive every 55 s, so only a dead go2rtc trips this
+export const RTSP_READ_TIMEOUT_US = 60_000_000;
+
 const FALLBACK_FPS = 20;
 const MAX_LOW_DELAY_FRAME_THREADS = 4;
 
 export interface VideoInputOptions {
   decoder?: FrameWorkerDecoderSettings;
-  timeoutUs?: number;
   hardwareContext?: HardwareContext | null;
   signal?: AbortSignal;
 }
@@ -29,7 +31,7 @@ export interface VideoInput {
 export async function openVideoInput(url: string, logger: Logger, options: VideoInputOptions = {}): Promise<VideoInput> {
   const input = await Demuxer.open(url, {
     options: {
-      ...(options.timeoutUs ? { timeout: options.timeoutUs } : {}),
+      timeout: RTSP_READ_TIMEOUT_US,
       rtsp_transport: 'tcp',
       user_agent: 'camera.ui Decoder',
       avioflags: 'direct',

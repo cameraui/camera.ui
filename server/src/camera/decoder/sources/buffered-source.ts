@@ -307,8 +307,6 @@ export class BufferedSource implements AnalysisSource {
 
     const { input, videoStream, hardwareContext, fps } = await openVideoInput(this.config.url, this.logger, {
       decoder: this.config.decoder,
-      // go2rtc answers the RTSP keepalive every 55 s, so only a dead go2rtc trips this
-      timeoutUs: 60_000_000,
       hardwareContext: this.hwContext,
       signal: this.reconnect.signal,
     });

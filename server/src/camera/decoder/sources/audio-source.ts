@@ -2,6 +2,7 @@ import { Decoder, Demuxer, FilterAPI, FilterPreset } from 'node-av/api';
 import { AV_CODEC_ID_OPUS, AV_SAMPLE_FMT_FLT, AV_SAMPLE_FMT_S16, FF_DECODER_LIBOPUS } from 'node-av/constants';
 
 import { ReconnectLoop } from './reconnect-loop.js';
+import { RTSP_READ_TIMEOUT_US } from './video-input.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Frame } from 'node-av/lib';
@@ -143,6 +144,7 @@ export class AudioSource {
   private async connect(): Promise<void> {
     this.input = await Demuxer.open(this.config.streamUrl, {
       options: {
+        timeout: RTSP_READ_TIMEOUT_US,
         rtsp_transport: 'tcp',
         user_agent: 'camera.ui Decoder',
       },
