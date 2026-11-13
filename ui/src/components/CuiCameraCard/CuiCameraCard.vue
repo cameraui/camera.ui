@@ -1262,6 +1262,7 @@ const codecDegradedTooltip = computed(() => {
         : t('components.player.source_role_low');
   const quality = roleLabel(degraded.to);
   if (degraded.reason === 'coverage') return t('components.player.quality_degraded', { from: roleLabel(degraded.from), quality });
+  if (degraded.reason === 'speed') return t('components.player.speed_degraded', { quality });
   return t('components.player.codec_degraded', { quality });
 });
 const liveFailedTooltip = computed(() =>

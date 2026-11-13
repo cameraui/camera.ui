@@ -1422,6 +1422,7 @@ export default {
       relay_connected: 'Über das Relay von cameraui.com verbunden',
       relay_off_hint: 'Keine direkte Verbindung, die Live-Ansicht hat mehr Verzögerung. Das Relay unter Einstellungen → Streaming kann helfen.',
       quality_degraded: 'Keine Aufnahme in {from} an dieser Stelle, gezeigt wird: {quality}',
+      speed_degraded: 'Für diese Geschwindigkeit wird gezeigt: {quality}',
       codec_unsupported: 'Dieser Stream nutzt einen Codec, den dieses Gerät nicht abspielen kann',
       codec_unsupported_recording: 'Diese Aufnahme nutzt einen Codec, den dieses Gerät nicht abspielen kann',
       copied: 'Kopiert',
