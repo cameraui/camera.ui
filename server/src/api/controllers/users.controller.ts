@@ -1,6 +1,6 @@
 import { orderBy } from '@camera.ui/common/utils';
 import { createHmac, randomBytes } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 
 import { inject } from '../../container.js';
 import { INGRESS_DEVICE_PREFIX, INGRESS_USERNAME } from '../../services/config/constants.js';
@@ -220,8 +220,8 @@ export class UsersController {
 
           if (file) {
             const fileBuffer = await file.toBuffer();
-            req.body.avatar = `${req.locals.user!._id}_avatar.${file.mimetype.split('/')[1]}`;
-            writeFileSync(`${this.configService.USERS_STORAGE_PATH}/${req.body.avatar}`, fileBuffer);
+            req.body.avatar = `${user._id}_avatar.${file.mimetype.split('/')[1]}`;
+            await writeFile(`${this.configService.USERS_STORAGE_PATH}/${req.body.avatar}`, fileBuffer);
             delete req.body.upload;
           }
         }
