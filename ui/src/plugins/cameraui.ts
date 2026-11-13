@@ -18,11 +18,13 @@ export async function refreshIceServers(): Promise<void> {
 }
 
 export function registerEcosystemPlugins(app: App, connection: Connection): void {
+  const authStore = useAuthStore();
+
   watch(
-    [() => connection.target.value?.endpoint.url, () => connection.signal.value.kind],
-    ([url, kind]) => {
+    [() => connection.target.value?.endpoint.url, () => connection.signal.value.kind, () => authStore.isLoggedIn && !authStore.mustSetPassword],
+    ([url, kind, signedIn]) => {
       if (!url) iceServers.value = undefined;
-      else if (kind === 'online') refreshIceServers();
+      else if (kind === 'online' && signedIn) refreshIceServers();
     },
     { immediate: true },
   );

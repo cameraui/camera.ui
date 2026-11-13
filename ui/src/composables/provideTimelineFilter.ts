@@ -13,11 +13,11 @@ export function provideTimelineFilter(): void {
   const queryClient = useQueryClient();
   const authStore = useAuthStore();
   const instanceStore = useInstanceStore();
-  const { user } = storeToRefs(authStore);
+  const { user, mustSetPassword } = storeToRefs(authStore);
 
   const username = computed(() => user.value?.username ?? '');
   const { data: currentUser, refetch } = usersQuery.getUserQuery(username);
-  const { data: cameras, refetch: refetchCameras } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 }, () => Boolean(username.value));
+  const { data: cameras, refetch: refetchCameras } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 }, () => Boolean(username.value) && !mustSetPassword.value);
 
   const pending = ref<DBTimelinePreferences>();
   const timeline = computed<DBTimelinePreferences>(() => pending.value ?? currentUser.value?.preferences?.timeline ?? {});

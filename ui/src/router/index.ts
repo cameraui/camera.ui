@@ -1546,10 +1546,10 @@ router.beforeEach(async (to, from) => {
       queryClient.cancelQueries(undefined, { revert: false });
     }
 
-    if (authStore.user.firstLogin && to.path !== '/first-steps') {
+    if (authStore.mustSetPassword && to.path !== '/first-steps') {
       return '/first-steps';
     } else if (
-      (!authStore.user.firstLogin && to.path === '/first-steps') ||
+      (!authStore.mustSetPassword && to.path === '/first-steps') ||
       (to.meta.auth?.requiresAuth &&
         to.meta.auth.role &&
         authStore.user.role !== to.meta.auth.role &&

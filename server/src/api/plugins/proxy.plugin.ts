@@ -5,6 +5,7 @@ import { inject, provide, tryInject } from '../../container.js';
 import { createSourceName } from '../../utils/camera.js';
 import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
+import { mustSetPassword } from '../utils/utils.js';
 import { Go2rtcSender } from './go2rtcSender.js';
 import { NatsSubFirewall } from './natsSubFirewall.js';
 import { FrameDeflater, isRemoteClient, wantsFrameDeflate, worthCompressing } from './relayCompression.js';
@@ -307,7 +308,8 @@ class WebSocketProxy {
         return;
       }
 
-      if (this.usersService.findById(dbToken.user_id)?.firstLogin) {
+      const user = this.usersService.findById(dbToken.user_id);
+      if (user && mustSetPassword(user, dbToken)) {
         this.reject(request, socket, head, 4403, 'forbidden: password change required', token);
         return;
       }

@@ -2,7 +2,7 @@ import { useEventListener, useLocalStorage } from '@vueuse/core';
 
 import { getMeFn } from '@/api/routes/auth.js';
 import { UsersQuery } from '@/api/routes/users.js';
-import { isEmbedded, proxyLogoutUrl, runtimeBase } from '@/common/base.js';
+import { isEmbedded, isHaIngress, proxyLogoutUrl, runtimeBase } from '@/common/base.js';
 import { login as connectionLogin, verify2FA as connectionVerify2FA, getServerKey, isTwoFactorPending, logoutCurrent, useConnection } from '@/connection/index.js';
 import router, { resolveLandingPage } from '@/router/index.js';
 
@@ -58,6 +58,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => user.value !== null && !connection.isNeedsAuth.value);
   const requires2FA = computed(() => pending2FA.value !== null);
+  // a Home Assistant user without admin rights can not set a password in the panel
+  const mustSetPassword = computed(() => Boolean(user.value?.firstLogin) && !(isHaIngress() && user.value?.role !== 'master'));
   const totalLoginLoading = computed(() => loginLoading.value || verify2FALoading.value || logoutLoading.value || patchUserPending.value);
 
   function setUserFromLogin(data: LoginUserData | undefined): void {
@@ -194,6 +196,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     isLoggedIn,
+    mustSetPassword,
     requires2FA,
     pending2FA,
     loginLoading: totalLoginLoading,

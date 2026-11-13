@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service.js';
 import { updatesService } from '../services/updates.service.js';
 import { UsersService } from '../services/users.service.js';
 import { API_TOKEN_PREFIX } from '../types/index.js';
+import { mustSetPassword } from '../utils/utils.js';
 import { CamerasNamespace } from './nsp/cameras.js';
 import { EventsNamespace } from './nsp/events.js';
 import { LogsNamespace } from './nsp/logs.js';
@@ -140,14 +141,13 @@ export class SocketService {
         return next(new UnauthorizedError('insufficient_role', { message: `Not authorized to connect to ${nsp}` }));
       }
 
-      // the first-steps page only needs the main connection
-      if (user.firstLogin && nsp !== '/camera.ui') {
-        return next(new UnauthorizedError('first_login', { message: 'Password change required before first use' }));
-      }
-
       const dbToken = this.authService.resolveAccessToken(socket.encodedToken!)?.token;
       if (dbToken?.user_id !== user._id || dbToken.stream_scope) {
         return next(new UnauthorizedError('unauthenticated', { message: 'Unauthenticated' }));
+      }
+
+      if (nsp !== '/camera.ui' && mustSetPassword(user, dbToken)) {
+        return next(new UnauthorizedError('first_login', { message: 'Password change required before first use' }));
       }
 
       if (this.countTokenSockets(socket.nsp, dbToken.id) >= MAX_SOCKETS_PER_TOKEN) {

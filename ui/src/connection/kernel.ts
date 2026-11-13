@@ -13,6 +13,7 @@ import {
   createConnectionJournal,
   createConnectionSignal,
   createKernel,
+  refusedByServer,
 } from '@camera.ui/transport';
 import axios from 'axios';
 
@@ -210,7 +211,7 @@ export function createConnection(options: ConnectionOptions): Connection {
         if (t) restoredTarget = null;
         else if (kernel.phase.kind === 'idle' || kernel.phase.kind === 'needs-auth') restoredTarget = null;
       },
-      onError: (transport, _t, err) => diag(transport.spec.id, 'apply failed', err, 'error'),
+      onError: (transport, _t, err) => diag(transport.spec.id, 'apply failed', err, refusedByServer(err) ? 'debug' : 'error'),
     }),
   );
 

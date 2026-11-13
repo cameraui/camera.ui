@@ -7,7 +7,7 @@ import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
 import { API_TOKEN_PREFIX } from '../types/index.js';
 import { AttemptLimiter } from '../utils/attempt-limiter.js';
-import { isManagedDevice } from '../utils/utils.js';
+import { isManagedDevice, mustSetPassword } from '../utils/utils.js';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DBUser } from '../database/types.js';
@@ -15,6 +15,7 @@ import type { AuthLoginRequest, AuthNewLoginRequest, CamerasStreamRequest, JwtTo
 
 const FIRST_LOGIN_ALLOWED_ROUTES: ReadonlySet<string> = new Set([
   'GET /api/auth/check',
+  'GET /api/auth/me',
   'POST /api/backup/restore',
   'DELETE /api/backup/restore',
   'POST /api/backup/restore/confirm',
@@ -171,7 +172,7 @@ export async function validJWTNeeded(req: FastifyRequest<AuthLoginRequest>, repl
 
   req.locals = { user, jwt: decoded, authKind: 'session' };
 
-  if (user.firstLogin) {
+  if (mustSetPassword(user, dbToken)) {
     const routeUrl = req.routeOptions?.url;
     const params = req.params as Record<string, string | undefined>;
     const isOwnUserRoute = routeUrl === '/api/users/:username' && params.username === user.username;

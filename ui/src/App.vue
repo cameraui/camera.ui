@@ -217,7 +217,7 @@ async function consumePendingIntent(): Promise<void> {
 async function onConnectionReady(): Promise<void> {
   await authStore.refreshUser();
   instanceStore.saveCurrentTokens();
-  instanceStore.fetchInstances();
+  if (!authStore.mustSetPassword) instanceStore.fetchInstances();
 }
 
 watch(
