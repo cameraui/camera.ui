@@ -5,9 +5,10 @@ import type { Migration } from './types.js';
 
 const migration: Migration = {
   version: '2.4.10',
-  description: 'notifications are stored once with their recipients instead of once per user, the RTMP server is off until it is switched on',
+  description:
+    'notifications are stored once with their recipients instead of once per user, the RTMP server is off until it is switched on, user records drop a form field',
   async up(ctx) {
-    const { notificationHistoryDB, notificationEntriesDB } = ctx.db;
+    const { notificationHistoryDB, notificationEntriesDB, usersDB } = ctx.db;
     const entries = new Map<string, DBNotificationEntry>();
 
     for (const { value } of notificationHistoryDB.getRange()) {
@@ -30,6 +31,14 @@ const migration: Migration = {
       await ctx.configService.writeGo2RtcConfigFile({ rtmp: { listen: '' } });
       ctx.logger.log('RTMP: the server is off now, Settings, Streaming switches it on again');
     }
+
+    await usersDB.transaction(() => {
+      for (const { key, value } of usersDB.getRange()) {
+        if (!('passwordConfirm' in value)) continue;
+        delete value.passwordConfirm;
+        usersDB.put(key, value);
+      }
+    });
   },
 };
 

@@ -59,14 +59,11 @@ export class UsersController {
       const hash = createHmac('sha512', salt).update(req.body.password).digest('base64');
 
       req.body.password = salt + '$' + hash;
+      delete (req.body as Partial<UsersInsertRequest['Body']>).passwordConfirm;
 
       const newUser = (await this.service.createUser(req.body)) as Partial<DBUser>;
 
       delete newUser.password;
-
-      if ('passwordConfirm' in newUser) {
-        delete newUser.passwordConfirm;
-      }
 
       if ('root' in newUser) {
         delete newUser.root;

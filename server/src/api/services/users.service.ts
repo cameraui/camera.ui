@@ -16,10 +16,6 @@ export class UsersService {
   }
 
   public async createUser(userData: DBUser): Promise<DBUser> {
-    if ('passwordConfig' in userData) {
-      delete (userData as Record<string, unknown>).passwordConfig;
-    }
-
     await this.dbs.usersDB.put(userData._id, userData);
     return userData;
   }
