@@ -4,7 +4,6 @@ import { open } from 'lmdb';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile, unlink } from 'node:fs/promises';
-import semver from 'semver';
 
 import { inject, provide } from '../../container.js';
 import { DEFAULT_MASTER_USERNAME, INGRESS_USERNAME, MIN_DATABASE_VERSION } from '../../services/config/constants.js';
@@ -69,6 +68,7 @@ import {
 } from './record-schemas.js';
 import { SelfCheck } from './selfcheck.js';
 import { tokenIndex } from './tokenIndex.js';
+import { compareDatabaseVersions } from './version.js';
 
 import type { Database as DB, Key, RootDatabase as RootDB } from 'lmdb';
 import type { ConfigService } from '../../services/config/index.js';
@@ -364,7 +364,7 @@ export class Database {
     const settingsDB = this.settingsDB.get('settings');
     const oldVersion = settingsDB?.version ?? Database.VERSION;
 
-    if (semver.lt(oldVersion, MIN_DATABASE_VERSION)) {
+    if (compareDatabaseVersions(oldVersion, MIN_DATABASE_VERSION) < 0) {
       this.logger.attention('Database version is too old! camera.ui will reset the database and restart!');
 
       this.configService.reset();

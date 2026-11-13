@@ -1,8 +1,7 @@
-import semver from 'semver';
-
 import { inject } from '../../container.js';
 import { Database } from './index.js';
 import { loadMigrations } from './migrations/index.js';
+import { compareDatabaseVersions } from './version.js';
 
 import type { MigrationContext } from './migrations/types.js';
 
@@ -26,12 +25,12 @@ export class MigrationRunner {
     const oldVersion = settingsDb.version;
     const newVersion = Database.VERSION;
 
-    if (semver.eq(oldVersion, newVersion)) {
+    if (compareDatabaseVersions(oldVersion, newVersion) === 0) {
       this.ctx.logger.log('Database is up to date. Version:', newVersion);
       return;
     }
 
-    if (semver.gt(oldVersion, newVersion)) {
+    if (compareDatabaseVersions(oldVersion, newVersion) > 0) {
       this.ctx.logger.log(`Database version ${oldVersion} is greater than the current version ${newVersion}, skipping migration.`);
       return;
     }
@@ -40,7 +39,7 @@ export class MigrationRunner {
 
     const migrations = await loadMigrations();
     for (const migration of migrations) {
-      if (semver.gt(migration.version, oldVersion) && semver.lte(migration.version, newVersion)) {
+      if (compareDatabaseVersions(migration.version, oldVersion) > 0 && compareDatabaseVersions(migration.version, newVersion) <= 0) {
         this.ctx.logger.log(`Applying migration ${migration.version}: ${migration.description}`);
         await migration.up(this.ctx);
       }
