@@ -90,13 +90,13 @@ export async function get2FAStatusFn(signal?: AbortSignal): Promise<TwoFactorSta
   return response.data;
 }
 
-export async function setup2FAFn(): Promise<TwoFactorSetupResponse> {
-  const response: AxiosResponse<TwoFactorSetupResponse> = await api.post('/auth/2fa/setup');
+export async function setup2FAFn(input: { currentPassword?: string }): Promise<TwoFactorSetupResponse> {
+  const response: AxiosResponse<TwoFactorSetupResponse> = await api.post('/auth/2fa/setup', input);
   return response.data;
 }
 
-export async function enable2FAFn(input: { code: string; currentPassword?: string }): Promise<TwoFactorBackupCodesResponse> {
-  const response: AxiosResponse<TwoFactorBackupCodesResponse> = await api.post('/auth/2fa/enable', input);
+export async function enable2FAFn({ code }: { code: string }): Promise<TwoFactorBackupCodesResponse> {
+  const response: AxiosResponse<TwoFactorBackupCodesResponse> = await api.post('/auth/2fa/enable', { code });
   return response.data;
 }
 

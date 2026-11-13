@@ -72,61 +72,27 @@
           <span class="card-title">{{ $t('views.settings.profile') }}</span>
           <Card class="cui-card">
             <template #content>
-              <Form v-slot="{ values }" ref="profileFormRef" :validation-schema="profileSchema" class="flex flex-col gap-6" @submit="saveProfile($event as ProfileInput)">
+              <div class="flex flex-col gap-6">
                 <span class="text-sm pr-24">{{ $t('views.settings.profile_info') }}</span>
 
                 <div class="flex flex-col field-gap">
-                  <label for="username" class="cui-label">{{ $t('components.form.label.username') }}</label>
+                  <label class="cui-label">{{ $t('components.form.label.username') }}</label>
                   <InputGroup>
-                    <InputText v-model="profileUsername" :loading="profileLoading" :disabled="isIngress || isProxy" type="text" />
+                    <InputText :model-value="user?.username" readonly type="text" />
                   </InputGroup>
                 </div>
 
-                <template v-if="!isIngress">
-                  <Field v-if="!isProxy" v-slot="{ field, errors }" name="currentPassword" as="div" class="flex flex-col field-gap">
-                    <label for="currentPassword" class="cui-label">{{ $t('components.form.label.current_password') }}</label>
-                    <InputGroup>
-                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
-                    </InputGroup>
-
-                    <Transition name="fade">
-                      <ErrorMessage name="currentPassword" class="cui-input-error" />
-                    </Transition>
-                  </Field>
-
-                  <Field v-slot="{ field, errors }" name="password" as="div" class="flex flex-col field-gap">
-                    <label for="password" class="cui-label">{{ $t('components.form.label.new_password') }}</label>
-                    <InputGroup>
-                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
-                    </InputGroup>
-
-                    <Transition name="fade">
-                      <ErrorMessage name="password" class="cui-input-error" />
-                    </Transition>
-                  </Field>
-
-                  <Field v-slot="{ field, errors }" name="passwordConfirm" as="div" class="flex flex-col field-gap">
-                    <label for="passwordConfirm" class="cui-label">{{ $t('components.form.label.new_password_confirm') }}</label>
-                    <InputGroup>
-                      <Password :invalid="errors.length > 0" v-bind="field" :loading="profileLoading" :feedback="false" toggle-mask />
-                    </InputGroup>
-
-                    <Transition name="fade">
-                      <ErrorMessage name="passwordConfirm" class="cui-input-error" />
-                    </Transition>
-                  </Field>
-                </template>
-
-                <div class="flex flex-row items-end justify-end">
+                <div v-if="!isIngress" class="flex gap-2 justify-end">
                   <Button
-                    type="submit"
-                    :loading="profileLoading"
-                    :disabled="!profileChanged && !values.password && !values.passwordConfirm"
+                    v-if="!isProxy"
+                    severity="secondary"
                     class="cui-button-medium"
-                    :label="$t('components.form.button.save')"
+                    :label="$t('components.form.button.change_username')"
+                    @click="openUsernameDialog"
                   />
+                  <Button severity="secondary" class="cui-button-medium" :label="$t('components.form.button.change_password')" @click="openPasswordDialog" />
                 </div>
-              </Form>
+              </div>
             </template>
           </Card>
         </div>
@@ -182,20 +148,13 @@
                       <InputOtp v-model="setupCode" :length="6" integer-only />
                     </div>
 
-                    <div v-if="!isIngress && !isProxy" class="flex flex-col field-gap">
-                      <label class="cui-label">{{ $t('components.form.label.current_password') }}</label>
-                      <InputGroup>
-                        <Password v-model="setupPassword" :feedback="false" toggle-mask />
-                      </InputGroup>
-                    </div>
-
                     <div class="flex gap-2 justify-end">
                       <Button severity="secondary" class="cui-button-medium" :label="$t('components.form.button.cancel')" @click="cancelSetup" />
                       <Button
                         class="cui-button-medium"
                         :label="$t('views.settings.security.enable_2fa')"
                         :loading="enableLoading"
-                        :disabled="setupCode.length < 6 || (!isIngress && !isProxy && !setupPassword)"
+                        :disabled="setupCode.length < 6"
                         @click="enable2FA"
                       />
                     </div>
@@ -391,19 +350,25 @@ import { AuthQuery } from '@/api/routes/auth.js';
 import { isHaIngress, isProxySignIn } from '@/common/base.js';
 import { copyToClipboard, formatRelativeTime, readImgUpload } from '@/common/utils.js';
 import ApiTokenCreatedDialog from '@/components/CuiDialog/templates/ApiTokenCreated/ApiTokenCreated.vue';
+import ChangePasswordDialog from '@/components/CuiDialog/templates/ChangePassword/ChangePassword.vue';
+import ChangeUsernameDialog from '@/components/CuiDialog/templates/ChangeUsername/ChangeUsername.vue';
 import CreateApiTokenDialog from '@/components/CuiDialog/templates/CreateApiToken/CreateApiToken.vue';
 import TwoFactorBackupCodesDialog from '@/components/CuiDialog/templates/TwoFactorBackupCodes/TwoFactorBackupCodes.vue';
 import TwoFactorDisableDialog from '@/components/CuiDialog/templates/TwoFactorDisable/TwoFactorDisable.vue';
 import TwoFactorRegenerateDialog from '@/components/CuiDialog/templates/TwoFactorRegenerate/TwoFactorRegenerate.vue';
+import TwoFactorSetupDialog from '@/components/CuiDialog/templates/TwoFactorSetup/TwoFactorSetup.vue';
 import { checkBiometryAvailable, clearCredentials, hasStoredCredentials } from '@/composables/useBiometricCredentials.js';
 import { getServerKey, isCapacitor } from '@/connection/index.js';
 import { userPasswordSchema } from '@/schemas/users.schema.js';
 
 import type { ApiTokenCreatedProps } from '@/components/CuiDialog/templates/ApiTokenCreated/types.js';
+import type { ChangePasswordProps } from '@/components/CuiDialog/templates/ChangePassword/types.js';
+import type { ChangeUsernameProps } from '@/components/CuiDialog/templates/ChangeUsername/types.js';
 import type { CreateApiTokenProps } from '@/components/CuiDialog/templates/CreateApiToken/types.js';
 import type { TwoFactorBackupCodesProps } from '@/components/CuiDialog/templates/TwoFactorBackupCodes/types.js';
 import type { TwoFactorDisableProps } from '@/components/CuiDialog/templates/TwoFactorDisable/types.js';
 import type { TwoFactorRegenerateProps } from '@/components/CuiDialog/templates/TwoFactorRegenerate/types.js';
+import type { TwoFactorSetupProps } from '@/components/CuiDialog/templates/TwoFactorSetup/types.js';
 import type { PassThrough } from '@openvue/core';
 import type { ApiTokenInfo, ClientKind } from '@shared/types';
 import type { DataTablePassThroughOptions } from 'openvue';
@@ -432,21 +397,6 @@ const { data: apiTokens, isBusy: apiTokensLoading } = authQuery.toggleQueryActiv
 const { mutateAsync: createApiToken, isPending: createTokenLoading } = authQuery.createApiTokenQuery();
 const { mutateAsync: revokeApiToken } = authQuery.revokeApiTokenQuery();
 
-const profileSchema = z
-  .object({
-    currentPassword: z.string().optional(),
-    password: z.union([z.literal(''), userPasswordSchema]).optional(),
-    passwordConfirm: z.string().optional(),
-  })
-  .refine((data) => (data.password ?? '') === (data.passwordConfirm ?? ''), {
-    message: 'Passwords do not match',
-    path: ['passwordConfirm'],
-  })
-  .refine((data) => isProxy || (!data.password && !usernameChanged.value) || !!data.currentPassword, {
-    message: 'Current password is required',
-    path: ['currentPassword'],
-  });
-
 const firststepsSchema = z
   .object({
     username: z.string().min(1),
@@ -458,22 +408,15 @@ const firststepsSchema = z
     path: ['passwordConfirm'],
   });
 
-type ProfileInput = z.infer<typeof profileSchema>;
-
 const isIngress = isHaIngress();
 const isProxy = isProxySignIn();
 
 const formRef = useTemplateRef<InstanceType<typeof Form>>('formRef');
-const profileFormRef = useTemplateRef<InstanceType<typeof Form>>('profileFormRef');
 
-const file = shallowRef<File>();
 const avatarSrc = ref('avatar');
-const profileUsername = ref(user.value?.username ?? '');
-const profileLoading = ref(false);
 
 const setupData = ref<{ secret: string } | null>(null);
 const setupCode = ref('');
-const setupPassword = ref('');
 
 const revokingId = ref<string | null>(null);
 const revokeAllLoading = ref(false);
@@ -485,8 +428,6 @@ const biometricToggling = ref(false);
 
 const biometricCardVisible = computed(() => isCapacitor && biometryAvailable.value && !firststeps.value);
 const apiTokensVisible = computed(() => !isIngress || user.value?.role === 'master');
-const usernameChanged = computed(() => profileUsername.value !== (user.value?.username ?? ''));
-const profileChanged = computed(() => !!file.value || usernameChanged.value);
 
 const sessionsTablePt: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: {
@@ -607,22 +548,37 @@ function onRevokeOthers(): void {
 }
 
 async function startSetup(): Promise<void> {
-  try {
-    setupData.value = await setup2FAFn();
-  } catch (error: any) {
-    toast.add({ severity: 'error', detail: error, life: 3000 });
+  // behind Home Assistant or a proxy the account never typed a password
+  if (isIngress || isProxy) {
+    try {
+      setupData.value = await setup2FAFn({});
+    } catch (error: any) {
+      toast.add({ severity: 'error', detail: error, life: 3000 });
+    }
+    return;
   }
+
+  dialog.openComponentDialog<TwoFactorSetupProps>(TwoFactorSetupDialog, {
+    data: {
+      title: t('views.settings.security.setup_2fa'),
+      confirmText: t('components.form.button.next'),
+      contentProps: {
+        onSetup: (secret: string) => {
+          setupData.value = { secret };
+        },
+      },
+    },
+  });
 }
 
 function cancelSetup(): void {
   setupData.value = null;
   setupCode.value = '';
-  setupPassword.value = '';
 }
 
 async function enable2FA(): Promise<void> {
   try {
-    const response = await enable2FAFn({ code: setupCode.value, ...(setupPassword.value && { currentPassword: setupPassword.value }) });
+    const response = await enable2FAFn({ code: setupCode.value });
     cancelSetup();
     toast.add({ severity: 'success', detail: t('views.settings.security.2fa_enabled_success'), life: 3000 });
 
@@ -670,44 +626,41 @@ function openBackupCodesDialog(codes: string[]): void {
   });
 }
 
-async function changeInput(event: any): Promise<void> {
-  const fileList: FileList | null = (event.target as HTMLInputElement)?.files;
-  file.value = fileList?.[0];
-
-  avatarSrc.value = (await readImgUpload(event)) ?? avatarSrc.value;
+function openUsernameDialog(): void {
+  dialog.openComponentDialog<ChangeUsernameProps>(ChangeUsernameDialog, {
+    data: {
+      title: t('components.form.button.change_username'),
+      confirmText: t('components.form.button.save'),
+      contentProps: {},
+    },
+  });
 }
 
-async function saveProfile(values: ProfileInput): Promise<void> {
-  profileLoading.value = true;
+function openPasswordDialog(): void {
+  dialog.openComponentDialog<ChangePasswordProps>(ChangePasswordDialog, {
+    data: {
+      title: t('components.form.button.change_password'),
+      confirmText: t('components.form.button.save'),
+      contentProps: {},
+    },
+  });
+}
+
+async function changeInput(event: any): Promise<void> {
+  const picked = (event.target as HTMLInputElement).files?.[0];
+  const previous = avatarSrc.value;
+  avatarSrc.value = (await readImgUpload(event)) ?? previous;
+  if (!picked || firststeps.value) return;
+
+  const formData = new FormData();
+  formData.append('upload', picked);
 
   try {
-    let formData: FormData | undefined;
-
-    if (file.value) {
-      formData = new FormData();
-      formData.append('upload', file.value);
-    }
-
-    const renamed = usernameChanged.value;
-    const userData = {
-      ...(renamed && { username: profileUsername.value }),
-      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm }),
-      ...((renamed || values.password) && values.currentPassword && { currentPassword: values.currentPassword }),
-    };
-
-    await authStore.updateUser(Object.keys(userData).length ? userData : undefined, formData);
-
-    toast.add({ severity: 'success', detail: t(values.password ? 'components.toast.password_updated' : 'components.toast.profile_updated'), life: 3000 });
-    file.value = undefined;
-    profileFormRef.value?.resetForm();
-
-    if (renamed || (values.password && !isProxy)) {
-      authStore.logout();
-    }
+    await authStore.updateUser(undefined, formData);
+    toast.add({ severity: 'success', detail: t('components.toast.profile_updated'), life: 3000 });
   } catch {
     // the mutation already shows the error
-  } finally {
-    profileLoading.value = false;
+    avatarSrc.value = previous;
   }
 }
 

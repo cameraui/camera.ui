@@ -7,6 +7,7 @@ import {
   createApiTokenSchema,
   disable2FASchema,
   enable2FASchema,
+  setup2FASchema,
   oauthTokenSchema,
   refreshTokenSchema,
   regenerateBackupCodesSchema,
@@ -183,7 +184,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
     },
   });
 
-  app.route({
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/2fa/setup',
     method: 'POST',
     preValidation: [validJWTNeeded, onlySessionCanDoThisAction],
@@ -191,6 +192,7 @@ export const AuthRoute: FastifyPluginAsync = async (app: FastifyInstance): Promi
     schema: {
       tags: ['Auth'],
       summary: 'Generate a new TOTP secret and QR code for 2FA setup',
+      body: setup2FASchema,
     },
   });
 

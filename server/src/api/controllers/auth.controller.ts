@@ -22,6 +22,7 @@ import type {
   Auth2FADisableRequest,
   Auth2FAEnableRequest,
   Auth2FARegenerateBackupCodesRequest,
+  Auth2FASetupRequest,
   Auth2FAVerifyRequest,
   AuthLoginRequest,
   AuthNewLoginRequest,
@@ -327,7 +328,7 @@ export class AuthController {
     }
   }
 
-  public async setup2FA(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+  public async setup2FA(req: FastifyRequest<AuthLoginRequest & Auth2FASetupRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const user = req.locals.user!;
 
@@ -337,6 +338,9 @@ export class AuthController {
           message: '2FA already enabled',
         });
       }
+
+      const refusal = currentPasswordRefusal(req, req.body.currentPassword);
+      if (refusal) return reply.code(refusal.statusCode).send(refusal);
 
       const secret = this.twoFactorService.generateSecret();
 
@@ -374,9 +378,6 @@ export class AuthController {
           message: '2FA already enabled',
         });
       }
-
-      const refusal = currentPasswordRefusal(req, req.body.currentPassword);
-      if (refusal) return reply.code(refusal.statusCode).send(refusal);
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret);
       const isValidCode = this.twoFactorService.verifyToken(req.body.code, secret, user._id);

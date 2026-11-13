@@ -7,10 +7,15 @@ export const verify2FASchema = zod
   })
   .strict();
 
+export const setup2FASchema = zod
+  .object({
+    currentPassword: zod.string().optional(),
+  })
+  .strict();
+
 export const enable2FASchema = zod
   .object({
     code: zod.string().trim().length(6, 'Code must be 6 digits'),
-    currentPassword: zod.string().optional(),
   })
   .strict();
 
@@ -57,6 +62,7 @@ export type RefreshTokenInput = zod.output<typeof refreshTokenSchema>;
 export type CreateApiTokenInput = zod.output<typeof createApiTokenSchema>;
 export type ApiTokenParamsInput = zod.output<typeof apiTokenParamsSchema>;
 export type Verify2FAInput = zod.output<typeof verify2FASchema>;
+export type Setup2FAInput = zod.output<typeof setup2FASchema>;
 export type Enable2FAInput = zod.output<typeof enable2FASchema>;
 export type Disable2FAInput = zod.output<typeof disable2FASchema>;
 export type RegenerateBackupCodesInput = zod.output<typeof regenerateBackupCodesSchema>;

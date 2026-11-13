@@ -26,7 +26,15 @@ import type {
   ReplaceAssistantThreadMessagesInput,
   TestAssistantInput,
 } from '../schemas/assistant.schema.js';
-import type { Disable2FAInput, Enable2FAInput, OAuthTokenInput, RefreshTokenInput, RegenerateBackupCodesInput, Verify2FAInput } from '../schemas/auth.schema.js';
+import type {
+  Disable2FAInput,
+  Enable2FAInput,
+  OAuthTokenInput,
+  RefreshTokenInput,
+  RegenerateBackupCodesInput,
+  Setup2FAInput,
+  Verify2FAInput,
+} from '../schemas/auth.schema.js';
 import type {
   BulkDeleteAutomationsInput,
   BulkPatchAutomationsInput,
@@ -357,6 +365,10 @@ export interface AuthRefreshRequest {
 
 export interface Auth2FAVerifyRequest {
   Body: Verify2FAInput;
+}
+
+export interface Auth2FASetupRequest {
+  Body: Setup2FAInput;
 }
 
 export interface Auth2FAEnableRequest {
