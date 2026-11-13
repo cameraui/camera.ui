@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { inject } from '../../container.js';
 import { INGRESS_DEVICE_PREFIX } from '../../services/config/constants.js';
 import { isExpiredToken } from '../database/tokenSweep.js';
-import { verifyLogin } from '../middlewares/authValidation.middleware.js';
+import { currentPasswordRefusal, verifyLogin } from '../middlewares/authValidation.middleware.js';
 import { AuthService } from '../services/auth.service.js';
 import { ServerService } from '../services/server.service.js';
 import { TwoFactorService } from '../services/twoFactor.service.js';
@@ -374,6 +374,9 @@ export class AuthController {
           message: '2FA already enabled',
         });
       }
+
+      const refusal = currentPasswordRefusal(req, req.body.currentPassword);
+      if (refusal) return reply.code(refusal.statusCode).send(refusal);
 
       const secret = this.twoFactorService.decryptSecret(user.twoFactor.secret);
       const isValidCode = this.twoFactorService.verifyToken(req.body.code, secret, user._id);

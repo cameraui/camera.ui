@@ -10,6 +10,7 @@ export const verify2FASchema = zod
 export const enable2FASchema = zod
   .object({
     code: zod.string().trim().length(6, 'Code must be 6 digits'),
+    currentPassword: zod.string().optional(),
   })
   .strict();
 

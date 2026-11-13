@@ -100,7 +100,7 @@ const { mutateAsync: patchUser, isPending: patchLoading } = usersQuery.patchUser
 // behind Home Assistant or a proxy the account never typed a password
 const asksCurrentPassword = !!props.user && props.user._id === authStore.user?._id && !isHaIngress() && !isProxySignIn();
 const patchSchema = asksCurrentPassword
-  ? userPatchSchema.refine((data) => !data.password || !!data.currentPassword, {
+  ? userPatchSchema.refine((data) => (!data.password && (!data.username || data.username === props.user?.username)) || !!data.currentPassword, {
       message: 'Current password is required',
       path: ['currentPassword'],
     })

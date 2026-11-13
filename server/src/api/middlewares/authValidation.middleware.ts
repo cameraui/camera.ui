@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service.js';
 import { UsersService } from '../services/users.service.js';
 import { API_TOKEN_PREFIX } from '../types/index.js';
 import { AttemptLimiter } from '../utils/attempt-limiter.js';
+import { isManagedDevice } from '../utils/utils.js';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DBUser } from '../database/types.js';
@@ -53,6 +54,17 @@ export function verifyLogin(username: string, password: string, ip: string): DBU
 
   loginFailures.clear(key);
   return user;
+}
+
+export function currentPasswordRefusal(req: FastifyRequest<AuthLoginRequest>, currentPassword: string | undefined): { statusCode: number; message: string } | undefined {
+  // behind Home Assistant or a proxy the account never typed a password
+  if (isManagedDevice(req.locals.jwt?.device_id)) return undefined;
+  if (!currentPassword) return { statusCode: 403, message: 'Current password is required' };
+
+  const verified = verifyLogin(req.locals.user!.username, currentPassword, req.ip);
+  if (verified === 'limited') return { statusCode: 429, message: 'Too many attempts. Try again later.' };
+  if (!verified) return { statusCode: 403, message: 'Current password is wrong' };
+  return undefined;
 }
 
 export async function isPasswordAndUserMatch(req: FastifyRequest<AuthNewLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {

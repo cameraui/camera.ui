@@ -4,10 +4,9 @@ import { writeFile } from 'node:fs/promises';
 
 import { inject } from '../../container.js';
 import { INGRESS_DEVICE_PREFIX, INGRESS_USERNAME } from '../../services/config/constants.js';
-import { verifyLogin } from '../middlewares/authValidation.middleware.js';
+import { currentPasswordRefusal } from '../middlewares/authValidation.middleware.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { UsersService } from '../services/users.service.js';
-import { isManagedDevice } from '../utils/utils.js';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ConfigService } from '../../services/config/index.js';
@@ -188,28 +187,10 @@ export class UsersController {
         });
       }
 
-      const ownPassword = req.body.password !== undefined && req.locals.user!._id === user._id;
-      if (ownPassword && !user.firstLogin && !isManagedDevice(req.locals.jwt?.device_id)) {
-        if (!req.body.currentPassword) {
-          return reply.code(403).send({
-            statusCode: 403,
-            message: 'Current password is required',
-          });
-        }
-
-        const verified = verifyLogin(user.username, req.body.currentPassword, req.ip);
-        if (verified === 'limited') {
-          return reply.code(429).send({
-            statusCode: 429,
-            message: 'Too many attempts. Try again later.',
-          });
-        }
-        if (!verified) {
-          return reply.code(403).send({
-            statusCode: 403,
-            message: 'Current password is wrong',
-          });
-        }
+      const renamed = req.body.username !== undefined && req.body.username !== user.username;
+      if (req.locals.user!._id === user._id && (req.body.password !== undefined || renamed) && !user.firstLogin) {
+        const refusal = currentPasswordRefusal(req, req.body.currentPassword);
+        if (refusal) return reply.code(refusal.statusCode).send(refusal);
       }
 
       if (user.role === 'master' && req.body.role && req.body.role !== (user.role as any)) {

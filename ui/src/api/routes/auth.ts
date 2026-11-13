@@ -95,8 +95,8 @@ export async function setup2FAFn(): Promise<TwoFactorSetupResponse> {
   return response.data;
 }
 
-export async function enable2FAFn({ code }: { code: string }): Promise<TwoFactorBackupCodesResponse> {
-  const response: AxiosResponse<TwoFactorBackupCodesResponse> = await api.post('/auth/2fa/enable', { code });
+export async function enable2FAFn(input: { code: string; currentPassword?: string }): Promise<TwoFactorBackupCodesResponse> {
+  const response: AxiosResponse<TwoFactorBackupCodesResponse> = await api.post('/auth/2fa/enable', input);
   return response.data;
 }
 

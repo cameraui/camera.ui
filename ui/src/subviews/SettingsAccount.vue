@@ -182,13 +182,20 @@
                       <InputOtp v-model="setupCode" :length="6" integer-only />
                     </div>
 
+                    <div v-if="!isIngress && !isProxy" class="flex flex-col field-gap">
+                      <label class="cui-label">{{ $t('components.form.label.current_password') }}</label>
+                      <InputGroup>
+                        <Password v-model="setupPassword" :feedback="false" toggle-mask />
+                      </InputGroup>
+                    </div>
+
                     <div class="flex gap-2 justify-end">
                       <Button severity="secondary" class="cui-button-medium" :label="$t('components.form.button.cancel')" @click="cancelSetup" />
                       <Button
                         class="cui-button-medium"
                         :label="$t('views.settings.security.enable_2fa')"
                         :loading="enableLoading"
-                        :disabled="setupCode.length < 6"
+                        :disabled="setupCode.length < 6 || (!isIngress && !isProxy && !setupPassword)"
                         @click="enable2FA"
                       />
                     </div>
@@ -435,7 +442,7 @@ const profileSchema = z
     message: 'Passwords do not match',
     path: ['passwordConfirm'],
   })
-  .refine((data) => !data.password || isProxy || !!data.currentPassword, {
+  .refine((data) => isProxy || (!data.password && !usernameChanged.value) || !!data.currentPassword, {
     message: 'Current password is required',
     path: ['currentPassword'],
   });
@@ -466,6 +473,7 @@ const profileLoading = ref(false);
 
 const setupData = ref<{ secret: string } | null>(null);
 const setupCode = ref('');
+const setupPassword = ref('');
 
 const revokingId = ref<string | null>(null);
 const revokeAllLoading = ref(false);
@@ -477,7 +485,8 @@ const biometricToggling = ref(false);
 
 const biometricCardVisible = computed(() => isCapacitor && biometryAvailable.value && !firststeps.value);
 const apiTokensVisible = computed(() => !isIngress || user.value?.role === 'master');
-const profileChanged = computed(() => !!file.value || profileUsername.value !== (user.value?.username ?? ''));
+const usernameChanged = computed(() => profileUsername.value !== (user.value?.username ?? ''));
+const profileChanged = computed(() => !!file.value || usernameChanged.value);
 
 const sessionsTablePt: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: {
@@ -608,13 +617,13 @@ async function startSetup(): Promise<void> {
 function cancelSetup(): void {
   setupData.value = null;
   setupCode.value = '';
+  setupPassword.value = '';
 }
 
 async function enable2FA(): Promise<void> {
   try {
-    const response = await enable2FAFn({ code: setupCode.value });
-    setupData.value = null;
-    setupCode.value = '';
+    const response = await enable2FAFn({ code: setupCode.value, ...(setupPassword.value && { currentPassword: setupPassword.value }) });
+    cancelSetup();
     toast.add({ severity: 'success', detail: t('views.settings.security.2fa_enabled_success'), life: 3000 });
 
     openBackupCodesDialog(response.backupCodes);
@@ -679,10 +688,11 @@ async function saveProfile(values: ProfileInput): Promise<void> {
       formData.append('upload', file.value);
     }
 
-    const usernameChanged = user.value?.username !== profileUsername.value;
+    const renamed = usernameChanged.value;
     const userData = {
-      ...(usernameChanged && { username: profileUsername.value }),
-      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm, currentPassword: values.currentPassword }),
+      ...(renamed && { username: profileUsername.value }),
+      ...(values.password && { password: values.password, passwordConfirm: values.passwordConfirm }),
+      ...((renamed || values.password) && values.currentPassword && { currentPassword: values.currentPassword }),
     };
 
     await authStore.updateUser(Object.keys(userData).length ? userData : undefined, formData);
@@ -691,7 +701,7 @@ async function saveProfile(values: ProfileInput): Promise<void> {
     file.value = undefined;
     profileFormRef.value?.resetForm();
 
-    if (usernameChanged || (values.password && !isProxy)) {
+    if (renamed || (values.password && !isProxy)) {
       authStore.logout();
     }
   } catch {
