@@ -140,9 +140,7 @@ export class FrameSource implements AnalysisSource {
   public nextFrame(lastId: number): Promise<FrameSnap | undefined> {
     if (this.ended) return Promise.resolve(undefined);
     if (this.latest && this.latest.id !== lastId) {
-      const snap = this.latest;
-      this.latest = undefined; // take ownership, the producer must not dispose it
-      return Promise.resolve(snap);
+      return Promise.resolve(this.handOut(this.latest));
     }
     return new Promise<FrameSnap | undefined>((resolve) => {
       this.waiter = resolve;
@@ -167,13 +165,15 @@ export class FrameSource implements AnalysisSource {
       w(undefined);
       return;
     }
-    if (this.latest) {
-      const snap = this.latest;
-      this.latest = undefined;
-      w(snap);
-    } else {
-      w(undefined);
-    }
+    w(this.latest ? this.handOut(this.latest) : undefined);
+  }
+
+  private handOut(snap: FrameSnap): FrameSnap {
+    // latest stays for streamFrame, the loop disposes its own reference
+    const frame = snap.frame.clone();
+    if (frame) return { ...snap, frame };
+    this.latest = undefined;
+    return snap;
   }
 
   private async runCycle(): Promise<CycleOutcome> {
