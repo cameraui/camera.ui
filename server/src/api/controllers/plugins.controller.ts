@@ -15,6 +15,7 @@ import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersi
 import { isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { computeTrust, getBlock, getBlocklist, getCatalog, getVerified, getWeeklyDownloads, invalidateRegistry } from '../../utils/plugin-registry/index.js';
 import { TtlCache } from '../../utils/ttl-cache.js';
+import { isAdminRequest } from '../middlewares/authPermission.middleware.js';
 import { CamerasService } from '../services/cameras.service.js';
 import { PluginsService } from '../services/plugins.service.js';
 import { collectBulk, collectBulkParallel } from '../utils/bulk.js';
@@ -69,6 +70,14 @@ function normalizeRepoUrl(url: string): string {
     .replace(/\.git$/, '');
 
   return normalized;
+}
+
+function isInstalledVersion(plugin: Plugin | undefined, version?: string): plugin is Plugin {
+  return plugin !== undefined && (!version || version === plugin.info.installedVersion);
+}
+
+async function readDoc(path: string): Promise<string | null> {
+  return (await pathExists(path)) ? readFile(path, 'utf8') : null;
 }
 
 export class PluginsController {
@@ -255,6 +264,9 @@ export class PluginsController {
     try {
       const pluginName = resolvePluginName(req.params);
       const plugin = this.service.getPluginByName(pluginName);
+      if (!plugin && !isAdminRequest(req)) {
+        return reply.code(403).send({ statusCode: 403, message: 'Forbidden' });
+      }
 
       pluginLogoCache.purgeStale();
 
@@ -470,8 +482,12 @@ export class PluginsController {
     try {
       const pluginName = resolvePluginName(req.params);
       const plugin = this.service.getPluginByName(pluginName);
+      const installed = isInstalledVersion(plugin, req.query.pluginversion);
+      if (!installed && !isAdminRequest(req)) {
+        return reply.code(403).send({ statusCode: 403, message: 'Forbidden' });
+      }
 
-      const file = await this.readPluginDoc(pluginName, plugin?.installPath, plugin?.info.installedVersion, 'README.md', req.query.pluginversion);
+      const file = installed ? await readDoc(join(plugin.installPath, 'README.md')) : await this.readRegistryDoc(pluginName, 'README.md', req.query.pluginversion);
 
       if (file === null) {
         return reply.code(404).send({
@@ -494,8 +510,12 @@ export class PluginsController {
     try {
       const pluginName = resolvePluginName(req.params);
       const plugin = this.service.getPluginByName(pluginName);
+      const installed = isInstalledVersion(plugin, req.query.pluginversion);
+      if (!installed && !isAdminRequest(req)) {
+        return reply.code(403).send({ statusCode: 403, message: 'Forbidden' });
+      }
 
-      const file = await this.readPluginDoc(pluginName, plugin?.installPath, plugin?.info.installedVersion, 'CHANGELOG.md', req.query.pluginversion);
+      const file = installed ? await readDoc(join(plugin.installPath, 'CHANGELOG.md')) : await this.readRegistryDoc(pluginName, 'CHANGELOG.md', req.query.pluginversion);
 
       if (file === null) {
         return reply.code(404).send({
@@ -1073,28 +1093,16 @@ export class PluginsController {
     }
   }
 
-  private async readPluginDoc(
-    pluginName: string,
-    installPath: string | undefined,
-    installedVersion: string | undefined,
-    fileName: string,
-    requestedVersion?: string,
-  ): Promise<string | null> {
-    if (!installPath || (requestedVersion && requestedVersion !== installedVersion)) {
-      const tmpDir = await mkdtemp(join(tmpdir(), 'camera.ui-doc-'));
-      try {
-        await extractPackage(`${pluginName}@${requestedVersion ?? 'latest'}`, tmpDir);
-        const filePath = join(tmpDir, fileName);
-        return (await pathExists(filePath)) ? readFile(filePath, 'utf8') : null;
-      } catch {
-        return null;
-      } finally {
-        await remove(tmpDir);
-      }
+  private async readRegistryDoc(pluginName: string, fileName: string, version = 'latest'): Promise<string | null> {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'camera.ui-doc-'));
+    try {
+      await extractPackage(`${pluginName}@${version}`, tmpDir);
+      return await readDoc(join(tmpDir, fileName));
+    } catch {
+      return null;
+    } finally {
+      await remove(tmpDir);
     }
-
-    const localPath = join(installPath, fileName);
-    return (await pathExists(localPath)) ? readFile(localPath, 'utf8') : null;
   }
 
   private async getPluginFromNpm(plugin: CameraUiPlugin): Promise<INpmPluginState> {

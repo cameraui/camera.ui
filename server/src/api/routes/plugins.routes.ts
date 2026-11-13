@@ -391,6 +391,7 @@ export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Plugins'],
       summary: 'Get the README for a plugin',
       params: pluginParamsSchema,
+      querystring: pluginVersionQuerySchema,
     },
   });
 
@@ -403,6 +404,7 @@ export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Plugins'],
       summary: 'Get the README for a scoped plugin',
       params: pluginScopedParamsSchema,
+      querystring: pluginVersionQuerySchema,
     },
   });
 
@@ -415,6 +417,7 @@ export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Plugins'],
       summary: 'Get the changelog for a plugin',
       params: pluginParamsSchema,
+      querystring: pluginVersionQuerySchema,
     },
   });
 
@@ -427,6 +430,7 @@ export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Plugins'],
       summary: 'Get the changelog for a scoped plugin',
       params: pluginScopedParamsSchema,
+      querystring: pluginVersionQuerySchema,
     },
   });
 

@@ -1,6 +1,7 @@
 import * as zod from 'zod';
 
 import { PLUGIN_IDENTIFIER_PATTERN } from '../../plugins/types.js';
+import { resolvePluginName } from '../utils/plugin.js';
 import { uploadSchema } from '../utils/upload.js';
 import { paginationQuerySchema } from './common.schema.js';
 
@@ -20,6 +21,10 @@ type ConfigFormData = MultipartValue<string>;
 type ImageMetadataFormData = MultipartValue<string>;
 type AudioMetadataFormData = MultipartValue<string>;
 
+function isPluginName(params: { scope?: string; pluginname: string }): boolean {
+  return PLUGIN_IDENTIFIER_PATTERN.test(resolvePluginName(params));
+}
+
 const imageUploadSchema = () => uploadSchema(MAX_OBJECT_FILE_SIZE, ACCEPTED_OBJECT_IMAGE_TYPES, 'Max file size is 2 MB', '.jpeg and .png files are accepted');
 
 const configFormSchema = zod.custom<ConfigFormData>().transform((config) => {
@@ -34,21 +39,21 @@ const audioMetadataFormSchema = zod.custom<AudioMetadataFormData>().transform((m
   return JSON.parse(metadata.value);
 }) as unknown as zod.ZodType<AudioMetadata>;
 
+const pluginVersionSchema = zod
+  .string()
+  .trim()
+  .refine(
+    (version) => /^[a-z][\w-]*$/i.test(version) || /^v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/i.test(version),
+    'Not a valid plugin version (expected a dist-tag or exact semver)',
+  );
+
 export const installPluginSchema = zod
   .object({
     pluginname: zod
       .string()
       .trim()
       .refine((pluginname) => PLUGIN_IDENTIFIER_PATTERN.test(pluginname), 'Not a valid plugin name'),
-    pluginversion: zod
-      .string()
-      .trim()
-      .refine(
-        (version) => /^[a-z][\w-]*$/i.test(version) || /^v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/i.test(version),
-        'Not a valid plugin version (expected a dist-tag or exact semver)',
-      )
-      .optional()
-      .default('latest'),
+    pluginversion: pluginVersionSchema.optional().default('latest'),
   })
   .strict();
 
@@ -96,14 +101,18 @@ export const testClassifierDetectionSchema = zod.object({
   config: configFormSchema,
 });
 
-export const pluginParamsSchema = zod.object({
-  pluginname: zod.string(),
-});
+export const pluginParamsSchema = zod
+  .object({
+    pluginname: zod.string(),
+  })
+  .refine(isPluginName, 'Not a valid plugin name');
 
-export const pluginScopedParamsSchema = zod.object({
-  scope: zod.string(),
-  pluginname: zod.string(),
-});
+export const pluginScopedParamsSchema = zod
+  .object({
+    scope: zod.string(),
+    pluginname: zod.string(),
+  })
+  .refine(isPluginName, 'Not a valid plugin name');
 
 export const searchQuerySchema = paginationQuerySchema.extend({
   pluginname: zod.string().trim().optional(),
@@ -115,7 +124,7 @@ export const removeStorageQuerySchema = zod.object({
 });
 
 export const pluginVersionQuerySchema = zod.object({
-  pluginversion: zod.string().trim().optional(),
+  pluginversion: pluginVersionSchema.optional(),
 });
 
 export const bulkPluginNamesSchema = zod.object({
