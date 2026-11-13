@@ -109,7 +109,7 @@ import type {
 } from './types.js';
 
 export class Database {
-  static readonly VERSION = '2.4.10';
+  static readonly VERSION = '2.4.10-1';
 
   public workerStateDB!: DB<DBWorkerState, 'state'>;
 
