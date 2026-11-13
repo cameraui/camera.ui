@@ -4,6 +4,7 @@ import type { Ref } from 'vue';
 
 interface CameraMicrophoneOptions {
   ready: () => Promise<boolean>;
+  held: () => boolean;
   setTrack: (track: MediaStreamTrack | null) => Promise<void>;
   onError: (error: unknown) => void;
 }
@@ -14,7 +15,7 @@ export interface CameraMicrophone {
   stop: () => Promise<void>;
 }
 
-export function useCameraMicrophone({ ready, setTrack, onError }: CameraMicrophoneOptions): CameraMicrophone {
+export function useCameraMicrophone({ ready, held, setTrack, onError }: CameraMicrophoneOptions): CameraMicrophone {
   const active = ref(false);
 
   let stream: MediaStream | undefined;
@@ -53,6 +54,10 @@ export function useCameraMicrophone({ ready, setTrack, onError }: CameraMicropho
     await setTrack(null);
     stopIntercomService();
   }
+
+  watch(held, (isHeld) => {
+    if (!isHeld && active.value) stop();
+  });
 
   onScopeDispose(() => {
     stop();

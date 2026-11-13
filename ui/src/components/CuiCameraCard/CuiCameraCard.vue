@@ -1168,6 +1168,7 @@ let releaseNvrContainer: (() => void) | null = null;
 const microphone = useCameraMicrophone({
   // talk needs a running stream, and a fresh one knows its backchannel only after the probe
   ready: async () => (!inStandby.value || (await wakeStream())) && streamHasBackchannel.value,
+  held: () => cameraStream.hasMicrophone.value,
   setTrack: (track) => cameraStream.setMicrophone(track),
   onError: (error) => log.warn(cameraName.value, error),
 });
