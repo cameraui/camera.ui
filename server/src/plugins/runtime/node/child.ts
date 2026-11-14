@@ -12,6 +12,7 @@ import { HANDSHAKE_LEVEL, hostSpeaksStopLine, hostStopBudget, INSTANCE_ID_ENV, l
 import { PluginStoreFile } from '../../store/pluginStoreFile.js';
 import { PLUGIN_COMMAND, PLUGIN_STATUS } from '../../types.js';
 import { LocalPluginConfigDb, RemotePluginConfigDb } from './configDb.js';
+import { forceServerNodeAv } from './node-av-resolve.js';
 import { PluginAPI } from './pluginApi.js';
 import { CameraDeviceProxy } from './proxy/cameraDevice.js';
 import { PluginFileServer } from './proxy/fileServe.js';
@@ -476,6 +477,7 @@ export class PluginChild {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  forceServerNodeAv();
   const plugin = new PluginChild();
   await plugin.run();
 }
