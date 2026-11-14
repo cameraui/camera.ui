@@ -29,4 +29,15 @@ export const DownloadRoute: FastifyPluginAsync = async (app) => {
       params: downloadParamsSchema,
     },
   });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'DELETE',
+    url: '/:token',
+    handler: downloadController.cancel.bind(downloadController),
+    schema: {
+      tags: ['Download'],
+      summary: 'End the transfers that run for a download token',
+      params: downloadParamsSchema,
+    },
+  });
 };

@@ -19,4 +19,8 @@ export class DownloadController {
   public async check(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): Promise<void> {
     return this.downloadManager.handleDownloadCheck(req, reply);
   }
+
+  public cancel(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): void {
+    this.downloadManager.handleDownloadCancel(req, reply);
+  }
 }

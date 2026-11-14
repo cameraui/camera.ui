@@ -145,6 +145,7 @@ export class DownloadManager implements DownloadManagerInterface {
 
   private registry = new Map<string, DownloadEntry>();
   private pipes = new Map<string, PipeEntry>();
+  private transfers = new Map<string, Set<ServerResponse>>();
   private pipeProbeMs = PIPE_PROBE_MS;
   private pipeStallMs = PIPE_STALL_MS;
   private exportFolders = new Set<string>();
@@ -296,6 +297,8 @@ export class DownloadManager implements DownloadManagerInterface {
 
   public async handleDownload(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): Promise<void> {
     const { token } = req.params;
+    this.trackTransfer(token, reply.raw);
+
     const pipe = this.pipes.get(token);
     if (pipe) {
       return this.handlePipeDownload(reply, token, pipe);
@@ -372,6 +375,22 @@ export class DownloadManager implements DownloadManagerInterface {
     reply.header('Content-Disposition', attachmentHeader(entry.filename));
     if (size !== undefined) reply.header('Content-Length', size);
     reply.send();
+  }
+
+  public handleDownloadCancel(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): void {
+    const { token } = req.params;
+    this.pipes.delete(token);
+    for (const res of this.transfers.get(token) ?? []) res.destroy();
+    reply.code(204).send();
+  }
+
+  private trackTransfer(token: string, res: ServerResponse): void {
+    const open = this.transfers.get(token) ?? new Set();
+    this.transfers.set(token, open.add(res));
+    res.once('close', () => {
+      open.delete(res);
+      if (open.size === 0) this.transfers.delete(token);
+    });
   }
 
   private fileServeProxy(pluginId: string): Promisify<PluginFileServeInterface> {
