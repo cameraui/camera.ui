@@ -32,6 +32,7 @@
 import { useRecordingExport } from '@camera.ui/nvr';
 
 import { extractErrorMessage } from '@/common/utils.js';
+import { EXPORT_DAY_MS, exportDaySlices } from '@/utils/exportSlices.js';
 import { TIMELAPSE_OPTIONS } from './types.js';
 
 import type { CuiTimelineExportProps } from './types.js';
@@ -41,7 +42,7 @@ const props = defineProps<CuiTimelineExportProps>();
 const { t } = useI18n();
 const log = useLogger();
 const toast = useCuiToast();
-const { isAvailable, exportRange } = useRecordingExport();
+const { isAvailable, exportRange, exportBatch } = useRecordingExport();
 
 const timelapse = ref(0);
 const exporting = ref(false);
@@ -75,10 +76,18 @@ async function exportSelection(): Promise<void> {
 
   exporting.value = true;
   try {
-    const result = await exportRange(props.cameraId, startMs, endMs, {
-      timelapseIntervalSec: timelapseIntervalSec || undefined,
-      sourceRole: props.sourceRole || undefined,
-    });
+    const result =
+      endMs - startMs > EXPORT_DAY_MS
+        ? await exportBatch({
+            cameras: [props.cameraId],
+            slices: exportDaySlices(startMs, endMs),
+            quality: props.sourceRole === 'low' ? 'smallest' : 'best',
+            timelapseIntervalSec,
+          })
+        : await exportRange(props.cameraId, startMs, endMs, {
+            timelapseIntervalSec: timelapseIntervalSec || undefined,
+            sourceRole: props.sourceRole || undefined,
+          });
     await download({ url: result.url, filename: result.filename });
   } catch (error) {
     log.error('Export failed:', error);

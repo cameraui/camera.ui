@@ -92,8 +92,10 @@
 <script setup lang="ts">
 import { useRecordingExport } from '@camera.ui/nvr';
 
+import { exportDaySlices } from '@/utils/exportSlices.js';
+
 import type { CustomDialogComponent, DialogRefProps } from '@/composables/useCuiDialog.js';
-import type { NvrExportEstimateFile, NvrExportSlice } from '@camera.ui/nvr';
+import type { NvrExportEstimateFile } from '@camera.ui/nvr';
 import type { ExportRecordingsFile, ExportRecordingsProps } from './types.js';
 
 const props = defineProps<ExportRecordingsProps>();
@@ -133,26 +135,7 @@ const cameraName = computed(() => new Map(props.cameras.map((c) => [c.id, c.name
 
 const rangeValid = computed(() => from.value instanceof Date && to.value instanceof Date && from.value < to.value);
 
-const daySlices = computed<NvrExportSlice[]>(() => {
-  if (!rangeValid.value) return [];
-  const out: NvrExportSlice[] = [];
-  const rangeStart = from.value.getTime();
-  const rangeEnd = to.value.getTime();
-  const cursor = new Date(from.value);
-  cursor.setHours(0, 0, 0, 0);
-  const last = new Date(to.value);
-  last.setHours(0, 0, 0, 0);
-  while (cursor.getTime() <= last.getTime()) {
-    const dayStart = new Date(cursor);
-    const dayEnd = new Date(cursor);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const s = Math.max(dayStart.getTime(), rangeStart);
-    const e = Math.min(dayEnd.getTime(), rangeEnd);
-    if (e > s) out.push({ day: dayKey(dayStart), startUs: s * 1000, endUs: e * 1000 });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return out;
-});
+const daySlices = computed(() => (rangeValid.value ? exportDaySlices(from.value.getTime(), to.value.getTime()) : []));
 
 const files = computed<ExportRecordingsFile[]>(() =>
   estimateFiles.value.map((f) => {
@@ -195,10 +178,6 @@ const emptyMessage = computed(() => {
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
-}
-
-function dayKey(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function hhmm(d: Date) {
