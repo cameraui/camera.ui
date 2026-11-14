@@ -8,7 +8,6 @@
     "cypress.config.*",
     "nightwatch.conf.*",
     "playwright.config.*",
-    "eslint.config.*",
     "pwa-assets.config.*"
   ],
   "compilerOptions": {
