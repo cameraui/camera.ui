@@ -152,6 +152,7 @@
     "eagerComputed": true,
     "effectScope": true,
     "extendRef": true,
+    "fetchDownloadBlob": true,
     "getActivePinia": true,
     "getCurrentInstance": true,
     "getCurrentScope": true,

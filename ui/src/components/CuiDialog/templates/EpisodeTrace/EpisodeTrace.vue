@@ -349,30 +349,7 @@ async function exportBundle(): Promise<void> {
   if (bundleBusy.value || !current || !nvrAvailable.value) return;
   bundleBusy.value = true;
   try {
-    const encoder = new TextEncoder();
-    const entries: ZipEntry[] = [];
-    const cameras = Object.fromEntries([...props.cameraById.values()].map((camera) => [camera._id, camera.name]));
-
-    entries.push({ name: 'episode.json', data: encoder.encode(JSON.stringify({ episode: props.episode, cameras }, null, 2)) });
-    const { fixture, spatial, images: imageNotes, ...rest } = current;
-    entries.push({ name: 'trace.json', data: encoder.encode(JSON.stringify({ ...rest, images: imageNotes.map((image) => image.note) }, null, 2)) });
-    entries.push({ name: 'input.json', data: encoder.encode(fixture) });
-    if (spatial) entries.push({ name: 'spatial.json', data: encoder.encode(spatial) });
-
-    for (const [index, image] of images.value.entries()) {
-      entries.push({ name: `images/${String(index + 1).padStart(2, '0')}.jpg`, data: image.data });
-    }
-    if (images.value.length > 0) {
-      entries.push({ name: 'images/notes.txt', data: encoder.encode(`${images.value.map((image, index) => `${index + 1}. ${image.note}`).join('\n')}\n`) });
-    }
-
-    const mosaic = await eventStore.loadEpisodeMosaic(props.episode.id);
-    if (mosaic) entries.push({ name: 'mosaic.jpg', data: new Uint8Array(mosaic) });
-
-    const clip = await exportClip();
-    if (clip) entries.push({ name: 'clip.mp4', data: clip });
-
-    await download({ blob: buildStoredZip(entries), filename: `episode-trace-${props.episode.id.slice(0, 8)}.zip` });
+    await download({ filename: `episode-trace-${props.episode.id.slice(0, 8)}.zip`, build: (transfer) => buildBundle(current, transfer) });
   } catch (error) {
     log.error('Episode trace bundle failed:', error);
     toast.add({ severity: 'error', summary: t('views.recordings.episode_trace.bundle_failed'), detail: extractErrorMessage(error), life: 5000 });
@@ -381,13 +358,40 @@ async function exportBundle(): Promise<void> {
   }
 }
 
-async function exportClip(): Promise<Uint8Array<ArrayBuffer> | undefined> {
+async function buildBundle(current: EpisodeTrace, transfer: DownloadTransfer): Promise<Blob> {
+  const encoder = new TextEncoder();
+  const entries: ZipEntry[] = [];
+  const cameras = Object.fromEntries([...props.cameraById.values()].map((camera) => [camera._id, camera.name]));
+
+  entries.push({ name: 'episode.json', data: encoder.encode(JSON.stringify({ episode: props.episode, cameras }, null, 2)) });
+  const { fixture, spatial, images: imageNotes, ...rest } = current;
+  entries.push({ name: 'trace.json', data: encoder.encode(JSON.stringify({ ...rest, images: imageNotes.map((image) => image.note) }, null, 2)) });
+  entries.push({ name: 'input.json', data: encoder.encode(fixture) });
+  if (spatial) entries.push({ name: 'spatial.json', data: encoder.encode(spatial) });
+
+  for (const [index, image] of images.value.entries()) {
+    entries.push({ name: `images/${String(index + 1).padStart(2, '0')}.jpg`, data: image.data });
+  }
+  if (images.value.length > 0) {
+    entries.push({ name: 'images/notes.txt', data: encoder.encode(`${images.value.map((image, index) => `${index + 1}. ${image.note}`).join('\n')}\n`) });
+  }
+
+  const mosaic = await eventStore.loadEpisodeMosaic(props.episode.id);
+  if (mosaic) entries.push({ name: 'mosaic.jpg', data: new Uint8Array(mosaic) });
+
+  const clip = await exportClip(transfer);
+  if (clip) entries.push({ name: 'clip.mp4', data: clip });
+
+  return buildStoredZip(entries);
+}
+
+async function exportClip(transfer: DownloadTransfer): Promise<Uint8Array<ArrayBuffer> | undefined> {
   try {
     const result = await exportEpisode(props.episode.id);
-    const response = await fetch(result.url, { credentials: 'include' });
-    if (!response.ok) return undefined;
-    return new Uint8Array(await response.arrayBuffer());
+    const clip = await fetchDownloadBlob(result.url, transfer);
+    return new Uint8Array(await clip.arrayBuffer());
   } catch (error) {
+    if (transfer.signal.aborted) throw error;
     log.warn('Clip export for the episode bundle failed:', error);
     return undefined;
   }

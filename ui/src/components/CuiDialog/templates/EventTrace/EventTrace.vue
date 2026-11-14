@@ -1018,25 +1018,7 @@ async function exportBundle(): Promise<void> {
   if (bundleBusy.value) return;
   bundleBusy.value = true;
   try {
-    const encoder = new TextEncoder();
-    const setup = trace.value?.config ?? null;
-    const range = bundleClipRange();
-    const [ticks, clip, pictures] = await Promise.all([allTicks(), exportClip(range), bundleFrames()]);
-    const entries: ZipEntry[] = [];
-
-    const clipRange = clip && range ? { clipStartMs: range.startMs, clipEndMs: range.endMs } : {};
-    entries.push({
-      name: 'event.json',
-      data: encoder.encode(JSON.stringify({ camera: { id: props.camera._id, name: props.camera.name }, event: props.event, ...clipRange }, null, 2)),
-    });
-
-    const lines = [JSON.stringify({ setup, exportedAt: Date.now(), ticks: ticks.length, total: total.value }), ...ticks.map((tick) => JSON.stringify({ tick }))];
-    entries.push({ name: 'trace.jsonl', data: encoder.encode(`${lines.join('\n')}\n`) });
-
-    if (clip) entries.push({ name: 'clip.mp4', data: clip });
-    entries.push(...pictures);
-
-    await download({ blob: buildStoredZip(entries), filename: `trace-${props.camera.name}-${props.event.id.slice(0, 8)}.zip` });
+    await download({ filename: `trace-${props.camera.name}-${props.event.id.slice(0, 8)}.zip`, build: buildBundle });
   } catch (error) {
     log.error('Trace bundle failed:', error);
     toast.add({ severity: 'error', summary: t('views.recordings.trace.bundle_failed'), detail: extractErrorMessage(error), life: 5000 });
@@ -1045,13 +1027,35 @@ async function exportBundle(): Promise<void> {
   }
 }
 
-async function bundleFrames(): Promise<ZipEntry[]> {
+async function buildBundle(transfer: DownloadTransfer): Promise<Blob> {
+  const encoder = new TextEncoder();
+  const setup = trace.value?.config ?? null;
+  const range = bundleClipRange();
+  const [ticks, clip, pictures] = await Promise.all([allTicks(), exportClip(range, transfer), bundleFrames(transfer.signal)]);
+  const entries: ZipEntry[] = [];
+
+  const clipRange = clip && range ? { clipStartMs: range.startMs, clipEndMs: range.endMs } : {};
+  entries.push({
+    name: 'event.json',
+    data: encoder.encode(JSON.stringify({ camera: { id: props.camera._id, name: props.camera.name }, event: props.event, ...clipRange }, null, 2)),
+  });
+
+  const lines = [JSON.stringify({ setup, exportedAt: Date.now(), ticks: ticks.length, total: total.value }), ...ticks.map((tick) => JSON.stringify({ tick }))];
+  entries.push({ name: 'trace.jsonl', data: encoder.encode(`${lines.join('\n')}\n`) });
+
+  if (clip) entries.push({ name: 'clip.mp4', data: clip });
+  entries.push(...pictures);
+
+  return buildStoredZip(entries);
+}
+
+async function bundleFrames(signal: AbortSignal): Promise<ZipEntry[]> {
   const candidates = [...frames.value.entries()].filter(([, frame]) => {
     const tick = frame.tick;
     return tick.world.length > 0 || Boolean(tick.attrs?.length) || tick.detections.length > 0;
   });
   const entries: ZipEntry[] = [];
-  for (let start = 0; start < candidates.length && entries.length < BUNDLE_MAX_FRAMES; start += BUNDLE_FRAME_GROUP) {
+  for (let start = 0; start < candidates.length && entries.length < BUNDLE_MAX_FRAMES && !signal.aborted; start += BUNDLE_FRAME_GROUP) {
     const group = candidates.slice(start, start + BUNDLE_FRAME_GROUP);
     const found = await exactFrames(group.map(([, frame]) => frame.tick));
     for (const [index, frame] of group) {
@@ -1082,14 +1086,14 @@ function bundleClipRange(): { startMs: number; endMs: number } | undefined {
   return { startMs, endMs: startMs + BUNDLE_CLIP_MS };
 }
 
-async function exportClip(range: { startMs: number; endMs: number } | undefined): Promise<Uint8Array<ArrayBuffer> | undefined> {
+async function exportClip(range: { startMs: number; endMs: number } | undefined, transfer: DownloadTransfer): Promise<Uint8Array<ArrayBuffer> | undefined> {
   if (!nvrAvailable.value || !range) return undefined;
   try {
     const result = await exportRange(props.event.cameraId, range.startMs, range.endMs);
-    const response = await fetch(result.url, { credentials: 'include' });
-    if (!response.ok) return undefined;
-    return new Uint8Array(await response.arrayBuffer());
+    const clip = await fetchDownloadBlob(result.url, transfer);
+    return new Uint8Array(await clip.arrayBuffer());
   } catch (error) {
+    if (transfer.signal.aborted) throw error;
     log.warn('Clip export for the trace bundle failed:', error);
     return undefined;
   }

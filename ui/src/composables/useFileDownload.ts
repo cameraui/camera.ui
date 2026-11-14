@@ -23,7 +23,12 @@ interface DownloadFromDataUrl {
   mimeType?: string;
 }
 
-export type DownloadOptions = DownloadFromBlob | DownloadFromUrl | DownloadFromDataUrl;
+interface DownloadFromBuild {
+  build: (transfer: DownloadTransfer) => Promise<Blob>;
+  filename: string;
+}
+
+export type DownloadOptions = DownloadFromBlob | DownloadFromUrl | DownloadFromDataUrl | DownloadFromBuild;
 
 const NATIVE_READ_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -40,7 +45,8 @@ export async function download(options: DownloadOptions): Promise<void> {
   }
 
   if (!('url' in options)) {
-    await saveBlob(await inMemoryBlob(options), options.filename);
+    const blob = await localBlob(options);
+    if (blob) await saveBlob(blob, options.filename);
     return;
   }
 
@@ -51,8 +57,14 @@ export async function download(options: DownloadOptions): Promise<void> {
     return;
   }
 
-  const blob = await tracked(options.filename, (transfer) => fetchBlob(url, transfer));
+  const blob = await tracked(options.filename, (transfer) => fetchDownloadBlob(url, transfer));
   if (blob) await saveBlob(blob, options.filename);
+}
+
+export async function fetchDownloadBlob(url: string, transfer: DownloadTransfer): Promise<Blob> {
+  const response = await fetchDownload(buildAbsoluteUrl(url), transfer.signal);
+  const body = countedBody(response, transfer);
+  return (body ? new Response(body, { headers: response.headers }) : response).blob();
 }
 
 async function saveBlob(blob: Blob, filename: string): Promise<void> {
@@ -84,7 +96,8 @@ function buildAbsoluteUrl(url: string): string {
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-async function inMemoryBlob(options: DownloadFromBlob | DownloadFromDataUrl): Promise<Blob> {
+async function localBlob(options: DownloadFromBlob | DownloadFromDataUrl | DownloadFromBuild): Promise<Blob | undefined> {
+  if ('build' in options) return tracked(options.filename, options.build);
   if ('blob' in options) return options.blob;
   return (await fetch(options.dataUrl)).blob();
 }
@@ -92,19 +105,14 @@ async function inMemoryBlob(options: DownloadFromBlob | DownloadFromDataUrl): Pr
 async function tracked<T>(filename: string, load: (transfer: DownloadTransfer) => Promise<T>): Promise<T | undefined> {
   const transfer = trackDownload(filename);
   try {
-    return await load(transfer);
+    const loaded = await load(transfer);
+    return transfer.signal.aborted ? undefined : loaded;
   } catch (err) {
     if (transfer.signal.aborted) return undefined;
     throw err;
   } finally {
     transfer.end();
   }
-}
-
-async function fetchBlob(url: string, transfer: DownloadTransfer): Promise<Blob> {
-  const response = await fetchDownload(url, transfer.signal);
-  const body = countedBody(response, transfer);
-  return (body ? new Response(body, { headers: response.headers }) : response).blob();
 }
 
 async function fetchDownload(url: string, signal: AbortSignal): Promise<Response> {
@@ -206,7 +214,8 @@ async function downloadViaCapacitor(options: DownloadOptions): Promise<void> {
       const url = buildAbsoluteUrl(options.url);
       writtenUri = await tracked(options.filename, (transfer) => loadIntoCache(url, path, transfer));
     } else {
-      writtenUri = await writeBlobToCache(await inMemoryBlob(options), path);
+      const blob = await localBlob(options);
+      writtenUri = blob && (await writeBlobToCache(blob, path));
     }
     if (!writtenUri) return;
 
