@@ -32,7 +32,7 @@
     "systeminformation": "^5.33.22"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^5.10.0",
+    "@stylistic/eslint-plugin": "^6.0.0",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "26.6.6",
     "@types/tail": "^2.2.3",
