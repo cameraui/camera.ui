@@ -57,7 +57,8 @@ const CLICK_OPTIONS = [
 ];
 
 const HOST_STYLE = `
-  :host { display: block; }
+  /* keeps the card's z-indexes below HA's fixed toolbar */
+  :host { display: block; isolation: isolate; }
   :host([fill]) { height: 100%; }
   :host([fill]) ha-card, :host([fill]) .cui-ha, :host([fill]) .cui-ha > div { height: 100%; min-height: 0; }
   :host([fill]) .p-card-content { height: 100%; }
