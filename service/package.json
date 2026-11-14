@@ -29,7 +29,7 @@
     "@camera.ui/common": "~0.0.62",
     "commander": "^15.1.0",
     "js-yaml": "^5.5.0",
-    "systeminformation": "^5.33.19"
+    "systeminformation": "^5.33.22"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
