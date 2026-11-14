@@ -367,6 +367,7 @@
     "useDropZone": true,
     "useElectron": true,
     "useElectronDeepLinks": true,
+    "useElectronDownloads": true,
     "useElectronNotifications": true,
     "useElementBounding": true,
     "useElementByPoint": true,

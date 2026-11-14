@@ -281,6 +281,7 @@ declare global {
   const useDropZone: typeof import('@vueuse/core').useDropZone
   const useElectron: typeof import('../composables/useElectron').useElectron
   const useElectronDeepLinks: typeof import('../composables/useElectronDeepLinks').useElectronDeepLinks
+  const useElectronDownloads: typeof import('../composables/useElectronDownloads').useElectronDownloads
   const useElectronNotifications: typeof import('../composables/useElectronNotifications').useElectronNotifications
   const useElementBounding: typeof import('@vueuse/core').useElementBounding
   const useElementByPoint: typeof import('@vueuse/core').useElementByPoint
@@ -908,6 +909,7 @@ declare module 'vue' {
     readonly useDropZone: UnwrapRef<typeof import('@vueuse/core')['useDropZone']>
     readonly useElectron: UnwrapRef<typeof import('../composables/useElectron')['useElectron']>
     readonly useElectronDeepLinks: UnwrapRef<typeof import('../composables/useElectronDeepLinks')['useElectronDeepLinks']>
+    readonly useElectronDownloads: UnwrapRef<typeof import('../composables/useElectronDownloads')['useElectronDownloads']>
     readonly useElectronNotifications: UnwrapRef<typeof import('../composables/useElectronNotifications')['useElectronNotifications']>
     readonly useElementBounding: UnwrapRef<typeof import('@vueuse/core')['useElementBounding']>
     readonly useElementByPoint: UnwrapRef<typeof import('@vueuse/core')['useElementByPoint']>

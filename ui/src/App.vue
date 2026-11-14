@@ -120,6 +120,7 @@ useBackupRestoreDialog(() => !showLoadingScreen.value);
 provideTimelineFilter();
 useElectronNotifications();
 useElectronDeepLinks();
+useElectronDownloads();
 registerKeyboardInset();
 
 const themeStore = useThemeStore();

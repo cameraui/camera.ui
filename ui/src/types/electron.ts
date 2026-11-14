@@ -12,8 +12,9 @@ export type InvokeChannel =
   | 'get-event-popup-settings'
   | 'set-event-popup-settings'
   | 'get-cast-identity';
-export type SendChannel = 'change-language' | 'change-window' | 'check-for-updates' | 'show-notification' | 'set-badge-count' | 'show-event-popup' | 'event-popup-action';
-export type ReceiveChannel = 'fullscreen' | 'app-status' | 'notification-click' | 'deep-link' | 'power-resume' | 'event-popup';
+export type SendChannel =
+  'change-language' | 'change-window' | 'check-for-updates' | 'show-notification' | 'set-badge-count' | 'show-event-popup' | 'event-popup-action' | 'cancel-download';
+export type ReceiveChannel = 'fullscreen' | 'app-status' | 'notification-click' | 'deep-link' | 'power-resume' | 'event-popup' | 'download-progress';
 
 export interface CertTrustPayload {
   ca: string;
@@ -87,6 +88,16 @@ export interface DeepLinkPayload {
 }
 
 export type PowerResumeReason = 'resume' | 'unlock';
+
+export type DownloadState = 'progressing' | 'completed' | 'cancelled' | 'failed';
+
+export interface DownloadProgressPayload {
+  id: number;
+  filename: string;
+  loaded: number;
+  total?: number;
+  state: DownloadState;
+}
 
 export type UpdateStatus = 'checking' | 'available' | 'not-available' | 'error' | 'progress' | 'downloaded' | 'installing' | 'development';
 export type ServiceStatus = 'initializing' | 'ready' | 'error' | 'starting' | 'stopping' | 'restarting' | 'message';
