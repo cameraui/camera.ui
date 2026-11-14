@@ -178,19 +178,25 @@
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
             <span class="section-title">{{ $t('components.camera_options.source_group_audio') }}</span>
             <div class="w-full flex flex-col gap-2">
-              <Field v-slot="{ field, errors }" :model-value="source.muted" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].muted`">
+              <Field v-slot="{ errors }" :model-value="source.muted" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].muted`">
                 <CuiToggleRow
-                  :label="$t('components.form.label.muted')"
-                  :hint="$t('components.form.hint.muted')"
+                  :label="$t('components.form.label.source_audio')"
+                  :hint="$t('components.form.hint.source_audio')"
                   :label-for="`sources[${i}].muted`"
                   :error-name="`sources[${i}].muted`"
                 >
-                  <ToggleSwitch :model-value="source.muted" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.muted = e)" />
+                  <ToggleSwitch
+                    :model-value="!source.muted"
+                    :input-id="`sources[${i}].muted`"
+                    :invalid="errors.length > 0"
+                    :loading
+                    @value-change="(e) => (source.muted = !e)"
+                  />
                 </CuiToggleRow>
               </Field>
 
               <Field
-                v-slot="{ field, errors }"
+                v-slot="{ errors }"
                 :model-value="source.backchannelDisabled"
                 :value="true"
                 :unchecked-value="false"
@@ -198,17 +204,17 @@
                 :name="`sources[${i}].backchannelDisabled`"
               >
                 <CuiToggleRow
-                  :label="$t('components.form.label.two_way_audio_disabled')"
-                  :hint="$t('components.form.hint.two_way_audio_disabled')"
+                  :label="$t('components.form.label.two_way_audio')"
+                  :hint="$t('components.form.hint.two_way_audio')"
                   :label-for="`sources[${i}].backchannelDisabled`"
                   :error-name="`sources[${i}].backchannelDisabled`"
                 >
                   <ToggleSwitch
-                    :model-value="source.backchannelDisabled"
-                    v-bind="field"
+                    :model-value="!source.backchannelDisabled"
+                    :input-id="`sources[${i}].backchannelDisabled`"
                     :invalid="errors.length > 0"
                     :loading
-                    @value-change="(e) => (source.backchannelDisabled = e)"
+                    @value-change="(e) => (source.backchannelDisabled = !e)"
                   />
                 </CuiToggleRow>
               </Field>

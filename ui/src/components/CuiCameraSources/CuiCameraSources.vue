@@ -153,7 +153,7 @@
 
               <Field
                 v-if="source.role !== 'snapshot'"
-                v-slot="{ field, errors }"
+                v-slot="{ errors }"
                 :model-value="source.muted"
                 :value="true"
                 :unchecked-value="false"
@@ -161,12 +161,18 @@
                 :name="`sources[${i}].muted`"
               >
                 <CuiToggleRow
-                  :label="$t('components.form.label.muted')"
-                  :hint="$t('components.form.hint.muted')"
+                  :label="$t('components.form.label.source_audio')"
+                  :hint="$t('components.form.hint.source_audio')"
                   :label-for="`sources[${i}].muted`"
                   :error-name="`sources[${i}].muted`"
                 >
-                  <ToggleSwitch :model-value="source.muted" v-bind="field" :invalid="errors.length > 0" :loading="busy" @value-change="(e) => (source.muted = e)" />
+                  <ToggleSwitch
+                    :model-value="!source.muted"
+                    :input-id="`sources[${i}].muted`"
+                    :invalid="errors.length > 0"
+                    :loading="busy"
+                    @value-change="(e) => (source.muted = !e)"
+                  />
                 </CuiToggleRow>
               </Field>
             </div>
