@@ -117,10 +117,10 @@
             />
             <Button
               v-if="profileId"
+              severity="danger"
+              outlined
               type="button"
               size="small"
-              severity="secondary"
-              outlined
               :label="$t('views.assistant.profile_delete')"
               :loading="deleteProfileMutation.isPending.value"
               @click="deleteProfile"
@@ -152,10 +152,10 @@
         </div>
         <Button
           v-if="memory?.length"
+          severity="danger"
+          outlined
           type="button"
           size="small"
-          severity="secondary"
-          outlined
           class="w-full"
           :label="$t('views.assistant.memory_forget_all')"
           :loading="deleteMemoryMutation.isPending.value"

@@ -129,14 +129,7 @@
                           <label class="cui-label">{{ $t('views.settings.pair_code') }}</label>
                           <InputGroup>
                             <InputText :model-value="pairCode" readonly class="font-mono text-lg text-center tracking-widest" />
-                            <InputGroupAddon>
-                              <CuiActionButton
-                                :action-text="$t('components.form.tooltip.copied')"
-                                :icon="CopyIcon"
-                                :button-props="{ severity: 'secondary', text: true }"
-                                @action="onCopyPairCode"
-                              />
-                            </InputGroupAddon>
+                            <CuiCopyAddon :value="pairCode" />
                           </InputGroup>
                           <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.pair_code_hint') }}</Message>
                         </div>
@@ -145,14 +138,7 @@
                           <label class="cui-label">{{ $t('views.settings.pair_url') }}</label>
                           <InputGroup>
                             <InputText :model-value="pairUrl" readonly class="font-mono text-sm" />
-                            <InputGroupAddon>
-                              <CuiActionButton
-                                :action-text="$t('components.form.tooltip.copied')"
-                                :icon="CopyIcon"
-                                :button-props="{ severity: 'secondary', text: true }"
-                                @action="onCopyPairUrl"
-                              />
-                            </InputGroupAddon>
+                            <CuiCopyAddon :value="pairUrl" />
                             <InputGroupAddon>
                               <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="onOpenPairUrl">
                                 <template #icon>
@@ -206,7 +192,6 @@
                   <Button
                     v-if="needsReauth && !pairCode"
                     :loading="pairInitLoading"
-                    severity="warn"
                     class="cui-button-medium"
                     :label="$t('components.form.button.reconnect_server')"
                     @click="onStartPairing"
@@ -432,14 +417,7 @@
                                   <label class="cui-label">{{ $t('components.form.label.cloudflare_url') }}</label>
                                   <InputGroup>
                                     <InputText :model-value="managedStatus.loginUrl" readonly class="font-mono text-sm" />
-                                    <InputGroupAddon>
-                                      <CuiActionButton
-                                        :action-text="$t('components.form.tooltip.copied')"
-                                        :icon="CopyIcon"
-                                        :button-props="{ severity: 'secondary', text: true }"
-                                        @action="onCopyManagedUrl(managedStatus.loginUrl!)"
-                                      />
-                                    </InputGroupAddon>
+                                    <CuiCopyAddon :value="managedStatus.loginUrl" />
                                     <InputGroupAddon>
                                       <Button
                                         v-tooltip="{ value: $t('components.form.button.open_in_browser') }"
@@ -532,16 +510,18 @@
                                 @click="onTestMode('cloudflare')"
                               />
                               <Button
+                                severity="danger"
+                                outlined
                                 type="button"
-                                severity="secondary"
                                 :loading="managedDisconnectLoading"
                                 class="cui-button-small ml-auto"
                                 :label="$t('components.form.button.disconnect')"
                                 @click="onManagedDisconnect"
                               />
                               <Button
-                                type="button"
                                 severity="danger"
+                                outlined
+                                type="button"
                                 :loading="managedLogoutLoading"
                                 class="cui-button-small"
                                 :label="$t('components.form.button.logout')"
@@ -863,7 +843,6 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { ErrorMessage, Field, Form } from 'vee-validate';
 import LocalIcon from '~icons/boxicons/computer-filled';
-import CopyIcon from '~icons/fluent/copy-16-filled';
 import OpenIcon from '~icons/fluent/open16-filled';
 import EarthIcon from '~icons/mdi/earth';
 import LanIcon from '~icons/mdi/lan';
@@ -871,7 +850,7 @@ import LanIcon from '~icons/mdi/lan';
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { ServerQuery } from '@/api/routes/server.js';
 import { CLOUD_SERVICE_URL, PROXY_SERVICE_HOST } from '@/common/constants.js';
-import { copyToClipboard, deepToRaw } from '@/common/utils.js';
+import { deepToRaw } from '@/common/utils.js';
 import ConnectionDetailsDialog from '@/components/CuiDialog/templates/ConnectionDetails/ConnectionDetails.vue';
 import { isCapacitor, isInCloudSession } from '@/connection/index.js';
 import { remotePatchSchema } from '@/schemas/remote.schema.js';
@@ -1256,20 +1235,6 @@ function onCancelPairing() {
   resetPairState();
 }
 
-async function onCopyPairCode() {
-  if (!pairCode.value) return;
-  try {
-    await copyToClipboard(pairCode.value);
-  } catch {}
-}
-
-async function onCopyPairUrl() {
-  if (!pairUrl.value) return;
-  try {
-    await copyToClipboard(pairUrl.value);
-  } catch {}
-}
-
 function onOpenPairUrl() {
   if (!pairUrl.value) return;
   window.open(pairUrl.value, '_blank', 'noopener');
@@ -1348,12 +1313,6 @@ async function onManagedDisconnect() {
 async function onManagedLogout() {
   try {
     await managedLogout();
-  } catch {}
-}
-
-async function onCopyManagedUrl(url: string) {
-  try {
-    await copyToClipboard(url);
   } catch {}
 }
 

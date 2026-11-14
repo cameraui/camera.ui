@@ -240,10 +240,9 @@
                   @click="confirmDropCertificate"
                 />
                 <Button
+                  severity="secondary"
                   :loading="loadingCert || isLoading"
                   :disabled="actionsDisabled"
-                  severity="secondary"
-                  outlined
                   class="cui-button-medium"
                   :label="$t('components.form.button.download')"
                   @click="downloadCert"
@@ -295,6 +294,8 @@
             <div class="flex flex-col gap-6">
               <span class="text-sm">{{ $t('views.settings.reset_server_info') }}</span>
               <Button
+                severity="danger"
+                outlined
                 :loading="isLoading"
                 :disabled="actionsDisabled"
                 class="cui-button-medium ml-auto"

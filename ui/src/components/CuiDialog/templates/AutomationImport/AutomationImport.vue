@@ -5,7 +5,7 @@
     <Message v-if="missingInterfaces.length" severity="error" class="text-sm">
       <div class="flex flex-col gap-2">
         <span>{{ $t('components.automation_import.missing_plugins', { plugins: missingInterfaces.map(humanizeInterface).join(', ') }) }}</span>
-        <Button size="small" severity="contrast" outlined class="self-start" :label="$t('components.automation_import.open_plugin_store')" @click="openPluginStore" />
+        <Button severity="secondary" size="small" class="self-start" :label="$t('components.automation_import.open_plugin_store')" @click="openPluginStore" />
       </div>
     </Message>
 

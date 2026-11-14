@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-5 w-full">
     <div class="flex items-center justify-between gap-3">
       <span class="text-sm text-muted">{{ $t('views.camera.recordings_filter_hint') }}</span>
-      <Button v-if="filtered" :label="$t('components.form.button.reset')" text size="small" class="shrink-0" @click="reset" />
+      <Button v-if="filtered" severity="secondary" text :label="$t('components.form.button.reset')" size="small" class="shrink-0" @click="reset" />
     </div>
 
     <div class="flex flex-col field-gap">

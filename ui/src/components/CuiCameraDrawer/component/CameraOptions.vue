@@ -66,7 +66,7 @@
     </Tabs>
 
     <div v-if="showSaveButton" class="w-full flex items-center justify-center p-4 h-[70px]">
-      <Button fluid severity="success" class="cui-button-medium" :label="$t('components.form.button.save')" @click="onFormSubmit"></Button>
+      <Button fluid class="cui-button-medium" :label="$t('components.form.button.save')" @click="onFormSubmit"></Button>
     </div>
   </Form>
 </template>

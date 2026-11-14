@@ -9,14 +9,7 @@
       <label class="cui-label">{{ t('components.automation_nodes.webhook_url') }}</label>
       <InputGroup>
         <InputText :model-value="webhookUrl" readonly class="font-mono text-xs" />
-        <InputGroupAddon>
-          <CuiActionButton
-            :action-text="t('components.automation_nodes.webhook_secret_copied')"
-            :icon="CopyIcon"
-            :button-props="{ severity: 'secondary', text: true }"
-            @action="copy(webhookUrl)"
-          />
-        </InputGroupAddon>
+        <CuiCopyAddon :value="webhookUrl" />
       </InputGroup>
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.webhook_url_hint') }}</Message>
     </div>
@@ -25,14 +18,7 @@
       <label class="cui-label">{{ t('components.automation_nodes.webhook_secret') }}</label>
       <InputGroup>
         <InputText :model-value="data.webhookSecret" readonly class="font-mono text-xs" />
-        <InputGroupAddon>
-          <CuiActionButton
-            :action-text="t('components.automation_nodes.webhook_secret_copied')"
-            :icon="CopyIcon"
-            :button-props="{ severity: 'secondary', text: true }"
-            @action="copy(data.webhookSecret!)"
-          />
-        </InputGroupAddon>
+        <CuiCopyAddon :value="data.webhookSecret" />
       </InputGroup>
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.webhook_secret_hint') }}</Message>
     </div>
@@ -44,10 +30,6 @@
 </template>
 
 <script setup lang="ts">
-import CopyIcon from '~icons/carbon/copy';
-
-import { copyToClipboard } from '@/common/utils.js';
-
 import type { ConfigTriggerWebhookProps } from '../types.js';
 
 const props = defineProps<ConfigTriggerWebhookProps>();
@@ -58,8 +40,4 @@ const webhookUrl = computed(() => {
   const origin = window.location.origin;
   return `${origin}/api/automations/webhook/${props.data.webhookId}`;
 });
-
-function copy(text: string) {
-  copyToClipboard(text);
-}
 </script>

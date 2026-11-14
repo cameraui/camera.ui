@@ -37,17 +37,7 @@
               <div class="flex flex-col field-gap">
                 <InputGroup>
                   <InputText :model-value="backupKey.key" readonly type="text" class="font-mono" />
-                  <InputGroupAddon>
-                    <CuiActionButton
-                      :action-text="$t('views.settings.backup_key_copied')"
-                      :icon="CopyIcon"
-                      :button-props="{
-                        severity: 'secondary',
-                        text: true,
-                      }"
-                      @action="copyToClipboard(backupKey.key)"
-                    />
-                  </InputGroupAddon>
+                  <CuiCopyAddon :value="backupKey.key" />
                 </InputGroup>
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
                   {{
@@ -77,7 +67,6 @@
                 <ProgressBar v-if="move.transferred !== undefined" :value="moveSentPercent" />
                 <Button
                   severity="secondary"
-                  outlined
                   class="ml-auto cui-button-medium"
                   :label="move.state === 'sent' ? $t('components.form.button.keep_running_here') : $t('components.form.button.cancel_move')"
                   @click="confirmRunHere"
@@ -92,17 +81,7 @@
                   <label class="cui-label">{{ $t('restore.move_code') }}</label>
                   <InputGroup>
                     <InputText :model-value="moveCode" readonly type="text" class="font-mono" />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('views.settings.move_code_copied')"
-                        :icon="CopyIcon"
-                        :button-props="{
-                          severity: 'secondary',
-                          text: true,
-                        }"
-                        @action="copyToClipboard(moveCode)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="moveCode" />
                   </InputGroup>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
                     {{ $t('views.settings.move_code_info') }} {{ $t('views.settings.move_code_expires', { time: moveExpiry }) }}
@@ -160,13 +139,7 @@
 
                 <div v-if="lastRestore.state === 'ready'" class="flex gap-2 ml-auto shrink-0">
                   <Button severity="secondary" text :disabled="isRestoreActive" :label="$t('components.form.button.discard')" @click="discardStaged" />
-                  <Button
-                    severity="secondary"
-                    outlined
-                    :disabled="isRestoreActive"
-                    :label="$t('components.form.button.review')"
-                    @click="backupRestore.showStaged(lastRestore)"
-                  />
+                  <Button severity="secondary" :disabled="isRestoreActive" :label="$t('components.form.button.review')" @click="backupRestore.showStaged(lastRestore)" />
                 </div>
               </div>
 
@@ -215,7 +188,6 @@
                 <span class="text-sm">{{ $t('views.settings.restore_previous', { date: new Date(previousState.expiresAt).toLocaleDateString() }) }}</span>
                 <Button
                   severity="secondary"
-                  outlined
                   :disabled="isRestoreActive"
                   class="ml-auto shrink-0 cui-button-medium"
                   :label="$t('components.form.button.undo_restore')"
@@ -311,7 +283,6 @@
               <div class="flex items-center gap-2">
                 <Button
                   severity="secondary"
-                  outlined
                   :loading="schedulerRunning"
                   :disabled="schedulerSaving"
                   class="ml-auto cui-button-medium"
@@ -388,7 +359,6 @@
 
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
-import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import {
   backupDownloadSourceFn,
@@ -409,7 +379,7 @@ import {
   scheduledBackupDownloadSourceFn,
   startBackupJobFn,
 } from '@/api/routes/backup.js';
-import { copyToClipboard, extractErrorMessage, formatBytes, formatRelativeTime } from '@/common/utils.js';
+import { extractErrorMessage, formatBytes, formatRelativeTime } from '@/common/utils.js';
 import { readThemeStorage } from '@/stores/theme.js';
 
 import type CuiUploadFiles from '@/components/CuiUploadFIles/CuiUploadFiles.vue';

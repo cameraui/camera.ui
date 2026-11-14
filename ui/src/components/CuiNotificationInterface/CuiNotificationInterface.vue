@@ -107,7 +107,6 @@
     <Button
       fluid
       class="mt-8 cui-button-medium"
-      severity="success"
       :loading="sending"
       :disabled="!pluginProxy || sending"
       :label="$t('components.notification_interface.send_test')"

@@ -142,7 +142,6 @@
                   </Button>
                   <Button
                     severity="secondary"
-                    outlined
                     class="cui-button-medium shrink-0"
                     :disabled="item.kind === 'server' ? busy : runActive || serverBusy"
                     :label="item.status === 'error' ? $t('views.updates.retry') : $t('components.form.button.update')"

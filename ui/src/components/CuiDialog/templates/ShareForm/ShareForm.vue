@@ -33,17 +33,7 @@
         <label class="cui-label">{{ $t('shares.link') }}</label>
         <InputGroup>
           <InputText :model-value="shareResult.link" readonly class="w-full font-mono text-sm" />
-          <InputGroupAddon>
-            <CuiActionButton
-              :action-text="$t('components.form.tooltip.copied')"
-              :icon="CopyIcon"
-              :button-props="{
-                severity: 'secondary',
-                text: true,
-              }"
-              @action="copy(shareResult!.link)"
-            />
-          </InputGroupAddon>
+          <CuiCopyAddon :value="shareResult?.link" />
         </InputGroup>
       </div>
 
@@ -51,17 +41,7 @@
         <label class="cui-label">{{ $t('shares.code') }}</label>
         <InputGroup>
           <InputText :model-value="shareResult.code" readonly class="w-full font-mono text-lg tracking-widest text-center" />
-          <InputGroupAddon>
-            <CuiActionButton
-              :action-text="$t('components.form.tooltip.copied')"
-              :icon="CopyIcon"
-              :button-props="{
-                severity: 'secondary',
-                text: true,
-              }"
-              @action="copy(shareResult!.code)"
-            />
-          </InputGroupAddon>
+          <CuiCopyAddon :value="shareResult?.code" />
         </InputGroup>
         <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('shares.code_save_hint') }}</Message>
       </div>
@@ -72,11 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import CopyIcon from '~icons/fluent/copy-16-filled';
-
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { SharesQuery } from '@/api/routes/shares.js';
-import { copyToClipboard as copy } from '@/common/utils.js';
 
 import type { ShareCreateResult } from '@/api/routes/shares.js';
 import type { CustomDialogComponent, DialogRefProps } from '@/composables/useCuiDialog.js';

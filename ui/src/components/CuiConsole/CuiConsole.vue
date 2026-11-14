@@ -9,15 +9,16 @@
     <Button
       v-tooltip.left="{ value: $t('components.form.button.copy'), disabled: !hasSelection }"
       type="button"
+      severity="secondary"
       rounded
       :disabled="!hasSelection"
-      class="!absolute top-2 right-2 z-10 !w-8 !h-8 !p-0 opacity-30 text-black"
+      class="!absolute top-2 right-2 z-10 !w-8 !h-8 !p-0 opacity-30"
       :class="{
         'opacity-80': hasSelection,
       }"
       @click="copySelection"
     >
-      <i-mdi:content-copy class="w-4 h-4" />
+      <i-fluent:copy-16-filled class="w-4 h-4" />
     </Button>
   </div>
 </template>

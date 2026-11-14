@@ -247,14 +247,7 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <Button
-                  type="button"
-                  severity="secondary"
-                  outlined
-                  class="cui-button-medium ml-auto"
-                  :label="$t('components.form.button.reset_defaults')"
-                  @click="resetBehavior"
-                >
+                <Button severity="secondary" type="button" class="cui-button-medium ml-auto" :label="$t('components.form.button.reset_defaults')" @click="resetBehavior">
                   <template #icon>
                     <i-mdi:restore class="w-4 h-4" />
                   </template>
@@ -294,14 +287,7 @@
                   <label for="mcpEndpoint" class="cui-label">{{ $t('views.settings.assistant_mcp_endpoint_label') }}</label>
                   <InputGroup>
                     <InputText id="mcpEndpoint" :model-value="mcpEndpoint" readonly class="font-mono text-sm" />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('components.form.tooltip.copied')"
-                        :icon="CopyIcon"
-                        :button-props="{ severity: 'secondary', text: true }"
-                        @action="copyToClipboard(mcpEndpoint)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="mcpEndpoint" />
                   </InputGroup>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
                     {{ $t('views.settings.assistant_mcp_token_info') }}
@@ -314,14 +300,7 @@
                   <Select v-model="mcpClient" input-id="mcpClient" :options="mcpClientOptions" option-label="label" option-value="value" class="w-full" />
                   <InputGroup>
                     <Textarea id="mcpSnippet" :model-value="mcpSnippet" readonly auto-resize rows="3" class="font-mono text-xs" />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('components.form.tooltip.copied')"
-                        :icon="CopyIcon"
-                        :button-props="{ severity: 'secondary', text: true }"
-                        @action="copyToClipboard(mcpSnippet)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="mcpSnippet" />
                   </InputGroup>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.assistant_mcp_snippet_info') }}</Message>
                 </div>
@@ -701,9 +680,8 @@
 
               <div class="flex">
                 <Button
-                  type="button"
                   severity="secondary"
-                  outlined
+                  type="button"
                   class="cui-button-medium ml-auto"
                   :label="$t('components.form.button.reset')"
                   :disabled="!usage?.length"
@@ -791,7 +769,6 @@
 import { useTextAlerts } from '@camera.ui/nvr';
 import { isEqual } from '@camera.ui/common/utils';
 import ModelIcon from '~icons/mdi/brain';
-import CopyIcon from '~icons/mdi/content-copy';
 import DeleteIcon from '~icons/mdi/delete-outline';
 import RunIcon from '~icons/mdi/lightning-bolt-outline';
 import PauseIcon from '~icons/mdi/pause';
@@ -805,7 +782,7 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { ASSISTANT_PROVIDERS, capabilityTags, defaultModel, modelInput } from '@/common/assistantModels.js';
 import { NVR_PLUGIN_NAME } from '@/common/constants.js';
 import { languageOptions } from '@/common/languageOptions.js';
-import { copyToClipboard, deepToRaw, randomId } from '@/common/utils.js';
+import { deepToRaw, randomId } from '@/common/utils.js';
 import { toolDisplayName } from '@/components/CuiAssistantToolCall/types.js';
 import AssistantModelDialog from '@/components/CuiDialog/templates/AssistantModel/AssistantModel.vue';
 import AssistantScheduleModel from '@/components/CuiDialog/templates/AssistantScheduleModel/AssistantScheduleModel.vue';

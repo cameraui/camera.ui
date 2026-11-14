@@ -269,6 +269,7 @@
     <div v-if="!readOnly" class="px-4 pt-4 pb-[max(1rem,var(--cui-bottom-gap))] border-top-color">
       <Button
         severity="danger"
+        outlined
         fluid
         class="w-full cui-button-medium"
         :label="

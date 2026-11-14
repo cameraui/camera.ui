@@ -84,14 +84,7 @@
                     <label for="brokerAddress" class="cui-label">{{ $t('views.settings.mqtt_broker_address') }}</label>
                     <InputGroup>
                       <InputText :model-value="brokerAddress" readonly class="font-mono text-xs" />
-                      <InputGroupAddon>
-                        <CuiActionButton
-                          :action-text="$t('components.form.tooltip.copied')"
-                          :icon="CopyIcon"
-                          :button-props="{ severity: 'secondary', text: true }"
-                          @action="copyToClipboard(brokerAddress)"
-                        />
-                      </InputGroupAddon>
+                      <CuiCopyAddon :value="brokerAddress" />
                     </InputGroup>
                     <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.mqtt_broker_address_hint') }}</Message>
                   </div>
@@ -111,14 +104,7 @@
                       <label for="brokerPassword" class="cui-label">{{ $t('views.settings.mqtt_password_label') }}</label>
                       <InputGroup>
                         <Password v-model="mqttForm.broker.password" :feedback="false" toggle-mask fluid autocomplete="off" />
-                        <InputGroupAddon>
-                          <CuiActionButton
-                            :action-text="$t('components.form.tooltip.copied')"
-                            :icon="CopyIcon"
-                            :button-props="{ severity: 'secondary', text: true }"
-                            @action="copyToClipboard(mqttForm!.broker.password ?? '')"
-                          />
-                        </InputGroupAddon>
+                        <CuiCopyAddon :value="mqttForm?.broker.password" />
                       </InputGroup>
                     </div>
                   </div>
@@ -218,10 +204,9 @@
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
 import { ErrorMessage, Field, Form } from 'vee-validate';
-import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import { MqttQuery } from '@/api/routes/mqtt.js';
-import { copyToClipboard, deepToRaw } from '@/common/utils.js';
+import { deepToRaw } from '@/common/utils.js';
 import { mqttPatchSchema } from '@/schemas/mqtt.schema.js';
 
 import type { DBMqttMode, DBMqttProtocol, MqttMaskedSettings, MqttStatus, PatchMqttInput } from '@shared/types';

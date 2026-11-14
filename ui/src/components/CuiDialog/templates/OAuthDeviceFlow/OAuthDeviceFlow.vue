@@ -16,34 +16,23 @@
       <div v-else-if="state.status === 'awaiting_user' || state.status === 'polling'" key="awaiting" class="flex flex-col items-center gap-5 text-center">
         <CuiQRCode v-if="state.verificationUriComplete" :value="state.verificationUriComplete" :size="184" :logo-size="36" />
 
-        <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col items-center gap-2 w-full max-w-sm">
           <span class="text-sm text-muted">{{ $t('components.oauth.enter_code_at') }}</span>
-          <div class="flex items-center gap-1 max-w-full min-w-0">
-            <a
-              :href="state.verificationUriComplete || state.verificationUri"
-              target="_blank"
-              rel="noopener"
-              class="text-sm font-mono text-primary hover:underline break-all select-text"
-              >{{ state.verificationUri }}</a
-            >
-            <CuiActionButton
-              :action-text="$t('components.form.tooltip.copied')"
-              :icon="CopyIcon"
-              :button-props="{ severity: 'secondary', text: true, size: 'small' }"
-              @action="onCopyLink"
-            />
-          </div>
-          <div class="mt-1 flex items-center gap-1">
-            <div class="card-background border border-color rounded-xl px-6 py-3">
-              <span class="text-2xl font-mono font-semibold tracking-[0.25em] select-text">{{ state.userCode }}</span>
-            </div>
-            <CuiActionButton
-              :action-text="$t('components.form.tooltip.copied')"
-              :icon="CopyIcon"
-              :button-props="{ severity: 'secondary', text: true, size: 'small' }"
-              @action="onCopyCode"
-            />
-          </div>
+          <InputGroup>
+            <InputText :model-value="state.verificationUri" readonly class="font-mono text-sm" />
+            <CuiCopyAddon :value="verificationLink" />
+            <InputGroupAddon>
+              <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="onOpenLink">
+                <template #icon>
+                  <OpenIcon />
+                </template>
+              </Button>
+            </InputGroupAddon>
+          </InputGroup>
+          <InputGroup>
+            <InputText :model-value="state.userCode" readonly class="font-mono text-lg text-center tracking-widest" />
+            <CuiCopyAddon :value="state.userCode" />
+          </InputGroup>
         </div>
 
         <div class="flex items-center gap-2 text-muted">
@@ -67,9 +56,7 @@
 
 <script setup lang="ts">
 import { useOAuth } from '@camera.ui/browser';
-import CopyIcon from '~icons/fluent/copy-16-filled';
-
-import { copyToClipboard } from '@/common/utils.js';
+import OpenIcon from '~icons/fluent/open16-filled';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { OAuthDeviceFlowProps } from './types.js';
@@ -79,14 +66,10 @@ const props = defineProps<OAuthDeviceFlowProps>();
 const { t } = useI18n();
 const { state, metadata, startDeviceFlow, disconnect, cancel } = useOAuth(props.pluginName);
 const requestedScopes = computed(() => Object.keys(metadata.value?.scopeDescriptions ?? {}));
+const verificationLink = computed(() => state.value.verificationUriComplete || state.value.verificationUri);
 
-function onCopyLink() {
-  const uri = state.value.verificationUriComplete || state.value.verificationUri;
-  if (uri) copyToClipboard(uri);
-}
-
-function onCopyCode() {
-  if (state.value.userCode) copyToClipboard(state.value.userCode);
+function onOpenLink() {
+  if (verificationLink.value) window.open(verificationLink.value, '_blank', 'noopener');
 }
 
 function errorText(code?: string): string {

@@ -53,7 +53,7 @@
             :label="isRecordingLink ? $t('views.notifications.recording') : $t('views.notifications.open')"
             @click="go(openLink)"
           />
-          <Button v-if="liveLink" severity="secondary" outlined class="cui-button-medium" :label="$t('views.notifications.live_view')" @click="go(liveLink)" />
+          <Button v-if="liveLink" severity="secondary" class="cui-button-medium" :label="$t('views.notifications.live_view')" @click="go(liveLink)" />
         </template>
         <Button
           v-if="assistantReady"
@@ -108,6 +108,7 @@
 
     <div v-if="centerLink" class="flex justify-center px-4 pb-4">
       <Button
+        severity="secondary"
         text
         class="cui-button-small"
         :label="$t('components.notification_menu.show_in_center')"

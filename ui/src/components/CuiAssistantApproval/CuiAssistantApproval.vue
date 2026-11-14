@@ -27,15 +27,7 @@
         :label="editing ? $t('components.form.button.cancel') : $t('views.assistant.approval_edit')"
         @click="toggleEdit"
       />
-      <Button
-        type="button"
-        severity="secondary"
-        outlined
-        class="cui-button-small"
-        :disabled="!canResolve || busy"
-        :label="$t('views.assistant.reject')"
-        @click="emit('reject')"
-      />
+      <Button severity="secondary" type="button" class="cui-button-small" :disabled="!canResolve || busy" :label="$t('views.assistant.reject')" @click="emit('reject')" />
       <Button
         type="button"
         class="cui-button-small"

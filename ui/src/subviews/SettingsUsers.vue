@@ -73,13 +73,7 @@
               </CuiDataTable>
 
               <div class="flex flex-row items-end justify-end gap-2">
-                <Button
-                  severity="success"
-                  :loading="isLoading"
-                  class="cui-button-medium mr-4 md:mr-0"
-                  :label="$t('components.form.button.create_new_user')"
-                  @click="openUserDialog()"
-                />
+                <Button :loading="isLoading" class="cui-button-medium mr-4 md:mr-0" :label="$t('components.form.button.create_new_user')" @click="openUserDialog()" />
               </div>
             </div>
           </template>
@@ -242,6 +236,7 @@ const items = computed<MenuItem[]>(() => {
     {
       label: t('views.settings.remove'),
       icon: TrashIcon,
+      hide: !menuUser.value || menuUser.value.role === 'master',
       iconProps: {
         class: 'text-red-500',
       },
@@ -253,7 +248,7 @@ const items = computed<MenuItem[]>(() => {
         severity: 'danger',
       },
       onClick: (user: DBUser) => {
-        removeUser({ username: user.username });
+        confirmRemoveUser(user);
       },
     },
   ];
@@ -269,6 +264,20 @@ function openUserDialog(user?: DBUser) {
         user: toRaw(user),
         onStartPassword: openStartPasswordDialog,
       },
+    },
+  });
+}
+
+function confirmRemoveUser(user: DBUser) {
+  dialog.openTextDialog({
+    data: {
+      title: t('components.dialog.title.confirm'),
+      contentText: t('views.settings.remove_user_confirm', { name: user.username }),
+      confirmText: t('components.form.button.remove'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: () => {
+      removeUser({ username: user.username });
     },
   });
 }

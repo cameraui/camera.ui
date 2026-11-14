@@ -65,14 +65,7 @@
                       fluid
                       autocomplete="new-password"
                     />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('components.form.tooltip.copied')"
-                        :icon="CopyIcon"
-                        :button-props="{ severity: 'secondary', text: true }"
-                        @action="copyToClipboard(form!.rtsp.password)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="form?.rtsp.password" />
                   </InputGroup>
                   <span v-if="errors['rtsp.password']" class="cui-input-error">{{ errors['rtsp.password'] }}</span>
                 </div>
@@ -119,14 +112,7 @@
                     <label for="onvifAddress" class="cui-label">{{ $t('views.settings.streaming.onvif_address') }}</label>
                     <InputGroup>
                       <InputText id="onvifAddress" :model-value="onvifAddress" readonly class="font-mono text-xs" />
-                      <InputGroupAddon>
-                        <CuiActionButton
-                          :action-text="$t('components.form.tooltip.copied')"
-                          :icon="CopyIcon"
-                          :button-props="{ severity: 'secondary', text: true }"
-                          @action="copyToClipboard(onvifAddress)"
-                        />
-                      </InputGroupAddon>
+                      <CuiCopyAddon :value="onvifAddress" />
                     </InputGroup>
                     <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.onvif_address_hint') }}</Message>
                   </div>
@@ -171,14 +157,7 @@
                   <label for="rtmpAddress" class="cui-label">{{ $t('views.settings.streaming.rtmp_address') }}</label>
                   <InputGroup>
                     <InputText id="rtmpAddress" :model-value="rtmpAddress" readonly class="font-mono text-xs" />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('components.form.tooltip.copied')"
-                        :icon="CopyIcon"
-                        :button-props="{ severity: 'secondary', text: true }"
-                        @action="copyToClipboard(rtmpAddress)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="rtmpAddress" />
                   </InputGroup>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.streaming.rtmp_address_hint') }}</Message>
                 </div>
@@ -423,11 +402,10 @@
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
 import { streamingSettingsSchema, STUN_URL_PATTERN, TURN_URL_PATTERN } from '@shared/types';
-import CopyIcon from '~icons/fluent/copy-16-filled';
 
 import { RemoteQuery } from '@/api/routes/remote.js';
 import { ServerQuery } from '@/api/routes/server.js';
-import { copyToClipboard, randomId } from '@/common/utils.js';
+import { randomId } from '@/common/utils.js';
 import { refreshIceServers } from '@/plugins/cameraui.js';
 
 import type { StreamingSettingsInput } from '@shared/types';

@@ -115,9 +115,9 @@
             </div>
             <div class="shrink-0 border-t border-color px-4 py-3">
               <Button
-                type="button"
                 severity="danger"
-                text
+                outlined
+                type="button"
                 class="cui-button-small w-full"
                 :label="$t('views.assistant.delete_all_conversations')"
                 @click="removeAllThreads"

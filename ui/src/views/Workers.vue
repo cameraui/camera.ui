@@ -244,17 +244,7 @@
                   <label class="cui-label">{{ $t('views.workers.pairing_code') }}</label>
                   <InputGroup>
                     <InputText :model-value="pairing.code" readonly type="text" />
-                    <InputGroupAddon>
-                      <CuiActionButton
-                        :action-text="$t('views.workers.copied')"
-                        :icon="CopyIcon"
-                        :button-props="{
-                          severity: 'secondary',
-                          text: true,
-                        }"
-                        @action="copy(pairing!.code)"
-                      />
-                    </InputGroupAddon>
+                    <CuiCopyAddon :value="pairing?.code" />
                   </InputGroup>
                   <Message v-if="pairingMinutesLeft > 0" severity="secondary" variant="simple" size="small" class="cui-input-hint">
                     {{ $t('views.workers.pairing_expires', { minutes: pairingMinutesLeft }) }}
@@ -273,19 +263,11 @@
                 </div>
 
                 <div class="flex flex-col field-gap">
-                  <div class="flex flex-row items-center justify-between">
-                    <label class="cui-label">{{ $t('views.workers.pairing_snippet') }}</label>
-                    <CuiActionButton
-                      :action-text="$t('views.workers.copied')"
-                      :icon="CopyIcon"
-                      :button-props="{
-                        severity: 'secondary',
-                        text: true,
-                      }"
-                      @action="copy(pairingSnippet)"
-                    />
-                  </div>
-                  <pre class="pairing-snippet">{{ pairingSnippet }}</pre>
+                  <label class="cui-label">{{ $t('views.workers.pairing_snippet') }}</label>
+                  <InputGroup>
+                    <Textarea :model-value="pairingSnippet" readonly auto-resize rows="3" wrap="off" class="font-mono text-xs" />
+                    <CuiCopyAddon :value="pairingSnippet" />
+                  </InputGroup>
                   <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
                     {{ $t('views.workers.pairing_snippet_hint') }}
                   </Message>
@@ -304,7 +286,6 @@
 </template>
 
 <script setup lang="ts">
-import CopyIcon from '~icons/fluent/copy-16-filled';
 import RestartIcon from '~icons/ic/round-restart-alt';
 import UpdateAvailableIcon from '~icons/icon-park-solid/up-c';
 import UpdateIcon from '~icons/material-symbols/deployed-code-update';
@@ -315,7 +296,7 @@ import { ApiQuery } from '@/api/routes/api.js';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { WorkersQuery } from '@/api/routes/workers.js';
-import { copyToClipboard as copy, formatCardTime, formatTimestamp } from '@/common/utils.js';
+import { formatCardTime, formatTimestamp } from '@/common/utils.js';
 import EditWorkerDialog from '@/components/CuiDialog/templates/EditWorker/EditWorker.vue';
 
 import type { TableHeader } from '@/components/CuiChartTable/types.js';
@@ -1188,14 +1169,4 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
-.pairing-snippet {
-  background: var(--p-content-hover-background);
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 6px;
-  padding: 0.75rem;
-  font-size: 0.8rem;
-  overflow-x: auto;
-  white-space: pre;
-}
-</style>
+<style scoped></style>

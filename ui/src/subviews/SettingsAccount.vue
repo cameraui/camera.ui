@@ -132,14 +132,7 @@
                       <label class="cui-label">{{ $t('views.settings.security.manual_entry') }}</label>
                       <InputGroup>
                         <InputText :model-value="setupData?.secret" readonly class="font-mono text-sm" />
-                        <InputGroupAddon>
-                          <CuiActionButton
-                            :action-text="$t('components.form.tooltip.copied')"
-                            :icon="CopyIcon"
-                            :button-props="{ severity: 'secondary', text: true }"
-                            @action="copySecret"
-                          />
-                        </InputGroupAddon>
+                        <CuiCopyAddon :value="setupData?.secret" />
                       </InputGroup>
                     </div>
 
@@ -182,7 +175,7 @@
 
                   <div class="flex gap-2 justify-end">
                     <Button severity="secondary" class="cui-button-medium" :label="$t('views.settings.security.regenerate_backup')" @click="openRegenerateDialog" />
-                    <Button severity="danger" class="cui-button-medium" :label="$t('views.settings.security.disable_2fa')" @click="openDisableDialog" />
+                    <Button severity="danger" outlined class="cui-button-medium" :label="$t('views.settings.security.disable_2fa')" @click="openDisableDialog" />
                   </div>
                 </div>
               </Transition>
@@ -322,6 +315,8 @@
 
                 <div v-if="otherSessionsCount > 0" class="flex flex-row items-end justify-end gap-2">
                   <Button
+                    severity="danger"
+                    outlined
                     :loading="revokeAllLoading"
                     class="cui-button-medium mr-4 md:mr-0"
                     :label="$t('views.settings.active_sessions.revoke_all_others', { count: otherSessionsCount })"
@@ -340,7 +335,6 @@
 <script setup lang="ts">
 import { ErrorMessage, Field, Form } from 'vee-validate';
 import { z } from 'zod';
-import CopyIcon from '~icons/fluent/copy-16-filled';
 import PhoneIcon from '~icons/mdi/cellphone';
 import KeyIcon from '~icons/mdi/key-variant';
 import LaptopIcon from '~icons/mdi/laptop';
@@ -348,7 +342,7 @@ import TvIcon from '~icons/mdi/television';
 
 import { AuthQuery } from '@/api/routes/auth.js';
 import { isHaIngress, isProxySignIn } from '@/common/base.js';
-import { copyToClipboard, formatRelativeTime, readImgUpload } from '@/common/utils.js';
+import { formatRelativeTime, readImgUpload } from '@/common/utils.js';
 import ChangePasswordDialog from '@/components/CuiDialog/templates/ChangePassword/ChangePassword.vue';
 import ChangeUsernameDialog from '@/components/CuiDialog/templates/ChangeUsername/ChangeUsername.vue';
 import CreateApiTokenDialog from '@/components/CuiDialog/templates/CreateApiToken/CreateApiToken.vue';
@@ -448,12 +442,6 @@ const otpauthUri = computed(() => {
   const label = encodeURIComponent(`camera.ui:${user.value.username}`);
   return `otpauth://totp/${label}?secret=${setupData.value.secret}&issuer=${issuer}`;
 });
-
-async function copySecret(): Promise<void> {
-  if (setupData.value?.secret) {
-    await copyToClipboard(setupData.value.secret);
-  }
-}
 
 function iconForKind(kind: ClientKind) {
   if (kind === 'tv') return TvIcon;

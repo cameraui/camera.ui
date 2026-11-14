@@ -80,7 +80,14 @@
       </div>
 
       <div v-if="threads.length" class="cui-assistant-sidebar-foot px-3 pt-2">
-        <Button type="button" severity="danger" text class="cui-button-small w-full" :label="$t('views.assistant.delete_all_conversations')" @click="emit('deleteAll')" />
+        <Button
+          severity="danger"
+          outlined
+          type="button"
+          class="cui-button-small w-full"
+          :label="$t('views.assistant.delete_all_conversations')"
+          @click="emit('deleteAll')"
+        />
       </div>
     </div>
   </nav>

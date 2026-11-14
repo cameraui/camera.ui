@@ -13,7 +13,7 @@
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ t('components.automation_nodes.geofence_map_hint') }}</label>
       <div ref="mapContainerRef" class="rounded-lg overflow-hidden border-[1px] border-color" style="height: 220px"></div>
-      <Button severity="secondary" outlined :label="t('components.automation_nodes.geofence_use_my_location')" class="cui-button-small w-full" @click="useMyLocation">
+      <Button severity="secondary" :label="t('components.automation_nodes.geofence_use_my_location')" class="cui-button-small w-full" @click="useMyLocation">
         <template #icon>
           <i-mdi:crosshairs-gps class="w-4 h-4" />
         </template>
@@ -73,14 +73,7 @@
       <label class="cui-label">{{ t('components.automation_nodes.geofence_url') }}</label>
       <InputGroup>
         <InputText :model-value="locationUrl" readonly class="font-mono text-xs" />
-        <InputGroupAddon>
-          <CuiActionButton
-            :action-text="t('components.automation_nodes.webhook_secret_copied')"
-            :icon="CopyIcon"
-            :button-props="{ severity: 'secondary', text: true }"
-            @action="copy(locationUrl)"
-          />
-        </InputGroupAddon>
+        <CuiCopyAddon :value="locationUrl" />
       </InputGroup>
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.geofence_url_hint') }}</Message>
     </div>
@@ -91,14 +84,7 @@
         <span class="text-xs text-muted font-medium">{{ username }}</span>
         <InputGroup>
           <InputText :model-value="secret" readonly class="font-mono text-xs" />
-          <InputGroupAddon>
-            <CuiActionButton
-              :action-text="t('components.automation_nodes.webhook_secret_copied')"
-              :icon="CopyIcon"
-              :button-props="{ severity: 'secondary', text: true }"
-              @action="copy(secret)"
-            />
-          </InputGroupAddon>
+          <CuiCopyAddon :value="secret" />
         </InputGroup>
       </div>
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ t('components.automation_nodes.geofence_secret_hint') }}</Message>
@@ -117,9 +103,7 @@ import * as L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import CopyIcon from '~icons/carbon/copy';
 
-import { copyToClipboard } from '@/common/utils.js';
 import { useUserOptions } from './useUserOptions.js';
 
 import type { ConfigNodeUpdateEmits, ConfigTriggerGeofenceProps } from '../types.js';
@@ -226,10 +210,6 @@ async function useMyLocation() {
   } catch {
     locationUnavailable();
   }
-}
-
-function copy(text: string) {
-  copyToClipboard(text);
 }
 
 function update(key: string, value: unknown) {

@@ -89,7 +89,7 @@
             </Field>
           </div>
 
-          <Button fluid severity="danger" :loading="isLoading" class="cui-button-medium" :label="$t('components.form.button.remove')" @click="deleteCamera()" />
+          <Button severity="danger" outlined fluid :loading="isLoading" class="cui-button-medium" :label="$t('components.form.button.remove')" @click="deleteCamera()" />
         </div>
       </AccordionContent>
     </AccordionPanel>
