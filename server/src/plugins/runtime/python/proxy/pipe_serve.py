@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
@@ -12,6 +13,8 @@ from plugins.runtime.python.namespaces import NamespaceManager
 
 # the transport takes 4 MB per message and other calls share the connection, smaller chunks cost more CPU per byte
 PIPE_CHUNK_SIZE = 1024 * 1024
+# a slow source does not hold its bytes back until a chunk is full
+PIPE_FLUSH = 0.05
 # the host asks about a running download every 15 s
 PIPE_LEASE = 60.0
 
@@ -62,18 +65,18 @@ class PluginPipeServer:
         pipe.heard = time.monotonic()
         pipe.expire.cancel()
 
-        source = pipe.source()
-        lease = asyncio.create_task(self.__end_abandoned(pipe_id, pipe, source))
+        chunks = fill_chunks(pipe.source())
+        lease = asyncio.create_task(self.__end_abandoned(pipe_id, pipe, chunks))
         try:
-            async for chunk in source:
-                for offset in range(0, len(chunk), PIPE_CHUNK_SIZE):
-                    pipe.waiting = True
-                    yield chunk[offset : offset + PIPE_CHUNK_SIZE]
-                    pipe.waiting = False
-                    pipe.heard = time.monotonic()
+            async for chunk in chunks:
+                pipe.waiting = True
+                yield chunk
+                pipe.waiting = False
+                pipe.heard = time.monotonic()
         finally:
             lease.cancel()
             self.__pipes.pop(pipe_id, None)
+            await chunks.aclose()
 
     @RPCMethod
     async def pipeState(self, pipe_id: str) -> str:
@@ -83,11 +86,66 @@ class PluginPipeServer:
         pipe.heard = time.monotonic()
         return "waiting" if pipe.waiting else "writing"
 
-    async def __end_abandoned(self, pipe_id: str, pipe: Pipe, source: AsyncIterator[bytes]) -> None:
+    async def __end_abandoned(self, pipe_id: str, pipe: Pipe, chunks: AsyncGenerator[bytes, None]) -> None:
         # a host that stopped asking never resumes the generator above, so the source is closed from here
         while not pipe.waiting or time.monotonic() - pipe.heard <= self.__lease:
             await asyncio.sleep(self.__lease / 4)
         self.__pipes.pop(pipe_id, None)
+        await chunks.aclose()
+
+
+async def fill_chunks(source: AsyncIterator[bytes]) -> AsyncGenerator[bytes, None]:
+    parts: list[bytes] = []
+    size = 0
+    since = 0.0
+    read: asyncio.Future[bytes] | None = None
+
+    def take() -> bytes:
+        nonlocal parts, size
+        chunk = parts[0] if len(parts) == 1 else b"".join(parts)
+        parts, size = [], 0
+        return chunk
+
+    try:
+        while True:
+            # checked here too, a source that is always ready would never run into the timeout
+            if size > 0 and time.monotonic() - since >= PIPE_FLUSH:
+                yield take()
+                continue
+            if read is None:
+                read = asyncio.ensure_future(source.__anext__())
+            if size > 0:
+                await asyncio.wait({read}, timeout=max(since + PIPE_FLUSH - time.monotonic(), 0))
+                if not read.done():
+                    yield take()
+                    continue
+            try:
+                chunk = await read
+            except StopAsyncIteration:
+                break
+            read = None
+
+            offset = 0
+            if size > 0:
+                offset = min(len(chunk), PIPE_CHUNK_SIZE - size)
+                parts.append(chunk[:offset])
+                size += offset
+                if size == PIPE_CHUNK_SIZE:
+                    yield take()
+            while len(chunk) - offset >= PIPE_CHUNK_SIZE:
+                yield chunk[offset : offset + PIPE_CHUNK_SIZE]
+                offset += PIPE_CHUNK_SIZE
+            if offset < len(chunk):
+                parts.append(chunk[offset:])
+                size = len(chunk) - offset
+                since = time.monotonic()
+        if size > 0:
+            yield take()
+    finally:
+        if read is not None and not read.done():
+            read.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await read
         close = getattr(source, "aclose", None)
         if close is not None:
             await close()
