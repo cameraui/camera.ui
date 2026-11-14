@@ -560,6 +560,17 @@ export class DownloadManager implements DownloadManagerInterface {
     }
 
     const res = reply.raw;
+    // sent ahead of the bytes: a browser shows the download at once, and a failure never arrives as a body it would save as the file
+    res.writeHead(200, {
+      ...this.corsHeaders(reply),
+      'Content-Type': entry.mimeType,
+      'Content-Disposition': attachmentHeader(entry.filename),
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders();
+    reply.hijack();
+
     const plugin = this.pipeProxy(entry.pluginId);
     const chunks = plugin.pullPipe(entry.pipeId);
     const gone = new Promise<'gone'>((resolve) => res.once('close', () => resolve('gone')));
@@ -567,6 +578,7 @@ export class DownloadManager implements DownloadManagerInterface {
     // the pull that is open, 0 while the client takes its time
     let pull = 0;
     let pulls = 0;
+    let sent = 0;
     const watch = this.watchPipe(plugin, entry.pipeId, () => pull);
 
     let failure: unknown;
@@ -584,17 +596,7 @@ export class DownloadManager implements DownloadManagerInterface {
         if (!(chunk instanceof Uint8Array)) throw new Error(chunk.error);
         if (chunk.length === 0) continue;
 
-        // headers wait for the first bytes, a download that fails before them gets a status instead of an empty file
-        if (!res.headersSent) {
-          res.writeHead(200, {
-            ...this.corsHeaders(reply),
-            'Content-Type': entry.mimeType,
-            'Content-Disposition': attachmentHeader(entry.filename),
-            'Cache-Control': 'no-cache',
-          });
-          reply.hijack();
-        }
-
+        sent += chunk.length;
         if (!res.write(chunk) && !(await this.awaitDrain(res, this.pipeStallMs))) {
           throw new Error('the client stopped reading');
         }
@@ -609,15 +611,9 @@ export class DownloadManager implements DownloadManagerInterface {
 
     if (res.destroyed) return;
 
-    if (!res.headersSent) {
-      if (failure) this.logger.warn(`Pipe download failed: ${entry.filename}`, failure);
-      reply.code(500).send({ error: 'Download failed' });
-      return;
-    }
-
-    if (failure) {
-      this.logger.warn(`Pipe download failed: ${entry.filename}`, failure);
-      // cut off, so the client sees a failed download and not a short file that looks complete
+    if (failure || sent === 0) {
+      this.logger.warn(`Pipe download failed: ${entry.filename}`, failure ?? 'the plugin sent no bytes');
+      // cut off, so the client sees a failed download and not an empty or short file that looks complete
       res.destroy();
       return;
     }
