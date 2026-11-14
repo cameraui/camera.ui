@@ -84,6 +84,7 @@ export const srtpSchema = zod
 export const rtmpSchema = zod
   .object({
     listen: zod.string().trim().default(DEFAULT_GO2RTC_CONFIG_RTMP.listen),
+    streams: zod.string().trim().array().optional(),
   })
   .strict();
 

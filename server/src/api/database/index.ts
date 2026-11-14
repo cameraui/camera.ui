@@ -10,7 +10,7 @@ import { DEFAULT_MASTER_USERNAME, INGRESS_USERNAME, MIN_DATABASE_VERSION } from 
 import { isMovedAway, readMoveRecord } from '../../services/config/move.js';
 import { isHostAddress } from '../../services/config/platform-values.js';
 import { dropsIngressAccount, isIngressAccount } from '../../services/config/restore.js';
-import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, onvifVideoSources, stripStreamToken } from '../../utils/camera.js';
+import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, onvifVideoSources, rtmpStreams, stripStreamToken } from '../../utils/camera.js';
 import { createAutomationSchema } from '../schemas/automations.schema.js';
 import { createCameraBaseSchema } from '../schemas/cameras.schema.js';
 import { notificationSettingsSchema } from '../schemas/notifications.schema.js';
@@ -233,7 +233,7 @@ export class Database {
     await this.resetMasterPassword();
     await this.migrationRunner.migrate();
     await this.backfillSchemaDefaults();
-    this.syncOnvifVideoSources();
+    this.syncStreamExports();
     this.syncCamerasToGo2RtcConfig();
 
     this.logger.debug('Database initialized!');
@@ -291,14 +291,17 @@ export class Database {
     });
   }
 
-  public syncOnvifVideoSources(): boolean {
+  public syncStreamExports(): boolean {
     const movedAway = isMovedAway(readMoveRecord(this.configService.MOVE_FILE));
-    const videoSources = onvifVideoSources(movedAway ? [] : [...this.camerasDB.getRange()].map(({ value }) => value));
-    const onvif = this.configService.go2rtcConfig.onvif;
+    const cameras = movedAway ? [] : [...this.camerasDB.getRange()].map(({ value }) => value);
+    const { onvif, rtmp, streams } = this.configService.go2rtcConfig;
+    const videoSources = onvifVideoSources(cameras);
+    const offered = rtmpStreams(cameras, Object.keys(streams ?? {}));
 
-    if (isEqual(videoSources, onvif.video_sources)) return false;
+    if (isEqual(videoSources, onvif.video_sources) && isEqual(offered, rtmp.streams)) return false;
 
     onvif.video_sources = videoSources;
+    rtmp.streams = offered;
     return true;
   }
 

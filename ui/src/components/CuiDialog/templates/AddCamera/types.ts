@@ -52,6 +52,7 @@ export const DEFAULT_CAMERA: CameraFormModel = {
       muted: false,
       backchannelDisabled: false,
       onvifDisabled: false,
+      rtmpDisabled: false,
     },
   ],
   interfaceSettings: {

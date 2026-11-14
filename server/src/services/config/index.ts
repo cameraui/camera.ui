@@ -425,10 +425,10 @@ export class ConfigService {
     const db = tryInject('dbs');
 
     await db?.updateCameras();
-    const onvifChanged = db?.syncOnvifVideoSources();
+    const exportsChanged = db?.syncStreamExports();
     db?.syncCamerasToGo2RtcConfig();
 
-    if (onvifChanged) {
+    if (exportsChanged) {
       await this.writeGo2RtcConfigApi();
     }
   }

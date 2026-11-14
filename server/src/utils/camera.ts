@@ -203,3 +203,15 @@ export function onvifVideoSources(cameras: DBCamera[]): OnvifVideoSource[] {
     .filter((videoSource) => videoSource.profiles.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+export function rtmpStreams(cameras: DBCamera[], configStreams: string[]): string[] {
+  const offered = cameras
+    .filter((camera) => !camera.disabled)
+    .flatMap((camera) =>
+      camera.sources.filter((source) => source.role !== 'snapshot' && !source.rtmpDisabled).map((source) => createSourceName(camera.name, source.name)),
+    );
+  // streams the user added to the config have no switch and stay reachable
+  const own = configStreams.filter((name) => !name.startsWith('cui_'));
+
+  return [...offered, ...own].sort();
+}

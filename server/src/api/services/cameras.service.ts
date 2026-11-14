@@ -126,7 +126,7 @@ export class CamerasService {
     await this.addCameraSourcesToConfig(cameraData._id, cameraData.name, cameraData.sources);
 
     await this.dbs.camerasDB.put(cameraData._id, cameraData);
-    await this.updateOnvifVideoSources();
+    await this.updateStreamExports();
 
     const transformedCamera = this.transformCamera(cameraData);
     await this.api.addCamera(transformedCamera);
@@ -376,7 +376,7 @@ export class CamerasService {
       this.dbs.syncCamerasToGo2RtcConfig();
     }
 
-    await this.updateOnvifVideoSources();
+    await this.updateStreamExports();
 
     if (cameraOld.roomId !== camera.roomId) {
       await this.dropMisplacedFloorPlanCamera(camera);
@@ -692,7 +692,7 @@ export class CamerasService {
     await this.floorPlanService.dropCameras(camerasToRemove.map((camera) => camera._id));
     await this.dbs.camerasDB.clearAsync();
     await Promise.all(camerasToRemove.map((camera) => this.removeCameraSourcesFromConfig(camera.name, camera.sources)));
-    await this.updateOnvifVideoSources();
+    await this.updateStreamExports();
     await Promise.all(camerasToRemove.map((camera) => this.api.removeCamera(this.transformCamera(camera), camera.assignments)));
   }
 
@@ -755,6 +755,7 @@ export class CamerasService {
         muted: source.muted,
         backchannelDisabled: source.backchannelDisabled,
         onvifDisabled: source.onvifDisabled,
+        rtmpDisabled: source.rtmpDisabled,
         timeout: source.timeout,
         handshakeTimeout: source.handshakeTimeout,
         ...getSourceCodecInfo(source._id),
@@ -828,12 +829,12 @@ export class CamerasService {
     await this.floorPlanService.dropCameras([camera._id]);
     await this.dbs.camerasDB.remove(camera._id);
     await this.removeCameraSourcesFromConfig(camera.name, camera.sources);
-    await this.updateOnvifVideoSources();
+    await this.updateStreamExports();
     await this.api.removeCamera(this.transformCamera(camera), camera.assignments);
   }
 
-  private async updateOnvifVideoSources(): Promise<void> {
-    if (this.dbs.syncOnvifVideoSources()) {
+  private async updateStreamExports(): Promise<void> {
+    if (this.dbs.syncStreamExports()) {
       await this.configService.writeGo2RtcConfigApi();
     }
   }

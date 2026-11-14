@@ -137,6 +137,7 @@ export interface SRTP {
 
 export interface RTMP {
   listen: string;
+  streams?: string[];
 }
 
 export interface RTSP {
