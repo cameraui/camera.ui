@@ -50,8 +50,9 @@ export default defineConfigWithVueTs(
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-namespace': 'off',
-      '@stylistic/generator-star-spacing': ['error', { before: true, after: false }],
 
+      '@stylistic/list-style': 'off',
+      '@stylistic/generator-star-spacing': ['error', { before: true, after: false }],
       '@stylistic/max-len': ['error', { code: 200, tabWidth: 2, ignorePattern: 'class="[^"]*"|url\\([^)]*\\)' }],
       '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
       '@stylistic/operator-linebreak': 'off',
