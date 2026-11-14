@@ -17,308 +17,300 @@
         </div>
       </AccordionHeader>
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
-        <div class="flex flex-col gap-6">
-          <Field v-slot="{ field, errors }" v-model.trim="source.name" :name="`sources[${i}].name`" as="div" class="flex flex-col field-gap">
-            <label :for="`sources[${i}].name`" class="cui-label">{{ $t('components.form.label.source_name') }}</label>
-            <InputGroup>
-              <InputText v-bind="field" :invalid="errors.length > 0" :loading :readonly="isSavedSource(source)" type="text" />
-            </InputGroup>
-
-            <Transition name="fade">
-              <ErrorMessage :name="`sources[${i}].name`" class="cui-input-error" />
-            </Transition>
-
-            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-              $t('components.form.hint.source_name')
-            }}</Message>
-          </Field>
-
-          <CameraSource v-if="source._id" :camera-id="camera._id" :camera-name="camera.name" :source="source" :loading> </CameraSource>
-
-          <Field v-slot="{ errors }" :model-value="source.role" :name="`sources[${i}].role`" as="div" class="flex flex-col field-gap">
-            <label :for="`sources[${i}].role`" class="cui-label">{{ $t('components.form.label.source_role') }}</label>
-            <InputGroup>
-              <Select
-                :model-value="source.role"
-                :options="sourceRoles.filter((role) => !cameraForm.sources.some((s) => s.role === role && s._id !== source._id))"
-                :invalid="errors.length > 0"
-                :loading
-                @value-change="(e) => setRole(source, e)"
-              />
-            </InputGroup>
-
-            <Transition name="fade">
-              <ErrorMessage :name="`sources[${i}].role`" class="cui-input-error" />
-            </Transition>
-
-            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-              $t('components.form.hint.source_role')
-            }}</Message>
-          </Field>
-
-          <div class="w-full flex flex-col gap-2">
-            <Field
-              v-if="source.role !== 'snapshot' && cameraForm.sources.length > 1"
-              v-slot="{ field, errors }"
-              :model-value="source.useForSnapshot"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].useForSnapshot`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.use_for_snapshot')"
-                :hint="$t('components.form.hint.use_for_snapshot')"
-                :label-for="`sources[${i}].useForSnapshot`"
-                :error-name="`sources[${i}].useForSnapshot`"
-              >
-                <ToggleSwitch
-                  :model-value="source.useForSnapshot"
-                  v-bind="field"
-                  :invalid="errors.length > 0"
-                  :loading
-                  :disabled="cameraForm.sources.some((s) => (s.useForSnapshot || s.role === 'snapshot') && s._id !== source._id)"
-                  @value-change="(e) => (source.useForSnapshot = e)"
-                />
-              </CuiToggleRow>
-            </Field>
-
-            <Field
-              v-if="source.role !== 'snapshot'"
-              v-slot="{ field, errors }"
-              :model-value="source.hotMode"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].hotMode`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.hot_mode')"
-                :hint="$t('components.form.hint.hot_mode')"
-                :label-for="`sources[${i}].hotMode`"
-                :error-name="`sources[${i}].hotMode`"
-              >
-                <ToggleSwitch :model-value="source.hotMode" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.hotMode = e)" />
-              </CuiToggleRow>
-            </Field>
-
-            <Field
-              v-if="source.role !== 'snapshot'"
-              v-slot="{ field, errors }"
-              :model-value="source.preload"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].preload`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.preload')"
-                :hint="$t('components.form.hint.preload')"
-                :label-for="`sources[${i}].preload`"
-                :error-name="`sources[${i}].preload`"
-              >
-                <ToggleSwitch :model-value="source.preload" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.preload = e)" />
-              </CuiToggleRow>
-            </Field>
-
-            <Field
-              v-if="source.role !== 'snapshot'"
-              v-slot="{ field, errors }"
-              :model-value="source.muted"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].muted`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.muted')"
-                :hint="$t('components.form.hint.muted')"
-                :label-for="`sources[${i}].muted`"
-                :error-name="`sources[${i}].muted`"
-              >
-                <ToggleSwitch :model-value="source.muted" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.muted = e)" />
-              </CuiToggleRow>
-            </Field>
-            <Field
-              v-if="source.role !== 'snapshot'"
-              v-slot="{ field, errors }"
-              :model-value="source.backchannelDisabled"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].backchannelDisabled`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.two_way_audio_disabled')"
-                :hint="$t('components.form.hint.two_way_audio_disabled')"
-                :label-for="`sources[${i}].backchannelDisabled`"
-                :error-name="`sources[${i}].backchannelDisabled`"
-              >
-                <ToggleSwitch
-                  :model-value="source.backchannelDisabled"
-                  v-bind="field"
-                  :invalid="errors.length > 0"
-                  :loading
-                  @value-change="(e) => (source.backchannelDisabled = e)"
-                />
-              </CuiToggleRow>
-            </Field>
-            <Field
-              v-if="source.role !== 'snapshot'"
-              v-slot="{ errors }"
-              :model-value="source.onvifDisabled"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              :name="`sources[${i}].onvifDisabled`"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.onvif_export')"
-                :hint="$t('components.form.hint.onvif_export')"
-                :label-for="`sources[${i}].onvifDisabled`"
-                :error-name="`sources[${i}].onvifDisabled`"
-              >
-                <ToggleSwitch
-                  :model-value="!source.onvifDisabled"
-                  :input-id="`sources[${i}].onvifDisabled`"
-                  :invalid="errors.length > 0"
-                  :loading
-                  @value-change="(e) => (source.onvifDisabled = !e)"
-                />
-              </CuiToggleRow>
-            </Field>
-          </div>
-
-          <Field
-            v-if="source.role !== 'snapshot'"
-            v-slot="{ errors }"
-            :model-value="source.timeout"
-            :name="`sources[${i}].timeout`"
-            as="div"
-            class="flex flex-col field-gap"
-          >
-            <label :for="`sources[${i}].timeout`" class="cui-label">{{ $t('components.form.label.source_timeout') }}</label>
-            <InputGroup>
-              <CuiNumberStepper
-                :model-value="source.timeout"
-                :invalid="errors.length > 0"
-                :loading
-                :min="5"
-                :max="120"
-                :use-grouping="false"
-                suffix=" s"
-                :placeholder="String(source.urls.some(isGeneratedUrl) ? 60 : 5)"
-                @value-change="(e) => (source.timeout = e ?? undefined)"
-                @input="(e) => (source.timeout = (e.value as any) ?? undefined)"
-              />
-            </InputGroup>
-
-            <Transition name="fade">
-              <ErrorMessage :name="`sources[${i}].timeout`" class="cui-input-error" />
-            </Transition>
-
-            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-              $t('components.form.hint.source_timeout')
-            }}</Message>
-          </Field>
-
-          <Field
-            v-if="source.role !== 'snapshot'"
-            v-slot="{ errors }"
-            :model-value="source.handshakeTimeout"
-            :name="`sources[${i}].handshakeTimeout`"
-            as="div"
-            class="flex flex-col field-gap"
-          >
-            <label :for="`sources[${i}].handshakeTimeout`" class="cui-label">{{ $t('components.form.label.source_handshake_timeout') }}</label>
-            <InputGroup>
-              <CuiNumberStepper
-                :model-value="source.handshakeTimeout"
-                :invalid="errors.length > 0"
-                :loading
-                :min="1"
-                :max="60"
-                :use-grouping="false"
-                suffix=" s"
-                placeholder="5"
-                @value-change="(e) => (source.handshakeTimeout = e ?? undefined)"
-                @input="(e) => (source.handshakeTimeout = (e.value as any) ?? undefined)"
-              />
-            </InputGroup>
-
-            <Transition name="fade">
-              <ErrorMessage :name="`sources[${i}].handshakeTimeout`" class="cui-input-error" />
-            </Transition>
-
-            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
-              $t('components.form.hint.source_handshake_timeout')
-            }}</Message>
-          </Field>
-
-          <Field
-            v-if="source.role !== 'snapshot'"
-            v-slot="{ errors }"
-            :model-value="getChildSourceValue(i)"
-            :name="`sources[${i}].childSourceId`"
-            as="div"
-            class="flex flex-col field-gap"
-          >
-            <label :for="`sources[${i}].childSourceId`" class="cui-label">{{ $t('components.form.label.pip_source') }}</label>
-            <InputGroup>
-              <Select
-                :model-value="getChildSourceValue(i)"
-                :options="getChildSourceOptions(i)"
-                option-label="label"
-                option-value="value"
-                option-group-label="label"
-                option-group-children="items"
-                :invalid="errors.length > 0"
-                :loading
-                :placeholder="$t('components.form.label.none')"
-                show-clear
-                @value-change="(e) => setChildSource(i, e)"
-              />
-            </InputGroup>
-
-            <Transition name="fade">
-              <ErrorMessage :name="`sources[${i}].childSourceId`" class="cui-input-error" />
-            </Transition>
-
-            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.pip_source') }}</Message>
-          </Field>
-
+        <div class="flex flex-col gap-8">
           <div class="flex flex-col gap-6">
-            <div class="flex flex-col field-gap">
-              <label :for="`sources[${i}].urls[]`" class="cui-label">{{ $t('components.form.label.sources') }}</label>
-              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_urls') }}</Message>
-            </div>
-            <Field
-              v-for="(_url, i2) in source.urls"
-              :key="i2"
-              v-slot="{ field, errors }"
-              v-model.trim="source.urls[i2]"
-              :name="`sources[${i}].urls[${i2}]`"
-              as="div"
-              class="flex flex-col field-gap"
-            >
+            <span class="section-title">{{ $t('components.camera_options.source_group_source') }}</span>
+            <Field v-slot="{ field, errors }" v-model.trim="source.name" :name="`sources[${i}].name`" as="div" class="flex flex-col field-gap">
+              <label :for="`sources[${i}].name`" class="cui-label">{{ $t('components.form.label.source_name') }}</label>
               <InputGroup>
-                <InputText v-bind="field" :invalid="errors.length > 0" :loading type="text" />
-
-                <InputGroupAddon v-if="source.urls.length > 1">
-                  <Button text severity="secondary" :loading class="cui-icon-md" @click="deleteSource(i, i2)">
-                    <template #icon>
-                      <i-mdi:close width="100%" height="100%" />
-                    </template>
-                  </Button>
-                </InputGroupAddon>
+                <InputText v-bind="field" :invalid="errors.length > 0" :loading :readonly="isSavedSource(source)" type="text" />
               </InputGroup>
 
               <Transition name="fade">
-                <ErrorMessage :name="`sources[${i}].urls[${i2}]`" class="cui-input-error" />
+                <ErrorMessage :name="`sources[${i}].name`" class="cui-input-error" />
               </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.source_name')
+              }}</Message>
             </Field>
 
-            <Button :loading :label="$t('components.form.button.add_source')" class="ml-auto cui-button-medium" @click="addSource(i)" />
+            <Field v-slot="{ errors }" :model-value="source.role" :name="`sources[${i}].role`" as="div" class="flex flex-col field-gap">
+              <label :for="`sources[${i}].role`" class="cui-label">{{ $t('components.form.label.source_role') }}</label>
+              <InputGroup>
+                <Select
+                  :model-value="source.role"
+                  :options="sourceRoles.filter((role) => !cameraForm.sources.some((s) => s.role === role && s._id !== source._id))"
+                  :invalid="errors.length > 0"
+                  :loading
+                  @value-change="(e) => setRole(source, e)"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage :name="`sources[${i}].role`" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.source_role')
+              }}</Message>
+            </Field>
+
+            <div class="flex flex-col gap-6">
+              <div class="flex flex-col field-gap">
+                <label :for="`sources[${i}].urls[]`" class="cui-label">{{ $t('components.form.label.sources') }}</label>
+                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_urls') }}</Message>
+              </div>
+              <Field
+                v-for="(_url, i2) in source.urls"
+                :key="i2"
+                v-slot="{ field, errors }"
+                v-model.trim="source.urls[i2]"
+                :name="`sources[${i}].urls[${i2}]`"
+                as="div"
+                class="flex flex-col field-gap"
+              >
+                <InputGroup>
+                  <InputText v-bind="field" :invalid="errors.length > 0" :loading type="text" />
+
+                  <InputGroupAddon v-if="source.urls.length > 1">
+                    <Button text severity="secondary" :loading class="cui-icon-md" @click="deleteSource(i, i2)">
+                      <template #icon>
+                        <i-mdi:close width="100%" height="100%" />
+                      </template>
+                    </Button>
+                  </InputGroupAddon>
+                </InputGroup>
+
+                <Transition name="fade">
+                  <ErrorMessage :name="`sources[${i}].urls[${i2}]`" class="cui-input-error" />
+                </Transition>
+              </Field>
+
+              <Button :loading :label="$t('components.form.button.add_source')" class="ml-auto cui-button-medium" @click="addSource(i)" />
+            </div>
+          </div>
+
+          <div v-if="source._id" class="flex flex-col gap-6">
+            <span class="section-title">{{ $t('components.camera_options.source_group_status') }}</span>
+            <CameraSource :camera-id="camera._id" :camera-name="camera.name" :source="source" :loading />
+          </div>
+
+          <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
+            <span class="section-title">{{ $t('components.camera_options.source_group_connection') }}</span>
+            <div class="w-full flex flex-col gap-2">
+              <Field v-slot="{ field, errors }" :model-value="source.hotMode" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].hotMode`">
+                <CuiToggleRow
+                  :label="$t('components.form.label.hot_mode')"
+                  :hint="$t('components.form.hint.hot_mode')"
+                  :label-for="`sources[${i}].hotMode`"
+                  :error-name="`sources[${i}].hotMode`"
+                >
+                  <ToggleSwitch :model-value="source.hotMode" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.hotMode = e)" />
+                </CuiToggleRow>
+              </Field>
+
+              <Field v-slot="{ field, errors }" :model-value="source.preload" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].preload`">
+                <CuiToggleRow
+                  :label="$t('components.form.label.preload')"
+                  :hint="$t('components.form.hint.preload')"
+                  :label-for="`sources[${i}].preload`"
+                  :error-name="`sources[${i}].preload`"
+                >
+                  <ToggleSwitch :model-value="source.preload" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.preload = e)" />
+                </CuiToggleRow>
+              </Field>
+            </div>
+
+            <Field v-slot="{ errors }" :model-value="source.timeout" :name="`sources[${i}].timeout`" as="div" class="flex flex-col field-gap">
+              <label :for="`sources[${i}].timeout`" class="cui-label">{{ $t('components.form.label.source_timeout') }}</label>
+              <InputGroup>
+                <CuiNumberStepper
+                  :model-value="source.timeout"
+                  :invalid="errors.length > 0"
+                  :loading
+                  :min="5"
+                  :max="120"
+                  :use-grouping="false"
+                  suffix=" s"
+                  :placeholder="String(source.urls.some(isGeneratedUrl) ? 60 : 5)"
+                  @value-change="(e) => (source.timeout = e ?? undefined)"
+                  @input="(e) => (source.timeout = (e.value as any) ?? undefined)"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage :name="`sources[${i}].timeout`" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.source_timeout')
+              }}</Message>
+            </Field>
+
+            <Field v-slot="{ errors }" :model-value="source.handshakeTimeout" :name="`sources[${i}].handshakeTimeout`" as="div" class="flex flex-col field-gap">
+              <label :for="`sources[${i}].handshakeTimeout`" class="cui-label">{{ $t('components.form.label.source_handshake_timeout') }}</label>
+              <InputGroup>
+                <CuiNumberStepper
+                  :model-value="source.handshakeTimeout"
+                  :invalid="errors.length > 0"
+                  :loading
+                  :min="1"
+                  :max="60"
+                  :use-grouping="false"
+                  suffix=" s"
+                  placeholder="5"
+                  @value-change="(e) => (source.handshakeTimeout = e ?? undefined)"
+                  @input="(e) => (source.handshakeTimeout = (e.value as any) ?? undefined)"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage :name="`sources[${i}].handshakeTimeout`" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.source_handshake_timeout')
+              }}</Message>
+            </Field>
+          </div>
+
+          <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
+            <span class="section-title">{{ $t('components.camera_options.source_group_audio') }}</span>
+            <div class="w-full flex flex-col gap-2">
+              <Field v-slot="{ field, errors }" :model-value="source.muted" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].muted`">
+                <CuiToggleRow
+                  :label="$t('components.form.label.muted')"
+                  :hint="$t('components.form.hint.muted')"
+                  :label-for="`sources[${i}].muted`"
+                  :error-name="`sources[${i}].muted`"
+                >
+                  <ToggleSwitch :model-value="source.muted" v-bind="field" :invalid="errors.length > 0" :loading @value-change="(e) => (source.muted = e)" />
+                </CuiToggleRow>
+              </Field>
+
+              <Field
+                v-slot="{ field, errors }"
+                :model-value="source.backchannelDisabled"
+                :value="true"
+                :unchecked-value="false"
+                type="checkbox"
+                :name="`sources[${i}].backchannelDisabled`"
+              >
+                <CuiToggleRow
+                  :label="$t('components.form.label.two_way_audio_disabled')"
+                  :hint="$t('components.form.hint.two_way_audio_disabled')"
+                  :label-for="`sources[${i}].backchannelDisabled`"
+                  :error-name="`sources[${i}].backchannelDisabled`"
+                >
+                  <ToggleSwitch
+                    :model-value="source.backchannelDisabled"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading
+                    @value-change="(e) => (source.backchannelDisabled = e)"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </div>
+          </div>
+
+          <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
+            <span class="section-title">{{ $t('components.camera_options.source_group_usage') }}</span>
+            <div v-if="cameraForm.sources.length > 1" class="w-full flex flex-col gap-2">
+              <Field
+                v-slot="{ field, errors }"
+                :model-value="source.useForSnapshot"
+                :value="true"
+                :unchecked-value="false"
+                type="checkbox"
+                :name="`sources[${i}].useForSnapshot`"
+              >
+                <CuiToggleRow
+                  :label="$t('components.form.label.use_for_snapshot')"
+                  :hint="$t('components.form.hint.use_for_snapshot')"
+                  :label-for="`sources[${i}].useForSnapshot`"
+                  :error-name="`sources[${i}].useForSnapshot`"
+                >
+                  <ToggleSwitch
+                    :model-value="source.useForSnapshot"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading
+                    :disabled="cameraForm.sources.some((s) => (s.useForSnapshot || s.role === 'snapshot') && s._id !== source._id)"
+                    @value-change="(e) => (source.useForSnapshot = e)"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </div>
+
+            <Field v-slot="{ errors }" :model-value="getChildSourceValue(i)" :name="`sources[${i}].childSourceId`" as="div" class="flex flex-col field-gap">
+              <label :for="`sources[${i}].childSourceId`" class="cui-label">{{ $t('components.form.label.pip_source') }}</label>
+              <InputGroup>
+                <Select
+                  :model-value="getChildSourceValue(i)"
+                  :options="getChildSourceOptions(i)"
+                  option-label="label"
+                  option-value="value"
+                  option-group-label="label"
+                  option-group-children="items"
+                  :invalid="errors.length > 0"
+                  :loading
+                  :placeholder="$t('components.form.label.none')"
+                  show-clear
+                  @value-change="(e) => setChildSource(i, e)"
+                />
+              </InputGroup>
+
+              <Transition name="fade">
+                <ErrorMessage :name="`sources[${i}].childSourceId`" class="cui-input-error" />
+              </Transition>
+
+              <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{
+                $t('components.form.hint.pip_source')
+              }}</Message>
+            </Field>
+          </div>
+
+          <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
+            <span class="section-title">{{ $t('components.camera_options.source_group_sharing') }}</span>
+            <CameraSourceUrl v-if="source._id" :camera-name="camera.name" :source="source" :loading />
+
+            <div class="w-full flex flex-col gap-2">
+              <Field v-slot="{ errors }" :model-value="source.onvifDisabled" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].onvifDisabled`">
+                <CuiToggleRow
+                  :label="$t('components.form.label.onvif_export')"
+                  :hint="$t('components.form.hint.onvif_export')"
+                  :label-for="`sources[${i}].onvifDisabled`"
+                  :error-name="`sources[${i}].onvifDisabled`"
+                >
+                  <ToggleSwitch
+                    :model-value="!source.onvifDisabled"
+                    :input-id="`sources[${i}].onvifDisabled`"
+                    :invalid="errors.length > 0"
+                    :loading
+                    @value-change="(e) => (source.onvifDisabled = !e)"
+                  />
+                </CuiToggleRow>
+              </Field>
+
+              <Field v-slot="{ errors }" :model-value="source.rtmpDisabled" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].rtmpDisabled`">
+                <CuiToggleRow
+                  :label="$t('components.form.label.rtmp_export')"
+                  :hint="$t('components.form.hint.rtmp_export')"
+                  :label-for="`sources[${i}].rtmpDisabled`"
+                  :error-name="`sources[${i}].rtmpDisabled`"
+                >
+                  <ToggleSwitch
+                    :model-value="!source.rtmpDisabled"
+                    :input-id="`sources[${i}].rtmpDisabled`"
+                    :invalid="errors.length > 0"
+                    :loading
+                    @value-change="(e) => (source.rtmpDisabled = !e)"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </div>
           </div>
         </div>
       </AccordionContent>
@@ -464,6 +456,7 @@ function newSource(): void {
       muted: false,
       backchannelDisabled: false,
       onvifDisabled: false,
+      rtmpDisabled: false,
     });
   }
 }

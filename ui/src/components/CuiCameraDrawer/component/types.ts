@@ -38,6 +38,8 @@ export interface CameraSourceProps {
   loading?: boolean;
 }
 
+export type CameraSourceUrlProps = Omit<CameraSourceProps, 'cameraId'>;
+
 export interface CameraOptionsSegment {
   name: string;
   icon: string;

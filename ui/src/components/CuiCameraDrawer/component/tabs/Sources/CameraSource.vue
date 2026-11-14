@@ -45,27 +45,6 @@
       $t('components.form.hint.audio_codec')
     }}</Message>
   </div>
-
-  <div v-if="source.role !== 'snapshot'" class="flex flex-col field-gap">
-    <label class="cui-label">{{ $t('components.form.label.rtsp_url') }}</label>
-    <InputGroup>
-      <InputText :model-value="probeData?.rtspUrl" :loading="isLoading" readonly type="text" />
-      <InputGroupAddon>
-        <CuiActionButton
-          :action-text="$t('components.form.tooltip.copied')"
-          :icon="CopyButton"
-          :button-props="{
-            severity: 'secondary',
-            disabled: !probeData?.rtspUrl,
-            loading: isLoading,
-            text: true,
-          }"
-          @action="copy(probeData!.rtspUrl)"
-        />
-      </InputGroupAddon>
-    </InputGroup>
-    <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.rtsp_url') }}</Message>
-  </div>
 </template>
 
 <script setup lang="ts">

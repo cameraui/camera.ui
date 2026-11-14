@@ -36,6 +36,7 @@ declare module 'vue' {
     CameraOptions: typeof import('./../components/CuiCameraDrawer/component/CameraOptions.vue')['default']
     CameraRecordingsFilter: typeof import('./../components/CuiDialog/templates/CameraRecordingsFilter/CameraRecordingsFilter.vue')['default']
     CameraSource: typeof import('./../components/CuiCameraDrawer/component/tabs/Sources/CameraSource.vue')['default']
+    CameraSourceUrl: typeof import('./../components/CuiCameraDrawer/component/tabs/Sources/CameraSourceUrl.vue')['default']
     CameraStreamEvent: typeof import('./../components/CuiDialog/templates/CameraStreamEvent/CameraStreamEvent.vue')['default']
     CamviewForm: typeof import('./../components/CuiDialog/templates/CamviewForm/CamviewForm.vue')['default']
     Card: typeof import('openvue/card')['default']
