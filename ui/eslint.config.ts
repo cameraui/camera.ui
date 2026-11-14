@@ -10,7 +10,7 @@ export default defineConfigWithVueTs(
   },
   {
     name: 'app/files-to-ignore',
-    ignores: ['**/dist/**', '**/dist-ssr/**', '**/dist-mobile/**', '**/coverage/**', '**/dev-dist/**', '**/src/components/CuiVirtualScroller/**', '**/vite-plugins/**'],
+    ignores: ['**/dist/**', '**/dist-ssr/**', '**/dist-mobile/**', '**/coverage/**', '**/dev-dist/**', '**/src/components/CuiVirtualScroller/**', '**/vite-plugins/**', 'eslint.config.ts'],
   },
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
