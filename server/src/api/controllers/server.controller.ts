@@ -7,6 +7,7 @@ import { inject } from '../../container.js';
 import { instanceLanguage } from '../../i18n/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { createLogDownload } from '../../services/logger/logReader.js';
+import { attachmentHeader } from '../../utils/attachment.js';
 import { getVersionsAndDistTags } from '../../utils/npm/index.js';
 import { ServerService } from '../services/server.service.js';
 import { updatesService } from '../services/updates.service.js';
@@ -315,7 +316,7 @@ export class ServerController {
       const filename = source && source !== 'all' ? `${source}.log.txt` : 'camera.ui.log.txt';
 
       reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename=${filename}`);
+      reply.header('Content-Disposition', attachmentHeader(filename));
 
       return reply.code(200).send(createLogDownload(this.resolveLogFile(source)));
     } catch (error: any) {

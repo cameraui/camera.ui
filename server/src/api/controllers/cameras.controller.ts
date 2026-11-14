@@ -2,6 +2,7 @@ import { orderBy } from '@camera.ui/common/utils';
 
 import { inject, tryInject } from '../../container.js';
 import { createLogDownload } from '../../services/logger/logReader.js';
+import { attachmentHeader } from '../../utils/attachment.js';
 import { createSourceName } from '../../utils/camera.js';
 import { withoutSourceCredentials } from '../../utils/credentials.js';
 import { isAdminRequest } from '../middlewares/authPermission.middleware.js';
@@ -652,7 +653,7 @@ export class CamerasController {
       }
 
       reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename=camera.ui.${cameraController.name.replace(/ /g, '_')}.log.txt`);
+      reply.header('Content-Disposition', attachmentHeader(`camera.ui.${cameraController.name.replace(/ /g, '_')}.log.txt`));
 
       return reply.code(200).send(createLogDownload(cameraController.logPath));
     } catch (error: any) {

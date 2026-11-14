@@ -9,6 +9,7 @@ import { inject } from '../../container.js';
 import { PluginManager } from '../../plugins/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { createLogDownload } from '../../services/logger/logReader.js';
+import { attachmentHeader } from '../../utils/attachment.js';
 import { checkEngineCompatibility, checkProtocolCompat } from '../../utils/engines.js';
 import { squarePng } from '../../utils/image.js';
 import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
@@ -640,7 +641,7 @@ export class PluginsController {
       }
 
       reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename=camera.ui.${plugin.pluginName}.log.txt`);
+      reply.header('Content-Disposition', attachmentHeader(`camera.ui.${plugin.pluginName}.log.txt`));
 
       return reply.code(200).send(createLogDownload(plugin.logPath));
     } catch (error: any) {

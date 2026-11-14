@@ -5,6 +5,7 @@ import { pipeline, Transform } from 'node:stream';
 
 import { inject } from '../../container.js';
 import { RestoreError } from '../../services/config/restore.js';
+import { attachmentHeader } from '../../utils/attachment.js';
 import { BackupService } from '../services/backup.service.js';
 import { MovePullService } from '../services/move-pull.service.js';
 import { MoveService } from '../services/move.service.js';
@@ -67,7 +68,7 @@ export class BackupController {
       });
 
       reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename=${backup.backupFileName}`);
+      reply.header('Content-Disposition', attachmentHeader(backup.backupFileName));
       reply.header('Content-Length', info.size);
 
       return reply.send(stream);
@@ -420,7 +421,7 @@ export class BackupController {
 
       const info = await stat(filePath);
       reply.header('Content-Type', 'application/gzip');
-      reply.header('Content-Disposition', `attachment; filename="${basename(filePath)}"`);
+      reply.header('Content-Disposition', attachmentHeader(basename(filePath)));
       reply.header('Content-Length', info.size);
 
       return reply.send(createReadStream(filePath));

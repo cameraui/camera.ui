@@ -12,6 +12,7 @@ import { NVR_PLUGIN_NAMES } from '../plugins/nvr.js';
 import { decodeEnvelope } from '../plugins/store/envelope.js';
 import { STORE_FILE_NAME } from '../plugins/store/pluginStoreFile.js';
 import { NamespaceManager, SUBJECT_TOKEN } from '../rpc/namespaces.js';
+import { attachmentHeader } from '../utils/attachment.js';
 
 import type { Promisify } from '@camera.ui/rpc';
 import type { DownloadCleanup, DownloadToken } from '@camera.ui/sdk';
@@ -334,7 +335,7 @@ export class DownloadManager implements DownloadManagerInterface {
     const stat = statSync(filePath);
 
     reply.header('Content-Type', entry.mimeType);
-    reply.header('Content-Disposition', `attachment; filename="${entry.filename}"`);
+    reply.header('Content-Disposition', attachmentHeader(entry.filename));
     reply.header('Content-Length', stat.size);
 
     const stream = createReadStream(filePath);
@@ -354,7 +355,7 @@ export class DownloadManager implements DownloadManagerInterface {
     const pipe = this.pipes.get(req.params.token);
     if (pipe && Date.now() <= pipe.expiresAt) {
       reply.header('Content-Type', pipe.mimeType);
-      reply.header('Content-Disposition', `attachment; filename="${pipe.filename}"`);
+      reply.header('Content-Disposition', attachmentHeader(pipe.filename));
       reply.send();
       return;
     }
@@ -368,7 +369,7 @@ export class DownloadManager implements DownloadManagerInterface {
     }
 
     reply.header('Content-Type', entry.mimeType);
-    reply.header('Content-Disposition', `attachment; filename="${entry.filename}"`);
+    reply.header('Content-Disposition', attachmentHeader(entry.filename));
     if (size !== undefined) reply.header('Content-Length', size);
     reply.send();
   }
@@ -442,7 +443,7 @@ export class DownloadManager implements DownloadManagerInterface {
     }
 
     reply.header('Content-Type', entry.mimeType);
-    reply.header('Content-Disposition', `attachment; filename="${entry.filename}"`);
+    reply.header('Content-Disposition', attachmentHeader(entry.filename));
     reply.header('Content-Length', stat.size);
 
     const stream = Readable.from(this.pullRemoteChunks(serve, entry.filePath, stat.size));
@@ -588,7 +589,7 @@ export class DownloadManager implements DownloadManagerInterface {
           res.writeHead(200, {
             ...this.corsHeaders(reply),
             'Content-Type': entry.mimeType,
-            'Content-Disposition': `attachment; filename="${entry.filename}"`,
+            'Content-Disposition': attachmentHeader(entry.filename),
             'Cache-Control': 'no-cache',
           });
           reply.hijack();
@@ -678,7 +679,7 @@ export class DownloadManager implements DownloadManagerInterface {
     res.writeHead(200, {
       ...this.corsHeaders(reply),
       'Content-Type': entry.mimeType,
-      'Content-Disposition': `attachment; filename="${entry.filename}"`,
+      'Content-Disposition': attachmentHeader(entry.filename),
       'Cache-Control': 'no-cache',
     });
     reply.hijack();
@@ -750,7 +751,7 @@ export class DownloadManager implements DownloadManagerInterface {
     res.writeHead(200, {
       ...this.corsHeaders(reply),
       'Content-Type': entry.mimeType,
-      'Content-Disposition': `attachment; filename="${entry.filename}"`,
+      'Content-Disposition': attachmentHeader(entry.filename),
       'Cache-Control': 'no-cache',
     });
 
