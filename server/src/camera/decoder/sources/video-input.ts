@@ -2,7 +2,7 @@ import { Demuxer, FilterAPI, FilterPreset } from 'node-av/api';
 import { AV_HWDEVICE_TYPE_OPENCL, FF_THREAD_SLICE } from 'node-av/constants';
 import { availableParallelism } from 'node:os';
 
-import { createHardwareContext } from '../hardware.js';
+import { acquireHardwareContext } from '../hardware.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { FrameWorkerDecoderSettings } from '@camera.ui/sdk';
@@ -78,7 +78,7 @@ export function configureLowDelayDecoder(context: CodecContext): void {
 }
 
 function acquireHardware(logger: Logger, decoder?: FrameWorkerDecoderSettings): HardwareContext | null {
-  const context = createHardwareContext(decoder, logger);
+  const context = acquireHardwareContext(decoder, logger);
 
   if (context) {
     logger.debug('Using hardware acceleration:', context.deviceTypeName);

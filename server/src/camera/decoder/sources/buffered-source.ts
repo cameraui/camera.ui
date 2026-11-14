@@ -2,6 +2,7 @@ import { Decoder } from 'node-av/api';
 
 import { isDamagedFrame } from '../../../utils/image.js';
 import { FrameScaler } from '../frame-scaler.js';
+import { releaseHardwareContext } from '../hardware.js';
 import { FrameHandle } from './frame-handle.js';
 import { ReconnectLoop } from './reconnect-loop.js';
 import { RtpIndex } from './rtp-index.js';
@@ -163,7 +164,7 @@ export class BufferedSource implements AnalysisSource {
     this.frameScaler = undefined;
 
     if (this.hwContext) {
-      this.hwContext[Symbol.dispose]();
+      releaseHardwareContext(this.hwContext);
       this.hwContext = undefined;
     }
   }

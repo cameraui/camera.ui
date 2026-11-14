@@ -1,6 +1,7 @@
 import { Decoder } from 'node-av/api';
 
 import { isDamagedFrame } from '../../../utils/image.js';
+import { releaseHardwareContext } from '../hardware.js';
 import { FrameHandle } from './frame-handle.js';
 import { ReconnectLoop } from './reconnect-loop.js';
 import { RtpIndex } from './rtp-index.js';
@@ -130,7 +131,7 @@ export class FrameSource implements AnalysisSource {
     this._resolvedFps = undefined;
 
     if (this._hardwareContext) {
-      this._hardwareContext[Symbol.dispose]();
+      releaseHardwareContext(this._hardwareContext);
       this._hardwareContext = undefined;
     }
 
