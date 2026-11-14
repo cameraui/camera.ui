@@ -242,6 +242,7 @@ class PluginChild:
                 self.logger,
                 self.plugin_db,
             )
+            await self.api.download_manager.init()
 
             plugin_constructor = self.load_plugin()
             plugin_storage = await self.api.storage_controller.createStorage("plugin")
@@ -426,6 +427,7 @@ class PluginChild:
             await self.api.sensor_manager.close()
             await self.api.device_manager.close()
             await self.api.core_manager.close()
+            await self.api.download_manager.close()
             await self.api.storage_controller.close()
 
             self.api.cancel()

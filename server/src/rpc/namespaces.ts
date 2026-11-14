@@ -129,6 +129,10 @@ export class NamespaceManager {
     return `plugin.${pluginId}.fileserve.rpc`;
   }
 
+  static pluginPipeRpc(pluginId: string): string {
+    return `plugin.${pluginId}.pipe.rpc`;
+  }
+
   static cameraNamespaces(cameraId: string): CameraNamespaces {
     return {
       cameraSubject: `camera.${cameraId}.subscriber`,

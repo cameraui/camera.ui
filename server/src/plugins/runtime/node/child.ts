@@ -147,6 +147,7 @@ export class PluginChild {
 
       this.pluginDb = await this.configurePluginDB(storagePath, pluginInfo.id);
       this.api = new PluginAPI(this.proxy, pluginInfo, storagePath, this.logger, this.pluginDb);
+      await this.api.downloadManager.init();
 
       const PluginConstructor = await this.loadPlugin();
       const pluginStorage = await this.api._storageController.createStorage('plugin');
@@ -317,6 +318,7 @@ export class PluginChild {
     await this.api?.sensorManager.close();
     await this.api?.deviceManager.close();
     await this.api?.coreManager.close();
+    await this.api?.downloadManager.close();
     await this.api?._storageController.close();
     await this.pluginDb?.close?.();
 

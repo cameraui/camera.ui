@@ -3,6 +3,7 @@ from typing import Any, Protocol, TypedDict
 from _camera_ui_tools.camera_ui_sdk import (
     Camera,
     CreateDownloadOptions,
+    CreatePipeDownloadOptions,
     CreateStreamDownloadOptions,
     DiscoveredCamera,
     DownloadToken,
@@ -63,4 +64,5 @@ class DiscoveryManagerInterface(Protocol):
 class DownloadManagerInterface(Protocol):
     async def createDownload(self, options: CreateDownloadOptions) -> DownloadToken: ...
     async def createStreamDownload(self, options: CreateStreamDownloadOptions) -> DownloadToken: ...
+    async def createPipeDownload(self, options: CreatePipeDownloadOptions) -> DownloadToken: ...
     async def deleteDownload(self, token: str) -> None: ...

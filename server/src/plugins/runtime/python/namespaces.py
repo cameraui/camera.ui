@@ -123,6 +123,10 @@ class NamespaceManager:
         return f"plugin.{plugin_id}.fileserve.rpc"
 
     @staticmethod
+    def plugin_pipe_rpc(plugin_id: str) -> str:
+        return f"plugin.{plugin_id}.pipe.rpc"
+
+    @staticmethod
     def notification_manager_namespaces() -> NotificationManagerNamespaces:
         return NotificationManagerNamespaces(
             notifications_publish_subject="notifications.publish",

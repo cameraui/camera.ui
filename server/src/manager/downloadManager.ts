@@ -11,7 +11,7 @@ import { inject, tryInject } from '../container.js';
 import { NVR_PLUGIN_NAMES } from '../plugins/nvr.js';
 import { decodeEnvelope } from '../plugins/store/envelope.js';
 import { STORE_FILE_NAME } from '../plugins/store/pluginStoreFile.js';
-import { NamespaceManager } from '../rpc/namespaces.js';
+import { NamespaceManager, SUBJECT_TOKEN } from '../rpc/namespaces.js';
 
 import type { Promisify } from '@camera.ui/rpc';
 import type { DownloadCleanup, DownloadToken } from '@camera.ui/sdk';
@@ -19,7 +19,15 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ServerResponse } from 'node:http';
 import type { DownloadParamsRequest } from '../api/types/index.js';
 import type { ProxyServer } from '../rpc/index.js';
-import type { CreateDownloadOptions, CreateStreamDownloadOptions, DownloadManagerInterface, PluginFileServeInterface } from '../rpc/interfaces/download.js';
+import type {
+  CreateDownloadOptions,
+  CreatePipeDownloadOptions,
+  CreateStreamDownloadOptions,
+  DownloadManagerInterface,
+  PipeState,
+  PluginFileServeInterface,
+  PluginPipeInterface,
+} from '../rpc/interfaces/download.js';
 import type { ConfigService } from '../services/config/index.js';
 import type { LoggerService } from '../services/logger/index.js';
 
@@ -36,6 +44,14 @@ interface DownloadEntry {
   release?: () => Promise<void>;
 }
 
+interface PipeEntry {
+  pluginId: string;
+  pipeId: string;
+  filename: string;
+  mimeType: string;
+  expiresAt: number;
+}
+
 export interface ServerDownloadOptions {
   filePath: string;
   filename: string;
@@ -50,6 +66,10 @@ const CLEANUP_INTERVAL_MS = 60 * 1000;
 const STREAM_POLL_MS = 50;
 const STREAM_FILE_WAIT_MS = 5000;
 const STREAM_MARKER_WAIT_POLL_MS = 250;
+// how often a running download asks its plugin for its state, the plugin gives up one it does not hear about for a minute
+const PIPE_PROBE_MS = 15 * 1000;
+// a client that takes no bytes for this long is gone, a save dialog or a short pause stays below it
+const PIPE_STALL_MS = 5 * 60 * 1000;
 
 const CONFIG_STORE_DIR = 'volume';
 const EXPORTS_DIR = '.exports';
@@ -100,6 +120,10 @@ function zoneAllows(kind: ZoneKind, segments: string[]): boolean {
   }
 }
 
+function isSubjectToken(value: unknown): value is string {
+  return typeof value === 'string' && SUBJECT_TOKEN.test(value);
+}
+
 async function readPluginSetting(storagePath: string, key: string): Promise<string | undefined> {
   try {
     const value = decodeEnvelope(await readFile(join(storagePath, CONFIG_STORE_DIR, STORE_FILE_NAME))).plugin?.[key];
@@ -119,6 +143,9 @@ export class DownloadManager implements DownloadManagerInterface {
   private closeProxy?: () => Promise<void>;
 
   private registry = new Map<string, DownloadEntry>();
+  private pipes = new Map<string, PipeEntry>();
+  private pipeProbeMs = PIPE_PROBE_MS;
+  private pipeStallMs = PIPE_STALL_MS;
   private exportFolders = new Set<string>();
   private cleanupTimer?: ReturnType<typeof setInterval>;
 
@@ -172,12 +199,7 @@ export class DownloadManager implements DownloadManagerInterface {
 
     this.logger.debug(`Download registered: ${token} -> ${filename} (expires in ${ttlMs}ms)`);
 
-    return {
-      token,
-      url: `/api/download/${token}`,
-      publicUrl: this.buildPublicUrl(token),
-      expiresAt,
-    };
+    return this.downloadToken(token, expiresAt);
   }
 
   @RPCMethod
@@ -212,16 +234,30 @@ export class DownloadManager implements DownloadManagerInterface {
 
     this.logger.debug(`Stream download registered: ${token} -> ${filename} (marker: ${options.markerPath})`);
 
-    return {
-      token,
-      url: `/api/download/${token}`,
-      publicUrl: this.buildPublicUrl(token),
-      expiresAt,
-    };
+    return this.downloadToken(token, expiresAt);
+  }
+
+  @RPCMethod
+  public async createPipeDownload(options: CreatePipeDownloadOptions): Promise<DownloadToken> {
+    const { pluginId, pipeId, filename } = options;
+    // both ids end up in a subject
+    if (!isSubjectToken(pluginId) || !isSubjectToken(pipeId) || typeof filename !== 'string' || !filename) {
+      throw new Error('Pipe download needs a plugin id, a pipe id and a filename');
+    }
+
+    const token = randomUUID();
+    const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
+    const expiresAt = Date.now() + ttlMs;
+    this.pipes.set(token, { pluginId, pipeId, filename, mimeType: options.mimeType ?? 'application/octet-stream', expiresAt });
+
+    this.logger.debug(`Pipe download registered: ${token} -> ${filename} (expires in ${ttlMs}ms)`);
+
+    return this.downloadToken(token, expiresAt);
   }
 
   @RPCMethod
   public async deleteDownload(token: string): Promise<void> {
+    this.pipes.delete(token);
     const entry = this.registry.get(token);
     if (entry) {
       this.registry.delete(token);
@@ -244,12 +280,7 @@ export class DownloadManager implements DownloadManagerInterface {
       release: options.release,
     });
 
-    return {
-      token,
-      url: `/api/download/${token}`,
-      publicUrl: this.buildPublicUrl(token),
-      expiresAt,
-    };
+    return this.downloadToken(token, expiresAt);
   }
 
   public publicUrl(token: string): string {
@@ -264,6 +295,11 @@ export class DownloadManager implements DownloadManagerInterface {
 
   public async handleDownload(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): Promise<void> {
     const { token } = req.params;
+    const pipe = this.pipes.get(token);
+    if (pipe) {
+      return this.handlePipeDownload(reply, token, pipe);
+    }
+
     const entry = this.registry.get(token);
 
     if (!entry) {
@@ -315,6 +351,14 @@ export class DownloadManager implements DownloadManagerInterface {
   }
 
   public async handleDownloadCheck(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply): Promise<void> {
+    const pipe = this.pipes.get(req.params.token);
+    if (pipe && Date.now() <= pipe.expiresAt) {
+      reply.header('Content-Type', pipe.mimeType);
+      reply.header('Content-Disposition', `attachment; filename="${pipe.filename}"`);
+      reply.send();
+      return;
+    }
+
     const entry = this.registry.get(req.params.token);
     const size = entry && Date.now() <= entry.expiresAt ? await this.availableSize(entry) : null;
 
@@ -333,14 +377,30 @@ export class DownloadManager implements DownloadManagerInterface {
     return this.proxyServer.proxy.createProxy<PluginFileServeInterface>(NamespaceManager.pluginFileServeRpc(pluginId));
   }
 
-  private awaitDrain(res: ServerResponse): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const done = () => {
+  private downloadToken(token: string, expiresAt: number): DownloadToken {
+    return {
+      token,
+      url: `/api/download/${token}`,
+      publicUrl: this.buildPublicUrl(token),
+      expiresAt,
+    };
+  }
+
+  private pipeProxy(pluginId: string): Promisify<PluginPipeInterface> {
+    return this.proxyServer.proxy.createProxy<PluginPipeInterface>(NamespaceManager.pluginPipeRpc(pluginId));
+  }
+
+  private awaitDrain(res: ServerResponse, timeoutMs?: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const settle = (drained: boolean) => {
+        clearTimeout(timer);
         res.off('drain', done);
         res.off('close', done);
         res.off('error', done);
-        resolve();
+        resolve(drained);
       };
+      const done = () => settle(true);
+      const timer = timeoutMs ? setTimeout(() => settle(false), timeoutMs) : undefined;
       res.once('drain', done);
       res.once('close', done);
       res.once('error', done);
@@ -487,6 +547,106 @@ export class DownloadManager implements DownloadManagerInterface {
     const serve = this.fileServeProxy(entry.remotePluginId);
     await serve.deleteFile(entry.filePath);
     if (entry.markerPath) await serve.deleteFile(entry.markerPath).catch(() => {});
+  }
+
+  private async handlePipeDownload(reply: FastifyReply, token: string, entry: PipeEntry): Promise<void> {
+    // the bytes exist only while the plugin writes them, one request gets them
+    this.pipes.delete(token);
+
+    if (Date.now() > entry.expiresAt) {
+      reply.code(404).send({ error: 'Download expired' });
+      return;
+    }
+
+    const res = reply.raw;
+    const plugin = this.pipeProxy(entry.pluginId);
+    const chunks = plugin.pullPipe(entry.pipeId);
+    const gone = new Promise<'gone'>((resolve) => res.once('close', () => resolve('gone')));
+
+    // the pull that is open, 0 while the client takes its time
+    let pull = 0;
+    let pulls = 0;
+    const watch = this.watchPipe(plugin, entry.pipeId, () => pull);
+
+    let failure: unknown;
+    try {
+      for (;;) {
+        pull = ++pulls;
+        const step = chunks.next();
+        // settled by the iterator's return() after the client left, nobody awaits it then
+        step.catch(() => {});
+        const next = await Promise.race([step, gone, watch.failed]);
+        pull = 0;
+        if (next === 'gone' || next.done) break;
+
+        const chunk = next.value;
+        if (!(chunk instanceof Uint8Array)) throw new Error(chunk.error);
+        if (chunk.length === 0) continue;
+
+        // headers wait for the first bytes, a download that fails before them gets a status instead of an empty file
+        if (!res.headersSent) {
+          res.writeHead(200, {
+            ...this.corsHeaders(reply),
+            'Content-Type': entry.mimeType,
+            'Content-Disposition': `attachment; filename="${entry.filename}"`,
+            'Cache-Control': 'no-cache',
+          });
+          reply.hijack();
+        }
+
+        if (!res.write(chunk) && !(await this.awaitDrain(res, this.pipeStallMs))) {
+          throw new Error('the client stopped reading');
+        }
+      }
+    } catch (err) {
+      failure = err;
+    } finally {
+      watch.stop();
+      // ends the plugin's side, also when it still writes
+      await chunks.return(undefined).catch(() => {});
+    }
+
+    if (res.destroyed) return;
+
+    if (!res.headersSent) {
+      if (failure) this.logger.warn(`Pipe download failed: ${entry.filename}`, failure);
+      reply.code(500).send({ error: 'Download failed' });
+      return;
+    }
+
+    if (failure) {
+      this.logger.warn(`Pipe download failed: ${entry.filename}`, failure);
+      // cut off, so the client sees a failed download and not a short file that looks complete
+      res.destroy();
+      return;
+    }
+
+    res.end();
+  }
+
+  private watchPipe(plugin: Promisify<PluginPipeInterface>, pipeId: string, openPull: () => number): { failed: Promise<never>; stop: () => void } {
+    let fail!: (err: unknown) => void;
+    const failed = new Promise<never>((_, reject) => {
+      fail = reject;
+    });
+    failed.catch(() => {});
+
+    let seen: PipeState = 'writing';
+    let seenPull = 0;
+    // asked for the whole download: the plugin ends one it hears nothing about, and its answer shows a pull that never got through
+    const timer = setInterval(() => {
+      const pull = openPull();
+      plugin.pipeState(pipeId).then((state) => {
+        // twice in a row for the same pull, the client would wait forever
+        if (pull !== 0 && pull === seenPull && state !== 'writing' && state === seen) {
+          fail(new Error(state === 'gone' ? 'the plugin no longer writes the download' : 'the pull or its answer got lost on the way to the plugin'));
+        }
+        seen = state;
+        seenPull = pull;
+      }, fail);
+    }, this.pipeProbeMs);
+
+    return { failed, stop: () => clearInterval(timer) };
   }
 
   private async handleRemoteStreamDownload(req: FastifyRequest<DownloadParamsRequest>, reply: FastifyReply, token: string, entry: DownloadEntry): Promise<void> {
@@ -711,6 +871,9 @@ export class DownloadManager implements DownloadManagerInterface {
         this.deleteEntryFile(entry).catch(() => {});
         this.logger.debug(`Download expired and cleaned up: ${token}`);
       }
+    }
+    for (const [token, entry] of this.pipes) {
+      if (now > entry.expiresAt) this.pipes.delete(token);
     }
   }
 

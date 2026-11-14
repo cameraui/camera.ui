@@ -42,7 +42,7 @@ class PluginAPI(AsyncEventEmitter, PluginAPIInterface):
         self.device_manager = DeviceManagerProxy(
             proxy, self.storage_controller, self.sensor_manager, logger, plugin
         )
-        self.download_manager = DownloadManagerProxy(proxy)
+        self.download_manager = DownloadManagerProxy(proxy, plugin)
         self.notification_manager = NotificationManagerProxy(proxy, plugin)
 
     @property
