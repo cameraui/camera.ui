@@ -71,9 +71,10 @@ export default [
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-namespace': 'off',
-      '@stylistic/generator-star-spacing': ['error', { before: true, after: false }],
       '@typescript-eslint/no-deprecated': 'warn',
 
+      '@stylistic/list-style': 'off',
+      '@stylistic/generator-star-spacing': ['error', { before: true, after: false }],
       '@stylistic/max-len': ['error', { code: 170, tabWidth: 2 }],
       '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
       '@stylistic/operator-linebreak': 'off',
