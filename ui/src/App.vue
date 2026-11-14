@@ -89,6 +89,7 @@
     <CuiUpdateIndicator />
     <CuiUpdatesIndicator />
     <CuiPushSyncIndicator v-if="isCapacitor" />
+    <CuiDownloadIndicator />
 
     <CuiAppLockOverlay />
   </div>

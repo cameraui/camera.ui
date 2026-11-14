@@ -24,8 +24,9 @@ const authStore = useAuthStore();
 const { isLoggedIn } = storeToRefs(authStore);
 
 const connection = useConnection();
+const { downloads } = useDownloadProgress();
 
-const updateAvailable = computed(() => isLoggedIn.value && updateAvailableState.value && connection.bannerMode.value === null);
+const updateAvailable = computed(() => isLoggedIn.value && updateAvailableState.value && connection.bannerMode.value === null && downloads.value.length === 0);
 const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 
 function onApply() {

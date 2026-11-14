@@ -155,6 +155,7 @@ declare module 'vue' {
     CuiDetectionSensorInfo: typeof import('./../components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue')['default']
     CuiDialog: typeof import('./../components/CuiDialog/CuiDialog.vue')['default']
     CuiDoorbellTrigger: typeof import('./../components/CuiDoorbellTrigger/CuiDoorbellTrigger.vue')['default']
+    CuiDownloadIndicator: typeof import('./../components/CuiDownloadIndicator/CuiDownloadIndicator.vue')['default']
     CuiDraggableCameraCard: typeof import('./../components/CuiDraggableCameraCard/CuiDraggableCameraCard.vue')['default']
     CuiEditor: typeof import('./../components/CuiEditor/CuiEditor.vue')['default']
     CuiEventPopupSettings: typeof import('./../components/CuiEventPopupSettings/CuiEventPopupSettings.vue')['default']

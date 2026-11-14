@@ -178,6 +178,7 @@ declare global {
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
   const toValue: typeof import('vue').toValue
+  const trackDownload: typeof import('../composables/useDownloadProgress').trackDownload
   const triggerRef: typeof import('vue').triggerRef
   const tryOnBeforeMount: typeof import('@vueuse/core').tryOnBeforeMount
   const tryOnBeforeUnmount: typeof import('@vueuse/core').tryOnBeforeUnmount
@@ -275,6 +276,7 @@ declare global {
   const useDirectServerSync: typeof import('../composables/useDirectServerSync').useDirectServerSync
   const useDisplayMedia: typeof import('@vueuse/core').useDisplayMedia
   const useDocumentVisibility: typeof import('@vueuse/core').useDocumentVisibility
+  const useDownloadProgress: typeof import('../composables/useDownloadProgress').useDownloadProgress
   const useDraggable: typeof import('@vueuse/core').useDraggable
   const useDropZone: typeof import('@vueuse/core').useDropZone
   const useElectron: typeof import('../composables/useElectron').useElectron
@@ -540,6 +542,9 @@ declare global {
   export type { GeoCoords } from '../composables/useDeviceLocation'
   import('../composables/useDeviceLocation')
   // @ts-ignore
+  export type { DownloadProgress, DownloadTransfer } from '../composables/useDownloadProgress'
+  import('../composables/useDownloadProgress')
+  // @ts-ignore
   export type { DownloadOptions } from '../composables/useFileDownload'
   import('../composables/useFileDownload')
   // @ts-ignore
@@ -800,6 +805,7 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly trackDownload: UnwrapRef<typeof import('../composables/useDownloadProgress')['trackDownload']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>
@@ -897,6 +903,7 @@ declare module 'vue' {
     readonly useDirectServerSync: UnwrapRef<typeof import('../composables/useDirectServerSync')['useDirectServerSync']>
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
+    readonly useDownloadProgress: UnwrapRef<typeof import('../composables/useDownloadProgress')['useDownloadProgress']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>
     readonly useDropZone: UnwrapRef<typeof import('@vueuse/core')['useDropZone']>
     readonly useElectron: UnwrapRef<typeof import('../composables/useElectron')['useElectron']>

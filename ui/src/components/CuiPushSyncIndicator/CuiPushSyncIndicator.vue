@@ -35,8 +35,9 @@ const { needsAction, repairing, repair, dismiss } = usePushSync();
 
 const { updateAvailable } = useAppUpdate();
 const connection = useConnection();
+const { downloads } = useDownloadProgress();
 
-const visible = computed(() => needsAction.value && connection.bannerMode.value === null && !updateAvailable.value);
+const visible = computed(() => needsAction.value && connection.bannerMode.value === null && !updateAvailable.value && downloads.value.length === 0);
 const bottomOffset = computed(() => `calc(${bottombarHeight.value}px + 1rem + var(--safe-area-inset-bottom))`);
 </script>
 

@@ -1650,6 +1650,11 @@ export default {
       audioDetection: 'Audio Detection',
       ptz: 'PTZ',
     },
+    download_progress: {
+      preparing: 'Preparing download',
+      progress: '{loaded} of {total}',
+      cancel: 'Cancel download',
+    },
     push_sync: {
       title: 'Push notifications stopped working',
       action: 'Fix',

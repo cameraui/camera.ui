@@ -1662,6 +1662,11 @@ export default {
       audioDetection: 'Geräuscherkennung',
       ptz: 'PTZ',
     },
+    download_progress: {
+      preparing: 'Download wird vorbereitet',
+      progress: '{loaded} von {total}',
+      cancel: 'Download abbrechen',
+    },
     push_sync: {
       title: 'Push-Nachrichten kommen nicht mehr an',
       action: 'Beheben',
