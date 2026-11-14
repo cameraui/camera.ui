@@ -39,7 +39,7 @@ export async function download(options: DownloadOptions): Promise<void> {
 
   const standalone = isStandalone();
   const url = 'url' in options ? buildAbsoluteUrl(options.url) : null;
-  if (url && !standalone && isTokenDownloadUrl(url)) {
+  if (url && isTokenDownloadUrl(url) && (!standalone || isChromium())) {
     await assertDownloadAvailable(url);
     clickLink(url, options.filename);
     return;
@@ -112,6 +112,11 @@ function isStandalone(): boolean {
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
   // iOS Safari predates display-mode and exposes this legacy flag instead
   return Boolean((window.navigator as { standalone?: boolean }).standalone);
+}
+
+// only Chromium has userAgentData, and its installed web apps save a download like a tab does
+function isChromium(): boolean {
+  return 'userAgentData' in window.navigator;
 }
 
 async function tryWebShare(blob: Blob, filename: string): Promise<boolean> {
