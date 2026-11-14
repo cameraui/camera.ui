@@ -121,17 +121,21 @@ export class NotificationManager {
     const plugins = this.getNotifierPlugins();
     if (plugins.length === 0) return [];
 
-    const ownerFilter = userRole === 'master' || userRole === 'admin' ? [] : [userId];
+    const isAdmin = isAdminRole(userRole);
+    const ownerFilter = isAdmin ? [] : [userId];
 
     const results = await Promise.allSettled(
       plugins.map(async (plugin) => {
         try {
           const raw = (await this.getProxyFor(plugin).getDevices(ownerFilter)) ?? [];
-          return raw.map<NotifierDeviceWithSource>((d) => ({
-            ...d,
-            pluginId: plugin.id,
-            pluginName: plugin.pluginName,
-          }));
+          // a device without owner belongs to the instance, only admins see it
+          return raw
+            .filter((d) => isAdmin || d.ownerUserId === userId)
+            .map<NotifierDeviceWithSource>((d) => ({
+              ...d,
+              pluginId: plugin.id,
+              pluginName: plugin.pluginName,
+            }));
         } catch (err) {
           this.logger.warn(`getDevices failed for "${plugin.pluginName}": ${(err as Error).message}`);
           return [] as NotifierDeviceWithSource[];
@@ -147,7 +151,7 @@ export class NotificationManager {
 
   public listSources(userRole: DBRoles): SourcesListing {
     const publisherPlugins = this.pluginsService.listPlugins().filter((p) => hasCapability(p.contract, PluginCapability.PublishNotifications));
-    const systemTypes = userRole === 'master' || userRole === 'admin' ? [...SYSTEM_NOTIFICATION_TYPES] : [];
+    const systemTypes = isAdminRole(userRole) ? [...SYSTEM_NOTIFICATION_TYPES] : [];
     return {
       plugins: publisherPlugins.map((p) => ({ id: p.id, name: p.pluginName })),
       system: systemTypes,
@@ -232,10 +236,10 @@ export class NotificationManager {
       }
     }
 
-    // a push to chosen devices lands only in the lists of their owners
+    // a push to chosen devices lands only in the lists of their owners, an instance device's in the admins'
     const targetDevices = targets?.length ? await this.findTargetDevices(targets) : undefined;
     const userIds = targetDevices
-      ? [...new Set(Array.from(targetDevices.values(), (target) => target.device.ownerUserId))]
+      ? this.deviceOwners(Array.from(targetDevices.values(), (target) => target.device))
       : await this.findRecipientUserIds(source, opts.notification.adminOnly ?? false);
     if (userIds.length === 0) return [];
 
@@ -315,6 +319,8 @@ export class NotificationManager {
     if (eligibleUserIds.length === 0) return [];
 
     const eligibleSet = new Set(eligibleUserIds);
+    // an instance device follows the admins' settings
+    const adminEligible = this.adminUserIds().some((id) => eligibleSet.has(id));
     const tasks: Promise<NotifyResult[]>[] = [];
     for (const plugin of this.getNotifierPlugins()) {
       const proxy = this.getProxyFor(plugin);
@@ -325,7 +331,7 @@ export class NotificationManager {
         this.logger.warn(`getDevices failed for "${plugin.pluginName}": ${(err as Error).message}`);
         continue;
       }
-      const deviceIds = devices.filter((d) => d.active && eligibleSet.has(d.ownerUserId)).map((d) => d.id);
+      const deviceIds = devices.filter((d) => d.active && (d.ownerUserId ? eligibleSet.has(d.ownerUserId) : adminEligible)).map((d) => d.id);
       if (deviceIds.length > 0) {
         tasks.push(this.dispatchBatch(plugin.pluginName, proxy, deviceIds, pushed));
       }
@@ -412,8 +418,7 @@ export class NotificationManager {
   }
 
   private assertCanManageDevice(device: NotifierDevice, requesterUserId: string, requesterRole: DBRoles): void {
-    const isAdmin = requesterRole === 'master' || requesterRole === 'admin';
-    if (!isAdmin && device.ownerUserId !== requesterUserId) {
+    if (!isAdminRole(requesterRole) && device.ownerUserId !== requesterUserId) {
       throw new DeviceForbiddenError('You can only manage your own devices');
     }
   }
@@ -483,11 +488,21 @@ export class NotificationManager {
   }
 
   private async findRecipientUserIds(source: NotificationSource, adminOnly: boolean): Promise<string[]> {
-    const users = this.usersService.list();
-    if (source.kind === 'system' || adminOnly) {
-      return users.filter((u) => u.role === 'master' || u.role === 'admin').map((u) => u._id);
-    }
-    return users.map((u) => u._id);
+    if (source.kind === 'system' || adminOnly) return this.adminUserIds();
+    return this.usersService.list().map((u) => u._id);
+  }
+
+  private adminUserIds(): string[] {
+    return this.usersService
+      .list()
+      .filter((u) => isAdminRole(u.role))
+      .map((u) => u._id);
+  }
+
+  private deviceOwners(devices: NotifierDevice[]): string[] {
+    const owners = devices.map((device) => device.ownerUserId).filter(Boolean);
+    if (owners.length < devices.length) owners.push(...this.adminUserIds());
+    return [...new Set(owners)];
   }
 
   private async subscribePublishTopic(): Promise<void> {
@@ -772,6 +787,10 @@ export class NotificationManager {
       await unlink(join(this.imagesDir, file)).catch(() => {});
     }
   }
+}
+
+function isAdminRole(role: DBRoles): boolean {
+  return role === 'master' || role === 'admin';
 }
 
 function parseHHmm(s: string): number | null {
