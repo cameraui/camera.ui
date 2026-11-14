@@ -19,7 +19,7 @@
       <AccordionContent :pt="{ content: { class: 'px-0' } }">
         <div class="flex flex-col gap-8">
           <div class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_source') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_source') }}</span>
             <Field v-slot="{ field, errors }" v-model.trim="source.name" :name="`sources[${i}].name`" as="div" class="flex flex-col field-gap">
               <label :for="`sources[${i}].name`" class="cui-label">{{ $t('components.form.label.source_name') }}</label>
               <InputGroup>
@@ -56,48 +56,50 @@
               }}</Message>
             </Field>
 
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-3">
               <div class="flex flex-col field-gap">
                 <label :for="`sources[${i}].urls[]`" class="cui-label">{{ $t('components.form.label.sources') }}</label>
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.source_urls') }}</Message>
               </div>
-              <Field
-                v-for="(_url, i2) in source.urls"
-                :key="i2"
-                v-slot="{ field, errors }"
-                v-model.trim="source.urls[i2]"
-                :name="`sources[${i}].urls[${i2}]`"
-                as="div"
-                class="flex flex-col field-gap"
-              >
-                <InputGroup>
-                  <InputText v-bind="field" :invalid="errors.length > 0" :loading type="text" />
+              <div class="flex flex-col gap-2">
+                <Field
+                  v-for="(_url, i2) in source.urls"
+                  :key="i2"
+                  v-slot="{ field, errors }"
+                  v-model.trim="source.urls[i2]"
+                  :name="`sources[${i}].urls[${i2}]`"
+                  as="div"
+                  class="flex flex-col field-gap"
+                >
+                  <InputGroup>
+                    <InputText v-bind="field" :invalid="errors.length > 0" :loading type="text" />
 
-                  <InputGroupAddon v-if="source.urls.length > 1">
-                    <Button text severity="secondary" :loading class="cui-icon-md" @click="deleteSource(i, i2)">
-                      <template #icon>
-                        <i-mdi:close width="100%" height="100%" />
-                      </template>
-                    </Button>
-                  </InputGroupAddon>
-                </InputGroup>
+                    <InputGroupAddon v-if="source.urls.length > 1">
+                      <Button text severity="secondary" :loading @click="deleteSource(i, i2)">
+                        <template #icon>
+                          <i-mdi:close />
+                        </template>
+                      </Button>
+                    </InputGroupAddon>
+                  </InputGroup>
 
-                <Transition name="fade">
-                  <ErrorMessage :name="`sources[${i}].urls[${i2}]`" class="cui-input-error" />
-                </Transition>
-              </Field>
+                  <Transition name="fade">
+                    <ErrorMessage :name="`sources[${i}].urls[${i2}]`" class="cui-input-error" />
+                  </Transition>
+                </Field>
+              </div>
 
               <Button :loading :label="$t('components.form.button.add_source')" class="ml-auto cui-button-medium" @click="addSource(i)" />
             </div>
           </div>
 
           <div v-if="source._id" class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_status') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_status') }}</span>
             <CameraSource :camera-id="camera._id" :camera-name="camera.name" :source="source" :loading />
           </div>
 
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_connection') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_connection') }}</span>
             <div class="w-full flex flex-col gap-2">
               <Field v-slot="{ field, errors }" :model-value="source.hotMode" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].hotMode`">
                 <CuiToggleRow
@@ -176,7 +178,7 @@
           </div>
 
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_audio') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_audio') }}</span>
             <div class="w-full flex flex-col gap-2">
               <Field v-slot="{ errors }" :model-value="source.muted" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].muted`">
                 <CuiToggleRow
@@ -222,7 +224,7 @@
           </div>
 
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_usage') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_usage') }}</span>
             <div v-if="cameraForm.sources.length > 1" class="w-full flex flex-col gap-2">
               <Field
                 v-slot="{ field, errors }"
@@ -279,7 +281,7 @@
           </div>
 
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-title">{{ $t('components.camera_options.source_group_sharing') }}</span>
+            <span class="section-chip">{{ $t('components.camera_options.source_group_sharing') }}</span>
             <CameraSourceUrl v-if="source._id" :camera-name="camera.name" :source="source" :loading />
 
             <div class="w-full flex flex-col gap-2">
