@@ -20,7 +20,7 @@
     "prepublishOnly": "npm i --package-lock-only && node ../scripts/check-imports.mjs service && npm run lint && npm run format && npm run build",
     "prepack": "node ../scripts/shrinkwrap.mjs create",
     "postpack": "node ../scripts/shrinkwrap.mjs cleanup",
-    "update": "updates -M npm,pypi,go,cargo,docker --update ./",
+    "update": "updates -M npm,pypi,go,cargo,docker -u",
     "watch": "nodemon src/cameraui.ts -H ../.camera.ui run",
     "watch:alt": "CAMERA_UI_PORT=5443 nodemon src/cameraui.ts -H ../.camera.ui.alt run",
     "watch:alt2": "CAMERA_UI_PORT=6443 nodemon src/cameraui.ts --worker -H ../.camera.ui.alt.2 run"
@@ -32,7 +32,7 @@
     "systeminformation": "^5.33.22"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^6.0.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "26.6.6",
     "@types/tail": "^2.2.3",

@@ -32,7 +32,7 @@
     "pwa": "pwa-assets-generator",
     "test": "vitest run",
     "type-check": "vue-tsc --build",
-    "update": "updates -M npm,pypi,go,cargo,docker -u -e eslint,typescript,@eslint/js,vue-tsc"
+    "update": "updates -M npm,pypi,go,cargo,docker -u"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
@@ -112,7 +112,7 @@
   },
   "devDependencies": {
     "@openvue/auto-import-resolver": "^1.1.1",
-    "@stylistic/eslint-plugin": "^6.0.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@tailwindcss/node": "^4.3.5",
     "@tailwindcss/vite": "^4.3.5",
     "@tsconfig/node24": "^24.0.6",
