@@ -1148,6 +1148,13 @@ function resetPairState() {
   pairCountdown.value = '';
 }
 
+function finishPairing(firstPairing: boolean) {
+  resetPairState();
+  if (firstPairing && remoteInfo.value?.remoteSettings.enabled === false) {
+    onToggleCloud(true, true);
+  }
+}
+
 function formatCountdown(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSec / 60);
@@ -1179,11 +1186,12 @@ function schedulePoll() {
 async function runPoll() {
   if (!pairCode.value) return;
   const code = pairCode.value;
+  const firstPairing = !isRegistered.value;
   try {
     const result = await pairPoll({ name: serverNameInput.value.trim() || undefined });
     if (!pairCode.value || pairCode.value !== code) return;
     if (result.state === 'confirmed') {
-      resetPairState();
+      finishPairing(firstPairing);
       return;
     }
     if (result.state === 'expired') {
@@ -1240,11 +1248,13 @@ function onOpenPairUrl() {
   window.open(pairUrl.value, '_blank', 'noopener');
 }
 
-function onToggleCloud(enabled: boolean) {
+function onToggleCloud(enabled: boolean, afterPairing = false) {
   const isRemoteSession = window.location.host === PROXY_SERVICE_HOST || (isCapacitor && isInCloudSession());
 
   let messageKey: string;
-  if (enabled) {
+  if (afterPairing) {
+    messageKey = 'components.dialog.message.confirm_enable_cloud_after_pairing';
+  } else if (enabled) {
     messageKey = 'components.dialog.message.confirm_enable_cloud';
   } else if (isRemoteSession) {
     messageKey = 'components.dialog.message.confirm_disable_cloud_remote';
@@ -1411,7 +1421,7 @@ watch(
 
 watch(isRegistered, (registered) => {
   if (registered && pairCode.value) {
-    resetPairState();
+    finishPairing(true);
   }
 });
 

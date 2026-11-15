@@ -897,6 +897,7 @@ export default {
         compatibility_engine: 'Requires {engine} {required} (installed: {current})',
         confirm_unregister_server: 'Are you sure you want to unregister the server?',
         confirm_enable_cloud: 'Allow remote access to this server via the camera.ui cloud?',
+        confirm_enable_cloud_after_pairing: 'Cloud access is still off. Turn it on to reach this server through the camera.ui cloud?',
         confirm_disable_cloud_remote: 'Disabling cloud access will end your current remote session. You will be redirected to the cloud sign-in. Continue?',
         confirm_disable_cloud_local: 'Disabling cloud access will disconnect remote sessions that use the cloud. Local connections remain unaffected. Continue?',
       },

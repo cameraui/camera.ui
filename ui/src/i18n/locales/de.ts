@@ -907,6 +907,7 @@ export default {
         compatibility_engine: 'Benötigt {engine} {required} (installiert: {current})',
         confirm_unregister_server: 'Möchtest du den Server wirklich deregistrieren?',
         confirm_enable_cloud: 'Remote-Zugriff auf diesen Server über die camera.ui Cloud erlauben?',
+        confirm_enable_cloud_after_pairing: 'Der Cloud-Zugriff ist noch aus. Einschalten, um diesen Server über die camera.ui Cloud zu erreichen?',
         confirm_disable_cloud_remote: 'Das Deaktivieren beendet deine aktuelle Remote-Sitzung. Du wirst zur Cloud-Anmeldung weitergeleitet. Fortfahren?',
         confirm_disable_cloud_local: 'Das Deaktivieren trennt Remote-Sitzungen, die über die Cloud laufen. Lokale Verbindungen bleiben bestehen. Fortfahren?',
       },
