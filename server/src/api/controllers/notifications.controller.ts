@@ -39,8 +39,9 @@ export class NotificationsController {
   public async setSettings(req: FastifyRequest<AuthLoginRequest & NotificationsSettingsRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const userId = req.locals.user!._id;
+      const { suppressed } = await this.service.getSettings(userId);
       // _id goes last, a client must not pick another user
-      const settings: DBNotificationSettings = { ...req.body, _id: userId };
+      const settings: DBNotificationSettings = { ...req.body, ...(suppressed && { suppressed }), _id: userId };
       await this.service.setSettings(userId, settings);
       return reply.code(200).send(settings);
     } catch (error: any) {
