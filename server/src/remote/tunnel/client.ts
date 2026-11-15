@@ -24,7 +24,9 @@ const TUNNEL_CREDENTIALS_SUBJECT = 'tunnel.server.credentials';
 const TUNNEL_AUTH_FAILED_SUBJECT = 'tunnel.client.auth-failed';
 
 const INVALID_TOKEN_REASON = 'invalid token';
+const CLOUD_ACCESS_OFF_REASON = 'cloud access is off';
 const FORCED_REFRESH_INTERVAL_MS = 5 * 60_000;
+const STATE_RESEND_INTERVAL_MS = 60_000;
 
 const LEVEL_TOKEN = /^(?:\S+\s+)?(TRC|DBG|INF|WRN|ERR|FTL|PNC)\b/;
 
@@ -49,6 +51,7 @@ export class TunnelClient {
   private credentialsUnsub?: () => void;
   private authFailedUnsub?: () => void;
   private lastForcedRefreshAt = 0;
+  private lastStateResendAt = 0;
 
   private started = false;
   private restarting = false;
@@ -300,8 +303,12 @@ export class TunnelClient {
   }
 
   private async handleAuthFailed(event: { error?: string; reason?: string } | undefined): Promise<void> {
-    const reason = event?.reason ?? /AUTH_FAIL:\s*(.+)$/.exec(event?.error ?? '')?.[1];
-    if (reason?.trim() !== INVALID_TOKEN_REASON) {
+    const reason = (event?.reason ?? /AUTH_FAIL:\s*(.+)$/.exec(event?.error ?? '')?.[1])?.trim();
+    if (reason === CLOUD_ACCESS_OFF_REASON) {
+      await this.resendCloudState();
+      return;
+    }
+    if (reason !== INVALID_TOKEN_REASON) {
       return;
     }
 
@@ -320,6 +327,25 @@ export class TunnelClient {
         return;
       }
       this.logger.warn('Could not refresh the cloud token after the tunnel login was rejected:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  private async resendCloudState(): Promise<void> {
+    if (!this.remoteService.info().enabled) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastStateResendAt < STATE_RESEND_INTERVAL_MS) {
+      return;
+    }
+    this.lastStateResendAt = now;
+
+    try {
+      await this.remoteService.updateCloudServer(true);
+      this.logger.log('The cloud still had cloud access for this server as off, sent the current state');
+    } catch (error) {
+      this.logger.warn('Could not send the cloud access state to the cloud:', error instanceof Error ? error.message : String(error));
     }
   }
 
