@@ -141,6 +141,7 @@ declare module 'vue' {
     CuiCameraZoomable: typeof import('./../components/CuiCameraCard/CuiCameraZoomable.vue')['default']
     CuiCamviewControls: typeof import('./../components/CuiCamviewControls/CuiCamviewControls.vue')['default']
     CuiChartTable: typeof import('./../components/CuiChartTable/CuiChartTable.vue')['default']
+    CuiChartTooltip: typeof import('./../components/CuiChartTooltip/CuiChartTooltip.vue')['default']
     CuiCheckRow: typeof import('./../components/CuiCheckRow/CuiCheckRow.vue')['default']
     CuiChip: typeof import('./../components/CuiChip/CuiChip.vue')['default']
     CuiChipGroup: typeof import('./../components/CuiChipGroup/CuiChipGroup.vue')['default']

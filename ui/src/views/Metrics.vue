@@ -183,8 +183,9 @@
                     {{ $t('views.metrics.storage_not_available') }}
                   </div>
                   <div v-else class="flex flex-col sm:flex-row items-center gap-6">
-                    <div class="shrink-0" style="width: 180px; height: 180px">
-                      <Doughnut :data="storageChartData" :options="storageChartOptions" />
+                    <div class="shrink-0" style="width: 180px; height: 180px" v-on="storageListeners">
+                      <Doughnut ref="storageChart" :data="storageChartData" :options="storageChartOptions" />
+                      <CuiChartTooltip :anchor="storageTip && storageAnchor" :rows="storageTip" />
                     </div>
                     <CuiDataTable :value="overviewRows" :pt="tablePtOptions" striped-rows :show-headers="false" class="w-full">
                       <Column field="label">
@@ -288,7 +289,7 @@
 <script setup lang="ts">
 import { useStorageStats } from '@camera.ui/nvr';
 import { PLUGIN_STATUS, RUNTIME_STATUS } from '@shared/types';
-import { ArcElement, Chart as ChartJS, DoughnutController, Tooltip } from 'chart.js';
+import { ArcElement, Chart as ChartJS, DoughnutController } from 'chart.js';
 import { Doughnut } from 'vue-chartjs';
 import RestartIcon from '~icons/ic/round-restart-alt';
 
@@ -307,7 +308,7 @@ import type { PaginationQuery, PlacementInfo, ProcessInfo, StreamStatsRow } from
 import type { ChartData, ChartOptions } from 'chart.js';
 import type { DataTablePassThroughOptions } from 'openvue';
 
-ChartJS.register(DoughnutController, ArcElement, Tooltip);
+ChartJS.register(DoughnutController, ArcElement);
 
 interface CameraStorageRow {
   id: string;
@@ -343,8 +344,21 @@ const { mdBreakpoint, smBreakpoint, xsBreakpoint } = useSharedCuiBreakpoint();
 const { beginServerRestart } = useServerRestart();
 const { statusWithPlacement } = usePlacementLabel();
 const { stats, isLoading: storageStatsLoading, canDeleteRecordings, deleteCameraRecordings } = useStorageStats();
+const { active: storageActive, anchor: storageAnchor, listeners: storageListeners } = useChartTooltip(() => storageChart.value?.chart, 'element');
 
 const METRICS_TABS = ['overview', 'cameras', 'storage'];
+const STORAGE_COLORS = ['#df2a4c', 'rgba(223,42,76,0.35)', 'rgba(223,42,76,0.10)'];
+
+const storageChartOptions: ChartOptions<'doughnut'> = {
+  responsive: true,
+  maintainAspectRatio: true,
+  cutout: '65%',
+  animation: false,
+  events: [],
+  plugins: {
+    legend: { display: false },
+  },
+};
 
 const tablePtOptions: DataTablePassThroughOptions = {
   bodyRow: {
@@ -358,6 +372,7 @@ const tablePtOptions: DataTablePassThroughOptions = {
 };
 
 const containerRef = useTemplateRef('containerRef');
+const storageChart = useTemplateRef<{ chart: ChartJS<'doughnut'> | null }>('storageChart');
 const currentTab = ref('overview');
 const showInference = ref(false);
 const showStreams = ref(false);
@@ -869,38 +884,36 @@ const overviewRows = computed<OverviewRow[]>(() => {
   ];
 });
 
-const storageChartData = computed<ChartData<'doughnut'>>(() => {
+const storageSegments = computed(() => {
   const nvrUsed = stats.value?.nvrUsedGB ?? 0;
-  const diskFree = stats.value?.diskFreeGB ?? 0;
-  const otherUsed = Math.max(0, (stats.value?.diskUsedGB ?? 0) - nvrUsed);
-  const isEmpty = nvrUsed === 0 && otherUsed === 0 && diskFree === 0;
+  return [
+    { label: t('views.metrics.chart_nvr'), value: nvrUsed },
+    { label: t('views.metrics.chart_other'), value: Math.max(0, (stats.value?.diskUsedGB ?? 0) - nvrUsed) },
+    { label: t('views.metrics.chart_free'), value: stats.value?.diskFreeGB ?? 0 },
+  ];
+});
+
+const storageChartData = computed<ChartData<'doughnut'>>(() => {
+  const values = storageSegments.value.map((segment) => segment.value);
 
   return {
-    labels: [t('views.metrics.chart_nvr'), t('views.metrics.chart_other'), t('views.metrics.chart_free')],
+    labels: storageSegments.value.map((segment) => segment.label),
     datasets: [
       {
-        data: isEmpty ? [0, 0, 1] : [nvrUsed, otherUsed, diskFree],
-        backgroundColor: ['#df2a4c', 'rgba(223,42,76,0.35)', 'rgba(223,42,76,0.10)'],
+        data: values.some((value) => value > 0) ? values : [0, 0, 1],
+        backgroundColor: STORAGE_COLORS,
         borderWidth: 0,
       },
     ],
   };
 });
 
-const storageChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
-  responsive: true,
-  maintainAspectRatio: true,
-  cutout: '65%',
-  animation: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      callbacks: {
-        label: (ctx) => `${ctx.label}: ${formatGB(ctx.parsed)}`,
-      },
-    },
-  },
-}));
+const storageTip = computed(() => {
+  const index = storageActive.value?.index;
+  if (index === undefined) return undefined;
+  const { label, value } = storageSegments.value[index];
+  return [{ text: `${label}: ${formatGB(value)}`, color: STORAGE_COLORS[index] }];
+});
 
 function buildChartData(type: 'system' | 'core' | 'frameworker' | 'plugins', processMap: Record<string, ProcessInfo[]>): Record<string, ChartData<'bar'>> {
   return Object.keys(processMap).reduce((acc: Record<string, ChartData<'bar'>>, key) => {

@@ -138,9 +138,6 @@ const props = defineProps<CuiChartTableProps>();
 
 const emit = defineEmits<CuiChartTableEmits>();
 
-const themeStore = useThemeStore();
-const { theme } = storeToRefs(themeStore);
-
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
 
@@ -215,31 +212,6 @@ function getChartOptions(header: TableHeaderChart, data: any): ChartOptions<'bar
     plugins: {
       legend: {
         display: false,
-      },
-      tooltip: {
-        enabled: false,
-        mode: 'point',
-        intersect: false,
-        backgroundColor: theme.value === 'dark' ? '#2e2e2e' : '#f1f5f9',
-        titleColor: theme.value === 'dark' ? '#ffffff' : '#000000',
-        bodyColor: theme.value === 'dark' ? '#ffffff' : '#000000',
-        displayColors: false,
-        padding: 8,
-        callbacks: {
-          title: (tooltipItems) => {
-            const timestamp = tooltipItems[0].label;
-            if (timestamp && !isNaN(Number(timestamp))) {
-              const time = new Date(Number(timestamp)).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-              const value = tooltipItems[0].raw as number;
-              const formatted = [`${time}`, `${value.toFixed(2)}%`];
-              return formatted.join(' - ');
-            }
-            return '';
-          },
-        },
       },
     },
     scales: {

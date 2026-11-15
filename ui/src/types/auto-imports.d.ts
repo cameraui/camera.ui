@@ -232,6 +232,7 @@ declare global {
   const useCameraUi: typeof import('@camera.ui/browser').useCameraUi
   const useCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').useCamerasSocket
   const useCardSelection: typeof import('../composables/useCardSelection').useCardSelection
+  const useChartTooltip: typeof import('../composables/useChartTooltip').useChartTooltip
   const useClipboard: typeof import('@vueuse/core').useClipboard
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
   const useCloned: typeof import('@vueuse/core').useCloned
@@ -522,6 +523,9 @@ declare global {
   // @ts-ignore
   export type { StoredCredentials, BiometryStatus } from '../composables/useBiometricCredentials'
   import('../composables/useBiometricCredentials')
+  // @ts-ignore
+  export type { ChartTooltipPick } from '../composables/useChartTooltip'
+  import('../composables/useChartTooltip')
   // @ts-ignore
   export type { AppBus } from '../composables/useCuiAppBus'
   import('../composables/useCuiAppBus')
@@ -861,6 +865,7 @@ declare module 'vue' {
     readonly useCameraUi: UnwrapRef<typeof import('@camera.ui/browser')['useCameraUi']>
     readonly useCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['useCamerasSocket']>
     readonly useCardSelection: UnwrapRef<typeof import('../composables/useCardSelection')['useCardSelection']>
+    readonly useChartTooltip: UnwrapRef<typeof import('../composables/useChartTooltip')['useChartTooltip']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
