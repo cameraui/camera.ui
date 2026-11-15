@@ -2833,6 +2833,8 @@ export default {
       deselect_all: 'Deselect all',
       mark_read_selected: 'Mark selected as read',
       delete_selected: 'Delete selected',
+      delete_all: 'Delete all',
+      delete_all_confirm: 'Delete all notifications?',
       empty: 'No notifications',
       open: 'Open',
       recording: 'Recording',

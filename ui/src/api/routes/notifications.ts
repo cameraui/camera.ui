@@ -88,6 +88,10 @@ export async function deleteNotificationsFn(ids: string[]): Promise<void> {
   await api.post('/notifications/delete', { ids });
 }
 
+export async function clearNotificationsFn(): Promise<void> {
+  await api.delete('/notifications');
+}
+
 export async function markBellSeenFn(): Promise<void> {
   await api.post('/notifications/seen', { bell: true });
 }

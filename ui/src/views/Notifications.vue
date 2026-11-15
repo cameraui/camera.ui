@@ -194,10 +194,17 @@
         <CuiFloatingButton
           v-if="unread"
           :tooltip-props="{ value: t('components.notification_menu.mark_all_read') }"
-          :button-props="{ class: 'text-white' }"
+          :button-props="{ severity: 'secondary' }"
           :icon="CheckAllIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="center.markSeen()"
+        />
+        <CuiFloatingButton
+          :tooltip-props="{ value: t('views.notifications.delete_all') }"
+          :button-props="{ severity: 'danger' }"
+          :icon="TrashIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="deleteAll"
         />
       </template>
 
@@ -268,6 +275,7 @@ const router = useRouter();
 const { t } = useI18n();
 const { smBreakpoint, mdBreakpoint } = useSharedCuiBreakpoint();
 const { registerScrollToTop } = useCuiTopbarSlots();
+const { openTextDialog } = useCuiDialog();
 const { sourceOf, summaryOf, occurrencesOf, showsSource, imageOf, videoOf, isAlarm, severityLabel, severityIcon, severityTextClass, tileClass, dayLabel, formatTime } =
   useNotificationDisplay();
 const activeFilter = useLocalStorage<NotificationFilter>('cui-notifications-filter', 'all');
@@ -445,6 +453,18 @@ function markSelectedRead() {
 function deleteSelected() {
   center.remove([...selectedIds.value]);
   exitSelectionMode();
+}
+
+function deleteAll() {
+  openTextDialog({
+    data: {
+      title: t('views.notifications.delete_all'),
+      contentText: t('views.notifications.delete_all_confirm'),
+      confirmText: t('components.form.tooltip.delete'),
+      confirmButtonProps: { severity: 'danger' },
+    },
+    onConfirm: center.clear,
+  });
 }
 
 watch(scrollY, (y) => {

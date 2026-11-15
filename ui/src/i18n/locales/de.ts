@@ -2851,6 +2851,8 @@ export default {
       deselect_all: 'Auswahl aufheben',
       mark_read_selected: 'Ausgewählte als gelesen markieren',
       delete_selected: 'Ausgewählte löschen',
+      delete_all: 'Alle löschen',
+      delete_all_confirm: 'Alle Benachrichtigungen löschen?',
       empty: 'Keine Benachrichtigungen',
       open: 'Öffnen',
       recording: 'Aufnahme',

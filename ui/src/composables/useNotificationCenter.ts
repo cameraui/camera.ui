@@ -1,6 +1,13 @@
 import { matchesNotificationFilter, notificationSourceId } from '@shared/types';
 
-import { deleteNotificationsFn, getNotificationFn, listNotificationsFn, markNotificationSeenFn, markNotificationsSeenFn } from '@/api/routes/notifications.js';
+import {
+  clearNotificationsFn,
+  deleteNotificationsFn,
+  getNotificationFn,
+  listNotificationsFn,
+  markNotificationSeenFn,
+  markNotificationsSeenFn,
+} from '@/api/routes/notifications.js';
 import { dropNotifications, insertNewest, markRead, replaceNotification } from '@/utils/notificationList.js';
 
 import type { SeenDelta } from '@/utils/notificationList.js';
@@ -134,6 +141,16 @@ export function useNotificationCenter({ filter, query, source, isAtTop }: Notifi
     deleteNotificationsFn(ids).catch(() => reload());
   }
 
+  function clear(): void {
+    request?.abort();
+    items.value = [];
+    incoming.value = [];
+    selected.value = undefined;
+    hasMore.value = false;
+    unread.value = 0;
+    clearNotificationsFn().then(reload, reload);
+  }
+
   function dropRemoved(ids: string[]): void {
     dropNotifications(items.value, ids);
     dropNotifications(incoming.value, ids);
@@ -185,5 +202,6 @@ export function useNotificationCenter({ filter, query, source, isAtTop }: Notifi
     setSeen,
     markSeen,
     remove,
+    clear,
   };
 }
