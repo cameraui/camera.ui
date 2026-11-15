@@ -296,6 +296,7 @@ export class NotificationManager {
     const cameraSuppressed = this.isCameraSuppressed(resolved.data?.cameraId);
     const recipients: string[] = [];
     const eligibleUserIds: string[] = [];
+    const outsideBell = new Set<string>();
     for (const userId of userIds) {
       const settings = await this.notificationsService.getSettings(userId);
       if (!settings.enabled) continue;
@@ -304,6 +305,7 @@ export class NotificationManager {
 
       // suppression mutes push and sound, not the list entry
       recipients.push(userId);
+      if (!shownInBell(resolved, settings.bell)) outsideBell.add(userId);
 
       if (resolved.severity !== Severity.Critical && (globalSuppressed || cameraSuppressed || settings.suppressed || this.inQuietHours(settings))) continue;
 
@@ -314,13 +316,15 @@ export class NotificationManager {
 
     // a tap on a push without a deep link opens this entry in the app
     const pushed: ResolvedNotification = { ...resolved, data: { ...resolved.data, notificationId: resolved.id } };
+    const unbadged: ResolvedNotification = { ...pushed, data: { ...pushed.data, noBadge: '1' } };
+    const pushFor = (device: NotifierDevice) => (device.ownerUserId && outsideBell.has(device.ownerUserId) ? unbadged : pushed);
 
     if (targets && targetDevices) {
       return Promise.all(
         targets.map(async (deviceId): Promise<NotifyResult> => {
           const target = targetDevices.get(deviceId);
           if (!target) return { pluginName: '', deviceId, ok: false, error: 'device not found' };
-          const [result] = await this.dispatchBatch(target.pluginName, target.proxy, [deviceId], pushed);
+          const [result] = await this.dispatchBatch(target.pluginName, target.proxy, [deviceId], pushFor(target.device));
           return result;
         }),
       );
@@ -341,9 +345,10 @@ export class NotificationManager {
         this.logger.warn(`getDevices failed for "${plugin.pluginName}": ${(err as Error).message}`);
         continue;
       }
-      const deviceIds = devices.filter((d) => d.active && (d.ownerUserId ? eligibleSet.has(d.ownerUserId) : adminEligible)).map((d) => d.id);
-      if (deviceIds.length > 0) {
-        tasks.push(this.dispatchBatch(plugin.pluginName, proxy, deviceIds, pushed));
+      const active = devices.filter((d) => d.active && (d.ownerUserId ? eligibleSet.has(d.ownerUserId) : adminEligible));
+      for (const push of [pushed, unbadged]) {
+        const deviceIds = active.filter((d) => pushFor(d) === push).map((d) => d.id);
+        if (deviceIds.length > 0) tasks.push(this.dispatchBatch(plugin.pluginName, proxy, deviceIds, push));
       }
     }
 
