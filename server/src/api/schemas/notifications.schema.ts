@@ -1,9 +1,12 @@
 import * as zod from 'zod';
 
+export const NOTIFICATION_BELL_GROUPS = ['problems', 'cameras', 'plugins', 'system', 'automations'] as const;
+
 export const notificationSettingsSchema = zod.object({
   enabled: zod.boolean(),
   sources: zod.record(zod.string(), zod.boolean()).optional(),
   systemTypes: zod.record(zod.string(), zod.boolean()).optional(),
+  bell: zod.partialRecord(zod.enum(NOTIFICATION_BELL_GROUPS), zod.boolean()).optional(),
   quietHours: zod
     .object({
       from: zod.string(),
@@ -35,10 +38,17 @@ export const notificationListQuerySchema = zod.object({
   filter: zod.enum(NOTIFICATION_FILTERS).default('all'),
   q: zod.string().trim().max(200).optional(),
   source: zod.string().min(1).max(100).optional(),
+  bell: zod.coerce.boolean().optional(),
 });
 
 export const notificationIdsSchema = zod.object({
   ids: zod.array(zod.string().min(1).max(100)).min(1).max(10_000),
+});
+
+export const notificationSeenSchema = notificationIdsSchema.extend({ bell: zod.boolean() }).partial();
+
+export const notificationClearQuerySchema = zod.object({
+  bell: zod.coerce.boolean().optional(),
 });
 
 export type NotificationSettingsInput = zod.output<typeof notificationSettingsSchema>;
@@ -47,4 +57,8 @@ export type UpdateDeviceInput = zod.output<typeof updateDeviceSchema>;
 export type DeviceParamsInput = zod.output<typeof deviceParamsSchema>;
 export type NotificationListQueryInput = zod.output<typeof notificationListQuerySchema>;
 export type NotificationIdsInput = zod.output<typeof notificationIdsSchema>;
+export type NotificationSeenInput = zod.output<typeof notificationSeenSchema>;
+export type NotificationClearQueryInput = zod.output<typeof notificationClearQuerySchema>;
 export type NotificationFilter = (typeof NOTIFICATION_FILTERS)[number];
+export type NotificationBellGroup = (typeof NOTIFICATION_BELL_GROUPS)[number];
+export type NotificationBellSettings = Partial<Record<NotificationBellGroup, boolean>>;

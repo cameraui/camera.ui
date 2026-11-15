@@ -1,7 +1,7 @@
 import { Severity } from '@camera.ui/sdk';
 
 import type { Notification, NotifierDevice } from '@camera.ui/sdk';
-import type { NotificationFilter } from '../api/schemas/notifications.schema.js';
+import type { NotificationBellGroup, NotificationBellSettings, NotificationFilter } from '../api/schemas/notifications.schema.js';
 
 export type NotificationSourceKind = 'plugin' | 'system' | 'automation';
 
@@ -60,6 +60,7 @@ export const SYSTEM_NOTIFICATION_TYPES: readonly SystemNotificationType[] = [
 ] as const;
 
 const CAMERA_EVENT_TYPES = new Set(['detection', 'episode', 'text-alert', 'text-alert-end']);
+const BELL_SOURCE_GROUPS: readonly NotificationBellGroup[] = ['cameras', 'plugins', 'system', 'automations'];
 
 export function notificationCameraId(n: { data?: Record<string, unknown> }): string | undefined {
   const cameraId = n.data?.cameraId;
@@ -111,6 +112,11 @@ export function matchesNotificationFilter(
     default:
       return true;
   }
+}
+
+export function shownInBell(n: { source: NotificationSource; data?: Record<string, unknown>; severity?: Severity }, bell: NotificationBellSettings | undefined): boolean {
+  if (matchesNotificationFilter(n, false, 'problems')) return bell?.problems !== false;
+  return BELL_SOURCE_GROUPS.some((group) => bell?.[group] !== false && matchesNotificationFilter(n, false, group));
 }
 
 export interface SourcesListing {

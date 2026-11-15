@@ -3,6 +3,7 @@ import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
 import type { WorkerUpdate } from '../../workers/lifecycle/update.js';
+import type { NotificationBellSettings } from '../schemas/notifications.schema.js';
 import type { LanguageAbbreviations, UserLanguage } from '../schemas/users.schema.js';
 import type { NavLayoutSettings } from '../types/index.js';
 
@@ -810,6 +811,7 @@ export interface DBNotificationSettings {
   suppressed?: boolean;
   sources?: Record<string, boolean>;
   systemTypes?: Record<string, boolean>;
+  bell?: NotificationBellSettings;
   quietHours?: {
     from: string;
     to: string;
@@ -837,6 +839,7 @@ export interface StoredNotification {
   log?: NotificationLogBurst;
   sourceName?: string;
   cameraName?: string;
+  inBell?: boolean;
 }
 
 export interface NotificationLogMessage {
@@ -851,7 +854,7 @@ export interface NotificationLogBurst {
   messages: NotificationLogMessage[];
 }
 
-export interface DBNotificationEntry extends Omit<StoredNotification, 'seenAt' | 'bucket' | 'sourceName' | 'cameraName'> {
+export interface DBNotificationEntry extends Omit<StoredNotification, 'seenAt' | 'bucket' | 'sourceName' | 'cameraName' | 'inBell'> {
   bucket: string;
   recipients: string[];
   seenBy: Record<string, number>;

@@ -87,7 +87,13 @@ import type {
   TestMotionInput,
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
-import type { NotificationFilter, NotificationIdsInput, NotificationListQueryInput } from '../schemas/notifications.schema.js';
+import type {
+  NotificationClearQueryInput,
+  NotificationFilter,
+  NotificationIdsInput,
+  NotificationListQueryInput,
+  NotificationSeenInput,
+} from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, UpdateServerInput } from '../schemas/server.schema.js';
@@ -1577,12 +1583,21 @@ export interface NotificationsIdsRequest {
   Body?: NotificationIdsInput;
 }
 
+export interface NotificationsSeenRequest {
+  Body?: NotificationSeenInput;
+}
+
+export interface NotificationsClearRequest {
+  Querystring: NotificationClearQueryInput;
+}
+
 export interface NotificationPage {
   items: StoredNotification[];
   cursor?: string;
   counts?: Record<NotificationFilter, number>;
   sources?: NotificationSourceCount[];
   unread: number;
+  bellUnread: number;
 }
 
 export interface NotificationSourceCount {

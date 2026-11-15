@@ -2,8 +2,10 @@ import { NotificationsController } from '../controllers/notifications.controller
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import {
   deviceParamsSchema,
+  notificationClearQuerySchema,
   notificationIdsSchema,
   notificationListQuerySchema,
+  notificationSeenSchema,
   notificationSettingsSchema,
   registerDeviceSchema,
   updateDeviceSchema,
@@ -27,14 +29,15 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     },
   });
 
-  app.route({
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/',
     method: 'DELETE',
     preValidation: [validJWTNeeded],
-    handler: controller.clearHistory.bind(controller),
+    handler: controller.clear.bind(controller),
     schema: {
       tags: ['Notifications'],
-      summary: 'Delete all notifications',
+      summary: 'Delete all notifications, or only what the bell shows',
+      querystring: notificationClearQuerySchema,
     },
   });
 
@@ -45,8 +48,8 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     handler: controller.markManySeen.bind(controller),
     schema: {
       tags: ['Notifications'],
-      summary: 'Mark the given notifications as seen, or all without ids',
-      body: notificationIdsSchema.partial().nullish(),
+      summary: 'Mark the given notifications as seen, without ids all or only what the bell shows',
+      body: notificationSeenSchema.nullish(),
     },
   });
 

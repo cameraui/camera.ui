@@ -3742,6 +3742,16 @@ export default {
         from: 'Von',
         to: 'Bis',
         timezone: 'Zeitzone',
+        bell: 'Glocke',
+        bell_info:
+          'Was die Glocke auflistet und zählt. Warnungen und Fehler folgen nur ihrem eigenen Schalter. Ausgeschaltetes kommt weiter auf deinen Geräten an und bleibt in der ganzen Liste.',
+        bell_groups: {
+          problems: 'Von Kameras, Plugins, Automationen und camera.ui selbst',
+          cameras: 'Alles, was zu einer Kamera gehört, etwa Erkennungen',
+          plugins: 'Nachrichten zu einem Plugin, die zu keiner Kamera gehören',
+          system: 'Hinweise von camera.ui selbst, etwa eine neue Server-Version',
+          automations: 'Benachrichtigungen, die deine Automationen senden',
+        },
         system_notifications: 'System-Benachrichtigungen',
         system_notifications_info: 'Hinweise von camera.ui selbst, etwa ein abgestürztes Plugin oder eine neue Server-Version. Schalte ab, was du nicht brauchst.',
         no_system_types: 'Keine System-Benachrichtigungstypen verfügbar.',

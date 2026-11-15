@@ -1,7 +1,7 @@
 import { Badge } from '@capawesome/capacitor-badge';
 
 import { listCastTargetsFn } from '@/api/routes/cast.js';
-import { deleteAllNotificationsFn, deleteNotificationFn, listNotificationsFn, markNotificationSeenFn, markNotificationsSeenFn } from '@/api/routes/notifications.js';
+import { clearBellFn, deleteNotificationFn, listNotificationsFn, markBellSeenFn, markNotificationSeenFn } from '@/api/routes/notifications.js';
 import { isCapacitor } from '@/connection/index.js';
 import { setFaviconBadge } from '@/utils/faviconBadge.js';
 import { dropNotifications, insertNewest, markRead, replaceNotification } from '@/utils/notificationList.js';
@@ -44,17 +44,21 @@ function ensureChannel(): SocketChannel {
     channel = ch;
 
     ch.on<StoredNotification>('added', (n) => {
-      insertNewest(state.notifications, n, BELL_LIMIT);
+      if (n.inBell !== false) insertNewest(state.notifications, n, BELL_LIMIT);
       if (!n.listOnly) forwardToDesktop(n);
     });
     ch.on<StoredNotification>('updated', (n) => replaceNotification(state.notifications, n));
     ch.on<{ ids: string[] }>('removed', ({ ids }) => {
+      const shown = state.notifications.length;
       dropNotifications(state.notifications, ids);
-      if (state.notifications.length < BELL_LIMIT) fetchNotifications();
+      if (state.notifications.length < shown) fetchNotifications();
     });
     ch.on<SeenDelta>('seen', (delta) => markRead(state.notifications, delta));
-    ch.on<number>('unread', (count) => {
+    ch.on<number>('bellUnread', (count) => {
       state.unread = count;
+    });
+    ch.on('bellChanged', () => {
+      fetchNotifications();
     });
 
     ch.on<CastTarget[]>('castTargets', (data) => {
@@ -138,9 +142,9 @@ async function fetchCastTargets(): Promise<void> {
 async function fetchNotifications(): Promise<void> {
   if (!channel?.ready.value) return;
   try {
-    const page = await listNotificationsFn({ limit: BELL_LIMIT });
+    const page = await listNotificationsFn({ limit: BELL_LIMIT, bell: true });
     state.notifications = page.items;
-    state.unread = page.unread;
+    state.unread = page.bellUnread;
     badgeReady = true;
     applyBadge();
   } catch {
@@ -180,7 +184,7 @@ export function useNotificationsSocket() {
     markRead(state.local, { at: Date.now() });
     markRead(state.notifications, { at: Date.now() });
     state.unread = 0;
-    await markNotificationsSeenFn().catch(() => fetchNotifications());
+    await markBellSeenFn().catch(() => fetchNotifications());
   }
 
   async function removeNotification(notification: StoredNotification): Promise<void> {
@@ -197,7 +201,7 @@ export function useNotificationsSocket() {
     state.local = [];
     state.notifications = [];
     state.unread = 0;
-    await deleteAllNotificationsFn().catch(() => fetchNotifications());
+    await clearBellFn().catch(() => fetchNotifications());
   }
 
   function addLocalNotification(notification: StoredNotification): void {

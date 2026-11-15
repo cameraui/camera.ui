@@ -3716,6 +3716,16 @@ export default {
         from: 'From',
         to: 'To',
         timezone: 'Timezone',
+        bell: 'Bell',
+        bell_info:
+          'Choose what the bell lists and counts. Warnings and errors only follow their own switch. What you switch off still reaches your devices and stays in the full list.',
+        bell_groups: {
+          problems: 'From cameras, plugins, automations and camera.ui itself',
+          cameras: 'Everything that belongs to a camera, such as detections',
+          plugins: 'Messages about a plugin that belong to no camera',
+          system: 'Notices from camera.ui itself, such as a new server version',
+          automations: 'Notifications your automations send',
+        },
         system_notifications: 'System Notifications',
         system_notifications_info: "Notices from camera.ui itself, like a plugin crash or a new server version. Turn off the ones you don't need.",
         no_system_types: 'No system notification types available.',

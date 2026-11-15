@@ -49,8 +49,8 @@ export {
   notificationPluginId,
   notificationSourceId,
 } from '../../server/src/manager/types.js';
-export { NOTIFICATION_FILTERS } from '../../server/src/api/schemas/notifications.schema.js';
-export type { NotificationFilter } from '../../server/src/api/schemas/notifications.schema.js';
+export { NOTIFICATION_BELL_GROUPS, NOTIFICATION_FILTERS } from '../../server/src/api/schemas/notifications.schema.js';
+export type { NotificationBellGroup, NotificationBellSettings, NotificationFilter } from '../../server/src/api/schemas/notifications.schema.js';
 export type * from '../../server/src/mqtt/types.js';
 export * from '../../server/src/plugins/schema.js';
 export * from '../../server/src/plugins/types.js';

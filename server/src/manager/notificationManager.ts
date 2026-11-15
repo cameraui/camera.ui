@@ -13,7 +13,7 @@ import { emitInternalEvent } from '../internal-bus.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { NotificationStore } from './notificationStore.js';
 import { burstMessages, PluginLogBursts } from './pluginLogBursts.js';
-import { notificationBucket, notificationCameraId, notificationPluginId, SYSTEM_NOTIFICATION_TYPES, SystemNotificationTypeId } from './types.js';
+import { notificationBucket, notificationCameraId, notificationPluginId, shownInBell, SYSTEM_NOTIFICATION_TYPES, SystemNotificationTypeId } from './types.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
@@ -27,7 +27,7 @@ import type { Plugin } from '../plugins/plugin.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { NotifyResult } from '../rpc/interfaces/notification.js';
 import type { LoggerService } from '../services/logger/index.js';
-import type { NotificationChange, NotificationSourceTally } from './notificationStore.js';
+import type { NotificationChange, NotificationMatcher, NotificationSourceTally } from './notificationStore.js';
 import type { PluginLogBurst } from './pluginLogBursts.js';
 import type { NotificationSource, NotifierDeviceWithSource, NotifyOptions, ResolvedNotification, SourcesListing } from './types.js';
 
@@ -160,8 +160,13 @@ export class NotificationManager {
 
   public page(userId: string, query: NotificationListQueryInput): NotificationPage {
     const q = query.q?.toLowerCase();
-    const matches = q ? (entry: DBNotificationEntry) => this.searchTexts(entry).some((text) => text?.toLowerCase().includes(q)) : undefined;
-    const page = this.store.page(userId, { cursor: query.cursor, limit: query.limit, filter: query.filter, source: query.source, matches });
+    const bell = this.bellFilter(userId);
+    const shown = query.bell ? bell : undefined;
+    const matches =
+      q || shown
+        ? (entry: DBNotificationEntry) => (!shown || shown(entry)) && (!q || this.searchTexts(entry).some((text) => text?.toLowerCase().includes(q)))
+        : undefined;
+    const page = this.store.page(userId, { cursor: query.cursor, limit: query.limit, filter: query.filter, source: query.source, matches, bell });
     const sources = query.cursor ? undefined : this.sources(userId, query.filter, matches);
     return { ...page, items: page.items.map((item) => this.named(item)), sources };
   }
@@ -187,19 +192,20 @@ export class NotificationManager {
     return this.store.unreadCount(userId);
   }
 
-  public async remove(userId: string, ids?: string[]): Promise<void> {
-    await this.applyChange(await this.store.hide(userId, ids));
+  public async remove(userId: string, ids?: string[], bell = false): Promise<void> {
+    await this.applyChange(await this.store.hide(userId, ids, bell ? this.bellFilter(userId) : undefined));
   }
 
   public async removeByTagForAll(tag: string): Promise<void> {
     await this.applyChange(await this.store.removeTag(tag));
   }
 
-  public async markSeen(userId: string, ids?: string[]): Promise<void> {
-    const changed = await this.store.setSeen(userId, true, ids);
+  public async markSeen(userId: string, ids?: string[], bell = false): Promise<void> {
+    const shown = bell ? this.bellFilter(userId) : undefined;
+    const changed = await this.store.setSeen(userId, true, ids, shown);
     if (!changed.length) return;
 
-    this.emitToUser(userId, 'seen', { at: changed[0].seenBy[userId], ids: ids && changed.map((entry) => entry.id) });
+    this.emitToUser(userId, 'seen', { at: changed[0].seenBy[userId], ids: ids || shown ? changed.map((entry) => entry.id) : undefined });
     this.emitUnread(userId);
     this.publishLegacyHistory(userId);
   }
@@ -211,6 +217,10 @@ export class NotificationManager {
     this.emitToUser(userId, 'updated', this.named(this.store.view(entry, userId)));
     this.emitUnread(userId);
     this.publishLegacyHistory(userId);
+  }
+
+  public bellChanged(userId: string): void {
+    this.emitToUser(userId, 'bellChanged', null);
   }
 
   public notePluginLog(pluginId: string, entry: LogEntry): void {
@@ -659,7 +669,8 @@ export class NotificationManager {
 
     for (const userId of entry.recipients) {
       const view = this.named(this.store.view(entry, userId));
-      this.emitToUser(userId, 'added', view);
+      const hidden = this.bellFilter(userId)?.(entry) === false;
+      this.emitToUser(userId, 'added', hidden ? { ...view, inBell: false } : view);
       if (!entry.listOnly) this.publishLegacy(userId, 'notification', view);
     }
     await this.applyChange(change, entry.recipients);
@@ -725,6 +736,12 @@ export class NotificationManager {
 
   private emitUnread(userId: string): void {
     this.emitToUser(userId, 'unread', this.store.unreadCount(userId));
+    this.emitToUser(userId, 'bellUnread', this.store.unreadCount(userId, this.bellFilter(userId)));
+  }
+
+  private bellFilter(userId: string): NotificationMatcher | undefined {
+    const bell = this.dbs.notificationsDB.get(userId)?.bell;
+    return bell && Object.values(bell).includes(false) ? (entry) => shownInBell(entry, bell) : undefined;
   }
 
   private publishLegacyHistory(userId: string): void {

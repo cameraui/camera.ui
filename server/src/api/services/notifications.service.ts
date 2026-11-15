@@ -1,3 +1,5 @@
+import { isEqual } from '@camera.ui/common/utils';
+
 import { inject } from '../../container.js';
 
 import type { NotifierDevice } from '@camera.ui/sdk';
@@ -36,7 +38,9 @@ export class NotificationsService {
       // plugins reach this over RPC
       throw new Error(`settings._id "${settings._id}" does not match userId "${userId}"`);
     }
+    const bell = this.dbs.notificationsDB.get(userId)?.bell;
     await this.dbs.notificationsDB.put(userId, settings);
+    if (!isEqual(bell, settings.bell)) this.proxyServer.notificationManager.bellChanged(userId);
   }
 
   public async patchSettings(userId: string, patch: Partial<Omit<DBNotificationSettings, '_id'>>): Promise<void> {
@@ -63,8 +67,8 @@ export class NotificationsService {
     return this.proxyServer.notificationManager.getEntry(userId, id);
   }
 
-  public async remove(userId: string, ids?: string[]): Promise<void> {
-    await this.proxyServer.notificationManager.remove(userId, ids);
+  public async remove(userId: string, ids?: string[], bell?: boolean): Promise<void> {
+    await this.proxyServer.notificationManager.remove(userId, ids, bell);
   }
 
   public getHistoryImagePath(userId: string, id: string): string | null {
@@ -75,8 +79,8 @@ export class NotificationsService {
     return this.proxyServer.notificationManager.getVideoPath(userId, id);
   }
 
-  public async markSeen(userId: string, ids?: string[]): Promise<void> {
-    await this.proxyServer.notificationManager.markSeen(userId, ids);
+  public async markSeen(userId: string, ids?: string[], bell?: boolean): Promise<void> {
+    await this.proxyServer.notificationManager.markSeen(userId, ids, bell);
   }
 
   public async markUnseen(userId: string, id: string): Promise<void> {

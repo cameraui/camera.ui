@@ -30,6 +30,7 @@ export interface NotificationListParams {
   filter?: NotificationFilter;
   q?: string;
   source?: string;
+  bell?: boolean;
 }
 
 export async function getNotificationSettingsFn({ signal }: { signal: AbortSignal }): Promise<DBNotificationSettings> {
@@ -87,8 +88,12 @@ export async function deleteNotificationsFn(ids: string[]): Promise<void> {
   await api.post('/notifications/delete', { ids });
 }
 
-export async function deleteAllNotificationsFn(): Promise<void> {
-  await api.delete('/notifications');
+export async function markBellSeenFn(): Promise<void> {
+  await api.post('/notifications/seen', { bell: true });
+}
+
+export async function clearBellFn(): Promise<void> {
+  await api.delete('/notifications', { params: { bell: true } });
 }
 
 export async function revokeNotifierDeviceFn({ deviceId }: { deviceId: string }): Promise<void> {

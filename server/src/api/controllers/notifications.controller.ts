@@ -8,11 +8,13 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DBNotificationSettings } from '../database/types.js';
 import type {
   AuthLoginRequest,
+  NotificationsClearRequest,
   NotificationsEntryRequest,
   NotificationsIdsRequest,
   NotificationsListRequest,
   NotificationsRegisterDeviceRequest,
   NotificationsRevokeDeviceRequest,
+  NotificationsSeenRequest,
   NotificationsSettingsRequest,
   NotificationsUpdateDeviceRequest,
 } from '../types/index.js';
@@ -99,6 +101,15 @@ export class NotificationsController {
     }
   }
 
+  public async clear(req: FastifyRequest<AuthLoginRequest & NotificationsClearRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.remove(req.locals.user!._id, undefined, req.query.bell);
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async markUnseen(req: FastifyRequest<AuthLoginRequest & NotificationsEntryRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       await this.service.markUnseen(req.locals.user!._id, req.params.id);
@@ -177,9 +188,9 @@ export class NotificationsController {
     }
   }
 
-  public async markManySeen(req: FastifyRequest<AuthLoginRequest & NotificationsIdsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+  public async markManySeen(req: FastifyRequest<AuthLoginRequest & NotificationsSeenRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      await this.service.markSeen(req.locals.user!._id, req.body?.ids);
+      await this.service.markSeen(req.locals.user!._id, req.body?.ids, req.body?.bell);
       return reply.code(204).send();
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });

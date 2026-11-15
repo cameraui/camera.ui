@@ -108,6 +108,39 @@
 
       <CuiEventPopupSettings v-if="showRest && isElectronApp" />
 
+      <div v-if="showRest">
+        <span class="card-title">{{ $t('views.settings.notifications.bell') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.notifications.bell_info') }}</span>
+
+              <div class="flex flex-col gap-2">
+                <CuiToggleRow
+                  v-for="group in NOTIFICATION_BELL_GROUPS"
+                  :key="group"
+                  :label="$t(`views.notifications.filter_${group}`)"
+                  :hint="$t(`views.settings.notifications.bell_groups.${group}`)"
+                >
+                  <ToggleSwitch :model-value="isSwitchedOn('bell', group)" @update:model-value="(v) => setSwitch('bell', group, v as boolean)" />
+                </CuiToggleRow>
+              </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  :loading="saving === 'bell'"
+                  :disabled="!dirty.bell || !!saving"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  @click="saveCard('bell')"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
       <div v-if="showRest && isAdmin">
         <span class="card-title">{{ $t('views.settings.notifications.system_notifications') }}</span>
         <Card class="cui-card">
@@ -125,7 +158,7 @@
 
               <div v-else class="flex flex-col gap-2">
                 <CuiToggleRow v-for="info in sources.system" :key="info.type" :label="systemLabel(info)" :hint="info.description">
-                  <ToggleSwitch :model-value="isSystemTypeEnabled(info.type)" @update:model-value="(v) => setSystemTypeEnabled(info.type, v as boolean)" />
+                  <ToggleSwitch :model-value="isSwitchedOn('systemTypes', info.type)" @update:model-value="(v) => setSwitch('systemTypes', info.type, v as boolean)" />
                 </CuiToggleRow>
               </div>
 
@@ -161,7 +194,7 @@
 
               <div v-else class="flex flex-col gap-2">
                 <CuiToggleRow v-for="plugin in sources.plugins" :key="plugin.id" :label="plugin.name">
-                  <ToggleSwitch :model-value="isPluginSourceEnabled(plugin.id)" @update:model-value="(v) => setPluginSourceEnabled(plugin.id, v as boolean)" />
+                  <ToggleSwitch :model-value="isSwitchedOn('sources', plugin.id)" @update:model-value="(v) => setSwitch('sources', plugin.id, v as boolean)" />
                 </CuiToggleRow>
               </div>
 
@@ -255,6 +288,7 @@
 
 <script setup lang="ts">
 import { isEqual } from '@camera.ui/common/utils';
+import { NOTIFICATION_BELL_GROUPS } from '@shared/types';
 
 import { NotificationsQuery } from '@/api/routes/notifications.js';
 import { bounceToCloudFrontend, getCurrentServerId, getDirectServer, isCapacitor } from '@/connection/index.js';
@@ -262,9 +296,10 @@ import { bounceToCloudFrontend, getCurrentServerId, getDirectServer, isCapacitor
 import type { UpdateNotifierDevicePatch } from '@/api/routes/notifications.js';
 import type { DBNotificationSettings, SystemNotificationType } from '@shared/types';
 
-type Card = 'general' | 'system' | 'plugins';
+type Card = 'general' | 'bell' | 'system' | 'plugins';
+type SwitchField = 'bell' | 'systemTypes' | 'sources';
 
-const CARD_FIELDS = { general: 'quietHours', system: 'systemTypes', plugins: 'sources' } as const satisfies Record<Card, keyof DBNotificationSettings>;
+const CARD_FIELDS = { general: 'quietHours', bell: 'bell', system: 'systemTypes', plugins: 'sources' } as const satisfies Record<Card, keyof DBNotificationSettings>;
 
 const notificationsQuery = new NotificationsQuery();
 
@@ -299,7 +334,7 @@ const deviceEdits = reactive<Record<string, UpdateNotifierDevicePatch>>({});
 
 const dirty = computed(() => {
   const changed = (card: Card) => !!draft.value && !!settings.value && !isEqual(cardValue(draft.value, card), cardValue(settings.value, card));
-  return { general: changed('general'), system: changed('system'), plugins: changed('plugins'), devices: devicePatches.value.length > 0 };
+  return { general: changed('general'), bell: changed('bell'), system: changed('system'), plugins: changed('plugins'), devices: devicePatches.value.length > 0 };
 });
 const devicePatches = computed(() =>
   (devices.value ?? []).flatMap((device) => {
@@ -370,31 +405,18 @@ function setQuietHoursTime(field: 'from' | 'to', value: Date | null) {
   draft.value.quietHours[field] = formatTime(value);
 }
 
-function isSystemTypeEnabled(type: string): boolean {
-  return draft.value?.systemTypes?.[type] !== false;
+function isSwitchedOn(field: SwitchField, key: string): boolean {
+  const switches: Record<string, boolean | undefined> | undefined = draft.value?.[field];
+  return switches?.[key] !== false;
 }
 
-function setSystemTypeEnabled(type: string, enabled: boolean) {
+function setSwitch(field: SwitchField, key: string, on: boolean) {
   if (!draft.value) return;
-  if (!draft.value.systemTypes) draft.value.systemTypes = {};
-  if (enabled) {
-    delete draft.value.systemTypes[type];
+  const switches: Record<string, boolean | undefined> = (draft.value[field] ??= {});
+  if (on) {
+    delete switches[key];
   } else {
-    draft.value.systemTypes[type] = false;
-  }
-}
-
-function isPluginSourceEnabled(pluginId: string): boolean {
-  return draft.value?.sources?.[pluginId] !== false;
-}
-
-function setPluginSourceEnabled(pluginId: string, enabled: boolean) {
-  if (!draft.value) return;
-  if (!draft.value.sources) draft.value.sources = {};
-  if (enabled) {
-    delete draft.value.sources[pluginId];
-  } else {
-    draft.value.sources[pluginId] = false;
+    switches[key] = false;
   }
 }
 

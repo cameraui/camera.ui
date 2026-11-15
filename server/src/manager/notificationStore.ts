@@ -7,12 +7,15 @@ import type { DBNotificationEntry, StoredNotification } from '../api/database/ty
 import type { NotificationFilter } from '../api/schemas/notifications.schema.js';
 import type { NotificationPage } from '../api/types/index.js';
 
+export type NotificationMatcher = (entry: DBNotificationEntry) => boolean;
+
 export interface NotificationQuery {
   cursor?: string;
   limit: number;
   filter: NotificationFilter;
   source?: string;
-  matches?: (entry: DBNotificationEntry) => boolean;
+  matches?: NotificationMatcher;
+  bell?: NotificationMatcher;
 }
 
 export interface NotificationSourceTally {
@@ -90,9 +93,9 @@ export class NotificationStore {
     return entry;
   }
 
-  public async setSeen(userId: string, seen: boolean, ids?: string[]): Promise<DBNotificationEntry[]> {
+  public async setSeen(userId: string, seen: boolean, ids?: string[], matches?: NotificationMatcher): Promise<DBNotificationEntry[]> {
     const now = Date.now();
-    const changed = this.targets(userId, ids).filter((entry) => userId in entry.seenBy !== seen);
+    const changed = this.targets(userId, ids, matches).filter((entry) => userId in entry.seenBy !== seen);
 
     for (const entry of changed) {
       if (seen) entry.seenBy[userId] = now;
@@ -103,11 +106,11 @@ export class NotificationStore {
     return changed;
   }
 
-  public async hide(userId: string, ids?: string[]): Promise<NotificationChange> {
+  public async hide(userId: string, ids?: string[], matches?: NotificationMatcher): Promise<NotificationChange> {
     const change: NotificationChange = { removed: new Map(), dropped: [] };
     const touched = new Set<DBNotificationEntry>();
 
-    for (const entry of this.targets(userId, ids)) {
+    for (const entry of this.targets(userId, ids, matches)) {
       this.withdraw(entry, [userId], change, touched);
     }
 
@@ -147,6 +150,7 @@ export class NotificationStore {
       cursor: more && last ? `${last.createdAt}:${last.id}` : undefined,
       counts: query.cursor ? undefined : this.counts(userId, query.matches),
       unread: this.unreadCount(userId),
+      bellUnread: this.unreadCount(userId, query.bell),
     };
   }
 
@@ -159,15 +163,15 @@ export class NotificationStore {
     return items;
   }
 
-  public unreadCount(userId: string): number {
+  public unreadCount(userId: string, matches?: NotificationMatcher): number {
     let count = 0;
     for (const entry of this.sorted) {
-      if (entry.recipients.includes(userId) && !(userId in entry.seenBy)) count++;
+      if (entry.recipients.includes(userId) && !(userId in entry.seenBy) && (!matches || matches(entry))) count++;
     }
     return count;
   }
 
-  public bySource(userId: string, filter: NotificationFilter, matches?: (entry: DBNotificationEntry) => boolean): Map<string, NotificationSourceTally> {
+  public bySource(userId: string, filter: NotificationFilter, matches?: NotificationMatcher): Map<string, NotificationSourceTally> {
     const sources = new Map<string, NotificationSourceTally>();
     for (const entry of this.sorted) {
       const id = this.listed(entry, userId, filter, matches) ? notificationSourceId(entry) : undefined;
@@ -179,7 +183,7 @@ export class NotificationStore {
     return sources;
   }
 
-  private counts(userId: string, matches?: (entry: DBNotificationEntry) => boolean): Record<NotificationFilter, number> {
+  private counts(userId: string, matches?: NotificationMatcher): Record<NotificationFilter, number> {
     const counts = Object.fromEntries(NOTIFICATION_FILTERS.map((filter) => [filter, 0])) as Record<NotificationFilter, number>;
     for (const entry of this.sorted) {
       if (!entry.recipients.includes(userId) || (matches && !matches(entry))) continue;
@@ -190,13 +194,13 @@ export class NotificationStore {
     return counts;
   }
 
-  private listed(entry: DBNotificationEntry, userId: string, filter: NotificationFilter, matches?: (entry: DBNotificationEntry) => boolean): boolean {
+  private listed(entry: DBNotificationEntry, userId: string, filter: NotificationFilter, matches?: NotificationMatcher): boolean {
     return entry.recipients.includes(userId) && matchesNotificationFilter(entry, !(userId in entry.seenBy), filter) && (!matches || matches(entry));
   }
 
-  private targets(userId: string, ids?: string[]): DBNotificationEntry[] {
+  private targets(userId: string, ids?: string[], matches?: NotificationMatcher): DBNotificationEntry[] {
     const entries = ids ? ids.map((id) => this.byId.get(id)).filter((entry) => entry !== undefined) : this.sorted;
-    return entries.filter((entry) => entry.recipients.includes(userId));
+    return entries.filter((entry) => entry.recipients.includes(userId) && (!matches || matches(entry)));
   }
 
   private withdraw(entry: DBNotificationEntry, users: string[], change: NotificationChange, touched: Set<DBNotificationEntry>): void {
