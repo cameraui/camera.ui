@@ -130,7 +130,6 @@ export class RemoteService {
         return { state: 'denied' };
       case 'approved':
         await this.clearPendingPair();
-        await this.syncTunnelClientRuntime(true);
         try {
           await this.syncServer(enabled, registrationId);
         } catch {
