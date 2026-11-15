@@ -1,6 +1,6 @@
 import { compareVersions, validate } from 'compare-versions';
 
-export const MIN_SERVER_VERSION = '2.4.0';
+export const MIN_SERVER_VERSION = '2.5.0';
 export const MIN_NVR_PLUGIN_VERSION = '1.6.0';
 
 export interface OutdatedComponent {
