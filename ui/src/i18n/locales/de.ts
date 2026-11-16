@@ -2447,6 +2447,7 @@ export default {
       show_performance: 'Leistung anzeigen',
       show_processes: 'Prozesse anzeigen',
       show_streams: 'Streams anzeigen',
+      status_idle: 'Bereit',
       status_recording: 'Aufnahme',
       status_stopped: 'Gestoppt',
       storage_not_available: 'Nicht verfügbar',

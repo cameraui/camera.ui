@@ -2430,6 +2430,7 @@ export default {
       show_performance: 'Show performance',
       show_processes: 'Show processes',
       show_streams: 'Show streams',
+      status_idle: 'Idle',
       status_recording: 'Recording',
       status_stopped: 'Stopped',
       storage_not_available: 'Not available',

@@ -218,10 +218,7 @@
                     <Column field="status" :header="''" header-class="p-2! w-5 max-w-5" class="p-2! w-5 max-w-5">
                       <template #body="{ data }">
                         <div class="flex items-center">
-                          <Badge
-                            v-tooltip="{ value: data.isRecording ? $t('views.metrics.status_recording') : $t('views.metrics.status_stopped') }"
-                            :style="{ background: data.isRecording ? 'green' : 'gray' }"
-                          />
+                          <Badge v-tooltip="{ value: recordingStatus(data) }" :style="{ background: data.isRecording ? 'green' : 'gray' }" />
                         </div>
                       </template>
                     </Column>
@@ -1081,6 +1078,12 @@ async function pluginRestart(pluginName: string): Promise<void> {
   } finally {
     pluginsRestarting.value = pluginsRestarting.value.filter((plugin) => plugin !== pluginName);
   }
+}
+
+function recordingStatus(row: CameraStorageRow): string {
+  if (row.isRecording) return t('views.metrics.status_recording');
+  if (row.recordingEnabled && row.recordingMode !== 'continuous') return t('views.metrics.status_idle');
+  return t('views.metrics.status_stopped');
 }
 
 function deleteRecordingsTooltip(row: CameraStorageRow): string {
