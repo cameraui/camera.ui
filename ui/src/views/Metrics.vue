@@ -218,7 +218,10 @@
                     <Column field="status" :header="''" header-class="p-2! w-5 max-w-5" class="p-2! w-5 max-w-5">
                       <template #body="{ data }">
                         <div class="flex items-center">
-                          <Badge v-tooltip="{ value: recordingStatus(data) }" :style="{ background: data.isRecording ? 'green' : 'gray' }" />
+                          <Badge
+                            v-tooltip="{ value: $t(`views.metrics.status_${data.status}`) }"
+                            :style="{ background: RECORDING_STATUS_COLORS[data.status as RecordingStatus] }"
+                          />
                         </div>
                       </template>
                     </Column>
@@ -307,6 +310,8 @@ import type { DataTablePassThroughOptions } from 'openvue';
 
 ChartJS.register(DoughnutController, ArcElement);
 
+type RecordingStatus = 'recording' | 'idle' | 'no_slot' | 'off' | 'stopped';
+
 interface CameraStorageRow {
   id: string;
   name: string;
@@ -315,7 +320,7 @@ interface CameraStorageRow {
   bandwidthMBh: number;
   recordingMode: string;
   recordingEnabled: boolean;
-  isRecording: boolean;
+  status: RecordingStatus;
   ownLimits: boolean;
   limits: string;
   deleting: boolean;
@@ -345,6 +350,13 @@ const { active: storageActive, anchor: storageAnchor, listeners: storageListener
 
 const METRICS_TABS = ['overview', 'cameras', 'storage'];
 const STORAGE_COLORS = ['#df2a4c', 'rgba(223,42,76,0.35)', 'rgba(223,42,76,0.10)'];
+const RECORDING_STATUS_COLORS: Record<RecordingStatus, string> = {
+  recording: 'green',
+  idle: 'steelblue',
+  no_slot: 'orange',
+  off: 'gray',
+  stopped: 'red',
+};
 
 const storageChartOptions: ChartOptions<'doughnut'> = {
   responsive: true,
@@ -859,7 +871,7 @@ const cameraRows = computed<CameraStorageRow[]>(() => {
       bandwidthMBh: cam.bandwidthMBh,
       recordingMode: cam.recordingMode,
       recordingEnabled: cam.recordingEnabled !== false,
-      isRecording: cam.isRecording,
+      status: cam.recordingStatus ?? statusFromFlags(cam.isRecording, cam.recordingEnabled !== false, cam.recordingMode),
       ownLimits: cam.ownLimits === true,
       limits: cam.ownLimits ? cameraLimits(cam.retentionDays ?? 0, cam.maxStorageGB ?? 0) : t('views.metrics.limits_global'),
       deleting: cam.deleting === true,
@@ -1080,10 +1092,10 @@ async function pluginRestart(pluginName: string): Promise<void> {
   }
 }
 
-function recordingStatus(row: CameraStorageRow): string {
-  if (row.isRecording) return t('views.metrics.status_recording');
-  if (row.recordingEnabled && row.recordingMode !== 'continuous') return t('views.metrics.status_idle');
-  return t('views.metrics.status_stopped');
+function statusFromFlags(isRecording: boolean, enabled: boolean, mode: string): RecordingStatus {
+  if (isRecording) return 'recording';
+  if (!enabled) return 'off';
+  return mode === 'continuous' ? 'stopped' : 'idle';
 }
 
 function deleteRecordingsTooltip(row: CameraStorageRow): string {

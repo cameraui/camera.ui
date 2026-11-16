@@ -2448,6 +2448,8 @@ export default {
       show_processes: 'Prozesse anzeigen',
       show_streams: 'Streams anzeigen',
       status_idle: 'Bereit',
+      status_no_slot: 'Kein Aufnahme-Slot',
+      status_off: 'Aus',
       status_recording: 'Aufnahme',
       status_stopped: 'Gestoppt',
       storage_not_available: 'Nicht verfügbar',

@@ -2431,6 +2431,8 @@ export default {
       show_processes: 'Show processes',
       show_streams: 'Show streams',
       status_idle: 'Idle',
+      status_no_slot: 'No recording slot',
+      status_off: 'Off',
       status_recording: 'Recording',
       status_stopped: 'Stopped',
       storage_not_available: 'Not available',
