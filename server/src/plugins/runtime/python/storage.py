@@ -171,8 +171,7 @@ class DeviceStorage(DeviceStorageInterface):
 
                     if inspect.iscoroutine(res):
                         return await res
-                    else:
-                        return on_click_function(new_value)
+                    return res
 
         return None
 
