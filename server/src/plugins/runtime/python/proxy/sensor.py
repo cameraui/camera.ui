@@ -57,6 +57,7 @@ class SensorProxy(SensorLike):
         self._connected_changed_subject: Subject[bool] = Subject()
         self._assignment_changed_subject: Subject[list[str]] = Subject()
         self._event_subscription: CloseHandler | None = None
+        self._event_counts: dict[str, int] = {}
 
     @property
     def id(self) -> str:
@@ -166,17 +167,26 @@ class SensorProxy(SensorLike):
     def _set_exposed(self, exposed: bool) -> None:
         self._exposed = exposed
 
-    def _apply_refreshed_state(self, state: SensorRefreshedState) -> None:
+    def _event_marks(self) -> dict[str, int]:
+        return dict(self._event_counts)
+
+    def _apply_refreshed_state(
+        self, state: SensorRefreshedState, marks: dict[str, int] | None = None
+    ) -> None:
+        def current(key: str) -> bool:
+            return marks is None or self._event_counts.get(key) == marks.get(key)
+
         display_name = state.get("displayName")
-        if display_name:
+        if display_name and current("displayName"):
             self._set_display_name(display_name)
 
         capabilities = list(state.get("capabilities", []))
-        if sorted(capabilities) != sorted(self._capabilities):
+        if current("capabilities") and sorted(capabilities) != sorted(self._capabilities):
             self._update_capabilities(capabilities)
 
         for property, value in state.get("properties", {}).items():
-            self._update_cached_value(property, value)
+            if current(f"property:{property}"):
+                self._update_cached_value(property, value)
 
     async def _subscribe_to_events(self) -> None:
         if self._event_subscription is not None:
@@ -197,13 +207,19 @@ class SensorProxy(SensorLike):
         data = event.get("data", {})
 
         if event_type == "property:changed":
+            self._count_event(f"property:{data.get('property')}")
             self._update_cached_value(data.get("property"), data.get("value"), data.get("timestamp"))
 
         elif event_type == "sensor:capabilities:changed":
+            self._count_event("capabilities")
             self._update_capabilities(data.get("capabilities", []))
 
         elif event_type == "sensor:displayName:changed":
+            self._count_event("displayName")
             self._set_display_name(data.get("displayName", self._name))
+
+    def _count_event(self, key: str) -> None:
+        self._event_counts[key] = self._event_counts.get(key, 0) + 1
 
     def to_stored_data(self) -> StoredSensorData:
         data: StoredSensorData = {

@@ -1,3 +1,4 @@
+import { isEqual } from '@camera.ui/common/utils';
 import { PluginInterface } from '@camera.ui/sdk';
 
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
@@ -26,6 +27,11 @@ import type { StorageController } from '../storageController.js';
 
 const DETECTION_SENSOR_TYPES: ReadonlySet<SensorType> = new Set(getDetectionTypes());
 
+function syncAssignedCameras(target: Sensor<any, any, any> | SensorProxy, cameraIds: string[]): void {
+  if (isEqual(target.assignedCameraIds, cameraIds, true)) return;
+  target._setAssignedCameras(cameraIds);
+}
+
 function toAdopted(data: StoredSensorData): AdoptedSensor {
   return { id: data.id, nativeId: data.nativeId!, address: data.address, name: data.name, type: data.type };
 }
@@ -45,6 +51,7 @@ export class SensorManagerProxy implements SensorManager {
 
   #globalUnsubscribe?: () => void;
   #stopReconnectWatch?: () => void;
+  #eventChain: Promise<void> = Promise.resolve();
 
   constructor(proxy: RPCClient, storageController: StorageController, plugin: PluginInfo, logger: Logger) {
     this.#proxy = proxy;
@@ -76,17 +83,9 @@ export class SensorManagerProxy implements SensorManager {
     await this.#ensureGlobalSubscription();
     if (!this.#consumesSomething) return;
 
-    try {
-      const sensors = await this.#registryProxy.getSensors(this.#plugin.id);
-      for (const data of sensors) {
-        if (!this.#isConsumable(data)) continue;
-        this.#addConsumed(data);
-      }
-    } catch {
-      // registry not reachable yet, sensors arrive via events
-    }
-
-    await this.#pluginInstance?.configureSensors?.(Array.from(this.#consumed.values()));
+    const run = this.#eventChain.then(() => this.#configureConsumed());
+    this.#eventChain = run.catch(() => {});
+    await run;
   }
 
   public async configureAdoptedSensors(): Promise<void> {
@@ -163,7 +162,7 @@ export class SensorManagerProxy implements SensorManager {
       const registration = await this.#registryProxy.registerSensor(this.#registrationJson(sensor), this.#plugin.id);
       sensor._setAssignedCameras(registration.assignedCameraIds);
     }
-    await this.#resyncAllConsumed();
+    await this.#resync();
   }
 
   public async close(): Promise<void> {
@@ -187,6 +186,24 @@ export class SensorManagerProxy implements SensorManager {
       sensor._cleanup();
     }
     this.#owned.clear();
+  }
+
+  async #adoptOwn(record: AdoptedSensor): Promise<void> {
+    const plugin = this.#pluginInstance;
+    if (!plugin?.onSensorAdopted) return;
+
+    let sensor: Sensor<any, any, any>;
+    try {
+      sensor = await plugin.onSensorAdopted(record);
+    } catch (error) {
+      this.#logger.warn(`onSensorAdopted failed for "${record.name}":`, error);
+      return;
+    }
+    if (sensor.nativeId !== record.nativeId) {
+      this.#logger.warn(`Sensor "${sensor.name}" returned by onSensorAdopted carries nativeId ${sensor.nativeId ?? 'missing'}, expected ${record.nativeId}, ignored`);
+      return;
+    }
+    await this.#bindAdopted(sensor, record);
   }
 
   async #bindAdopted(sensor: Sensor<any, any, any>, record: AdoptedSensor): Promise<void> {
@@ -299,6 +316,16 @@ export class SensorManagerProxy implements SensorManager {
     return sensorJSON;
   }
 
+  async #configureConsumed(): Promise<void> {
+    try {
+      await this.#syncSensors();
+    } catch {
+      // registry not reachable yet, sensors arrive via events
+    }
+
+    await this.#pluginInstance?.configureSensors?.(Array.from(this.#consumed.values()));
+  }
+
   async #ensureGlobalSubscription(): Promise<void> {
     if (this.#globalUnsubscribe) return;
 
@@ -306,7 +333,7 @@ export class SensorManagerProxy implements SensorManager {
       this.#proxy,
       async () => {
         await this.#sendUnsent();
-        await this.#resyncAllConsumed();
+        await this.#resync();
       },
       (error) => this.#logger.debug('Sensor reconnect watch ended:', error),
       { debounce: true },
@@ -314,9 +341,11 @@ export class SensorManagerProxy implements SensorManager {
 
     const ns = NamespaceManager.sensorRegistryNamespaces();
     this.#globalUnsubscribe = await this.#proxy.subscribe<SensorEventMessage>(ns.sensorsSubject, (message) => {
-      this.#onGlobalSensorEvent(message).catch((error: unknown) => {
-        this.#logger.warn('Sensor event handling failed:', error);
-      });
+      this.#eventChain = this.#eventChain
+        .then(() => this.#onGlobalSensorEvent(message))
+        .catch((error: unknown) => {
+          this.#logger.warn('Sensor event handling failed:', error);
+        });
     });
   }
 
@@ -337,19 +366,52 @@ export class SensorManagerProxy implements SensorManager {
     }
   }
 
-  async #resyncAllConsumed(): Promise<void> {
-    for (const sensorId of [...this.#consumed.keys()]) {
-      await this.#resyncConsumed(sensorId);
+  #resync(): Promise<void> {
+    this.#eventChain = this.#eventChain.then(async () => {
+      try {
+        for (const proxySensor of await this.#syncSensors()) {
+          await this.#pluginInstance?.onSensorAdded?.(proxySensor);
+        }
+      } catch (error) {
+        this.#logger.debug('Sensor resync failed:', error);
+      }
+    });
+    return this.#eventChain;
+  }
+
+  async #syncSensors(): Promise<SensorProxy[]> {
+    const marks = new Map(Array.from(this.#consumed, ([sensorId, proxySensor]) => [sensorId, proxySensor._eventMarks()]));
+    const sensors = await this.#registryProxy.getSensors(this.#plugin.id);
+
+    const added: Promise<SensorProxy>[] = [];
+    for (const data of sensors) {
+      const own = this.#owned.get(data.id) ?? this.#external.get(data.id);
+      const held = this.#consumed.get(data.id);
+      if (own) {
+        syncAssignedCameras(own, data.assignedCameraIds);
+      } else if (!this.#isConsumable(data)) {
+        if (held && !data.exposed) this.#releaseConsumed(data.id);
+      } else if (!held) {
+        added.push(this.#addConsumed(data));
+      } else {
+        held._setConnected(data.connected);
+        syncAssignedCameras(held, data.assignedCameraIds);
+        if (data.connected) {
+          held._applyRefreshedState({ type: data.type, properties: data.properties, capabilities: data.capabilities, displayName: data.displayName }, marks.get(data.id));
+        }
+      }
     }
+    return Promise.all(added);
   }
 
   async #resyncConsumed(sensorId: string): Promise<void> {
     const proxySensor = this.#consumed.get(sensorId);
     if (!proxySensor) return;
 
+    const marks = proxySensor._eventMarks();
     try {
       const state = await this.#registryProxy.getSensorState(sensorId);
-      if (state) proxySensor._applyRefreshedState(state);
+      if (state) proxySensor._applyRefreshedState(state, marks);
     } catch {
       // owner or registry unreachable, the next re-announce carries the state
     }
@@ -365,11 +427,12 @@ export class SensorManagerProxy implements SensorManager {
     return this.#plugin.contract.consumes.includes(data.type);
   }
 
-  #addConsumed(data: StoredSensorData): SensorProxy {
+  async #addConsumed(data: StoredSensorData): Promise<SensorProxy> {
     const ownerNamespace = NamespaceManager.sensorProviderNamespaces(data.pluginId, data.id).sensorRpc;
     const proxySensor = new SensorProxy(data, this.#proxy, ownerNamespace);
-    proxySensor._subscribeToEvents();
     this.#consumed.set(data.id, proxySensor);
+    await proxySensor._subscribeToEvents();
+    if (data.connected) await this.#resyncConsumed(data.id);
     return proxySensor;
   }
 
@@ -395,27 +458,14 @@ export class SensorManagerProxy implements SensorManager {
           return;
         }
         if (!this.#isConsumable(event.sensor)) return;
-        const proxySensor = this.#addConsumed(event.sensor);
+        const proxySensor = await this.#addConsumed(event.sensor);
         await this.#pluginInstance?.onSensorAdded?.(proxySensor);
         break;
       }
       case 'sensor:adopted': {
         const event = message.data as SensorAdoptedEvent;
-        const plugin = this.#pluginInstance;
-        if (!this.#isOwnAdopted(event.sensor) || !plugin?.onSensorAdopted || this.#owned.has(event.sensor.id)) break;
-        const record = toAdopted(event.sensor);
-        let sensor: Sensor<any, any, any>;
-        try {
-          sensor = await plugin.onSensorAdopted(record);
-        } catch (error) {
-          this.#logger.warn(`onSensorAdopted failed for "${record.name}":`, error);
-          break;
-        }
-        if (sensor.nativeId !== record.nativeId) {
-          this.#logger.warn(`Sensor "${sensor.name}" returned by onSensorAdopted carries nativeId ${sensor.nativeId ?? 'missing'}, expected ${record.nativeId}, ignored`);
-          break;
-        }
-        await this.#bindAdopted(sensor, record);
+        if (!this.#isOwnAdopted(event.sensor) || this.#owned.has(event.sensor.id)) break;
+        this.#adoptOwn(toAdopted(event.sensor));
         break;
       }
       case 'sensor:deleted': {
@@ -447,7 +497,7 @@ export class SensorManagerProxy implements SensorManager {
         if (this.#consumed.has(event.sensorId)) return;
         const data = await this.#registryProxy.getSensorRpc(event.sensorId, this.#plugin.id);
         if (!data || !this.#isConsumable(data)) return;
-        const proxySensor = this.#addConsumed(data);
+        const proxySensor = await this.#addConsumed(data);
         await this.#pluginInstance?.onSensorAdded?.(proxySensor);
         break;
       }

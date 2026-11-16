@@ -160,6 +160,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         self._detection_event_subject: Subject[DetectionEventPayload] = Subject()
 
         self._event_subscriptions: dict[str, CloseHandler] = {}
+        self._event_counts = {"updated": 0, "cameraState": 0, "frameWorkerState": 0}
         self._refresh_lock = asyncio.Lock()
         self._detection_wire: CloseHandler | None = None
         self._detection_wire_pending = False
@@ -657,14 +658,22 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
                 await close()
 
     async def _apply_states(self) -> dict[str, Any]:
+        sent = dict(self._event_counts)
         response = await self._camera_controller_proxy.refreshStates()
+        counts = self._event_counts
 
         # a resync must not wake subscribers for state they already hold
-        if response["camera"] != self._camera_subject.value:
+        if counts["updated"] == sent["updated"] and response["camera"] != self._camera_subject.value:
             self._camera_subject.next(response["camera"])
-        if response["cameraState"] != self._camera_state.value:
+        if (
+            counts["cameraState"] == sent["cameraState"]
+            and response["cameraState"] != self._camera_state.value
+        ):
             self._camera_state.next(response["cameraState"])
-        if response["frameWorkerState"] != self._frame_worker_state.value:
+        if (
+            counts["frameWorkerState"] == sent["frameWorkerState"]
+            and response["frameWorkerState"] != self._frame_worker_state.value
+        ):
             self._frame_worker_state.next(response["frameWorkerState"])
 
         return response
@@ -683,6 +692,9 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
 
         event_type = event.get("type")
         data = event.get("data")
+
+        if data is not None and event_type in self._event_counts:
+            self._event_counts[event_type] += 1
 
         if event_type == "removed":
             await self.cleanup()

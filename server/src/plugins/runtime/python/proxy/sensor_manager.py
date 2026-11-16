@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         SensorDeletedEvent,
         SensorEventMessage,
         SensorExposedChangedEvent,
+        SensorRefreshedState,
         StoredSensorData,
     )
 
@@ -79,6 +80,7 @@ class SensorManagerProxy:
         self._unsent: dict[str, set[str]] = {}
         self._report_writes: dict[str, Callable[[str, SensorType, dict[str, Any]], Awaitable[None]]] = {}
         self._global_unsubscribe: CloseHandler | None = None
+        self._event_lock = asyncio.Lock()
         self._closed = False
 
         self._tasks = TaskSet(name=f"SensorManager:{plugin['id']}")
@@ -119,23 +121,15 @@ class SensorManagerProxy:
         if not self._consumes_something:
             return
 
-        try:
-            sensors = await self._registry_proxy.getSensors(self._plugin["id"])
-            for data in sensors:
-                if not self._is_consumable(data):
-                    continue
-                self._add_consumed(data)
-        except Exception:
+        async with self._event_lock:
             # registry not reachable yet, sensors arrive via events
-            pass
+            with contextlib.suppress(Exception):
+                await self._sync_sensors()
 
-        for sensor_proxy in self._consumed.values():
-            await sensor_proxy._subscribe_to_events()  # pyright: ignore[reportPrivateUsage]
-
-        if self._plugin_instance:
-            await self._plugin_instance.configureSensors(
-                cast("list[SensorLike]", list(self._consumed.values()))
-            )
+            if self._plugin_instance:
+                await self._plugin_instance.configureSensors(
+                    cast("list[SensorLike]", list(self._consumed.values()))
+                )
 
     async def configure_adopted_sensors(self) -> None:
         plugin = self._discovery_plugin
@@ -237,6 +231,20 @@ class SensorManagerProxy:
         except Exception as e:
             self._logger.warn(f'Binding adopted sensor "{record["name"]}" failed: {e}')
 
+    async def _adopt_own(self, plugin: SensorDiscoveryProvider, record: AdoptedSensor) -> None:
+        try:
+            sensor = await plugin.onSensorAdopted(record)
+        except Exception as e:
+            self._logger.warn(f'onSensorAdopted failed for "{record["name"]}": {e}')
+            return
+        if sensor.nativeId != record["nativeId"]:
+            self._logger.warn(
+                f'Sensor "{sensor.name}" returned by onSensorAdopted carries nativeId '
+                f"{sensor.nativeId or 'missing'}, expected {record['nativeId']}, ignored"
+            )
+            return
+        await self._bind_adopted(sensor, record)
+
     def _unbind(self, sensor_id: str) -> Sensor[Any, Any, Any] | None:
         sensor = self._owned.pop(sensor_id, None)
         self._unsent.pop(sensor_id, None)
@@ -318,7 +326,7 @@ class SensorManagerProxy:
                 self._registration_json(sensor), self._plugin["id"]
             )
             sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
-        await self._resync_all_consumed()
+        await self._sync_and_announce()
 
     def _registration_json(self, sensor: Sensor[Any, Any, Any]) -> SensorJSON:
         sensor_json = sensor.toJSON()
@@ -339,7 +347,50 @@ class SensorManagerProxy:
 
     async def _resync(self) -> None:
         await self._send_unsent()
-        await self._resync_all_consumed()
+        await self._sync_and_announce()
+
+    async def _sync_and_announce(self) -> None:
+        async with self._event_lock:
+            try:
+                for sensor_proxy in await self._sync_sensors():
+                    if self._plugin_instance:
+                        await self._plugin_instance.onSensorAdded(sensor_proxy)
+            except Exception as e:
+                self._logger.debug(f"Sensor resync failed: {e}")
+
+    async def _sync_sensors(self) -> list[SensorProxy]:
+        marks = {
+            sensor_id: sensor_proxy._event_marks()  # pyright: ignore[reportPrivateUsage]
+            for sensor_id, sensor_proxy in self._consumed.items()
+        }
+        sensors = await self._registry_proxy.getSensors(self._plugin["id"])
+
+        added: list[SensorProxy] = []
+        for data in sensors:
+            camera_ids = data["assignedCameraIds"]
+            own = self._owned.get(data["id"]) or self._external.get(data["id"])
+            held = self._consumed.get(data["id"])
+            if own is not None:
+                if sorted(own.assignedCameraIds) != sorted(camera_ids):
+                    own._setAssignedCameras(camera_ids)  # pyright: ignore[reportPrivateUsage]
+            elif not self._is_consumable(data):
+                if held is not None and not data.get("exposed", False):
+                    await self._release_consumed(data["id"])
+            elif held is None:
+                added.append(await self._add_consumed(data))
+            else:
+                held._set_connected(data["connected"])  # pyright: ignore[reportPrivateUsage]
+                if sorted(held.assignedCameraIds) != sorted(camera_ids):
+                    held._set_assigned_cameras(camera_ids)  # pyright: ignore[reportPrivateUsage]
+                if data["connected"]:
+                    state: SensorRefreshedState = {
+                        "type": data["type"],
+                        "properties": data["properties"],
+                        "capabilities": data.get("capabilities", []),
+                        "displayName": data["displayName"],
+                    }
+                    held._apply_refreshed_state(state, marks.get(data["id"]))  # pyright: ignore[reportPrivateUsage]
+        return added
 
     async def _send_unsent(self) -> None:
         for sensor_id, keys in list(self._unsent.items()):
@@ -355,15 +406,12 @@ class SensorManagerProxy:
                 continue
             self.settle_write(sensor_id, properties, True)
 
-    async def _resync_all_consumed(self) -> None:
-        for sensor_id in list(self._consumed):
-            await self._resync_consumed(sensor_id)
-
     async def _resync_consumed(self, sensor_id: str) -> None:
         sensor_proxy = self._consumed.get(sensor_id)
         if not sensor_proxy:
             return
 
+        marks = sensor_proxy._event_marks()  # pyright: ignore[reportPrivateUsage]
         try:
             state = await self._registry_proxy.getSensorState(sensor_id)
         except Exception:
@@ -371,7 +419,7 @@ class SensorManagerProxy:
             return
 
         if state:
-            sensor_proxy._apply_refreshed_state(state)  # pyright: ignore[reportPrivateUsage]
+            sensor_proxy._apply_refreshed_state(state, marks)  # pyright: ignore[reportPrivateUsage]
 
     def _is_own_adopted(self, data: StoredSensorData) -> bool:
         return (
@@ -387,10 +435,13 @@ class SensorManagerProxy:
             return False
         return data["type"] in self._plugin["contract"].get("consumes", [])
 
-    def _add_consumed(self, data: StoredSensorData) -> SensorProxy:
+    async def _add_consumed(self, data: StoredSensorData) -> SensorProxy:
         owner_namespace = NamespaceManager.sensor_provider_namespaces(data["pluginId"], data["id"]).sensor_rpc
         sensor_proxy = SensorProxy(data, self._proxy, owner_namespace)
         self._consumed[data["id"]] = sensor_proxy
+        await sensor_proxy._subscribe_to_events()  # pyright: ignore[reportPrivateUsage]
+        if data["connected"]:
+            await self._resync_consumed(data["id"])
         return sensor_proxy
 
     async def _release_consumed(self, sensor_id: str) -> None:
@@ -408,7 +459,8 @@ class SensorManagerProxy:
     def _on_global_sensor_event(self, message: SensorEventMessage) -> None:
         async def handle() -> None:
             try:
-                await self._handle_global_sensor_event(message)
+                async with self._event_lock:
+                    await self._handle_global_sensor_event(message)
             except Exception as e:
                 self._logger.warn(f"Sensor event handling failed: {e}")
 
@@ -430,8 +482,7 @@ class SensorManagerProxy:
                 return
             if not self._is_consumable(data):
                 return
-            sensor_proxy = self._add_consumed(data)
-            await sensor_proxy._subscribe_to_events()  # pyright: ignore[reportPrivateUsage]
+            sensor_proxy = await self._add_consumed(data)
             if self._plugin_instance:
                 await self._plugin_instance.onSensorAdded(sensor_proxy)
 
@@ -444,19 +495,7 @@ class SensorManagerProxy:
                 or adopted["sensor"]["id"] in self._owned
             ):
                 return
-            record = to_adopted(adopted["sensor"])
-            try:
-                sensor = await plugin.onSensorAdopted(record)
-            except Exception as e:
-                self._logger.warn(f'onSensorAdopted failed for "{record["name"]}": {e}')
-                return
-            if sensor.nativeId != record["nativeId"]:
-                self._logger.warn(
-                    f'Sensor "{sensor.name}" returned by onSensorAdopted carries nativeId '
-                    f"{sensor.nativeId or 'missing'}, expected {record['nativeId']}, ignored"
-                )
-                return
-            await self._bind_adopted(sensor, record)
+            self._tasks.add(self._adopt_own(plugin, to_adopted(adopted["sensor"])))
 
         elif event_type == "sensor:deleted":
             deleted = cast("SensorDeletedEvent", message.get("data"))
@@ -488,8 +527,7 @@ class SensorManagerProxy:
             fetched = await self._registry_proxy.getSensorRpc(exposed["sensorId"], self._plugin["id"])
             if not fetched or not self._is_consumable(fetched):
                 return
-            sensor_proxy = self._add_consumed(fetched)
-            await sensor_proxy._subscribe_to_events()  # pyright: ignore[reportPrivateUsage]
+            sensor_proxy = await self._add_consumed(fetched)
             if self._plugin_instance:
                 await self._plugin_instance.onSensorAdded(sensor_proxy)
 

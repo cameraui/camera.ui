@@ -50,6 +50,7 @@ export class CameraDeviceProxy extends CameraDevice {
   #storageController: StorageController;
   #sensorManager: SensorManagerProxy;
   #eventSubscriptions = new Map<string, () => void>();
+  #eventCounts = { updated: 0, cameraState: 0, frameWorkerState: 0 };
   #refreshing: Promise<void> = Promise.resolve();
   #detectionWire?: Promise<(() => void) | undefined>;
   #detectionSubscriberCount = 0;
@@ -412,16 +413,18 @@ export class CameraDeviceProxy extends CameraDevice {
   }
 
   async #applyStates(): Promise<RefreshedStates> {
+    const sent = { ...this.#eventCounts };
     const response: RefreshedStates = await this.#cameraControllerProxy.refreshStates();
+    const counts = this.#eventCounts;
 
     // a resync must not wake subscribers for state they already hold
-    if (!isEqual(this.cameraSubject.getValue(), response.camera)) {
+    if (counts.updated === sent.updated && !isEqual(this.cameraSubject.getValue(), response.camera)) {
       super.updateCamera(response.camera);
     }
-    if (this.cameraState.getValue() !== response.cameraState) {
+    if (counts.cameraState === sent.cameraState && this.cameraState.getValue() !== response.cameraState) {
       super.updateCameraState(response.cameraState);
     }
-    if (this.frameWorkerState.getValue() !== response.frameWorkerState) {
+    if (counts.frameWorkerState === sent.frameWorkerState && this.frameWorkerState.getValue() !== response.frameWorkerState) {
       super.updateFrameWorkerState(response.frameWorkerState);
     }
 
@@ -448,12 +451,15 @@ export class CameraDeviceProxy extends CameraDevice {
         this.cleanup();
         break;
       case 'updated':
+        this.#eventCounts.updated++;
         super.updateCamera(event.data);
         break;
       case 'cameraState':
+        this.#eventCounts.cameraState++;
         super.updateCameraState(event.data);
         break;
       case 'frameWorkerState':
+        this.#eventCounts.frameWorkerState++;
         super.updateFrameWorkerState(event.data);
         break;
     }

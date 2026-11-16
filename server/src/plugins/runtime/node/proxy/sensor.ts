@@ -34,6 +34,7 @@ export class SensorProxy implements SensorLike {
   private _capabilities: string[] = [];
   private _rpcProxy: Promisify<SensorLike>;
   private _eventSubscription?: () => void;
+  private _eventCounts = new Map<string, number>();
 
   constructor(data: StoredSensorData, proxy: RPCClient, ownerNamespace: string) {
     this._id = data.id;
@@ -131,17 +132,23 @@ export class SensorProxy implements SensorLike {
     this.#propertyChangedSubject.next({ property, value, timestamp: timestamp ?? Date.now() });
   }
 
-  _applyRefreshedState(state: SensorRefreshedState): void {
-    if (state.displayName) {
+  _eventMarks(): Map<string, number> {
+    return new Map(this._eventCounts);
+  }
+
+  _applyRefreshedState(state: SensorRefreshedState, marks?: Map<string, number>): void {
+    const current = (key: string): boolean => !marks || this._eventCounts.get(key) === marks.get(key);
+
+    if (state.displayName && current('displayName')) {
       this.setDisplayName(state.displayName);
     }
 
-    if (!isEqual(this._capabilities, state.capabilities, true)) {
+    if (current('capabilities') && !isEqual(this._capabilities, state.capabilities, true)) {
       this._updateCapabilities(state.capabilities);
     }
 
     for (const [property, value] of Object.entries(state.properties)) {
-      this._updateCachedValue(property, value);
+      if (current(`property:${property}`)) this._updateCachedValue(property, value);
     }
   }
 
@@ -169,17 +176,13 @@ export class SensorProxy implements SensorLike {
     this._exposed = exposed;
   }
 
-  _subscribeToEvents(): void {
+  async _subscribeToEvents(): Promise<void> {
     if (this._eventSubscription) return;
 
     const namespace = NamespaceManager.sensorEventNamespaces(this.id);
-    this._proxy
-      .subscribe<{ type: string; data: unknown }>(namespace.sensorSubject, (event) => {
-        this._handleSensorEvent(event);
-      })
-      .then((unsubscribe) => {
-        this._eventSubscription = unsubscribe;
-      });
+    this._eventSubscription = await this._proxy.subscribe<{ type: string; data: unknown }>(namespace.sensorSubject, (event) => {
+      this._handleSensorEvent(event);
+    });
   }
 
   _unsubscribeFromEvents(): void {
@@ -193,20 +196,27 @@ export class SensorProxy implements SensorLike {
     switch (event.type) {
       case 'property:changed': {
         const changeEvent = event.data as PropertyChangedEvent;
+        this._countEvent(`property:${changeEvent.property}`);
         this._updateCachedValue(changeEvent.property, changeEvent.value, changeEvent.timestamp);
         break;
       }
       case 'sensor:capabilities:changed': {
         const capsEvent = event.data as { sensorId: string; capabilities: string[] };
+        this._countEvent('capabilities');
         this._updateCapabilities(capsEvent.capabilities);
         break;
       }
       case 'sensor:displayName:changed': {
         const displayNameEvent = event.data as { sensorId: string; displayName: string };
+        this._countEvent('displayName');
         this._setDisplayName(displayNameEvent.displayName);
         break;
       }
     }
+  }
+
+  private _countEvent(key: string): void {
+    this._eventCounts.set(key, (this._eventCounts.get(key) ?? 0) + 1);
   }
 
   toStoredData(): StoredSensorData {
