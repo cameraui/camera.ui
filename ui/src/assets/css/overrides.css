@@ -67,6 +67,10 @@
   border-bottom-right-radius: 0 !important;
 }
 
+.p-inputgroup .p-iconfield > .p-inputicon {
+  z-index: 2;
+}
+
 .p-autocomplete:has(> .p-autocomplete-dropdown) > .p-autocomplete-input {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
