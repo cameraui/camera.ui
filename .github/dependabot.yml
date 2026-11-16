@@ -12,6 +12,15 @@ updates:
     # let a release age first, security updates ignore this
     cooldown:
       default-days: 7
+      # our own packages go out at once
+      exclude:
+        - "@camera.ui/*"
+        - "camera.ui"
+        - "node-av"
+        - "@seydx/*"
+        - "camera-ui-*"
+        - "github.com/cameraui/*"
+        - "github.com/seydx/*"
     groups:
       npm:
         patterns: ["*"]
@@ -30,6 +39,15 @@ updates:
     # let a release age first, security updates ignore this
     cooldown:
       default-days: 7
+      # our own packages go out at once
+      exclude:
+        - "@camera.ui/*"
+        - "camera.ui"
+        - "node-av"
+        - "@seydx/*"
+        - "camera-ui-*"
+        - "github.com/cameraui/*"
+        - "github.com/seydx/*"
     groups:
       pip:
         patterns: ["*"]
@@ -39,6 +57,18 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # let a release age first, security updates ignore this
+    cooldown:
+      default-days: 7
+      # our own packages go out at once
+      exclude:
+        - "@camera.ui/*"
+        - "camera.ui"
+        - "node-av"
+        - "@seydx/*"
+        - "camera-ui-*"
+        - "github.com/cameraui/*"
+        - "github.com/seydx/*"
     groups:
       actions:
         patterns: ["*"]

@@ -64,7 +64,6 @@ rtspv2
 /go2rtc.yaml
 /input.mp4
 .extract
-.npmrc
 /nativeModules.js
 
 *.pem
