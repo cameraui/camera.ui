@@ -2,6 +2,182 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0]
+
+### After the update
+
+- **Pick the instance language under Settings, System.** Until then, everything that follows it stays in English.
+
+- **Switch RTMP on again if you use it.** The RTMP server is off after the update. **RTMP server** under Settings, Streaming starts it again, until then apps that send or take RTMP streams get no connection.
+
+- **Open external MCP servers to users again if they should use them.** **Available to users** on the server under Settings, Assistant does that, until then only admins get its tools.
+
+- **Give Python plugins time on the first start.** camera.ui downloads a new Python runtime and installs their packages again. For AI plugins this takes a few minutes, until then they stay stopped.
+
+### Added
+
+- **A page for your notifications.** **Show all** in the bell opens all alerts, with search, filters and **Ask the assistant**. Admins also find plugin warnings and errors there, **Open log** jumps to the line. See [Notifications](https://docs.cameraui.com/notifications/#the-notification-list).
+
+- **Choose what the bell shows.** The new **Bell** card under Settings, Notifications switches warnings and errors, cameras, plugins, system and automations on or off for the bell, its unread count and the badge on the app icon. Everything stays in the full list. See [Your notification settings](https://docs.cameraui.com/notifications/#your-notification-settings).
+
+- **Notifications in your language.** Notifications, AI descriptions and plugin texts follow the new instance language, and the assistant answers in it instead of the interface language. See [Instance language](https://docs.cameraui.com/admin/system#instance-language).
+
+- **Live view from outside through the cameraui.com relay.** When no direct connection forms, live view and two-way audio can run through an encrypted relay. Switch it on under Settings, Streaming, on a server linked to cameraui.com. A cloud symbol on the player shows admins when the relay carries the stream. See [Remote access](https://docs.cameraui.com/remote/#webrtc).
+
+- **Connect the phone app straight to your server.** **Connect directly** on the app's login page lists the servers on your network or takes your server's address. You confirm its certificate once and sign in with your camera.ui user. Push still needs the camera.ui account. See [Mobile apps](https://docs.cameraui.com/install/mobile#directly).
+
+- **The assistant can search the internet.** Switch on **Web search** under Settings, Assistant, with a model from Anthropic, Gemini, OpenAI or OpenRouter. The pages it used show up as links below the answer. See [Assistant setup](https://docs.cameraui.com/admin/assistant-setup#web-search).
+
+- **Camera alerts open the live view in a screen corner.** The desktop app can show the camera in a small window over your other apps when an alert for it arrives, several cameras side by side or stacked. Switch it on in the new **Live View on Events** card under Settings, Notifications. **Play on another screen** in the player now also sends a camera to a computer running the app. See [Live view on the desktop](https://docs.cameraui.com/notifications/#live-view-on-the-desktop).
+
+- **camera.ui runs on Alpine and other musl-based Linux systems.** `cameraui install` sets it up as an OpenRC service there, and Python plugins work too. Plugins that need glibc, most AI backends among them, show as incompatible. See [Linux (bare-metal)](https://docs.cameraui.com/install/linux).
+
+### Changed
+
+- **WebRTC holds through short drops.** A live view over WebRTC survives a brief Wi-Fi drop or a switch between networks. After falling back to MSE, Auto tries WebRTC again now and then. See [Live view](https://docs.cameraui.com/cameras/live-view#streaming-modes).
+
+- **Cameras without object detection show their motion events.** Home, Recordings and the timeline list motion for these cameras by default. The filter in the Recordings tab of a camera's page keeps its own choice per camera and no longer follows the timeline. See [Live view](https://docs.cameraui.com/cameras/live-view#the-camera-page).
+
+- **Phones sign up for push by themselves.** Once notifications are on and the phone allows them, the app no longer waits for a tap on Sync this device. See [Notifications](https://docs.cameraui.com/notifications/#getting-push-on-your-phone).
+
+- **Sign-in, server list and account pages have a new look.** The app, the desktop app's start window, camera.ui's login page and the pages on cameraui.com, subscription included, share one style. Account now holds the settings, sign out and the active sessions.
+
+- **Sharing a server goes person by person.** Share in a server's menu invites one email address at a time and lists everyone with access, each with a button to remove it. The invited person finds the invitation in their server list, the invite code is gone.
+
+- **Registering a server offers cloud access.** A server registered with cloud access off asks right away whether to turn it on. See [camera.ui Cloud](https://docs.cameraui.com/remote/cloud#enabling-it).
+
+- **The server list tells you about servers you can't reach.** An entry with cloud access off says so, and a server that has been offline for a while shows when it was last online. See [The cloud dashboard](https://docs.cameraui.com/remote/cloud#the-cloud-dashboard).
+
+- **FFmpeg 8.1.3.** camera.ui's video processing and the bundled FFmpeg move to FFmpeg 8.1.3 with the security fixes of the 8.1 branch.
+
+- **Python plugins install faster.** camera.ui installs their packages with uv instead of pip. Downloads run in parallel, and plugins share packages such as numpy through a common cache, so another AI plugin takes seconds and little extra disk space.
+
+- **Video processing needs less CPU.** H.265 decodes about 13 % faster in software, and frames from Intel and NVIDIA hardware decoding reach detection, snapshots and privacy masks in about half the time.
+
+- **Cameras need less graphics memory on NVIDIA cards.** With NVIDIA hardware decoding, each camera takes about 100 MB less memory on the card.
+
+- **The RTMP server is off until you switch it on.** It has its own card with a switch and a port under Settings, Streaming, like the ONVIF export. Each source of a camera has a switch that keeps its stream off the RTMP server. See [Streaming](https://docs.cameraui.com/admin/streaming#rtmp).
+
+- **External MCP servers are for admins until you open them.** Each server has the switch **Available to users**, like the models. See [Assistant setup](https://docs.cameraui.com/admin/assistant-setup#external-mcp-servers).
+
+- **A new user gets a start password from camera.ui.** You only enter name and role, the password is shown once to pass on, and the user sets their own at the first sign-in. **Reset password** in the user list does the same for an existing account. See [Users](https://docs.cameraui.com/admin/users#managing-users).
+
+- **Changing your password or username and setting up 2FA ask for your current password.** Settings, Account now has **Change username** and **Change password**, each opens a dialog. A new profile picture is saved as soon as you pick it. An admin still changes another user without it. See [Security & 2FA](https://docs.cameraui.com/admin/security#password).
+
+- **Downloads show their progress in the apps.** While the phone app or the desktop app loads a recording, a clip or a backup, a bar shows how much has arrived, with a button to cancel. An installed web app on an iPhone or iPad shows the same.
+
+- **A timeline selection of more than a day exports one file per day.** It arrives as a ZIP, like the export in Recordings, instead of one long file. See [Export & download](https://docs.cameraui.com/recording/export#export-a-clip).
+
+- **Scroll back through the logs.** Scrolling up in Logs and in the camera and plugin log dialogs loads older lines. A full log now moves its older part aside instead of cutting it, for camera.ui's own log with the new Docker image or, on bare metal, a [launcher update](https://docs.cameraui.com/install/linux#updating-the-launcher). See [Logs](https://docs.cameraui.com/admin/logs#reading-the-logs).
+
+- **Smaller changes in the interface.**
+  - The back arrow returns to the page you came from
+  - The three-dot menu in Terminal, Floor Plan and Automation stays open after an action
+  - Ignored faces can be deleted directly
+  - READMEs, changelogs and the assistant show notes, task lists, footnotes and highlighted code as on GitHub
+  - The stores also list featured entries and mark installed plugins
+  - Workers mark an available update with an icon next to the version
+  - On phones, the sensor tables show the same columns as on a computer
+  - The assistant's cost estimate knows the latest models of Anthropic, Google and OpenAI
+  - Beta updates sits at the top of the camera.ui card on Settings, System
+  - Each card on Settings, Notifications has its own Save button
+  - The assistant's usage table can be reset
+  - A live view that does not load shows a red symbol in the top right corner instead of covering the picture
+  - Fullscreen also hides the browser bars and the system bars, in the browser, the desktop app and the phone apps
+  - A Camview in fullscreen can show its timeline
+  - The buttons of the automation editor and the floor plan stack in the corner, Run has a button of its own
+  - While connecting, the app shows the name of the server
+  - An app update that is ready to install also shows in the app's server list and sign-in, not only once a server is open
+  - Ask the assistant has its own button on the camera page, on phones on the timeline next to the microphone
+  - Detections, zones, heatmap and AI descriptions sit under Layers button on the camera page, snapshot and share under the dots
+  - Filter, export and delete on the timeline sit behind an arrow button
+  - On phones the timeline zooms by pinching instead of with buttons, on a computer also with Ctrl and scroll
+  - Removing a user asks for confirmation first, the master user no longer offers it
+  - The Sources tab of a camera groups its fields under headings
+  - A source has the switches Audio track and Two-way audio instead of Mute audio and Disable two-way audio
+  - The charts on Metrics and Workers show time and value for the column you point at, on phones with a tap
+
+### Fixed
+
+- **Privacy zones are blacked out in pictures from the desktop app.** Event pictures, notification pictures and snapshots of cameras that run in the desktop app showed the area. Pictures taken before the update keep it.
+
+- **Alerts sent to chosen devices stay with their owners.** They no longer show up in every user's notification list.
+
+- **A mute set by an automation stays when you save your notification settings.** Saving anything under Settings, Notifications switched the alerts of a muted account back on.
+
+- **The assistant always gets to an answer.** Scheduled prompts and automation steps no longer end empty or with a lead-in. In the chat, a cut-off or blocked answer says so.
+
+- **NVIDIA hardware encoding works on GeForce GTX 10 and GTX 900 cards again.** 2.4.9 needed a driver that NVIDIA no longer releases for these cards, so hardware encoding failed on them. Newer cards no longer need the latest driver either, any driver from late 2022 on is enough.
+
+- **The sound of a live view no longer runs ahead of the picture.** With MSE streaming it could come up to a second early.
+
+- **Cameras accept a reconnect right away.** camera.ui now ends the RTSP session properly when it closes a stream. Cameras no longer hold the old session for up to a minute and refuse the next connection with "453 Not Enough Bandwidth".
+
+- **The app opens right away when the cloud is unreachable.** Your direct servers show at once, and the server you used last is still reached on your local network.
+
+- **A virtual doorbell no longer rings again after a restart.** If camera.ui restarted shortly after it rang, every later restart brought a new doorbell alert for its cameras.
+
+- **Ring cameras have sound in Apple Home.** At home, live view stayed silent, and talking through the camera cut out.
+
+- **The microphone is off when its button says so.** Pressing the button again while the browser still asked for the microphone, or leaving the camera in that moment, could leave the microphone open.
+
+- **Detection works on a newer picture.** On cameras with a low frame rate, the analysed picture lagged up to a few seconds behind.
+
+- **Fast playback of recordings stays with the picture.** On a slow connection or device, the timeline ran ahead of the picture and the video kept running after a pause. Playback now switches to the low-resolution recording when the chosen one cannot keep the speed.
+
+- **A security fix in video streaming.**
+
+- **A security fix in the live connection between the apps and the server.**
+
+- **A security fix at sign-in.** After several wrong passwords in a row, the sign-in pauses for that user for a while. See [Security & 2FA](https://docs.cameraui.com/admin/security#password).
+
+- **A security fix in the plugin store.**
+
+- **A security fix for user accounts.**
+
+- **A power cut while saving no longer empties the settings.** camera.ui replaces its settings files in one step, and a start that changes nothing no longer writes them.
+
+- **File names of downloads keep umlauts and other non-Latin letters.** The log of a camera named in Cyrillic or with an emoji failed to download, and umlauts came out garbled.
+
+- **Smaller fixes in video processing.**
+  - RTSP and RTP streams handle reordered, broken and malformed packets more robustly
+  - Rare picture errors in H.265 video are gone
+  - On Macs, hardware encoding no longer crashes in rare cases and leaks less memory
+  - H.264 streams that lose packets show fewer artifacts with Intel hardware decoding
+  - Detection keeps seeing the area of a privacy zone after an event picture was taken
+  - A camera with hot mode is no longer connected a second time right after camera.ui starts
+
+- **Smaller fixes in the interface.**
+  - Recent events on Home and in Recordings no longer shift when episodes load
+  - A drag on an event thumbnail scrolls the timeline
+  - On phones and tablets, buttons and tooltips no longer stay on after a touch
+  - Plugin READMEs and changelogs are readable in dark mode
+  - Logged in users no longer offers Sign out for your own session, the Home Assistant panel or a sign-in proxy
+  - On the iPhone, the terminal's key bar and menu no longer close the keyboard
+  - A camera shortcut in the camera view shows its preview on the first hover or tap
+  - A camera removed in its source leaves the discovered cameras with the next scan
+  - A discovered camera that reports its firmware version or serial number as plain digits can be added
+  - Stack traces in the logs keep their indentation
+  - Turning on the microphone of a camera without sound no longer shows its speaker as on
+  - Long entries in a dropdown wrap instead of pushing the page sideways
+  - A button in a plugin's settings saves the form first, so your entries stay when the plugin asks for a code or reports an error
+  - With a tile expanded in Camview, sound, resolution, streaming mode and the microphone act on that camera only
+  - Switching the resolution or the streaming mode of a live view no longer waits a second before the new stream starts
+  - After a quick jump in a recording, the timeline no longer runs on from the old position and "No recording" no longer stays over the video
+  - On the iPhone, the sound of a recording stays on after a jump on the timeline
+  - A resolution or streaming mode picked while a live view still connects is applied
+  - The microphone button goes off when the talk connection to the camera drops
+  - On a share link, a quick double click on the microphone no longer leaves it open
+  - Downloads in an installed web app in Chrome or Edge go straight to the disk, like in a browser tab
+  - The desktop app says so when a download breaks off
+  - The camera.ui cards in a Home Assistant dashboard no longer cover Home Assistant's top bar while you scroll
+
+- **Smaller fixes in the app.**
+  - A cancelled Google or Apple sign-in no longer shows an error
+  - The server list no longer shows up empty before your servers appear
+  - On the sign-in and server pages, the keyboard no longer covers the field you type in
+  - Opening a server goes from the splash screen straight to the sign-in, without a connecting screen flashing in between
+
 ## [2.4.9]
 
 ### Added
@@ -18,7 +194,9 @@ All notable changes to this project will be documented in this file.
 
 - **Zoom on the camera page in landscape.** A double tap zooms there too, not only pinching. A zoom started in landscape stays when you turn the phone upright, and the player grows taller with it.
 
-- **Smaller fixes in the interface.** The dots below the timeline hide while you export or delete, and the close button of a terminal tab no longer turns dark on hover in light mode.
+- **Smaller fixes in the interface.**
+  - The dots below the timeline hide while you export or delete
+  - The close button of a terminal tab no longer turns dark on hover in light mode
 
 ## [2.4.8]
 
@@ -60,7 +238,12 @@ All notable changes to this project will be documented in this file.
 
 - **Number fields have the same buttons everywhere.** Values you change in steps, like a confidence, a timeout or a count, have arrows in the field, on phones and tablets − and + on both sides. Tapping them changes the value without opening the keyboard. Ports and other values you type in full have none.
 
-- **Smaller changes in the settings.** The list of settings pages is sorted alphabetically, Save stays off until something in its card changed, Profile and Password are one card, every card opens with a short description, and the German texts say "du" throughout.
+- **Smaller changes in the settings.**
+  - The settings pages are sorted alphabetically
+  - Save stays off until something in its card changed
+  - Profile and Password are one card
+  - Every card opens with a short description
+  - The German texts say "du" throughout
 
 ### Fixed
 
@@ -70,7 +253,8 @@ All notable changes to this project will be documented in this file.
 
 - **The detections list beside a camera no longer flickers when motion is shown in its filter.** It went blank for a moment every second.
 
-- **Smaller fixes on phones.** Fields with decimals, such as the detection confidences, show the keyboard with a decimal separator.
+- **Smaller fixes on phones.**
+  - Fields with decimals, such as the detection confidences, show a keyboard with a decimal separator
 
 ## [2.4.7]
 
@@ -120,7 +304,10 @@ All notable changes to this project will be documented in this file.
 
 - **A security fix for share links.**
 
-- **Smaller fixes in the interface.** The recording bar on the timeline ends with the recording instead of running on for up to two minutes, the episode count in Recordings shows a + only when the episodes themselves reach the limit, changed server addresses under Network take effect on save instead of after the next restart.
+- **Smaller fixes in the interface.**
+  - The recording bar on the timeline ends with the recording instead of running on for up to two minutes
+  - The episode count in Recordings shows a + only when the episodes themselves reach the limit
+  - Changed server addresses under Network take effect on save, not after the next restart
 
 ## [2.4.6]
 
@@ -134,7 +321,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Smaller fixes on phones.** The event dialog no longer cuts off the bottom of the timeline with the filter button and the view dots.
+- **Smaller fixes on phones.**
+  - The event dialog no longer cuts off the bottom of the timeline with the filter button and the view dots
 
 ## [2.4.5]
 
@@ -150,7 +338,14 @@ All notable changes to this project will be documented in this file.
 
 - **Leaving after standing still opens an event more reliably.** A parked car that drove off or a person who had waited and walked away could go unnoticed when they paused or turned right after starting off.
 
-- **Smaller fixes in the interface.** The bottom bar fades with the page when a camera opens or closes, a scrolled Home no longer jumps after closing a camera, the floating buttons no longer flash up when you return to a scrolled page, a camera card no longer keeps an old picture after you come back from another page, cameras set to When viewed get new pictures while their card stays open, the picture age stays right when the server's clock differs from your device, camera cards get a new picture right after a lost connection comes back.
+- **Smaller fixes in the interface.**
+  - The bottom bar fades with the page when a camera opens or closes
+  - A scrolled Home no longer jumps after closing a camera
+  - The floating buttons no longer flash up when you return to a scrolled page
+  - A camera card no longer keeps an old picture after you come back from another page
+  - Cameras set to When viewed get new pictures while their card stays open
+  - The picture age stays right when the server's clock differs from your device
+  - Camera cards get a new picture right after a lost connection comes back
 
 ## [2.4.4]
 
@@ -176,7 +371,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Smaller fixes in the interface.** The plugin page says when a plugin is starting or not running instead of showing empty tabs, the plugin and sensor settings of a camera say when there is nothing to set.
+- **Smaller fixes in the interface.**
+  - The plugin page says when a plugin is starting or not running instead of showing empty tabs
+  - The plugin and sensor settings of a camera say when there is nothing to set
 
 ## [2.4.3]
 
@@ -186,7 +383,8 @@ All notable changes to this project will be documented in this file.
 
 - **Cameras added through the API reach the plugins named in the request right away.** HomeKit and other plugins only picked them up after a restart.
 
-- **Smaller fixes on iPhone and iPad.** Lists where you pick several entries, like the sources to record or the sensors to notify for, no longer jump when you tap them.
+- **Smaller fixes on iPhone and iPad.**
+  - Lists where you pick several entries, like the sources to record, no longer jump when you tap them
 
 ## [2.4.2]
 
@@ -204,7 +402,8 @@ All notable changes to this project will be documented in this file.
 
 - **Snapshots in Home Assistant and HomeKit no longer stay old.** With a new picture set to Regularly, the snapshot could be minutes or hours old. It now renews with the interval.
 
-- **Smaller fixes in the interface.** Camera pictures on the home view are current as soon as you return to the app, not only after the next refresh.
+- **Smaller fixes in the interface.**
+  - Camera pictures on Home are current as soon as you return to the app, not only after the next refresh
 
 ## [2.4.1]
 
@@ -386,7 +585,11 @@ All notable changes to this project will be documented in this file.
 
 - **New Proxmox containers get 32 GB of disk instead of 16 GB, and their compose file already sets `stop_grace_period`.**
 
-- **Smaller changes in the interface.** Playing through Detections switches to live after the newest detection, text alert hits come only as a push, and the download of a long event holds the 10 minutes around the selected frame. Plus many small improvements, on phones too.
+- **Smaller changes in the interface.**
+  - Playing through Detections switches to live after the newest detection
+  - Text alert hits come only as a push
+  - The download of a long event holds the 10 minutes around the selected frame
+  - Many small improvements, on phones too
 
 ### Fixed
 
