@@ -1,3 +1,3 @@
 import { resolveTargets, runInPackages } from "./lib.js";
 
-runInPackages(resolveTargets(["service", "server", "ui"]), ["npm audit fix"]);
+runInPackages(resolveTargets(["service", "server", "ui"]), ["npm audit fix --min-release-age=0"]);

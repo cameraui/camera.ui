@@ -10,7 +10,7 @@
     "fsevents": true
   },
   "scripts": {
-    "audit": "npm audit fix && tsx ./scripts/audit.ts",
+    "audit": "npm audit fix --min-release-age=0 && tsx ./scripts/audit.ts",
     "build": "tsx ./scripts/build.ts",
     "bundle": "tsx ./scripts/bundle.ts",
     "check:sensors": "tsx ./scripts/check-sensor-parity.ts",

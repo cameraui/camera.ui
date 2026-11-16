@@ -97,6 +97,7 @@ export function runInPackages(
     }
   }
 
+  if (failures) process.exitCode = 1;
   console.log(
     failures === 0
       ? chalk.green("All commands completed")
