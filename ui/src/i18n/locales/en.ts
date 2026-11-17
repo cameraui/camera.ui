@@ -3807,6 +3807,13 @@ export default {
         license_title: 'License & Cloud',
         license_description: 'Connect this NVR to the camera.ui cloud for license and cloud features.',
         license_disconnected: 'Not connected',
+        manage_plan: 'Manage plan',
+        slots_title: 'Recording slots',
+        slots_info: 'More cameras have recording on than your plan has slots. The cameras at the top record, the others wait for a free slot.',
+        slot_used: 'Has a slot',
+        slot_waiting: 'Waiting for a slot',
+        slot_move_up: 'Move up',
+        slot_move_down: 'Move down',
       },
       instances: {
         add: 'Add Instance',

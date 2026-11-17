@@ -53,6 +53,7 @@ interface RouteMetaProfileMenu extends RouteMetaNavigation {}
 declare module 'vue-router' {
   interface Router extends _RouterClassic {
     absUrl: (url?: string, newTab?: boolean) => void;
+    openLink: (url: string) => void;
   }
 
   interface TypesConfig {

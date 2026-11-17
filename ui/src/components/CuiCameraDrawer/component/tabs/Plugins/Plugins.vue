@@ -471,7 +471,6 @@ import {
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
 import { SensorsQuery } from '@/api/routes/sensors.js';
-import { pluginMessageResponseTypeToToastType } from '@/common/utils.js';
 import PluginSchemaDialog from '@/components/CuiDialog/templates/PluginSchema/PluginSchema.vue';
 import CuiSchema from '@/components/CuiSchema/CuiSchema.vue';
 
@@ -499,6 +498,7 @@ defineEmits<CameraOptionsTabEmits>();
 
 const toast = useCuiToast();
 const dialog = useCuiDialog();
+const { showSubmitResponse } = useSubmitResponse();
 const { t } = useI18n();
 const { statusWithPlacement } = usePlacementLabel();
 const { camera, cameraDevice, loading } = toRefs(props);
@@ -1138,10 +1138,7 @@ async function onAction(state: { key: string }, _pluginName: string): Promise<vo
 async function onSubmit(state: { key: string; payload: any }, pluginName: string): Promise<void> {
   try {
     const response = await extensionStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
     if (response?.schema && response.schema.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
         data: {
@@ -1184,10 +1181,7 @@ async function onDetectionSubmit(state: { key: string; payload: any }): Promise<
   if (!selectedDetectionSensorPluginId.value || !selectedDetectionSensorId.value) return;
   try {
     const response = await detectionSensorStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
@@ -1217,10 +1211,7 @@ async function onObjectAssistSubmit(state: { key: string; payload: any }): Promi
   if (!objectAssistSensorId.value) return;
   try {
     const response = await objectAssistSensorStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
@@ -1250,10 +1241,7 @@ async function onControlSubmit(state: { key: string; payload: any }): Promise<vo
   if (!selectedCoreSensorPluginId.value || !selectedCoreSensorId.value) return;
   try {
     const response = await coreSensorStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
   } catch (error) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
@@ -1283,10 +1271,7 @@ async function onAccessorySubmit(state: { key: string; payload: any }): Promise<
   if (!selectedAccessoryPluginId.value || !selectedAccessorySensorId.value) return;
   try {
     const response = await sensorStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
     if (response?.schema && response.schema.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
         data: {
@@ -1327,10 +1312,7 @@ async function onDetectionPluginSubmit(state: { key: string; payload: any }): Pr
   if (!selectedDetectionPlugin.value) return;
   try {
     const response = await detectionExtensionStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
     if (response?.schema && response.schema.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
         data: {
@@ -1367,10 +1349,7 @@ async function onCorePluginSubmit(state: { key: string; payload: any }): Promise
   if (!selectedCorePlugin.value) return;
   try {
     const response = await coreExtensionStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
     if (response?.schema && response.schema.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
         data: {
@@ -1404,10 +1383,7 @@ async function onAccessoryPluginSubmit(state: { key: string; payload: any }): Pr
   if (!selectedAccessoryPluginForConfig.value) return;
   try {
     const response = await accessoryExtensionStorage.submitValue(state.key, state.payload);
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
     if (response?.schema && response.schema.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
         data: {

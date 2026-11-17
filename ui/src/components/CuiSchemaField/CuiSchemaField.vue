@@ -195,6 +195,17 @@
       </Message>
     </template>
 
+    <template v-else-if="isLinkType(schemaField)">
+      <Button fluid severity="secondary" class="mt-3 mb-1 cui-button-medium" :label="schemaField.title" @click.prevent="$router.openLink(schemaField.url)">
+        <template v-if="isWebUrl(schemaField.url)" #icon>
+          <i-mdi:open-in-new class="w-4 h-4" />
+        </template>
+      </Button>
+      <Message v-if="schemaField.description" severity="secondary" variant="simple" size="small" class="cui-input-hint">
+        {{ schemaField.description }}
+      </Message>
+    </template>
+
     <template v-else-if="isObjectType(schemaField) && schemaField.properties">
       <div class="flex flex-col gap-6 border border-color-inner rounded-lg p-4">
         <div v-if="arrayItem" class="flex items-center">
@@ -282,6 +293,7 @@ import {
   isBooleanType,
   isButtonType,
   isEnumType,
+  isLinkType,
   isNumberType,
   isObjectType,
   isStringType,
@@ -291,6 +303,8 @@ import {
 } from '@shared/types';
 import qrcode from 'qrcode';
 import { ErrorMessage, Field } from 'vee-validate';
+
+import { isWebUrl } from '@/common/utils.js';
 
 import type { CuiSchemaFieldEmits, CuiSchemaFieldProps } from './types.js';
 

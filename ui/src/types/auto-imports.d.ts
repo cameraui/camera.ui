@@ -438,6 +438,7 @@ declare global {
   const useStorageAsync: typeof import('@vueuse/core').useStorageAsync
   const useStreamStatus: typeof import('../composables/sockets/useStreamStatus').useStreamStatus
   const useStyleTag: typeof import('@vueuse/core').useStyleTag
+  const useSubmitResponse: typeof import('../composables/useSubmitResponse').useSubmitResponse
   const useSupported: typeof import('@vueuse/core').useSupported
   const useSwipe: typeof import('@vueuse/core').useSwipe
   const useTabSwipe: typeof import('../composables/useTabSwipe').useTabSwipe
@@ -1072,6 +1073,7 @@ declare module 'vue' {
     readonly useStorageAsync: UnwrapRef<typeof import('@vueuse/core')['useStorageAsync']>
     readonly useStreamStatus: UnwrapRef<typeof import('../composables/sockets/useStreamStatus')['useStreamStatus']>
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
+    readonly useSubmitResponse: UnwrapRef<typeof import('../composables/useSubmitResponse')['useSubmitResponse']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
     readonly useTabSwipe: UnwrapRef<typeof import('../composables/useTabSwipe')['useTabSwipe']>

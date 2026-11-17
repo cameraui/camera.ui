@@ -276,6 +276,19 @@ export function pluginMessageResponseTypeToToastType(type: 'error' | 'info' | 's
   }
 }
 
+export function isWebUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export function isAppPath(url: string): boolean {
+  return /^\/(?![/\\])/.test(url);
+}
+
 function legacyCopy(text: string): boolean {
   const ta = document.createElement('textarea');
   ta.value = text;

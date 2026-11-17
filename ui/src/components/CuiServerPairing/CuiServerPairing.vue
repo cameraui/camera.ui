@@ -25,7 +25,7 @@
             <InputText :model-value="url" readonly class="font-mono text-sm" />
             <CuiCopyAddon :value="url" />
             <InputGroupAddon>
-              <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="onOpenUrl">
+              <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="$router.absUrl(url)">
                 <template #icon>
                   <OpenIcon />
                 </template>
@@ -52,10 +52,6 @@ import type { CuiServerPairingProps } from './types.js';
 defineProps<CuiServerPairingProps>();
 
 const { code, url, countdown } = useServerPairing();
-
-function onOpenUrl() {
-  if (url.value) window.open(url.value, '_blank', 'noopener');
-}
 </script>
 
 <style scoped>

@@ -5,8 +5,6 @@
 <script setup lang="ts">
 import { useCameraStorage, usePluginStorage, useSensorStorage } from '@camera.ui/browser';
 
-import { pluginMessageResponseTypeToToastType } from '@/common/utils.js';
-
 import type { DialogRefProps } from '@/composables/useCuiDialog.js';
 import type { UseStorageReturn } from '@camera.ui/browser';
 import type { SchemaConfig } from '@camera.ui/sdk';
@@ -15,7 +13,7 @@ import type { PluginSchemaProps, PluginSchemaStorageType } from './types.js';
 
 const props = defineProps<PluginSchemaProps>();
 
-const toast = useCuiToast();
+const { showSubmitResponse } = useSubmitResponse();
 const dialogRef = inject<Ref<DynamicDialogInstance>>('dialogRef')!;
 const dialogRefProps = inject<DialogRefProps>('dialogRefProps')!;
 
@@ -55,10 +53,7 @@ async function onFormSubmit(configData: Record<string, any>): Promise<void> {
 
   const response = await activeStorage.value.submitValue(buttonKey.value, payload);
 
-  if (response?.toast) {
-    const type = pluginMessageResponseTypeToToastType(response.toast.type);
-    toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-  }
+  showSubmitResponse(response);
 
   if (response?.schema && Object.keys(response.schema).length && schema.value) {
     schema.value.schema = response.schema;

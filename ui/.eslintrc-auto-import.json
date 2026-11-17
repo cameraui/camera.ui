@@ -525,6 +525,7 @@
     "useStorageAsync": true,
     "useStreamStatus": true,
     "useStyleTag": true,
+    "useSubmitResponse": true,
     "useSupported": true,
     "useSwipe": true,
     "useTabSwipe": true,

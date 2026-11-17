@@ -8,6 +8,7 @@ import type {
   JsonSchemaBoolean,
   JsonSchemaButton,
   JsonSchemaEnum,
+  JsonSchemaLink,
   JsonSchemaNumber,
   JsonSchemaObject,
   JsonSchemaString,
@@ -48,6 +49,14 @@ export function isButtonType(schema: JsonSchemaWithoutKey): schema is JsonSchema
 
 export function isSubmitType(schema: JsonSchemaWithoutKey): schema is JsonSchemaSubmit {
   return schema.type === 'submit';
+}
+
+export function isLinkType(schema: JsonSchemaWithoutKey): schema is JsonSchemaLink {
+  return schema.type === 'link';
+}
+
+export function storesNoValue(schema: JsonSchemaWithoutKey): schema is JsonSchemaButton | JsonSchemaSubmit | JsonSchemaLink {
+  return isButtonType(schema) || isSubmitType(schema) || isLinkType(schema);
 }
 
 export function isValidableStringType(schema: JsonSchemaWithoutKey): schema is JsonSchemaString {
@@ -96,7 +105,7 @@ export function isConfigDefault(config: Record<string, any>, schemas: JsonSchema
     return true;
   }
 
-  const validSchemas = schemas.filter((schema) => !isButtonType(schema) && !isSubmitType(schema));
+  const validSchemas = schemas.filter((schema) => !storesNoValue(schema));
 
   for (const schema of validSchemas) {
     const currentValue = getValueByKey(config, schema.key);
@@ -132,7 +141,7 @@ export function generateDefaultValue(schema: JsonSchema): any {
     case 'object': {
       const value: Record<string, any> = {};
       for (const property of schema.properties ?? []) {
-        if (isButtonType(property) || isSubmitType(property)) continue;
+        if (storesNoValue(property)) continue;
         value[property.key] = generateDefaultValue(property);
       }
       return value;
@@ -146,7 +155,7 @@ export function generateConfigFromSchemas(schemas: JsonSchema[]): Record<string,
   const config: Record<string, any> = {};
 
   for (const schema of schemas) {
-    if (isButtonType(schema) || isSubmitType(schema)) continue;
+    if (storesNoValue(schema)) continue;
 
     config[schema.key] = generateDefaultValue(schema);
   }
@@ -258,7 +267,7 @@ export function generateStorableConfig(schemas: JsonSchema[], config: Record<str
   const storableConfig: Record<string, any> = {};
 
   for (const schema of schemas) {
-    if ('store' in schema && schema.store && !isButtonType(schema) && !isSubmitType(schema)) {
+    if ('store' in schema && schema.store && !storesNoValue(schema)) {
       const value = getValueByKey(config, schema.key);
       if (value !== undefined) {
         storableConfig[schema.key] = value;
@@ -275,7 +284,7 @@ export function getSchemasByGroup(schemas: JsonSchema[], group: string): JsonSch
 }
 
 export function schemaGroupIsReadonly(schemas: JsonSchema[], group: string): boolean {
-  const valueSchemas = getSchemasByGroup(schemas, group).filter((schema) => !isButtonType(schema) && !isSubmitType(schema));
+  const valueSchemas = getSchemasByGroup(schemas, group).filter((schema) => !storesNoValue(schema));
   return valueSchemas.length > 0 && valueSchemas.every((schema) => 'readonly' in schema && schema.readonly);
 }
 
@@ -301,7 +310,7 @@ export function isValidFormat(value: string, format?: string): boolean {
 }
 
 export function validateValue(value: any, schema: JsonSchemaWithoutKey): boolean {
-  if (isButtonType(schema) || isSubmitType(schema)) return true;
+  if (storesNoValue(schema)) return true;
 
   if ('required' in schema && schema.required && (value === undefined || value === null || value === '')) {
     return false;
@@ -369,7 +378,7 @@ export function validateConfig(config: Record<string, any>, schemas: JsonSchema[
   }
 
   for (const schema of schemas) {
-    if (isButtonType(schema) || isSubmitType(schema)) continue;
+    if (storesNoValue(schema)) continue;
 
     if ('condition' in schema && schema.condition) {
       if (!evaluateCondition(schema.condition, config)) continue;
@@ -456,7 +465,7 @@ export function validateConfig(config: Record<string, any>, schemas: JsonSchema[
 }
 
 export function generateZodSchemaField(schema: JsonSchema): zod.ZodType {
-  if (isButtonType(schema) || isSubmitType(schema)) {
+  if (storesNoValue(schema)) {
     return zod.any();
   }
 
@@ -538,7 +547,7 @@ export function generateZodSchemaField(schema: JsonSchema): zod.ZodType {
     case 'object': {
       const shape: Record<string, zod.ZodType> = {};
       for (const property of schema.properties ?? []) {
-        if (isButtonType(property) || isSubmitType(property)) continue;
+        if (storesNoValue(property)) continue;
         shape[property.key] = generateZodSchemaField(property);
       }
       const objectSchema = zod.object(shape);
@@ -569,7 +578,7 @@ export function generateZodSchema(schemas: JsonSchema[]): zod.ZodObject<any> {
   });
 
   schemas.forEach((schema) => {
-    if (!isButtonType(schema) && !isSubmitType(schema)) {
+    if (!storesNoValue(schema)) {
       // group and condition requirements run in superRefine, optional here so the UI can hide the field
       const hasGroup = 'group' in schema && (schema as any).group;
       const hasCondition = 'condition' in schema && schema.condition;
@@ -583,7 +592,7 @@ export function generateZodSchema(schemas: JsonSchema[]): zod.ZodObject<any> {
 
   let zodSchema = zod.object(zodSchemaObj);
 
-  const conditionSchemas = schemas.filter((s) => 'condition' in s && s.condition && 'required' in s && s.required && !isButtonType(s) && !isSubmitType(s));
+  const conditionSchemas = schemas.filter((s) => 'condition' in s && s.condition && 'required' in s && s.required && !storesNoValue(s));
 
   if (groups.size > 0 || conditionSchemas.length > 0) {
     zodSchema = zodSchema.superRefine((data, ctx) => {

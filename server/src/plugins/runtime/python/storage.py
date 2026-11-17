@@ -13,9 +13,8 @@ from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.schema import (
     generate_config_from_schemas,
     get_value_by_key,
-    is_button_type,
-    is_submit_type,
     remove_callbacks_from_schemas,
+    stores_no_value,
 )
 from plugins.runtime.python.store import (
     PluginLocation,
@@ -314,7 +313,7 @@ class DeviceStorage(DeviceStorageInterface):
             schemas = [schemas]
 
         for schema in schemas:
-            if not is_button_type(schema) and not is_submit_type(schema) and "onGet" in schema:
+            if not stores_no_value(schema) and "onGet" in schema:
                 schema_value = await self.getValue(schema["key"])
                 if schema_value is not None:
                     ObjectPath.set(self.values, schema["key"], schema_value)
@@ -403,7 +402,7 @@ class DeviceStorage(DeviceStorageInterface):
         result: ConfigDict = {}
 
         for schema in schemas:
-            if is_button_type(schema) or is_submit_type(schema):
+            if stores_no_value(schema):
                 continue
 
             if "store" in schema and schema["store"]:
@@ -421,7 +420,7 @@ class DeviceStorage(DeviceStorageInterface):
         self,
         schema: JsonSchema,
     ) -> bool:
-        if is_button_type(schema) or is_submit_type(schema):
+        if stores_no_value(schema):
             return False
 
         return bool("store" in schema and schema["store"])

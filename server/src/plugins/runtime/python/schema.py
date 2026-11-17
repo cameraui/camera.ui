@@ -6,6 +6,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     JsonSchemaBoolean,
     JsonSchemaButton,
     JsonSchemaEnum,
+    JsonSchemaLink,
     JsonSchemaNumber,
     JsonSchemaString,
     JsonSchemaSubmit,
@@ -36,12 +37,8 @@ def is_array_type(schema: JsonSchema) -> TypeGuard[JsonSchemaArray]:
     return schema.get("type") == "array"
 
 
-def is_button_type(schema: JsonSchema) -> TypeGuard[JsonSchemaButton]:
-    return schema.get("type") == "button"
-
-
-def is_submit_type(schema: JsonSchema) -> TypeGuard[JsonSchemaSubmit]:
-    return schema.get("type") == "submit"
+def stores_no_value(schema: JsonSchema) -> TypeGuard[JsonSchemaButton | JsonSchemaSubmit | JsonSchemaLink]:
+    return schema.get("type") in ("button", "submit", "link")
 
 
 def generate_default_value(schema: JsonSchema) -> SchemaDefaultValue:
@@ -70,7 +67,7 @@ def generate_config_from_schemas(schemas: list[JsonSchema]) -> dict[str, SchemaD
     config: dict[str, SchemaDefaultValue] = {}
 
     for schema in schemas:
-        if is_button_type(schema) or is_submit_type(schema):
+        if stores_no_value(schema):
             continue
 
         config[schema["key"]] = generate_default_value(schema)

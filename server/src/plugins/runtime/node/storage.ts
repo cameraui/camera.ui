@@ -2,7 +2,16 @@ import { isEqual, mergeWith, structuredClone } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
-import { deleteValueByKey, generateConfigFromSchemas, getValueByKey, isButtonType, isSubmitType, removeCallbacksFromSchemas, setValueByKey } from '../../schema.js';
+import {
+  deleteValueByKey,
+  generateConfigFromSchemas,
+  getValueByKey,
+  isLinkType,
+  isSubmitType,
+  removeCallbacksFromSchemas,
+  setValueByKey,
+  storesNoValue,
+} from '../../schema.js';
 import { deleteLocation, readLocation, writeLocation } from '../../store/location.js';
 import { validateStoreValue } from '../../store/validate.js';
 
@@ -262,7 +271,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
     }
 
     for (const schema of schemas) {
-      if (!isButtonType(schema) && !isSubmitType(schema) && typeof schema.onGet === 'function') {
+      if (!storesNoValue(schema) && typeof schema.onGet === 'function') {
         const schemaValue = await this.getValue(schema.key);
         if (schemaValue !== undefined && schemaValue !== null) {
           setValueByKey(this.values, schema.key, schemaValue);
@@ -288,7 +297,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
       if (!isEqual(oldValue, newValue, true)) {
         const schema = this.schemas.find((schema) => schema.key === configKey);
-        if (schema && !isSubmitType(schema) && typeof schema.onSet === 'function') {
+        if (schema && !isSubmitType(schema) && !isLinkType(schema) && typeof schema.onSet === 'function') {
           this.#runOnSetDetached(schema.onSet, configKey, newValue, oldValue);
         }
       }
@@ -307,7 +316,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
 
   #filterStorableValues(schemas: JsonSchema[], result: Record<string, any> = {}): Record<string, any> {
     for (const schema of schemas) {
-      if (isButtonType(schema) || isSubmitType(schema)) {
+      if (storesNoValue(schema)) {
         continue;
       }
 
@@ -347,7 +356,7 @@ export class DeviceStorage<T extends Record<string, any> = Record<string, any>> 
   }
 
   #containsStorableSchema(schema: JsonSchema): boolean {
-    if (schema.type === 'button' || schema.type === 'submit') {
+    if (storesNoValue(schema)) {
       return false;
     }
 

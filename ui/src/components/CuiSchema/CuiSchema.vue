@@ -131,12 +131,11 @@ import {
   generateConfigFromSchemas,
   generateZodSchema,
   getValueByKey,
-  isButtonType,
   isConfigDefault,
   isStringType,
-  isSubmitType,
   schemaGroupIsReadonly,
   schemaGroupIsStorable,
+  storesNoValue,
 } from '@shared/types';
 import { Form } from 'vee-validate';
 
@@ -241,8 +240,7 @@ function showCardSaveButton(group: string): boolean {
 function needsValidation(schema: JsonSchema): boolean {
   const qrType = isStringType(schema) && schema.format === 'qrCode';
   const imageType = isStringType(schema) && schema.format === 'image';
-  const buttonType = isButtonType(schema) || isSubmitType(schema);
-  return !qrType && !imageType && !buttonType;
+  return !qrType && !imageType && !storesNoValue(schema);
 }
 
 function showField(schema: JsonSchema): boolean {

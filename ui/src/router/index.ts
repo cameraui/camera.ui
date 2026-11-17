@@ -58,6 +58,7 @@ import PluginsIconActive from '~icons/tabler/puzzle-filled';
 
 import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
+import { isAppPath, isWebUrl } from '@/common/utils.js';
 import { dropParkedPage, holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
 import { isCapacitor, isInAppSession, useConnection } from '@/connection/index.js';
 import { scrollPageToTop } from '@/composables/useCuiTopbarSlots.js';
@@ -1507,16 +1508,27 @@ const router = createRouter({
   },
 });
 
-router.absUrl = (url: string = '#', newTab: boolean = true): void => {
+router.absUrl = (url?: string, newTab: boolean = true): void => {
+  if (!url || !isWebUrl(url)) return;
+
   const link = document.createElement('a');
   link.href = url;
-  link.target = newTab && url !== '#' ? '_blank' : '';
 
   if (newTab) {
+    link.target = '_blank';
     link.rel = 'noopener noreferrer';
   }
 
   link.click();
+};
+
+router.openLink = (url: string): void => {
+  if (isAppPath(url)) {
+    router.push(url);
+    return;
+  }
+
+  router.absUrl(url);
 };
 
 router.beforeEach(async (to, from) => {

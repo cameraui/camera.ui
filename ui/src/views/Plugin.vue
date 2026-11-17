@@ -206,7 +206,6 @@ import PlateIcon from '~icons/solar/plate-bold';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { PluginsQuery } from '@/api/routes/plugins.js';
-import { pluginMessageResponseTypeToToastType } from '@/common/utils.js';
 import PluginSchemaDialog from '@/components/CuiDialog/templates/PluginSchema/PluginSchema.vue';
 
 import type { PluginSchemaProps } from '@/components/CuiDialog/templates/PluginSchema/types.js';
@@ -229,6 +228,7 @@ const drawer = useCuiCameraDrawer();
 const route = useRoute();
 const toast = useCuiToast();
 const dialog = useCuiDialog();
+const { showSubmitResponse } = useSubmitResponse();
 const { lgBreakpoint } = useSharedCuiBreakpoint();
 const { t } = useI18n();
 
@@ -301,10 +301,7 @@ async function onSubmit(state: { key: string; payload: any }): Promise<void> {
     await saveConfig(state.payload);
     const response = await storage.submitValue(state.key, state.payload);
 
-    if (response?.toast) {
-      const type = pluginMessageResponseTypeToToastType(response.toast.type);
-      toast.add({ severity: type, detail: response.toast.message, life: 3000 });
-    }
+    showSubmitResponse(response);
 
     if (response?.schema?.length) {
       dialog.openComponentDialog<PluginSchemaProps>(PluginSchemaDialog, {
