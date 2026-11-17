@@ -129,7 +129,7 @@
                       rounded
                       class="cui-icon-lg text-color"
                       :disabled="!isRegistered"
-                      @click="$router.absUrl(CLOUD_SERVICE_URL, true)"
+                      @click="$router.absUrl(cloudPageUrl)"
                     >
                       <template #icon>
                         <i-material-symbols:cloud v-if="isRegistered" width="100%" height="100%" />
@@ -380,7 +380,7 @@
                                         type="button"
                                         severity="secondary"
                                         text
-                                        @click="onOpenManagedUrl(managedStatus.loginUrl!)"
+                                        @click="$router.absUrl(managedStatus.loginUrl)"
                                       >
                                         <template #icon>
                                           <OpenIcon />
@@ -822,6 +822,7 @@ type SignInPatch = NonNullable<SettingsPatchInput['proxy']>['proxyAuth'];
 
 const serverQuery = new ServerQuery();
 const remoteQuery = new RemoteQuery();
+const cloudPageUrl = isCapacitor ? CLOUD_SERVICE_URL : `${CLOUD_SERVICE_URL}/?from=app`;
 
 const dialog = useCuiDialog();
 const toast = useCuiToast();
@@ -1175,10 +1176,6 @@ async function onManagedLogout() {
   try {
     await managedLogout();
   } catch {}
-}
-
-function onOpenManagedUrl(url: string) {
-  window.open(url, '_blank', 'noopener');
 }
 
 async function onTestMode(mode: DBRemoteDirectMode) {

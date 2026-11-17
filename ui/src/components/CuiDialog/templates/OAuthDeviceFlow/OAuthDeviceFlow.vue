@@ -27,7 +27,13 @@
             <InputText :model-value="state.verificationUri" readonly class="font-mono text-sm" />
             <CuiCopyAddon :value="verificationLink" />
             <InputGroupAddon>
-              <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="onOpenLink">
+              <Button
+                v-tooltip="{ value: $t('components.form.button.open_in_browser') }"
+                type="button"
+                severity="secondary"
+                text
+                @click="$router.absUrl(verificationLink)"
+              >
                 <template #icon>
                   <OpenIcon />
                 </template>
@@ -75,10 +81,6 @@ const { isPairing, start: startPairing, cancel: cancelPairing } = useServerPairi
 
 const requestedScopes = computed(() => Object.keys(metadata.value?.scopeDescriptions ?? {}));
 const verificationLink = computed(() => state.value.verificationUriComplete || state.value.verificationUri);
-
-function onOpenLink() {
-  if (verificationLink.value) window.open(verificationLink.value, '_blank', 'noopener');
-}
 
 function errorText(code?: string, message?: string): string {
   switch (code) {

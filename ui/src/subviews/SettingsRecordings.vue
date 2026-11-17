@@ -30,9 +30,18 @@
               </div>
               <CuiPluginOAuthButton :plugin-name="NVR_PLUGIN_NAME" class="flex-shrink-0" />
             </div>
+            <div v-if="planLinkVisible" class="flex justify-end mt-4">
+              <Button severity="secondary" class="cui-button-medium" :label="$t('views.settings.recordings.manage_plan')" @click="$router.absUrl(PLAN_URL)">
+                <template #icon>
+                  <i-mdi:open-in-new class="w-4 h-4" />
+                </template>
+              </Button>
+            </div>
           </template>
         </Card>
       </div>
+
+      <CuiRecordingSlots />
 
       <CuiSchema
         v-if="pluginConfig"
@@ -65,12 +74,16 @@
 import { useOAuth, usePluginStorage } from '@camera.ui/browser';
 import { useStorageStats } from '@camera.ui/nvr';
 
-import { NVR_PLUGIN_NAME } from '@/common/constants.js';
+import { BILLING_SERVICE_URL, NVR_PLUGIN_NAME } from '@/common/constants.js';
 import CuiPluginOAuthButton from '@/components/CuiPluginCard/CuiPluginOAuthButton.vue';
 import CuiSchema from '@/components/CuiSchema/CuiSchema.vue';
+import { isCapacitor } from '@/connection/index.js';
+
+const PLAN_URL = `${BILLING_SERVICE_URL}/?from=app`;
 
 const { t } = useI18n();
 const toast = useCuiToast();
+const { showSubmitResponse } = useSubmitResponse();
 const { stats, isLoading, refresh: refreshStats } = useStorageStats();
 const { state: oauthState, refresh: refreshOAuth } = useOAuth(NVR_PLUGIN_NAME);
 const { isConnected: pluginConnected, isLoading: storageLoading, config: pluginConfig, getConfig, setConfig, setValue, submitValue } = usePluginStorage(NVR_PLUGIN_NAME);
@@ -100,6 +113,9 @@ const licenseStatus = computed(() => {
   }
 });
 
+// store rules: the apps must not lead to the purchase
+const planLinkVisible = computed(() => !isCapacitor && oauthState.value.status === 'connected');
+
 async function onAction(state: { key: string }): Promise<void> {
   try {
     await setValue(state.key, undefined);
@@ -113,9 +129,8 @@ async function onAction(state: { key: string }): Promise<void> {
 async function onSubmit(state: { key: string; payload: any }): Promise<void> {
   try {
     const response = await submitValue(state.key, state.payload);
-    if (response?.toast) {
-      toast.add({ severity: response.toast.type, detail: response.toast.message, life: 3000 });
-    } else {
+    showSubmitResponse(response);
+    if (!response?.toast) {
       toast.add({ severity: 'success', detail: t('components.toast.config_updated'), life: 3000 });
     }
     refreshStats();
