@@ -190,25 +190,6 @@ export class RemoteQuery {
     });
   }
 
-  public pairInitMutation() {
-    return useMutation({
-      mutationFn: pairInit,
-    });
-  }
-
-  public pairPollMutation() {
-    return useMutation({
-      mutationFn: pairPoll,
-      onSuccess: async (data) => {
-        if (data.state === 'confirmed') {
-          await this._queryClient.refetchQueries({ queryKey: ['remote'], exact: true });
-          await this._queryClient.refetchQueries({ queryKey: ['remote', 'status'], exact: true });
-          this.toast.add({ severity: 'success', detail: this.t('components.toast.remote_registered'), life: 3000 });
-        }
-      },
-    });
-  }
-
   public unregisterServerQuery() {
     return useMutation({
       mutationFn: unregisterServer,

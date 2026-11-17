@@ -1552,6 +1552,8 @@ export default {
       error_access_denied: 'Authorization was denied',
       error_expired: 'The code expired, please try again',
       error_generic: 'Authorization failed',
+      error_server_not_paired: 'This server is not registered with the camera.ui cloud',
+      register_server_first: 'Register this server with your camera.ui account first. The connection continues right after.',
     },
     placement: {
       local: 'Runs on the master',

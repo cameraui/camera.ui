@@ -114,55 +114,11 @@
                 </template>
 
                 <Transition name="fade" mode="out-in">
-                  <div v-if="pairCode" key="pairing" class="cui-toggle-switch flex flex-col gap-4">
-                    <Message severity="error" variant="simple" size="small" class="text-primary">
-                      {{ $t('views.settings.pair_instructions') }}
-                    </Message>
-
-                    <div class="cui-pair-layout">
-                      <div class="cui-pair-qr">
-                        <CuiQRCode :value="pairUrl" :size="180" :logo-size="36" />
-                      </div>
-
-                      <div class="flex flex-col gap-4 flex-1 min-w-0">
-                        <div class="flex flex-col field-gap">
-                          <label class="cui-label">{{ $t('views.settings.pair_code') }}</label>
-                          <InputGroup>
-                            <InputText :model-value="pairCode" readonly class="font-mono text-lg text-center tracking-widest" />
-                            <CuiCopyAddon :value="pairCode" />
-                          </InputGroup>
-                          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.pair_code_hint') }}</Message>
-                        </div>
-
-                        <div class="flex flex-col field-gap">
-                          <label class="cui-label">{{ $t('views.settings.pair_url') }}</label>
-                          <InputGroup>
-                            <InputText :model-value="pairUrl" readonly class="font-mono text-sm" />
-                            <CuiCopyAddon :value="pairUrl" />
-                            <InputGroupAddon>
-                              <Button v-tooltip="{ value: $t('components.form.button.open_in_browser') }" type="button" severity="secondary" text @click="onOpenPairUrl">
-                                <template #icon>
-                                  <OpenIcon />
-                                </template>
-                              </Button>
-                            </InputGroupAddon>
-                          </InputGroup>
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                          <ProgressSpinner class="w-[20px] h-[20px] m-0" stroke-width="5" />
-                          <span class="text-sm">{{ $t('views.settings.pair_waiting', { remaining: pairCountdown }) }}</span>
-                          <Button
-                            type="button"
-                            severity="secondary"
-                            class="cui-button-small ml-auto"
-                            :label="$t('components.form.button.cancel')"
-                            @click="onCancelPairing"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <CuiServerPairing v-if="isPairing" key="pairing" class="cui-toggle-switch">
+                    <template #actions>
+                      <Button type="button" severity="secondary" class="cui-button-small ml-auto" :label="$t('components.form.button.cancel')" @click="cancelPairing" />
+                    </template>
+                  </CuiServerPairing>
                 </Transition>
 
                 <div class="flex items-center gap-4">
@@ -183,15 +139,15 @@
                   </div>
                   <div class="ml-auto"></div>
                   <Button
-                    v-if="!isRegistered && !pairCode"
-                    :loading="pairInitLoading"
+                    v-if="!isRegistered && !isPairing"
+                    :loading="pairStarting"
                     class="cui-button-medium"
                     :label="$t('components.form.button.register_server')"
                     @click="onStartPairing"
                   />
                   <Button
-                    v-if="needsReauth && !pairCode"
-                    :loading="pairInitLoading"
+                    v-if="needsReauth && !isPairing"
+                    :loading="pairStarting"
                     class="cui-button-medium"
                     :label="$t('components.form.button.reconnect_server')"
                     @click="onStartPairing"
@@ -867,11 +823,11 @@ type SignInPatch = NonNullable<SettingsPatchInput['proxy']>['proxyAuth'];
 const serverQuery = new ServerQuery();
 const remoteQuery = new RemoteQuery();
 
-const log = useLogger();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const { t } = useI18n();
 const { endpoint, isOnline } = useConnection();
+const { isPairing, starting: pairStarting, start: startPairing, cancel: cancelPairing } = useServerPairing();
 const {
   settings,
   form: proxyForm,
@@ -895,8 +851,6 @@ const { data: tunnelStatus, isLoading: tunnelStatusLoading } = remoteQuery.getTu
 const { data: connectionInfo } = remoteQuery.getConnectionInfoQuery();
 const { mutateAsync: patchServer, isPending: patchServerLoading } = serverQuery.patchSystemInfoQuery();
 const { mutateAsync: patchRemote, isPending: patchRemoteLoading } = remoteQuery.patchRemoteInfoQuery();
-const { mutateAsync: pairInit, isPending: pairInitLoading } = remoteQuery.pairInitMutation();
-const { mutateAsync: pairPoll } = remoteQuery.pairPollMutation();
 const { mutateAsync: unregisterServer, isPending: unregisterLoading } = remoteQuery.unregisterServerQuery();
 const { mutateAsync: updateName, isPending: updateNameLoading } = remoteQuery.updateServerNameQuery();
 const { mutateAsync: testRemoteMode, isPending: testRunning } = remoteQuery.testRemoteModeMutation();
@@ -914,15 +868,8 @@ const cloudflareVariantInput = ref<DBCloudflareMode>('quick');
 const cloudflareHostnameInput = ref('');
 const cloudflareTokenInput = ref('');
 const cloudflareTokenSet = ref(false);
-const pairCode = ref<string | null>(null);
-const pairUrl = ref('');
-const pairExpiresAt = ref<number | null>(null);
-const pairPollIntervalSec = ref(2);
-const pairCountdown = ref('');
 const signInSecret = ref('');
 const removeSecret = ref(false);
-let pairPollTimer: ReturnType<typeof setTimeout> | null = null;
-let pairCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const isLoading = computed(() => {
   return (
@@ -1129,95 +1076,14 @@ function openUnregisterServerDialog() {
   });
 }
 
-function clearPairTimers() {
-  if (pairPollTimer) {
-    clearTimeout(pairPollTimer);
-    pairPollTimer = null;
-  }
-  if (pairCountdownTimer) {
-    clearInterval(pairCountdownTimer);
-    pairCountdownTimer = null;
-  }
-}
-
-function resetPairState() {
-  clearPairTimers();
-  pairCode.value = null;
-  pairUrl.value = '';
-  pairExpiresAt.value = null;
-  pairCountdown.value = '';
-}
-
 function finishPairing(firstPairing: boolean) {
-  resetPairState();
   if (firstPairing && remoteInfo.value?.remoteSettings.enabled === false) {
     onToggleCloud(true, true);
   }
 }
 
-function formatCountdown(ms: number): string {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function startCountdown() {
-  if (pairCountdownTimer) clearInterval(pairCountdownTimer);
-  const update = () => {
-    if (!pairExpiresAt.value) return;
-    const remaining = pairExpiresAt.value - Date.now();
-    if (remaining <= 0) {
-      resetPairState();
-      toast.add({ severity: 'warn', detail: t('components.toast.pair_expired'), life: 3000 });
-      return;
-    }
-    pairCountdown.value = formatCountdown(remaining);
-  };
-  update();
-  pairCountdownTimer = setInterval(update, 1000);
-}
-
-function schedulePoll() {
-  if (pairPollTimer) clearTimeout(pairPollTimer);
-  pairPollTimer = setTimeout(runPoll, pairPollIntervalSec.value * 1000);
-}
-
-async function runPoll() {
-  if (!pairCode.value) return;
-  const code = pairCode.value;
-  const firstPairing = !isRegistered.value;
-  try {
-    const result = await pairPoll({ name: serverNameInput.value.trim() || undefined });
-    if (!pairCode.value || pairCode.value !== code) return;
-    if (result.state === 'confirmed') {
-      finishPairing(firstPairing);
-      return;
-    }
-    if (result.state === 'expired') {
-      resetPairState();
-      toast.add({ severity: 'warn', detail: t('components.toast.pair_expired'), life: 3000 });
-      return;
-    }
-    if (result.state === 'denied') {
-      resetPairState();
-      toast.add({ severity: 'warn', detail: t('components.toast.pair_denied'), life: 3000 });
-      return;
-    }
-    if (result.state === 'slow_down') {
-      pairPollIntervalSec.value = Math.min(pairPollIntervalSec.value + 2, 10);
-    }
-    schedulePoll();
-  } catch (err: any) {
-    if (!pairCode.value || pairCode.value !== code) return;
-    // keep polling, the cloud side's TTL decides the expiry
-    log.error('pair poll failed:', err);
-    schedulePoll();
-  }
-}
-
 async function onStartPairing() {
-  resetPairState();
+  const firstPairing = !isRegistered.value;
   try {
     const desiredName = serverNameInput.value.trim();
     if (desiredName && desiredName !== (registrationStatus.value?.serverName ?? '')) {
@@ -1227,25 +1093,10 @@ async function onStartPairing() {
         // the cloud still gets the name via pollPairing
       }
     }
-    const result = await pairInit(desiredName || undefined);
-    pairCode.value = result.userCode;
-    pairUrl.value = result.verificationUriComplete;
-    pairExpiresAt.value = Date.now() + result.expiresIn * 1000;
-    pairPollIntervalSec.value = Math.max(1, result.pollInterval);
-    startCountdown();
-    schedulePoll();
+    await startPairing(desiredName || undefined, () => finishPairing(firstPairing));
   } catch (err: any) {
     toast.add({ severity: 'error', detail: err, life: 3000 });
   }
-}
-
-function onCancelPairing() {
-  resetPairState();
-}
-
-function onOpenPairUrl() {
-  if (!pairUrl.value) return;
-  window.open(pairUrl.value, '_blank', 'noopener');
 }
 
 function onToggleCloud(enabled: boolean, afterPairing = false) {
@@ -1420,7 +1271,8 @@ watch(
 );
 
 watch(isRegistered, (registered) => {
-  if (registered && pairCode.value) {
+  if (registered && isPairing.value) {
+    cancelPairing();
     finishPairing(true);
   }
 });
@@ -1464,29 +1316,26 @@ watch(
 );
 
 onBeforeUnmount(() => {
-  clearPairTimers();
+  cancelPairing();
 });
 </script>
 
 <style scoped>
-.cf-login-setup,
-.cui-pair-layout {
+.cf-login-setup {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
 @media (min-width: 768px) {
-  .cf-login-setup,
-  .cui-pair-layout {
+  .cf-login-setup {
     flex-direction: row;
     align-items: flex-start;
     gap: 2rem;
   }
 }
 
-.cf-login-qr,
-.cui-pair-qr {
+.cf-login-qr {
   display: flex;
   flex-direction: column;
   align-items: center;

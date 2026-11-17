@@ -223,6 +223,7 @@ declare module 'vue' {
     CuiScreen: typeof import('./../components/CuiScreen/CuiScreen.vue')['default']
     CuiSecuritySystem: typeof import('./../components/CuiSecuritySystem/CuiSecuritySystem.vue')['default']
     CuiSensorControl: typeof import('./../components/CuiSensorControl/CuiSensorControl.vue')['default']
+    CuiServerPairing: typeof import('./../components/CuiServerPairing/CuiServerPairing.vue')['default']
     CuiShortcuts: typeof import('./../components/CuiShortcuts/CuiShortcuts.vue')['default']
     CuiSimilarPicker: typeof import('./../components/CuiSimilarPicker/CuiSimilarPicker.vue')['default']
     CuiSirenControl: typeof import('./../components/CuiSirenControl/CuiSirenControl.vue')['default']

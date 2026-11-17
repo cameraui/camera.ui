@@ -1564,6 +1564,8 @@ export default {
       error_access_denied: 'Autorisierung wurde abgelehnt',
       error_expired: 'Der Code ist abgelaufen, bitte erneut versuchen',
       error_generic: 'Autorisierung fehlgeschlagen',
+      error_server_not_paired: 'Dieser Server ist nicht in der camera.ui Cloud registriert',
+      register_server_first: 'Registriere diesen Server zuerst bei deinem camera.ui Konto. Danach geht es direkt weiter.',
     },
     placement: {
       local: 'Läuft auf dem Master',

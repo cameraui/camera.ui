@@ -1,7 +1,12 @@
 <template>
   <div class="flex flex-col">
     <Transition name="fade" mode="out-in">
-      <div v-if="state.status === 'disconnected'" key="intro" class="flex flex-col gap-4">
+      <div v-if="isPairing" key="pairing" class="flex flex-col gap-4">
+        <Message severity="secondary" variant="simple" size="small">{{ $t('components.oauth.register_server_first') }}</Message>
+        <CuiServerPairing stacked />
+      </div>
+
+      <div v-else-if="state.status === 'disconnected'" key="intro" class="flex flex-col gap-4">
         <Message severity="secondary" variant="simple" size="small">
           {{ $t('components.oauth.intro', { idp: metadata?.idpDisplayName ?? 'cameraui.com' }) }}
         </Message>
@@ -48,7 +53,7 @@
 
       <div v-else-if="state.status === 'error'" key="error" class="flex flex-col items-center gap-3 py-2 text-center">
         <i-mdi:cloud-alert class="text-red-500 w-10 h-10" />
-        <span class="text-sm">{{ state.errorMessage || errorText(state.errorCode) }}</span>
+        <span class="text-sm">{{ errorText(state.errorCode, state.errorMessage) }}</span>
       </div>
     </Transition>
   </div>
@@ -64,7 +69,10 @@ import type { OAuthDeviceFlowProps } from './types.js';
 const props = defineProps<OAuthDeviceFlowProps>();
 
 const { t } = useI18n();
-const { state, metadata, startDeviceFlow, disconnect, cancel } = useOAuth(props.pluginName);
+const toast = useCuiToast();
+const { state, metadata, startDeviceFlow, disconnect, cancel, refresh } = useOAuth(props.pluginName);
+const { isPairing, start: startPairing, cancel: cancelPairing } = useServerPairing();
+
 const requestedScopes = computed(() => Object.keys(metadata.value?.scopeDescriptions ?? {}));
 const verificationLink = computed(() => state.value.verificationUriComplete || state.value.verificationUri);
 
@@ -72,20 +80,34 @@ function onOpenLink() {
   if (verificationLink.value) window.open(verificationLink.value, '_blank', 'noopener');
 }
 
-function errorText(code?: string): string {
+function errorText(code?: string, message?: string): string {
   switch (code) {
     case 'access_denied':
       return t('components.oauth.error_access_denied');
     case 'expired_token':
       return t('components.oauth.error_expired');
+    case 'server_not_paired':
+      return t('components.oauth.error_server_not_paired');
     default:
-      return t('components.oauth.error_generic');
+      return message || t('components.oauth.error_generic');
+  }
+}
+
+async function connect(registerFirst: boolean): Promise<void> {
+  try {
+    await startDeviceFlow(requestedScopes.value);
+  } catch (err) {
+    await refresh();
+    if (!registerFirst || state.value.errorCode !== 'server_not_paired') throw err;
+    await startPairing(undefined, () => {
+      connect(false).catch((error) => toast.add({ severity: 'error', detail: error, life: 3000 }));
+    });
   }
 }
 
 async function onConfirm(): Promise<null> {
   if (state.value.status === 'disconnected' || state.value.status === 'error') {
-    await startDeviceFlow(requestedScopes.value);
+    await connect(true);
   } else if (state.value.status === 'connected') {
     await disconnect();
   }
@@ -94,10 +116,13 @@ async function onConfirm(): Promise<null> {
 }
 
 async function onCancel(): Promise<void> {
+  cancelPairing();
   if (state.value.status === 'awaiting_user' || state.value.status === 'polling') {
     await cancel();
   }
 }
+
+onBeforeUnmount(cancelPairing);
 
 defineExpose<CustomDialogComponent>({
   onConfirm,
