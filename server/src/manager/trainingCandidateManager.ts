@@ -10,6 +10,7 @@ import { buildTrainSubmission, insideFrame, withProvenance } from './trainingSub
 import type { LoggerService } from '@camera.ui/sdk';
 import type { Database } from '../api/database/index.js';
 import type { DBTrainingCandidate, DBTrainingCandidateBox, DBTrainingCandidateMeta, DBTrainingSettings } from '../api/database/types.js';
+import type { TrainingSubmissionsQuery } from '../api/schemas/training.schema.js';
 import type { TrainingNamespace } from '../api/websocket/nsp/training.js';
 import type { TrainingCandidateIngest, TrainingIngestResult } from '../rpc/interfaces/core.js';
 import type { TrainingSubmissionPage, TrainingSubmitProgress, TrainingSubmitResult } from './types.js';
@@ -123,8 +124,8 @@ export class TrainingCandidateManager {
     return { active: this.submitWorker !== undefined, ...this.submitProgress };
   }
 
-  public async listSubmissions(cursor?: string): Promise<TrainingSubmissionPage> {
-    const page = await inject('cloudApi').trainRoute.list(cursor);
+  public async listSubmissions(query: TrainingSubmissionsQuery): Promise<TrainingSubmissionPage> {
+    const page = await inject('cloudApi').trainRoute.list(query);
     return {
       items: page.items.map((s) => ({
         id: s.id,
@@ -133,9 +134,13 @@ export class TrainingCandidateManager {
         createdAt: s.created_at,
         usedInWave: s.used_in_wave,
         imageUrl: s.image_url,
+        serverId: s.server_id,
+        serverName: s.server_name,
       })),
       nextCursor: page.next_cursor,
       total: page.total,
+      servers: page.servers,
+      removed: page.removed,
     };
   }
 

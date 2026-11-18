@@ -160,10 +160,21 @@ export interface TrainingSubmission {
   createdAt: string;
   usedInWave?: string;
   imageUrl?: string;
+  serverId?: string;
+  serverName?: string;
+}
+
+export interface TrainingSubmissionServer {
+  id: string;
+  name: string;
+  count: number;
+  current?: boolean;
 }
 
 export interface TrainingSubmissionPage {
   items: TrainingSubmission[];
   nextCursor?: string;
   total?: number;
+  servers?: TrainingSubmissionServer[];
+  removed?: number;
 }

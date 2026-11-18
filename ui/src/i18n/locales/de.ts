@@ -1902,10 +1902,13 @@ export default {
     training_submissions: {
       empty: 'Noch keine Beiträge. Eingereichte Frames erscheinen hier.',
       load_failed: 'Beiträge konnten nicht geladen werden. Cloud-Verbindung prüfen.',
-      status_pool: 'Eingereicht',
       status_trained: 'Im Training',
       delete: 'Beitrag löschen',
       count: '{count} Beitrag | {count} Beiträge',
+      all_servers: 'Alle Server',
+      this_server: '{name} (dieser Server)',
+      removed_servers: 'Entfernte Server',
+      removed_server: 'Entfernter Server',
     },
     zone_editor: {
       base_labels: 'Basis',

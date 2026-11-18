@@ -1,6 +1,8 @@
 import { assertResponseOk, cloudFetch } from '../instance.js';
 
 import type { TrainingBoxSource, TrainingSelection } from '../../../api/database/types.js';
+import type { TrainingSubmissionsQuery } from '../../../api/schemas/training.schema.js';
+import type { TrainingSubmissionServer } from '../../../manager/types.js';
 import type { CloudCredentialStore } from '../credentialStore.js';
 
 interface TrainSubmissionCreateResponse {
@@ -50,12 +52,16 @@ export interface CloudTrainSubmission {
   created_at: string;
   used_in_wave?: string;
   image_url?: string;
+  server_id?: string;
+  server_name?: string;
 }
 
 export interface CloudTrainSubmissionPage {
   items: CloudTrainSubmission[];
   next_cursor?: string;
   total?: number;
+  servers?: TrainingSubmissionServer[];
+  removed?: number;
 }
 
 const LIST_PAGE_SIZE = 30;
@@ -90,9 +96,11 @@ export class TrainRoute {
     return created.id;
   }
 
-  public async list(cursor?: string): Promise<CloudTrainSubmissionPage> {
+  public async list(query: TrainingSubmissionsQuery): Promise<CloudTrainSubmissionPage> {
     const params = new URLSearchParams({ limit: String(LIST_PAGE_SIZE) });
-    if (cursor) params.set('cursor', cursor);
+    if (query.cursor) params.set('cursor', query.cursor);
+    if (query.serverId) params.set('server_id', query.serverId);
+    if (query.removed) params.set('removed', 'true');
     const res = await this.fetchCloud()(`/api/v1/train/submissions?${params.toString()}`, { method: 'GET' });
     await assertResponseOk(res);
     return (await res.json()) as CloudTrainSubmissionPage;

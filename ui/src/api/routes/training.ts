@@ -7,6 +7,7 @@ import type {
   TrainingCandidatePatchInput,
   TrainingSettingsPatchInput,
   TrainingSubmissionPage,
+  TrainingSubmissionsQuery,
   TrainingSubmitResult,
 } from '@shared/types';
 import type { AxiosResponse } from 'axios';
@@ -36,8 +37,8 @@ export async function submitTrainingCandidates(ids: string[]): Promise<TrainingS
   return { queued };
 }
 
-export async function getTrainingSubmissions({ cursor, signal }: { cursor?: string; signal?: AbortSignal } = {}): Promise<TrainingSubmissionPage> {
-  const response: AxiosResponse<TrainingSubmissionPage> = await api.get('/training/submissions', { params: cursor ? { cursor } : undefined, signal });
+export async function getTrainingSubmissions(params: TrainingSubmissionsQuery = {}, { signal }: { signal?: AbortSignal } = {}): Promise<TrainingSubmissionPage> {
+  const response: AxiosResponse<TrainingSubmissionPage> = await api.get('/training/submissions', { params, signal });
   return response.data;
 }
 

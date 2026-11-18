@@ -1889,10 +1889,13 @@ export default {
     training_submissions: {
       empty: 'No contributions yet. Frames you submit stay listed here.',
       load_failed: 'Contributions could not be loaded. Check the cloud connection.',
-      status_pool: 'Submitted',
       status_trained: 'In training',
       delete: 'Delete contribution',
       count: '{count} contribution | {count} contributions',
+      all_servers: 'All servers',
+      this_server: '{name} (this server)',
+      removed_servers: 'Removed servers',
+      removed_server: 'Removed server',
     },
     zone_editor: {
       base_labels: 'Base',

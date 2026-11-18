@@ -24,6 +24,8 @@ export const trainingSubmissionParamsSchema = zod.object({
 
 export const trainingSubmissionsQuerySchema = zod.object({
   cursor: zod.string().trim().min(1).optional(),
+  serverId: zod.string().trim().min(1).optional(),
+  removed: zod.coerce.boolean().optional(),
 });
 
 export const trainingCandidateListQuerySchema = zod.object({

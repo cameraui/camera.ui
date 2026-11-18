@@ -72,7 +72,7 @@ export class TrainingController {
 
   public async submissions(req: FastifyRequest<AuthLoginRequest & { Querystring: TrainingSubmissionsQuery }>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      return reply.code(200).send(await this.manager.listSubmissions(req.query.cursor));
+      return reply.code(200).send(await this.manager.listSubmissions(req.query));
     } catch (error: any) {
       return reply.code(502).send({ statusCode: 502, message: error.message });
     }
