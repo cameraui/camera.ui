@@ -124,7 +124,7 @@ export async function extractTarball(manifest: PackageManifest, dest: string, si
       file: tarball,
       cwd: dest,
       strip: 1,
-      noChmod: true,
+      chmod: false,
       noMtime: true,
       preserveOwner: false,
       filter: (_path, stat) => {
