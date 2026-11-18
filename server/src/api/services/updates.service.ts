@@ -585,6 +585,8 @@ export class UpdatesService {
     }
 
     if (phase === 'start') {
+      // a new attempt replaces what the last run reported, its error would come back once this one stops lingering
+      if (this.lastRun) this.lastRun.items = this.lastRun.items.filter((item) => item.id !== id);
       this.manual.set(id, { id, kind, name, displayName, status: 'updating', source: 'manual', targetVersion: detail?.version });
     } else {
       const item = this.manual.get(id) ?? { id, kind, name, displayName, status: 'updating', source: 'manual' as const };
