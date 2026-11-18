@@ -25,6 +25,8 @@ export const ASSISTANT_DEFAULT_BASE_URLS: Record<DBAssistantProvider, string> = 
 
 export const ASSISTANT_KEY_PROVIDERS: DBAssistantProvider[] = ['openai', 'anthropic', 'gemini', 'openrouter'];
 
+export const ASSISTANT_ROUTING_PROVIDERS: DBAssistantProvider[] = ['ollama'];
+
 export function capabilityTags(entry: Pick<AssistantModelView, 'capabilities'>): AssistantCapabilityTag[] {
   const capabilities = entry.capabilities;
   if (!capabilities) return [{ key: 'untested', severity: 'secondary' }];

@@ -3890,7 +3890,7 @@ export default {
       assistant_model_context: 'Context {tokens} tokens.',
       assistant_model_routing: 'Pick the tools first',
       assistant_model_routing_info:
-        'For small models. A short extra request picks the tools a question needs, so the model sees those few instead of a long catalog. Costs about a second per question, large models do not need it.',
+        'For small models. A short extra request picks the tools a question needs, so the model sees those few instead of a long catalog. Costs about a second per question. On by default for Ollama, large models do not need it.',
       assistant_model_context_label: 'Context window (tokens)',
       assistant_model_context_placeholder: 'From the general setting',
       assistant_model_context_info:

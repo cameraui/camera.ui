@@ -116,7 +116,7 @@
 
 <script setup lang="ts">
 import { AssistantQuery } from '@/api/routes/assistant.js';
-import { ASSISTANT_DEFAULT_BASE_URLS, ASSISTANT_KEY_PROVIDERS, ASSISTANT_PROVIDERS } from '@/common/assistantModels.js';
+import { ASSISTANT_DEFAULT_BASE_URLS, ASSISTANT_KEY_PROVIDERS, ASSISTANT_PROVIDERS, ASSISTANT_ROUTING_PROVIDERS } from '@/common/assistantModels.js';
 
 import { NEW_KEY_SOURCE } from './types.js';
 
@@ -141,7 +141,7 @@ const model = ref(props.entry?.model ?? '');
 const name = ref(props.entry && props.entry.name !== props.entry.model ? props.entry.name : '');
 const sendImages = ref(props.entry?.sendImages ?? false);
 const contextTokens = ref<number | null>(props.entry?.contextTokens ?? null);
-const toolRouting = ref(props.entry?.toolRouting ?? false);
+const toolRouting = ref(props.entry?.toolRouting ?? ASSISTANT_ROUTING_PROVIDERS.includes(provider.value));
 const userAccess = ref(props.entry?.userAccess !== false);
 const keySource = ref<string>(NEW_KEY_SOURCE);
 const available = ref<string[]>([]);
@@ -213,6 +213,7 @@ function request(): AssistantModelInput {
 function onProviderChange(): void {
   baseURL.value = '';
   model.value = '';
+  if (props.entry?.toolRouting == null) toolRouting.value = ASSISTANT_ROUTING_PROVIDERS.includes(provider.value);
   available.value = [];
   suggestions.value = [];
   keySource.value = defaultKeySource();

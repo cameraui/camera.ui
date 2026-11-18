@@ -1200,7 +1200,8 @@ export class AssistantManager {
   }
 
   private routesTools(entry: DBAssistantModel): boolean {
-    return entry.toolRouting ?? this.modelSpec(entry.provider, entry.model)?.toolRouting ?? false;
+    // local models are mostly small, they keep to the right tools far better with a pick first
+    return entry.toolRouting ?? this.modelSpec(entry.provider, entry.model)?.toolRouting ?? entry.provider === 'ollama';
   }
 
   private window(settings: AssistantSettings, entry: DBAssistantModel): number {
