@@ -42,7 +42,8 @@ export class NodePluginRuntime extends BasePluginRuntime {
           ...(IS_DEV && !IS_ELECTRON ? { TSX_TSCONFIG_PATH: serverTsconfigPath } : {}),
         },
         cwd: this.plugin.mainPath,
-        silent: true,
+        // windows: a read waiting on a synchronous stdin pipe blocks every other call on it, a dll peeking stdin while it loads hangs
+        stdio: ['overlapped', 'pipe', 'pipe', 'ipc'],
         detached: supervision.detached,
         windowsHide: supervision.windowsHide,
         execArgv: IS_DEV && !IS_ELECTRON ? [`--import=${import.meta.resolve('tsx')}`, '--trace-warnings'] : undefined,

@@ -5,6 +5,7 @@ import truststore
 truststore.inject_into_ssl()
 
 import asyncio
+import faulthandler
 import importlib.util
 import os
 import sys
@@ -70,6 +71,8 @@ CONNECT_DEADLINE = 15.0
 HANDSHAKE_LEVEL = 2
 REATTACH_DEADLINE = 240.0
 REATTACH_RETRY_DELAYS = (1.0, 2.0, 5.0, 10.0)
+# the host gives up on a start after 300 s, the stacks have to reach the log before
+START_STACKS_AFTER = 240.0
 
 Phase = Literal["ready-sent", "starting", "started", "reattach-wait", "reattaching", "start-error"]
 
@@ -227,6 +230,7 @@ class PluginChild:
 
     async def start_plugin(self, data: ProcessLoadMessage, run_id: str | None) -> None:
         self._phase = "starting"
+        faulthandler.dump_traceback_later(START_STACKS_AFTER)
         try:
             # on a worker the master's storage path from START points at the wrong machine
             storage_path = os.environ.get("PLUGIN_STORAGE_PATH") or data["storage"]["storagePath"]
@@ -286,6 +290,8 @@ class PluginChild:
             self._start_error = str(e)
             await self._send_error(str(e))
             return
+        finally:
+            faulthandler.cancel_dump_traceback_later()
 
         await self._answer_pending_resume()
 

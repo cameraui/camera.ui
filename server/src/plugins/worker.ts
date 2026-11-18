@@ -11,7 +11,7 @@ import { NamespaceManager } from '../rpc/namespaces.js';
 import { isShuttingDown } from '../shutdown-state.js';
 import { describeHost, describePlatformRequirement } from '../utils/platform.js';
 import { LocalStartAbandoned, RemotePlacement } from '../workers/lifecycle/remote-placement.js';
-import { STORE_LINGER_MS } from '../workers/lifecycle/timing.js';
+import { STARTED_DEADLINE_MS, STORE_LINGER_MS } from '../workers/lifecycle/timing.js';
 import { WORKER_PROTOCOL, WorkerCapability } from '../workers/types.js';
 import { PluginConfigStore } from './config-store.js';
 import { RuntimeFactory } from './runtime/index.js';
@@ -28,7 +28,10 @@ import type { PlacementInfo } from '../workers/lifecycle/remote-placement.js';
 import type { Plugin } from './plugin.js';
 import type { BasePluginRuntime } from './runtime/base.js';
 
-const LOCAL_READY_TIMEOUT_MS = 2 * 60_000;
+const LOCAL_START_STEPS = {
+  ready: { waitingIn: PLUGIN_STATUS.STARTING, timeoutMs: 2 * 60_000, action: 'become ready' },
+  started: { waitingIn: PLUGIN_STATUS.READY, timeoutMs: STARTED_DEADLINE_MS.plugin, action: 'finish starting' },
+};
 const CRASH_RESTART_MS = 5000;
 
 export class PluginWorker {
@@ -40,7 +43,7 @@ export class PluginWorker {
   private placement: RemotePlacement;
 
   private stopping = false;
-  private localReadyTimeout?: NodeJS.Timeout;
+  private localStartTimeout?: NodeJS.Timeout;
   private localBound?: string;
   private settleLocal?: { resolve: () => void; reject: (error: Error) => void };
   private configStore?: PluginConfigStore;
@@ -248,13 +251,13 @@ export class PluginWorker {
 
     this.runtime.once('exit', () => this.onLocalExit());
     await this.runtime.start();
-    this.armLocalReadyTimeout();
+    this.armLocalStartTimeout('ready');
     await started;
   }
 
   private async stopLocal(reason?: string): Promise<void> {
-    clearTimeout(this.localReadyTimeout);
-    this.localReadyTimeout = undefined;
+    clearTimeout(this.localStartTimeout);
+    this.localStartTimeout = undefined;
     if (!this.runtime.isRunning()) {
       return;
     }
@@ -265,8 +268,8 @@ export class PluginWorker {
   }
 
   private onLocalExit(): void {
-    clearTimeout(this.localReadyTimeout);
-    this.localReadyTimeout = undefined;
+    clearTimeout(this.localStartTimeout);
+    this.localStartTimeout = undefined;
     this.localBound = undefined;
     this.settleLocal?.reject(new Error(`Plugin ${this.plugin.displayName} exited before it was ready`));
     this.settleLocal = undefined;
@@ -290,18 +293,20 @@ export class PluginWorker {
     }, CRASH_RESTART_MS);
   }
 
-  private armLocalReadyTimeout(): void {
-    clearTimeout(this.localReadyTimeout);
-    this.localReadyTimeout = setTimeout(() => {
-      if (this.placement.phase !== 'local' || this.status !== PLUGIN_STATUS.STARTING || this.stopping) {
+  private armLocalStartTimeout(step: keyof typeof LOCAL_START_STEPS): void {
+    const { waitingIn, timeoutMs, action } = LOCAL_START_STEPS[step];
+    clearTimeout(this.localStartTimeout);
+    this.localStartTimeout = setTimeout(() => {
+      if (this.placement.phase !== 'local' || this.status !== waitingIn || this.stopping) {
         return;
       }
-      this.runtime.logger.error(`Plugin ${this.plugin.displayName} did not become ready within ${LOCAL_READY_TIMEOUT_MS / 1000}s, killing the process. `);
+      this.runtime.logger.error(`Plugin ${this.plugin.displayName} did not ${action} within ${timeoutMs / 1000}s, killing the process.`);
       this.setStatus(PLUGIN_STATUS.ERROR);
-      this.settleLocal?.reject(new Error(`Plugin ${this.plugin.displayName} did not become ready in time`));
+      // the waiting start holds the lock, stop and restart queue behind it
+      this.settleLocal?.reject(new Error(`Plugin ${this.plugin.displayName} did not ${action} in time`));
       this.settleLocal = undefined;
       this.runExclusive(() => this.stopLocal()).catch(() => {});
-    }, LOCAL_READY_TIMEOUT_MS);
+    }, timeoutMs);
   }
 
   private async ensureChannel(): Promise<void> {
@@ -390,8 +395,8 @@ export class PluginWorker {
     }
 
     this.stopping = true;
-    clearTimeout(this.localReadyTimeout);
-    this.localReadyTimeout = undefined;
+    clearTimeout(this.localStartTimeout);
+    this.localStartTimeout = undefined;
     this.disconnectCameras();
 
     const agentId = this.placement.agentId;
@@ -619,7 +624,7 @@ export class PluginWorker {
           this.placement.started(message.instanceId, { resumed: message.resumed, current: message.runId && runId ? message.runId === runId : undefined });
           break;
         }
-        if (message.instanceId && message.instanceId !== this.localBound) {
+        if (this.stopping || (message.instanceId && message.instanceId !== this.localBound)) {
           this.runtime.logger.debug(`Ignored STARTED of instance ${message.instanceId}`);
           break;
         }
@@ -652,14 +657,13 @@ export class PluginWorker {
   private onLocalReady(instanceId?: string): void {
     const own = this.runtime.instanceId;
     const matches = instanceId ? instanceId === own : this.runtime.isRunning() && !this.localBound;
-    if (!matches || this.localBound) {
+    if (!matches || this.localBound || this.stopping) {
       this.runtime.logger.debug(`Ignored READY of instance ${instanceId ?? '(none)'}`);
       return;
     }
 
-    clearTimeout(this.localReadyTimeout);
-    this.localReadyTimeout = undefined;
     this.localBound = own;
     this.sendStart(own);
+    this.armLocalStartTimeout('started');
   }
 }

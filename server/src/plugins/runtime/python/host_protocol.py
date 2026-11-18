@@ -7,6 +7,8 @@ import os
 import signal
 import sys
 import threading
+import time
+from typing import cast
 
 from _camera_ui_tools.camera_ui_common import SignalHandler
 
@@ -14,6 +16,7 @@ HOST_PROTOCOL = 2
 HOST_PROTOCOL_ENV = "CAMERAUI_HOST_PROTOCOL"
 STOP_BUDGET_ENV = "CAMERAUI_STOP_BUDGET_MS"
 INSTANCE_ID_ENV = "CAMERAUI_INSTANCE_ID"
+STDIN_POLL_INTERVAL = 0.2
 
 
 def host_speaks_stop_line() -> bool:
@@ -66,11 +69,7 @@ def listen_for_host_stop(signal_handler: SignalHandler) -> None:
     def read() -> None:
         pending = b""
         while True:
-            try:
-                # raw reads, a thread blocked in sys.stdin holds its lock and hangs forks that close it
-                chunk = os.read(fd, 4096)
-            except OSError:
-                chunk = b""
+            chunk = _read_stdin(fd)
             if not chunk:
                 break
             *lines, pending = (pending + chunk).split(b"\n")
@@ -88,6 +87,32 @@ def listen_for_host_stop(signal_handler: SignalHandler) -> None:
 def reset_signals_in_forks() -> None:
     if hasattr(os, "register_at_fork"):
         os.register_at_fork(after_in_child=_reset_signals)
+
+
+if sys.platform == "win32":
+    import _winapi
+    import msvcrt
+
+    def _read_stdin(fd: int) -> bytes:
+        try:
+            handle = msvcrt.get_osfhandle(fd)
+            # a read blocked on the synchronous pipe also blocks every peek at it, a dll's c runtime peeks stdin while it loads
+            while True:
+                available, _ = cast("tuple[int, int]", _winapi.PeekNamedPipe(handle))
+                if available:
+                    return os.read(fd, min(available, 4096))
+                time.sleep(STDIN_POLL_INTERVAL)
+        except OSError:
+            return b""
+
+else:
+
+    def _read_stdin(fd: int) -> bytes:
+        try:
+            # raw reads, a thread blocked in sys.stdin holds its lock and hangs forks that close it
+            return os.read(fd, 4096)
+        except OSError:
+            return b""
 
 
 def _reset_signals() -> None:
