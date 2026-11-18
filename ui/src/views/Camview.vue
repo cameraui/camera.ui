@@ -460,6 +460,7 @@ const cameraCardProps = computed<Partial<CuiCameraCardProps>>(() => ({
   cardFit: cardFit.value,
   cameraNameOverlay: true,
   control: true,
+  controlFsButton: !isFullscreen.value,
   toolbar: false,
   expandableCard: viewSize.value > 1,
   detectionIndicatorOverlay: !rearrangeMode.value && detectionsEnabled.value,

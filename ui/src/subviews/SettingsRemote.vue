@@ -242,7 +242,7 @@
                     <div v-if="proxyForm" class="flex flex-col field-gap">
                       <label for="tunnelProtocol" class="cui-label">{{ $t('views.settings.proxy.tunnel_protocol') }}</label>
                       <Select
-                        v-model="proxyForm.cloudflaredProtocol"
+                        v-model="tunnelProtocol"
                         input-id="tunnelProtocol"
                         :options="protocolOptions"
                         option-label="label"
@@ -897,11 +897,17 @@ const needsReauth = computed(() => registrationStatus.value?.needsReauth ?? fals
 const isNameEditable = computed(() => !isLoading.value);
 
 const protocolOptions = computed(() => [
-  // HTTP/2 is cloudflared's default, picking it drops the setting unless it is stored explicitly
-  { value: settings.value?.proxy.cloudflaredProtocol === 'http2' ? 'http2' : '', label: 'HTTP/2' },
+  { value: 'http2', label: 'HTTP/2' },
   { value: 'quic', label: 'QUIC' },
   { value: 'auto', label: t('views.settings.proxy.protocol_auto') },
 ]);
+
+const tunnelProtocol = computed({
+  get: () => proxyForm.value?.cloudflaredProtocol || 'http2',
+  set: (protocol: string) => {
+    proxyForm.value!.cloudflaredProtocol = protocol === 'http2' && !settings.value?.proxy.cloudflaredProtocol ? '' : protocol;
+  },
+});
 
 const signInEnabled = computed({
   get: () => !!proxyForm.value?.proxyAuth,
