@@ -8,10 +8,11 @@ import {
   AV_CODEC_ID_PCM_ALAW,
   AV_CODEC_ID_PCM_MULAW,
   AV_SAMPLE_FMT_S16,
+  AVERROR_EXTERNAL,
   FF_ENCODER_LIBFDK_AAC,
   FF_ENCODER_LIBOPUS,
 } from 'node-av/constants';
-import { avGetSampleFmtFromName, Codec, Rational } from 'node-av/lib';
+import { avGetSampleFmtFromName, Codec, FFmpegError, Rational } from 'node-av/lib';
 import { RtpPacket, RTPStream } from 'node-av/webrtc';
 
 import type {
@@ -55,6 +56,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
   #backchannelOutput?: Muxer;
   #backchannelActive = false;
   #backchannelTask?: Promise<void>;
+  #backchannelStats = emptyBackchannelStats();
 
   constructor(cameraDevice: CameraDevice, source: CameraInput, urlOrOptions?: string | RTSPUrlOptions) {
     super();
@@ -193,6 +195,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     }
 
     this.#logger.debug('Starting backchannel with config:', config);
+    this.#backchannelStats = emptyBackchannelStats();
 
     const codec = Codec.findDecoderByName(config.decoderCodec as FFDecoderCodec);
     if (!codec) {
@@ -266,7 +269,10 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
               input
                 .getFormatContext()
                 ?.sendRTSPPacket(this.#backchannelTrackIndex, rtp.serialize())
-                .catch(() => {});
+                .then(
+                  (result) => this.#countBackchannelSend(result),
+                  () => this.#countBackchannelSend(AVERROR_EXTERNAL),
+                );
             }
           } catch {
             // ignore
@@ -296,6 +302,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
     }
 
     this.#backchannelTask ??= this.#runBackchannel();
+    this.#backchannelStats.received++;
 
     try {
       this.#backchannelRtpInput.sendPacket(rtp);
@@ -346,6 +353,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
           break;
         }
 
+        this.#backchannelStats.encoded++;
         await this.#backchannelOutput.writePacket(encodedPacket, this.#backchannelStreamIndex);
       }
     } catch (error: any) {
@@ -355,6 +363,24 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
 
       throw error;
     }
+  }
+
+  #countBackchannelSend(result: number): void {
+    if (result >= 0) {
+      this.#backchannelStats.sent++;
+      return;
+    }
+    this.#backchannelStats.failed++;
+    this.#backchannelStats.error = result;
+  }
+
+  #logBackchannelSummary(): void {
+    const { received, encoded, sent, failed, error } = this.#backchannelStats;
+    const decodeErrors = this.#backchannelDecoder?.decodeErrors ?? 0;
+    const lastError = error ? ` (${FFmpegError.strerror(error)})` : '';
+    this.#logger.debug(
+      `Backchannel summary: received ${received} packets, ${decodeErrors} decode errors, encoded ${encoded}, sent ${sent} to the camera, ${failed} failed${lastError}`,
+    );
   }
 
   async #cleanupStream(): Promise<void> {
@@ -395,6 +421,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       // already logged by the task's own catch
     }
     this.#backchannelTask = undefined;
+    this.#logBackchannelSummary();
 
     try {
       this.#backchannelDecoder?.close();
@@ -452,4 +479,8 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       this.onEnded.complete();
     }
   }
+}
+
+function emptyBackchannelStats() {
+  return { received: 0, encoded: 0, sent: 0, failed: 0, error: 0 };
 }
