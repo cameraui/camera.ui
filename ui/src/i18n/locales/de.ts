@@ -3891,6 +3891,8 @@ export default {
       assistant_model_make_default: 'Als Standard festlegen',
       assistant_model_default: 'Standard',
       assistant_model_admins_only: 'Nur Admins',
+      assistant_model_unavailable: 'Nicht verfügbar',
+      assistant_model_unavailable_info: 'Der Anbieter führt dieses Modell nicht mehr. Wähle ein anderes oder entferne den Eintrag.',
       assistant_model_users: 'Für Nutzer verfügbar',
       assistant_model_users_info: 'Wenn aus, nutzen nur Admins dieses Modell.',
       assistant_model_name_label: 'Name',

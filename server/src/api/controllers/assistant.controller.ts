@@ -77,6 +77,14 @@ export class AssistantController {
     }
   }
 
+  public async unavailableModels(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      return reply.code(200).send(await this.service.unavailableModels());
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
   public async chat(req: FastifyRequest<AuthLoginRequest & AssistantChatRequest>, reply: FastifyReply): Promise<void> {
     const user = req.locals.user!;
     const manager = inject('assistantManager');

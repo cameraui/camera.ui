@@ -3912,6 +3912,8 @@ export default {
       assistant_model_make_default: 'Make default',
       assistant_model_default: 'Default',
       assistant_model_admins_only: 'Admins only',
+      assistant_model_unavailable: 'Not available',
+      assistant_model_unavailable_info: 'The provider no longer lists this model. Pick another one or remove the entry.',
       assistant_model_users: 'Available to users',
       assistant_model_users_info: 'When off, only admins can use this model.',
       assistant_model_name_label: 'Name',

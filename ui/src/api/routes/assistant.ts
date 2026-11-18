@@ -46,6 +46,11 @@ export async function listAssistantModels(patch: TestAssistantInput): Promise<As
   return response.data;
 }
 
+export async function listUnavailableAssistantModels({ signal }: { signal?: AbortSignal } = {}): Promise<string[]> {
+  const response: AxiosResponse<string[]> = await api.get('/assistant/models/unavailable', { signal });
+  return response.data;
+}
+
 export async function listAssistantThreads({ signal }: { signal: AbortSignal }): Promise<AssistantThreadSummary[]> {
   const response: AxiosResponse<AssistantThreadSummary[]> = await api.get('/assistant/threads', { signal });
   return response.data;
@@ -195,6 +200,7 @@ export class AssistantQuery {
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['assistant'], exact: true });
         await this._queryClient.refetchQueries({ queryKey: ['assistant', 'status'], exact: true });
+        this._queryClient.invalidateQueries({ queryKey: ['assistant', 'models', 'unavailable'], exact: true });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.assistant_updated'), life: 3000 });
       },
     });
@@ -202,6 +208,14 @@ export class AssistantQuery {
 
   public listAssistantModelsMutation() {
     return useMutation({ mutationFn: listAssistantModels });
+  }
+
+  public unavailableModelsQuery() {
+    return useQueryEnhanced({
+      queryKey: ['assistant', 'models', 'unavailable'],
+      queryFn: ({ signal }) => listUnavailableAssistantModels({ signal }),
+      staleTime: 60_000,
+    });
   }
 
   public listThreadsQuery() {

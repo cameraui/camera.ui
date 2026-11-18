@@ -99,7 +99,7 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
       const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL || 'https://api.openai.com/v1'}/models`, {
         headers: { Authorization: `Bearer ${apiKey ?? ''}` },
       });
-      return (data.data ?? []).map((m) => m.id).filter((id) => /^(gpt|o\d|chatgpt)/.test(id));
+      return (data.data ?? []).map((m) => m.id).filter((id) => /^(ft:)?(gpt|o\d|chatgpt)/.test(id));
     }
     case 'anthropic': {
       const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL || 'https://api.anthropic.com'}/v1/models?limit=100`, {
@@ -120,6 +120,15 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
     default:
       throw new Error(`No model list for the provider ${settings.provider}`);
   }
+}
+
+export function listsModel(provider: DBAssistantProvider, offered: string[], model: string): boolean {
+  if (offered.includes(model)) return true;
+  // ollama lists a model without a tag as name:latest, anthropic lists the dated id behind an alias
+  if (provider === 'ollama') return !model.includes(':') && offered.includes(`${model}:latest`);
+  if (provider === 'anthropic') return offered.some((id) => id.startsWith(`${model}-`) && /^\d{8}$/.test(id.slice(model.length + 1)));
+  if (provider === 'gemini') return offered.includes(model.replace(/^models\//, ''));
+  return false;
 }
 
 export async function ollamaCapabilities(baseURL: string | null, model: string): Promise<string[] | undefined> {

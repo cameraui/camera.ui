@@ -86,6 +86,17 @@ export const AssistantRoute: FastifyPluginAsync = async (app: FastifyInstance): 
   });
 
   app.route({
+    url: '/models/unavailable',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.unavailableModels.bind(controller),
+    schema: {
+      tags: ['Assistant'],
+      summary: 'List the ids of the configured models their provider no longer offers',
+    },
+  });
+
+  app.route({
     url: '/chat',
     method: 'POST',
     preValidation: [validJWTNeeded],

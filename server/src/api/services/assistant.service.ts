@@ -71,6 +71,10 @@ export class AssistantService {
     return this.manager.models(this.entryFor(input), input.apiKey ?? undefined);
   }
 
+  public async unavailableModels(): Promise<string[]> {
+    return this.manager.unavailableModels();
+  }
+
   public listThreads(userId: string): AssistantThreadSummary[] {
     return this.manager.threads.list(userId).map((thread) => {
       const runId = this.manager.runningRun(thread.id);

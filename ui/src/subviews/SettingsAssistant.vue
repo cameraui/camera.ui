@@ -44,6 +44,12 @@
                       <Tag v-if="entry._id === defaultEntry?._id" severity="info" :value="$t('views.settings.assistant_model_default')" class="text-[10px]" />
                       <Tag v-if="entry.userAccess === false" severity="secondary" :value="$t('views.settings.assistant_model_admins_only')" class="text-[10px]" />
                       <Tag
+                        v-if="unavailableModels?.includes(entry._id)"
+                        severity="danger"
+                        :value="$t('views.settings.assistant_model_unavailable')"
+                        class="text-[10px]"
+                      />
+                      <Tag
                         v-for="tag in capabilityTags(entry)"
                         :key="tag.key"
                         :severity="tag.severity"
@@ -53,6 +59,9 @@
                     </div>
                     <div class="order-2 basis-full truncate text-muted md:order-3">{{ providerLabel(entry.provider) }} · {{ modelLabel(entry) }}</div>
                     <div v-if="entry.capabilities?.error" class="order-4 basis-full text-xs text-danger line-clamp-2">{{ entry.capabilities.error }}</div>
+                    <div v-if="unavailableModels?.includes(entry._id)" class="order-4 basis-full text-xs text-danger line-clamp-2">
+                      {{ $t('views.settings.assistant_model_unavailable_info') }}
+                    </div>
                     <div v-if="providerStatus(entry.provider)" class="order-4 basis-full text-xs text-muted line-clamp-2">{{ providerStatus(entry.provider) }}</div>
                   </div>
                   <div class="hidden shrink-0 items-center gap-1 md:flex">
@@ -865,6 +874,7 @@ const { alerts: textAlerts, setEnabled: setTextAlertEnabled, setModel: setTextAl
 const { data: usageRows, isLoading: usageLoading } = assistantQuery.usageAllQuery();
 const clearUsageMutation = assistantQuery.clearUsageMutation();
 const { data: info } = assistantQuery.getAssistantInfoQuery();
+const { data: unavailableModels } = assistantQuery.unavailableModelsQuery();
 const patchMutation = assistantQuery.patchAssistantInfoMutation();
 const { data: profiles } = assistantQuery.listProfilesQuery();
 const { data: schedules } = assistantQuery.listSchedulesQuery();

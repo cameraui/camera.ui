@@ -39,7 +39,7 @@ import { pluginOfProvider } from './plugin-models.js';
 import { estimateCost, warmPrices } from './pricing.js';
 import { AssistantProfileStore } from './profiles.js';
 import { composePrompt, promptSections } from './prompt.js';
-import { createAdapter, listModels, ollamaCapabilities, providerNeedsKey, webSearchTool } from './providers.js';
+import { createAdapter, listModels, listsModel, ollamaCapabilities, providerNeedsKey, webSearchTool } from './providers.js';
 import { contextFor, defaultWindow, reasoningFor } from './reasoning.js';
 import { RECAP_TOOL, recapCard } from './recap.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
@@ -70,6 +70,7 @@ import type {
   DBAssistantMcpServer,
   DBAssistantModel,
   DBAssistantProfile,
+  DBAssistantProvider,
   DBAssistantScheduleDelivery,
   DBRoles,
   DBUser,
@@ -110,6 +111,8 @@ export interface AssistantRunRequest {
 }
 
 const DEFAULT_CONTEXT_TOKENS = 48_000;
+// an openai-compatible server often lists only the loaded model or takes any name
+const LISTED_PROVIDERS: DBAssistantProvider[] = ['openai', 'anthropic', 'gemini', 'openrouter', 'ollama'];
 const DEFAULT_HISTORY_THREADS = 50;
 const DEFAULT_HISTORY_IMAGES = 24;
 const TERMINAL_GROUP = 'terminal';
@@ -608,6 +611,24 @@ export class AssistantManager {
     } catch (error: any) {
       return { models: [], error: describeError(error) };
     }
+  }
+
+  public async unavailableModels(): Promise<string[]> {
+    const lists = new Map<string, Promise<string[] | undefined>>();
+    const checked = this.settings().models.filter((entry) => LISTED_PROVIDERS.includes(entry.provider));
+    const missing = await Promise.all(
+      checked.map(async (entry) => {
+        const account = `${entry.provider} ${entry.baseURL ?? ''} ${entry.apiKey?.encrypted ?? ''}`;
+        if (!lists.has(account))
+          lists.set(
+            account,
+            listModels(entry, this.decryptKey(entry)).catch(() => undefined),
+          );
+        const offered = await lists.get(account);
+        return offered && !listsModel(entry.provider, offered, entry.model) ? entry._id : undefined;
+      }),
+    );
+    return missing.filter((id) => id !== undefined);
   }
 
   public async run(request: AssistantRunRequest): Promise<Response> {
