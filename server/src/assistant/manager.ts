@@ -31,7 +31,7 @@ import { ALWAYS_EAGER, planRun, promote, toolTokens } from './budget.js';
 import { clearDiscoveryResults, estimateMessage, keepQuestion, keepSkills, PICTURE_TOKENS, trimToolResults } from './compaction.js';
 import { secretGuard } from './guard.js';
 import { flattenToolHistory, repairHistory } from './history.js';
-import { ASK_USER_INTERRUPT } from './interrupts.js';
+import { ASK_USER_INTERRUPT, pendingQuestions } from './interrupts.js';
 import { AssistantMcp } from './mcp.js';
 import { AssistantMemoryStore, memoryAdapter } from './memory.js';
 import { abortStaleRuns, lmdbPersistence } from './persistence.js';
@@ -1316,28 +1316,6 @@ function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware>, 'n
       stats.calls.push(call);
     },
   };
-}
-
-function pendingQuestions(messages: readonly ModelMessage[]): AssistantQuestion[] {
-  const last = [...messages].reverse().find((message) => message.role === 'assistant') as
-    { toolCalls?: { id: string; function: { name: string; arguments: string } }[] } | undefined;
-  const questions: AssistantQuestion[] = [];
-  for (const call of last?.toolCalls ?? []) {
-    if (call.function.name !== 'ask_user') continue;
-    try {
-      const args = JSON.parse(call.function.arguments || '{}') as Partial<AssistantQuestion>;
-      if (!args.question) continue;
-      questions.push({
-        toolCallId: call.id,
-        question: args.question,
-        kind: args.kind ?? 'choice',
-        options: Array.isArray(args.options) ? args.options.slice(0, 8) : undefined,
-      });
-    } catch {
-      // unparsable arguments fail in the tool itself
-    }
-  }
-  return questions;
 }
 
 function newStats(): AssistantRunStats {
