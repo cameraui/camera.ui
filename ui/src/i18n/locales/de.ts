@@ -3940,7 +3940,7 @@ export default {
       assistant_max_tool_calls_info: 'Stoppt ein Modell, das in einer Schleife hängt.',
       assistant_context_tokens_label: 'Kontextbudget (Tokens)',
       assistant_context_tokens_info:
-        'Über dieser Größe fallen ältere Werkzeugergebnisse und Runden weg. Ollama bekommt ein Kontextfenster in dieser Größe plus Reserve, auf kleiner Hardware niedriger setzen. Ein Modell mit eigenem Kontextfenster nimmt seins.',
+        'Über dieser Größe fallen ältere Werkzeugergebnisse und Runden weg. Ollama bekommt ein Kontextfenster in dieser Größe plus Reserve, höchstens 32.768 Tokens, auf kleiner Hardware niedriger setzen. Ein Modell mit eigenem Kontextfenster nimmt seins.',
       assistant_history_threads_label: 'Gespräche pro Nutzer',
       assistant_history_threads_info: 'Die ältesten Gespräche fallen zuerst weg.',
       assistant_history_images_label: 'Bilder pro Gespräch',

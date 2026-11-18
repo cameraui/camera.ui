@@ -16,16 +16,18 @@ const GEMINI_BUDGET: Record<Level, number> = { off: 0, low: 1024, high: 8192 };
 // these claude models only know a thinking budget, newer ones think adaptively
 const ANTHROPIC_BUDGET_ONLY = /^claude-(?:opus-4(?:-[015])?|sonnet-4(?:-5)?|haiku-4-5)(?:-\d{8})?$|^claude-3-/;
 const INTERLEAVED_THINKING_BETA = 'interleaved-thinking-2025-05-14';
+// for a model without a declared window
+const ASSUMED_HEADROOM_TOKENS = 16_384;
+// ollama reserves memory for the whole window up front
+const OLLAMA_DEFAULT_WINDOW = 32_768;
 const OLLAMA_THINKERS = /qwen3|deepseek-r1|gpt-oss|magistral|qwq|cogito|smollm3|glm|nemotron|phi4-reasoning|granite3\.[3-9]|granite4/i;
-// system prompt, tool list and answer sit outside the compaction budget
-const OLLAMA_CONTEXT_HEADROOM = 16_384;
 
 export function reasoningFor(settings: Pick<AssistantSettings, 'provider' | 'model' | 'reasoning' | 'contextTokens'>): ReasoningOptions {
   const level = settings.reasoning;
   const model = settings.model.trim();
 
   if (settings.provider === 'ollama') {
-    const modelOptions = { options: { num_ctx: settings.contextTokens + OLLAMA_CONTEXT_HEADROOM } };
+    const { modelOptions } = contextFor(settings);
     if (level === 'default' || (level === 'off' && !OLLAMA_THINKERS.test(model))) return { modelOptions };
     return { reasoning: level, modelOptions };
   }
@@ -46,6 +48,17 @@ export function reasoningFor(settings: Pick<AssistantSettings, 'provider' | 'mod
     default:
       return {};
   }
+}
+
+export function contextFor(settings: Pick<AssistantSettings, 'provider' | 'contextTokens'>): { modelOptions?: Record<string, unknown> } {
+  if (settings.provider !== 'ollama') return {};
+  // ollama loads the model again whenever num_ctx changes, every call of one model asks for the same window
+  return { modelOptions: { options: { num_ctx: settings.contextTokens } } };
+}
+
+export function defaultWindow(provider: string, contextBudget: number): number {
+  const window = contextBudget + ASSUMED_HEADROOM_TOKENS;
+  return provider === 'ollama' ? Math.min(window, OLLAMA_DEFAULT_WINDOW) : window;
 }
 
 function anthropicFallback(model: string, level: Level): FetchWrapper {

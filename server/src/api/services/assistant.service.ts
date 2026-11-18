@@ -263,7 +263,8 @@ export class AssistantService {
         latencyMs: result.latencyMs,
         error: result.ok ? null : (result.error ?? 'failed'),
       };
-      out.push({ ...entry, capabilities, sendImages: existing ? entry.sendImages : result.vision === true });
+      // the switch is the user's once a test found pictures, before that it follows the test
+      out.push({ ...entry, capabilities, sendImages: existing?.capabilities?.vision === true ? entry.sendImages : result.vision === true });
     }
     return out;
   }

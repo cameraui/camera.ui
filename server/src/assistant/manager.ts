@@ -39,8 +39,8 @@ import { pluginOfProvider } from './plugin-models.js';
 import { estimateCost, warmPrices } from './pricing.js';
 import { AssistantProfileStore } from './profiles.js';
 import { composePrompt, promptSections } from './prompt.js';
-import { createAdapter, listModels, providerNeedsKey, webSearchTool } from './providers.js';
-import { reasoningFor } from './reasoning.js';
+import { createAdapter, listModels, ollamaCapabilities, providerNeedsKey, webSearchTool } from './providers.js';
+import { contextFor, defaultWindow, reasoningFor } from './reasoning.js';
 import { RECAP_TOOL, recapCard } from './recap.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
 import { retryOnOverflow, withEmptyTurnRetry } from './retry.js';
@@ -137,8 +137,6 @@ const CACHED_TOOLS = [
 ];
 
 const USAGE_EVENT = 'assistant.usage';
-// for a model without a declared window
-const ASSUMED_HEADROOM_TOKENS = 16_384;
 const MIN_CONTEXT_TOKENS = 2_000;
 // a tool result gets at most a third of the history budget
 const TOOL_RESULT_SHARE = 3;
@@ -522,6 +520,10 @@ export class AssistantManager {
     }
 
     await this.ensureModel({ provider: entry.provider, model });
+    // ollama knows what a model supports, a live probe of a small thinking model fails at random and takes minutes on a cpu
+    const declared = entry.provider === 'ollama' ? await ollamaCapabilities(entry.baseURL, model).catch(() => undefined) : undefined;
+    if (declared) return { ok: true, toolCalling: declared.includes('tools'), vision: declared.includes('vision'), latencyMs: Date.now() - started, model };
+
     const spec = this.modelSpec(entry.provider, model);
     let adapter: AssistantAdapter;
     try {
@@ -882,6 +884,7 @@ export class AssistantManager {
         systemPrompts: [searchPrompt(cameras, ctx.language === 'auto' ? 'en' : ctx.language, ctx.timezone)],
         messages: [{ role: 'user', content: text }],
         outputSchema: SEARCH_SCHEMA,
+        ...contextOf(model),
         context: ctx,
         middleware: [countUsage(stats)],
         abortController,
@@ -996,6 +999,7 @@ export class AssistantManager {
           },
         ],
         agentLoopStrategy: maxIterations(1),
+        ...contextOf(model),
         middleware: [countUsage(stats)],
         abortController: abort,
       });
@@ -1157,7 +1161,7 @@ export class AssistantManager {
     const inFront = available.filter(
       (tool) => tool.name === 'api_search' || (plan.eagerTools.has(tool.name) && !ROUTED_TOOLS.includes(tool.name) && !ALWAYS_EAGER.includes(tool.name)),
     );
-    const picks = await routeTools(adapter, questionText(messages), hidden, inFront, [countUsage(stats)], (message) =>
+    const picks = await routeTools({ adapter, ...contextOf(model) }, questionText(messages), hidden, inFront, [countUsage(stats)], (message) =>
       this.logger.debug(`Assistant: could not route tools for ${entry.name}: ${message}`),
     );
     if (picks?.length) this.logger.debug(`Assistant: routed ${picks.join(', ')} in front of ${entry.name}`);
@@ -1183,7 +1187,7 @@ export class AssistantManager {
       let tools = named;
       if (toolTokens(named) > room) {
         const adapter = this.baseAdapter(model, entry, 'en', ROUTE_TIMEOUT_MS);
-        const picks = await routeTools(adapter, questionText(messages), named, [], [countUsage(stats)], (message) =>
+        const picks = await routeTools({ adapter, ...contextOf(model) }, questionText(messages), named, [], [countUsage(stats)], (message) =>
           this.logger.debug(`Assistant: could not pick the tools of a procedure for ${entry.name}: ${message}`),
         );
         tools = picks ? named.filter((tool) => picks.includes(tool.name)) : named.filter((_, index) => toolTokens(named.slice(0, index + 1)) <= room);
@@ -1200,7 +1204,7 @@ export class AssistantManager {
   private window(settings: AssistantSettings, entry: DBAssistantModel): number {
     const spec = this.modelSpec(entry.provider, entry.model);
     if (spec) return Math.max(MIN_CONTEXT_TOKENS, spec.contextTokens);
-    return entry.contextTokens ?? settings.contextTokens + ASSUMED_HEADROOM_TOKENS;
+    return entry.contextTokens ?? defaultWindow(entry.provider, settings.contextTokens);
   }
 
   private async ensureModel(entry: Pick<DBAssistantModel, 'provider' | 'model'> | undefined): Promise<void> {
@@ -1281,6 +1285,10 @@ function finishReasonOf(chunk: StreamChunk): string | undefined {
 
 function tuningOf(model: AssistantSettings): { reasoning?: never; modelOptions?: never; wrapFetch?: FetchWrapper } {
   return reasoningFor(model) as { reasoning?: never; modelOptions?: never; wrapFetch?: FetchWrapper };
+}
+
+function contextOf(model: AssistantSettings): { modelOptions?: never } {
+  return contextFor(model) as { modelOptions?: never };
 }
 
 function countUsage(stats: AssistantRunStats): Pick<Required<ChatMiddleware>, 'name' | 'onUsage' | 'onChunk'> {

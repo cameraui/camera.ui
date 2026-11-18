@@ -27,7 +27,7 @@ const PICK_PROMPT =
   'Pick only the tools the question needs, the most important first, at most three. Pick nothing when none of them fits.';
 
 export async function routeTools(
-  adapter: AssistantAdapter,
+  model: { adapter: AssistantAdapter; modelOptions?: Record<string, unknown> },
   question: string,
   hidden: CoreTool[],
   entry: CoreTool[],
@@ -40,7 +40,7 @@ export async function routeTools(
   const timer = setTimeout(() => abort.abort(), ROUTE_TIMEOUT_MS);
   const ask = <T>(systemPrompts: string[], content: string, outputSchema: zod.ZodType<T>): Promise<T> =>
     chat({
-      adapter,
+      ...model,
       threadId: randomUUID(),
       systemPrompts,
       messages: [{ role: 'user', content }],

@@ -92,17 +92,18 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
       return (data.models ?? []).map((m) => m.name);
     }
     case 'openai-compatible': {
-      const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL}/models`, apiKey ? { Authorization: `Bearer ${apiKey}` } : {});
+      const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL}/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {} });
       return (data.data ?? []).map((m) => m.id);
     }
     case 'openai': {
-      const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL || 'https://api.openai.com/v1'}/models`, { Authorization: `Bearer ${apiKey ?? ''}` });
+      const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL || 'https://api.openai.com/v1'}/models`, {
+        headers: { Authorization: `Bearer ${apiKey ?? ''}` },
+      });
       return (data.data ?? []).map((m) => m.id).filter((id) => /^(gpt|o\d|chatgpt)/.test(id));
     }
     case 'anthropic': {
       const data = await fetchJson<{ data?: { id: string }[] }>(`${baseURL || 'https://api.anthropic.com'}/v1/models?limit=100`, {
-        'x-api-key': apiKey ?? '',
-        'anthropic-version': '2023-06-01',
+        headers: { 'x-api-key': apiKey ?? '', 'anthropic-version': '2023-06-01' },
       });
       return (data.data ?? []).map((m) => m.id);
     }
@@ -113,12 +114,18 @@ export async function listModels(settings: Pick<DBAssistantModel, 'provider' | '
       return (data.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace(/^models\//, ''));
     }
     case 'openrouter': {
-      const data = await fetchJson<{ data?: { id: string }[] }>('https://openrouter.ai/api/v1/models', apiKey ? { Authorization: `Bearer ${apiKey}` } : {});
+      const data = await fetchJson<{ data?: { id: string }[] }>('https://openrouter.ai/api/v1/models', { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {} });
       return (data.data ?? []).map((m) => m.id);
     }
     default:
       throw new Error(`No model list for the provider ${settings.provider}`);
   }
+}
+
+export async function ollamaCapabilities(baseURL: string | null, model: string): Promise<string[] | undefined> {
+  const base = (nonEmpty(baseURL) ?? DEFAULT_BASE_URLS.ollama!).replace(/\/+$/, '');
+  const data = await fetchJson<{ capabilities?: string[] }>(`${base}/api/show`, { method: 'POST', body: JSON.stringify({ model }) });
+  return data.capabilities;
 }
 
 function nonEmpty(value: string | null | undefined): string | undefined {
@@ -127,8 +134,8 @@ function nonEmpty(value: string | null | undefined): string | undefined {
   return trimmed;
 }
 
-async function fetchJson<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
-  const response = await fetch(url, { headers, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS) });
+async function fetchJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
