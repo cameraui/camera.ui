@@ -8,16 +8,22 @@ import { inject } from '../../container.js';
 import { SENSOR_TYPE_CONFIG } from '../../sensors/types.js';
 import { toolError, withImages } from './shared.js';
 
+import type { DBCamera } from '../../api/database/types.js';
 import type { CoreTool, ToolContext } from './shared.js';
 
 const SNAPSHOT_MAX_BYTES = 6 * 1024 * 1024;
+const ROOM_SUFFIX = /\s*\([^()]*\)\s*$/;
 
 export function resolveCameraName(name: string): { id: string; name: string } | undefined {
   const cameras = new CamerasService().list();
-  const needle = name.trim().toLowerCase();
-  const exact = cameras.find((c) => c.name.toLowerCase() === needle || c._id === name);
-  const match = exact ?? cameras.find((c) => c.name.toLowerCase().includes(needle));
+  const match = findCamera(cameras, name) ?? findCamera(cameras, name.replace(ROOM_SUFFIX, ''));
   return match ? { id: match._id, name: match.name } : undefined;
+}
+
+function findCamera(cameras: DBCamera[], name: string): DBCamera | undefined {
+  const needle = name.trim().toLowerCase();
+  if (!needle) return undefined;
+  return cameras.find((c) => c.name.toLowerCase() === needle || c._id === name) ?? cameras.find((c) => c.name.toLowerCase().includes(needle));
 }
 
 const listCameras = toolDefinition({
