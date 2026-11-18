@@ -4097,6 +4097,7 @@ export default {
         slots_info: 'Mehr Kameras haben die Aufnahme an, als dein Tarif Slots hat. Die Kameras oben nehmen auf, die übrigen warten auf einen freien Slot.',
         slot_used: 'Hat einen Slot',
         slot_waiting: 'Wartet auf einen Slot',
+        slot_move_top: 'Ganz nach oben',
         slot_move_up: 'Nach oben',
         slot_move_down: 'Nach unten',
       },

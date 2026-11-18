@@ -2,40 +2,43 @@
   <div>
     <Form ref="formRef" :validation-schema="validationSchema" @submit="onFormSubmit" @invalid-submit="onInvalidSubmit">
       <div v-if="groupTabs.length && groupsAsCards" class="flex flex-col gap-6">
-        <div v-for="group in groupTabs" :key="group">
-          <span class="card-title">{{ group }}</span>
-          <Card class="cui-card">
-            <template #content>
-              <div class="flex flex-col gap-6">
-                <span v-if="groupDescriptions?.[group]" class="text-sm">{{ groupDescriptions[group] }}</span>
+        <template v-for="group in groupTabs" :key="group">
+          <div>
+            <span class="card-title">{{ group }}</span>
+            <Card class="cui-card">
+              <template #content>
+                <div class="flex flex-col gap-6">
+                  <span v-if="groupDescriptions?.[group]" class="text-sm">{{ groupDescriptions[group] }}</span>
 
-                <template v-for="schema in filteredSchemas(group)" :key="schema.key">
-                  <CuiSchemaField
-                    v-if="showField(schema)"
-                    v-show="!(schema as any).hidden"
-                    v-model="formValues"
-                    :schema-field="schema"
-                    :config-key="schema.key"
-                    :loading
-                    @on-action="onAction"
-                    @on-submit="onSubmit"
-                  />
-                </template>
+                  <template v-for="schema in filteredSchemas(group)" :key="schema.key">
+                    <CuiSchemaField
+                      v-if="showField(schema)"
+                      v-show="!(schema as any).hidden"
+                      v-model="formValues"
+                      :schema-field="schema"
+                      :config-key="schema.key"
+                      :loading
+                      @on-action="onAction"
+                      @on-submit="onSubmit"
+                    />
+                  </template>
 
-                <div v-if="showCardSaveButton(group)" class="flex flex-row items-end justify-end">
-                  <Button
-                    class="cui-button-medium"
-                    :severity="saveButtonColor"
-                    type="submit"
-                    :loading
-                    :disabled="disableButton || !groupDirty(group)"
-                    :label="saveButtonLabel || $t('components.form.button.save')"
-                  />
+                  <div v-if="showCardSaveButton(group)" class="flex flex-row items-end justify-end">
+                    <Button
+                      class="cui-button-medium"
+                      :severity="saveButtonColor"
+                      type="submit"
+                      :loading
+                      :disabled="disableButton || !groupDirty(group)"
+                      :label="saveButtonLabel || $t('components.form.button.save')"
+                    />
+                  </div>
                 </div>
-              </div>
-            </template>
-          </Card>
-        </div>
+              </template>
+            </Card>
+          </div>
+          <slot name="after-group" :group="group" />
+        </template>
 
         <template v-for="schema in ungroupedSchemas" :key="schema.key">
           <CuiSchemaField

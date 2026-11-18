@@ -395,6 +395,7 @@ declare module 'vue' {
     'IMdi:checkAll': typeof import('~icons/mdi/check-all')['default']
     'IMdi:checkCircle': typeof import('~icons/mdi/check-circle')['default']
     'IMdi:checkCircleOutline': typeof import('~icons/mdi/check-circle-outline')['default']
+    'IMdi:chevronDoubleUp': typeof import('~icons/mdi/chevron-double-up')['default']
     'IMdi:chevronDown': typeof import('~icons/mdi/chevron-down')['default']
     'IMdi:chevronLeft': typeof import('~icons/mdi/chevron-left')['default']
     'IMdi:chevronRight': typeof import('~icons/mdi/chevron-right')['default']

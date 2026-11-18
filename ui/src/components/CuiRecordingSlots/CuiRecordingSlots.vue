@@ -6,7 +6,7 @@
         <div class="flex flex-col gap-4">
           <span class="text-sm">{{ $t('views.settings.recordings.slots_info') }}</span>
 
-          <div class="flex flex-col divide-y divide-(--border-color)">
+          <div class="flex max-h-96 flex-col divide-y divide-(--border-color) overflow-y-auto pr-2">
             <div v-for="(cameraId, index) in order" :key="cameraId" class="flex items-center gap-3 py-2 text-sm">
               <span class="min-w-0 flex-1 truncate font-medium text-color">{{ cameraNames.get(cameraId) ?? cameraId }}</span>
               <Tag
@@ -15,6 +15,20 @@
                 class="text-[10px] shrink-0"
               />
               <div class="flex shrink-0">
+                <Button
+                  v-tooltip.top="{ value: $t('views.settings.recordings.slot_move_top') }"
+                  type="button"
+                  severity="secondary"
+                  text
+                  rounded
+                  class="cui-icon-md"
+                  :disabled="index === 0 || saving"
+                  @click="moveToTop(index)"
+                >
+                  <template #icon>
+                    <i-mdi:chevron-double-up width="100%" height="100%" />
+                  </template>
+                </Button>
                 <Button
                   v-tooltip.top="{ value: $t('views.settings.recordings.slot_move_up') }"
                   type="button"
@@ -74,6 +88,16 @@ const cameraNames = computed(() => new Map((camerasData.value?.result ?? []).map
 async function move(index: number, step: number) {
   const next = [...order.value];
   [next[index], next[index + step]] = [next[index + step], next[index]];
+  await save(next);
+}
+
+async function moveToTop(index: number) {
+  const next = [...order.value];
+  next.unshift(...next.splice(index, 1));
+  await save(next);
+}
+
+async function save(next: string[]) {
   saving.value = true;
   try {
     await setOrder(next);

@@ -41,8 +41,6 @@
         </Card>
       </div>
 
-      <CuiRecordingSlots />
-
       <CuiSchema
         v-if="pluginConfig"
         :schema-form="{ schema: pluginConfig.schema, config: pluginConfig.config }"
@@ -52,7 +50,11 @@
         @on-action="onAction"
         @on-submit="onSubmit"
         @on-form-submit="onFormSubmit"
-      />
+      >
+        <template #after-group="{ group }">
+          <CuiRecordingSlots v-if="group === 'License'" />
+        </template>
+      </CuiSchema>
       <div v-else>
         <span class="card-title">{{ $t('views.settings.recordings.global_settings') }}</span>
         <Card class="cui-card">
