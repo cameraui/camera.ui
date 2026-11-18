@@ -26,23 +26,26 @@ const PRICES: Partial<Record<DBAssistantProvider, Record<string, Price>>> = {
     'claude-opus-4-7': [5, 0.5, 25],
     'claude-opus-4-6': [5, 0.5, 25],
     'claude-opus-4-5': [5, 0.5, 25],
-    'claude-opus-4': [15, 1.5, 75],
     'claude-sonnet-4-6': [3, 0.3, 15],
     'claude-sonnet-4-5': [3, 0.3, 15],
-    'claude-sonnet-4': [3, 0.3, 15],
     'claude-haiku-5-5': [0.1, 0.01, 0.5],
     'claude-haiku-4-5': [1, 0.1, 5],
-    'claude-3-5-haiku': [0.8, 0.08, 4],
   },
   openai: {
+    'gpt-6.2-astra': [8, 0.4, 40],
+    'gpt-6.2-sol': [2, 0.1, 10],
     'gpt-6.1-sol': [2, 0.1, 10],
     'gpt-6.1-terra': [1, 0.05, 5],
     'gpt-6-astra': [10, 1, 50],
     'gpt-6-sol': [2, 0.2, 10],
     'gpt-6-luna': [0.1, 0.01, 0.5],
+    'gpt-6-rosalind': [10, 1, 50],
+    'gpt-6-cyber': [20, 2, 100],
     'gpt-5.6-sol': [4, 0.4, 20],
     'gpt-5.6-terra': [2, 0.2, 12],
     'gpt-5.6-luna': [0.2, 0.02, 1.2],
+    'gpt-5.6-cyber': [12.5, 1.25, 75],
+    'gpt-5.5-cyber-preview': [12.5, 1.25, 75],
     'gpt-5.5-pro': [30, null, 180],
     'gpt-5.5': [5, 0.5, 30],
     'gpt-5.4-pro': [30, null, 180],
@@ -52,42 +55,36 @@ const PRICES: Partial<Record<DBAssistantProvider, Record<string, Price>>> = {
     'gpt-5.3-codex': [1.75, 0.175, 14],
     'gpt-5.2-pro': [21, null, 168],
     'gpt-5.2': [1.75, 0.175, 14],
-    'gpt-5.1-codex-mini': [0.25, 0.025, 2],
     'gpt-5.1': [1.25, 0.125, 10],
     'gpt-5-pro': [15, null, 120],
     'gpt-5-mini': [0.25, 0.025, 2],
     'gpt-5-nano': [0.05, 0.005, 0.4],
     'gpt-5': [1.25, 0.125, 10],
     'gpt-rosalind-research': [5, 0.5, 25],
+    'gpt-rosalind-discovery': [5, 0.5, 25],
     'gpt-chat-latest': [5, 0.5, 30],
     'chat-latest': [5, 0.5, 30],
     'gpt-4.1-mini': [0.4, 0.1, 1.6],
-    'gpt-4.1-nano': [0.1, 0.025, 0.4],
     'gpt-4.1': [2, 0.5, 8],
     'gpt-4o-mini': [0.15, 0.075, 0.6],
-    'gpt-4o-2024-05-13': [5, null, 15],
     'gpt-4o': [2.5, 1.25, 10],
-    'gpt-4-turbo': [10, null, 30],
-    'gpt-3.5-turbo': [0.5, null, 1.5],
-    'o4-mini-deep-research': [2, 0.5, 8],
-    'o4-mini': [1.1, 0.275, 4.4],
-    'o3-deep-research': [10, 2.5, 40],
     'o3-pro': [20, null, 80],
-    'o3-mini': [1.1, 0.55, 4.4],
     o3: [2, 0.5, 8],
-    'o1-pro': [150, null, 600],
-    o1: [15, 7.5, 60],
   },
   gemini: {
+    'gemini-4-carbon': [2, 0.1, 10],
     'gemini-4-argon': [2, 0.1, 10],
+    'gemini-4-hydrogen': [1.5, 0.075, 7.5],
     'gemini-3.8-flash': [0.75, 0.075, 3.75],
     'gemini-3.7-flash': [0.75, 0.075, 3.75],
     'gemini-3.6-flash': [0.75, 0.075, 3.75],
     'gemini-3.5-flash-lite': [0.3, 0.03, 2.5],
-    'gemini-3.5-flash': [1.5, 0.15, 9],
+    // google answers it with gemini-3.6-flash
+    'gemini-3.5-flash': [0.75, 0.075, 3.75],
     'gemini-3.1-pro': [2, 0.2, 12],
     'gemini-3.1-flash-lite': [0.25, 0.025, 1.5],
     'gemini-3-flash': [0.5, 0.05, 3],
+    'gemini-omni-1.2-flash': [1.5, null, 9],
     'gemini-omni-1.1-flash': [1.5, null, 9],
     'gemini-2.5-pro': [1.25, 0.125, 10],
     'gemini-2.5-flash-lite': [0.1, 0.01, 0.4],
@@ -100,11 +97,15 @@ const LONG_PROMPT: Partial<Record<DBAssistantProvider, Record<string, { above: n
     'claude-haiku-5-5': { above: 100_000, price: [0.5, 0.05, 2.5] },
   },
   openai: {
+    'gpt-6.2-astra': { above: 272_000, price: [16, 0.8, 60] },
+    'gpt-6.2-sol': { above: 272_000, price: [4, 0.2, 15] },
     'gpt-6.1-sol': { above: 272_000, price: [4, 0.2, 15] },
     'gpt-6.1-terra': { above: 272_000, price: [2, 0.1, 7.5] },
     'gpt-6-astra': { above: 272_000, price: [20, 2, 75] },
     'gpt-6-sol': { above: 272_000, price: [4, 0.4, 15] },
     'gpt-6-luna': { above: 272_000, price: [0.2, 0.02, 0.75] },
+    'gpt-6-rosalind': { above: 272_000, price: [20, 2, 75] },
+    'gpt-6-cyber': { above: 272_000, price: [40, 4, 150] },
     'gpt-5.6-sol': { above: 272_000, price: [8, 0.8, 30] },
     'gpt-5.6-terra': { above: 272_000, price: [4, 0.4, 18] },
     'gpt-5.6-luna': { above: 272_000, price: [0.4, 0.04, 1.8] },
@@ -119,12 +120,20 @@ const LONG_PROMPT: Partial<Record<DBAssistantProvider, Record<string, { above: n
   },
 };
 
-const RAISED: Partial<Record<DBAssistantProvider, Record<string, { from: number; price: Price }>>> = {
+// oldest step first
+const RAISED: Partial<Record<DBAssistantProvider, Record<string, { from: number; price: Price }[]>>> = {
   gemini: {
-    'gemini-4-argon': { from: Date.UTC(2026, 11, 1), price: [4, 0.2, 20] },
-    'gemini-3.8-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
-    'gemini-3.7-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
-    'gemini-3.6-flash': { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
+    'gemini-4-carbon': [{ from: Date.UTC(2026, 11, 1), price: [4, 0.2, 20] }],
+    'gemini-4-argon': [{ from: Date.UTC(2026, 11, 1), price: [4, 0.2, 20] }],
+    'gemini-3.8-flash': [{ from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] }],
+    'gemini-3.7-flash': [{ from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] }],
+    'gemini-3.6-flash': [{ from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] }],
+    'gemini-3.5-flash': [{ from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] }],
+    // google answers it with gemini-3.8-flash from december on
+    'gemini-2.5-pro': [
+      { from: Date.UTC(2026, 11, 1), price: [0.75, 0.075, 3.75] },
+      { from: Date.UTC(2027, 0, 1), price: [1.5, 0.15, 7.5] },
+    ],
   },
 };
 
@@ -175,8 +184,8 @@ export function warmPrices(provider: DBAssistantProvider): void {
 
 function priceOf(provider: DBAssistantProvider, model: string, promptTokens: number): Price | undefined {
   if (provider === 'openrouter') return openrouterPrices?.prices[model];
-  const raised = longestPrefix(RAISED[provider], model);
-  const price = raised && Date.now() >= raised.from ? raised.price : longestPrefix(PRICES[provider], model);
+  const raised = longestPrefix(RAISED[provider], model)?.findLast((step) => Date.now() >= step.from);
+  const price = raised?.price ?? longestPrefix(PRICES[provider], model);
   const long = longestPrefix(LONG_PROMPT[provider], model);
   return long && price && promptTokens > long.above ? long.price : price;
 }
