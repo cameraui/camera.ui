@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'node:crypto';
 
 import { inject } from '../../container.js';
+import { CloudResponseError } from '../../remote/api/instance.js';
 import { SHARE_SERVICE_URL } from '../../services/config/constants.js';
 import { createSourceName } from '../../utils/camera.js';
 import { AttemptLimiter } from '../utils/attempt-limiter.js';
@@ -350,6 +351,7 @@ export class SharesService {
       await this.cloudApi.serverRoute.registerShare({ token_hash: this.sha256(token), expires_at: expiresAt });
     } catch (error) {
       this.logger.warn(`Failed to register share with cloud: ${error}`);
+      if (error instanceof CloudResponseError && error.code === 'sharing_unavailable') throw error;
       throw new Error('Could not register the share with the cloud. Reconnect your server under Settings → Remote, then try again.');
     }
   }

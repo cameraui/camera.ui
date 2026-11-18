@@ -52,10 +52,29 @@ export function cloudFetch(opts: CloudFetchOptions): (path: string, init?: Reque
   };
 }
 
+export class CloudResponseError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
+    super(message);
+  }
+}
+
 export async function assertResponseOk(response: Response): Promise<void> {
   if (response.ok) {
     return;
   }
-  const message = (await response.text()) || `${response.statusText} (${response.status})`;
-  throw new Error(message);
+  const { message, code } = errorBody(await response.text());
+  throw new CloudResponseError(message || `${response.statusText} (${response.status})`, code);
+}
+
+function errorBody(body: string): { message: string; code?: string } {
+  try {
+    const parsed = JSON.parse(body);
+    const message = typeof parsed?.message === 'string' && parsed.message ? parsed.message : body;
+    return { message, code: typeof parsed?.error_code === 'string' ? parsed.error_code : undefined };
+  } catch {
+    return { message: body };
+  }
 }

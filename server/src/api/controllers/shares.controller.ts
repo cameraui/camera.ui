@@ -1,4 +1,5 @@
 import { inject, tryInject } from '../../container.js';
+import { CloudResponseError } from '../../remote/api/instance.js';
 import { browserIceServers, browserStunServers } from '../../services/config/ice-servers.js';
 import { SharesService } from '../services/shares.service.js';
 
@@ -54,7 +55,8 @@ export class SharesController {
 
       return reply.code(201).send(result);
     } catch (error: any) {
-      const status = /not found|cannot be shared|Settings → Remote/i.test(error.message) ? 400 : 500;
+      const refused = error instanceof CloudResponseError || /not found|cannot be shared|Settings → Remote/i.test(error.message);
+      const status = refused ? 400 : 500;
       return reply.code(status).send({ statusCode: status, message: error.message });
     }
   }
