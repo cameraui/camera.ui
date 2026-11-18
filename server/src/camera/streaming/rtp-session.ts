@@ -284,6 +284,7 @@ export class RtpSession extends SubscribedPublic implements RtpSessionInterface 
       {
         input: this.#backchannelRtpInput,
         format: 'rtp',
+        options: { rtpflags: 'skip_rtcp' },
         useSyncQueue: false,
         useAsyncWrite: false,
         maxPacketSize: 1200,
