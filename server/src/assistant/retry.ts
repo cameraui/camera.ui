@@ -27,6 +27,9 @@ const MODEL_OUTPUT = new Set<string>([
   EventType.RUN_FINISHED,
   EventType.RUN_ERROR,
 ]);
+const MALFORMED_RETRIES = 2;
+// ollama fails the whole call when it cannot parse a tool call the model wrote, another try usually gets it right
+const MALFORMED_TOOL_CALL = /invalid character '.{1,4}' (?:looking for|after|in) |unexpected end of JSON input/;
 const RETRY_PROMPT = 'Your previous reply came back empty. Answer the user now, from the conversation and the tool results you already have.';
 const TEXT_ONLY_PROMPT =
   'Your replies came back empty and no tool is available anymore. Write the answer now as plain text from what the tools already returned, ' +
@@ -77,6 +80,28 @@ export function withEmptyTurnRetry(adapter: AssistantAdapter, onRetry: () => voi
 
       retried = true;
       if (index === 0) onRetry();
+    }
+  }
+
+  return wrapChatStream(adapter, chatStream);
+}
+
+export function withMalformedCallRetry(adapter: AssistantAdapter, onRetry: () => void): AssistantAdapter {
+  // eslint-disable-next-line @stylistic/generator-star-spacing
+  async function* chatStream(options: ChatStreamOptions): AsyncGenerator<StreamChunk> {
+    for (let attempt = 0; ; attempt++) {
+      let answered = false;
+      let malformed = false;
+      for await (const chunk of adapter.chatStream(options) as AsyncIterable<StreamChunk>) {
+        if (chunk.type === EventType.RUN_ERROR && !answered && attempt < MALFORMED_RETRIES && MALFORMED_TOOL_CALL.test(chunk.message)) {
+          malformed = true;
+          continue;
+        }
+        if (chunk.type === EventType.TEXT_MESSAGE_CONTENT || chunk.type === EventType.TOOL_CALL_START) answered = true;
+        yield chunk;
+      }
+      if (!malformed || options.request?.signal?.aborted) return;
+      onRetry();
     }
   }
 

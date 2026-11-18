@@ -43,7 +43,7 @@ import { createAdapter, listModels, ollamaCapabilities, providerNeedsKey, webSea
 import { contextFor, defaultWindow, reasoningFor } from './reasoning.js';
 import { RECAP_TOOL, recapCard } from './recap.js';
 import { AssistantToolRegistry, toolGroup } from './registry.js';
-import { retryOnOverflow, withEmptyTurnRetry } from './retry.js';
+import { retryOnOverflow, withEmptyTurnRetry, withMalformedCallRetry } from './retry.js';
 import { questionText, ROUTE_TIMEOUT_MS, ROUTED_TOOLS, routeTools } from './router.js';
 import { AssistantScheduler, deliveryPrompt, pushBody } from './scheduler.js';
 import { SEARCH_SCHEMA, searchPrompt, toSearchResult } from './search.js';
@@ -149,6 +149,7 @@ const ASK_TIMEOUT_MS = 45_000;
 const ASK_TIMEOUT_MAX_MS = 300_000;
 const ASK_CONCURRENCY = 4;
 const EMPTY_TURN_LOG = 'Assistant: the model ended a turn without text or tool call, asking once more';
+const MALFORMED_CALL_LOG = 'Assistant: the provider could not read the tool call of the model, asking again';
 const EXTRACT_TIMEOUT_MS = 30_000;
 const EXTRACT_MAX_CHARS = 1500;
 // smaller models store the questions themselves as facts and crowd their window
@@ -1131,7 +1132,8 @@ export class AssistantManager {
   }
 
   private chatAdapter(model: AssistantSettings, entry: DBAssistantModel, language = 'en'): AssistantAdapter {
-    const adapter = withEmptyTurnRetry(this.baseAdapter(model, entry, language), () => this.logger.debug(EMPTY_TURN_LOG));
+    const base = withMalformedCallRetry(this.baseAdapter(model, entry, language), () => this.logger.debug(MALFORMED_CALL_LOG));
+    const adapter = withEmptyTurnRetry(base, () => this.logger.debug(EMPTY_TURN_LOG));
     return withToolNameRepair(adapter, (from, to) => this.logger.debug(`Assistant: repaired tool name ${from} to ${to}`));
   }
 
