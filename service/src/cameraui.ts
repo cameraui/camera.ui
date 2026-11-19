@@ -36,7 +36,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const MIN_NODE_VERSION = '22.18.0';
-const RECOMMENDED_NODE_VERSION = '24.22.1';
+const RECOMMENDED_NODE_VERSION = '24.22.3';
 
 const WORKER_STATUS_FILE = 'worker-status.json';
 const WORKER_STATUS_FRESH_MS = 60_000;
