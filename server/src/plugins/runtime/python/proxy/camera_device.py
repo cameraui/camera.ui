@@ -14,10 +14,12 @@ from _camera_ui_tools.camera_ui_sdk import (
     Camera,
     CameraDetectionSettings,
     CameraDeviceSource,
+    CameraExportSettings,
     CameraFrameWorkerSettings,
     CameraImplementation,
     CameraInformation,
     CameraInput,
+    CameraNotificationSettings,
     CameraPluginInfo,
     CameraPropertyObservableObject,
     CameraPublicProperties,
@@ -280,6 +282,14 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
     @property
     def recordingSettings(self) -> CameraRecordingSettings:
         return deepcopy(self._camera_subject.value["recordingSettings"])
+
+    @property
+    def notificationSettings(self) -> CameraNotificationSettings:
+        return deepcopy(self._camera_subject.value["notificationSettings"])
+
+    @property
+    def exportSettings(self) -> CameraExportSettings:
+        return deepcopy(self._camera_subject.value["exportSettings"])
 
     @property
     def snooze(self) -> bool:

@@ -34,8 +34,6 @@ export const inputSchema = zod
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
     backchannelDisabled: zod.boolean().default(false),
-    onvifDisabled: zod.boolean().default(false),
-    rtmpDisabled: zod.boolean().default(false),
     timeout: zod.number().int().min(5).max(120).nullish(),
     handshakeTimeout: zod.number().int().min(1).max(60).nullish(),
     childSourceId: zod.string().trim().nullish(),

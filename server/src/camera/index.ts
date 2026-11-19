@@ -8,6 +8,7 @@ import type {
   CameraDetectionSettings,
   CameraDevice as CameraDeviceInterface,
   CameraDeviceSource,
+  CameraExportSettings,
   CameraFrameWorkerSettings,
   CameraImplementation,
   CameraInformation,
@@ -128,6 +129,10 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
 
   get notificationSettings(): CameraNotificationSettings {
     return structuredClone(this.cameraSubject.getValue().notificationSettings);
+  }
+
+  get exportSettings(): CameraExportSettings {
+    return structuredClone(this.cameraSubject.getValue().exportSettings);
   }
 
   get frameWorkerSettings(): CameraFrameWorkerSettings {

@@ -499,6 +499,7 @@
     "useScrollLock": true,
     "useSensorsSocket": true,
     "useServerCompatibility": true,
+    "useServerHost": true,
     "useServerPairing": true,
     "useServerRestart": true,
     "useServerSocket": true,

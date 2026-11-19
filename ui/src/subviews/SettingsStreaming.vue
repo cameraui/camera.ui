@@ -404,7 +404,6 @@ import { isEqual } from '@camera.ui/common/utils';
 import { streamingSettingsSchema, STUN_URL_PATTERN, TURN_URL_PATTERN } from '@shared/types';
 
 import { RemoteQuery } from '@/api/routes/remote.js';
-import { ServerQuery } from '@/api/routes/server.js';
 import { randomId } from '@/common/utils.js';
 import { refreshIceServers } from '@/plugins/cameraui.js';
 
@@ -421,7 +420,6 @@ interface TurnServerForm {
   password: string;
 }
 
-const serverQuery = new ServerQuery();
 const remoteQuery = new RemoteQuery();
 
 const dialog = useCuiDialog();
@@ -434,7 +432,6 @@ const { settings, form, errors, saving, pending, dirty, changesOf, showIssues, s
   ports: ['srtpPort'],
 });
 
-const { data: serverInfo } = serverQuery.getServerInfoQuery();
 const { data: webrtcSettings, isBusy: webrtcLoading } = remoteQuery.getWebrtcQuery();
 const { mutateAsync: putWebrtc, isPending: putWebrtcLoading } = remoteQuery.putWebrtcMutation();
 const { data: relay } = remoteQuery.getRelayQuery();
@@ -457,9 +454,11 @@ const queryOptions = computed(() => {
   return options;
 });
 
-const rtmpAddress = computed(() => `rtmp://${serverInfo.value?.serverAddresses?.[0] ?? window.location.hostname}:${form.value?.rtmp.port}/`);
+const serverHost = useServerHost();
 
-const onvifAddress = computed(() => `http://${serverInfo.value?.serverAddresses?.[0] ?? window.location.hostname}:${form.value?.onvif.port}/onvif/device_service`);
+const rtmpAddress = computed(() => `rtmp://${serverHost.value}:${form.value?.rtmp.port}/`);
+
+const onvifAddress = computed(() => `http://${serverHost.value}:${form.value?.onvif.port}/onvif/device_service`);
 
 const stunError = computed(() => (webrtcForm.value.stun.some((url) => !STUN_URL_PATTERN.test(url.trim())) ? t('views.settings.webrtc_stun_invalid') : ''));
 

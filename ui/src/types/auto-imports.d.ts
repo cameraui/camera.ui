@@ -412,6 +412,7 @@ declare global {
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
   const useSensorsSocket: typeof import('../composables/sockets/useSensorsSocket').useSensorsSocket
   const useServerCompatibility: typeof import('../composables/useServerCompatibility').useServerCompatibility
+  const useServerHost: typeof import('../composables/useServerHost').useServerHost
   const useServerPairing: typeof import('../composables/useServerPairing').useServerPairing
   const useServerRestart: typeof import('../composables/useServerRestart').useServerRestart
   const useServerSocket: typeof import('../composables/sockets/useServerSocket').useServerSocket
@@ -1047,6 +1048,7 @@ declare module 'vue' {
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useSensorsSocket: UnwrapRef<typeof import('../composables/sockets/useSensorsSocket')['useSensorsSocket']>
     readonly useServerCompatibility: UnwrapRef<typeof import('../composables/useServerCompatibility')['useServerCompatibility']>
+    readonly useServerHost: UnwrapRef<typeof import('../composables/useServerHost')['useServerHost']>
     readonly useServerPairing: UnwrapRef<typeof import('../composables/useServerPairing')['useServerPairing']>
     readonly useServerRestart: UnwrapRef<typeof import('../composables/useServerRestart')['useServerRestart']>
     readonly useServerSocket: UnwrapRef<typeof import('../composables/sockets/useServerSocket')['useServerSocket']>

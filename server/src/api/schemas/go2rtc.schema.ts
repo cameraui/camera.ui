@@ -153,12 +153,14 @@ export const onvifVideoSourceSchema = zod
     token: zod.string().trim().optional(),
     name: zod.string().trim().optional(),
     profiles: zod.string().trim().array(),
+    listen: zod.string().trim().optional(),
   })
   .strict();
 
 export const onvifSchema = zod
   .object({
     listen: zod.string().trim().default(DEFAULT_GO2RTC_CONFIG_ONVIF.listen),
+    manufacturer: zod.string().trim().default(DEFAULT_GO2RTC_CONFIG_ONVIF.manufacturer),
     video_sources: onvifVideoSourceSchema.array().optional(),
   })
   .strict();

@@ -56,6 +56,33 @@
               }}</Message>
             </Field>
 
+            <div v-if="source.role !== 'snapshot' && cameraForm.sources.length > 1" class="w-full flex flex-col gap-2">
+              <Field
+                v-slot="{ field, errors }"
+                :model-value="source.useForSnapshot"
+                :value="true"
+                :unchecked-value="false"
+                type="checkbox"
+                :name="`sources[${i}].useForSnapshot`"
+              >
+                <CuiToggleRow
+                  :label="$t('components.form.label.use_for_snapshot')"
+                  :hint="$t('components.form.hint.use_for_snapshot')"
+                  :label-for="`sources[${i}].useForSnapshot`"
+                  :error-name="`sources[${i}].useForSnapshot`"
+                >
+                  <ToggleSwitch
+                    :model-value="source.useForSnapshot"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading
+                    :disabled="cameraForm.sources.some((s) => (s.useForSnapshot || s.role === 'snapshot') && s._id !== source._id)"
+                    @value-change="(e) => (source.useForSnapshot = e)"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </div>
+
             <div class="flex flex-col gap-3">
               <div class="flex flex-col field-gap">
                 <label :for="`sources[${i}].urls[]`" class="cui-label">{{ $t('components.form.label.sources') }}</label>
@@ -224,34 +251,7 @@
           </div>
 
           <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-chip">{{ $t('components.camera_options.source_group_usage') }}</span>
-            <div v-if="cameraForm.sources.length > 1" class="w-full flex flex-col gap-2">
-              <Field
-                v-slot="{ field, errors }"
-                :model-value="source.useForSnapshot"
-                :value="true"
-                :unchecked-value="false"
-                type="checkbox"
-                :name="`sources[${i}].useForSnapshot`"
-              >
-                <CuiToggleRow
-                  :label="$t('components.form.label.use_for_snapshot')"
-                  :hint="$t('components.form.hint.use_for_snapshot')"
-                  :label-for="`sources[${i}].useForSnapshot`"
-                  :error-name="`sources[${i}].useForSnapshot`"
-                >
-                  <ToggleSwitch
-                    :model-value="source.useForSnapshot"
-                    v-bind="field"
-                    :invalid="errors.length > 0"
-                    :loading
-                    :disabled="cameraForm.sources.some((s) => (s.useForSnapshot || s.role === 'snapshot') && s._id !== source._id)"
-                    @value-change="(e) => (source.useForSnapshot = e)"
-                  />
-                </CuiToggleRow>
-              </Field>
-            </div>
-
+            <span class="section-chip">{{ $t('components.camera_options.interface') }}</span>
             <Field v-slot="{ errors }" :model-value="getChildSourceValue(i)" :name="`sources[${i}].childSourceId`" as="div" class="flex flex-col field-gap">
               <label :for="`sources[${i}].childSourceId`" class="cui-label">{{ $t('components.form.label.pip_source') }}</label>
               <InputGroup>
@@ -278,47 +278,6 @@
                 $t('components.form.hint.pip_source')
               }}</Message>
             </Field>
-          </div>
-
-          <div v-if="source.role !== 'snapshot'" class="flex flex-col gap-6">
-            <span class="section-chip">{{ $t('components.camera_options.source_group_sharing') }}</span>
-            <CameraSourceUrl v-if="source._id" :camera-name="camera.name" :source="source" :loading />
-
-            <div class="w-full flex flex-col gap-2">
-              <Field v-slot="{ errors }" :model-value="source.onvifDisabled" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].onvifDisabled`">
-                <CuiToggleRow
-                  :label="$t('components.form.label.onvif_export')"
-                  :hint="$t('components.form.hint.onvif_export')"
-                  :label-for="`sources[${i}].onvifDisabled`"
-                  :error-name="`sources[${i}].onvifDisabled`"
-                >
-                  <ToggleSwitch
-                    :model-value="!source.onvifDisabled"
-                    :input-id="`sources[${i}].onvifDisabled`"
-                    :invalid="errors.length > 0"
-                    :loading
-                    @value-change="(e) => (source.onvifDisabled = !e)"
-                  />
-                </CuiToggleRow>
-              </Field>
-
-              <Field v-slot="{ errors }" :model-value="source.rtmpDisabled" :value="true" :unchecked-value="false" type="checkbox" :name="`sources[${i}].rtmpDisabled`">
-                <CuiToggleRow
-                  :label="$t('components.form.label.rtmp_export')"
-                  :hint="$t('components.form.hint.rtmp_export')"
-                  :label-for="`sources[${i}].rtmpDisabled`"
-                  :error-name="`sources[${i}].rtmpDisabled`"
-                >
-                  <ToggleSwitch
-                    :model-value="!source.rtmpDisabled"
-                    :input-id="`sources[${i}].rtmpDisabled`"
-                    :invalid="errors.length > 0"
-                    :loading
-                    @value-change="(e) => (source.rtmpDisabled = !e)"
-                  />
-                </CuiToggleRow>
-              </Field>
-            </div>
           </div>
         </div>
       </AccordionContent>
@@ -463,8 +422,6 @@ function newSource(): void {
       preload: true,
       muted: false,
       backchannelDisabled: false,
-      onvifDisabled: false,
-      rtmpDisabled: false,
     });
   }
 }

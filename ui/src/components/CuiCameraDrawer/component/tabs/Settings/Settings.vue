@@ -324,6 +324,113 @@
       </AccordionContent>
     </AccordionPanel>
 
+    <AccordionPanel value="streaming">
+      <AccordionHeader class="px-0">
+        <span class="text-color font-normal">{{ $t('components.camera_options.streaming') }}</span>
+      </AccordionHeader>
+      <AccordionContent :pt="{ content: { class: 'px-0' } }">
+        <div class="flex flex-col gap-6">
+          <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+            {{ $t('components.camera_options.streaming_hint') }}
+          </Message>
+
+          <template v-if="rtspAddresses.length">
+            <span class="section-chip">RTSP</span>
+            <div class="flex flex-col field-gap">
+              <StreamAddresses :addresses="rtspAddresses" />
+              <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.rtsp_url') }}</Message>
+            </div>
+          </template>
+
+          <span class="section-chip">ONVIF</span>
+          <Field
+            v-slot="{ field, errors }"
+            :model-value="cameraForm.exportSettings.onvif"
+            :value="true"
+            :unchecked-value="false"
+            type="checkbox"
+            name="exportSettings.onvif"
+          >
+            <CuiToggleRow
+              :label="$t('components.form.label.onvif_export')"
+              :hint="$t('components.form.hint.onvif_export')"
+              label-for="exportSettings.onvif"
+              error-name="exportSettings.onvif"
+            >
+              <ToggleSwitch
+                :model-value="cameraForm.exportSettings.onvif"
+                v-bind="field"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                @value-change="(e) => (cameraForm.exportSettings.onvif = e)"
+              />
+            </CuiToggleRow>
+          </Field>
+
+          <Field
+            v-if="cameraForm.exportSettings.onvif"
+            v-slot="{ errors }"
+            :model-value="cameraForm.exportSettings.onvifPort"
+            name="exportSettings.onvifPort"
+            as="div"
+            class="flex flex-col field-gap"
+          >
+            <label for="exportSettings.onvifPort" class="cui-label">{{ $t('components.form.label.onvif_port') }}</label>
+            <InputGroup>
+              <CuiNumberStepper
+                :model-value="cameraForm.exportSettings.onvifPort"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                :min="1"
+                :max="65535"
+                :use-grouping="false"
+                @value-change="(e) => (cameraForm.exportSettings.onvifPort = e ?? undefined)"
+                @input="(e) => (cameraForm.exportSettings.onvifPort = (e.value as any) ?? undefined)"
+              />
+            </InputGroup>
+
+            <Transition name="fade">
+              <ErrorMessage name="exportSettings.onvifPort" class="cui-input-error" />
+            </Transition>
+
+            <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.onvif_port') }}</Message>
+          </Field>
+
+          <div v-if="onvifAddresses.length" class="flex flex-col field-gap">
+            <StreamAddresses :addresses="onvifAddresses" />
+            <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.onvif_address') }}</Message>
+          </div>
+
+          <span class="section-chip">RTMP</span>
+          <Field
+            v-slot="{ field, errors }"
+            :model-value="cameraForm.exportSettings.rtmp"
+            :value="true"
+            :unchecked-value="false"
+            type="checkbox"
+            name="exportSettings.rtmp"
+          >
+            <CuiToggleRow
+              :label="$t('components.form.label.rtmp_export')"
+              :hint="$t('components.form.hint.rtmp_export')"
+              label-for="exportSettings.rtmp"
+              error-name="exportSettings.rtmp"
+            >
+              <ToggleSwitch
+                :model-value="cameraForm.exportSettings.rtmp"
+                v-bind="field"
+                :invalid="errors.length > 0"
+                :loading="isLoading"
+                @value-change="(e) => (cameraForm.exportSettings.rtmp = e)"
+              />
+            </CuiToggleRow>
+          </Field>
+
+          <StreamAddresses v-if="rtmpAddresses.length" :addresses="rtmpAddresses" />
+        </div>
+      </AccordionContent>
+    </AccordionPanel>
+
     <AccordionPanel value="detection">
       <AccordionHeader class="px-0">
         <span class="text-color font-normal">{{ $t('components.camera_options.detection') }}</span>
@@ -1810,6 +1917,7 @@ import { BASE_AUDIO_LABELS, OBJECT_DETECTION_LABELS, PluginInterface, SensorType
 import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
+import { ConfigQuery } from '@/api/routes/config.js';
 import { RoomsQuery } from '@/api/routes/rooms.js';
 import { audioLabelKey, NOTIFY_SENSOR_TYPES, sensorLabelKey } from '@/common/eventLabels.js';
 import { buildRoomOptions } from '@/components/CuiCameraDetailsFields/rooms.js';
@@ -1834,10 +1942,10 @@ import type {
   RecordingSource,
   StreamingRole,
 } from '@camera.ui/sdk';
-import { defaultCameraSettings, SENSOR_TYPE_CONFIG } from '@shared/types';
+import { createSourceName, defaultCameraSettings, SENSOR_TYPE_CONFIG, streamSources } from '@shared/types';
 
 import type { DBCamera } from '@shared/types';
-import type { CameraOptionsTabEmits, CameraOptionsTabProps, ZoneEntry } from '../../types.js';
+import type { CameraOptionsTabEmits, CameraOptionsTabProps, StreamAddress, ZoneEntry } from '../../types.js';
 
 const TRIGGERABLE_TYPES = new Set(
   Object.entries(SENSOR_TYPE_CONFIG)
@@ -1846,6 +1954,7 @@ const TRIGGERABLE_TYPES = new Set(
 );
 
 const camerasQuery = new CamerasQuery();
+const configQuery = new ConfigQuery();
 const roomsQuery = new RoomsQuery();
 
 const props = defineProps<CameraOptionsTabProps>();
@@ -1877,6 +1986,8 @@ const { mutateAsync: deleteRoom, isPending: deletingRoom } = roomsQuery.deleteRo
 const { data: cameraExtensions } = camerasQuery.getCameraExtensionsQuery(cameraForm.value.name);
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
 const { mutateAsync: patchZoneConfig, isPending: zoneConfigPatching } = camerasQuery.patchZoneConfigQuery();
+const { data: settings } = configQuery.getSettingsQuery();
+const serverHost = useServerHost();
 
 const SNAPSHOT_MODE_KEYS = {
   interval: { label: 'components.form.label.snapshot_mode_interval', hint: 'components.form.hint.snapshot_mode_interval' },
@@ -2039,6 +2150,25 @@ const roomOptions = computed(() => buildRoomOptions(roomCatalog.value, t));
 const deletableRoom = computed(() => roomCatalog.value?.rooms.find((room) => room.id === cameraForm.value.roomId && room.name !== 'Default'));
 
 const isLoading = computed(() => parentLoading.value || removeLoading.value);
+
+const rtspAddresses = computed(() => streamAddresses('rtsp', settings.value?.streaming.rtsp.port));
+
+const onvifAddresses = computed(() => {
+  const { onvif, onvifPort } = cameraForm.value.exportSettings;
+  return onvif && onvifPort ? [{ label: t('components.form.label.address'), url: `${serverHost.value}:${onvifPort}` }] : [];
+});
+
+const rtmpAddresses = computed(() =>
+  cameraForm.value.exportSettings.rtmp && settings.value?.streaming.rtmp.enabled ? streamAddresses('rtmp', settings.value.streaming.rtmp.port) : [],
+);
+
+function streamAddresses(protocol: 'rtsp' | 'rtmp', port: number | null | undefined): StreamAddress[] {
+  if (!port) return [];
+  return streamSources(camera.value).map((source) => ({
+    label: source.name,
+    url: `${protocol}://${serverHost.value}:${port}/${createSourceName(camera.value.name, source.name)}`,
+  }));
+}
 
 function setDecoderHardware(hardware: FrameWorkerDecoderHardware) {
   const device = hardware === 'auto' || hardware === 'cpu' ? '' : (cameraForm.value.frameWorkerSettings.decoder?.device ?? '');

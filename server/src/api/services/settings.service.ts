@@ -7,9 +7,11 @@ import { DEFAULT_ONVIF_PORT, DEFAULT_RTMP_PORT } from '../../services/config/def
 import { dropKey, listenPort } from '../../services/config/platform-values.js';
 import { resolveProxyAuth } from '../../services/config/proxy-auth.js';
 import { RUNTIME_STATUS } from '../../services/config/types.js';
+import { onvifExportPort } from '../../utils/camera.js';
 
 import type { ProxyAuthSettings } from '../../services/config/proxy-auth.js';
 import type { DeepPartial } from '../../types.js';
+import type { DBCamera } from '../database/types.js';
 import type { Go2RtcConfig, IConfig, LoggingLevel, LogLevel } from '../../services/config/types.js';
 import type { SettingsPatchInput } from '../schemas/settings.schema.js';
 
@@ -60,8 +62,19 @@ const LOCKABLE: Record<string, string> = {
   'proxyAuth.logoutUrl': 'proxy.proxyAuth.logoutUrl',
 };
 
+const ONVIF_EXPORT_PORT = 'exportSettings.onvifPort';
+
 // go2rtc takes these from a config saved through its API
-const LIVE_GO2RTC_SETTINGS = ['rtsp.username', 'rtsp.password', 'rtsp.default_query', 'rtmp.listen', 'onvif.listen', 'webrtc.candidates'];
+const LIVE_GO2RTC_SETTINGS = [
+  'rtsp.username',
+  'rtsp.password',
+  'rtsp.default_query',
+  'rtmp.listen',
+  'onvif.listen',
+  'onvif.manufacturer',
+  'onvif.video_sources',
+  'webrtc.candidates',
+];
 
 let updates: Promise<unknown> = Promise.resolve();
 
@@ -134,7 +147,7 @@ export class SettingsService {
 
     // a port change waiting for the restart is not bound yet, the server still holds the old port
     const running = { ...this.configService.config, port: inject('server').boundPort ?? this.configService.config.port };
-    await checkListeners(listeners(running, this.configService.proxyAuth, this.configService.go2rtcConfig), listeners(config, proxyAuth, go2rtc));
+    await checkListeners(listeners(running, this.configService.proxyAuth, this.configService.go2rtcConfig), listeners(config, proxyAuth, go2rtc), cameraListeners());
 
     const previous = {
       config: structuredClone(this.configService.config),
@@ -319,6 +332,19 @@ function mergeProxyAuth(current: unknown, patch: ProxyAuthPatch): Record<string,
   return Object.keys(block).length ? block : undefined;
 }
 
+export async function checkOnvifExportPort(camera: DBCamera, unchanged: boolean): Promise<void> {
+  const port = onvifExportPort(camera);
+  if (port === undefined) return;
+
+  const { config, proxyAuth, go2rtcConfig } = inject('configService');
+  const other = [...listeners(config, proxyAuth, go2rtcConfig), ...cameraListeners(camera._id)].find((listener) => listener.port === port);
+  if (other) throw new SettingsError(ONVIF_EXPORT_PORT, `Port ${port} is already used by ${other.label}`);
+  if (unchanged) return;
+
+  const error = await bindError(port, undefined, 'tcp');
+  if (error) throw new SettingsError(ONVIF_EXPORT_PORT, bindProblem(error, port, undefined));
+}
+
 function listeners(config: IConfig, proxyAuth: ProxyAuthSettings | undefined, go2rtc: Go2RtcConfig): Listener[] {
   return [
     { field: 'server.port', label: 'camera.ui', port: config.port, host: config.host, protocols: ['tcp'] },
@@ -334,16 +360,24 @@ function listeners(config: IConfig, proxyAuth: ProxyAuthSettings | undefined, go
   ];
 }
 
+function cameraListeners(exceptCameraId?: string): Listener[] {
+  const cameras = [...inject('dbs').camerasDB.getRange()].map(({ value }) => value);
+  return cameras.flatMap((camera) => {
+    const port = onvifExportPort(camera);
+    return port === undefined || camera._id === exceptCameraId ? [] : [{ field: ONVIF_EXPORT_PORT, label: camera.name, port, protocols: ['tcp'] }];
+  });
+}
+
 function go2rtcListener(field: string, label: string, listen: string, protocols: Protocol[]): Listener {
   const host = listen.slice(0, listen.lastIndexOf(':')).replace(/^\[|\]$/g, '');
   return { field, label, port: portOf(listen) ?? undefined, host, protocols };
 }
 
-async function checkListeners(before: Listener[], after: Listener[]): Promise<void> {
+async function checkListeners(before: Listener[], after: Listener[], cameras: Listener[]): Promise<void> {
   const changed = after.filter((listener, index) => listener.port !== undefined && listener.port !== before[index].port);
 
   for (const listener of changed) {
-    const other = after.find((candidate) => candidate !== listener && candidate.port === listener.port);
+    const other = [...after, ...cameras].find((candidate) => candidate !== listener && candidate.port === listener.port);
     if (other) throw new SettingsError(listener.field, `Port ${listener.port} is already used by ${other.label}`);
   }
 

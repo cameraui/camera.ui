@@ -1,6 +1,7 @@
 import { GOP_REGEX, SOURCE_BACKCHANNEL_REGEX, SOURCE_HANDSHAKE_TIMEOUT_REGEX, SOURCE_TIMEOUT_REGEX } from '../api/utils/regex.js';
 
 import type { RTSPUrlOptions, SnapshotUrlOptions } from '@camera.ui/sdk';
+import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { DBCamera } from '../api/database/types.js';
 import type { OnvifVideoSource } from '../services/config/types.js';
 
@@ -193,23 +194,36 @@ export function createSourceName(cameraName: string, sourceName: string): string
 export function onvifVideoSources(cameras: DBCamera[]): OnvifVideoSource[] {
   return cameras
     .filter((camera) => !camera.disabled)
-    .map((camera) => ({
-      token: camera._id,
-      name: camera.name,
-      profiles: ONVIF_PROFILE_ROLES.flatMap((role) =>
-        camera.sources.filter((source) => source.role === role && !source.onvifDisabled).map((source) => createSourceName(camera.name, source.name)),
-      ),
-    }))
+    .map((camera) => {
+      const port = onvifExportPort(camera);
+      return {
+        token: camera._id,
+        name: camera.name,
+        profiles: ONVIF_PROFILE_ROLES.flatMap((role) =>
+          camera.sources.filter((source) => source.role === role).map((source) => createSourceName(camera.name, source.name)),
+        ),
+        ...(port && { listen: `:${port}` }),
+      };
+    })
     .filter((videoSource) => videoSource.profiles.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export function onvifExportPort(camera: DBCamera): number | undefined {
+  return camera.exportSettings.onvif ? camera.exportSettings.onvifPort : undefined;
+}
+
+export function streamSources(camera: DBCamera): CameraInputSettings[] {
+  if (camera.disabled) return [];
+  return camera.sources.filter((source) => source.role !== 'snapshot');
+}
+
+export function rtmpSources(camera: DBCamera): CameraInputSettings[] {
+  return camera.exportSettings.rtmp ? streamSources(camera) : [];
+}
+
 export function rtmpStreams(cameras: DBCamera[], configStreams: string[]): string[] {
-  const offered = cameras
-    .filter((camera) => !camera.disabled)
-    .flatMap((camera) =>
-      camera.sources.filter((source) => source.role !== 'snapshot' && !source.rtmpDisabled).map((source) => createSourceName(camera.name, source.name)),
-    );
+  const offered = cameras.flatMap((camera) => rtmpSources(camera).map((source) => createSourceName(camera.name, source.name)));
   // streams the user added to the config have no switch and stay reachable
   const own = configStreams.filter((name) => !name.startsWith('cui_'));
 

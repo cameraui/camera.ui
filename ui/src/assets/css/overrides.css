@@ -46,12 +46,13 @@
   border-radius: 0 !important;
 }
 
-.p-inputgroup:has(.p-inputgroupaddon) > .p-inputtext,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-select,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-multiselect,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-password,
-.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete .p-autocomplete-input-multiple {
+.p-inputgroup > .p-inputgroupaddon:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-inputtext:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-select:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-multiselect:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-password:first-child,
+.p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete:first-child .p-autocomplete-input-multiple {
   border-top-left-radius: 10px !important;
   border-bottom-left-radius: 10px !important;
 }

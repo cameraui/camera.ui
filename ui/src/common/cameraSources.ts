@@ -13,8 +13,6 @@ export interface Go2RtcModel {
   preload: boolean;
   muted?: boolean;
   backchannelDisabled?: boolean;
-  onvifDisabled?: boolean;
-  rtmpDisabled?: boolean;
   timeout?: number;
   handshakeTimeout?: number;
 }

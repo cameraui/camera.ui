@@ -309,8 +309,9 @@ export const inputSchema = zod
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
     backchannelDisabled: zod.boolean().default(false),
-    onvifDisabled: zod.boolean().default(false),
-    rtmpDisabled: zod.boolean().default(false),
+    // older app versions and plugins on an older sdk still send these, the export settings of the camera decide
+    onvifDisabled: zod.boolean().optional(),
+    rtmpDisabled: zod.boolean().optional(),
     timeout: zod.number().int().min(5).max(120).optional(),
     handshakeTimeout: zod.number().int().min(1).max(60).optional(),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
@@ -334,7 +335,9 @@ export const inputSchema = zod
       .optional(),
   })
   .strict()
-  .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
+  .transform(({ onvifDisabled: _onvifDisabled, rtmpDisabled: _rtmpDisabled, ...source }) =>
+    source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source,
+  );
 
 export const patchInputSchema = zod
   .object({
@@ -353,8 +356,9 @@ export const patchInputSchema = zod
     preload: zod.boolean().default(true),
     muted: zod.boolean().default(false),
     backchannelDisabled: zod.boolean().default(false),
-    onvifDisabled: zod.boolean().default(false),
-    rtmpDisabled: zod.boolean().default(false),
+    // older app versions and plugins on an older sdk still send these, the export settings of the camera decide
+    onvifDisabled: zod.boolean().optional(),
+    rtmpDisabled: zod.boolean().optional(),
     timeout: zod.number().int().min(5).max(120).optional(),
     handshakeTimeout: zod.number().int().min(1).max(60).optional(),
     urls: urlSchema.array().min(1, 'At least one valid URL is required'),
@@ -378,7 +382,9 @@ export const patchInputSchema = zod
       .optional(),
   })
   .strict()
-  .transform((source) => (source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source));
+  .transform(({ onvifDisabled: _onvifDisabled, rtmpDisabled: _rtmpDisabled, ...source }) =>
+    source.role === 'snapshot' ? { ...source, useForSnapshot: false, hotMode: false, preload: false } : source,
+  );
 
 export const pluginInfo = zod.object({
   id: zod.string(),
@@ -505,6 +511,22 @@ export const snapshotSettingsSchema = zod
   })
   .strict();
 
+export const exportSettingsSchema = zod
+  .object({
+    onvif: zod.boolean(),
+    onvifPort: zod.number().int().min(1).max(65535).optional(),
+    rtmp: zod.boolean(),
+  })
+  .strict();
+
+export const DEFAULT_EXPORT_SETTINGS: zod.infer<typeof exportSettingsSchema> = { onvif: false, rtmp: true };
+
+const ONVIF_PORT_REQUIRED = { message: 'Port is required', path: ['onvifPort'] };
+
+function hasOnvifPort(settings: { onvif?: boolean; onvifPort?: number }): boolean {
+  return !settings.onvif || settings.onvifPort !== undefined;
+}
+
 export const createCameraBaseSchema = zod
   .object({
     _id: zod
@@ -608,6 +630,7 @@ export const createCameraBaseSchema = zod
     }),
     ptzAutotrack: ptzAutotrackSettingsSchema.default(DEFAULT_PTZ_AUTOTRACK_SETTINGS),
     recordingSettings: recordingSettingsSchema.default(DEFAULT_RECORDING_SETTINGS),
+    exportSettings: exportSettingsSchema.refine(hasOnvifPort, ONVIF_PORT_REQUIRED).default(DEFAULT_EXPORT_SETTINGS),
     notificationSettings: notificationSettingsSchema.default(DEFAULT_NOTIFICATION_SETTINGS),
     frameWorkerSettings: frameWorkerSettingsSchema.default({
       mainStreamAnalysis: false,
@@ -684,6 +707,7 @@ export const patchCameraSchema = zod
     detectionSettings: detectionSettingsSchema.partial().optional(),
     ptzAutotrack: ptzAutotrackSettingsSchema.partial().optional(),
     recordingSettings: recordingSettingsSchema.partial().optional(),
+    exportSettings: exportSettingsSchema.partial().refine(hasOnvifPort, ONVIF_PORT_REQUIRED).optional(),
     notificationSettings: notificationSettingsSchema.partial().optional(),
     frameWorkerSettings: frameWorkerSettingsSchema.partial().optional(),
   })

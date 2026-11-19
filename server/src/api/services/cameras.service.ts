@@ -4,10 +4,11 @@ import { canCreateCameras, isHub, PluginRole, SensorType } from '@camera.ui/sdk'
 import { clearSourceCodecInfos, deleteSourceCodecInfo, getSourceCodecInfo } from '../../camera/codecCache.js';
 import { inject } from '../../container.js';
 import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
-import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, normalizeCameraName } from '../../utils/camera.js';
+import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, normalizeCameraName, onvifExportPort } from '../../utils/camera.js';
 import { FloorPlanService } from './floorplan.service.js';
 import { PluginsService } from './plugins.service.js';
 import { RoomsService } from './rooms.service.js';
+import { checkOnvifExportPort } from './settings.service.js';
 import { UsersService } from './users.service.js';
 
 import type {
@@ -88,6 +89,7 @@ export class CamerasService {
     if (this.findByConflictingName(cameraData.name)) {
       throw new Error(`Camera name "${cameraData.name}" is already in use`);
     }
+    await checkOnvifExportPort(cameraData, false);
 
     const plugin = this.pluginsService.getPluginById(cameraData.pluginInfo?.id ?? '');
     if (plugin) {
@@ -351,6 +353,7 @@ export class CamerasService {
 
     const patched = structuredClone(existing);
     applyPatch(patched);
+    await checkOnvifExportPort(patched, onvifExportPort(patched) === onvifExportPort(existing));
 
     if (!isEqual(cameraOld, patched, true)) {
       if (cameraOld.name !== patched.name) {
@@ -754,8 +757,6 @@ export class CamerasService {
         preload: source.preload,
         muted: source.muted,
         backchannelDisabled: source.backchannelDisabled,
-        onvifDisabled: source.onvifDisabled,
-        rtmpDisabled: source.rtmpDisabled,
         timeout: source.timeout,
         handshakeTimeout: source.handshakeTimeout,
         ...getSourceCodecInfo(source._id),

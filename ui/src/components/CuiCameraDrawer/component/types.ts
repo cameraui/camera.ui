@@ -38,7 +38,14 @@ export interface CameraSourceProps {
   loading?: boolean;
 }
 
-export type CameraSourceUrlProps = Omit<CameraSourceProps, 'cameraId'>;
+export interface StreamAddress {
+  label: string;
+  url: string;
+}
+
+export interface StreamAddressesProps {
+  addresses: StreamAddress[];
+}
 
 export interface CameraOptionsSegment {
   name: string;

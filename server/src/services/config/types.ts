@@ -150,6 +150,7 @@ export interface RTSP {
 
 export interface Onvif {
   listen: string;
+  manufacturer: string;
   video_sources?: OnvifVideoSource[];
 }
 
@@ -157,6 +158,7 @@ export interface OnvifVideoSource {
   token?: string;
   name?: string;
   profiles: string[];
+  listen?: string;
 }
 
 export interface Webrtc {
