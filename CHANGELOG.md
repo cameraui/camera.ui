@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.1]
+
+### Added
+
+- **Choose which cameras use your recording slots.** When more cameras have recording on than your plan has slots, the new **Recording slots** card under Settings, Recordings lists them. Move a camera up to record it instead of another. This needs NVR plugin 1.7.5. See [Camera slots](https://docs.cameraui.com/recording/#camera-slots).
+
+- **Open your plan from camera.ui.** In the browser and the desktop app, **Manage plan** in the **License & Cloud** card under Settings, Recordings opens your plan in a new tab, and its back arrow closes the tab again. The cloud button under Remote Access does the same for your server list. See [Camera slots](https://docs.cameraui.com/recording/#camera-slots).
+
+- **Settings, Assistant marks a model its provider no longer offers.** It shows as **Not available**, pick another model in its dialog or remove it. See [Assistant setup](https://docs.cameraui.com/admin/assistant-setup/#choosing-a-model).
+
+### Changed
+
+- **Metrics shows what each camera's recording is doing.** The dot in the Camera Storage table tells five states apart: recording, waiting for the next event, no free camera slot, off and stopped. A camera in Event or Ad-hoc mode showed as stopped between events before. The slot and stopped states need NVR plugin 1.7.5. See [Storage](https://docs.cameraui.com/recording/storage#keeping-an-eye-on-usage).
+
+- **Turning on recording registers the server too.** The cloud icon in the **License & Cloud** card under Settings, Recordings first registers a server that isn't linked to your account yet, then goes on with the sign-in. Before, this ended in an error until the server was registered under Remote Access. See [Turning on recording](https://docs.cameraui.com/recording/#turning-on-recording).
+
+- **Windows: the desktop app shows that an update is installing.** A small window stays open until the update is through, then the app opens again by itself. Starting the app in that time says so instead of ending in an error. See [Updating the desktop app](https://docs.cameraui.com/install/updating#updating-the-desktop-app).
+
+- **My contributions filters by server.** With more than one server on your account, the list under Training names the server of each frame and can be narrowed to one. See [Model training](https://docs.cameraui.com/detection/training#submitting-to-the-pool).
+
+- **Ollama models pick their tools first.** A short extra request chooses the tools a question needs, small local models answer far more questions right with it. For a large model switch off **Pick the tools first** in its dialog. See [Assistant setup](https://docs.cameraui.com/admin/assistant-setup/#small-models-and-the-context-window).
+
+### Fixed
+
+- **Windows: Python plugins start again.** Since 2.5.0, plugins such as OpenVINO Legacy and YAMNet stayed on "Starting".
+
+- **A plugin that hangs while starting no longer stays on "Starting".** camera.ui stops it after a few minutes and notes the error in its log. Until now it could not be stopped or restarted either. See [Plugins](https://docs.cameraui.com/plugins/).
+
+- **Plugins no longer miss a camera or sensor that changes while they start or reconnect.** After a restart a plugin could keep treating a camera as offline although it was connected, and HomeKit could show an old sensor state until the sensor changed again.
+
+- **Ollama models no longer lose their tools at random.** The test when saving an Ollama model often failed with small thinking models, and the assistant then answered without tools and pictures, so a question like "What happened today?" got no real answer. camera.ui now asks Ollama what the model supports. Open the model under Settings, Assistant and save it again to repeat the test.
+
+- **Ollama models need less memory.** A model without its own context window gets a smaller one, camera.ui no longer asks Ollama for more context than that, and requests no longer make Ollama load the model again. See [Assistant setup](https://docs.cameraui.com/admin/assistant-setup/#thinking-cost-and-limits).
+
+- **A broken tool call of a local model no longer ends the answer in an error.** Ollama could stop a question with a message like "invalid character after object key", camera.ui now asks the model again.
+
+- **The assistant can ask you back for a free answer.** A question without choices to pick from ended the answer with "Interrupt payload must be JSON-compatible".
+
+- **Smaller fixes in the interface.**
+  - A training frame that failed to upload shows the reason as plain text
+  - A failed action in your server list or account shows a short sentence in your language instead of a technical message
+  - With a camera view in fullscreen, its cameras no longer offer a fullscreen button of their own
+  - The tunnel protocol under Settings → Remote shows HTTP/2 instead of an empty field when nothing else is picked
+  - An update that went through on a retry no longer shows the error of the first attempt
+  - The assistant's cost estimate knows GPT-6.2 and Gemini 4 Carbon and Hydrogen, and Google's price changes in December and January
+  - The assistant finds a camera when a local model adds the room to its name
+
 ## [2.5.0]
 
 ### After the update
