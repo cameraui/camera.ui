@@ -6,7 +6,7 @@ import { inject } from '../container.js';
 import { emitInternalEvent } from '../internal-bus.js';
 import { PLUGIN_STATUS } from '../plugins/types.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
-import { buildSnapshotUrl, buildTargetUrl, createSourceName } from '../utils/camera.js';
+import { buildSnapshotUrl, buildTargetUrl, createSourceName, isTalkUrl } from '../utils/camera.js';
 import { getSourceCodecInfo, setSourceCodecInfo } from './codecCache.js';
 import { FrameWorker } from './decoder/worker.js';
 import { CameraDevice } from './index.js';
@@ -261,6 +261,11 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   @RPCMethod
+  public async talkUrl(sourceId: string): Promise<string | undefined> {
+    return this.cameraDeviceProxy?.talkUrl?.(sourceId);
+  }
+
+  @RPCMethod
   public async probeStream(sourceId: string, _probeConfig?: ProbeConfig, refresh = false): Promise<ProbeStream | undefined> {
     const cameraSource = this.sources.find((source) => source._id === sourceId);
     if (!cameraSource) {
@@ -271,7 +276,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     if (!refresh) {
       const current = this.applyOffers(sourceId, this.go2rtcState.offers(src));
-      if (current) {
+      if (current && !this.talkCodecUnknown(sourceId, current)) {
         return current;
       }
     }
@@ -636,6 +641,14 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.applySourceCodec(sourceId, offers);
 
     return streamInfo;
+  }
+
+  private talkCodecUnknown(sourceId: string, probe: ProbeStream): boolean {
+    if (probe.audio.some((audio) => audio.direction === 'recvonly')) {
+      return false;
+    }
+    const camera = inject('dbs').camerasDB.get(this.id);
+    return camera?.sources.find((s) => s._id === sourceId)?.urls.some(isTalkUrl) ?? false;
   }
 
   private applySourceCodec(sourceId: string, offers: Go2RTCOffers): void {

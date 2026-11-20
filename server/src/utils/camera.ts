@@ -5,12 +5,15 @@ import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { DBCamera } from '../api/database/types.js';
 import type { OnvifVideoSource } from '../services/config/types.js';
 
+const NO_VIDEO_FLAG = '#noVideo';
 const NO_AUDIO_FLAG = '#noAudio';
 const NO_BACKCHANNEL_FLAG = '#noBackchannel';
 const BACKCHANNEL_FLAG = '#backchannel=1';
 const BACKCHANNEL_OFF_FLAG = '#backchannel=0';
 const BACKCHANNEL_SCHEMES = ['rtsp://', 'rtsps://', 'cui://', 'onvif://'];
 const CUI_STREAM_URL_REGEX = /^cui:\/\/127\.0\.0\.1:\d+\/api\/cameras\/streams\/[^?#]*/;
+const CUI_TALK_URL_REGEX = /^cui:\/\/(?:talk|127\.0\.0\.1:\d+\/api\/cameras\/streams\/[^/?#]+\/[^/?#]+\/talk)(?:[?#]|$)/;
+const TALK_ONLY_FLAGS = [NO_VIDEO_FLAG, NO_AUDIO_FLAG];
 const STREAM_TOKEN_QUERY_REGEX = /\?token=[^#]*/;
 const ONVIF_PROFILE_ROLES = ['high-resolution', 'mid-resolution', 'low-resolution'];
 
@@ -60,11 +63,20 @@ export interface GeneratedSource extends SourceUrlFlags {
 
 export function generatedSourceUrls(cameraId: string, port: number, source: GeneratedSource): string[] {
   return source.urls.map((url) => {
-    if (url.startsWith('cui://')) {
-      url = `cui://127.0.0.1:${port}/api/cameras/streams/${cameraId}/${source.name}`;
+    if (!url.startsWith('cui://')) {
+      return applySourceUrlFlags(url, source);
     }
-    return applySourceUrlFlags(url, source);
+    const base = `cui://127.0.0.1:${port}/api/cameras/streams/${cameraId}/${source.name}`;
+    if (!isTalkUrl(url)) {
+      return applySourceUrlFlags(base, source);
+    }
+    const talk = applySourceUrlFlags(`${base}/talk`, source);
+    return talk + TALK_ONLY_FLAGS.filter((flag) => !talk.includes(flag)).join('');
   });
+}
+
+export function isTalkUrl(url: string): boolean {
+  return CUI_TALK_URL_REGEX.test(url);
 }
 
 export function go2rtcStreamUrls(sourceName: string, source: GeneratedSource, urls: string[], streamToken: string): string[] {

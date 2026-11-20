@@ -80,6 +80,19 @@ export const CamerasRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
   });
 
   app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/streams/:cameraid/:sourcename/talk',
+    method: 'GET',
+    preValidation: [validStreamTokenNeeded],
+    handler: camerasController.getTalkUrl.bind(camerasController),
+    schema: {
+      tags: ['Cameras'],
+      summary: 'Get the talkback URL for a camera source',
+      params: streamParamsSchema,
+      querystring: streamQuerySchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
     url: '/preview',
     method: 'POST',
     preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],

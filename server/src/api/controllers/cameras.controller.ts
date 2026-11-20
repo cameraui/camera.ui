@@ -14,6 +14,7 @@ import { resolvePluginName } from '../utils/plugin.js';
 import type { AssignedPlugin, ProbeConfig, SchemaConfig } from '@camera.ui/sdk';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { CameraUiAPI } from '../../api.js';
+import type { CameraController } from '../../camera/controller.js';
 import type { Go2RtcApi } from '../../go2rtc/api/index.js';
 import type { Go2RTCProbe } from '../../go2rtc/types.js';
 import type { ConfigService } from '../../services/config/index.js';
@@ -554,39 +555,11 @@ export class CamerasController {
   }
 
   public async getStreamUrl(req: FastifyRequest<CamerasStreamRequest>, reply: FastifyReply): Promise<FastifyReply> {
-    try {
-      const camera = this.api.getCamera(req.params.cameraid);
-      if (!camera) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'Camera not exists',
-        });
-      }
+    return this.sendPluginUrl(req, reply, (camera, sourceId) => camera.streamUrl(sourceId), 'Custom stream URL not available, use default source URLs');
+  }
 
-      const source = camera.sources.find((s) => s.name === req.params.sourcename);
-      if (!source) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'Source not exists',
-        });
-      }
-
-      const streamUrl = await camera.streamUrl(source._id);
-      if (!streamUrl) {
-        return reply.code(404).send({
-          statusCode: 404,
-          message: 'Custom stream URL not available, use default source URLs',
-        });
-      }
-
-      const workers = tryInject('workerManager');
-      return reply.code(200).send({ streamUrl: (await workers?.streamUrlFromHere(camera.pluginInfo?.id, streamUrl)) ?? streamUrl });
-    } catch (error: any) {
-      return reply.code(500).send({
-        statusCode: 500,
-        message: error.message,
-      });
-    }
+  public async getTalkUrl(req: FastifyRequest<CamerasStreamRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    return this.sendPluginUrl(req, reply, (camera, sourceId) => camera.talkUrl(sourceId), 'Talkback URL not available');
   }
 
   public async patchByName(req: FastifyRequest<AuthLoginRequest & CamerasParamsRequest & CamerasPatchRequest>, reply: FastifyReply): Promise<FastifyReply | void> {
@@ -1109,6 +1082,47 @@ export class CamerasController {
       const response = await proxy.submitValue(req.body.key, req.body.payload);
 
       return reply.code(200).send(response);
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  private async sendPluginUrl(
+    req: FastifyRequest<CamerasStreamRequest>,
+    reply: FastifyReply,
+    resolve: (camera: CameraController, sourceId: string) => Promise<string | undefined>,
+    missing: string,
+  ): Promise<FastifyReply> {
+    try {
+      const camera = this.api.getCamera(req.params.cameraid);
+      if (!camera) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Camera not exists',
+        });
+      }
+
+      const source = camera.sources.find((s) => s.name === req.params.sourcename);
+      if (!source) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: 'Source not exists',
+        });
+      }
+
+      const streamUrl = await resolve(camera, source._id);
+      if (!streamUrl) {
+        return reply.code(404).send({
+          statusCode: 404,
+          message: missing,
+        });
+      }
+
+      const workers = tryInject('workerManager');
+      return reply.code(200).send({ streamUrl: (await workers?.streamUrlFromHere(camera.pluginInfo?.id, streamUrl)) ?? streamUrl });
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,
