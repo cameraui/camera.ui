@@ -98,15 +98,26 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
   const command = (property: string) => `${state(property)}/set`;
 
   const displayName = sensor.displayName || sensor.name;
+  // null names the main sensor after its device
+  const entityName = sensor.device ? (sensor.primary ? null : sensor.shortName) : displayName;
   const shared = {
     availability: [{ topic: topics.availability }],
     availability_mode: 'all',
-    device: {
-      identifiers: [`cameraui_sensor_${sensor.id}`],
-      name: displayName,
-      manufacturer: 'camera.ui',
-      ...(viaCamera ? { via_device: `cameraui_${viaCamera._id}` } : {}),
-    },
+    device: sensor.device
+      ? {
+          identifiers: [haDeviceIdentifier(sensor)],
+          name: sensor.device.name,
+          manufacturer: sensor.device.manufacturer ?? 'camera.ui',
+          ...(sensor.device.model ? { model: sensor.device.model } : {}),
+          ...(sensor.device.firmware ? { sw_version: sensor.device.firmware } : {}),
+          ...(sensor.device.serialNumber ? { serial_number: sensor.device.serialNumber } : {}),
+        }
+      : {
+          identifiers: [haDeviceIdentifier(sensor)],
+          name: displayName,
+          manufacturer: 'camera.ui',
+          ...(viaCamera ? { via_device: `cameraui_${viaCamera._id}` } : {}),
+        },
     origin: {
       name: 'camera.ui',
       sw_version: ConfigService.VERSION,
@@ -114,7 +125,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
   };
 
   const config = {
-    name: displayName,
+    name: entityName,
     unique_id: `cameraui_sensor_${sensor.id}`,
     ...shared,
     ...(semantics.deviceClass ? { device_class: semantics.deviceClass } : {}),
@@ -131,7 +142,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     messages.push({
       topic: configTopic(haPrefix, 'number', `sensor_${sensor.id}`, 'volume'),
       payload: JSON.stringify({
-        name: `${displayName} Volume`,
+        name: entityName ? `${entityName} Volume` : 'Volume',
         unique_id: `cameraui_sensor_${sensor.id}_volume`,
         ...shared,
         icon: 'mdi:volume-high',
@@ -147,6 +158,10 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
   }
 
   return messages;
+}
+
+export function haDeviceIdentifier(sensor: StoredSensorData): string {
+  return sensor.device ? `cameraui_device_${sensor.device.id}` : `cameraui_sensor_${sensor.id}`;
 }
 
 function domainConfig(semantics: SensorSemantics, state: (property: string) => string, command: (property: string) => string): Record<string, unknown> {

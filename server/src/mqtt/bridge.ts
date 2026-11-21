@@ -3,7 +3,7 @@ import { SensorType } from '@camera.ui/sdk';
 import { inject } from '../container.js';
 import { isWritableSensor } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
-import { buildCameraDiscovery, buildSensorDiscovery } from './ha-discovery.js';
+import { buildCameraDiscovery, buildSensorDiscovery, haDeviceIdentifier } from './ha-discovery.js';
 
 import type { DetectionEvent, DetectionEventType } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
@@ -35,6 +35,7 @@ export class MqttBridge {
   private busHandlers: [InternalEvent, (payload: InternalEventPayload) => void][] = [];
   private cameraSubscriptions = new Map<string, () => void>();
   private retainedTopics = new Map<string, Set<string>>();
+  private haDevices = new Map<string, string>();
   private activeDetections = new Map<string, ActiveDetectionState>();
   private attached = false;
 
@@ -123,18 +124,17 @@ export class MqttBridge {
 
     this.onBus('sensor:added', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
-    this.onBus('sensor:deleted', (payload) => {
-      const sensor = payload as SensorLifecyclePayload;
-      this.clearRetained(sensorBucket(sensor.sensorId));
-    });
+    this.onBus('sensor:deleted', (payload) => this.clearSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:connected:changed', (payload) => {
       const sensor = payload as SensorLifecyclePayload;
       if (sensor.connected) this.republishSensor(sensor.sensorId);
-      else this.clearRetained(sensorBucket(sensor.sensorId));
+      else this.clearSensor(sensor.sensorId);
     });
 
     this.onBus('sensor:displayName:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
+
+    this.onBus('sensor:device:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:capabilities:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
@@ -193,6 +193,7 @@ export class MqttBridge {
       }
       if (topics.size === 0) this.retainedTopics.delete(cameraId);
     }
+    this.haDevices.clear();
   }
 
   public publishFullState(): void {
@@ -283,10 +284,15 @@ export class MqttBridge {
     const data = this.registry.getSensor(sensorId, { connectedOnly: true })?.data;
     if (!data) return;
     if (!this.isHaExportable(data)) {
-      this.clearRetained(sensorBucket(sensorId));
+      this.clearSensor(sensorId);
       return;
     }
     this.publishSensorState(data);
+  }
+
+  private clearSensor(sensorId: string): void {
+    this.clearRetained(sensorBucket(sensorId));
+    this.haDevices.delete(sensorId);
   }
 
   private publishSensorState(data: StoredSensorData): void {
@@ -296,6 +302,8 @@ export class MqttBridge {
       type: data.type,
       name: data.name,
       displayName: data.displayName,
+      shortName: data.shortName,
+      device: data.device,
       pluginId: data.pluginId,
       assignedCameraIds: data.assignedCameraIds,
     };
@@ -309,6 +317,11 @@ export class MqttBridge {
     if (ha.enabled) {
       // exactly one assigned camera parents the HA device via via_device
       const viaCamera = data.assignedCameraIds.length === 1 ? this.api.getCamera(data.assignedCameraIds[0])?.camera : undefined;
+      // HA keeps an entity on its old device, removing it first moves it and HA restores its registry entry
+      const identifier = haDeviceIdentifier(data);
+      const previous = this.haDevices.get(data.id);
+      if (previous && previous !== identifier) this.clearRetained(bucket, (topic) => topic.startsWith(`${ha.prefix}/`));
+      this.haDevices.set(data.id, identifier);
       for (const message of buildSensorDiscovery(this.manager.topics, ha.prefix, data, viaCamera)) {
         this.publishRetained(bucket, message.topic, message.payload);
       }
