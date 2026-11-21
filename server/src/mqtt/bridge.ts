@@ -137,6 +137,7 @@ export class MqttBridge {
     this.onBus('sensor:device:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:capabilities:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
+    this.onBus('sensor:specs:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:exposed:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
@@ -180,7 +181,9 @@ export class MqttBridge {
     const sensor = this.registry.getSensor(sensorId, { connectedOnly: true });
     if (!sensor || !this.isHaExportable(sensor.data) || !isWritableSensor(sensor.type, sensor.pluginId)) return;
 
-    sensor.updateValue(property, parseCommandPayload(payload.toString('utf8')));
+    sensor.updateValue(property, parseCommandPayload(payload.toString('utf8'))).catch((error: unknown) => {
+      inject('logger').warn(`MQTT command for sensor ${sensorId} rejected:`, error);
+    });
   }
 
   public clearDiscovery(haPrefix: string): void {

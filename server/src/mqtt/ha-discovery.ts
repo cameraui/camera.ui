@@ -4,7 +4,7 @@ import { resolveSensorSemantics } from '../sensors/semantics.js';
 import { ConfigService } from '../services/config/index.js';
 import { sanitizeTopicSegment } from './topics.js';
 
-import type { Camera, SensorSemantics } from '@camera.ui/sdk';
+import type { Camera, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { MqttTopics } from './topics.js';
 
@@ -132,7 +132,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     ...(semantics.icon ? { icon: semantics.icon } : {}),
     ...(semantics.diagnostic ? { entity_category: 'diagnostic' } : {}),
     state_topic: state(semantics.stateProperty),
-    ...domainConfig(semantics, state, command),
+    ...domainConfig(semantics, sensor.propertySpecs, state, command),
   };
 
   const messages = [{ topic: configTopic(haPrefix, DOMAIN_COMPONENT[semantics.domain], `sensor_${sensor.id}`, 'state'), payload: JSON.stringify(config) }];
@@ -164,7 +164,12 @@ export function haDeviceIdentifier(sensor: StoredSensorData): string {
   return sensor.device ? `cameraui_device_${sensor.device.id}` : `cameraui_sensor_${sensor.id}`;
 }
 
-function domainConfig(semantics: SensorSemantics, state: (property: string) => string, command: (property: string) => string): Record<string, unknown> {
+function domainConfig(
+  semantics: SensorSemantics,
+  specs: Record<string, SensorPropertySpec>,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
   const commandTopic = command(semantics.commandProperty);
   const states = semantics.states ?? {};
 
@@ -226,7 +231,8 @@ function domainConfig(semantics: SensorSemantics, state: (property: string) => s
         payload_stop: null,
       };
 
-    case SensorDomain.Alarm:
+    case SensorDomain.Alarm: {
+      const offered = specs[semantics.commandProperty]?.values;
       return {
         command_topic: commandTopic,
         value_template: `{% set states = {${Object.entries(states)
@@ -235,10 +241,13 @@ function domainConfig(semantics: SensorSemantics, state: (property: string) => s
         command_template: `{% set states = {${Object.entries(ALARM_ACTIONS)
           .map(([action, name]) => `'${action}': ${states[name]}`)
           .join(', ')}} %}{{ states[action] }}`,
-        supported_features: ['arm_home', 'arm_away', 'arm_night'],
+        supported_features: Object.entries(ALARM_ACTIONS)
+          .filter(([action, name]) => action !== 'DISARM' && (!offered || Object.values(offered).includes(states[name])))
+          .map(([action]) => action.toLowerCase()),
         code_arm_required: false,
         code_disarm_required: false,
       };
+    }
   }
 }
 
