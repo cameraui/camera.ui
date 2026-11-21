@@ -263,6 +263,7 @@ import {
   isReactiveLightControl,
   isReactiveLockControl,
   isReactiveOccupancySensor,
+  isReactiveOutletControl,
   isReactiveSecuritySystem,
   isReactiveSirenControl,
   isReactiveSmokeSensor,
@@ -359,6 +360,7 @@ const availableSensorsForShortcuts = computed(() => {
       isReactiveLockControl(s) ||
       isReactiveGarageControl(s) ||
       s.type === SensorType.Switch ||
+      isReactiveOutletControl(s) ||
       isReactiveSirenControl(s) ||
       isReactiveDoorbellTrigger(s) ||
       isReactiveSecuritySystem(s) ||

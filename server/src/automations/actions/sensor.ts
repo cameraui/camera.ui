@@ -10,7 +10,16 @@ export async function actionSensor(ctx: ActionContext, data: Record<string, unkn
 
   const properties = (data.properties as { property: string; value: string }[]) ?? [];
   for (const prop of properties) {
-    const value = parseValue(ctx.resolve(prop.value));
+    const raw = ctx.resolve(prop.value);
+    const value = sensor.propertySpecs[prop.property]?.type === 'object' ? parseObject(prop.property, raw) : parseValue(raw);
     await sensor.updateValue(prop.property, value);
+  }
+}
+
+function parseObject(property: string, raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    throw new Error(`${property} needs a JSON object, got ${raw}`);
   }
 }

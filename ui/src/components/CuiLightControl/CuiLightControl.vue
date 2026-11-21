@@ -11,31 +11,84 @@
       <ToggleSwitch v-model="isOn" :disabled="disabled" class="cui-light-control__toggle" />
     </div>
 
-    <div v-if="hasBrightness" class="cui-light-control__brightness">
-      <div class="cui-light-control__brightness-header">
-        <i-mdi:brightness-6 class="cui-light-control__brightness-icon" />
-        <span class="cui-light-control__brightness-value">{{ brightnessValue }}{{ unit }}</span>
+    <div v-if="hasBrightness" class="cui-light-control__setting">
+      <div class="cui-light-control__setting-header">
+        <i-mdi:brightness-6 class="cui-light-control__setting-icon" />
+        <span class="cui-light-control__setting-value">{{ brightnessValue }}{{ unit }}</span>
       </div>
 
       <Slider v-model="brightnessValue" :min :max :step :disabled="disabled" class="cui-light-control__slider" @slideend="flushBrightness" />
+    </div>
+
+    <div v-if="hasColorTemperature" class="cui-light-control__setting">
+      <div class="cui-light-control__setting-header">
+        <i-mdi:thermometer class="cui-light-control__setting-icon" />
+        <span class="cui-light-control__setting-value">{{ temperatureValue }} K</span>
+      </div>
+
+      <Slider
+        v-model="temperatureValue"
+        :min="temperatureMin"
+        :max="temperatureMax"
+        :disabled="disabled"
+        class="cui-light-control__slider cui-light-control__slider--gradient"
+        :style="{ '--p-slider-track-background': temperatureTrack }"
+        @slideend="flushTemperature"
+      />
+    </div>
+
+    <div v-if="hasColor" class="cui-light-control__setting">
+      <div class="cui-light-control__setting-header">
+        <i-mdi:palette class="cui-light-control__setting-icon" />
+        <span class="cui-light-control__swatch" :style="{ background: colorCss(shownColor) }" />
+      </div>
+
+      <Slider
+        v-model="hueValue"
+        :min="0"
+        :max="360"
+        :disabled="disabled"
+        class="cui-light-control__slider cui-light-control__slider--gradient"
+        :style="{ '--p-slider-track-background': HUE_TRACK }"
+        @slideend="flushColor"
+      />
+      <Slider
+        v-model="saturationValue"
+        :min="0"
+        :max="100"
+        :disabled="disabled"
+        class="cui-light-control__slider cui-light-control__slider--gradient"
+        :style="{ '--p-slider-track-background': saturationTrack }"
+        @slideend="flushColor"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { LightColorMode } from '@camera.ui/sdk';
+
 import { CUI_LIGHT_CONTROL_DEFAULTS } from './types.js';
 
+import type { LightColor } from '@camera.ui/sdk';
 import type { CuiLightControlEmits, CuiLightControlProps } from './types.js';
 
 const props = withDefaults(defineProps<CuiLightControlProps>(), CUI_LIGHT_CONTROL_DEFAULTS);
 const emit = defineEmits<CuiLightControlEmits>();
 
-const { on, brightness, hasBrightness, min, max } = toRefs(props);
+const { on, brightness, hasBrightness, min, max, colorTemperature, hasColorTemperature, temperatureMin, temperatureMax, color, hasColor, colorMode } = toRefs(props);
+
+const HUE_TRACK = 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)';
+const WHITE: LightColor = { hue: 0, saturation: 0 };
 
 const localBrightness = ref<number | undefined>(undefined);
 const lastBrightness = ref(brightness.value > 0 ? brightness.value : max.value);
+const localTemperature = ref<number>();
+const localColor = ref<LightColor>();
 
 const emitBrightness = useThrottleFn((value: number) => emit('update:brightness', value), 250, true);
+const emitTemperature = useThrottleFn((value: number) => emit('update:colorTemperature', value), 250, true);
+const emitColor = useThrottleFn((value: LightColor) => emit('update:color', value), 250, true);
 
 const isOn = computed({
   get: () => on.value,
@@ -65,14 +118,45 @@ const brightnessValue = computed({
   },
 });
 
+const temperatureValue = computed({
+  get: () => localTemperature.value ?? colorTemperature.value,
+  set: (value: number) => {
+    localTemperature.value = value;
+    emitTemperature(value);
+  },
+});
+
+const shownColor = computed(() => localColor.value ?? color.value ?? WHITE);
+
+const hueValue = computed({
+  get: () => shownColor.value.hue,
+  set: (hue: number) => changeColor({ ...shownColor.value, hue }),
+});
+
+const saturationValue = computed({
+  get: () => shownColor.value.saturation,
+  set: (saturation: number) => changeColor({ ...shownColor.value, saturation }),
+});
+
+const temperatureTrack = computed(() => `linear-gradient(to right, ${kelvinColor(temperatureMin.value)}, ${kelvinColor(temperatureMax.value)})`);
+const saturationTrack = computed(
+  () => `linear-gradient(to right, ${colorCss({ hue: shownColor.value.hue, saturation: 0 })}, ${colorCss({ hue: shownColor.value.hue, saturation: 100 })})`,
+);
+
+const glowColor = computed(() => {
+  if (hasColor.value && (colorMode.value === LightColorMode.Color || !hasColorTemperature.value)) return colorCss(shownColor.value);
+  if (hasColorTemperature.value) return kelvinColor(temperatureValue.value);
+  return 'rgb(250, 204, 21)';
+});
+
 const iconGlowStyle = computed<Record<string, string | number>>(() => {
   const glowIntensity = hasBrightness.value ? (brightness.value - min.value) / (max.value - min.value || 1) : 1;
   const glowSize = 4 + glowIntensity * 12;
-  const glowOpacity = 0.3 + glowIntensity * 0.7;
+  const glowOpacity = Math.round((0.3 + glowIntensity * 0.7) * 100);
 
   return {
-    color: 'rgb(250, 204, 21)',
-    filter: `drop-shadow(0 0 ${glowSize}px rgba(250, 204, 21, ${glowOpacity}))`,
+    color: glowColor.value,
+    filter: `drop-shadow(0 0 ${glowSize}px color-mix(in srgb, ${glowColor.value} ${glowOpacity}%, transparent))`,
     opacity: 0.4 + glowIntensity * 0.6,
   };
 });
@@ -80,6 +164,32 @@ const iconGlowStyle = computed<Record<string, string | number>>(() => {
 function flushBrightness() {
   if (localBrightness.value !== undefined) emit('update:brightness', localBrightness.value);
   localBrightness.value = undefined;
+}
+
+function flushTemperature() {
+  if (localTemperature.value !== undefined) emit('update:colorTemperature', localTemperature.value);
+  localTemperature.value = undefined;
+}
+
+function changeColor(value: LightColor) {
+  localColor.value = value;
+  emitColor(value);
+}
+
+function flushColor() {
+  if (localColor.value) emit('update:color', localColor.value);
+  localColor.value = undefined;
+}
+
+function colorCss({ hue, saturation }: LightColor): string {
+  return `hsl(${hue} ${saturation}% 55%)`;
+}
+
+function kelvinColor(kelvin: number): string {
+  // warm white at 2000 K to cool white at 6500 K, close enough for a glow and a track
+  const ratio = Math.min(Math.max((kelvin - 2000) / 4500, 0), 1);
+  const channel = (warm: number, cool: number) => Math.round(warm + (cool - warm) * ratio);
+  return `rgb(${channel(255, 201)} ${channel(167, 218)} ${channel(87, 255)})`;
 }
 </script>
 
@@ -135,33 +245,46 @@ function flushBrightness() {
   margin-left: auto;
 }
 
-.cui-light-control__brightness {
+.cui-light-control__setting {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   padding-top: 0.5rem;
 }
 
-.cui-light-control__brightness-header {
+.cui-light-control__setting-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.cui-light-control__brightness-icon {
+.cui-light-control__setting-icon {
   width: 1rem;
   height: 1rem;
   color: var(--text-secondary-color);
 }
 
-.cui-light-control__brightness-value {
+.cui-light-control__setting-value {
   font-size: 0.875rem;
   color: var(--text-secondary-color);
   margin-left: auto;
 }
 
+.cui-light-control__swatch {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  border-radius: 9999px;
+  border: 1px solid var(--p-content-border-color);
+}
+
 .cui-light-control__slider {
   width: 100%;
+}
+
+.cui-light-control__slider--gradient {
+  --p-slider-range-background: transparent;
+  --p-slider-track-size: 0.375rem;
 }
 
 .cui-light-control--small {

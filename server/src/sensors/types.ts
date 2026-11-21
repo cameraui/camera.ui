@@ -13,6 +13,7 @@ export interface SensorTypeMetadata {
 
 const TRIGGER_TYPE_BY_KEY: Readonly<Record<string, EventTriggerType>> = {
   securitySystem: 'security_system',
+  outlet: 'switch',
 };
 
 function eventTriggerType(assignmentKey: string): EventTriggerType {

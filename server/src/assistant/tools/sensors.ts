@@ -81,8 +81,10 @@ const listSensors = toolDefinition({
 
 const setSensorPropertyInput = zod.object({
   sensor: zod.string().describe('Sensor id or display name'),
-  property: zod.string().optional().describe('Property to set, default: the command property'),
-  value: zod.union([zod.boolean(), zod.number(), zod.string()]).describe('New value'),
+  property: zod.string().optional().describe('Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color'),
+  value: zod
+    .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])
+    .describe('New value, for a light color an object with hue (0-360) and saturation (0-100)'),
 });
 
 const setSensorProperty = toolDefinition({

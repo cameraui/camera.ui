@@ -415,6 +415,7 @@ export const assignmentsSchema = zod
     light: pluginInfo.array().optional(),
     siren: pluginInfo.array().optional(),
     switch: pluginInfo.array().optional(),
+    outlet: pluginInfo.array().optional(),
     securitySystem: pluginInfo.array().optional(),
     contact: pluginInfo.array().optional(),
     doorbell: pluginInfo.array().optional(),

@@ -12,10 +12,11 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, readings, deviceClassProperty, ...rest } = base;
+  const { brightness, volume, color, readings, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
   const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
+  const colors = color && offeredColor(color, offered);
   const choices = Object.entries(sensor.propertySpecs ?? {}).flatMap(([property, spec]) =>
     spec.writable && spec.choices?.length && property !== base.commandProperty && offered(property) ? [property] : [],
   );
@@ -26,8 +27,18 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...(choices.length ? { choices } : {}),
     ...(brightness && offered(brightness.property) ? { brightness } : {}),
     ...(volume && offered(volume.property) ? { volume } : {}),
+    ...(colors ? { color: colors } : {}),
     ...(readings ? { readings: readings.filter((reading) => offered(reading.property)) } : {}),
   };
+}
+
+function offeredColor(color: NonNullable<SensorSemantics['color']>, offered: (property: string) => boolean): SensorSemantics['color'] {
+  const temperature = color.temperature && offered(color.temperature) ? color.temperature : undefined;
+  const hueSaturation = color.hueSaturation && offered(color.hueSaturation) ? color.hueSaturation : undefined;
+  if (!temperature && !hueSaturation) return undefined;
+  // the mode only tells something when the light has both
+  const mode = temperature && hueSaturation ? color.mode : undefined;
+  return { ...(temperature ? { temperature } : {}), ...(hueSaturation ? { hueSaturation } : {}), ...(mode ? { mode } : {}) };
 }
 
 function isPropertyOffered(sensor: SemanticsInput, property: string): boolean {

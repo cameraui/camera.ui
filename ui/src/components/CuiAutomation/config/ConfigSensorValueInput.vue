@@ -45,6 +45,19 @@
       @update:model-value="(v) => emitValue(v === null || v === undefined ? '' : String(storedValue(v, meta.unit)))"
     />
 
+    <div v-else-if="meta.kind === 'object'" class="grid grid-cols-2 gap-2">
+      <div v-for="key in meta.keys" :key class="flex flex-col field-gap">
+        <label class="cui-label">{{ te(`components.automation_nodes.sensor_key_${key}`) ? t(`components.automation_nodes.sensor_key_${key}`) : key }}</label>
+        <CuiNumberStepper
+          :model-value="objectValue[key] ?? null"
+          :max-fraction-digits="3"
+          fluid
+          :disabled
+          @update:model-value="(v) => emitValue(JSON.stringify({ ...objectValue, [key]: v ?? 0 }))"
+        />
+      </div>
+    </div>
+
     <Select
       v-else-if="presetOptions.length"
       :model-value="modelValue"
@@ -91,7 +104,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void;
 }>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { sensors } = useAllSensors();
 const faceStore = useFaceStore();
 
@@ -104,6 +117,15 @@ const booleanValue = computed(() => props.modelValue === 'true');
 const numberValue = computed(() => {
   const parsed = Number(props.modelValue);
   return props.modelValue !== '' && Number.isFinite(parsed) ? shownValue(parsed, meta.value.unit).value : null;
+});
+
+const objectValue = computed<Record<string, number>>(() => {
+  try {
+    const parsed = JSON.parse(props.modelValue) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
 });
 
 const isPresetProperty = computed(() => props.sensorType === SensorType.PTZ && props.property === 'targetPreset');

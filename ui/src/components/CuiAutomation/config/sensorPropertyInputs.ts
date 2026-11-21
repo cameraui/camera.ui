@@ -4,7 +4,7 @@ import { shownValue } from '@/common/units.js';
 
 import type { SensorPropertySpec } from '@camera.ui/sdk';
 
-export type SensorPropertyInputKind = 'boolean' | 'number' | 'enum' | 'choice' | 'text';
+export type SensorPropertyInputKind = 'boolean' | 'number' | 'enum' | 'choice' | 'object' | 'text';
 
 type SensorPropertySpecs = Readonly<Record<string, SensorPropertySpec>>;
 
@@ -27,6 +27,7 @@ export interface SensorPropertyInputMeta {
   unit?: string;
   suffix?: string;
   maxLength?: number;
+  keys?: readonly string[];
   options?: SensorPropertyEnumOption[];
   choices?: SensorPropertyChoiceOption[];
 }
@@ -55,6 +56,8 @@ export function getSensorPropertyInput(sensorType: string, property: string, sen
           value: String(value),
         })),
       };
+    case 'object':
+      return spec.keys?.length ? { kind: 'object', keys: spec.keys } : { kind: 'text' };
     default:
       return { kind: 'text', ...(spec.maxLength !== undefined ? { maxLength: spec.maxLength } : {}) };
   }
@@ -65,5 +68,6 @@ export function getSensorPropertyDefaultValue(sensorType: string, property: stri
   if (meta.kind === 'boolean') return 'true';
   if (meta.kind === 'enum') return meta.options?.[0]?.value ?? '';
   if (meta.kind === 'choice') return meta.choices?.[0]?.value ?? '';
+  if (meta.kind === 'object') return JSON.stringify(Object.fromEntries((meta.keys ?? []).map((key) => [key, 0])));
   return '';
 }

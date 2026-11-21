@@ -4,13 +4,22 @@
     :label="sensor.displayName.value"
     :on="sensor.getProperty(LightProperty.On) ?? false"
     :brightness="sensor.getProperty(LightProperty.Brightness) ?? 100"
-    :has-brightness="sensor.hasCapability('brightness')"
+    :has-brightness="sensor.hasCapability(LightCapability.Brightness)"
     v-bind="sensorControlRange(sensor, LightProperty.Brightness)"
+    :color-temperature="sensor.getProperty(LightProperty.ColorTemperature) ?? 2700"
+    :has-color-temperature="sensor.hasCapability(LightCapability.ColorTemperature)"
+    :temperature-min="sensorControlRange(sensor, LightProperty.ColorTemperature).min"
+    :temperature-max="sensorControlRange(sensor, LightProperty.ColorTemperature).max"
+    :color="sensor.getProperty(LightProperty.Color) ?? undefined"
+    :has-color="sensor.hasCapability(LightCapability.Color)"
+    :color-mode="sensor.getProperty(LightProperty.ColorMode) ?? undefined"
     :disabled
     size="small"
     class="card-border"
     @update:on="(value) => sensor.setProperty(LightProperty.On, value)"
     @update:brightness="(value) => sensor.setProperty(LightProperty.Brightness, value)"
+    @update:color-temperature="(value) => sensor.setProperty(LightProperty.ColorTemperature, value)"
+    @update:color="(value) => sensor.setProperty(LightProperty.Color, value)"
   />
 
   <CuiSwitchControl
@@ -135,6 +144,7 @@ import {
   BatteryProperty,
   DoorbellProperty,
   GarageProperty,
+  LightCapability,
   LightProperty,
   LockProperty,
   SecuritySystemProperty,

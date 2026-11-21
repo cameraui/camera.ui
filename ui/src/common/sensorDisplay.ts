@@ -52,6 +52,8 @@ import Co2Icon from '~icons/mdi/molecule-co2';
 import MotionIcon from '~icons/mdi/motion-sensor';
 import PowerOffIcon from '~icons/mdi/power-plug-off-outline';
 import PowerIcon from '~icons/mdi/power-plug-outline';
+import OutletOnIcon from '~icons/mdi/power-plug';
+import OutletIcon from '~icons/mdi/power-socket-eu';
 import PtzIcon from '~icons/mdi/rotate-orbit';
 import ShieldAlertIcon from '~icons/mdi/shield-alert';
 import TamperIcon from '~icons/mdi/shield-alert-outline';
@@ -132,6 +134,7 @@ const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
   [SensorType.Contact]: { icon: DoorClosedIcon, activeIcon: DoorOpenIcon, states: ['closed', 'open'] },
   [SensorType.Occupancy]: { icon: EmptyIcon, activeIcon: OccupiedIcon, states: ['empty', 'occupied'], tone: 'info' },
   [SensorType.Presence]: { icon: EmptyIcon, activeIcon: OccupiedIcon, states: ['away', 'home'], tone: 'info' },
+  [SensorType.Outlet]: { icon: OutletIcon, activeIcon: OutletOnIcon },
   [SensorType.Smoke]: { icon: SmokeIcon, activeIcon: SmokeAlertIcon, states: ['no_smoke', 'smoke'], tone: 'alarm' },
   [SensorType.Leak]: { icon: LeakIcon, activeIcon: LeakAlertIcon, states: ['no_leak', 'leak'], tone: 'info' },
   [SensorType.Gas]: { icon: GasIcon, activeIcon: GasIcon, tone: 'alarm' },

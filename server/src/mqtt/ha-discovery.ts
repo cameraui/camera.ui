@@ -1,4 +1,4 @@
-import { OBJECT_DETECTION_LABELS, SensorDomain } from '@camera.ui/sdk';
+import { LightColorMode, OBJECT_DETECTION_LABELS, SensorDomain } from '@camera.ui/sdk';
 
 import { resolveSensorSemantics } from '../sensors/semantics.js';
 import { getSensorPropertySpec } from '../sensors/types.js';
@@ -246,6 +246,7 @@ function domainConfig(
               brightness_scale: semantics.brightness.scale,
             }
           : {}),
+        ...lightColorConfig(semantics.color, spec, state, command),
       };
 
     case SensorDomain.Lock:
@@ -306,6 +307,41 @@ function domainConfig(
       };
     }
   }
+}
+
+function lightColorConfig(
+  color: SensorSemantics['color'],
+  spec: (property: string) => SensorPropertySpec | undefined,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const temperature = color?.temperature;
+  const hueSaturation = color?.hueSaturation;
+  return {
+    ...(temperature
+      ? {
+          color_temp_kelvin: true,
+          color_temp_state_topic: state(temperature),
+          color_temp_command_topic: command(temperature),
+          min_kelvin: spec(temperature)?.min,
+          max_kelvin: spec(temperature)?.max,
+        }
+      : {}),
+    ...(hueSaturation
+      ? {
+          hs_state_topic: state(hueSaturation),
+          hs_value_template: '{{ value_json.hue }},{{ value_json.saturation }}',
+          hs_command_topic: command(hueSaturation),
+          hs_command_template: "{{ {'hue': hue, 'saturation': sat} | tojson }}",
+        }
+      : {}),
+    ...(color?.mode
+      ? {
+          color_mode_state_topic: state(color.mode),
+          color_mode_value_template: `{{ 'color_temp' if value_json == '${LightColorMode.Temperature}' else 'hs' }}`,
+        }
+      : {}),
+  };
 }
 
 function configTopic(haPrefix: string, component: string, cameraId: string, objectId: string): string {
