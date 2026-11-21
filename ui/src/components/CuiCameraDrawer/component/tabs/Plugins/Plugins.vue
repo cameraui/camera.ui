@@ -473,6 +473,7 @@ import { PluginsQuery } from '@/api/routes/plugins.js';
 import { SensorsQuery } from '@/api/routes/sensors.js';
 import PluginSchemaDialog from '@/components/CuiDialog/templates/PluginSchema/PluginSchema.vue';
 import CuiSchema from '@/components/CuiSchema/CuiSchema.vue';
+import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { PluginSchemaProps } from '@/components/CuiDialog/templates/PluginSchema/types.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
@@ -601,20 +602,9 @@ const assignedAccessoryPlugins = computed<string[]>(() => {
   return pluginNames.sort((a, b) => pluginOrder.indexOf(a) - pluginOrder.indexOf(b));
 });
 
-const assignedAccessoryPluginIds = computed<string[]>(() => {
-  if (!selectedAccessoryType.value) return [];
-  const key = getAssignmentKey(selectedAccessoryType.value) as keyof typeof camera.value.assignments;
-  const assignments = camera.value.assignments[key];
-
-  if (Array.isArray(assignments)) return assignments.map((a) => a.id);
-  if (assignments && typeof assignments === 'object' && 'id' in assignments) return [assignments.id];
-  return [];
-});
-
 const accessorySensorsForType = computed<ReactiveSensor[]>(() => {
-  const assigned = new Set(assignedAccessoryPluginIds.value);
   return allSensors.value
-    .filter((s) => s.type === selectedAccessoryType.value && (assigned.has(s.pluginId) || s.pluginId === VIRTUAL_SENSOR_OWNER_ID))
+    .filter((s) => s.type === selectedAccessoryType.value && sensorProvidedForCamera(s, camera.value))
     .sort((a, b) => a.displayName.value.localeCompare(b.displayName.value));
 });
 
