@@ -300,6 +300,7 @@ export class SensorRegistry {
       updatedAt: Date.now(),
     };
     const deviceIds = sensor.device ? this.applyMembership(record, { device: sensor.device, primary: sensor.primary ?? false }) : [];
+    if (record.deviceId) record.exposed = this.getDeviceMembers(record.deviceId).some((member) => member.exposed);
     this.records.set(record._id, record);
     this.persistRecord(record._id, () => {});
     this.announceAdded(record);
@@ -407,10 +408,6 @@ export class SensorRegistry {
     const record = this.records.get(sensorId);
     if (!record) throw new Error(`Sensor ${sensorId} not found`);
     if (record.assignedCameraIds.includes(cameraId)) return;
-
-    if (SENSOR_TYPE_CONFIG[record.type].cameraBound && record.assignedCameraIds.length > 0) {
-      throw new Error(`Sensor type "${record.type}" is camera-bound and already assigned`);
-    }
 
     record.assignedCameraIds.push(cameraId);
     this.persistRecord(sensorId, () => {});
@@ -707,7 +704,7 @@ export class SensorRegistry {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-    if (!options?.assignCameraId && (sensor.type === SensorType.PTZ || sensor.type === SensorType.Battery)) {
+    if (!options?.assignCameraId && sensor.type === SensorType.PTZ) {
       throw new Error(`Sensor type "${sensor.type}" requires a camera, register it via camera.addSensor()`);
     }
   }
