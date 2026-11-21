@@ -9,8 +9,11 @@
     </div>
 
     <div class="flex flex-col field-gap">
-      <label for="sensorDisplayName" class="cui-label">{{ $t('components.camera_options.sensor_display_name') }}</label>
+      <label for="sensorDisplayName" class="cui-label">{{ device ? $t('views.sensors.device_name') : $t('components.camera_options.sensor_display_name') }}</label>
       <InputText id="sensorDisplayName" v-model.trim="displayName" class="w-full" />
+      <Message v-if="sensor.device && !device" severity="secondary" variant="simple" size="small" class="cui-input-hint">
+        {{ $t('views.sensors.short_name_hint') }}
+      </Message>
     </div>
 
     <div v-if="sensor.nativeId" class="flex flex-col field-gap">
@@ -54,7 +57,7 @@ import type { SensorEditProps, SensorEditResult } from './types.js';
 
 const props = defineProps<SensorEditProps>();
 
-const displayName = ref(props.sensor.displayName || props.sensor.name);
+const displayName = ref(props.device?.name ?? (props.sensor.shortName || props.sensor.name));
 const assignedCameraIds = ref<string[]>([...props.sensor.assignedCameraIds]);
 const exposed = ref(props.sensor.exposed);
 
@@ -67,7 +70,7 @@ const liveSensor = computed(() => allSensors.value.find((sensor) => sensor.id ==
 
 defineExpose<CustomDialogComponent>({
   onConfirm: async (): Promise<SensorEditResult> => ({
-    displayName: displayName.value || props.sensor.name,
+    displayName: displayName.value || (props.device?.sourceName ?? props.sensor.name),
     assignedCameraIds: assignedCameraIds.value,
     exposed: exposed.value,
   }),

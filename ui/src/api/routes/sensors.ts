@@ -1,7 +1,7 @@
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
-import type { CreateVirtualSensorInput, MethodKeys, PatchSensorInput, TransformedSensor } from '@shared/types';
+import type { CreateVirtualSensorInput, MethodKeys, PatchSensorDeviceInput, PatchSensorInput, TransformedSensor } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 
 export interface SensorHistoryEntry {
@@ -32,6 +32,15 @@ export async function deleteSensorFn({ id }: { id: string }): Promise<void> {
 export async function bulkDeleteSensorsFn({ ids }: { ids: string[] }): Promise<{ deleted: number; skipped: string[] }> {
   const response: AxiosResponse<{ deleted: number; skipped: string[] }> = await api.delete('/sensors', { data: { ids } });
   return response.data;
+}
+
+export async function patchSensorDeviceFn({ id, data }: { id: string; data: PatchSensorDeviceInput }): Promise<TransformedSensor[]> {
+  const response: AxiosResponse<{ sensors: TransformedSensor[] }> = await api.patch(`/sensors/devices/${id}`, data);
+  return response.data.sensors;
+}
+
+export async function deleteSensorDeviceFn({ id }: { id: string }): Promise<void> {
+  await api.delete(`/sensors/devices/${id}`);
 }
 
 export async function getSensorHistoryFn({ id, signal }: { id: string; signal?: AbortSignal }): Promise<SensorHistoryEntry[]> {
@@ -89,6 +98,24 @@ export class SensorsQuery {
   public deleteSensorQuery() {
     return useMutation({
       mutationFn: deleteSensorFn,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['sensorsList'] });
+      },
+    });
+  }
+
+  public patchSensorDeviceQuery() {
+    return useMutation({
+      mutationFn: patchSensorDeviceFn,
+      onSuccess: async () => {
+        await this._queryClient.refetchQueries({ queryKey: ['sensorsList'] });
+      },
+    });
+  }
+
+  public deleteSensorDeviceQuery() {
+    return useMutation({
+      mutationFn: deleteSensorDeviceFn,
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['sensorsList'] });
       },

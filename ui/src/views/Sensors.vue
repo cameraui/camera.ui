@@ -54,10 +54,18 @@
       <span class="card-title">{{ t('views.sensors.adopted_title') }}</span>
       <Card class="cui-card">
         <template #content>
-          <CuiDataTable :value="rows" striped-rows :pt="tablePtOptions" class="w-full" @row-click="(e: DataTableRowClickEvent) => handleRowClick(e.data)">
+          <CuiDataTable
+            v-model:expanded-rows="expandedRows"
+            :value="rows"
+            data-key="key"
+            striped-rows
+            :pt="tablePtOptions"
+            class="w-full"
+            @row-click="(e: DataTableRowClickEvent) => handleRowClick(e.data)"
+          >
             <Column v-if="selectionMode" header="" header-class="p-2 pl-4 w-8 max-w-8" class="p-2 pl-4 w-8 max-w-8">
               <template #body="{ data }">
-                <Checkbox :model-value="selectedIds.has(data.sensor.id)" binary size="small" @click.stop @update:model-value="toggleSelection(data.sensor.id)" />
+                <Checkbox :model-value="selectedIds.has(data.key)" binary size="small" @click.stop @update:model-value="toggleSelection(data.key)" />
               </template>
             </Column>
             <Column header="" header-class="p-2 pl-4 w-5 max-w-5" class="p-2 pl-4 w-5 max-w-5">
@@ -78,8 +86,21 @@
                   />
                   <div class="flex items-center gap-2 min-w-0">
                     <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
-                    <i-mdi:eye-off-outline v-if="!data.sensor.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                    <i-mdi:eye-off-outline v-if="!data.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
                   </div>
+                  <Button
+                    v-if="data.device"
+                    v-tooltip="expandedRows[data.key] ? t('views.sensors.hide_sensors') : t('views.sensors.show_sensors')"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="cui-icon-sm shrink-0"
+                    @click.stop="expandedRows = toggleKey(expandedRows, data.key)"
+                  >
+                    <template #icon>
+                      <i-mdi:chevron-down width="100%" height="100%" class="transition-transform" :class="{ 'rotate-180': expandedRows[data.key] }" />
+                    </template>
+                  </Button>
                 </div>
               </template>
             </Column>
@@ -143,6 +164,7 @@
               <template #body="{ data }">
                 <div class="flex items-center justify-end gap-1">
                   <Button
+                    v-if="!data.device"
                     v-tooltip.left="t('views.sensors.history')"
                     text
                     rounded
@@ -155,8 +177,8 @@
                     </template>
                   </Button>
 
-                  <span v-if="isAdmin" v-tooltip.left="canDelete(data.sensor) ? t('views.sensors.delete') : t('views.sensors.delete_camera_bound')" class="shrink-0">
-                    <Button text rounded severity="danger" class="cui-icon-sm" :disabled="!canDelete(data.sensor)" @click.stop="confirmDelete(data.sensor)">
+                  <span v-if="isAdmin" v-tooltip.left="deleteTooltip(data)" class="shrink-0">
+                    <Button text rounded severity="danger" class="cui-icon-sm" :disabled="!canDeleteRow(data)" @click.stop="confirmDeleteRow(data)">
                       <template #icon>
                         <i-mdi:trash-can-outline width="100%" height="100%" />
                       </template>
@@ -165,6 +187,53 @@
                 </div>
               </template>
             </Column>
+            <template #expansion="{ data }">
+              <div class="flex flex-col py-1 pl-6">
+                <div
+                  v-for="member in data.members"
+                  :key="member.id"
+                  class="flex items-center gap-2 min-w-0 py-1.5 pr-2 cursor-pointer text-sm"
+                  @click="handleMemberClick(member)"
+                >
+                  <Badge v-tooltip="{ value: stateLabel(sensorState(member), member) }" :style="{ background: STATE_COLORS[sensorState(member)] }" />
+                  <component
+                    :is="sensorTypeIcon(member.type)"
+                    class="w-4.5 h-4.5 shrink-0 transition-colors"
+                    :class="{ 'text-muted': !isSensorActive(member) }"
+                    :style="isSensorActive(member) ? ACTIVE_ICON_STYLE : undefined"
+                  />
+                  <span v-tooltip="member.displayName" class="font-bold text-color truncate">{{ member.shortName }}</span>
+                  <i-mdi:star v-if="member.primary" v-tooltip="t('views.sensors.main_sensor')" class="w-3.5 h-3.5 shrink-0 text-muted" />
+                  <i-mdi:eye-off-outline v-if="!member.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                  <span class="ml-auto text-xs text-muted whitespace-nowrap">{{ sensorTypeLabel(member.type) }}</span>
+                  <Button
+                    v-tooltip.left="t('views.sensors.history')"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="cui-icon-sm shrink-0"
+                    @click.stop="openHistoryDialog(member)"
+                  >
+                    <template #icon>
+                      <i-mdi:history width="100%" height="100%" />
+                    </template>
+                  </Button>
+                  <Button
+                    v-if="isAdmin"
+                    v-tooltip.left="t('views.sensors.delete')"
+                    text
+                    rounded
+                    severity="danger"
+                    class="cui-icon-sm shrink-0"
+                    @click.stop="confirmDelete(member)"
+                  >
+                    <template #icon>
+                      <i-mdi:trash-can-outline width="100%" height="100%" />
+                    </template>
+                  </Button>
+                </div>
+              </div>
+            </template>
           </CuiDataTable>
         </template>
       </Card>
@@ -182,7 +251,9 @@
         <template #content>
           <CuiDataTable
             v-if="discoveredRows.length"
+            v-model:expanded-rows="discoveredExpandedRows"
             :value="discoveredRows"
+            data-key="key"
             striped-rows
             :pt="tablePtOptions"
             class="w-full"
@@ -192,13 +263,7 @@
           >
             <Column v-if="discoveredSelectionMode" header="" header-class="p-2 pl-4 w-8 max-w-8" class="p-2 pl-4 w-8 max-w-8">
               <template #body="{ data }">
-                <Checkbox
-                  :model-value="discoveredSelectedIds.has(discoveredKey(data))"
-                  binary
-                  size="small"
-                  @click.stop
-                  @update:model-value="toggleDiscoveredSelection(discoveredKey(data))"
-                />
+                <Checkbox :model-value="isDiscoveredRowSelected(data)" binary size="small" @click.stop @update:model-value="toggleDiscoveredRow(data)" />
               </template>
             </Column>
             <Column header="" header-class="p-2 pl-4 w-5 max-w-5" class="p-2 pl-4 w-5 max-w-5">
@@ -211,17 +276,30 @@
             <Column field="name" :header="t('views.sensors.name')" sortable header-class="p-2" class="p-2 w-full min-w-[200px] max-w-0">
               <template #body="{ data }">
                 <div class="flex items-center gap-2 min-w-0">
-                  <component :is="sensorTypeIcon(data.type)" class="w-5 h-5 shrink-0 text-muted" />
+                  <component :is="sensorTypeIcon(data.item.type)" class="w-5 h-5 shrink-0 text-muted" />
                   <div class="flex flex-col min-w-0">
                     <span v-tooltip="data.name" class="font-bold text-color truncate">{{ data.name }}</span>
-                    <span v-tooltip="data.address ?? data.id" class="text-xs text-muted truncate font-mono">{{ data.address ?? data.id }}</span>
+                    <span v-tooltip="data.detail" class="text-xs text-muted truncate font-mono">{{ data.detail }}</span>
                   </div>
+                  <Button
+                    v-if="data.items.length > 1"
+                    v-tooltip="discoveredExpandedRows[data.key] ? t('views.sensors.hide_sensors') : t('views.sensors.show_sensors')"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="cui-icon-sm shrink-0"
+                    @click.stop="discoveredExpandedRows = toggleKey(discoveredExpandedRows, data.key)"
+                  >
+                    <template #icon>
+                      <i-mdi:chevron-down width="100%" height="100%" class="transition-transform" :class="{ 'rotate-180': discoveredExpandedRows[data.key] }" />
+                    </template>
+                  </Button>
                 </div>
               </template>
             </Column>
-            <Column field="type" :header="t('views.sensors.type')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
+            <Column field="typeLabel" :header="t('views.sensors.type')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
               <template #body="{ data }">
-                <span class="text-xs text-muted whitespace-nowrap">{{ t(`components.camera_options.sensor_type_${data.type}`) }}</span>
+                <span class="text-xs text-muted whitespace-nowrap">{{ data.typeLabel }}</span>
               </template>
             </Column>
             <Column field="room" :header="t('components.form.label.room')" sortable header-class="p-2 whitespace-nowrap" class="p-2 whitespace-nowrap">
@@ -238,21 +316,44 @@
               <template #body="{ data }">
                 <div class="flex items-center justify-center">
                   <Button
-                    v-tooltip.left="{ value: sensorsSocket.isHidden(data) ? t('views.sensors.unhide') : t('views.sensors.hide') }"
+                    v-tooltip.left="{ value: data.hidden ? t('views.sensors.unhide') : t('views.sensors.hide') }"
                     severity="secondary"
                     text
                     rounded
                     class="cui-icon-md"
-                    @click="(e) => toggleHidden(e, data)"
+                    @click="(e) => toggleHidden(e, data.items, data.hidden)"
                   >
                     <template #icon>
-                      <EyeIcon v-if="sensorsSocket.isHidden(data)" width="100%" height="100%" class="text-muted" />
+                      <EyeIcon v-if="data.hidden" width="100%" height="100%" class="text-muted" />
                       <EyeOffIcon v-else width="100%" height="100%" class="text-muted" />
                     </template>
                   </Button>
                 </div>
               </template>
             </Column>
+            <template #expansion="{ data }">
+              <div class="flex flex-col py-1 pl-6">
+                <div
+                  v-for="item in data.items"
+                  :key="discoveredKey(item)"
+                  class="flex items-center gap-2 min-w-0 py-1.5 pr-2 cursor-pointer text-sm"
+                  :class="{ 'opacity-50': sensorsSocket.isHidden(item) }"
+                  @click="handleDiscoveredItemClick(item)"
+                >
+                  <Checkbox
+                    v-if="discoveredSelectionMode"
+                    :model-value="discoveredSelectedIds.has(discoveredKey(item))"
+                    binary
+                    size="small"
+                    @click.stop
+                    @update:model-value="toggleDiscoveredSelection(discoveredKey(item))"
+                  />
+                  <component :is="sensorTypeIcon(item.type)" class="w-4.5 h-4.5 shrink-0 text-muted" />
+                  <span v-tooltip="item.name" class="font-bold text-color truncate">{{ item.name }}</span>
+                  <span class="ml-auto text-xs text-muted whitespace-nowrap">{{ sensorTypeLabel(item.type) }}</span>
+                </div>
+              </div>
+            </template>
           </CuiDataTable>
           <div v-else class="flex flex-col items-center justify-center py-6 gap-2">
             <i-svg-spinners:ring-resize v-if="isScanning" width="24px" height="24px" class="text-muted" />
@@ -380,27 +481,47 @@ import { keepUnchangedItems } from '@/common/utils.js';
 import { useCardSelection } from '@/composables/useCardSelection.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
+import type { SensorDeviceEditResult } from '@/components/CuiDialog/templates/SensorDeviceEdit/types.js';
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
 import type { PassThrough } from '@openvue/core';
-import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor } from '@shared/types';
+import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor, TransformedSensorDevice } from '@shared/types';
 import type { DataTablePassThroughOptions, DataTableRowClickEvent } from 'openvue';
 
 type SensorState = 'connected' | 'disconnected' | 'unavailable' | 'removed';
 
 interface SensorRow {
+  key: string;
   sensor: TransformedSensor;
+  device?: TransformedSensorDevice;
+  members: TransformedSensor[];
   label: string;
+  exposed: boolean;
   typeLabel: string;
   nativeLabel: string;
   pluginLabel: string;
   assignedLabel: string;
+  searchText: string;
   state: SensorState;
   stateLabel: string;
   stateColor: string;
 }
 
+interface DiscoveredRow {
+  key: string;
+  item: DiscoveredSensorListItem;
+  items: DiscoveredSensorListItem[];
+  name: string;
+  detail: string;
+  typeLabel: string;
+  room: string;
+  pluginName: string;
+  hidden: boolean;
+  searchText: string;
+}
+
 const SensorEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorEdit/SensorEdit.vue'));
+const SensorDeviceEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorDeviceEdit/SensorDeviceEdit.vue'));
 const SensorHistoryDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorHistory/SensorHistory.vue'));
 const VirtualSensorCreateDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue'));
 
@@ -410,6 +531,8 @@ const STATE_COLORS: Record<SensorState, string> = {
   unavailable: 'orange',
   removed: 'red',
 };
+
+const STATE_SEVERITY: SensorState[] = ['removed', 'unavailable', 'disconnected'];
 
 const ACTIVE_ICON_STYLE: Record<string, string> = {
   color: 'rgb(251, 146, 60)',
@@ -459,6 +582,8 @@ const { mutateAsync: createVirtualSensor, isPending: isCreating } = sensorsQuery
 const { mutateAsync: patchSensor } = sensorsQuery.patchSensorQuery();
 const { mutateAsync: deleteSensor, isPending: isDeleting } = sensorsQuery.deleteSensorQuery();
 const { mutateAsync: bulkDeleteSensors } = sensorsQuery.bulkDeleteSensorsQuery();
+const { mutateAsync: patchSensorDevice } = sensorsQuery.patchSensorDeviceQuery();
+const { mutateAsync: deleteSensorDevice, isPending: isDeletingDevice } = sensorsQuery.deleteSensorDeviceQuery();
 
 const tablePtOptions: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: {
@@ -478,6 +603,8 @@ const menuRef = useTemplateRef('menuRef');
 
 const searchQuery = ref('');
 const isAdopting = ref(false);
+const expandedRows = ref<Record<string, boolean>>({});
+const discoveredExpandedRows = ref<Record<string, boolean>>({});
 
 let stopSourceChanged: (() => void) | undefined;
 
@@ -519,24 +646,8 @@ const cameraById = computed(() => new Map((camerasData.value?.result ?? []).map(
 const liveSensorById = computed(() => new Map(liveSensors.value.map((sensor) => [sensor.id, sensor])));
 
 const allRows = computed<SensorRow[]>((previous) => {
-  const next = sensors.value
-    .map((sensor) => {
-      const state = sensorState(sensor);
-      return {
-        sensor,
-        label: sensor.displayName || sensor.name,
-        typeLabel: t(`components.camera_options.sensor_type_${sensor.type}`),
-        nativeLabel: sensor.address ?? sensor.nativeId ?? '',
-        pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
-        assignedLabel: sensor.assignedCameraIds
-          .map((id) => cameraOptions.value.find((camera) => camera.value === id)?.label)
-          .filter(Boolean)
-          .join(', '),
-        state,
-        stateLabel: stateLabel(state, sensor),
-        stateColor: STATE_COLORS[state],
-      };
-    })
+  const next = [...groupBy(sensors.value, (sensor) => (sensor.device ? `device:${sensor.device.id}` : sensor.id))]
+    .map(([key, members]) => (members.length > 1 ? deviceRow(key, members) : sensorRow(members[0])))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return keepUnchangedItems(previous, next, rowKey);
@@ -548,7 +659,7 @@ const rows = computed<SensorRow[]>((previous) => {
   const next = allRows.value
     .filter((row) => !uiSettings.value.sensors.hideAllCameraBound || !row.sensor.assignmentLocked)
     .filter((row) => !uiSettings.value.sensors.onlyEnabledCameraBound || isEnabledForItsCamera(row.sensor))
-    .filter((row) => !query || [row.label, row.typeLabel, row.nativeLabel, row.pluginLabel, row.assignedLabel].some((value) => value.toLowerCase().includes(query)));
+    .filter((row) => !query || row.searchText.includes(query));
 
   return keepUnchangedItems(previous, next, rowKey);
 });
@@ -557,12 +668,12 @@ const isScanning = computed(() => sensorsSocket.isScanning.value);
 const showHidden = computed(() => sensorsSocket.showHidden.value);
 const hiddenCount = computed(() => sensorsSocket.hiddenCount.value);
 
-const discoveredRows = computed<DiscoveredSensorListItem[]>((previous) => {
+const discoveredRows = computed<DiscoveredRow[]>((previous) => {
   const query = searchQuery.value.toLowerCase().trim();
-  const next = sensorsSocket.sortedSensors.value.filter(
-    (item) => !query || [item.name, item.id, item.pluginName, item.room ?? ''].some((value) => value.toLowerCase().includes(query)),
-  );
-  return keepUnchangedItems(previous, next, discoveredKey);
+  const next = [...groupBy(sensorsSocket.sortedSensors.value, (item) => (item.device ? `${item.pluginId}:device:${item.device.id}` : discoveredKey(item)))]
+    .map(([key, items]) => discoveredRow(key, items))
+    .filter((row) => !query || row.searchText.includes(query));
+  return keepUnchangedItems(previous, next, (row) => row.key);
 });
 
 const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
@@ -580,12 +691,114 @@ const {
   exitSelectionMode: exitDiscoveredSelectionMode,
   toggleSelectAll: toggleDiscoveredSelectAll,
   toggleSelection: toggleDiscoveredSelection,
-} = useCardSelection(() => discoveredRows.value, discoveredKey);
+} = useCardSelection(() => discoveredRows.value.flatMap((row) => row.items), discoveredKey);
 
-const deletableSelected = computed(() => selectedItems.value.filter((row) => canDelete(row.sensor)));
+const deletableSelected = computed(() => selectedItems.value.flatMap(rowSensors).filter(canDelete));
 
 function rowKey(row: SensorRow): string {
-  return row.sensor.id;
+  return row.key;
+}
+
+function rowSensors(row: SensorRow): TransformedSensor[] {
+  return row.device ? row.members : [row.sensor];
+}
+
+function groupBy<T>(list: T[], key: (entry: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const entry of list) {
+    const group = groups.get(key(entry));
+    if (group) group.push(entry);
+    else groups.set(key(entry), [entry]);
+  }
+  return groups;
+}
+
+function sensorTypeLabel(type: string): string {
+  return t(`components.camera_options.sensor_type_${type}`);
+}
+
+function cameraNames(cameraIds: string[]): string {
+  return cameraIds
+    .map((id) => cameraById.value.get(id)?.name)
+    .filter(Boolean)
+    .join(', ');
+}
+
+function searchText(values: string[]): string {
+  return values.join('\n').toLowerCase();
+}
+
+function sensorRow(sensor: TransformedSensor): SensorRow {
+  const state = sensorState(sensor);
+  const label = sensor.displayName || sensor.name;
+  const typeLabel = sensorTypeLabel(sensor.type);
+  const nativeLabel = sensor.address ?? sensor.nativeId ?? '';
+  const pluginLabel = sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName;
+  const assignedLabel = cameraNames(sensor.assignedCameraIds);
+  return {
+    key: sensor.id,
+    sensor,
+    members: [],
+    label,
+    exposed: sensor.exposed,
+    typeLabel,
+    nativeLabel,
+    pluginLabel,
+    assignedLabel,
+    searchText: searchText([label, typeLabel, nativeLabel, pluginLabel, assignedLabel]),
+    state,
+    stateLabel: stateLabel(state, sensor),
+    stateColor: STATE_COLORS[state],
+  };
+}
+
+function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
+  const sensor = members.find((member) => member.primary) ?? members[0];
+  const states = members.map(sensorState);
+  const state = STATE_SEVERITY.find((candidate) => states.includes(candidate)) ?? 'connected';
+  const label = sensor.device?.name ?? sensor.displayName;
+  const typeLabel = t('views.sensors.device_sensors', { count: members.length });
+  const assignedLabel = cameraNames([...new Set(members.flatMap((member) => member.assignedCameraIds))]);
+  return {
+    key,
+    sensor,
+    device: sensor.device,
+    members,
+    label,
+    exposed: members.some((member) => member.exposed),
+    typeLabel,
+    nativeLabel: '',
+    pluginLabel: sensor.pluginName,
+    assignedLabel,
+    searchText: searchText([label, typeLabel, sensor.pluginName, assignedLabel, ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)])]),
+    state,
+    stateLabel: stateLabel(state, sensor),
+    stateColor: STATE_COLORS[state],
+  };
+}
+
+function discoveredRow(key: string, items: DiscoveredSensorListItem[]): DiscoveredRow {
+  const item = items.find((entry) => entry.primary) ?? items[0];
+  const device = items.length > 1 ? item.device : undefined;
+  const name = device?.name ?? item.name;
+  const typeLabel = device ? t('views.sensors.device_sensors', { count: items.length }) : sensorTypeLabel(item.type);
+  return {
+    key,
+    item,
+    items,
+    name,
+    detail: device ? (device.model ?? device.id) : (item.address ?? item.id),
+    typeLabel,
+    room: item.room ?? '',
+    pluginName: item.pluginName,
+    hidden: items.every((entry) => sensorsSocket.isHidden(entry)),
+    searchText: searchText([name, typeLabel, item.pluginName, item.room ?? '', ...items.flatMap((entry) => [entry.name, entry.id])]),
+  };
+}
+
+function toggleKey(keys: Record<string, boolean>, key: string): Record<string, boolean> {
+  const { [key]: open, ...rest } = keys;
+  return open ? rest : { ...rest, [key]: true };
 }
 
 function discoveredKey(item: DiscoveredSensorListItem): string {
@@ -633,11 +846,32 @@ function startDiscoveredSelection() {
   enterDiscoveredSelectionMode();
 }
 
-function discoveredRowClass(item: DiscoveredSensorListItem): string | undefined {
-  return sensorsSocket.isHidden(item) ? 'opacity-50' : undefined;
+function discoveredRowClass(row: DiscoveredRow): string | undefined {
+  return row.hidden ? 'opacity-50' : undefined;
 }
 
-function handleDiscoveredRowClick(item: DiscoveredSensorListItem) {
+function isDiscoveredRowSelected(row: DiscoveredRow): boolean {
+  return row.items.every((item) => discoveredSelectedIds.value.has(discoveredKey(item)));
+}
+
+function toggleDiscoveredRow(row: DiscoveredRow) {
+  const selected = isDiscoveredRowSelected(row);
+  for (const item of row.items) {
+    if (discoveredSelectedIds.value.has(discoveredKey(item)) === selected) toggleDiscoveredSelection(discoveredKey(item));
+  }
+}
+
+function handleDiscoveredRowClick(row: DiscoveredRow) {
+  if (discoveredSelectionMode.value) {
+    toggleDiscoveredRow(row);
+    return;
+  }
+  if (row.hidden) return;
+  if (row.items.length > 1) confirmAdoptDevice(row);
+  else confirmAdopt(row.item);
+}
+
+function handleDiscoveredItemClick(item: DiscoveredSensorListItem) {
   if (discoveredSelectionMode.value) {
     toggleDiscoveredSelection(discoveredKey(item));
     return;
@@ -646,9 +880,9 @@ function handleDiscoveredRowClick(item: DiscoveredSensorListItem) {
   confirmAdopt(item);
 }
 
-async function toggleHidden(event: Event, item: DiscoveredSensorListItem) {
+async function toggleHidden(event: Event, items: DiscoveredSensorListItem[], hidden: boolean) {
   event.stopPropagation();
-  const result = sensorsSocket.isHidden(item) ? await sensorsSocket.unhideSensors([item]) : await sensorsSocket.hideSensors([item]);
+  const result = hidden ? await sensorsSocket.unhideSensors(items) : await sensorsSocket.hideSensors(items);
   if (!result.success) {
     toast.add({ severity: 'error', summary: t('views.sensors.hide'), detail: result.error, life: 3000 });
   }
@@ -730,25 +964,68 @@ function canDelete(sensor: TransformedSensor): boolean {
   return sensor.virtual || !sensor.assignmentLocked || !isConnected(sensor);
 }
 
+function canDeleteRow(row: SensorRow): boolean {
+  return rowSensors(row).every(canDelete);
+}
+
+function deleteTooltip(row: SensorRow): string {
+  if (row.device) return t('views.sensors.delete_device');
+  return canDelete(row.sensor) ? t('views.sensors.delete') : t('views.sensors.delete_camera_bound');
+}
+
 function handleRowClick(row: SensorRow) {
   if (selectionMode.value) {
-    toggleSelection(row.sensor.id);
+    toggleSelection(row.key);
     return;
   }
   if (!isAdmin.value) return;
 
+  if (row.device) openDeviceDialog(row.device, row);
+  else openSensorDialog(row.sensor, row.sensor.device);
+}
+
+function handleMemberClick(sensor: TransformedSensor) {
+  if (isAdmin.value) openSensorDialog(sensor);
+}
+
+function openSensorDialog(sensor: TransformedSensor, device?: TransformedSensorDevice) {
   dialog.openComponentDialog(SensorEditDialog, {
     data: {
-      title: row.label,
+      title: sensor.displayName || sensor.name,
       confirmText: t('components.form.button.save'),
       contentProps: {
-        sensor: row.sensor,
+        sensor,
+        device,
         cameraOptions: cameraOptions.value,
       },
     },
     onConfirm: async (result: SensorEditResult | null) => {
       if (!result) return;
-      await patchSensor({ id: row.sensor.id, data: result });
+      if (!device) {
+        await patchSensor({ id: sensor.id, data: result });
+        return;
+      }
+      const { displayName, ...rest } = result;
+      await patchSensorDevice({ id: device.id, data: { displayName } });
+      await patchSensor({ id: sensor.id, data: rest });
+    },
+  });
+}
+
+function openDeviceDialog(device: TransformedSensorDevice, row: SensorRow) {
+  dialog.openComponentDialog(SensorDeviceEditDialog, {
+    data: {
+      title: row.label,
+      confirmText: t('components.form.button.save'),
+      contentProps: {
+        device,
+        sensors: row.members,
+        pluginName: row.pluginLabel,
+      },
+    },
+    onConfirm: async (result: SensorDeviceEditResult | null) => {
+      if (!result) return;
+      await patchSensorDevice({ id: device.id, data: result });
     },
   });
 }
@@ -789,8 +1066,8 @@ function confirmBulkDelete() {
     onConfirm: async () => {
       bulkBusy.value = true;
       try {
-        const { skipped } = await bulkDeleteSensors({ ids: targets.map((row) => row.sensor.id) });
-        const failed = targets.filter((row) => skipped.includes(row.sensor.id)).map((row) => row.label);
+        const { skipped } = await bulkDeleteSensors({ ids: targets.map((sensor) => sensor.id) });
+        const failed = targets.filter((sensor) => skipped.includes(sensor.id)).map((sensor) => sensor.displayName || sensor.name);
         exitSelectionMode();
         reportBulk(targets.length - failed.length, failed, 'views.sensors.delete_selected_done');
       } finally {
@@ -808,22 +1085,35 @@ function confirmBulkAdopt() {
       contentText: t('views.sensors.adopt_selected_confirm', { count: targets.length }),
       confirmText: t('components.form.button.add'),
     },
-    onConfirm: async () => {
-      discoveredBulkBusy.value = true;
-      try {
-        const failed: string[] = [];
-        for (const item of targets) {
-          const result = await sensorsSocket.adoptSensor(item);
-          if (!result.success) failed.push(item.name);
-        }
-        await queryClient.refetchQueries({ queryKey: ['sensorsList'] });
-        exitDiscoveredSelectionMode();
-        reportBulk(targets.length - failed.length, failed, 'views.sensors.adopt_selected_done');
-      } finally {
-        discoveredBulkBusy.value = false;
-      }
-    },
+    onConfirm: () => adoptItems(targets),
   });
+}
+
+function confirmAdoptDevice(row: DiscoveredRow) {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.sensors.adopt_device_title'),
+      contentText: t('views.sensors.adopt_device_confirm', { name: row.name, count: row.items.length, plugin: row.pluginName }),
+      confirmText: t('components.form.button.add'),
+    },
+    onConfirm: () => adoptItems(row.items),
+  });
+}
+
+async function adoptItems(items: DiscoveredSensorListItem[]) {
+  discoveredBulkBusy.value = true;
+  try {
+    const failed: string[] = [];
+    for (const item of items) {
+      const result = await sensorsSocket.adoptSensor(item);
+      if (!result.success) failed.push(item.name);
+    }
+    await queryClient.refetchQueries({ queryKey: ['sensorsList'] });
+    exitDiscoveredSelectionMode();
+    reportBulk(items.length - failed.length, failed, 'views.sensors.adopt_selected_done');
+  } finally {
+    discoveredBulkBusy.value = false;
+  }
 }
 
 function applySourceChange(event: SensorsNamespaceEvents['sensor:source:changed']) {
@@ -860,6 +1150,28 @@ function confirmDelete(sensor: TransformedSensor) {
     },
     onConfirm: async () => {
       await deleteSensor({ id: sensor.id });
+    },
+  });
+}
+
+function confirmDeleteRow(row: SensorRow) {
+  if (row.device) confirmDeleteDevice(row.device, row.members);
+  else confirmDelete(row.sensor);
+}
+
+function confirmDeleteDevice(device: TransformedSensorDevice, members: TransformedSensor[]) {
+  dialog.openTextDialog({
+    data: {
+      title: t('views.sensors.delete_device'),
+      contentText: t('views.sensors.delete_device_confirm', { names: members.map((member) => member.shortName).join(', ') }),
+      confirmText: t('components.form.button.remove'),
+      loading: isDeletingDevice,
+      confirmButtonProps: {
+        severity: 'danger',
+      },
+    },
+    onConfirm: async () => {
+      await deleteSensorDevice({ id: device.id });
     },
   });
 }
