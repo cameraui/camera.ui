@@ -12,14 +12,16 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, readings, ...rest } = base;
+  const { brightness, volume, readings, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
+  const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
   const choices = Object.entries(sensor.propertySpecs ?? {}).flatMap(([property, spec]) =>
     spec.writable && spec.choices?.length && property !== base.commandProperty && offered(property) ? [property] : [],
   );
   return {
     ...rest,
+    ...(deviceClass ? { deviceClass } : {}),
     ...(states ? { states } : {}),
     ...(choices.length ? { choices } : {}),
     ...(brightness && offered(brightness.property) ? { brightness } : {}),
@@ -31,6 +33,11 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
 function isPropertyOffered(sensor: SemanticsInput, property: string): boolean {
   const capability = META_BY_TYPE.get(sensor.type)?.propertyCapabilities?.[property];
   return !capability || sensor.capabilities.includes(capability);
+}
+
+function singleValue(spec: SensorPropertySpec | undefined): string | undefined {
+  const values = Object.values(spec?.values ?? {});
+  return values.length === 1 ? String(values[0]) : undefined;
 }
 
 function offeredValues(spec: SensorPropertySpec | undefined, narrowed: SensorPropertySpec | undefined): Record<string, string | number> | undefined {

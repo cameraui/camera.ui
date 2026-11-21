@@ -1,8 +1,9 @@
-import { SensorDomain, SensorType } from '@camera.ui/sdk';
+import { PresenceProperty, SensorDomain, SensorType, toUnitSystem } from '@camera.ui/sdk';
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
 import { CamerasService } from '../../api/services/cameras.service.js';
+import { instanceUnitSystem } from '../../i18n/index.js';
 import { SensorsService } from '../../api/services/sensors.service.js';
 import { SENSOR_TYPE_CONFIG } from '../../sensors/types.js';
 import { resolveCameraName } from './cameras.js';
@@ -26,11 +27,15 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
   if (semantics.domain === SensorDomain.Event) return (value as string) || 'idle';
   if (semantics.states) return Object.entries(semantics.states).find(([, wire]) => wire === value)?.[0] ?? (value as number | undefined);
   if (typeof value === 'boolean') {
+    if (sensor.type === SensorType.Presence) return value ? 'home' : ['away', sensor.properties[PresenceProperty.Zone]].filter(Boolean).join(', ');
     if (semantics.deviceClass === 'opening' || sensor.type === SensorType.Contact) return value ? 'open' : 'closed';
     if (sensor.type === SensorType.Doorbell) return value ? 'ringing' : 'idle';
     return value ? 'on' : 'off';
   }
-  if (typeof value === 'number' && semantics.unit) return `${value} ${semantics.unit}`;
+  if (typeof value === 'number' && semantics.unit) {
+    const shown = toUnitSystem(value, semantics.unit, instanceUnitSystem());
+    return `${shown.value} ${shown.unit}`;
+  }
   return value as string | number | undefined;
 }
 

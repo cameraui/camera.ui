@@ -1,4 +1,4 @@
-import { BatteryProperty, ChargingState, SecuritySystemProperty, SecuritySystemState, SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
+import { BatteryProperty, ChargingState, PresenceProperty, SecuritySystemProperty, SecuritySystemState, SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
 import FaceEmbedderIcon from '~icons/mdi/account-search-outline';
 import AirQualityIcon from '~icons/mdi/air-filter';
 import SirenIcon from '~icons/mdi/alarm-light';
@@ -77,6 +77,7 @@ import GlassIcon from '~icons/mdi/window-closed-variant';
 import WindowShutterIcon from '~icons/mdi/window-shutter';
 import WindowShutterOpenIcon from '~icons/mdi/window-shutter-open';
 
+import { shownValue } from '@/common/units.js';
 import { i18n } from '@/i18n/index.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
@@ -130,6 +131,7 @@ const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
   [SensorType.PTZ]: { icon: PtzIcon },
   [SensorType.Contact]: { icon: DoorClosedIcon, activeIcon: DoorOpenIcon, states: ['closed', 'open'] },
   [SensorType.Occupancy]: { icon: EmptyIcon, activeIcon: OccupiedIcon, states: ['empty', 'occupied'], tone: 'info' },
+  [SensorType.Presence]: { icon: EmptyIcon, activeIcon: OccupiedIcon, states: ['away', 'home'], tone: 'info' },
   [SensorType.Smoke]: { icon: SmokeIcon, activeIcon: SmokeAlertIcon, states: ['no_smoke', 'smoke'], tone: 'alarm' },
   [SensorType.Leak]: { icon: LeakIcon, activeIcon: LeakAlertIcon, states: ['no_leak', 'leak'], tone: 'info' },
   [SensorType.Gas]: { icon: GasIcon, activeIcon: GasIcon, tone: 'alarm' },
@@ -217,6 +219,8 @@ export function sensorStateKey(type: string, active: boolean): string {
 export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (key: string) => string): string {
   const semantics = sensorMeta(type)?.semantics;
   const value = sensor && semantics ? sensor.getProperty(semantics.stateProperty) : undefined;
+  const zone = type === SensorType.Presence && value === false ? sensor?.getProperty(PresenceProperty.Zone) : undefined;
+  if (typeof zone === 'string' && zone) return zone;
   if (semantics?.domain === SensorDomain.Measurement) return sensorReading(sensor) ?? namedState(value, t) ?? '--';
   if (semantics?.domain === SensorDomain.Event) return namedState(value, t) ?? t('components.sensor_state.idle');
   if (semantics?.domain === SensorDomain.Text) return typeof value === 'string' && value ? value : '--';
@@ -253,9 +257,10 @@ export function sensorPropertyLabelKey(type: string, property: string): string {
 }
 
 export function formatMeasurement(value: number, spec: SensorPropertySpec | undefined): string {
-  const decimals = spec?.step ? decimalsOf(spec.step) : Number.isInteger(value) ? 0 : 1;
-  const text = value.toFixed(decimals);
-  return spec?.unit ? `${text} ${spec.unit}` : text;
+  const shown = shownValue(value, spec?.unit);
+  const decimals = spec?.step ? decimalsOf(spec.step) : Number.isInteger(shown.value) ? 0 : 1;
+  const text = shown.value.toFixed(decimals);
+  return shown.unit ? `${text} ${shown.unit}` : text;
 }
 
 export function sensorPropertySpec(sensor: AnySensor, property: string): SensorPropertySpec | undefined {

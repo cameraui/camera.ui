@@ -33,14 +33,15 @@
 
       <CuiNumberStepper
         v-else-if="row.input?.kind === 'number'"
-        :model-value="typeof row.value === 'number' ? row.value : null"
+        :model-value="typeof row.value === 'number' ? shownValue(row.value, row.input.unit).value : null"
         :min="row.input.min"
         :max="row.input.max"
         :step="row.input.step"
+        :suffix="row.input.suffix"
         :max-fraction-digits="3"
         size="small"
         :disabled
-        @update:model-value="(value) => value != null && write(row, value)"
+        @update:model-value="(value) => value != null && write(row, storedValue(value, row.input?.unit))"
       />
 
       <span v-else class="text-xs font-medium text-color">{{ row.text }}</span>
@@ -52,6 +53,7 @@
 import { sensorMeta } from '@camera.ui/sdk';
 
 import { formatMeasurement, sensorIcon, sensorPropertyLabelKey, sensorPropertySpec, sensorTone } from '@/common/sensorDisplay.js';
+import { shownValue, storedValue } from '@/common/units.js';
 import { getSensorPropertyInput } from '@/components/CuiAutomation/config/sensorPropertyInputs.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';

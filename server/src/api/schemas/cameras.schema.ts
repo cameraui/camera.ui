@@ -436,6 +436,7 @@ export const assignmentsSchema = zod
     power: pluginInfo.array().optional(),
     illuminance: pluginInfo.array().optional(),
     airQuality: pluginInfo.array().optional(),
+    presence: pluginInfo.array().optional(),
     glassBreak: pluginInfo.array().optional(),
     button: pluginInfo.array().optional(),
     access: pluginInfo.array().optional(),

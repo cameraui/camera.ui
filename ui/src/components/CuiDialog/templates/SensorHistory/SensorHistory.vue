@@ -10,7 +10,7 @@
           <span class="text-sm font-medium truncate">{{ propertyLabel(entry.property) }}</span>
           <span class="text-xs text-muted">{{ formatTimestamp(entry.timestamp) }}</span>
         </div>
-        <span class="text-sm font-mono shrink-0">{{ formatValue(entry.value) }}</span>
+        <span class="text-sm font-mono shrink-0">{{ formatValue(entry) }}</span>
       </div>
     </template>
 
@@ -22,8 +22,10 @@
 </template>
 
 <script setup lang="ts">
+import { sensorMeta } from '@camera.ui/sdk';
+
 import { getSensorHistoryFn } from '@/api/routes/sensors.js';
-import { sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
+import { formatMeasurement, sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
 
 import type { SensorHistoryEntry } from '@/api/routes/sensors.js';
 import type { SensorHistoryProps } from './types.js';
@@ -50,9 +52,10 @@ function propertyLabel(property: string): string {
   return te(key) ? t(key) : property;
 }
 
-function formatValue(value: unknown): string {
+function formatValue({ property, value }: SensorHistoryEntry): string {
   if (value === null || value === undefined) return '–';
-  return String(value);
+  const spec = sensorMeta(props.sensorType)?.properties[property];
+  return typeof value === 'number' && spec?.type === 'number' ? formatMeasurement(value, spec) : String(value);
 }
 
 function formatTimestamp(timestamp: number): string {
