@@ -19,7 +19,7 @@ export * from '../../server/src/api/schemas/training.schema.js';
 export * from '../../server/src/api/schemas/users.schema.js';
 export * from '../../server/src/api/schemas/workers.schema.js';
 export type { ScheduledBackupEntry } from '../../server/src/api/services/backupScheduler.service.js';
-export type { TransformedSensor } from '../../server/src/api/services/sensors.service.js';
+export type { TransformedSensor, TransformedSensorDevice } from '../../server/src/api/services/sensors.service.js';
 export type { SettingsUpdate, SettingsView } from '../../server/src/api/services/settings.service.js';
 export type {
   UpdatesActivityItem,

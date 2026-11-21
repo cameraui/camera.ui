@@ -24,6 +24,15 @@ export const patchSensorSchema = zod
     message: 'Nothing to update',
   });
 
+export const patchSensorDeviceSchema = zod
+  .object({
+    displayName: zod.string().trim().min(1, 'Display name is required').max(100, 'Display name cannot be more than 100 characters').optional(),
+    exposed: zod.boolean().optional(),
+  })
+  .refine((body) => body.displayName !== undefined || body.exposed !== undefined, {
+    message: 'Nothing to update',
+  });
+
 export const sensorCommandSchema = zod.object({
   property: zod.string().trim().min(1, 'Property is required'),
   value: zod.unknown(),
@@ -35,5 +44,6 @@ export const bulkDeleteSensorsSchema = zod.object({
 
 export type CreateVirtualSensorInput = zod.infer<typeof createVirtualSensorSchema>;
 export type PatchSensorInput = zod.infer<typeof patchSensorSchema>;
+export type PatchSensorDeviceInput = zod.infer<typeof patchSensorDeviceSchema>;
 export type BulkDeleteSensorsInput = zod.infer<typeof bulkDeleteSensorsSchema>;
 export type SensorCommandInput = zod.infer<typeof sensorCommandSchema>;

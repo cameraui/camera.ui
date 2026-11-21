@@ -2,7 +2,7 @@ import { inject } from '../../../container.js';
 import { resolveSensorSemantics } from '../../../sensors/semantics.js';
 import { onClientEvent } from '../client-events.js';
 
-import type { DetectionEvent, DetectionEventType } from '@camera.ui/sdk';
+import type { DetectionEvent, DetectionEventType, SensorDevice } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
 import type { CameraController } from '../../../camera/controller.js';
@@ -11,6 +11,7 @@ import type {
   InternalEventBus,
   InternalEventPayload,
   SensorCapabilitiesChangedPayload,
+  SensorDeviceChangedPayload,
   SensorDisplayNameChangedPayload,
   SensorLifecyclePayload,
   SensorPropertyChangedPayload,
@@ -49,6 +50,9 @@ interface SensorMessage {
   value?: unknown;
   sensorName?: string;
   displayName?: string;
+  shortName?: string;
+  primary?: boolean;
+  device?: SensorDevice | null;
   capabilities?: string[];
   connected?: boolean;
 }
@@ -165,6 +169,21 @@ export class EventsNamespace {
         sensorType: p.sensorType,
         assignedCameraIds: p.assignedCameraIds,
         displayName: p.displayName,
+      });
+    });
+
+    this.onBus(bus, 'sensor:device:changed', (payload) => {
+      const p = payload as SensorDeviceChangedPayload;
+      this.emitSensor({
+        type: 'meta',
+        sensorId: p.sensorId,
+        sensorType: p.sensorType,
+        assignedCameraIds: p.assignedCameraIds,
+        displayName: p.deviceState.displayName,
+        shortName: p.deviceState.shortName,
+        primary: p.deviceState.primary,
+        // JSON drops undefined, null tells the client the sensor left its device
+        device: p.deviceState.device ?? null,
       });
     });
 

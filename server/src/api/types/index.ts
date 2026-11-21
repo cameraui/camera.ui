@@ -95,7 +95,7 @@ import type {
   NotificationSeenInput,
 } from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
-import type { CreateVirtualSensorInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
+import type { CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { RunUpdatesInput } from '../schemas/updates.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
@@ -1534,6 +1534,10 @@ export interface SensorsCreateVirtualRequest {
 
 export interface SensorsPatchRequest {
   Body: PatchSensorInput;
+}
+
+export interface SensorDevicesPatchRequest {
+  Body: PatchSensorDeviceInput;
 }
 
 export interface SensorsBulkDeleteRequest {

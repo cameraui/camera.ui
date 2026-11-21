@@ -3,6 +3,7 @@ import { SensorsService } from '../services/sensors.service.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type {
   AuthLoginRequest,
+  SensorDevicesPatchRequest,
   SensorsBulkDeleteRequest,
   SensorsCommandRequest,
   SensorsCreateVirtualRequest,
@@ -57,6 +58,29 @@ export class SensorsController {
       return reply.code(200).send(sensor);
     } catch (error: any) {
       return reply.code(400).send({ statusCode: 400, message: error.message });
+    }
+  }
+
+  public async updateDevice(req: FastifyRequest<AuthLoginRequest & SensorsParamsRequest & SensorDevicesPatchRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const sensors = await this.service.patchDevice(req.params.id, req.body);
+      if (!sensors) {
+        return reply.code(404).send({ statusCode: 404, message: 'Sensor device not found' });
+      }
+      return reply.code(200).send({ sensors });
+    } catch (error: any) {
+      return reply.code(400).send({ statusCode: 400, message: error.message });
+    }
+  }
+
+  public async deleteDevice(req: FastifyRequest<AuthLoginRequest & SensorsParamsRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      if (!(await this.service.deleteDevice(req.params.id))) {
+        return reply.code(404).send({ statusCode: 404, message: 'Sensor device not found' });
+      }
+      return reply.code(204).send();
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
     }
   }
 

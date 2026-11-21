@@ -3,7 +3,14 @@ import * as zod from 'zod';
 import { SensorsController } from '../controllers/sensors.controller.js';
 import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import { bulkDeleteSensorsSchema, createVirtualSensorSchema, patchSensorSchema, sensorCommandSchema, sensorParamsSchema } from '../schemas/sensors.schema.js';
+import {
+  bulkDeleteSensorsSchema,
+  createVirtualSensorSchema,
+  patchSensorDeviceSchema,
+  patchSensorSchema,
+  sensorCommandSchema,
+  sensorParamsSchema,
+} from '../schemas/sensors.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -80,6 +87,31 @@ export const SensorsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
     schema: {
       tags: ['Sensors'],
       summary: 'Delete a sensor',
+      params: sensorParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/devices/:id',
+    method: 'PATCH',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.updateDevice.bind(controller),
+    schema: {
+      tags: ['Sensors'],
+      summary: 'Update a sensor device (display name, export of all its sensors)',
+      params: sensorParamsSchema,
+      body: patchSensorDeviceSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/devices/:id',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.deleteDevice.bind(controller),
+    schema: {
+      tags: ['Sensors'],
+      summary: 'Delete a sensor device with all its sensors',
       params: sensorParamsSchema,
     },
   });

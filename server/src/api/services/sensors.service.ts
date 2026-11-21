@@ -4,13 +4,26 @@ import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '.
 
 import type { SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
-import type { CreateVirtualSensorInput, PatchSensorInput } from '../schemas/sensors.schema.js';
+import type { CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
+
+export interface TransformedSensorDevice {
+  id: string;
+  name: string;
+  sourceName: string;
+  manufacturer?: string;
+  model?: string;
+  firmware?: string;
+  serialNumber?: string;
+}
 
 export interface TransformedSensor {
   id: string;
   type: SensorType;
   name: string;
   displayName: string;
+  shortName: string;
+  primary: boolean;
+  device?: TransformedSensorDevice;
   nativeId?: string;
   pluginId: string;
   pluginName: string;
@@ -66,7 +79,7 @@ export class SensorsService {
     }
 
     if (input.displayName !== undefined) {
-      await this.registry.setDisplayName(id, input.displayName);
+      this.registry.setDisplayName(id, input.displayName);
     }
 
     if (input.exposed !== undefined) {
@@ -74,6 +87,21 @@ export class SensorsService {
     }
 
     return this.transform(id);
+  }
+
+  public async patchDevice(id: string, input: PatchSensorDeviceInput): Promise<TransformedSensor[] | undefined> {
+    if (!this.registry.getDevice(id)) return undefined;
+
+    if (input.displayName !== undefined) this.registry.setDeviceDisplayName(id, input.displayName);
+    if (input.exposed !== undefined) await this.registry.setDeviceExposed(id, input.exposed);
+
+    return this.registry.getDeviceMembers(id).map((record) => this.transform(record._id)!);
+  }
+
+  public async deleteDevice(id: string): Promise<boolean> {
+    if (!this.registry.getDevice(id)) return false;
+    await this.registry.deleteDevice(id);
+    return true;
   }
 
   public getHistory(id: string, limit?: number): { property: string; value: unknown; timestamp: number }[] | undefined {
@@ -106,11 +134,15 @@ export class SensorsService {
     if (!record) return undefined;
 
     const data = this.registry.toStoredData(record);
+    const device = record.deviceId ? this.registry.getDevice(record.deviceId) : undefined;
     return {
       id: record._id,
       type: record.type,
       name: record.name,
       displayName: data.displayName,
+      shortName: data.shortName,
+      primary: data.primary,
+      device: device && data.device && { ...data.device, sourceName: device.name },
       nativeId: record.nativeId,
       pluginId: record.pluginInfo.id,
       pluginName: record.pluginInfo.name,
