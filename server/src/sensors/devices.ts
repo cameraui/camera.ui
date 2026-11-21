@@ -23,8 +23,8 @@ export function composeDeviceState(record: DBSensor, device: DBSensorDevice | un
 
 export function pickPrimary(members: DBSensor[]): DBSensor | undefined {
   const marked = members.filter((member) => member.primary);
-  const candidates = marked.length > 0 ? marked : members;
-  return [...candidates].sort((a, b) => typeRank(a.type) - typeRank(b.type) || a.createdAt - b.createdAt || a._id.localeCompare(b._id))[0];
+  if (!marked.length) return members.length === 1 ? members[0] : undefined;
+  return marked.sort((a, b) => typeRank(a.type) - typeRank(b.type) || a.createdAt - b.createdAt || a._id.localeCompare(b._id))[0];
 }
 
 export function toSensorDevice(device: DBSensorDevice): SensorDevice {
