@@ -58,6 +58,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS: zod.infer<typeof notificationSetting
     'problem',
     'lock',
     'garage',
+    'glassBreak',
+    'access',
   ],
   cooldown: 30,
   speed: 'balanced',
@@ -433,6 +435,12 @@ export const assignmentsSchema = zod
     problem: pluginInfo.array().optional(),
     power: pluginInfo.array().optional(),
     illuminance: pluginInfo.array().optional(),
+    airQuality: pluginInfo.array().optional(),
+    glassBreak: pluginInfo.array().optional(),
+    button: pluginInfo.array().optional(),
+    access: pluginInfo.array().optional(),
+    chime: pluginInfo.array().optional(),
+    display: pluginInfo.array().optional(),
 
     hub: pluginInfo.array().optional(),
   })

@@ -1,5 +1,7 @@
 import { getObservableSensorProperties, getSensorPropertySpec } from '@shared/types';
 
+import { sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
+
 import type { SensorPropertySpec } from '@camera.ui/sdk';
 import type { ComputedRef } from 'vue';
 import type { AutomationFlow, AutomationNodeData } from '../types.js';
@@ -178,7 +180,7 @@ function producersFor(node: RawNode): FlowVariable[] {
         '{{sensor.property}}',
         'enum',
         'variable_sensor_property',
-        watched.map((p) => ({ value: p, labelKey: `sensor_property_${p}` })),
+        watched.map((p) => ({ value: p, labelKey: sensorPropertyLabelKey(sensorType, p) })),
       );
       add('{{sensor.sensorType}}', 'string', 'variable_sensor_type');
       add('{{sensor.sensorId}}', 'string', 'variable_sensor_id');

@@ -1,4 +1,4 @@
-import { SensorType } from '@camera.ui/sdk';
+import { SensorDomain, SensorType } from '@camera.ui/sdk';
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
@@ -23,6 +23,7 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
   const semantics = sensor.semantics;
   if (!semantics) return undefined;
   const value = sensor.properties[semantics.stateProperty];
+  if (semantics.domain === SensorDomain.Event) return (value as string) || 'idle';
   if (semantics.states) return Object.entries(semantics.states).find(([, wire]) => wire === value)?.[0] ?? (value as number | undefined);
   if (typeof value === 'boolean') {
     if (semantics.deviceClass === 'opening' || sensor.type === SensorType.Contact) return value ? 'open' : 'closed';

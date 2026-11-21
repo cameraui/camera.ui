@@ -41,11 +41,14 @@
     :volume="sensor.getProperty(SirenProperty.Volume) ?? 100"
     :has-volume="sensor.hasCapability('volume')"
     v-bind="sensorControlRange(sensor, SirenProperty.Volume)"
+    :tone="toneProperty ? String(sensor.getProperty(toneProperty) ?? '') : undefined"
+    :tones="toneProperty ? toneChoices(sensor, toneProperty) : undefined"
     :disabled
     size="small"
     class="card-border"
     @update:active="(value) => sensor.setProperty(SirenProperty.Active, value)"
     @update:volume="(value) => sensor.setProperty(SirenProperty.Volume, value)"
+    @update:tone="(value) => toneProperty && sensor.setProperty(toneProperty, value)"
   />
 
   <CuiSecuritySystem
@@ -93,10 +96,11 @@
   />
 
   <CuiBinarySensor
-    v-else-if="kind === SensorDomain.Binary"
+    v-else-if="kind === SensorDomain.Binary || kind === SensorDomain.Event"
     :type="sensor.type"
     :label="sensor.displayName.value"
     :detected="isSensorActive(sensor)"
+    :status="kind === SensorDomain.Event ? sensorStatus(sensor.type, sensor, t) : undefined"
     size="small"
     class="card-border"
   />
@@ -105,7 +109,8 @@
     v-else-if="kind === SensorDomain.Measurement"
     :type="sensor.type"
     :label="sensor.displayName.value"
-    :value="sensorReading(sensor)"
+    :value="sensorStatus(sensor.type, sensor, t)"
+    :details="sensorReadings(sensor, t)"
     size="small"
     class="card-border"
   />
@@ -135,11 +140,12 @@ import {
   SecuritySystemProperty,
   SensorDomain,
   SensorType,
+  sensorMeta,
   SirenProperty,
   SwitchProperty,
 } from '@camera.ui/sdk';
 
-import { isSensorActive, sensorReading } from '@/common/sensorDisplay.js';
+import { isSensorActive, sensorPropertySpec, sensorReadings, sensorStatus } from '@/common/sensorDisplay.js';
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
 import { securityModes } from '@/components/CuiSensors/display.js';
 import CuiSensorPropertyRows from './CuiSensorPropertyRows.vue';
@@ -152,7 +158,15 @@ const props = defineProps<{
   disabled?: boolean;
 }>();
 
+const { t } = useI18n();
+
 const kind = computed(() => sensorControlKind(props.sensor.type));
+
+const toneProperty = computed(() => sensorMeta(props.sensor.type)?.semantics?.tone?.property);
+
+function toneChoices(sensor: ReactiveSensor<any>, property: string): { label: string; value: string }[] {
+  return (sensorPropertySpec(sensor, property)?.choices ?? []).map(({ label, value }) => ({ label, value: String(value) }));
+}
 
 function detectionLabels(sensor: ReactiveSensor<any>): string[] {
   const detections = (sensor.getProperty('detections') ?? []) as { label?: string; attribute?: string }[];

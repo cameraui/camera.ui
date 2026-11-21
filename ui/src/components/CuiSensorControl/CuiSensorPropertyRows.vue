@@ -21,6 +21,16 @@
         @update:model-value="(value) => write(row, value)"
       />
 
+      <InputText
+        v-else-if="row.input?.kind === 'text'"
+        :model-value="String(row.value ?? '')"
+        :maxlength="row.input.maxLength"
+        size="small"
+        class="w-40"
+        :disabled
+        @change="(event: Event) => write(row, (event.target as HTMLInputElement).value)"
+      />
+
       <CuiNumberStepper
         v-else-if="row.input?.kind === 'number'"
         :model-value="typeof row.value === 'number' ? row.value : null"
@@ -41,7 +51,7 @@
 <script setup lang="ts">
 import { sensorMeta } from '@camera.ui/sdk';
 
-import { formatMeasurement, sensorIcon, sensorPropertySpec, sensorTone } from '@/common/sensorDisplay.js';
+import { formatMeasurement, sensorIcon, sensorPropertyLabelKey, sensorPropertySpec, sensorTone } from '@/common/sensorDisplay.js';
 import { getSensorPropertyInput } from '@/components/CuiAutomation/config/sensorPropertyInputs.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
@@ -66,22 +76,23 @@ const props = defineProps<{
 const { t, te } = useI18n();
 
 const rows = computed<PropertyRow[]>(() => {
-  const properties = Object.keys(sensorMeta(props.sensor.type)?.properties ?? {});
-  return properties.flatMap((property) => {
+  const meta = sensorMeta(props.sensor.type);
+  return Object.keys(meta?.properties ?? {}).flatMap((property) => {
     const spec = sensorPropertySpec(props.sensor, property);
-    if (!spec || spec.internal || spec.type === 'object') return [];
+    const capability = meta?.propertyCapabilities?.[property];
+    if (!spec || spec.internal || spec.type === 'object' || (capability && !props.sensor.hasCapability(capability))) return [];
 
-    const meta = getSensorPropertyInput(props.sensor.type, property, props.sensor.propertySpecs.value);
-    const options = meta.choices ?? meta.options?.map(({ labelKey, value }) => ({ label: translated(`components.automation_nodes.${labelKey}`, value), value }));
+    const input = getSensorPropertyInput(props.sensor.type, property, props.sensor.propertySpecs.value);
+    const options = input.choices ?? input.options?.map(({ labelKey, value }) => ({ label: translated(`components.automation_nodes.${labelKey}`, value), value }));
     const value = props.sensor.getProperty(property);
     return [
       {
         property,
-        label: translated(`components.automation_nodes.sensor_property_${property}`, property),
+        label: translated(`components.automation_nodes.${sensorPropertyLabelKey(props.sensor.type, property)}`, property),
         spec,
         value,
         text: readingOf(spec, value, options),
-        input: spec.writable ? meta : undefined,
+        input: spec.writable ? input : undefined,
         options,
       },
     ];

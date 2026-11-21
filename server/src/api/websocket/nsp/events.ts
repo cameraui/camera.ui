@@ -2,7 +2,7 @@ import { inject } from '../../../container.js';
 import { resolveSensorSemantics } from '../../../sensors/semantics.js';
 import { onClientEvent } from '../client-events.js';
 
-import type { DetectionEvent, DetectionEventType, SensorDevice, SensorPropertySpec } from '@camera.ui/sdk';
+import type { DetectionEvent, DetectionEventType, SensorDevice, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
 import type { CameraController } from '../../../camera/controller.js';
@@ -11,11 +11,11 @@ import type {
   InternalEventBus,
   InternalEventPayload,
   SensorCapabilitiesChangedPayload,
-  SensorSpecsChangedPayload,
   SensorDeviceChangedPayload,
   SensorDisplayNameChangedPayload,
   SensorLifecyclePayload,
   SensorPropertyChangedPayload,
+  SensorSpecsChangedPayload,
 } from '../../../internal-bus.js';
 import type { SocketNsp } from '../types.js';
 
@@ -56,6 +56,7 @@ interface SensorMessage {
   device?: SensorDevice | null;
   capabilities?: string[];
   propertySpecs?: Record<string, SensorPropertySpec>;
+  semantics?: SensorSemantics;
   connected?: boolean;
 }
 
@@ -197,6 +198,7 @@ export class EventsNamespace {
         sensorType: p.sensorType,
         assignedCameraIds: p.assignedCameraIds,
         capabilities: p.capabilities,
+        semantics: this.semanticsOf(p.sensorId),
       });
     });
 
@@ -208,6 +210,7 @@ export class EventsNamespace {
         sensorType: p.sensorType,
         assignedCameraIds: p.assignedCameraIds,
         propertySpecs: p.propertySpecs,
+        semantics: this.semanticsOf(p.sensorId),
       });
     });
 
@@ -238,6 +241,12 @@ export class EventsNamespace {
     const record = inject('sensorRegistry').getRecord(sensorId);
     if (!record?.exposed || record.origin === 'homeassistant') return false;
     return resolveSensorSemantics({ type: record.type, capabilities: [] }) !== undefined;
+  }
+
+  private semanticsOf(sensorId: string): SensorSemantics | undefined {
+    const registry = inject('sensorRegistry');
+    const record = registry.getRecord(sensorId);
+    return record ? resolveSensorSemantics(registry.toStoredData(record)) : undefined;
   }
 
   private emitSensor(message: SensorMessage): void {

@@ -18,7 +18,7 @@
 
       <div class="cui-binary-sensor__info">
         <span v-if="label" class="cui-binary-sensor__label">{{ label }}</span>
-        <span class="cui-binary-sensor__status">{{ t(sensorStateKey(type, detected)) }}</span>
+        <span class="cui-binary-sensor__status">{{ status ?? t(sensorStateKey(type, detected)) }}</span>
       </div>
 
       <div class="cui-binary-sensor__indicator" />

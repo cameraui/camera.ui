@@ -1,4 +1,4 @@
-import { SensorCategory } from '@camera.ui/sdk';
+import { SensorCategory, sensorMeta } from '@camera.ui/sdk';
 import { getShortcutableTypes, SENSOR_TYPE_CONFIG } from '@shared/types';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
@@ -23,6 +23,10 @@ export const SENSOR_SHORTCUTABLE_TYPES = new Set<SensorShortcutType>(shortcutabl
 
 export const SENSOR_READONLY_TYPES = new Set<SensorShortcutType>(
   shortcutable
-    .filter((type) => [SensorCategory.Sensor, SensorCategory.Info].includes(SENSOR_TYPE_CONFIG[type].category))
+    .filter((type) => [SensorCategory.Sensor, SensorCategory.Info].includes(SENSOR_TYPE_CONFIG[type].category) || !hasWritableProperty(type))
     .map((type) => String(type) as SensorShortcutType),
 );
+
+function hasWritableProperty(type: string): boolean {
+  return Object.values(sensorMeta(type)?.properties ?? {}).some((spec) => spec.writable);
+}

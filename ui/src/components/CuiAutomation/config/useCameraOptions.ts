@@ -2,6 +2,7 @@ import { useAllSensors } from '@camera.ui/browser';
 import { SensorType } from '@camera.ui/sdk';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
+import { sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
 import { getObservableSensorProperties, getWritableSensorProperties } from '@shared/types';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
@@ -68,7 +69,7 @@ export function useCameraOptions() {
   function getPropertiesForSensor(sensorType: string, mode: 'observable' | 'writable' = 'observable') {
     const names = mode === 'writable' ? getWritableSensorProperties(sensorType) : getObservableSensorProperties(sensorType);
     return names.map((prop) => ({
-      label: t(`components.automation_nodes.sensor_property_${prop}`),
+      label: t(`components.automation_nodes.${sensorPropertyLabelKey(sensorType, prop)}`),
       value: prop,
     }));
   }

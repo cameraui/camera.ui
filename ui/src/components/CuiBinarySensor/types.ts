@@ -3,6 +3,7 @@ import type { SensorType } from '@camera.ui/sdk';
 export interface CuiBinarySensorProps {
   type: SensorType;
   detected?: boolean;
+  status?: string;
   label?: string;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';

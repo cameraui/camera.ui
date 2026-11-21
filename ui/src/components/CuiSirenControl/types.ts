@@ -2,6 +2,8 @@ export interface CuiSirenControlProps {
   active?: boolean;
   volume?: number;
   hasVolume?: boolean;
+  tone?: string;
+  tones?: { label: string; value: string }[];
   min?: number;
   max?: number;
   step?: number;
@@ -14,6 +16,7 @@ export interface CuiSirenControlProps {
 export interface CuiSirenControlEmits {
   'update:active': [value: boolean];
   'update:volume': [value: number];
+  'update:tone': [value: string];
 }
 
 export const CUI_SIREN_CONTROL_DEFAULTS = {

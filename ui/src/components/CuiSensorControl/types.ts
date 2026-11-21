@@ -22,6 +22,7 @@ const DOMAIN_CONTROLS: ReadonlySet<string> = new Set([
   SensorDomain.Lock,
   SensorDomain.Cover,
   SensorDomain.Alarm,
+  SensorDomain.Event,
 ]);
 
 export function sensorControlKind(type: string): SensorControlKind | undefined {

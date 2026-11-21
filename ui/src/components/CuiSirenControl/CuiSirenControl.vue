@@ -19,6 +19,17 @@
 
       <Slider v-model="volumeValue" :min :max :step :disabled="disabled" class="cui-siren-control__slider" @slideend="flushVolume" />
     </div>
+
+    <Select
+      v-if="tones?.length"
+      :model-value="tone"
+      :options="tones"
+      option-label="label"
+      option-value="value"
+      size="small"
+      :disabled
+      @update:model-value="(value: string) => emit('update:tone', value)"
+    />
   </div>
 </template>
 

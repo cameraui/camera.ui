@@ -23,6 +23,7 @@
 
 <script setup lang="ts">
 import { getSensorHistoryFn } from '@/api/routes/sensors.js';
+import { sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
 
 import type { SensorHistoryEntry } from '@/api/routes/sensors.js';
 import type { SensorHistoryProps } from './types.js';
@@ -45,7 +46,7 @@ onMounted(async () => {
 });
 
 function propertyLabel(property: string): string {
-  const key = `components.automation_nodes.sensor_property_${property}`;
+  const key = `components.automation_nodes.${sensorPropertyLabelKey(props.sensorType, property)}`;
   return te(key) ? t(key) : property;
 }
 

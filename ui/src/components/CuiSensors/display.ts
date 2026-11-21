@@ -1,4 +1,5 @@
 import {
+  isReactiveChimeControl,
   isReactiveDoorbellTrigger,
   isReactiveGarageControl,
   isReactiveLightControl,
@@ -7,6 +8,7 @@ import {
   isReactiveSirenControl,
 } from '@camera.ui/browser';
 import {
+  ChimeProperty,
   DoorbellProperty,
   GarageProperty,
   LightProperty,
@@ -32,6 +34,7 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
   if (isReactiveLightControl(sensor)) return await sensor.setProperty(LightProperty.On, !active);
   if (sensor.type === SensorType.Switch) return await sensor.setProperty(SwitchProperty.On, !active);
   if (isReactiveSirenControl(sensor)) return await sensor.setProperty(SirenProperty.Active, !active);
+  if (isReactiveChimeControl(sensor)) return await sensor.setProperty(ChimeProperty.Active, !active);
   if (isReactiveLockControl(sensor)) return await sensor.setProperty(LockProperty.TargetState, active ? 1 : 0);
   if (isReactiveGarageControl(sensor)) return await sensor.setProperty(GarageProperty.TargetState, active ? 1 : 0);
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);

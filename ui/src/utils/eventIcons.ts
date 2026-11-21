@@ -1,5 +1,6 @@
 import IconProblem from '~icons/mdi/alert-circle-outline';
 import IconFaceId from '~icons/mdi/face-recognition';
+import IconAccess from '~icons/mdi/fingerprint';
 import IconHeat from '~icons/mdi/fire';
 import IconGas from '~icons/mdi/gas-cylinder';
 import IconCoGas from '~icons/mdi/molecule-co';
@@ -70,6 +71,8 @@ const icons: Record<string, Component> = {
   power: IconPlug,
   lock: IconLock,
   garage: IconGarage,
+  glassBreak: IconGlassOff,
+  access: IconAccess,
   other: IconPuzzle,
   glass_break: IconGlassOff,
   speaking: IconMessage,

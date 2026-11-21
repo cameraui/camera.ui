@@ -1,6 +1,7 @@
 import { OBJECT_DETECTION_LABELS, SensorDomain } from '@camera.ui/sdk';
 
 import { resolveSensorSemantics } from '../sensors/semantics.js';
+import { getSensorPropertySpec } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
 import { sanitizeTopicSegment } from './topics.js';
 
@@ -88,6 +89,8 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Lock]: 'lock',
   [SensorDomain.Cover]: 'cover',
   [SensorDomain.Alarm]: 'alarm_control_panel',
+  [SensorDomain.Event]: 'event',
+  [SensorDomain.Text]: 'text',
 };
 
 export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, sensor: StoredSensorData, viaCamera?: Camera): DiscoveryMessage[] {
@@ -132,7 +135,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     ...(semantics.icon ? { icon: semantics.icon } : {}),
     ...(semantics.diagnostic ? { entity_category: 'diagnostic' } : {}),
     state_topic: state(semantics.stateProperty),
-    ...domainConfig(semantics, sensor.propertySpecs, state, command),
+    ...domainConfig(semantics, (property) => sensor.propertySpecs[property] ?? getSensorPropertySpec(sensor.type, property), state, command),
   };
 
   const messages = [{ topic: configTopic(haPrefix, DOMAIN_COMPONENT[semantics.domain], `sensor_${sensor.id}`, 'state'), payload: JSON.stringify(config) }];
@@ -157,6 +160,40 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     });
   }
 
+  for (const reading of semantics.readings ?? []) {
+    // without a name HA names the entity after its device class
+    messages.push({
+      topic: configTopic(haPrefix, 'sensor', `sensor_${sensor.id}`, reading.property),
+      payload: JSON.stringify({
+        unique_id: `cameraui_sensor_${sensor.id}_${reading.property}`,
+        ...shared,
+        ...(reading.deviceClass ? { device_class: reading.deviceClass } : {}),
+        ...(reading.unit ? { unit_of_measurement: reading.unit } : {}),
+        state_topic: state(reading.property),
+        state_class: 'measurement',
+      }),
+    });
+  }
+
+  for (const property of semantics.choices ?? []) {
+    const choices = sensor.propertySpecs[property]?.choices ?? [];
+    const values = Object.fromEntries(choices.map((choice) => [choice.value, choice.label]));
+    const labels = Object.fromEntries(choices.map((choice) => [choice.label, choice.value]));
+    messages.push({
+      topic: configTopic(haPrefix, 'select', `sensor_${sensor.id}`, property),
+      payload: JSON.stringify({
+        name: entityName ? `${entityName} ${capitalize(property)}` : capitalize(property),
+        unique_id: `cameraui_sensor_${sensor.id}_${property}`,
+        ...shared,
+        state_topic: state(property),
+        value_template: `{% set labels = ${JSON.stringify(values)} %}{{ labels[value_json] | default('') }}`,
+        command_topic: command(property),
+        command_template: `{% set values = ${JSON.stringify(labels)} %}{{ values[value] | tojson }}`,
+        options: choices.map((choice) => choice.label),
+      }),
+    });
+  }
+
   return messages;
 }
 
@@ -166,7 +203,7 @@ export function haDeviceIdentifier(sensor: StoredSensorData): string {
 
 function domainConfig(
   semantics: SensorSemantics,
-  specs: Record<string, SensorPropertySpec>,
+  spec: (property: string) => SensorPropertySpec | undefined,
   state: (property: string) => string,
   command: (property: string) => string,
 ): Record<string, unknown> {
@@ -178,6 +215,8 @@ function domainConfig(
       return { payload_on: 'true', payload_off: 'false' };
 
     case SensorDomain.Measurement:
+      // a level reading names its states, HA wants them listed and no unit
+      if (semantics.deviceClass === 'enum') return { value_template: '{{ value_json }}', options: Object.values(states).map(String) };
       return { unit_of_measurement: semantics.unit, state_class: 'measurement' };
 
     case SensorDomain.Switch:
@@ -232,7 +271,7 @@ function domainConfig(
       };
 
     case SensorDomain.Alarm: {
-      const offered = specs[semantics.commandProperty]?.values;
+      const offered = spec(semantics.commandProperty)?.values;
       return {
         command_topic: commandTopic,
         value_template: `{% set states = {${Object.entries(states)
@@ -246,6 +285,24 @@ function domainConfig(
           .map(([action]) => action.toLowerCase()),
         code_arm_required: false,
         code_disarm_required: false,
+      };
+    }
+
+    case SensorDomain.Event:
+      // the property is empty between two events, HA ignores an empty render
+      return {
+        event_types: Object.values(states).map(String),
+        value_template: "{% if value_json %}{{ {'event_type': value_json} | tojson }}{% endif %}",
+      };
+
+    case SensorDomain.Text: {
+      const maxLength = spec(semantics.commandProperty)?.maxLength;
+      return {
+        command_topic: commandTopic,
+        value_template: '{{ value_json }}',
+        command_template: '{{ value | tojson }}',
+        mode: 'text',
+        ...(maxLength ? { max: maxLength } : {}),
       };
     }
   }

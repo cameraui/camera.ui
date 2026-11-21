@@ -1,5 +1,6 @@
 import { BatteryProperty, ChargingState, SecuritySystemProperty, SecuritySystemState, SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
 import FaceEmbedderIcon from '~icons/mdi/account-search-outline';
+import AirQualityIcon from '~icons/mdi/air-filter';
 import SirenIcon from '~icons/mdi/alarm-light';
 import SirenOffIcon from '~icons/mdi/alarm-light-outline';
 import ProblemIcon from '~icons/mdi/alert-circle-outline';
@@ -15,6 +16,8 @@ import BatteryCharging40Icon from '~icons/mdi/battery-charging-40';
 import BatteryCharging60Icon from '~icons/mdi/battery-charging-60';
 import BatteryCharging80Icon from '~icons/mdi/battery-charging-80';
 import BatteryEmptyIcon from '~icons/mdi/battery-outline';
+import ChimeIcon from '~icons/mdi/bell-outline';
+import ChimeRingIcon from '~icons/mdi/bell-ring';
 import BrightnessIcon from '~icons/mdi/brightness-5';
 import LicensePlateIcon from '~icons/mdi/car-search';
 import BinaryIcon from '~icons/mdi/checkbox-blank-circle-outline';
@@ -25,11 +28,14 @@ import DoorClosedIcon from '~icons/mdi/door-closed';
 import DoorOpenIcon from '~icons/mdi/door-open';
 import DoorbellIcon from '~icons/mdi/doorbell';
 import FaceIcon from '~icons/mdi/face-recognition';
+import AccessIcon from '~icons/mdi/fingerprint';
 import FireIcon from '~icons/mdi/fire';
 import GarageOpenIcon from '~icons/mdi/garage-open-variant';
 import GarageIcon from '~icons/mdi/garage-variant';
 import GasIcon from '~icons/mdi/gas-cylinder';
 import MeasurementIcon from '~icons/mdi/gauge';
+import ButtonIcon from '~icons/mdi/gesture-tap-button';
+import GlassBreakIcon from '~icons/mdi/glass-fragile';
 import UnknownIcon from '~icons/mdi/help-circle-outline';
 import OccupiedIcon from '~icons/mdi/home-account';
 import EmptyIcon from '~icons/mdi/home-outline';
@@ -39,6 +45,8 @@ import LightOnIcon from '~icons/mdi/lightbulb-on';
 import LightIcon from '~icons/mdi/lightbulb-outline';
 import LockedIcon from '~icons/mdi/lock';
 import UnlockedIcon from '~icons/mdi/lock-open-outline';
+import DisplayActiveIcon from '~icons/mdi/message-text';
+import DisplayIcon from '~icons/mdi/message-text-outline';
 import CoIcon from '~icons/mdi/molecule-co';
 import Co2Icon from '~icons/mdi/molecule-co2';
 import MotionIcon from '~icons/mdi/motion-sensor';
@@ -64,9 +72,12 @@ import PersonEmbedderIcon from '~icons/mdi/walk';
 import LeakAlertIcon from '~icons/mdi/water-alert';
 import LeakIcon from '~icons/mdi/water-off';
 import HumidityIcon from '~icons/mdi/water-percent';
+import AudioIcon from '~icons/mdi/waveform';
+import GlassIcon from '~icons/mdi/window-closed-variant';
 import WindowShutterIcon from '~icons/mdi/window-shutter';
 import WindowShutterOpenIcon from '~icons/mdi/window-shutter-open';
-import AudioIcon from '~icons/mdi/waveform';
+
+import { i18n } from '@/i18n/index.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
@@ -100,6 +111,8 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.Lock]: { icon: UnlockedIcon, activeIcon: LockedIcon, states: ['unlocked', 'locked'], tone: 'ok' },
   [SensorDomain.Cover]: { icon: WindowShutterIcon, activeIcon: WindowShutterOpenIcon, states: ['closed', 'open'], tone: 'warn' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
+  [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
+  [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
 };
 
 const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
@@ -129,6 +142,10 @@ const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
   [SensorType.Power]: { icon: PowerOffIcon, activeIcon: PowerIcon, states: ['off', 'on'], tone: 'ok' },
   [SensorType.Doorbell]: { icon: DoorbellIcon, activeIcon: DoorbellIcon, states: ['ready', 'ringing'], tone: 'info' },
   [SensorType.Garage]: { icon: GarageIcon, activeIcon: GarageOpenIcon },
+  [SensorType.GlassBreak]: { icon: GlassIcon, activeIcon: GlassBreakIcon, states: ['clear', 'glass_break'], tone: 'alarm' },
+  [SensorType.Access]: { icon: AccessIcon, tone: 'ok' },
+  [SensorType.Chime]: { icon: ChimeIcon, activeIcon: ChimeRingIcon, states: ['off', 'ringing'], tone: 'info' },
+  [SensorType.AirQuality]: { icon: AirQualityIcon },
   [SensorType.Temperature]: { icon: TemperatureIcon },
   [SensorType.Humidity]: { icon: HumidityIcon },
   [SensorType.Illuminance]: { icon: BrightnessIcon },
@@ -166,6 +183,9 @@ export function sensorActive(type: string, read: ReadProperty): boolean {
       const state = requested(semantics, read);
       return state !== undefined && state !== semantics.states?.disarmed;
     }
+    case SensorDomain.Event:
+    case SensorDomain.Text:
+      return Boolean(read(semantics.stateProperty));
     default:
       return read(semantics.stateProperty) === true;
   }
@@ -196,7 +216,10 @@ export function sensorStateKey(type: string, active: boolean): string {
 
 export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (key: string) => string): string {
   const semantics = sensorMeta(type)?.semantics;
-  if (semantics?.domain === SensorDomain.Measurement) return sensorReading(sensor) ?? '--';
+  const value = sensor && semantics ? sensor.getProperty(semantics.stateProperty) : undefined;
+  if (semantics?.domain === SensorDomain.Measurement) return sensorReading(sensor) ?? namedState(value, t) ?? '--';
+  if (semantics?.domain === SensorDomain.Event) return namedState(value, t) ?? t('components.sensor_state.idle');
+  if (semantics?.domain === SensorDomain.Text) return typeof value === 'string' && value ? value : '--';
   if (sensor && semantics?.states && (semantics.domain === SensorDomain.Alarm || semantics.domain === SensorDomain.Cover)) {
     const value = sensor.getProperty(semantics.stateProperty);
     const name = Object.entries(semantics.states).find(([, state]) => state === value)?.[0];
@@ -210,6 +233,23 @@ export function sensorReading(sensor: AnySensor | undefined): string | undefined
   if (!sensor || semantics?.domain !== SensorDomain.Measurement) return undefined;
   const value = sensor.getProperty(semantics.stateProperty);
   return typeof value === 'number' ? formatMeasurement(value, sensorPropertySpec(sensor, semantics.stateProperty)) : undefined;
+}
+
+export function sensorReadings(sensor: AnySensor, t: (key: string) => string): string | undefined {
+  const meta = sensorMeta(sensor.type);
+  const readings = (meta?.semantics?.readings ?? []).flatMap(({ property }) => {
+    const capability = meta?.propertyCapabilities?.[property];
+    const value = sensor.getProperty(property);
+    if ((capability && !sensor.hasCapability(capability)) || typeof value !== 'number') return [];
+    return [`${t(`components.automation_nodes.sensor_property_${property}`)} ${formatMeasurement(value, sensorPropertySpec(sensor, property))}`];
+  });
+  return readings.length ? readings.join(' · ') : undefined;
+}
+
+export function sensorPropertyLabelKey(type: string, property: string): string {
+  // a type can name a shared property its own way, an air quality level is no battery level
+  const own = `sensor_property_${type}_${property}`;
+  return i18n.global.te(`components.automation_nodes.${own}`) ? own : `sensor_property_${property}`;
 }
 
 export function formatMeasurement(value: number, spec: SensorPropertySpec | undefined): string {
@@ -226,6 +266,10 @@ function lookOf(type: string): SensorLook {
   const domain = sensorMeta(type)?.semantics?.domain;
   const base = domain ? DOMAIN_LOOKS[domain] : { icon: UnknownIcon };
   return { ...base, ...TYPE_LOOKS[type as SensorType] };
+}
+
+function namedState(value: unknown, t: (key: string) => string): string | undefined {
+  return typeof value === 'string' && value ? t(`components.sensor_state.${value}`) : undefined;
 }
 
 function toneStyle(tone: Tone | undefined): Record<string, string> {

@@ -8,6 +8,7 @@
       <div class="cui-measurement-info__info">
         <span v-if="label" class="cui-measurement-info__label">{{ label }}</span>
         <span class="cui-measurement-info__value">{{ value ?? '--' }}</span>
+        <span v-if="details" class="cui-measurement-info__value">{{ details }}</span>
       </div>
     </div>
   </div>
