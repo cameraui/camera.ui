@@ -153,7 +153,7 @@
   "engines": {
     "node": ">=24.5.0"
   },
-  "homepage": "https://github.com/cameraui/camera.ui#readme",
+  "homepage": "https://cameraui.com",
   "keywords": [
     "camera.ui",
     "camera",
