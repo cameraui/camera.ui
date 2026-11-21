@@ -2,8 +2,7 @@ import type { SensorType } from '@camera.ui/sdk';
 
 export interface CuiMeasurementInfoProps {
   type: SensorType;
-  unit: string;
-  current?: number;
+  value?: string;
   label?: string;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';

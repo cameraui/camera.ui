@@ -95,230 +95,14 @@
       </div>
     </div>
 
-    <div v-if="lightSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_light') }}</h3>
+    <div v-for="section in sensorSections" :key="section.type" class="overview-section">
+      <h3 class="overview-section-title">{{ $t(`components.camera_options.sensor_type_${section.type}`) }}</h3>
       <div class="flex flex-col gap-2">
-        <CuiLightControl
-          v-for="sensor in lightSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :on="sensor.getProperty(LightProperty.On) ?? false"
-          :brightness="sensor.getProperty(LightProperty.Brightness) ?? 100"
-          :has-brightness="sensor.hasCapability('brightness')"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:on="(value) => sensor.setProperty(LightProperty.On, value)"
-          @update:brightness="(value) => sensor.setProperty(LightProperty.Brightness, value)"
-        />
+        <CuiSensorControl v-for="sensor in section.sensors" :key="sensor.id" :sensor :disabled="!canControlSensors" />
       </div>
     </div>
 
-    <div v-if="switchSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_switch') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiSwitchControl
-          v-for="sensor in switchSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :on="sensor.getProperty(SwitchProperty.On) ?? false"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:on="(value) => sensor.setProperty(SwitchProperty.On, value)"
-        />
-      </div>
-    </div>
-
-    <div v-if="lockSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_lock') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiLockControl
-          v-for="sensor in lockSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :current-state="sensor.getProperty(LockProperty.CurrentState) ?? 2"
-          :target-state="sensor.getProperty(LockProperty.TargetState) ?? 0"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:target-state="(value) => sensor.setProperty(LockProperty.TargetState, value)"
-        />
-      </div>
-    </div>
-
-    <div v-if="sirenSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_siren') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiSirenControl
-          v-for="sensor in sirenSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :active="sensor.getProperty(SirenProperty.Active) ?? false"
-          :volume="sensor.getProperty(SirenProperty.Volume) ?? 100"
-          :has-volume="sensor.hasCapability('volume')"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:active="(value) => sensor.setProperty(SirenProperty.Active, value)"
-          @update:volume="(value) => sensor.setProperty(SirenProperty.Volume, value)"
-        />
-      </div>
-    </div>
-
-    <div v-if="securitySystemSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_securitySystem') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiSecuritySystem
-          v-for="sensor in securitySystemSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :current-state="sensor.getProperty(SecuritySystemProperty.CurrentState) ?? 3"
-          :target-state="sensor.getProperty(SecuritySystemProperty.TargetState) ?? 3"
-          :modes="securityModes(sensor)"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:target-state="(value) => sensor.setProperty(SecuritySystemProperty.TargetState, value)"
-        />
-      </div>
-    </div>
-
-    <div v-if="doorbellSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_doorbell') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiDoorbellTrigger
-          v-for="sensor in doorbellSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :ring="sensor.getProperty(DoorbellProperty.Ring) ?? false"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @trigger="() => sensor.setProperty(DoorbellProperty.Ring, true)"
-        />
-      </div>
-    </div>
-
-    <div v-if="contactSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_contact') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiContactSensor
-          v-for="sensor in contactSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(ContactProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="occupancySensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_occupancy') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiOccupancySensor
-          v-for="sensor in occupancySensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(OccupancyProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="smokeSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_smoke') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiSmokeSensor
-          v-for="sensor in smokeSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(SmokeProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="leakSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_leak') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiLeakSensor
-          v-for="sensor in leakSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(LeakProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="garageSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_garage') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiGarageControl
-          v-for="sensor in garageSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :current-state="sensor.getProperty(GarageProperty.CurrentState) ?? 1"
-          :target-state="sensor.getProperty(GarageProperty.TargetState) ?? 1"
-          :obstruction-detected="sensor.getProperty(GarageProperty.ObstructionDetected) ?? false"
-          :disabled="!canControlSensors"
-          size="small"
-          class="card-border"
-          @update:target-state="(value) => sensor.setProperty(GarageProperty.TargetState, value)"
-        />
-      </div>
-    </div>
-
-    <div v-if="temperatureSensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_temperature') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiTemperatureInfo
-          v-for="sensor in temperatureSensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :current="sensor.getProperty(TemperatureProperty.Current)"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="humiditySensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_humidity') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiHumidityInfo
-          v-for="sensor in humiditySensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :current="sensor.getProperty(HumidityProperty.Current)"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="batterySensors.length" class="overview-section">
-      <h3 class="overview-section-title">{{ $t('components.camera_options.sensor_type_battery') }}</h3>
-      <div class="flex flex-col gap-2">
-        <CuiBatteryInfo
-          v-for="sensor in batterySensors"
-          :key="sensor.id"
-          :label="sensor.displayName.value"
-          :level="sensor.getProperty(BatteryProperty.Level) ?? 100"
-          :charging="sensor.getProperty(BatteryProperty.Charging) ?? 'NOT_CHARGING'"
-          :low="sensor.getProperty(BatteryProperty.Low) ?? false"
-          size="small"
-          class="card-border"
-        />
-      </div>
-    </div>
-
-    <div v-if="!hasSensors && !hasDetectionSensors" class="overview-section">
+    <div v-if="!sensorSections.length && !hasDetectionSensors" class="overview-section">
       <div class="no-sensors">
         {{ $t('components.camera_options.no_sensors') }}
       </div>
@@ -329,57 +113,41 @@
 <script setup lang="ts">
 import {
   isReactiveAudioSensor,
-  isReactiveBatteryInfo,
-  isReactiveContactSensor,
-  isReactiveDoorbellTrigger,
   isReactiveFaceSensor,
-  isReactiveGarageControl,
-  isReactiveHumidityInfo,
-  isReactiveLeakSensor,
   isReactiveLicensePlateSensor,
-  isReactiveLightControl,
-  isReactiveLockControl,
   isReactiveMotionSensor,
   isReactiveObjectSensor,
-  isReactiveOccupancySensor,
-  isReactiveSecuritySystem,
-  isReactiveSirenControl,
-  isReactiveSmokeSensor,
-  isReactiveSwitchControl,
-  isReactiveTemperatureInfo,
   useSensors,
 } from '@camera.ui/browser';
-import {
-  AudioProperty,
-  BatteryProperty,
-  ContactProperty,
-  DoorbellProperty,
-  FaceProperty,
-  GarageProperty,
-  HumidityProperty,
-  LeakProperty,
-  LicensePlateProperty,
-  LightProperty,
-  LockProperty,
-  MotionProperty,
-  ObjectProperty,
-  OccupancyProperty,
-  SecuritySystemProperty,
-  SirenProperty,
-  SmokeProperty,
-  SwitchProperty,
-  TemperatureProperty,
-} from '@camera.ui/sdk';
+import { AudioProperty, FaceProperty, LicensePlateProperty, MotionProperty, ObjectProperty, SensorDomain, SensorType } from '@camera.ui/sdk';
 
 import CuiDetection from '@/components/CuiDetection/CuiDetection.vue';
-import { securityModes } from '@/components/CuiSensors/display.js';
+import { sensorControlKind } from '@/components/CuiSensorControl/types.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
+import type { SensorControlKind } from '@/components/CuiSensorControl/types.js';
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
 import type { SlotSensor } from '@/utils/sensorSlots.js';
+import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Camera } from '@camera.ui/sdk';
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabProps, OverviewRow } from '../../types.js';
+
+const SECTION_ORDER: SensorControlKind[] = [
+  SensorDomain.Light,
+  SensorDomain.Switch,
+  SensorDomain.Lock,
+  SensorDomain.Siren,
+  SensorDomain.Alarm,
+  SensorDomain.Cover,
+  'doorbell',
+  SensorDomain.Binary,
+  SensorDomain.Measurement,
+  'battery',
+  'properties',
+];
+
+const TYPE_ORDER: string[] = Object.values(SensorType);
 
 const props = defineProps<CameraOptionsTabProps>();
 
@@ -431,20 +199,17 @@ const objectSensors = computed(() => providedForCamera(allSensors.value.filter(i
 const audioSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveAudioSensor)));
 const faceSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveFaceSensor)));
 const licensePlateSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLicensePlateSensor)));
-const batterySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveBatteryInfo)));
-const lightSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLightControl)));
-const sirenSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSirenControl)));
-const switchSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSwitchControl)));
-const lockSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLockControl)));
-const doorbellSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveDoorbellTrigger)));
-const contactSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveContactSensor)));
-const temperatureSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveTemperatureInfo)));
-const humiditySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveHumidityInfo)));
-const occupancySensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveOccupancySensor)));
-const smokeSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSmokeSensor)));
-const leakSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLeakSensor)));
-const garageSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveGarageControl)));
-const securitySystemSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveSecuritySystem)));
+const sensorSections = computed(() => {
+  const sections = new Map<string, ReactiveSensor[]>();
+  for (const sensor of providedForCamera(allSensors.value)) {
+    const kind = sensorControlKind(sensor.type);
+    if (!kind || kind === 'detection') continue;
+    sections.set(sensor.type, [...(sections.get(sensor.type) ?? []), sensor]);
+  }
+  return [...sections]
+    .map(([type, sensors]) => ({ type, sensors }))
+    .sort((a, b) => sectionRank(a.type) - sectionRank(b.type) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+});
 
 const isMotionActive = computed(() => motionSensors.value.some((s) => s.getProperty(MotionProperty.Detected)));
 
@@ -501,26 +266,13 @@ const hasDetectionSensors = computed(
     licensePlateSensors.value.length > 0,
 );
 
-const hasSensors = computed(
-  () =>
-    batterySensors.value.length > 0 ||
-    temperatureSensors.value.length > 0 ||
-    humiditySensors.value.length > 0 ||
-    occupancySensors.value.length > 0 ||
-    smokeSensors.value.length > 0 ||
-    leakSensors.value.length > 0 ||
-    lightSensors.value.length > 0 ||
-    lockSensors.value.length > 0 ||
-    garageSensors.value.length > 0 ||
-    sirenSensors.value.length > 0 ||
-    switchSensors.value.length > 0 ||
-    doorbellSensors.value.length > 0 ||
-    contactSensors.value.length > 0 ||
-    securitySystemSensors.value.length > 0,
-);
-
 function providedForCamera<T extends SlotSensor>(sensors: T[]): T[] {
   return sensors.filter((sensor) => sensorProvidedForCamera(sensor, cameraObject.value));
+}
+
+function sectionRank(type: string): number {
+  const rank = SECTION_ORDER.indexOf(sensorControlKind(type) as SensorControlKind);
+  return rank === -1 ? SECTION_ORDER.length : rank;
 }
 </script>
 

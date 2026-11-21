@@ -1,9 +1,10 @@
 import { resolve } from 'node:path';
 import AutoImport from 'unplugin-auto-import/vite';
+import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [AutoImport({ imports: ['vue'], dts: false })],
+  plugins: [AutoImport({ imports: ['vue'], dts: false }), Icons({ compiler: 'vue3' })],
   define: {
     __CAPACITOR__: 'false',
     __UI_VERSION__: '"test"',

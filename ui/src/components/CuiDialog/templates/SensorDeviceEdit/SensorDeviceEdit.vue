@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { sensorTypeIcon } from '@/common/sensorIcons.js';
+import { sensorTypeIcon } from '@/common/sensorDisplay.js';
 
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
 import type { SensorDeviceEditProps, SensorDeviceEditResult } from './types.js';

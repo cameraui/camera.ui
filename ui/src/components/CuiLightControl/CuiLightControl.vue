@@ -14,10 +14,10 @@
     <div v-if="hasBrightness" class="cui-light-control__brightness">
       <div class="cui-light-control__brightness-header">
         <i-mdi:brightness-6 class="cui-light-control__brightness-icon" />
-        <span class="cui-light-control__brightness-value">{{ brightnessValue }}%</span>
+        <span class="cui-light-control__brightness-value">{{ brightnessValue }}{{ unit }}</span>
       </div>
 
-      <Slider v-model="brightnessValue" :min="0" :max="100" :step="1" :disabled="disabled" class="cui-light-control__slider" @slideend="flushBrightness" />
+      <Slider v-model="brightnessValue" :min :max :step :disabled="disabled" class="cui-light-control__slider" @slideend="flushBrightness" />
     </div>
   </div>
 </template>
@@ -30,10 +30,10 @@ import type { CuiLightControlEmits, CuiLightControlProps } from './types.js';
 const props = withDefaults(defineProps<CuiLightControlProps>(), CUI_LIGHT_CONTROL_DEFAULTS);
 const emit = defineEmits<CuiLightControlEmits>();
 
-const { on, brightness, hasBrightness } = toRefs(props);
+const { on, brightness, hasBrightness, min, max } = toRefs(props);
 
 const localBrightness = ref<number | undefined>(undefined);
-const lastBrightness = ref(brightness.value > 0 ? brightness.value : 100);
+const lastBrightness = ref(brightness.value > 0 ? brightness.value : max.value);
 
 const emitBrightness = useThrottleFn((value: number) => emit('update:brightness', value), 250, true);
 
@@ -66,8 +66,7 @@ const brightnessValue = computed({
 });
 
 const iconGlowStyle = computed<Record<string, string | number>>(() => {
-  const value = hasBrightness.value ? brightness.value : 100;
-  const glowIntensity = value / 100;
+  const glowIntensity = hasBrightness.value ? (brightness.value - min.value) / (max.value - min.value || 1) : 1;
   const glowSize = 4 + glowIntensity * 12;
   const glowOpacity = 0.3 + glowIntensity * 0.7;
 

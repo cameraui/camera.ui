@@ -240,7 +240,7 @@
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold truncate text-color">{{ hoveredSensor.name }}</div>
             <div v-if="hoveredSensor.owner" class="text-[11px] text-muted truncate">{{ hoveredSensor.owner }}</div>
-            <div class="text-xs text-muted truncate">{{ sensorStateText(hoveredSensor.sensorType, liveSensorOf(hoveredSensor.id)) }}</div>
+            <div class="text-xs text-muted truncate">{{ sensorStatus(hoveredSensor.sensorType, liveSensorOf(hoveredSensor.id), t) }}</div>
           </div>
         </div>
 
@@ -349,7 +349,8 @@ import { SecuritySystemState } from '@camera.ui/sdk';
 import { extractErrorMessage, randomId } from '@/common/utils.js';
 import FloorplanLevelDialog from '@/components/CuiDialog/templates/FloorplanLevel/FloorplanLevel.vue';
 import { passageOn, planRemovals, sharedWall, withoutRemovals } from '@/components/CuiFloorplan/utils.js';
-import { securityModes, securityState, sensorIcon, sensorStateText, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
+import { sensorIcon, sensorStatus } from '@/common/sensorDisplay.js';
+import { securityModes, securityState, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
 import { SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from '@/components/CuiShortcuts/types.js';
 
 import type { FloorplanLevelProps } from '@/components/CuiDialog/templates/FloorplanLevel/types.js';

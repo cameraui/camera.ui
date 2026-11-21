@@ -371,7 +371,7 @@ import { Background } from '@vue-flow/background';
 import { useVueFlow, VueFlow } from '@vue-flow/core';
 
 import { detectionStyle } from '@/common/detectionLabels.js';
-import { sensorIcon, sensorReading, sensorState, sensorTone } from '@/components/CuiSensors/display.js';
+import { sensorIcon, sensorReading, sensorTone } from '@/common/sensorDisplay.js';
 
 import {
   FLOORPLAN_CAMERA_RANGE,
@@ -793,7 +793,7 @@ function liveSensor(id: string): ReactiveSensor | undefined {
 }
 
 function sensorStyle(sensor: FloorplanSensor): Record<string, string> {
-  return sensorTone(sensor.sensorType, sensorState(liveSensor(sensor.id)));
+  return sensorTone(sensor.sensorType, liveSensor(sensor.id));
 }
 
 function sensorLabel(sensor: FloorplanSensor): string {

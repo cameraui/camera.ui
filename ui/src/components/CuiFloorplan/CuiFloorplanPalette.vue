@@ -85,7 +85,7 @@
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2.5">
             <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
-              <component :is="sensorIcon(sensor.sensorType, undefined)" class="w-4 h-4" />
+              <component :is="sensorTypeIcon(sensor.sensorType)" class="w-4 h-4" />
             </div>
             <div class="flex flex-col min-w-0">
               <span class="text-[13px] font-medium truncate text-color leading-tight">{{ sensor.name }}</span>
@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { sensorIcon } from '@/components/CuiSensors/display.js';
+import { sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { FLOORPLAN_DRAG_TYPE } from './types.js';
 
 import type { CuiFloorplanPaletteEmits, CuiFloorplanPaletteProps, FloorplanPaletteSensor } from './types.js';

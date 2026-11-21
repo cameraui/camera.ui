@@ -1,6 +1,7 @@
 <template>
   <div
     class="cui-binary-sensor"
+    :style="toneColor ? { '--cui-binary-sensor-tone': toneColor } : undefined"
     :class="[
       `cui-binary-sensor--${size}`,
       {
@@ -12,23 +13,21 @@
   >
     <div class="cui-binary-sensor__header">
       <div class="cui-binary-sensor__icon">
-        <component :is="typeIcon" class="cui-binary-sensor__icon-svg" :style="detected ? detectedIconStyle : clearIconStyle" />
+        <component :is="typeIcon" class="cui-binary-sensor__icon-svg" />
       </div>
 
       <div class="cui-binary-sensor__info">
         <span v-if="label" class="cui-binary-sensor__label">{{ label }}</span>
-        <span class="cui-binary-sensor__status" :class="statusClass">
-          {{ detected ? t('components.binary_sensor.detected') : t('components.binary_sensor.clear') }}
-        </span>
+        <span class="cui-binary-sensor__status">{{ t(sensorStateKey(type, detected)) }}</span>
       </div>
 
-      <div class="cui-binary-sensor__indicator" :class="indicatorClass" />
+      <div class="cui-binary-sensor__indicator" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { sensorTypeIcon } from '@/common/sensorIcons.js';
+import { sensorStateKey, sensorToneColor, sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { CUI_BINARY_SENSOR_DEFAULTS } from './types.js';
 
 import type { CuiBinarySensorProps } from './types.js';
@@ -39,20 +38,9 @@ const { t } = useI18n();
 
 const { type, detected } = toRefs(props);
 
-const typeIcon = computed(() => sensorTypeIcon(type.value));
+const typeIcon = computed(() => sensorTypeIcon(type.value, detected.value));
 
-const detectedIconStyle = computed<Record<string, string>>(() => ({
-  color: 'rgb(239, 68, 68)',
-  filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))',
-}));
-
-const clearIconStyle = computed<Record<string, string>>(() => ({
-  color: 'var(--text-secondary-color)',
-}));
-
-const statusClass = computed(() => (detected.value ? 'cui-binary-sensor__status--detected' : 'cui-binary-sensor__status--clear'));
-
-const indicatorClass = computed(() => (detected.value ? 'cui-binary-sensor__indicator--detected' : 'cui-binary-sensor__indicator--clear'));
+const toneColor = computed(() => sensorToneColor(type.value, detected.value));
 </script>
 
 <style scoped>
@@ -85,6 +73,7 @@ const indicatorClass = computed(() => (detected.value ? 'cui-binary-sensor__indi
 .cui-binary-sensor__icon-svg {
   width: 1.5rem;
   height: 1.5rem;
+  color: var(--cui-binary-sensor-tone, var(--text-secondary-color));
   transition:
     color 0.2s ease,
     filter 0.2s ease;
@@ -106,31 +95,24 @@ const indicatorClass = computed(() => (detected.value ? 'cui-binary-sensor__indi
 .cui-binary-sensor__status {
   font-size: 0.75rem;
   font-weight: 500;
-}
-
-.cui-binary-sensor__status--detected {
-  color: rgb(239, 68, 68);
-}
-
-.cui-binary-sensor__status--clear {
-  color: var(--text-secondary-color);
+  color: var(--cui-binary-sensor-tone, var(--text-secondary-color));
 }
 
 .cui-binary-sensor__indicator {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
+  background-color: var(--cui-binary-sensor-tone, var(--text-secondary-color));
   transition: background-color 0.2s ease;
 }
 
-.cui-binary-sensor__indicator--detected {
-  background-color: rgb(239, 68, 68);
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
-  animation: pulse-indicator 1.5s ease-in-out infinite;
+.cui-binary-sensor--detected .cui-binary-sensor__icon-svg {
+  filter: drop-shadow(0 0 6px var(--cui-binary-sensor-tone, transparent));
 }
 
-.cui-binary-sensor__indicator--clear {
-  background-color: var(--text-secondary-color);
+.cui-binary-sensor--detected .cui-binary-sensor__indicator {
+  box-shadow: 0 0 6px var(--cui-binary-sensor-tone, transparent);
+  animation: pulse-indicator 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-indicator {

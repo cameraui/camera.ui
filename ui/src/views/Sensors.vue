@@ -79,10 +79,10 @@
               <template #body="{ data }">
                 <div class="flex items-center gap-2 min-w-0">
                   <component
-                    :is="sensorTypeIcon(data.sensor.type)"
+                    :is="sensorTypeIcon(data.sensor.type, isActive(data.sensor))"
                     class="w-5 h-5 shrink-0 transition-colors"
-                    :class="{ 'text-muted': !isSensorActive(data.sensor) }"
-                    :style="isSensorActive(data.sensor) ? ACTIVE_ICON_STYLE : undefined"
+                    :class="{ 'text-muted': !isActive(data.sensor) }"
+                    :style="activeStyle(data.sensor)"
                   />
                   <div class="flex items-center gap-2 min-w-0">
                     <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
@@ -206,10 +206,10 @@
                 >
                   <Badge v-tooltip="{ value: stateLabel(sensorState(member), member) }" :style="{ background: STATE_COLORS[sensorState(member)] }" />
                   <component
-                    :is="sensorTypeIcon(member.type)"
+                    :is="sensorTypeIcon(member.type, isActive(member))"
                     class="w-4.5 h-4.5 shrink-0 transition-colors"
-                    :class="{ 'text-muted': !isSensorActive(member) }"
-                    :style="isSensorActive(member) ? ACTIVE_ICON_STYLE : undefined"
+                    :class="{ 'text-muted': !isActive(member) }"
+                    :style="activeStyle(member)"
                   />
                   <span v-tooltip="member.displayName" class="font-bold text-color truncate">{{ member.shortName }}</span>
                   <i-mdi:star v-if="member.primary" v-tooltip="t('views.sensors.main_sensor')" class="w-3.5 h-3.5 shrink-0 text-muted" />
@@ -485,8 +485,7 @@ import PlusIcon from '~icons/typcn/plus';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { SensorsQuery } from '@/api/routes/sensors.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
-import { sensorTypeIcon } from '@/common/sensorIcons.js';
-import { sensorIcon, sensorReading } from '@/components/CuiSensors/display.js';
+import { sensorActive, sensorIcon, sensorReading, sensorReadTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { keepUnchangedItems } from '@/common/utils.js';
 import { useCardSelection } from '@/composables/useCardSelection.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
@@ -545,32 +544,6 @@ const STATE_COLORS: Record<SensorState, string> = {
 };
 
 const STATE_SEVERITY: SensorState[] = ['removed', 'unavailable', 'disconnected'];
-
-const ACTIVE_ICON_STYLE: Record<string, string> = {
-  color: 'rgb(251, 146, 60)',
-  filter: 'drop-shadow(0 0 6px rgba(251, 146, 60, 0.6))',
-};
-
-const DETECTED_ACTIVE_TYPES: ReadonlySet<string> = new Set([
-  SensorType.Motion,
-  SensorType.Object,
-  SensorType.Audio,
-  SensorType.Face,
-  SensorType.LicensePlate,
-  SensorType.Classifier,
-  SensorType.Contact,
-  SensorType.Occupancy,
-  SensorType.Smoke,
-  SensorType.Leak,
-  SensorType.Gas,
-  SensorType.CarbonMonoxide,
-  SensorType.Heat,
-  SensorType.Cold,
-  SensorType.Vibration,
-  SensorType.Tamper,
-  SensorType.Problem,
-  SensorType.Power,
-]);
 
 const sensorsQuery = new SensorsQuery();
 const camerasQuery = new CamerasQuery();
@@ -950,28 +923,17 @@ async function handleRescan() {
   }
 }
 
-function isSensorActive(sensor: TransformedSensor): boolean {
-  const live = liveSensorById.value.get(sensor.id);
-  const get = (property: string): unknown => (live ? live.getProperty(property) : (sensor.properties as Record<string, unknown> | undefined)?.[property]);
+function isActive(sensor: TransformedSensor): boolean {
+  return sensorActive(sensor.type, readerOf(sensor));
+}
 
-  switch (sensor.type) {
-    case SensorType.Light:
-    case SensorType.Switch:
-      return !!get('on');
-    case SensorType.Siren:
-      return !!get('active');
-    case SensorType.Doorbell:
-      return !!get('ring');
-    case SensorType.Garage:
-    case SensorType.Lock:
-      return get('currentState') === 0;
-    case SensorType.SecuritySystem:
-      return get('currentState') === 4;
-    case SensorType.Battery:
-      return !!get('low');
-    default:
-      return DETECTED_ACTIVE_TYPES.has(String(sensor.type)) && !!get('detected');
-  }
+function activeStyle(sensor: TransformedSensor): Record<string, string> | undefined {
+  return isActive(sensor) ? sensorReadTone(sensor.type, readerOf(sensor)) : undefined;
+}
+
+function readerOf(sensor: TransformedSensor): (property: string) => unknown {
+  const live = liveSensorById.value.get(sensor.id);
+  return (property) => (live ? live.getProperty(property) : (sensor.properties as Record<string, unknown> | undefined)?.[property]);
 }
 
 function batteryLow(battery: ReactiveSensor): boolean {

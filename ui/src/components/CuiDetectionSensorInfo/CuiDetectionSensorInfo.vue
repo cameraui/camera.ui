@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { sensorTypeIcon } from '@/common/sensorIcons.js';
+import { sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { CUI_DETECTION_SENSOR_INFO_DEFAULTS } from './types.js';
 
 import type { CuiDetectionSensorInfoProps } from './types.js';

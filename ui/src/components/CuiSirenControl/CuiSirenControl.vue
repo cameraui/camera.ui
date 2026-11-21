@@ -14,10 +14,10 @@
     <div v-if="hasVolume" class="cui-siren-control__volume">
       <div class="cui-siren-control__volume-header">
         <i-mdi:volume-high class="cui-siren-control__volume-icon" />
-        <span class="cui-siren-control__volume-value">{{ volumeValue }}%</span>
+        <span class="cui-siren-control__volume-value">{{ volumeValue }}{{ unit }}</span>
       </div>
 
-      <Slider v-model="volumeValue" :min="0" :max="100" :step="1" :disabled="disabled" class="cui-siren-control__slider" @slideend="flushVolume" />
+      <Slider v-model="volumeValue" :min :max :step :disabled="disabled" class="cui-siren-control__slider" @slideend="flushVolume" />
     </div>
   </div>
 </template>
@@ -30,7 +30,7 @@ import type { CuiSirenControlEmits, CuiSirenControlProps } from './types.js';
 const props = withDefaults(defineProps<CuiSirenControlProps>(), CUI_SIREN_CONTROL_DEFAULTS);
 const emit = defineEmits<CuiSirenControlEmits>();
 
-const { active, volume, hasVolume } = toRefs(props);
+const { active, volume, hasVolume, min, max } = toRefs(props);
 
 const localVolume = ref<number | undefined>(undefined);
 
@@ -50,8 +50,7 @@ const volumeValue = computed({
 });
 
 const iconGlowStyle = computed<Record<string, string | number>>(() => {
-  const volumeVal = hasVolume.value ? volume.value : 100;
-  const glowIntensity = volumeVal / 100;
+  const glowIntensity = hasVolume.value ? (volume.value - min.value) / (max.value - min.value || 1) : 1;
   const glowSize = 4 + glowIntensity * 12;
   const glowOpacity = 0.3 + glowIntensity * 0.7;
 

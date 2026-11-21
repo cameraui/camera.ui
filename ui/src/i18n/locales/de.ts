@@ -757,25 +757,32 @@ export default {
     charts: {
       no_data: 'Keine Daten verfügbar',
     },
-    contact_sensor: {
+    sensor_state: {
       open: 'Offen',
       closed: 'Geschlossen',
-    },
-    occupancy_sensor: {
+      opening: 'Öffnet',
+      closing: 'Schließt',
+      stopped: 'Gestoppt',
+      locked: 'Verriegelt',
+      unlocked: 'Entriegelt',
+      on: 'An',
+      off: 'Aus',
       occupied: 'Belegt',
       empty: 'Leer',
-    },
-    smoke_sensor: {
-      detected: 'Rauch erkannt',
-      clear: 'Kein Rauch',
-    },
-    binary_sensor: {
-      detected: 'Ausgelöst',
+      detected: 'Erkannt',
       clear: 'Inaktiv',
-    },
-    leak_sensor: {
-      detected: 'Leck erkannt',
-      clear: 'Kein Leck',
+      smoke: 'Rauch erkannt',
+      no_smoke: 'Kein Rauch',
+      leak: 'Leck erkannt',
+      no_leak: 'Kein Leck',
+      ringing: 'Klingelt',
+      ready: 'Bereit',
+      armed_home: 'Zuhause',
+      armed_away: 'Abwesend',
+      armed_night: 'Nacht',
+      disarmed: 'Deaktiviert',
+      triggered: 'Alarm ausgelöst',
+      idle: 'Ruhig',
     },
     garage_control: {
       open: 'Offen',

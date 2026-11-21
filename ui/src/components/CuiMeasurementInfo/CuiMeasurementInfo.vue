@@ -7,16 +7,14 @@
 
       <div class="cui-measurement-info__info">
         <span v-if="label" class="cui-measurement-info__label">{{ label }}</span>
-        <span class="cui-measurement-info__value">
-          {{ current != null ? `${current} ${unit}` : '--' }}
-        </span>
+        <span class="cui-measurement-info__value">{{ value ?? '--' }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { sensorTypeIcon } from '@/common/sensorIcons.js';
+import { sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { CUI_MEASUREMENT_INFO_DEFAULTS } from './types.js';
 
 import type { CuiMeasurementInfoProps } from './types.js';

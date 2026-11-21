@@ -82,7 +82,7 @@
       @wheel.stop
       class="draggable absolute pointer-events-auto sensor-shortcut"
       :class="{
-        'sensor-active': sensorState(resolved.sensor),
+        'sensor-active': isSensorActive(resolved.sensor),
         'sensor-offline': !resolved.isOnline,
         'sensor-readonly': SENSOR_READONLY_TYPES.has(resolved.shortcut.sensorType) || !canControlSensors,
       }"
@@ -94,7 +94,7 @@
             :is="sensorIcon(resolved.shortcut.sensorType, resolved.sensor)"
             width="100%"
             height="100%"
-            :style="sensorTone(resolved.shortcut.sensorType, sensorState(resolved.sensor))"
+            :style="sensorTone(resolved.shortcut.sensorType, resolved.sensor)"
           />
         </template>
       </Button>
@@ -158,53 +158,10 @@
       >
         <div class="sensor-tooltip">
           <div class="sensor-tooltip-name">{{ resolved.sensor?.displayName.value ?? $t(`components.camera_options.sensor_type_${resolved.shortcut.sensorType}`) }}</div>
-          <div
-            class="sensor-tooltip-status"
-            :class="{
-              'text-color': isInfoSensorType(resolved.shortcut.sensorType),
-              'text-purple-500':
-                resolved.shortcut.sensorType === 'securitySystem' &&
-                sensorState(resolved.sensor) &&
-                securityState(resolved.sensor) !== SecuritySystemState.AlarmTriggered,
-              'text-red-500': resolved.shortcut.sensorType === 'securitySystem' && securityState(resolved.sensor) === SecuritySystemState.AlarmTriggered,
-              'text-green-500': !isInfoSensorType(resolved.shortcut.sensorType) && resolved.shortcut.sensorType !== 'securitySystem' && sensorState(resolved.sensor),
-              'text-gray-400': !isInfoSensorType(resolved.shortcut.sensorType) && resolved.shortcut.sensorType !== 'securitySystem' && !sensorState(resolved.sensor),
-            }"
-          >
-            <template v-if="resolved.shortcut.sensorType === 'contact'">
-              {{ sensorState(resolved.sensor) ? 'Open' : 'Closed' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'lock'">
-              {{ sensorState(resolved.sensor) ? 'Locked' : 'Unlocked' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'temperature'"> {{ resolved.sensor?.getProperty('current') ?? '--' }}°C </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'humidity'"> {{ resolved.sensor?.getProperty('current') ?? '--' }}% </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'occupancy'">
-              {{ sensorState(resolved.sensor) ? 'Occupied' : 'Empty' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'smoke'">
-              {{ sensorState(resolved.sensor) ? 'Smoke Detected' : 'Clear' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'leak'">
-              {{ sensorState(resolved.sensor) ? 'Leak Detected' : 'Clear' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'garage'">
-              {{ sensorState(resolved.sensor) ? 'Open' : 'Closed' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'doorbell'">
-              {{ sensorState(resolved.sensor) ? 'Ringing' : 'Ready' }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'securitySystem'">
-              {{ getSecuritySystemStateLabel(resolved.sensor) }}
-            </template>
-            <template v-else-if="resolved.shortcut.sensorType === 'battery'">
-              {{ getBatteryStatusLabel(resolved.sensor) }}
-            </template>
-            <template v-else>
-              {{ sensorState(resolved.sensor) ? 'On' : 'Off' }}
-            </template>
+          <div class="sensor-tooltip-status" :style="{ color: sensorTone(resolved.shortcut.sensorType, resolved.sensor).color }">
+            {{ sensorStatus(resolved.shortcut.sensorType, resolved.sensor, $t) }}
           </div>
-          <div v-if="!resolved.isOnline" class="sensor-tooltip-offline text-orange-500">Offline</div>
+          <div v-if="!resolved.isOnline" class="sensor-tooltip-offline text-orange-500">{{ $t('connection.offline') }}</div>
         </div>
       </Popover>
     </div>
@@ -269,27 +226,14 @@
                   <CuiListItem :disabled="isSensorAlreadyAdded(sensor)" @click="!isSensorAlreadyAdded(sensor) && addSensor(sensor)" :button-props="{ class: 'p-0!' }">
                     <template #prepend>
                       <div class="sensor-menu-icon">
-                        <i-lucide:door-closed v-if="sensor.type === SensorType.Contact" class="w-5 h-5" />
-                        <i-lucide:thermometer v-else-if="sensor.type === SensorType.Temperature" class="w-5 h-5" />
-                        <i-lucide:droplets v-else-if="sensor.type === SensorType.Humidity" class="w-5 h-5" />
-                        <i-mdi:motion-sensor v-else-if="sensor.type === SensorType.Occupancy" class="w-5 h-5" />
-                        <i-mdi:smoke-detector-variant v-else-if="sensor.type === SensorType.Smoke" class="w-5 h-5" />
-                        <i-mdi:water-alert v-else-if="sensor.type === SensorType.Leak" class="w-5 h-5" />
-                        <i-lucide:lightbulb v-else-if="sensor.type === SensorType.Light" class="w-5 h-5" />
-                        <i-lucide:power v-else-if="sensor.type === SensorType.Switch" class="w-5 h-5" />
-                        <i-mdi:alarm-light v-else-if="sensor.type === SensorType.Siren" class="w-5 h-5" />
-                        <i-mdi:lock v-else-if="sensor.type === SensorType.Lock" class="w-5 h-5" />
-                        <i-mdi:garage-variant v-else-if="sensor.type === SensorType.Garage" class="w-5 h-5" />
-                        <i-mdi:doorbell v-else-if="sensor.type === SensorType.Doorbell" class="w-5 h-5" />
-                        <i-mdi:shield-check v-else-if="sensor.type === SensorType.SecuritySystem" class="w-5 h-5" />
-                        <i-mdi:battery v-else-if="sensor.type === SensorType.Battery" class="w-5 h-5" />
+                        <component :is="sensorTypeIcon(sensor.type)" class="w-5 h-5" />
                       </div>
                     </template>
 
                     {{ sensor.displayName.value }}
 
                     <template #subtitle>
-                      {{ getSensorTypeName(sensor.type) }}
+                      {{ $t(`components.camera_options.sensor_type_${sensor.type}`) }}
                     </template>
 
                     <template v-if="isSensorAlreadyAdded(sensor)" #append>
@@ -327,7 +271,7 @@ import {
   useSensors,
 } from '@camera.ui/browser';
 import { createNvrPlayback, NvrPlaybackKey, playheadUs, useNvrCtx } from '@camera.ui/nvr';
-import { BatteryProperty, ChargingState, SecuritySystemProperty, SecuritySystemState, SensorType } from '@camera.ui/sdk';
+import { SecuritySystemProperty, SecuritySystemState, SensorType } from '@camera.ui/sdk';
 import { vElementHover, vOnLongPress } from '@vueuse/components';
 import Draggabilly from 'draggabilly';
 
@@ -335,16 +279,9 @@ import { CamerasQuery, getCameraFn } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
 
-import {
-  securityModes,
-  securityState,
-  sensorIcon,
-  sensorState,
-  sensorTone,
-  setSecurityState,
-  toggleSensor as toggleSharedSensor,
-} from '@/components/CuiSensors/display.js';
-import { INFO_SENSOR_TYPES, SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from './types.js';
+import { isSensorActive, sensorIcon, sensorStatus, sensorTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
+import { securityModes, setSecurityState, toggleSensor as toggleSharedSensor } from '@/components/CuiSensors/display.js';
+import { SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from './types.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { NvrPlayback } from '@camera.ui/nvr';
@@ -481,41 +418,6 @@ function isCameraAlreadyAdded(cam: DBCamera): boolean {
   return cameraShortcuts.value.some((shortcut) => shortcut.cameraId === cam._id);
 }
 
-function getSensorTypeName(type: SensorType): string {
-  switch (type) {
-    case SensorType.Contact:
-      return 'Contact Sensor';
-    case SensorType.Light:
-      return 'Light';
-    case SensorType.Switch:
-      return 'Switch';
-    case SensorType.Siren:
-      return 'Siren';
-    case SensorType.Lock:
-      return 'Lock';
-    case SensorType.Temperature:
-      return 'Temperature';
-    case SensorType.Humidity:
-      return 'Humidity';
-    case SensorType.Occupancy:
-      return 'Occupancy';
-    case SensorType.Smoke:
-      return 'Smoke Sensor';
-    case SensorType.Leak:
-      return 'Leak Sensor';
-    case SensorType.Garage:
-      return 'Garage';
-    case SensorType.Doorbell:
-      return 'Doorbell';
-    case SensorType.SecuritySystem:
-      return 'Security System';
-    case SensorType.Battery:
-      return 'Battery';
-    default:
-      return 'Sensor';
-  }
-}
-
 function mapSensorTypeToShortcutType(type: SensorType): SensorShortcutType {
   const shortcut = String(type) as SensorShortcutType;
   return SENSOR_SHORTCUTABLE_TYPES.has(shortcut) ? shortcut : 'contact';
@@ -551,37 +453,6 @@ function isSecuritySystemStateActive(sensor: ReactiveSensor | undefined, state: 
 
 function securitySystemMenuRef(el: any, id: string): void {
   if (el) securitySystemMenuRefs.value[id] = el;
-}
-
-function isInfoSensorType(type: SensorShortcutType): boolean {
-  return INFO_SENSOR_TYPES.has(type);
-}
-
-function getSecuritySystemStateLabel(sensor: ReactiveSensor | undefined): string {
-  if (!sensor || !isReactiveSecuritySystem(sensor)) return '--';
-  const state = sensor.getProperty(SecuritySystemProperty.TargetState);
-  switch (state) {
-    case SecuritySystemState.Disarmed:
-      return 'Disarmed';
-    case SecuritySystemState.StayArm:
-      return 'Stay Arm';
-    case SecuritySystemState.AwayArm:
-      return 'Away Arm';
-    case SecuritySystemState.NightArm:
-      return 'Night Arm';
-    case SecuritySystemState.AlarmTriggered:
-      return 'ALARM';
-    default:
-      return '--';
-  }
-}
-
-function getBatteryStatusLabel(sensor: ReactiveSensor | undefined): string {
-  if (!sensor || !isReactiveBatteryInfo(sensor)) return '--';
-  const level = sensor.getProperty(BatteryProperty.Level) ?? 0;
-  const charging = sensor.getProperty(BatteryProperty.Charging);
-  const chargingLabel = charging === ChargingState.Charging ? ' ⚡' : '';
-  return `${level}%${chargingLabel}`;
 }
 
 async function onSensorClick(resolved: ResolvedSensorShortcut): Promise<void> {

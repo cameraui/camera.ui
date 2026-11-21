@@ -1,10 +1,11 @@
 <template>
   <CuiLightControl
-    v-if="isReactiveLightControl(sensor)"
+    v-if="kind === SensorDomain.Light"
     :label="sensor.displayName.value"
     :on="sensor.getProperty(LightProperty.On) ?? false"
     :brightness="sensor.getProperty(LightProperty.Brightness) ?? 100"
     :has-brightness="sensor.hasCapability('brightness')"
+    v-bind="sensorControlRange(sensor, LightProperty.Brightness)"
     :disabled
     size="small"
     class="card-border"
@@ -13,7 +14,7 @@
   />
 
   <CuiSwitchControl
-    v-else-if="isReactiveSwitchControl(sensor)"
+    v-else-if="kind === SensorDomain.Switch"
     :label="sensor.displayName.value"
     :on="sensor.getProperty(SwitchProperty.On) ?? false"
     :disabled
@@ -23,7 +24,7 @@
   />
 
   <CuiLockControl
-    v-else-if="isReactiveLockControl(sensor)"
+    v-else-if="kind === SensorDomain.Lock"
     :label="sensor.displayName.value"
     :current-state="sensor.getProperty(LockProperty.CurrentState) ?? 2"
     :target-state="sensor.getProperty(LockProperty.TargetState) ?? 0"
@@ -34,11 +35,12 @@
   />
 
   <CuiSirenControl
-    v-else-if="isReactiveSirenControl(sensor)"
+    v-else-if="kind === SensorDomain.Siren"
     :label="sensor.displayName.value"
     :active="sensor.getProperty(SirenProperty.Active) ?? false"
     :volume="sensor.getProperty(SirenProperty.Volume) ?? 100"
     :has-volume="sensor.hasCapability('volume')"
+    v-bind="sensorControlRange(sensor, SirenProperty.Volume)"
     :disabled
     size="small"
     class="card-border"
@@ -47,7 +49,7 @@
   />
 
   <CuiSecuritySystem
-    v-else-if="isReactiveSecuritySystem(sensor)"
+    v-else-if="kind === SensorDomain.Alarm"
     :label="sensor.displayName.value"
     :current-state="sensor.getProperty(SecuritySystemProperty.CurrentState) ?? 3"
     :target-state="sensor.getProperty(SecuritySystemProperty.TargetState) ?? 3"
@@ -59,7 +61,7 @@
   />
 
   <CuiGarageControl
-    v-else-if="isReactiveGarageControl(sensor)"
+    v-else-if="kind === SensorDomain.Cover"
     :label="sensor.displayName.value"
     :current-state="sensor.getProperty(GarageProperty.CurrentState) ?? 1"
     :target-state="sensor.getProperty(GarageProperty.TargetState) ?? 1"
@@ -71,7 +73,7 @@
   />
 
   <CuiDoorbellTrigger
-    v-else-if="isReactiveDoorbellTrigger(sensor)"
+    v-else-if="kind === 'doorbell'"
     :label="sensor.displayName.value"
     :ring="sensor.getProperty(DoorbellProperty.Ring) ?? false"
     :disabled
@@ -80,56 +82,8 @@
     @trigger="() => sensor.setProperty(DoorbellProperty.Ring, true)"
   />
 
-  <CuiContactSensor
-    v-else-if="isReactiveContactSensor(sensor)"
-    :label="sensor.displayName.value"
-    :detected="sensor.getProperty(ContactProperty.Detected) ?? false"
-    size="small"
-    class="card-border"
-  />
-
-  <CuiOccupancySensor
-    v-else-if="isReactiveOccupancySensor(sensor)"
-    :label="sensor.displayName.value"
-    :detected="sensor.getProperty(OccupancyProperty.Detected) ?? false"
-    size="small"
-    class="card-border"
-  />
-
-  <CuiSmokeSensor
-    v-else-if="isReactiveSmokeSensor(sensor)"
-    :label="sensor.displayName.value"
-    :detected="sensor.getProperty(SmokeProperty.Detected) ?? false"
-    size="small"
-    class="card-border"
-  />
-
-  <CuiLeakSensor
-    v-else-if="isReactiveLeakSensor(sensor)"
-    :label="sensor.displayName.value"
-    :detected="sensor.getProperty(LeakProperty.Detected) ?? false"
-    size="small"
-    class="card-border"
-  />
-
-  <CuiTemperatureInfo
-    v-else-if="isReactiveTemperatureInfo(sensor)"
-    :label="sensor.displayName.value"
-    :current="sensor.getProperty(TemperatureProperty.Current)"
-    size="small"
-    class="card-border"
-  />
-
-  <CuiHumidityInfo
-    v-else-if="isReactiveHumidityInfo(sensor)"
-    :label="sensor.displayName.value"
-    :current="sensor.getProperty(HumidityProperty.Current)"
-    size="small"
-    class="card-border"
-  />
-
   <CuiBatteryInfo
-    v-else-if="isReactiveBatteryInfo(sensor)"
+    v-else-if="kind === 'battery'"
     :label="sensor.displayName.value"
     :level="sensor.getProperty(BatteryProperty.Level) ?? 100"
     :charging="sensor.getProperty(BatteryProperty.Charging) ?? 'NOT_CHARGING'"
@@ -139,26 +93,25 @@
   />
 
   <CuiBinarySensor
-    v-else-if="isBinarySensor(sensor)"
+    v-else-if="kind === SensorDomain.Binary"
     :type="sensor.type"
     :label="sensor.displayName.value"
-    :detected="sensor.getProperty('detected') ?? false"
+    :detected="isSensorActive(sensor)"
     size="small"
     class="card-border"
   />
 
   <CuiMeasurementInfo
-    v-else-if="measurementUnit(sensor)"
+    v-else-if="kind === SensorDomain.Measurement"
     :type="sensor.type"
     :label="sensor.displayName.value"
-    :current="sensor.getProperty('current') ?? undefined"
-    :unit="measurementUnit(sensor)!"
+    :value="sensorReading(sensor)"
     size="small"
     class="card-border"
   />
 
   <CuiDetectionSensorInfo
-    v-else-if="isDetectionInfo(sensor)"
+    v-else-if="kind === 'detection'"
     :type="sensor.type"
     :label="sensor.displayName.value"
     :detected="sensor.getProperty('detected') ?? false"
@@ -167,66 +120,39 @@
     size="small"
     class="card-border"
   />
+
+  <CuiSensorPropertyRows v-else-if="kind === 'properties'" :sensor :disabled class="card-border" />
 </template>
 
 <script setup lang="ts">
 import {
-  isReactiveBatteryInfo,
-  isReactiveContactSensor,
-  isReactiveDoorbellTrigger,
-  isReactiveGarageControl,
-  isReactiveHumidityInfo,
-  isReactiveLeakSensor,
-  isReactiveLightControl,
-  isReactiveLockControl,
-  isReactiveOccupancySensor,
-  isReactiveSecuritySystem,
-  isReactiveSirenControl,
-  isReactiveSmokeSensor,
-  isReactiveSwitchControl,
-  isReactiveTemperatureInfo,
-} from '@camera.ui/browser';
-import {
   AudioProperty,
   BatteryProperty,
-  ContactProperty,
   DoorbellProperty,
   GarageProperty,
-  HumidityProperty,
-  LeakProperty,
   LightProperty,
   LockProperty,
-  OccupancyProperty,
   SecuritySystemProperty,
+  SensorDomain,
   SensorType,
   SirenProperty,
-  SmokeProperty,
   SwitchProperty,
-  TemperatureProperty,
 } from '@camera.ui/sdk';
 
+import { isSensorActive, sensorReading } from '@/common/sensorDisplay.js';
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
 import { securityModes } from '@/components/CuiSensors/display.js';
-import { BINARY_SENSOR_TYPES, DETECTION_INFO_TYPES, MEASUREMENT_UNITS } from './types.js';
+import CuiSensorPropertyRows from './CuiSensorPropertyRows.vue';
+import { sensorControlKind, sensorControlRange } from './types.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 
-defineProps<{
+const props = defineProps<{
   sensor: ReactiveSensor<any>;
   disabled?: boolean;
 }>();
 
-function isBinarySensor(sensor: ReactiveSensor<any>): boolean {
-  return BINARY_SENSOR_TYPES.has(sensor.type as SensorType);
-}
-
-function measurementUnit(sensor: ReactiveSensor<any>): string | undefined {
-  return MEASUREMENT_UNITS.get(sensor.type as SensorType);
-}
-
-function isDetectionInfo(sensor: ReactiveSensor<any>): boolean {
-  return DETECTION_INFO_TYPES.has(sensor.type as SensorType);
-}
+const kind = computed(() => sensorControlKind(props.sensor.type));
 
 function detectionLabels(sensor: ReactiveSensor<any>): string[] {
   const detections = (sensor.getProperty('detections') ?? []) as { label?: string; attribute?: string }[];

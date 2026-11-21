@@ -1,50 +1,44 @@
-import { SensorType } from '@camera.ui/sdk';
+import { SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
 
-export const DETECTION_INFO_TYPES: ReadonlySet<SensorType> = new Set([
-  SensorType.Motion,
-  SensorType.Object,
-  SensorType.Audio,
-  SensorType.Face,
-  SensorType.LicensePlate,
-  SensorType.Classifier,
+import { sensorPropertySpec } from '@/common/sensorDisplay.js';
+
+import type { ReactiveSensor } from '@camera.ui/browser';
+
+export type SensorControlKind = SensorDomain | 'battery' | 'doorbell' | 'detection' | 'properties';
+
+export interface SensorControlRange {
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+}
+
+const DOMAIN_CONTROLS: ReadonlySet<string> = new Set([
+  SensorDomain.Binary,
+  SensorDomain.Measurement,
+  SensorDomain.Switch,
+  SensorDomain.Light,
+  SensorDomain.Siren,
+  SensorDomain.Lock,
+  SensorDomain.Cover,
+  SensorDomain.Alarm,
 ]);
 
-export const BINARY_SENSOR_TYPES: ReadonlySet<SensorType> = new Set([
-  SensorType.Gas,
-  SensorType.CarbonMonoxide,
-  SensorType.Heat,
-  SensorType.Cold,
-  SensorType.Vibration,
-  SensorType.Tamper,
-  SensorType.Problem,
-  SensorType.Power,
-]);
+export function sensorControlKind(type: string): SensorControlKind | undefined {
+  if (type === SensorType.Battery) return 'battery';
+  if (type === SensorType.Doorbell) return 'doorbell';
 
-export const MEASUREMENT_UNITS: ReadonlyMap<SensorType, string> = new Map([
-  [SensorType.Illuminance, 'lx'],
-  [SensorType.CarbonDioxide, 'ppm'],
-]);
+  const meta = sensorMeta(type);
+  if (!meta) return undefined;
+  if (!meta.semantics) return meta.isDetectionType && 'detected' in meta.properties ? 'detection' : undefined;
+  return DOMAIN_CONTROLS.has(meta.semantics.domain) ? meta.semantics.domain : 'properties';
+}
 
-const WIDGET_TYPES: ReadonlySet<SensorType> = new Set([
-  ...DETECTION_INFO_TYPES,
-  ...BINARY_SENSOR_TYPES,
-  ...MEASUREMENT_UNITS.keys(),
-  SensorType.Light,
-  SensorType.Switch,
-  SensorType.Lock,
-  SensorType.Siren,
-  SensorType.SecuritySystem,
-  SensorType.Garage,
-  SensorType.Doorbell,
-  SensorType.Contact,
-  SensorType.Occupancy,
-  SensorType.Smoke,
-  SensorType.Leak,
-  SensorType.Temperature,
-  SensorType.Humidity,
-  SensorType.Battery,
-]);
+export function hasSensorControlWidget(type: string): boolean {
+  return sensorControlKind(type) !== undefined;
+}
 
-export function hasSensorControlWidget(type: SensorType | string): boolean {
-  return WIDGET_TYPES.has(type as SensorType);
+export function sensorControlRange(sensor: ReactiveSensor<object>, property: string): SensorControlRange {
+  const spec = sensorPropertySpec(sensor, property);
+  return { min: spec?.min ?? 0, max: spec?.max ?? 100, step: spec?.step ?? 1, unit: spec?.unit };
 }
