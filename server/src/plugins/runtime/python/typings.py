@@ -6,6 +6,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     ModelSpec,
     PluginInfo,
     SensorDevice,
+    SensorPropertySpec,
     SensorSourceState,
     SensorType,
 )
@@ -87,6 +88,7 @@ class StoredSensorData(TypedDict):
     connected: bool
     properties: dict[str, Any]
     capabilities: NotRequired[list[str]]
+    propertySpecs: NotRequired[dict[str, SensorPropertySpec]]
     requiresFrames: NotRequired[bool]
     modelSpec: NotRequired[ModelSpec]
 
@@ -97,6 +99,7 @@ class SensorRegistration(TypedDict):
     active: bool
     stateSubject: NotRequired[bool]
     deviceState: SensorDeviceState
+    propertySpecs: NotRequired[dict[str, SensorPropertySpec]]
 
 
 class SensorRefreshedState(TypedDict):
@@ -105,6 +108,13 @@ class SensorRefreshedState(TypedDict):
     capabilities: list[str]
     displayName: NotRequired[str]
     deviceState: NotRequired[SensorDeviceState]
+    propertySpecs: NotRequired[dict[str, SensorPropertySpec]]
+
+
+class SensorSpecsChangedEvent(TypedDict):
+    sensorId: str
+    sensorType: SensorType
+    propertySpecs: dict[str, SensorPropertySpec]
 
 
 class SensorAddedEvent(TypedDict):
@@ -176,6 +186,7 @@ class SensorEventMessage(TypedDict):
         "sensor:assignment:changed",
         "sensor:exposed:changed",
         "sensor:device:changed",
+        "sensor:specs:changed",
     ]
     data: (
         PropertyChangedEvent
@@ -189,6 +200,7 @@ class SensorEventMessage(TypedDict):
         | SensorAssignmentChangedEvent
         | SensorExposedChangedEvent
         | SensorDeviceChangedEvent
+        | SensorSpecsChangedEvent
     )
 
 

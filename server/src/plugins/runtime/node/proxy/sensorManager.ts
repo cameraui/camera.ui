@@ -22,6 +22,7 @@ import type {
   SensorEventMessage,
   SensorExposedChangedEvent,
   SensorRegistryInterface,
+  SensorSpecsChangedEvent,
   StoredSensorData,
 } from '../../../../rpc/interfaces/sensor.js';
 import type { StorageController } from '../storageController.js';
@@ -163,6 +164,7 @@ export class SensorManagerProxy implements SensorManager {
       const registration = await this.#registryProxy.registerSensor(this.#registrationJson(sensor), this.#plugin.id);
       sensor._setAssignedCameras(registration.assignedCameraIds);
       sensor._applyDeviceState(registration.deviceState);
+      sensor._applyPropertySpecs(registration.propertySpecs);
     }
     await this.#resync();
   }
@@ -244,6 +246,7 @@ export class SensorManagerProxy implements SensorManager {
     const registration = await this.#registryProxy.registerSensor(sensorJSON, this.#plugin.id);
     sensor._setAssignedCameras(registration.assignedCameraIds);
     sensor._applyDeviceState(registration.deviceState);
+    sensor._applyPropertySpecs(registration.propertySpecs);
 
     const sensorNamespace = NamespaceManager.sensorProviderNamespaces(this.#plugin.id, sensor.id).sensorRpc;
 
@@ -407,6 +410,7 @@ export class SensorManagerProxy implements SensorManager {
               capabilities: data.capabilities,
               displayName: data.displayName,
               deviceState: { device: data.device, displayName: data.displayName, shortName: data.shortName, primary: data.primary },
+              propertySpecs: data.propertySpecs,
             },
             marks.get(data.id),
           );
@@ -518,6 +522,13 @@ export class SensorManagerProxy implements SensorManager {
         this.#owned.get(event.sensorId)?._applyDeviceState(event.deviceState);
         this.#external.get(event.sensorId)?._applyDeviceState(event.deviceState);
         this.#consumed.get(event.sensorId)?._applyDeviceEvent(event.deviceState);
+        break;
+      }
+      case 'sensor:specs:changed': {
+        const event = message.data as SensorSpecsChangedEvent;
+        this.#owned.get(event.sensorId)?._applyPropertySpecs(event.propertySpecs);
+        this.#external.get(event.sensorId)?._applyPropertySpecs(event.propertySpecs);
+        this.#consumed.get(event.sensorId)?._applyPropertySpecsEvent(event.propertySpecs);
         break;
       }
       case 'sensor:assignment:changed': {

@@ -397,6 +397,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
             )
             sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
             sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
+            sensor._applyPropertySpecs(registration.get("propertySpecs", {}))  # pyright: ignore[reportPrivateUsage]
         if self._connect_wanted:
             await self._camera_controller_proxy.connect()
         await self._refresh_states()
@@ -458,6 +459,7 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
         sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
         sensor._setAssignmentLocked()  # pyright: ignore[reportPrivateUsage]
         sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
+        sensor._applyPropertySpecs(registration.get("propertySpecs", {}))  # pyright: ignore[reportPrivateUsage]
 
         await self._sensor_manager.track_camera_sensor(sensor)
 

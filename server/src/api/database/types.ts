@@ -1,4 +1,4 @@
-import type { BaseCamera, Point, SENSOR_META, SensorSourceState, SensorType, Severity } from '@camera.ui/sdk';
+import type { BaseCamera, Point, PropertySpecOverride, SENSOR_META, SensorSourceState, SensorType, Severity } from '@camera.ui/sdk';
 import type { CameraInputSettings } from '@camera.ui/sdk/internal';
 import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
@@ -764,6 +764,8 @@ export interface DBSensor {
   address?: string;
   sourceState?: SensorSourceState;
   state?: Record<string, unknown>;
+  capabilities?: string[];
+  propertySpecs?: Record<string, PropertySpecOverride>;
   createdAt: number;
   updatedAt: number;
 }

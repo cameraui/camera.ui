@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         SensorEventMessage,
         SensorExposedChangedEvent,
         SensorRefreshedState,
+        SensorSpecsChangedEvent,
         StoredSensorData,
     )
 
@@ -278,6 +279,7 @@ class SensorManagerProxy:
         registration = await self._registry_proxy.registerSensor(sensor_json, plugin_id)
         sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
         sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
+        sensor._applyPropertySpecs(registration.get("propertySpecs", {}))  # pyright: ignore[reportPrivateUsage]
 
         sensor_namespace = NamespaceManager.sensor_provider_namespaces(plugin_id, sensor.id).sensor_rpc
 
@@ -329,6 +331,7 @@ class SensorManagerProxy:
             )
             sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
             sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
+            sensor._applyPropertySpecs(registration.get("propertySpecs", {}))  # pyright: ignore[reportPrivateUsage]
         await self._sync_and_announce()
 
     def _registration_json(self, sensor: Sensor[Any, Any, Any]) -> SensorJSON:
@@ -399,6 +402,7 @@ class SensorManagerProxy:
                         "capabilities": data.get("capabilities", []),
                         "displayName": data["displayName"],
                         "deviceState": device_state,
+                        "propertySpecs": data.get("propertySpecs", {}),
                     }
                     held._apply_refreshed_state(state, marks.get(data["id"]))  # pyright: ignore[reportPrivateUsage]
         return added
@@ -550,6 +554,18 @@ class SensorManagerProxy:
             consumed = self._consumed.get(changed["sensorId"])
             if consumed is not None:
                 consumed._apply_device_event(changed["deviceState"])  # pyright: ignore[reportPrivateUsage]
+
+        elif event_type == "sensor:specs:changed":
+            specs_changed = cast("SensorSpecsChangedEvent", message.get("data"))
+            for owned in (
+                self._owned.get(specs_changed["sensorId"]),
+                self._external.get(specs_changed["sensorId"]),
+            ):
+                if owned:
+                    owned._applyPropertySpecs(specs_changed["propertySpecs"])  # pyright: ignore[reportPrivateUsage]
+            consumed = self._consumed.get(specs_changed["sensorId"])
+            if consumed is not None:
+                consumed._apply_property_specs_event(specs_changed["propertySpecs"])  # pyright: ignore[reportPrivateUsage]
 
         elif event_type == "sensor:assignment:changed":
             assignment = cast("SensorAssignmentChangedEvent", message.get("data"))

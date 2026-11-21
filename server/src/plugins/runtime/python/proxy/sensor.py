@@ -9,10 +9,16 @@ from _camera_ui_tools.camera_ui_sdk import (
     SensorHistoryEntry,
     SensorLike,
     SensorPropertyChangeData,
+    SensorPropertySpec,
     SensorType,
     Subject,
 )
-from _camera_ui_tools.camera_ui_sdk.internal import SensorDeviceState, SensorJSON, SensorSourcePatch
+from _camera_ui_tools.camera_ui_sdk.internal import (
+    SensorDeviceState,
+    SensorJSON,
+    SensorSourcePatch,
+    check_property_write,
+)
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.typings import (
     SensorRefreshedState,
@@ -55,12 +61,14 @@ class SensorProxy(SensorLike):
         self._proxy = proxy
         self._properties: dict[str, Any] = dict(data.get("properties", {}))
         self._capabilities: list[str] = list(data.get("capabilities", []))
+        self._property_specs: Mapping[str, SensorPropertySpec] = data.get("propertySpecs", {})
         self._rpc_proxy = proxy.create_proxy(owner_namespace)
         self._property_changed_subject: Subject[SensorPropertyChangeData] = Subject()
         self._capabilities_changed_subject: Subject[list[str]] = Subject()
         self._connected_changed_subject: Subject[bool] = Subject()
         self._assignment_changed_subject: Subject[list[str]] = Subject()
         self._device_info_changed_subject: Subject[SensorDevice | None] = Subject()
+        self._property_specs_changed_subject: Subject[Mapping[str, SensorPropertySpec]] = Subject()
         self._event_subscription: CloseHandler | None = None
         self._event_counts: dict[str, int] = {}
 
@@ -124,6 +132,10 @@ class SensorProxy(SensorLike):
     def capabilities(self) -> list[str]:
         return self._capabilities.copy()
 
+    @property
+    def propertySpecs(self) -> Mapping[str, SensorPropertySpec]:
+        return self._property_specs
+
     def hasCapability(self, capability: str) -> bool:
         return capability in self._capabilities
 
@@ -134,7 +146,9 @@ class SensorProxy(SensorLike):
         return self._properties.copy()
 
     async def updateValue(self, property: str, value: Any) -> None:
-        await self._rpc_proxy.updateValue(property, value)
+        await self._rpc_proxy.updateValue(
+            property, check_property_write(self._property_specs, property, value)
+        )
 
     @property
     def onPropertyChanged(self) -> Observable[SensorPropertyChangeData]:
@@ -155,6 +169,10 @@ class SensorProxy(SensorLike):
     @property
     def onDeviceInfoChanged(self) -> Observable[SensorDevice | None]:
         return self._device_info_changed_subject.as_observable()
+
+    @property
+    def onPropertySpecsChanged(self) -> Observable[Mapping[str, SensorPropertySpec]]:
+        return self._property_specs_changed_subject.as_observable()
 
     def _update_cached_value(self, property: str, value: Any, timestamp: int | None = None) -> None:
         if self._properties.get(property) == value:
@@ -190,6 +208,16 @@ class SensorProxy(SensorLike):
         self._primary = state["primary"]
         if changed:
             self._device_info_changed_subject.next(device)
+
+    def _apply_property_specs_event(self, specs: Mapping[str, SensorPropertySpec]) -> None:
+        self._count_event("propertySpecs")
+        self._apply_property_specs(specs)
+
+    def _apply_property_specs(self, specs: Mapping[str, SensorPropertySpec]) -> None:
+        if specs == self._property_specs:
+            return
+        self._property_specs = specs
+        self._property_specs_changed_subject.next(specs)
 
     def _update_capabilities(self, capabilities: list[str]) -> None:
         self._capabilities = capabilities
@@ -228,6 +256,10 @@ class SensorProxy(SensorLike):
         capabilities = list(state.get("capabilities", []))
         if current("capabilities") and sorted(capabilities) != sorted(self._capabilities):
             self._update_capabilities(capabilities)
+
+        property_specs = state.get("propertySpecs")
+        if property_specs is not None and current("propertySpecs"):
+            self._apply_property_specs(property_specs)
 
         for property, value in state.get("properties", {}).items():
             if current(f"property:{property}"):
@@ -280,6 +312,7 @@ class SensorProxy(SensorLike):
             "connected": self._connected,
             "properties": self.getValues(),
             "capabilities": self._capabilities,
+            "propertySpecs": dict(self._property_specs),
         }
         if self._native_id:
             data["nativeId"] = self._native_id

@@ -2,7 +2,7 @@ import { inject } from '../../container.js';
 import { resolveSensorSemantics } from '../../sensors/semantics.js';
 import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
 
-import type { SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
+import type { SensorPropertySpec, SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
 import type { CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
 
@@ -40,6 +40,7 @@ export interface TransformedSensor {
   sourceState?: SensorSourceState;
   properties: Record<string, unknown>;
   capabilities: string[];
+  propertySpecs: Record<string, SensorPropertySpec>;
   semantics?: SensorSemantics;
   createdAt: number;
   updatedAt: number;
@@ -117,7 +118,7 @@ export class SensorsService {
     return 'ok';
   }
 
-  public async command(id: string, property: string, value: unknown): Promise<'ok' | 'not-found' | 'read-only' | 'disconnected'> {
+  public async command(id: string, property: string, value: unknown): Promise<'ok' | 'not-found' | 'read-only' | 'disconnected' | { rejected: string }> {
     const record = this.registry.getRecord(id);
     if (!record) return 'not-found';
     if (!isWritableSensor(record.type, record.pluginInfo.id)) return 'read-only';
@@ -125,7 +126,11 @@ export class SensorsService {
     const sensor = this.registry.getSensor(id, { connectedOnly: true });
     if (!sensor) return 'disconnected';
 
-    await sensor.updateValue(property, value);
+    try {
+      await sensor.updateValue(property, value);
+    } catch (error) {
+      return { rejected: (error as Error).message };
+    }
     return 'ok';
   }
 
@@ -159,6 +164,7 @@ export class SensorsService {
       sourceState: record.sourceState,
       properties: data.properties,
       capabilities: data.capabilities,
+      propertySpecs: data.propertySpecs,
       semantics: resolveSensorSemantics(data),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

@@ -21,11 +21,12 @@ import {
   VIRTUAL_SENSOR_OWNER_NAME,
 } from '../sensors/types.js';
 import { composeDeviceState, pickPrimary } from './devices.js';
+import { resolvePropertySpecs, sanitizePropertySpecs } from './specs.js';
 import { disposeVirtualSensorHost, registerVirtualSensorHost } from './virtual.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { DeviceInfo, DiscoveredSensor, ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
+import type { DeviceInfo, DiscoveredSensor, ModelSpec, PluginContract, PropertySpecOverride, SensorLike } from '@camera.ui/sdk';
 import type { SensorDeviceState, SensorJSON, SensorMembership, SensorSourcePatch } from '@camera.ui/sdk/internal';
 import type { Database } from '../api/database/index.js';
 import type { DBSensor, DBSensorDevice, DBSensorHistoryEntry } from '../api/database/types.js';
@@ -185,11 +186,14 @@ export class SensorRegistry {
       }
     }
     const deviceIds = sensor.membership ? this.applyMembership(record, sensor.membership) : [];
+    const specsChanged = sensor.propertySpecs ? this.applyPropertySpecs(record, sensor.propertySpecs) : false;
+    const capabilities = sensor.capabilities ? [...new Set(sensor.capabilities)] : [];
+    record.capabilities = capabilities;
     record.updatedAt = Date.now();
     this.persistRecord(record._id, () => {});
 
     this.runtime.set(record._id, {
-      capabilities: sensor.capabilities ? [...new Set(sensor.capabilities)] : [],
+      capabilities,
       requiresFrames: sensor.requiresFrames,
       modelSpec: sensor.modelSpec,
     });
@@ -213,6 +217,7 @@ export class SensorRegistry {
       this.enqueue(cameraId, () => this.pushSensorToCoordinator(record, cameraId));
     }
     this.settleDevices([record._id], deviceIds);
+    if (specsChanged && !created) this.announcePropertySpecs(record);
 
     return {
       id: record._id,
@@ -220,6 +225,7 @@ export class SensorRegistry {
       active: true,
       stateSubject: true,
       deviceState: this.deviceStateFor(record),
+      propertySpecs: resolvePropertySpecs(record.type, record.propertySpecs),
     };
   }
 
@@ -313,6 +319,10 @@ export class SensorRegistry {
       const deviceIds = this.applyMembership(record, patch.membership);
       this.persistRecord(sensorId, () => {});
       this.settleDevices([sensorId], deviceIds);
+    }
+    if (patch.propertySpecs && this.applyPropertySpecs(record, patch.propertySpecs)) {
+      this.persistRecord(sensorId, () => {});
+      this.announcePropertySpecs(record);
     }
     const stateChanged = patch.sourceState !== undefined && patch.sourceState !== record.sourceState;
     const addressChanged = patch.address !== undefined && patch.address !== record.address;
@@ -539,6 +549,9 @@ export class SensorRegistry {
     if (!runtime || !sensor) return;
 
     runtime.capabilities = [...new Set(capabilities)];
+    if (!isEqual(this.records.get(sensorId)?.capabilities, runtime.capabilities)) {
+      this.persistRecord(sensorId, (record) => (record.capabilities = runtime.capabilities));
+    }
     sensor.applyCapabilityUpdate(runtime.capabilities);
     this.pushCapabilitiesToCoordinators(sensorId, runtime.capabilities);
   }
@@ -650,7 +663,8 @@ export class SensorRegistry {
       sourceState: record.sourceState,
       connected: this.runtime.has(record._id),
       properties: this.getAllPropertyValues(record._id),
-      capabilities: runtime?.capabilities ?? [],
+      capabilities: runtime?.capabilities ?? record.capabilities ?? [],
+      propertySpecs: resolvePropertySpecs(record.type, record.propertySpecs),
       requiresFrames: runtime?.requiresFrames ?? false,
       modelSpec: runtime?.modelSpec,
     };
@@ -754,6 +768,14 @@ export class SensorRegistry {
       this.persistDevice(device);
     }
     return device;
+  }
+
+  private applyPropertySpecs(record: DBSensor, overrides: Record<string, PropertySpecOverride>): boolean {
+    const sanitized = sanitizePropertySpecs(record.type, overrides, (message) => this.logger.warn(`Sensor "${record.displayName ?? record.name}": ${message}`));
+    const next = Object.keys(sanitized).length > 0 ? sanitized : undefined;
+    if (isEqual(record.propertySpecs, next)) return false;
+    record.propertySpecs = next;
+    return true;
   }
 
   private deviceStateFor(record: DBSensor): SensorDeviceState {
@@ -1029,7 +1051,7 @@ export class SensorRegistry {
     const data = this.toStoredData(record);
     this.safePublish(ns.sensorsSubject, {
       type: 'sensor:added',
-      data: { sensor: data, state: { type: data.type, properties: data.properties, capabilities: data.capabilities } },
+      data: { sensor: data, state: { type: data.type, properties: data.properties, capabilities: data.capabilities, propertySpecs: data.propertySpecs } },
     });
 
     emitInternalEvent('sensor:added', {
@@ -1094,6 +1116,13 @@ export class SensorRegistry {
     if (state.displayName === previous.displayName) return;
     this.publishSensorEvent(record._id, { type: 'sensor:displayName:changed', data: { sensorId: record._id, displayName: state.displayName } });
     emitInternalEvent('sensor:displayName:changed', { sensorId: record._id, sensorType: String(record.type), assignedCameraIds, displayName: state.displayName });
+  }
+
+  private announcePropertySpecs(record: DBSensor): void {
+    const propertySpecs = resolvePropertySpecs(record.type, record.propertySpecs);
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    this.safePublish(ns.sensorsSubject, { type: 'sensor:specs:changed', data: { sensorId: record._id, sensorType: record.type, propertySpecs } });
+    emitInternalEvent('sensor:specs:changed', { sensorId: record._id, sensorType: String(record.type), assignedCameraIds: [...record.assignedCameraIds], propertySpecs });
   }
 
   private async autoEnableDoorbellTrigger(record: DBSensor, cameraId: string): Promise<void> {

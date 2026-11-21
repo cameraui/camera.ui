@@ -1,10 +1,11 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { Subject } from '@camera.ui/sdk';
+import { checkPropertyWrite } from '@camera.ui/sdk/internal';
 
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { Observable, SensorDevice, SensorLike, SensorType } from '@camera.ui/sdk';
+import type { Observable, SensorDevice, SensorLike, SensorPropertySpec, SensorType } from '@camera.ui/sdk';
 import type { PropertyChangedEvent, SensorDeviceState } from '@camera.ui/sdk/internal';
 import type { SensorRefreshedState, StoredSensorData } from '../../../../rpc/interfaces/sensor.js';
 
@@ -14,12 +15,14 @@ export class SensorProxy implements SensorLike {
   readonly onConnectedChanged: Observable<boolean>;
   readonly onAssignmentChanged: Observable<readonly string[]>;
   readonly onDeviceInfoChanged: Observable<SensorDevice | undefined>;
+  readonly onPropertySpecsChanged: Observable<Readonly<Record<string, SensorPropertySpec>>>;
 
   readonly #propertyChangedSubject = new Subject<{ property: string; value: unknown; timestamp: number }>();
   readonly #capabilitiesChangedSubject = new Subject<string[]>();
   readonly #connectedChangedSubject = new Subject<boolean>();
   readonly #assignmentChangedSubject = new Subject<readonly string[]>();
   readonly #deviceInfoChangedSubject = new Subject<SensorDevice | undefined>();
+  readonly #propertySpecsChangedSubject = new Subject<Readonly<Record<string, SensorPropertySpec>>>();
 
   private _id: string;
   private _type: SensorType;
@@ -37,6 +40,7 @@ export class SensorProxy implements SensorLike {
   private _proxy: RPCClient;
   private _properties = new Map<string, unknown>();
   private _capabilities: string[] = [];
+  private _propertySpecs: Readonly<Record<string, SensorPropertySpec>>;
   private _rpcProxy: Promisify<SensorLike>;
   private _eventSubscription?: () => void;
   private _eventCounts = new Map<string, number>();
@@ -57,12 +61,14 @@ export class SensorProxy implements SensorLike {
     this._connected = data.connected;
     this._proxy = proxy;
     this._capabilities = data.capabilities ?? [];
+    this._propertySpecs = data.propertySpecs ?? {};
 
     this.onPropertyChanged = this.#propertyChangedSubject.asObservable();
     this.onCapabilitiesChanged = this.#capabilitiesChangedSubject.asObservable();
     this.onConnectedChanged = this.#connectedChangedSubject.asObservable();
     this.onAssignmentChanged = this.#assignmentChangedSubject.asObservable();
     this.onDeviceInfoChanged = this.#deviceInfoChangedSubject.asObservable();
+    this.onPropertySpecsChanged = this.#propertySpecsChangedSubject.asObservable();
 
     this._rpcProxy = proxy.createProxy<SensorLike>(ownerNamespace);
 
@@ -127,6 +133,10 @@ export class SensorProxy implements SensorLike {
     return this._capabilities;
   }
 
+  get propertySpecs(): Readonly<Record<string, SensorPropertySpec>> {
+    return this._propertySpecs;
+  }
+
   setDisplayName(value: string): void {
     this._displayName = value;
   }
@@ -144,7 +154,7 @@ export class SensorProxy implements SensorLike {
   }
 
   async updateValue(property: string, value: unknown): Promise<void> {
-    await this._rpcProxy.updateValue(property, value);
+    await this._rpcProxy.updateValue(property, checkPropertyWrite(this._propertySpecs, property, value));
   }
 
   _updateCachedValue(property: string, value: unknown, timestamp?: number): void {
@@ -172,6 +182,10 @@ export class SensorProxy implements SensorLike {
       this._updateCapabilities(state.capabilities);
     }
 
+    if (state.propertySpecs && current('propertySpecs')) {
+      this._applyPropertySpecs(state.propertySpecs);
+    }
+
     for (const [property, value] of Object.entries(state.properties)) {
       if (current(`property:${property}`)) this._updateCachedValue(property, value);
     }
@@ -195,6 +209,17 @@ export class SensorProxy implements SensorLike {
     this._shortName = state.shortName;
     this._primary = state.primary;
     if (changed) this.#deviceInfoChangedSubject.next(state.device);
+  }
+
+  _applyPropertySpecsEvent(specs: Record<string, SensorPropertySpec>): void {
+    this._countEvent('propertySpecs');
+    this._applyPropertySpecs(specs);
+  }
+
+  _applyPropertySpecs(specs: Record<string, SensorPropertySpec>): void {
+    if (isEqual(this._propertySpecs, specs)) return;
+    this._propertySpecs = specs;
+    this.#propertySpecsChangedSubject.next(specs);
   }
 
   _updateCapabilities(capabilities: string[]): void {
@@ -276,6 +301,7 @@ export class SensorProxy implements SensorLike {
       connected: this._connected,
       properties: this.getValues(),
       capabilities: this._capabilities,
+      propertySpecs: { ...this._propertySpecs },
     };
   }
 

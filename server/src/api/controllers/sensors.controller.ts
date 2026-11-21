@@ -129,6 +129,7 @@ export class SensorsController {
   public async command(req: FastifyRequest<AuthLoginRequest & SensorsParamsRequest & SensorsCommandRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const result = await this.service.command(req.params.id, req.body.property, req.body.value);
+      if (typeof result === 'object') return reply.code(400).send({ statusCode: 400, message: result.rejected });
 
       switch (result) {
         case 'not-found':

@@ -98,6 +98,7 @@ const setSensorProperty = toolDefinition({
   if (!target) return toolError(`Sensor "${found.displayName || found.name}" has no command property, pass one explicitly.`);
 
   const result = await sensors.command(found.id, target, value);
+  if (typeof result === 'object') return toolError(`Sensor "${found.displayName || found.name}" rejected the value: ${result.rejected}.`);
   switch (result) {
     case 'ok':
       return { ok: true, sensor: found.displayName || found.name, property: target, value };

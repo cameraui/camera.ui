@@ -1,11 +1,12 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { Disposable, Observable, SensorType } from '@camera.ui/sdk';
+import { checkPropertyWrite } from '@camera.ui/sdk/internal';
 
 import { DETECTION_SENSOR_TYPES, PROPERTY_CAPABILITY_MAP, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from './types.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
-import type { ModelSpec, SensorDevice, SensorLike, SensorPropertyType, SensorTriggerSettings } from '@camera.ui/sdk';
+import type { ModelSpec, SensorDevice, SensorLike, SensorPropertySpec, SensorPropertyType, SensorTriggerSettings } from '@camera.ui/sdk';
 import type { PropertyChangedEvent } from '@camera.ui/sdk/internal';
 import type { InternalEvent, InternalEventPayload } from '../internal-bus.js';
 import type { DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
@@ -35,6 +36,7 @@ export class ServerSensor implements SensorLike {
   public readonly onConnectedChanged = new Observable<boolean>(() => new Disposable(() => {}));
   public readonly onAssignmentChanged = new Observable<readonly string[]>(() => new Disposable(() => {}));
   public readonly onDeviceInfoChanged = new Observable<SensorDevice | undefined>(() => new Disposable(() => {}));
+  public readonly onPropertySpecsChanged = new Observable<Readonly<Record<string, SensorPropertySpec>>>(() => new Disposable(() => {}));
 
   private readonly ctx: SensorContext;
 
@@ -67,6 +69,10 @@ export class ServerSensor implements SensorLike {
 
   public get capabilities(): string[] {
     return this.data.capabilities;
+  }
+
+  public get propertySpecs(): Readonly<Record<string, SensorPropertySpec>> {
+    return this.data.propertySpecs;
   }
 
   public get assignedCameraIds(): string[] {
@@ -109,10 +115,12 @@ export class ServerSensor implements SensorLike {
       capabilities: this.capabilities,
       displayName: this.displayName,
       deviceState: { device: this.deviceInfo, displayName: this.displayName, shortName: this.shortName, primary: this.primary },
+      propertySpecs: this.propertySpecs,
     };
   }
 
   public async updateValue(property: string, value: unknown): Promise<void> {
+    value = checkPropertyWrite(this.propertySpecs, property, value);
     if (!this.pluginId || this.pluginId === VIRTUAL_SENSOR_OWNER_ID) {
       this.applyPropertyWrites({ [property]: value });
       return;
