@@ -1,4 +1,4 @@
-import type { AssistantAccess, AssistantAskResult, PluginInfo, PluginInterface } from '@camera.ui/sdk';
+import type { AssistantAccess, AssistantAskResult, PluginInfo, PluginInterface, UnitSystem } from '@camera.ui/sdk';
 import type { DBFloorPlan, DBRoomCatalog, TrainingBoxSource, TrainingSelection } from '../../api/database/types.js';
 import type { AssistantAskRequest, AssistantPost } from '../../assistant/types.js';
 
@@ -43,6 +43,7 @@ export interface CoreManagerInterface {
   getRestoreGeneration(): Promise<string>;
   getInstanceId(): Promise<string>;
   getLanguage(): Promise<string>;
+  getUnitSystem(): Promise<UnitSystem>;
   getPlugin(pluginName: string): Promise<HostPluginInfo | undefined>;
   getPluginsByInterface(interfaceName: PluginInterface): Promise<HostPluginInfo[]>;
   getFloorPlan(): Promise<FloorPlan>;
@@ -57,6 +58,7 @@ export interface CoreManagerProxyEvents {
   assistantModelChanged: { pluginId: string; configured: boolean };
   pluginStatusChanged: { pluginName: string; running: boolean };
   languageChanged: { language: string };
+  unitSystemChanged: { unitSystem: UnitSystem };
 }
 
 export interface CoreManagerProxyEventCallbacks {

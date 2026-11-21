@@ -99,6 +99,7 @@
 import { clearPendingIntent, readPendingIntent } from '@/common/pushIntent';
 import { BOTTOMBAR_SIZE } from '@/components/CuiBottombar/types.js';
 import { NAVBAR_SIZE } from '@/components/CuiNavbar/types.js';
+import { loadUnitSystem } from '@/api/routes/server.js';
 import { getConnection, isCapacitor, isConnectionBooted } from '@/connection/index.js';
 
 const { navbarState, subbarState, showBottombar, showNavbar, showTopbar } = useSharedCuiStates();
@@ -108,6 +109,7 @@ const router = useRouter();
 const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { isPWA } = useSharedCuiUserAgent();
 const { t } = useI18n();
+const log = useLogger('App');
 const connection = useConnection();
 const { isElectronApp } = useElectron();
 
@@ -217,6 +219,7 @@ async function consumePendingIntent(): Promise<void> {
 }
 
 async function onConnectionReady(): Promise<void> {
+  loadUnitSystem().catch((err) => log.warn('failed to load the unit system:', err));
   await authStore.refreshUser();
   instanceStore.saveCurrentTokens();
   if (!authStore.mustSetPassword) instanceStore.fetchInstances();

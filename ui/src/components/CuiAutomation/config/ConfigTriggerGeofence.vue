@@ -33,14 +33,21 @@
     <div class="flex flex-col gap-3">
       <label class="cui-label">{{ t('components.automation_nodes.geofence_radius') }}</label>
       <Slider
-        :model-value="data.radius || 200"
-        :min="50"
-        :max="5000"
-        :step="50"
+        :model-value="shownRadius"
+        :min="radiusRange.min"
+        :max="radiusRange.max"
+        :step="radiusRange.step"
         class="w-full"
         @update:model-value="(v) => onRadiusChange(Array.isArray(v) ? v[0] : v)"
       />
-      <CuiNumberStepper :model-value="data.radius || 200" :min="50" :max="5000" suffix=" m" class="w-full" @update:model-value="onRadiusChange" />
+      <CuiNumberStepper
+        :model-value="shownRadius"
+        :min="radiusRange.min"
+        :max="radiusRange.max"
+        :suffix="radiusSuffix"
+        class="w-full"
+        @update:model-value="onRadiusChange"
+      />
     </div>
 
     <div class="flex flex-col field-gap">
@@ -99,10 +106,13 @@
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css';
 
+import { UnitSystem } from '@camera.ui/sdk';
 import * as L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+import { shownValue, storedValue, unitSystem } from '@/common/units.js';
 
 import { useUserOptions } from './useUserOptions.js';
 
@@ -116,6 +126,11 @@ const { t } = useI18n();
 const toast = useCuiToast();
 const { userOptions } = useUserOptions();
 const { getCurrentPosition } = useDeviceLocation();
+
+const RADIUS_RANGES = {
+  [UnitSystem.Metric]: { min: 50, max: 5000, step: 50 },
+  [UnitSystem.Imperial]: { min: 150, max: 16500, step: 50 },
+};
 
 const eventOptions = [
   { label: t('components.automation_nodes.geofence_event_enter'), value: 'enter' },
@@ -135,6 +150,10 @@ const locationUrl = computed(() => {
 });
 
 const userSecretEntries = computed<[string, string][]>(() => Object.entries(props.data.geofenceUserSecrets ?? {}));
+
+const radiusRange = computed(() => RADIUS_RANGES[unitSystem.value]);
+const shownRadius = computed(() => Math.round(shownValue(props.data.radius || 200, 'm').value));
+const radiusSuffix = computed(() => ` ${shownValue(0, 'm').unit}`);
 
 function initMap() {
   if (!mapContainerRef.value) return;
@@ -187,10 +206,10 @@ function onLonChange(val: number | null) {
 }
 
 function onRadiusChange(val: number | null) {
-  if (val != null) {
-    update('radius', val);
-    leafletCircle?.setRadius(val);
-  }
+  if (val == null) return;
+  const meters = storedValue(val, 'm');
+  update('radius', meters);
+  leafletCircle?.setRadius(meters);
 }
 
 function locationUnavailable() {

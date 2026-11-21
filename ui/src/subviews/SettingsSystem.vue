@@ -32,21 +32,6 @@
                 <span class="text-sm font-bold">{{ lastBackupAt ? formatRelativeTime(lastBackupAt) : $t('views.settings.backup_last_never') }}</span>
               </CuiToggleRow>
 
-              <CuiToggleRow plain :label="$t('views.settings.system.language')" :hint="$t('views.settings.system.language_hint')" label-for="instanceLanguage">
-                <Select
-                  input-id="instanceLanguage"
-                  :model-value="serverInfo?.language"
-                  :options="instanceLanguageOptions"
-                  option-label="label"
-                  option-value="value"
-                  :loading="setLanguagePending"
-                  :disabled="!serverInfo || setLanguagePending"
-                  filter
-                  class="w-40"
-                  @update:model-value="setLanguage"
-                />
-              </CuiToggleRow>
-
               <div v-if="!isElectronBuild" class="flex w-full items-center gap-2">
                 <div class="ml-auto"></div>
 
@@ -65,6 +50,51 @@
                   class="cui-button-medium"
                   :label="$t('components.form.button.manage')"
                   @click="openDialog('versions')"
+                />
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div>
+        <span class="card-title">{{ $t('views.settings.system.instance') }}</span>
+        <Card class="cui-card">
+          <template #content>
+            <div class="flex flex-col gap-6">
+              <span class="text-sm">{{ $t('views.settings.system.instance_info') }}</span>
+
+              <div class="flex flex-col sm:flex-row gap-6">
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="instanceLanguage" class="cui-label">{{ $t('views.settings.system.language') }}</label>
+                  <Select
+                    v-model="instanceLanguage"
+                    input-id="instanceLanguage"
+                    :options="instanceLanguageOptions"
+                    option-label="label"
+                    option-value="value"
+                    :disabled="!serverInfo"
+                    filter
+                    fluid
+                  />
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.system.language_hint') }}</Message>
+                </div>
+
+                <div class="flex flex-col field-gap flex-1 min-w-0">
+                  <label for="instanceUnits" class="cui-label">{{ $t('views.settings.system.units') }}</label>
+                  <Select v-model="instanceUnits" input-id="instanceUnits" :options="unitSystemOptions" option-label="label" option-value="value" fluid />
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.settings.system.units_hint') }}</Message>
+                </div>
+              </div>
+
+              <div class="flex">
+                <Button
+                  type="button"
+                  class="cui-button-medium ml-auto"
+                  :label="$t('components.form.button.save')"
+                  :loading="instanceSaving"
+                  :disabled="!instanceDirty || instanceSaving"
+                  @click="saveInstance"
                 />
               </div>
             </div>
@@ -312,18 +342,20 @@
 
 <script setup lang="ts">
 import { sleep } from '@camera.ui/common/utils';
+import { UnitSystem } from '@camera.ui/sdk';
 
 import { ApiQuery, apiInfo as fetchApiInfo } from '@/api/routes/api.js';
 import { getBackupSchedulerFn } from '@/api/routes/backup.js';
 import { downloadCertFn, getCertificate, removeCertificate, restartGo2RtcFn, ServerQuery, uploadCertificate } from '@/api/routes/server.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { languageOptions } from '@/common/languageOptions.js';
+import { unitSystem } from '@/common/units.js';
 import { formatRelativeTime } from '@/common/utils.js';
 import { isCapacitor } from '@/connection/index.js';
 
 import type { CertificateUploadResult } from '@/components/CuiDialog/templates/CertificateUpload/types.js';
 import type { VersionsHandlerProps } from '@/components/CuiDialog/templates/VersionsHandler/types.js';
-import type { CustomCertificateState } from '@shared/types';
+import type { CustomCertificateState, LanguageAbbreviations } from '@shared/types';
 
 const VersionsHandlerDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VersionsHandler/VersionsHandler.vue'));
 const CertificateUploadDialog = asyncComponent(() => import('@/components/CuiDialog/templates/CertificateUpload/CertificateUpload.vue'));
@@ -368,7 +400,7 @@ const { data: apiInfo, isBusy: apiInfoLoading } = apiQuery.apiInfoQuery();
 const { data: serverInfo } = serverQuery.getServerInfoQuery();
 const { mutate: restartServer, isPending: restartServerLoading } = serverQuery.restartServerQuery();
 const { mutateAsync: resetServer, isPending: resetServerLoading } = serverQuery.resetServerQuery();
-const { mutate: setLanguage, isPending: setLanguagePending } = serverQuery.setLanguageQuery();
+const { mutate: setInstance, isPending: instanceSaving } = serverQuery.setInstanceQuery();
 
 const LOG_LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
 const STREAMING_LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
@@ -381,6 +413,8 @@ const loadingCert = ref(false);
 const certificateState = shallowRef<CustomCertificateState | null>(null);
 const certificateBusy = ref(false);
 const lastBackupAt = ref<number | null>();
+const instanceLanguage = ref<LanguageAbbreviations>();
+const instanceUnits = ref(unitSystem.value);
 
 let refreshRun = 0;
 
@@ -416,13 +450,23 @@ const hostOptions = computed(() => {
   return options;
 });
 
+const instanceDirty = computed(() => instanceLanguage.value !== serverInfo.value?.language || instanceUnits.value !== unitSystem.value);
+
 const instanceLanguageOptions = computed(() => languageOptions(locale.value));
+const unitSystemOptions = computed(() => Object.values(UnitSystem).map((value) => ({ value, label: t(`views.settings.system.units_${value}`) })));
 
 const logLevelOptions = computed(() => levelOptions(LOG_LEVELS));
 const streamingLogLevelOptions = computed(() => levelOptions(STREAMING_LOG_LEVELS));
 
 function levelOptions(levels: string[]): { value: string; label: string }[] {
   return levels.map((level) => ({ value: level, label: t(`views.settings.system.level_${level}`) }));
+}
+
+function saveInstance(): void {
+  setInstance({
+    language: instanceLanguage.value !== serverInfo.value?.language ? instanceLanguage.value : undefined,
+    system: instanceUnits.value !== unitSystem.value ? instanceUnits.value : undefined,
+  });
 }
 
 function confirmServerSave(): void {
@@ -674,6 +718,18 @@ async function dropCertificate(): Promise<void> {
     certificateBusy.value = false;
   }
 }
+
+watch(
+  () => serverInfo.value?.language,
+  (language) => {
+    instanceLanguage.value = language;
+  },
+  { immediate: true },
+);
+
+watch(unitSystem, (system) => {
+  instanceUnits.value = system;
+});
 
 watch(
   apiInfo,

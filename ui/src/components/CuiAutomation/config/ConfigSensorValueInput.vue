@@ -38,10 +38,11 @@
       :min="meta.min"
       :max="meta.max"
       :step="meta.step"
+      :suffix="meta.suffix"
       :max-fraction-digits="3"
       fluid
       :disabled
-      @update:model-value="(v) => emitValue(v === null || v === undefined ? '' : String(v))"
+      @update:model-value="(v) => emitValue(v === null || v === undefined ? '' : String(storedValue(v, meta.unit)))"
     />
 
     <Select
@@ -70,6 +71,8 @@
 import { useAllSensors } from '@camera.ui/browser';
 import { useFaceStore } from '@camera.ui/nvr';
 import { SensorType } from '@camera.ui/sdk';
+
+import { shownValue, storedValue } from '@/common/units.js';
 
 import { getSensorPropertyInput } from './sensorPropertyInputs.js';
 import VariableInput from './VariableInput.vue';
@@ -100,7 +103,7 @@ const booleanValue = computed(() => props.modelValue === 'true');
 
 const numberValue = computed(() => {
   const parsed = Number(props.modelValue);
-  return props.modelValue !== '' && Number.isFinite(parsed) ? parsed : null;
+  return props.modelValue !== '' && Number.isFinite(parsed) ? shownValue(parsed, meta.value.unit).value : null;
 });
 
 const isPresetProperty = computed(() => props.sensorType === SensorType.PTZ && props.property === 'targetPreset');

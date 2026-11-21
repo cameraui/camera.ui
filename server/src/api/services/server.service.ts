@@ -5,7 +5,7 @@ import { userInfo } from 'node:os';
 import { satisfies } from 'semver';
 
 import { inject } from '../../container.js';
-import { instanceLanguage } from '../../i18n/index.js';
+import { instanceLanguage, instanceUnitSystem } from '../../i18n/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { assertServerUpdateSpace } from '../../utils/disk-space.js';
 import { getTerminalCols, InstallLogger } from '../utils/install-logger.js';
@@ -14,6 +14,7 @@ import { updatesService } from './updates.service.js';
 import type { Database } from '../database/index.js';
 import type { DBServer } from '../database/types.js';
 import type { LanguageAbbreviations } from '../schemas/users.schema.js';
+import type { UnitSystem } from '@camera.ui/sdk';
 
 export class ServerService {
   private dbs: Database;
@@ -85,6 +86,13 @@ export class ServerService {
     inject('proxy').coreManager?.publishCoreManagerEvent('languageChanged', { language });
     const assistant = inject('assistantManager');
     if (!assistant.settings().language) assistant.announceAccess();
+  }
+
+  public async setUnitSystem(unitSystem: UnitSystem): Promise<void> {
+    if (unitSystem === instanceUnitSystem()) return;
+    await this.dbs.commit(this.dbs.settingsDB, 'settings', (current) => current && { ...current, unitSystem });
+
+    inject('proxy').coreManager?.publishCoreManagerEvent('unitSystemChanged', { unitSystem });
   }
 
   public async install(version = 'latest', opts: { internal?: boolean } = {}): Promise<void> {

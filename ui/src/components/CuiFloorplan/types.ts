@@ -1,4 +1,5 @@
 export const FLOORPLAN_UNITS_PER_METER = 100;
+export const FLOORPLAN_UNITS_PER_FOOT = FLOORPLAN_UNITS_PER_METER * 0.3048;
 export const FLOORPLAN_GRID = 16;
 export const FLOORPLAN_DOT = 1;
 export const FLOORPLAN_SNAP = 10;

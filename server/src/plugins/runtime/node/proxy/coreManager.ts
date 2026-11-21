@@ -15,6 +15,7 @@ import type {
   PluginInfo,
   PluginInterface,
   PluginInterfaces,
+  UnitSystem,
 } from '@camera.ui/sdk';
 import type { AssistantAskRequest } from '../../../../assistant/types.js';
 import type { CoreManagerInterface, CoreManagerListenerMessagePayload } from '../../../../rpc/interfaces/core.js';
@@ -134,6 +135,10 @@ export class CoreManagerProxy implements CoreManager {
 
   public async getLanguage(): Promise<string> {
     return await this.#coreManagerProxy.getLanguage();
+  }
+
+  public async getUnitSystem(): Promise<UnitSystem> {
+    return await this.#coreManagerProxy.getUnitSystem();
   }
 
   public async getPluginsByInterface(interfaceName: PluginInterface): Promise<PluginInfo[]> {

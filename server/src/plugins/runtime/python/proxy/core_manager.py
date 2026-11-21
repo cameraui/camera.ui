@@ -14,6 +14,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     Observable,
     PluginInterface,
     Subject,
+    UnitSystem,
 )
 from _camera_ui_tools.camera_ui_sdk.manager import (
     AssistantAccess,
@@ -142,6 +143,9 @@ class CoreManagerProxy(CoreManager):
 
     async def getLanguage(self) -> str:
         return await self.__core_manager_proxy.getLanguage()
+
+    async def getUnitSystem(self) -> UnitSystem:
+        return UnitSystem(await self.__core_manager_proxy.getUnitSystem())
 
     async def getPluginsByInterface(self, interfaceName: PluginInterface) -> list[PluginInfo]:
         return await self.__core_manager_proxy.getPluginsByInterface(interfaceName)

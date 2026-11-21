@@ -1,14 +1,16 @@
-import { FLOORPLAN_UNITS_PER_METER } from './types.js';
+import { UnitSystem } from '@camera.ui/sdk';
+
+import { unitSystem } from '@/common/units.js';
+
+import { FLOORPLAN_UNITS_PER_FOOT, FLOORPLAN_UNITS_PER_METER } from './types.js';
 
 import type { DBFloorPlan, PutFloorPlanInput } from '@shared/types';
 import type { FloorplanConnection, FloorplanRemovals, FloorplanRoom } from './types.js';
 
-export function toMeters(units: number): number {
-  return units / FLOORPLAN_UNITS_PER_METER;
-}
-
-export function metersLabel(units: number, digits = 2): string {
-  return `${toMeters(units).toFixed(digits)} m`;
+export function lengthLabel(units: number, digits = 2): string {
+  if (unitSystem.value === UnitSystem.Metric) return `${(units / FLOORPLAN_UNITS_PER_METER).toFixed(digits)} m`;
+  const inches = Math.round((units / FLOORPLAN_UNITS_PER_FOOT) * 12);
+  return `${Math.floor(inches / 12)}' ${inches % 12}"`;
 }
 
 export type ConnectionGeometry =

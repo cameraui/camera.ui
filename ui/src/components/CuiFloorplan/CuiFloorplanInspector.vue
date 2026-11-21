@@ -86,7 +86,7 @@
 
               <div class="flex flex-col field-gap">
                 <label class="cui-label">{{ $t('views.floorplan.size') }}</label>
-                <span class="text-sm text-muted">{{ metersLabel(room.width) }} x {{ metersLabel(room.height) }}</span>
+                <span class="text-sm text-muted">{{ lengthLabel(room.width) }} x {{ lengthLabel(room.height) }}</span>
               </div>
             </div>
           </AccordionContent>
@@ -115,7 +115,7 @@
             </div>
 
             <div v-if="!crossLevel" class="flex flex-col field-gap mt-6">
-              <label class="cui-label">{{ $t('views.floorplan.connection_width', { value: toMeters(connection.width).toFixed(2) }) }}</label>
+              <label class="cui-label">{{ $t('views.floorplan.connection_width', { value: lengthLabel(connection.width) }) }}</label>
               <Slider
                 :model-value="connection.width"
                 :disabled="readOnly"
@@ -249,7 +249,7 @@
                 </div>
 
                 <div class="flex flex-col field-gap">
-                  <label class="cui-label">{{ $t('views.floorplan.range', { value: toMeters(camera.range).toFixed(1) }) }}</label>
+                  <label class="cui-label">{{ $t('views.floorplan.range', { value: lengthLabel(camera.range, 1) }) }}</label>
                   <Slider
                     :disabled="readOnly"
                     :model-value="camera.range"
@@ -289,7 +289,7 @@
 
 <script setup lang="ts">
 import { FLOORPLAN_CAMERA_RANGE, FLOORPLAN_CONNECTION_TYPES, FLOORPLAN_NOTE_MAX, FLOORPLAN_PASSAGE_RANGE } from './types.js';
-import { metersLabel, sharedWall, toMeters } from './utils.js';
+import { lengthLabel, sharedWall } from './utils.js';
 
 import type { CuiFloorplanInspectorEmits, CuiFloorplanInspectorProps, FloorplanCamera, FloorplanRoom, FloorplanSensor } from './types.js';
 

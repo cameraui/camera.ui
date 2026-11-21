@@ -1,10 +1,12 @@
 import axios from 'axios';
 
+import { unitSystem } from '@/common/units.js';
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
 import type { TunnelAddresses } from '@/connection/types.js';
 import type { UpdateServerInput } from '@/schemas/server.schema.js';
+import type { UnitSystem } from '@camera.ui/sdk';
 import type { CustomCertificateState, DBServer, Go2RtcInfo, LanguageAbbreviations, MethodKeys, ServerInfo } from '@shared/types';
 import type { AxiosResponse } from 'axios';
 import type { AckResponse } from '..';
@@ -22,6 +24,20 @@ export async function patchServerInfo(systemData: Partial<DBServer>): Promise<DB
 export async function setServerLanguage(language: LanguageAbbreviations): Promise<{ language: LanguageAbbreviations }> {
   const response: AxiosResponse<{ language: LanguageAbbreviations }> = await api.put('/server/language', { language });
   return response.data;
+}
+
+export async function getUnitSystem(): Promise<UnitSystem> {
+  const response: AxiosResponse<{ unitSystem: UnitSystem }> = await api.get('/server/unit-system');
+  return response.data.unitSystem;
+}
+
+export async function loadUnitSystem(): Promise<void> {
+  unitSystem.value = await getUnitSystem();
+}
+
+export async function setUnitSystem(system: UnitSystem): Promise<UnitSystem> {
+  const response: AxiosResponse<{ unitSystem: UnitSystem }> = await api.put('/server/unit-system', { unitSystem: system });
+  return response.data.unitSystem;
 }
 
 export async function getCertificate(): Promise<CustomCertificateState> {
@@ -151,9 +167,12 @@ export class ServerQuery {
     });
   }
 
-  public setLanguageQuery() {
+  public setInstanceQuery() {
     return useMutation({
-      mutationFn: setServerLanguage,
+      mutationFn: async ({ language, system }: { language?: LanguageAbbreviations; system?: UnitSystem }) => {
+        if (language) await setServerLanguage(language);
+        if (system) unitSystem.value = await setUnitSystem(system);
+      },
       onSuccess: async () => {
         await this._queryClient.refetchQueries({ queryKey: ['server'], exact: true });
         this.toast.add({ severity: 'success', detail: this.t('components.toast.server_updated'), life: 3000 });

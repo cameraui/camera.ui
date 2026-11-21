@@ -1,7 +1,7 @@
 import { ServerController } from '../controllers/server.controller.js';
 import { onlyAdminCanDoThisAction, onlyMasterCanDoThisAction } from '../middlewares/authPermission.middleware.js';
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
-import { patchServerSchema, serverChangelogQuerySchema, serverLanguageSchema, updateServerSchema } from '../schemas/server.schema.js';
+import { patchServerSchema, serverChangelogQuerySchema, serverLanguageSchema, serverUnitSystemSchema, updateServerSchema } from '../schemas/server.schema.js';
 
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -41,6 +41,29 @@ export const ServerRoute: FastifyPluginAsync = async (app: FastifyInstance): Pro
       tags: ['Server'],
       summary: 'Set the instance language for notifications and texts plugins write',
       body: serverLanguageSchema,
+    },
+  });
+
+  app.route({
+    url: '/unit-system',
+    method: 'GET',
+    preValidation: [validJWTNeeded],
+    handler: serverController.getUnitSystem.bind(serverController),
+    schema: {
+      tags: ['Server'],
+      summary: 'Units readings are shown in, metric or imperial',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/unit-system',
+    method: 'PUT',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: serverController.setUnitSystem.bind(serverController),
+    schema: {
+      tags: ['Server'],
+      summary: 'Set the units readings are shown in, metric or imperial',
+      body: serverUnitSystemSchema,
     },
   });
 

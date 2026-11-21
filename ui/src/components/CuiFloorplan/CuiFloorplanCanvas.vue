@@ -367,11 +367,13 @@
 
 <script setup lang="ts">
 import { useAllSensors } from '@camera.ui/browser';
+import { UnitSystem } from '@camera.ui/sdk';
 import { Background } from '@vue-flow/background';
 import { useVueFlow, VueFlow } from '@vue-flow/core';
 
 import { detectionStyle } from '@/common/detectionLabels.js';
 import { sensorIcon, sensorReading, sensorTone } from '@/common/sensorDisplay.js';
+import { unitSystem } from '@/common/units.js';
 
 import {
   FLOORPLAN_CAMERA_RANGE,
@@ -381,6 +383,7 @@ import {
   FLOORPLAN_MIN_ROOM,
   FLOORPLAN_PASSAGE_RANGE,
   FLOORPLAN_SNAP,
+  FLOORPLAN_UNITS_PER_FOOT,
   FLOORPLAN_UNITS_PER_METER,
   FLOORPLAN_ZOOM_RANGE,
   ROOM_LABEL_ASPECT,
@@ -388,7 +391,7 @@ import {
   ROOM_LABEL_SIZE,
   SNAP_PX,
 } from './types.js';
-import { connectionGeometry, metersLabel, passageOn, roomOutline, sharedWall } from './utils.js';
+import { connectionGeometry, lengthLabel, passageOn, roomOutline, sharedWall } from './utils.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type {
@@ -482,7 +485,7 @@ const sizeChip = computed(() => {
   const room = levelRooms.value.find((item) => item.id === resizingRoomId.value);
   if (!room) return null;
 
-  const text = `${metersLabel(room.width, 1)} x ${metersLabel(room.height, 1)}`;
+  const text = `${lengthLabel(room.width, 1)} x ${lengthLabel(room.height, 1)}`;
   return { text, width: chipWidth(text), x: room.x + room.width / 2, y: room.y + room.height + 10 / zoom.value };
 });
 
@@ -523,9 +526,11 @@ const selectedCamera = computed(() => (props.selection?.kind === 'camera' ? leve
 const showDetail = computed(() => zoom.value >= 0.45);
 
 const scaleBar = computed(() => {
-  const steps = [0.5, 1, 2, 5, 10, 20, 50];
-  const meters = steps.filter((step) => step * FLOORPLAN_UNITS_PER_METER * zoom.value <= 130).pop() ?? steps[0];
-  return { meters, width: Math.round(meters * FLOORPLAN_UNITS_PER_METER * zoom.value), label: `${meters} m` };
+  const imperial = unitSystem.value === UnitSystem.Imperial;
+  const steps = imperial ? [1, 2, 5, 10, 20, 50, 100, 200] : [0.5, 1, 2, 5, 10, 20, 50];
+  const stepWidth = (imperial ? FLOORPLAN_UNITS_PER_FOOT : FLOORPLAN_UNITS_PER_METER) * zoom.value;
+  const step = steps.filter((value) => value * stepWidth <= 130).pop() ?? steps[0];
+  return { width: Math.round(step * stepWidth), label: `${step} ${imperial ? 'ft' : 'm'}` };
 });
 
 const connectionShapes = computed(() =>

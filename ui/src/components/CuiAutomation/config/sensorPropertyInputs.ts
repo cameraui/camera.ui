@@ -1,5 +1,7 @@
 import { getSensorPropertySpec } from '@shared/types';
 
+import { shownValue } from '@/common/units.js';
+
 import type { SensorPropertySpec } from '@camera.ui/sdk';
 
 export type SensorPropertyInputKind = 'boolean' | 'number' | 'enum' | 'choice' | 'text';
@@ -21,6 +23,9 @@ export interface SensorPropertyInputMeta {
   min?: number;
   max?: number;
   step?: number;
+  // the unit the value is stored in, min, max and suffix are already in the shown unit
+  unit?: string;
+  suffix?: string;
   maxLength?: number;
   options?: SensorPropertyEnumOption[];
   choices?: SensorPropertyChoiceOption[];
@@ -37,9 +42,10 @@ export function getSensorPropertyInput(sensorType: string, property: string, sen
     case 'number':
       return {
         kind: 'number',
-        ...(spec.min !== undefined ? { min: spec.min } : {}),
-        ...(spec.max !== undefined ? { max: spec.max } : {}),
+        ...(spec.min !== undefined ? { min: shownValue(spec.min, spec.unit).value } : {}),
+        ...(spec.max !== undefined ? { max: shownValue(spec.max, spec.unit).value } : {}),
         ...(spec.step !== undefined ? { step: spec.step } : {}),
+        ...(spec.unit ? { unit: spec.unit, suffix: ` ${shownValue(0, spec.unit).unit}` } : {}),
       };
     case 'enum':
       return {

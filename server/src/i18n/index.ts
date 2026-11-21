@@ -1,3 +1,5 @@
+import { UnitSystem } from '@camera.ui/sdk';
+
 import { tryInject } from '../container.js';
 import de from './locales/de.js';
 import en from './locales/en.js';
@@ -12,6 +14,10 @@ const LOCALES: Partial<Record<LanguageAbbreviations, Messages>> = { de, en };
 
 export function instanceLanguage(): LanguageAbbreviations {
   return tryInject('dbs')?.settingsDB.get('settings')?.language ?? 'en';
+}
+
+export function instanceUnitSystem(): UnitSystem {
+  return tryInject('dbs')?.settingsDB.get('settings')?.unitSystem ?? UnitSystem.Metric;
 }
 
 export function t(key: MessageKey, params: Record<string, string | number> = {}): string {

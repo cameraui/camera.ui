@@ -7,10 +7,10 @@ import { RoomsService } from '../api/services/rooms.service.js';
 import { ServerService } from '../api/services/server.service.js';
 import { WorkersService } from '../api/services/workers.service.js';
 import { inject } from '../container.js';
-import { instanceLanguage } from '../i18n/index.js';
+import { instanceLanguage, instanceUnitSystem } from '../i18n/index.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
-import type { AssistantAccess, AssistantAskResult, PluginInterface } from '@camera.ui/sdk';
+import type { AssistantAccess, AssistantAskResult, PluginInterface, UnitSystem } from '@camera.ui/sdk';
 import type { AssistantAskRequest, AssistantPost } from '../assistant/types.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type {
@@ -146,6 +146,11 @@ export class CoreManager implements CoreManagerInterface {
   @RPCMethod
   public async getLanguage(): Promise<string> {
     return instanceLanguage();
+  }
+
+  @RPCMethod
+  public async getUnitSystem(): Promise<UnitSystem> {
+    return instanceUnitSystem();
   }
 
   @RPCMethod

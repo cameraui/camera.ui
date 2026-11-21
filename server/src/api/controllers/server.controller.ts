@@ -4,7 +4,7 @@ import { readFile } from 'node:fs';
 import { join } from 'node:path';
 
 import { inject } from '../../container.js';
-import { instanceLanguage } from '../../i18n/index.js';
+import { instanceLanguage, instanceUnitSystem } from '../../i18n/index.js';
 import { ConfigService } from '../../services/config/index.js';
 import { createLogDownload } from '../../services/logger/logReader.js';
 import { attachmentHeader } from '../../utils/attachment.js';
@@ -28,6 +28,7 @@ import type {
   ServerChangelogRequest,
   ServerInfo,
   ServerLanguageRequest,
+  ServerUnitSystemRequest,
   ServerPatchRequest,
   ServerUpdateRequest,
 } from '../types/index.js';
@@ -203,6 +204,22 @@ export class ServerController {
     try {
       await this.service.setLanguage(req.body.language);
       return reply.code(200).send({ language: req.body.language });
+    } catch (error: any) {
+      return reply.code(500).send({
+        statusCode: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  public getUnitSystem(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    return reply.code(200).send({ unitSystem: instanceUnitSystem() });
+  }
+
+  public async setUnitSystem(req: FastifyRequest<AuthLoginRequest & ServerUnitSystemRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      await this.service.setUnitSystem(req.body.unitSystem);
+      return reply.code(200).send({ unitSystem: req.body.unitSystem });
     } catch (error: any) {
       return reply.code(500).send({
         statusCode: 500,

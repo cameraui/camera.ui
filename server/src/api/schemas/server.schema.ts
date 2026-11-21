@@ -1,3 +1,4 @@
+import { UnitSystem } from '@camera.ui/sdk';
 import * as zod from 'zod';
 
 import { LANGUAGES } from './users.schema.js';
@@ -25,6 +26,12 @@ export const serverLanguageSchema = zod
   })
   .strict();
 
+export const serverUnitSystemSchema = zod
+  .object({
+    unitSystem: zod.enum(UnitSystem),
+  })
+  .strict();
+
 export const serverChangelogQuerySchema = zod
   .object({
     version: zod.string().trim(),
@@ -34,4 +41,5 @@ export const serverChangelogQuerySchema = zod
 export type PatchServerInput = zod.output<typeof patchServerSchema>;
 export type UpdateServerInput = zod.output<typeof updateServerSchema>;
 export type ServerLanguageInput = zod.output<typeof serverLanguageSchema>;
+export type ServerUnitSystemInput = zod.output<typeof serverUnitSystemSchema>;
 export type ServerChangelogQueryInput = zod.output<typeof serverChangelogQuerySchema>;
