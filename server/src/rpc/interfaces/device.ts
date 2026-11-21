@@ -1,9 +1,17 @@
-import type { Camera, ProbeConfig, ProbeStream, SnapshotInterface, StreamingInterface } from '@camera.ui/sdk';
+import type { Camera, CameraConfigInputSettings, ProbeConfig, ProbeStream, SnapshotInterface, StreamingInterface } from '@camera.ui/sdk';
 import type { PartialReturnType } from '../../types.js';
 import type { SensorRefreshedState } from './sensor.js';
 
 export interface DeviceManagerInterface {
   getCamera(cameraNameOrId: string, pluginId: string): Promise<Camera | undefined>;
+  addCameraSource(pluginId: string, cameraId: string, source: CameraConfigInputSettings): Promise<CameraSourceChange>;
+  removeCameraSource(pluginId: string, cameraId: string, sourceId: string): Promise<CameraSourceChange>;
+}
+
+/** The camera after a plugin added or removed a source, and the ID of an added source. */
+export interface CameraSourceChange {
+  camera: Camera;
+  sourceId?: string;
 }
 
 export interface DeviceManagerProxyEvents {

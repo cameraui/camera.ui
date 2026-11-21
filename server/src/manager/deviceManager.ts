@@ -4,9 +4,10 @@ import { CamerasService } from '../api/services/cameras.service.js';
 import { inject } from '../container.js';
 import { ProxyServer } from '../rpc/index.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
+import { addCameraSource, removeCameraSource } from './camera-sources.js';
 
-import type { Camera } from '@camera.ui/sdk';
-import type { DeviceManagerInterface, DeviceManagerProxyEvents, DeviceManagerProxyGenericEvent } from '../rpc/interfaces/device.js';
+import type { Camera, CameraConfigInputSettings } from '@camera.ui/sdk';
+import type { CameraSourceChange, DeviceManagerInterface, DeviceManagerProxyEvents, DeviceManagerProxyGenericEvent } from '../rpc/interfaces/device.js';
 
 const DEVICE_LIFECYCLE_TIMEOUT_MS = 30_000;
 
@@ -47,5 +48,15 @@ export class DeviceManager implements DeviceManagerInterface {
   @RPCMethod
   public async getCamera(cameraIdOrName: string): Promise<Camera | undefined> {
     return this.camerasService.findTransformedByName(cameraIdOrName) ?? this.camerasService.findTransformedById(cameraIdOrName);
+  }
+
+  @RPCMethod
+  public async addCameraSource(pluginId: string, cameraId: string, source: CameraConfigInputSettings): Promise<CameraSourceChange> {
+    return addCameraSource(this.camerasService, pluginId, cameraId, source);
+  }
+
+  @RPCMethod
+  public async removeCameraSource(pluginId: string, cameraId: string, sourceId: string): Promise<CameraSourceChange> {
+    return removeCameraSource(this.camerasService, pluginId, cameraId, sourceId);
   }
 }

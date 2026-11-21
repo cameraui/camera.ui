@@ -204,6 +204,14 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     throw new Error('Method not implemented.');
   }
 
+  public async addSource(): Promise<CameraDeviceSource> {
+    throw new Error('Method not implemented.');
+  }
+
+  public async removeSource(): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
+
   @RPCMethod
   public async connect(): Promise<void> {
     this.cameraState.next(true);

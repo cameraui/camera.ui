@@ -7,6 +7,7 @@ import type {
   Camera,
   CameraDetectionSettings,
   CameraDevice as CameraDeviceInterface,
+  CameraConfigInputSettings,
   CameraDeviceSource,
   CameraFrameWorkerSettings,
   CameraImplementation,
@@ -175,6 +176,9 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
 
   public abstract connect(): Promise<void>;
   public abstract disconnect(): Promise<void>;
+
+  public abstract addSource(source: CameraConfigInputSettings): Promise<CameraDeviceSource>;
+  public abstract removeSource(sourceId: string): Promise<void>;
 
   public abstract addSensor<T extends object>(sensor: Sensor<T>): Promise<void>;
   public abstract removeSensor(sensorId: string): Promise<void>;
