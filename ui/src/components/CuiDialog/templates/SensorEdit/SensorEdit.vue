@@ -40,7 +40,7 @@
       </Message>
     </div>
 
-    <CuiToggleRow v-if="!sensor.cameraBound" :label="$t('views.sensors.exposed')" :hint="$t('views.sensors.exposed_hint')">
+    <CuiToggleRow v-if="!(sensor.cameraBound && sensor.assignmentLocked)" :label="$t('views.sensors.exposed')" :hint="$t('views.sensors.exposed_hint')">
       <ToggleSwitch v-model="exposed" />
     </CuiToggleRow>
   </div>

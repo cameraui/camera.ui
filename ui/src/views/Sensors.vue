@@ -87,6 +87,15 @@
                   <div class="flex items-center gap-2 min-w-0">
                     <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
                     <i-mdi:eye-off-outline v-if="!data.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                    <span
+                      v-if="data.battery"
+                      v-tooltip="batteryLow(data.battery) ? t('components.automation_nodes.sensor_property_low') : sensorTypeLabel(SensorType.Battery)"
+                      class="flex items-center gap-0.5 shrink-0 text-xs"
+                      :class="batteryLow(data.battery) ? 'text-orange-500' : 'text-muted'"
+                    >
+                      <component :is="sensorIcon(SensorType.Battery, data.battery)" class="w-4 h-4" />
+                      {{ sensorReading(data.battery) }}
+                    </span>
                   </div>
                   <Button
                     v-if="data.device"
@@ -462,7 +471,7 @@
 
 <script lang="ts" setup>
 import { useAllSensors } from '@camera.ui/browser';
-import { SensorType } from '@camera.ui/sdk';
+import { BatteryProperty, SensorType } from '@camera.ui/sdk';
 import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
 import EyeIcon from '~icons/mdi/eye';
@@ -477,6 +486,7 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { SensorsQuery } from '@/api/routes/sensors.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { sensorTypeIcon } from '@/common/sensorIcons.js';
+import { sensorIcon, sensorReading } from '@/components/CuiSensors/display.js';
 import { keepUnchangedItems } from '@/common/utils.js';
 import { useCardSelection } from '@/composables/useCardSelection.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
@@ -484,6 +494,7 @@ import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 import type { SensorDeviceEditResult } from '@/components/CuiDialog/templates/SensorDeviceEdit/types.js';
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
+import type { ReactiveSensor } from '@camera.ui/browser';
 import type { PassThrough } from '@openvue/core';
 import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor, TransformedSensorDevice } from '@shared/types';
 import type { DataTablePassThroughOptions, DataTableRowClickEvent } from 'openvue';
@@ -495,6 +506,7 @@ interface SensorRow {
   sensor: TransformedSensor;
   device?: TransformedSensorDevice;
   members: TransformedSensor[];
+  battery?: ReactiveSensor;
   label: string;
   exposed: boolean;
   typeLabel: string;
@@ -759,11 +771,13 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
   const label = sensor.device?.name ?? sensor.displayName;
   const typeLabel = t('views.sensors.device_sensors', { count: members.length });
   const assignedLabel = cameraNames([...new Set(members.flatMap((member) => member.assignedCameraIds))]);
+  const battery = members.find((member) => member.type === SensorType.Battery);
   return {
     key,
     sensor,
     device: sensor.device,
     members,
+    battery: battery && liveSensorById.value.get(battery.id),
     label,
     exposed: members.some((member) => member.exposed),
     typeLabel,
@@ -958,6 +972,10 @@ function isSensorActive(sensor: TransformedSensor): boolean {
     default:
       return DETECTED_ACTIVE_TYPES.has(String(sensor.type)) && !!get('detected');
   }
+}
+
+function batteryLow(battery: ReactiveSensor): boolean {
+  return battery.getProperty(BatteryProperty.Low) === true;
 }
 
 function canDelete(sensor: TransformedSensor): boolean {
