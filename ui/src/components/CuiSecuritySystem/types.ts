@@ -10,6 +10,7 @@ export interface CuiSecuritySystemProps {
   currentState?: SecuritySystemState;
   targetState?: SecuritySystemState;
   label?: string;
+  modes?: readonly number[];
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
 }

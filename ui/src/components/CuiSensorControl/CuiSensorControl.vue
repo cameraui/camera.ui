@@ -51,6 +51,7 @@
     :label="sensor.displayName.value"
     :current-state="sensor.getProperty(SecuritySystemProperty.CurrentState) ?? 3"
     :target-state="sensor.getProperty(SecuritySystemProperty.TargetState) ?? 3"
+    :modes="securityModes(sensor)"
     :disabled
     size="small"
     class="card-border"
@@ -205,6 +206,7 @@ import {
 } from '@camera.ui/sdk';
 
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
+import { securityModes } from '@/components/CuiSensors/display.js';
 import { BINARY_SENSOR_TYPES, DETECTION_INFO_TYPES, MEASUREMENT_UNITS } from './types.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';

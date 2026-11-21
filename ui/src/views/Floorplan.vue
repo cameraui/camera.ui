@@ -248,7 +248,7 @@
 
         <div v-if="isAdmin && hoveredSensor.sensorType === 'securitySystem'" class="flex flex-col gap-1">
           <Button
-            v-for="state in SECURITY_STATES"
+            v-for="state in hoveredSecurityStates"
             :key="state.value"
             severity="secondary"
             :outlined="securityState(liveSensorOf(hoveredSensor.id)) !== state.value"
@@ -349,7 +349,7 @@ import { SecuritySystemState } from '@camera.ui/sdk';
 import { extractErrorMessage, randomId } from '@/common/utils.js';
 import FloorplanLevelDialog from '@/components/CuiDialog/templates/FloorplanLevel/FloorplanLevel.vue';
 import { passageOn, planRemovals, sharedWall, withoutRemovals } from '@/components/CuiFloorplan/utils.js';
-import { securityState, sensorIcon, sensorStateText, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
+import { securityModes, securityState, sensorIcon, sensorStateText, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
 import { SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from '@/components/CuiShortcuts/types.js';
 
 import type { FloorplanLevelProps } from '@/components/CuiDialog/templates/FloorplanLevel/types.js';
@@ -870,6 +870,11 @@ function onUpdateSensor({ id, patch }: { id: string; patch: Partial<FloorplanSen
 }
 
 const hoveredSensor = computed(() => sensors.value.find((sensor) => sensor.id === hoveredSensorId.value));
+
+const hoveredSecurityStates = computed(() => {
+  const modes = securityModes(hoveredSensor.value && liveSensorOf(hoveredSensor.value.id));
+  return SECURITY_STATES.filter((state) => modes.includes(state.value));
+});
 
 function liveSensorOf(id: string): ReactiveSensor | undefined {
   return liveSensors.value.find((sensor: ReactiveSensor) => sensor.id === id);

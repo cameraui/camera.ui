@@ -72,6 +72,8 @@ import WaterOff from '~icons/mdi/water-off';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Component } from 'vue';
 
+const SECURITY_MODES = [SecuritySystemState.Disarmed, SecuritySystemState.StayArm, SecuritySystemState.AwayArm, SecuritySystemState.NightArm];
+
 const ACTIVE_TONES: Record<string, { color: string; glow: string }> = {
   light: { color: 'rgb(250, 204, 21)', glow: 'rgba(250, 204, 21, 0.8)' },
   siren: { color: 'rgb(239, 68, 68)', glow: 'rgba(239, 68, 68, 0.8)' },
@@ -186,6 +188,11 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
 export async function setSecurityState(sensor: ReactiveSensor | undefined, state: SecuritySystemState): Promise<void> {
   if (!sensor || !isReactiveSecuritySystem(sensor)) return;
   await sensor.setProperty(SecuritySystemProperty.TargetState, state);
+}
+
+export function securityModes(sensor: ReactiveSensor<object> | undefined): SecuritySystemState[] {
+  const offered = sensor?.propertySpecs.value[SecuritySystemProperty.TargetState]?.values;
+  return offered ? SECURITY_MODES.filter((mode) => Object.values(offered).includes(mode)) : SECURITY_MODES;
 }
 
 export function securityState(sensor: ReactiveSensor | undefined): SecuritySystemState {

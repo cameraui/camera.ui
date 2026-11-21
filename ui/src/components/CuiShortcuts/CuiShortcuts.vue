@@ -108,6 +108,7 @@
       >
         <div class="flex flex-col gap-1 min-w-[160px]">
           <button
+            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.Disarmed)"
             type="button"
             class="security-state-button"
             :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.Disarmed) }"
@@ -117,6 +118,7 @@
             <span class="text-sm">Disarmed</span>
           </button>
           <button
+            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.StayArm)"
             type="button"
             class="security-state-button"
             :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.StayArm) }"
@@ -126,6 +128,7 @@
             <span class="text-sm">Stay Arm</span>
           </button>
           <button
+            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.AwayArm)"
             type="button"
             class="security-state-button"
             :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.AwayArm) }"
@@ -135,6 +138,7 @@
             <span class="text-sm">Away Arm</span>
           </button>
           <button
+            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.NightArm)"
             type="button"
             class="security-state-button"
             :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.NightArm) }"
@@ -331,7 +335,15 @@ import { CamerasQuery, getCameraFn } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
 
-import { securityState, sensorIcon, sensorState, sensorTone, setSecurityState, toggleSensor as toggleSharedSensor } from '@/components/CuiSensors/display.js';
+import {
+  securityModes,
+  securityState,
+  sensorIcon,
+  sensorState,
+  sensorTone,
+  setSecurityState,
+  toggleSensor as toggleSharedSensor,
+} from '@/components/CuiSensors/display.js';
 import { INFO_SENSOR_TYPES, SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from './types.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';

@@ -175,6 +175,7 @@
           :label="sensor.displayName.value"
           :current-state="sensor.getProperty(SecuritySystemProperty.CurrentState) ?? 3"
           :target-state="sensor.getProperty(SecuritySystemProperty.TargetState) ?? 3"
+          :modes="securityModes(sensor)"
           :disabled="!canControlSensors"
           size="small"
           class="card-border"
@@ -371,6 +372,7 @@ import {
 } from '@camera.ui/sdk';
 
 import CuiDetection from '@/components/CuiDetection/CuiDetection.vue';
+import { securityModes } from '@/components/CuiSensors/display.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';

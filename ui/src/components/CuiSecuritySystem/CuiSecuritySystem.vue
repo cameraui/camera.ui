@@ -21,6 +21,7 @@
 
     <div class="cui-security-system__modes">
       <button
+        v-if="offers(SecuritySystemState.Disarmed)"
         type="button"
         class="cui-security-system__mode"
         :class="{ 'cui-security-system__mode--active': targetStateValue === SecuritySystemState.Disarmed }"
@@ -32,6 +33,7 @@
       </button>
 
       <button
+        v-if="offers(SecuritySystemState.StayArm)"
         type="button"
         class="cui-security-system__mode"
         :class="{ 'cui-security-system__mode--active': targetStateValue === SecuritySystemState.StayArm }"
@@ -43,6 +45,7 @@
       </button>
 
       <button
+        v-if="offers(SecuritySystemState.AwayArm)"
         type="button"
         class="cui-security-system__mode"
         :class="{ 'cui-security-system__mode--active': targetStateValue === SecuritySystemState.AwayArm }"
@@ -54,6 +57,7 @@
       </button>
 
       <button
+        v-if="offers(SecuritySystemState.NightArm)"
         type="button"
         class="cui-security-system__mode"
         :class="{ 'cui-security-system__mode--active': targetStateValue === SecuritySystemState.NightArm }"
@@ -147,6 +151,10 @@ const armedIconStyle = computed(() => ({
   color: 'rgb(34, 197, 94)',
   filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.5))',
 }));
+
+function offers(state: SecuritySystemState): boolean {
+  return !props.modes || props.modes.includes(state);
+}
 
 function setTargetState(state: SecuritySystemState) {
   targetStateValue.value = state;
@@ -285,7 +293,8 @@ function resetAlarm() {
 
 .cui-security-system__modes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   gap: 0.375rem;
 }
 
