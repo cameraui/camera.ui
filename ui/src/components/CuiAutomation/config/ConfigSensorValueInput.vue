@@ -22,9 +22,9 @@
     </CuiToggleRow>
 
     <Select
-      v-else-if="meta.kind === 'enum'"
+      v-else-if="meta.kind === 'enum' || meta.kind === 'choice'"
       :model-value="modelValue"
-      :options="enumOptions"
+      :options="selectOptions"
       option-label="label"
       option-value="value"
       class="w-full"
@@ -37,6 +37,7 @@
       :model-value="numberValue"
       :min="meta.min"
       :max="meta.max"
+      :step="meta.step"
       :max-fraction-digits="3"
       fluid
       :disabled
@@ -57,6 +58,7 @@
       v-else
       :model-value="modelValue"
       :placeholder="t('components.automation_nodes.condition_value_placeholder')"
+      :maxlength="meta.maxLength"
       class="w-full"
       :disabled
       @update:model-value="(v) => emitValue(String(v ?? ''))"
@@ -87,8 +89,12 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const { sensors } = useAllSensors();
+const faceStore = useFaceStore();
 
-const meta = computed(() => getSensorPropertyInput(props.sensorType, props.property));
+const sensor = computed(() => sensors.value.find((s) => s.id === props.sensorId));
+
+const meta = computed(() => getSensorPropertyInput(props.sensorType, props.property, sensor.value?.propertySpecs.value));
 
 const booleanValue = computed(() => props.modelValue === 'true');
 
@@ -97,19 +103,17 @@ const numberValue = computed(() => {
   return props.modelValue !== '' && Number.isFinite(parsed) ? parsed : null;
 });
 
-const enumOptions = computed(() => (meta.value.options ?? []).map((option) => ({ label: t(`components.automation_nodes.${option.labelKey}`), value: option.value })));
-
 const isPresetProperty = computed(() => props.sensorType === SensorType.PTZ && props.property === 'targetPreset');
 const isFaceIdentity = computed(() => props.sensorType === SensorType.Face && props.property === 'identities');
 
-const { sensors } = useAllSensors();
-const faceStore = useFaceStore();
+const selectOptions = computed(
+  () => meta.value.choices ?? (meta.value.options ?? []).map((option) => ({ label: t(`components.automation_nodes.${option.labelKey}`), value: option.value })),
+);
 
 const presetOptions = computed(() => {
   if (isFaceIdentity.value) return faceStore.knownFaces.value.map((face) => face.name);
   if (!isPresetProperty.value) return [];
-  const sensor = sensors.value.find((s) => s.id === props.sensorId);
-  const presets = sensor?.getProperty('presets');
+  const presets = sensor.value?.getProperty('presets');
   return Array.isArray(presets) ? presets.filter((p): p is string => typeof p === 'string') : [];
 });
 

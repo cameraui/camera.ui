@@ -148,7 +148,8 @@ function updateCondition(idx: number, field: 'property' | 'expectedValue', value
   const current = [...conditions.value];
   current[idx] = { ...current[idx], [field]: value };
   if (field === 'property') {
-    current[idx].expectedValue = getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), value);
+    const specs = sensorById(props.data.sensorId)?.propertySpecs.value;
+    current[idx].expectedValue = getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), value, specs);
   }
   emit('update:data', { conditions: current });
 }

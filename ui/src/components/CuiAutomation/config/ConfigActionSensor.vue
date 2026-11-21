@@ -116,7 +116,8 @@ function toggleProperty(property: string, enabled: unknown) {
   const current = [...(props.data.properties ?? [])];
   if (enabled) {
     if (!current.some((p) => p.property === property)) {
-      current.push({ property, value: getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), property) });
+      const specs = sensorById(props.data.sensorId)?.propertySpecs.value;
+      current.push({ property, value: getSensorPropertyDefaultValue(String(props.data.sensorType ?? ''), property, specs) });
     }
   } else {
     const idx = current.findIndex((p) => p.property === property);

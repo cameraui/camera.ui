@@ -1,9 +1,18 @@
 import { getSensorPropertySpec } from '@shared/types';
 
-export type SensorPropertyInputKind = 'boolean' | 'number' | 'enum' | 'text';
+import type { SensorPropertySpec } from '@camera.ui/sdk';
+
+export type SensorPropertyInputKind = 'boolean' | 'number' | 'enum' | 'choice' | 'text';
+
+type SensorPropertySpecs = Readonly<Record<string, SensorPropertySpec>>;
 
 export interface SensorPropertyEnumOption {
   labelKey: string;
+  value: string;
+}
+
+export interface SensorPropertyChoiceOption {
+  label: string;
   value: string;
 }
 
@@ -11,12 +20,16 @@ export interface SensorPropertyInputMeta {
   kind: SensorPropertyInputKind;
   min?: number;
   max?: number;
+  step?: number;
+  maxLength?: number;
   options?: SensorPropertyEnumOption[];
+  choices?: SensorPropertyChoiceOption[];
 }
 
-export function getSensorPropertyInput(sensorType: string, property: string): SensorPropertyInputMeta {
-  const spec = getSensorPropertySpec(sensorType, property);
+export function getSensorPropertyInput(sensorType: string, property: string, sensorSpecs?: SensorPropertySpecs): SensorPropertyInputMeta {
+  const spec = sensorSpecs?.[property] ?? getSensorPropertySpec(sensorType, property);
   if (!spec) return { kind: 'text' };
+  if (spec.choices) return { kind: 'choice', choices: spec.choices.map(({ label, value }) => ({ label, value: String(value) })) };
 
   switch (spec.type) {
     case 'boolean':
@@ -26,6 +39,7 @@ export function getSensorPropertyInput(sensorType: string, property: string): Se
         kind: 'number',
         ...(spec.min !== undefined ? { min: spec.min } : {}),
         ...(spec.max !== undefined ? { max: spec.max } : {}),
+        ...(spec.step !== undefined ? { step: spec.step } : {}),
       };
     case 'enum':
       return {
@@ -36,13 +50,14 @@ export function getSensorPropertyInput(sensorType: string, property: string): Se
         })),
       };
     default:
-      return { kind: 'text' };
+      return { kind: 'text', ...(spec.maxLength !== undefined ? { maxLength: spec.maxLength } : {}) };
   }
 }
 
-export function getSensorPropertyDefaultValue(sensorType: string, property: string): string {
-  const meta = getSensorPropertyInput(sensorType, property);
+export function getSensorPropertyDefaultValue(sensorType: string, property: string, sensorSpecs?: SensorPropertySpecs): string {
+  const meta = getSensorPropertyInput(sensorType, property, sensorSpecs);
   if (meta.kind === 'boolean') return 'true';
   if (meta.kind === 'enum') return meta.options?.[0]?.value ?? '';
+  if (meta.kind === 'choice') return meta.choices?.[0]?.value ?? '';
   return '';
 }
