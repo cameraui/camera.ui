@@ -1,7 +1,7 @@
 {
   "name": "@camera.ui/server",
   "version": "2.5.1",
-  "description": "camera.ui server",
+  "description": "Server of camera.ui, the local-first camera and NVR platform",
   "author": "seydx (https://github.com/cameraui/camera.ui)",
   "type": "module",
   "main": "dist/server/bin/cameraui-server.js",
