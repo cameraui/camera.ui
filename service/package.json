@@ -72,6 +72,16 @@
     "webrtc",
     "motion detection",
     "object detection",
-    "launcher"
+    "launcher",
+    "local-first",
+    "home-assistant",
+    "rtsp",
+    "onvif",
+    "ip-camera",
+    "cctv",
+    "video-surveillance",
+    "security-camera",
+    "homekit-secure-video",
+    "face-recognition"
   ]
 }

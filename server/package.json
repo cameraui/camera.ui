@@ -164,7 +164,17 @@
     "webrtc",
     "motion detection",
     "object detection",
-    "server"
+    "server",
+    "local-first",
+    "home-assistant",
+    "rtsp",
+    "onvif",
+    "ip-camera",
+    "cctv",
+    "video-surveillance",
+    "security-camera",
+    "homekit-secure-video",
+    "face-recognition"
   ],
   "license": "MIT",
   "repository": {
