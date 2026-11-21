@@ -1,5 +1,5 @@
-import type { Camera, DiscoveredSensor, ModelSpec, SensorHistoryEntry, SensorSourceState, SensorType } from '@camera.ui/sdk';
-import type { PropertyChangedEvent, SensorJSON, SensorSourcePatch } from '@camera.ui/sdk/internal';
+import type { Camera, DiscoveredSensor, ModelSpec, SensorDevice, SensorHistoryEntry, SensorSourceState, SensorType } from '@camera.ui/sdk';
+import type { PropertyChangedEvent, SensorDeviceState, SensorJSON, SensorSourcePatch } from '@camera.ui/sdk/internal';
 
 export interface DiscoveredSensorListItem extends DiscoveredSensor {
   pluginId: string;
@@ -26,6 +26,9 @@ export interface StoredSensorData {
   type: SensorType;
   name: string;
   displayName: string;
+  shortName: string;
+  device?: SensorDevice;
+  primary: boolean;
   nativeId?: string;
   pluginId: string;
   assignedCameraIds: string[];
@@ -46,6 +49,7 @@ export interface SensorRefreshedState {
   properties: Record<string, unknown>;
   capabilities: string[];
   displayName?: string;
+  deviceState?: SensorDeviceState;
 }
 
 export interface SensorRegistration {
@@ -53,6 +57,7 @@ export interface SensorRegistration {
   assignedCameraIds: string[];
   active: boolean;
   stateSubject?: boolean;
+  deviceState: SensorDeviceState;
 }
 
 export interface RegisterSensorOptions {
@@ -126,6 +131,12 @@ export interface SensorDisplayNameChangedEvent {
   displayName: string;
 }
 
+export interface SensorDeviceChangedEvent {
+  sensorId: string;
+  sensorType: SensorType;
+  deviceState: SensorDeviceState;
+}
+
 export interface SensorExposedChangedEvent {
   sensorId: string;
   sensorType: SensorType;
@@ -151,7 +162,8 @@ export interface SensorEventMessage {
     | 'sensor:displayName:changed'
     | 'sensor:capabilities:changed'
     | 'sensor:assignment:changed'
-    | 'sensor:exposed:changed';
+    | 'sensor:exposed:changed'
+    | 'sensor:device:changed';
   data:
     | PropertyChangedEvent
     | SensorAddedEvent
@@ -162,7 +174,8 @@ export interface SensorEventMessage {
     | SensorDisplayNameChangedEvent
     | SensorCapabilitiesChangedEvent
     | SensorAssignmentChangedEvent
-    | SensorExposedChangedEvent;
+    | SensorExposedChangedEvent
+    | SensorDeviceChangedEvent;
 }
 
 export interface CameraEventMessage {

@@ -16,6 +16,7 @@ export const SHARES_ID = 'shares';
 export const INSTANCES_ID = 'instances';
 export const AUTOMATIONS_ID = 'automations';
 export const SENSORS_ID = 'sensors';
+export const SENSOR_DEVICES_ID = 'sensor-devices';
 export const SENSOR_HISTORY_ID = 'sensor-history';
 export const NOTIFICATIONS_ID = 'notifications';
 export const NOTIFICATION_HISTORY_ID = 'notification-history';

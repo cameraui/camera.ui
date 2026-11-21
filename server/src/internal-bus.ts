@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events';
 
 import { provide, tryInject } from './container.js';
 
+import type { SensorDeviceState } from '@camera.ui/sdk/internal';
+
 export type SystemEvent = 'system:started' | 'system:shutdown' | 'system:notification' | 'camera:added' | 'camera:removed';
 
 export type PluginEvent = 'plugin:started' | 'plugin:stopped' | 'plugin:error' | 'plugin:crashed' | 'plugin:notification';
@@ -17,7 +19,8 @@ export type SensorEvent =
   | 'sensor:displayName:changed'
   | 'sensor:capabilities:changed'
   | 'sensor:exposed:changed'
-  | 'sensor:assignment:changed';
+  | 'sensor:assignment:changed'
+  | 'sensor:device:changed';
 
 export type InternalEvent = SystemEvent | PluginEvent | CameraEvent | SensorEvent;
 
@@ -82,6 +85,13 @@ export interface SensorDisplayNameChangedPayload {
   displayName: string;
 }
 
+export interface SensorDeviceChangedPayload {
+  sensorId: string;
+  sensorType: string;
+  assignedCameraIds: string[];
+  deviceState: SensorDeviceState;
+}
+
 export interface SensorCapabilitiesChangedPayload {
   sensorId: string;
   sensorType: string;
@@ -98,6 +108,7 @@ export type InternalEventPayload =
   | SensorPropertyChangedPayload
   | SensorLifecyclePayload
   | SensorDisplayNameChangedPayload
+  | SensorDeviceChangedPayload
   | SensorCapabilitiesChangedPayload;
 
 export class InternalEventBus extends EventEmitter {

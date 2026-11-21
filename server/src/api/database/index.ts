@@ -42,6 +42,7 @@ import {
   PLUGINS_ID,
   REMOTE_ID,
   ROOMS_ID,
+  SENSOR_DEVICES_ID,
   SENSOR_HISTORY_ID,
   SENSORS_ID,
   SERVER_ID,
@@ -99,6 +100,7 @@ import type {
   DBRoles,
   DBRoomCatalog,
   DBSensor,
+  DBSensorDevice,
   DBSensorHistoryEntry,
   DBServer,
   DBSettings,
@@ -131,6 +133,7 @@ export class Database {
   public automationsDB!: DB<DBAutomation, string>;
   public automationStateDB!: DB<unknown, string>;
   public sensorsDB!: DB<DBSensor, string>;
+  public sensorDevicesDB!: DB<DBSensorDevice, string>;
   public sensorHistoryDB!: DB<DBSensorHistoryEntry, string>;
   public notificationsDB!: DB<DBNotificationSettings, string>;
   public notificationHistoryDB!: DB<DBNotificationHistory, string>;
@@ -202,6 +205,7 @@ export class Database {
     this.automationsDB = this.lowdb.openDB({ name: AUTOMATIONS_ID });
     this.automationStateDB = this.lowdb.openDB({ name: AUTOMATION_STATE_ID });
     this.sensorsDB = this.lowdb.openDB({ name: SENSORS_ID });
+    this.sensorDevicesDB = this.lowdb.openDB({ name: SENSOR_DEVICES_ID });
     this.sensorHistoryDB = this.lowdb.openDB({ name: SENSOR_HISTORY_ID });
     this.notificationsDB = this.lowdb.openDB({ name: NOTIFICATIONS_ID });
     this.notificationHistoryDB = this.lowdb.openDB({ name: NOTIFICATION_HISTORY_ID });

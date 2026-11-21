@@ -4,8 +4,8 @@ import { Subject } from '@camera.ui/sdk';
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { Observable, SensorLike, SensorType } from '@camera.ui/sdk';
-import type { PropertyChangedEvent } from '@camera.ui/sdk/internal';
+import type { Observable, SensorDevice, SensorLike, SensorType } from '@camera.ui/sdk';
+import type { PropertyChangedEvent, SensorDeviceState } from '@camera.ui/sdk/internal';
 import type { SensorRefreshedState, StoredSensorData } from '../../../../rpc/interfaces/sensor.js';
 
 export class SensorProxy implements SensorLike {
@@ -13,16 +13,21 @@ export class SensorProxy implements SensorLike {
   readonly onCapabilitiesChanged: Observable<string[]>;
   readonly onConnectedChanged: Observable<boolean>;
   readonly onAssignmentChanged: Observable<readonly string[]>;
+  readonly onDeviceInfoChanged: Observable<SensorDevice | undefined>;
 
   readonly #propertyChangedSubject = new Subject<{ property: string; value: unknown; timestamp: number }>();
   readonly #capabilitiesChangedSubject = new Subject<string[]>();
   readonly #connectedChangedSubject = new Subject<boolean>();
   readonly #assignmentChangedSubject = new Subject<readonly string[]>();
+  readonly #deviceInfoChangedSubject = new Subject<SensorDevice | undefined>();
 
   private _id: string;
   private _type: SensorType;
   private _name: string;
   private _displayName: string;
+  private _shortName: string;
+  private _device?: SensorDevice;
+  private _primary: boolean;
   private _nativeId?: string;
   private _ownerId: string;
   private _assignedCameraIds: string[];
@@ -41,6 +46,9 @@ export class SensorProxy implements SensorLike {
     this._type = data.type;
     this._name = data.name;
     this._displayName = data.displayName ?? data.name;
+    this._shortName = data.shortName;
+    this._device = data.device;
+    this._primary = data.primary;
     this._nativeId = data.nativeId;
     this._ownerId = data.pluginId;
     this._assignedCameraIds = [...data.assignedCameraIds];
@@ -54,6 +62,7 @@ export class SensorProxy implements SensorLike {
     this.onCapabilitiesChanged = this.#capabilitiesChangedSubject.asObservable();
     this.onConnectedChanged = this.#connectedChangedSubject.asObservable();
     this.onAssignmentChanged = this.#assignmentChangedSubject.asObservable();
+    this.onDeviceInfoChanged = this.#deviceInfoChangedSubject.asObservable();
 
     this._rpcProxy = proxy.createProxy<SensorLike>(ownerNamespace);
 
@@ -76,6 +85,18 @@ export class SensorProxy implements SensorLike {
 
   get displayName(): string {
     return this._displayName;
+  }
+
+  get shortName(): string {
+    return this._shortName;
+  }
+
+  get deviceInfo(): SensorDevice | undefined {
+    return this._device;
+  }
+
+  get primary(): boolean {
+    return this._primary;
   }
 
   get pluginId(): string | undefined {
@@ -143,6 +164,10 @@ export class SensorProxy implements SensorLike {
       this.setDisplayName(state.displayName);
     }
 
+    if (state.deviceState && current('device')) {
+      this._applyDeviceState(state.deviceState);
+    }
+
     if (current('capabilities') && !isEqual(this._capabilities, state.capabilities, true)) {
       this._updateCapabilities(state.capabilities);
     }
@@ -154,6 +179,22 @@ export class SensorProxy implements SensorLike {
 
   _setDisplayName(displayName: string): void {
     this.setDisplayName(displayName);
+  }
+
+  _applyDeviceEvent(state: SensorDeviceState): void {
+    this._countEvent('device');
+    this._countEvent('displayName');
+    this._applyDeviceState(state);
+  }
+
+  _applyDeviceState(state: SensorDeviceState): void {
+    const changed =
+      !isEqual(this._device, state.device) || this._shortName !== state.shortName || this._primary !== state.primary || this._displayName !== state.displayName;
+    this._device = state.device;
+    this._displayName = state.displayName;
+    this._shortName = state.shortName;
+    this._primary = state.primary;
+    if (changed) this.#deviceInfoChangedSubject.next(state.device);
   }
 
   _updateCapabilities(capabilities: string[]): void {
@@ -225,6 +266,9 @@ export class SensorProxy implements SensorLike {
       type: this.type,
       name: this.name,
       displayName: this.displayName,
+      shortName: this._shortName,
+      device: this._device,
+      primary: this._primary,
       nativeId: this._nativeId,
       pluginId: this._ownerId,
       assignedCameraIds: [...this._assignedCameraIds],

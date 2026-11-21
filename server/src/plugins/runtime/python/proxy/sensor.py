@@ -5,13 +5,14 @@ from typing import Any, Protocol
 from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
 from _camera_ui_tools.camera_ui_sdk import (
     Observable,
+    SensorDevice,
     SensorHistoryEntry,
     SensorLike,
     SensorPropertyChangeData,
     SensorType,
     Subject,
 )
-from _camera_ui_tools.camera_ui_sdk.internal import SensorJSON, SensorSourcePatch
+from _camera_ui_tools.camera_ui_sdk.internal import SensorDeviceState, SensorJSON, SensorSourcePatch
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.typings import (
     SensorRefreshedState,
@@ -42,6 +43,9 @@ class SensorProxy(SensorLike):
         self._type = data["type"]
         self._name = data["name"]
         self._display_name = data.get("displayName", data["name"])
+        self._short_name = data["shortName"]
+        self._device: SensorDevice | None = data.get("device")
+        self._primary = data["primary"]
         self._native_id = data.get("nativeId")
         self._owner_id = data["pluginId"]
         self._assigned_camera_ids: list[str] = list(data.get("assignedCameraIds", []))
@@ -56,6 +60,7 @@ class SensorProxy(SensorLike):
         self._capabilities_changed_subject: Subject[list[str]] = Subject()
         self._connected_changed_subject: Subject[bool] = Subject()
         self._assignment_changed_subject: Subject[list[str]] = Subject()
+        self._device_info_changed_subject: Subject[SensorDevice | None] = Subject()
         self._event_subscription: CloseHandler | None = None
         self._event_counts: dict[str, int] = {}
 
@@ -78,6 +83,18 @@ class SensorProxy(SensorLike):
     @displayName.setter
     def displayName(self, value: str) -> None:
         self._display_name = value
+
+    @property
+    def shortName(self) -> str:
+        return self._short_name
+
+    @property
+    def deviceInfo(self) -> SensorDevice | None:
+        return self._device
+
+    @property
+    def primary(self) -> bool:
+        return self._primary
 
     @property
     def nativeId(self) -> str | None:
@@ -135,6 +152,10 @@ class SensorProxy(SensorLike):
     def onAssignmentChanged(self) -> Observable[list[str]]:
         return self._assignment_changed_subject.as_observable()
 
+    @property
+    def onDeviceInfoChanged(self) -> Observable[SensorDevice | None]:
+        return self._device_info_changed_subject.as_observable()
+
     def _update_cached_value(self, property: str, value: Any, timestamp: int | None = None) -> None:
         if self._properties.get(property) == value:
             return
@@ -149,6 +170,26 @@ class SensorProxy(SensorLike):
 
     def _set_display_name(self, display_name: str) -> None:
         self._display_name = display_name
+
+    def _apply_device_event(self, state: SensorDeviceState) -> None:
+        self._count_event("device")
+        self._count_event("displayName")
+        self._apply_device_state(state)
+
+    def _apply_device_state(self, state: SensorDeviceState) -> None:
+        device = state.get("device")
+        changed = (
+            device != self._device
+            or state["shortName"] != self._short_name
+            or state["primary"] != self._primary
+            or state["displayName"] != self._display_name
+        )
+        self._device = device
+        self._display_name = state["displayName"]
+        self._short_name = state["shortName"]
+        self._primary = state["primary"]
+        if changed:
+            self._device_info_changed_subject.next(device)
 
     def _update_capabilities(self, capabilities: list[str]) -> None:
         self._capabilities = capabilities
@@ -179,6 +220,10 @@ class SensorProxy(SensorLike):
         display_name = state.get("displayName")
         if display_name and current("displayName"):
             self._set_display_name(display_name)
+
+        device_state = state.get("deviceState")
+        if device_state and current("device"):
+            self._apply_device_state(device_state)
 
         capabilities = list(state.get("capabilities", []))
         if current("capabilities") and sorted(capabilities) != sorted(self._capabilities):
@@ -227,6 +272,8 @@ class SensorProxy(SensorLike):
             "type": self._type,
             "name": self._name,
             "displayName": self._display_name,
+            "shortName": self._short_name,
+            "primary": self._primary,
             "pluginId": self._owner_id,
             "assignedCameraIds": self.assignedCameraIds,
             "exposed": self._exposed,
@@ -236,6 +283,8 @@ class SensorProxy(SensorLike):
         }
         if self._native_id:
             data["nativeId"] = self._native_id
+        if self._device:
+            data["device"] = self._device
 
         return data
 

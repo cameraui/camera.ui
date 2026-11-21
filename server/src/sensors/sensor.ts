@@ -5,7 +5,7 @@ import { DETECTION_SENSOR_TYPES, PROPERTY_CAPABILITY_MAP, SENSOR_TYPE_CONFIG, VI
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
-import type { ModelSpec, SensorLike, SensorPropertyType, SensorTriggerSettings } from '@camera.ui/sdk';
+import type { ModelSpec, SensorDevice, SensorLike, SensorPropertyType, SensorTriggerSettings } from '@camera.ui/sdk';
 import type { PropertyChangedEvent } from '@camera.ui/sdk/internal';
 import type { InternalEvent, InternalEventPayload } from '../internal-bus.js';
 import type { DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
@@ -20,7 +20,6 @@ export interface SensorContext {
   readonly publishSensorEvent: (sensorId: string, event: { type: string; data: unknown }) => void;
   readonly emitBus: <T extends InternalEventPayload>(event: InternalEvent, payload: T) => void;
   readonly createPluginSensorRpc: (pluginId: string, sensorId: string) => Promisify<SensorLike>;
-  readonly persistDisplayName: (sensorId: string, displayName: string) => void;
   readonly persistState: (sensorId: string, delta: Record<string, unknown>) => void;
   readonly appendHistory: (sensorId: string, delta: Record<string, unknown>) => void;
 }
@@ -35,6 +34,7 @@ export class ServerSensor implements SensorLike {
   public readonly onCapabilitiesChanged = new Observable<string[]>(() => new Disposable(() => {}));
   public readonly onConnectedChanged = new Observable<boolean>(() => new Disposable(() => {}));
   public readonly onAssignmentChanged = new Observable<readonly string[]>(() => new Disposable(() => {}));
+  public readonly onDeviceInfoChanged = new Observable<SensorDevice | undefined>(() => new Disposable(() => {}));
 
   private readonly ctx: SensorContext;
 
@@ -51,6 +51,18 @@ export class ServerSensor implements SensorLike {
 
   public get displayName(): string {
     return this.data.displayName;
+  }
+
+  public get shortName(): string {
+    return this.data.shortName;
+  }
+
+  public get deviceInfo(): SensorDevice | undefined {
+    return this.data.device;
+  }
+
+  public get primary(): boolean {
+    return this.data.primary;
   }
 
   public get capabilities(): string[] {
@@ -96,6 +108,7 @@ export class ServerSensor implements SensorLike {
       properties: this.getValues(),
       capabilities: this.capabilities,
       displayName: this.displayName,
+      deviceState: { device: this.deviceInfo, displayName: this.displayName, shortName: this.shortName, primary: this.primary },
     };
   }
 
@@ -111,23 +124,6 @@ export class ServerSensor implements SensorLike {
     } catch (error) {
       this.ctx.logger.warn(`Failed to updateValue on plugin sensor ${this.pluginId}/${this.id} (${property}):`, error);
     }
-  }
-
-  public async setDisplayNameAsync(displayName: string): Promise<void> {
-    this.ctx.persistDisplayName(this.id, displayName);
-    this.data.displayName = displayName;
-
-    this.ctx.publishSensorEvent(this.id, {
-      type: 'sensor:displayName:changed',
-      data: { sensorId: this.id, displayName },
-    });
-
-    this.ctx.emitBus('sensor:displayName:changed', {
-      sensorId: this.id,
-      sensorType: String(this.type),
-      assignedCameraIds: this.assignedCameraIds,
-      displayName,
-    });
   }
 
   public applyCapabilityUpdate(capabilities: string[]): void {

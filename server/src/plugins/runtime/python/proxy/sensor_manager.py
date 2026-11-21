@@ -30,7 +30,7 @@ from plugins.runtime.python.proxy.sensor import (
 if TYPE_CHECKING:
     from _camera_ui_tools.camera_ui_common import LoggerService
     from _camera_ui_tools.camera_ui_rpc import CloseHandler, RPCClient
-    from _camera_ui_tools.camera_ui_sdk.internal import SensorJSON, SensorSourcePatch
+    from _camera_ui_tools.camera_ui_sdk.internal import SensorDeviceState, SensorJSON, SensorSourcePatch
     from plugins.runtime.python.storage_controller import StorageController
     from plugins.runtime.python.typings import (
         PluginInfo,
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
         SensorAssignmentChangedEvent,
         SensorConnectedChangedEvent,
         SensorDeletedEvent,
+        SensorDeviceChangedEvent,
         SensorEventMessage,
         SensorExposedChangedEvent,
         SensorRefreshedState,
@@ -276,6 +277,7 @@ class SensorManagerProxy:
         sensor_json = self._registration_json(sensor)
         registration = await self._registry_proxy.registerSensor(sensor_json, plugin_id)
         sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
+        sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
 
         sensor_namespace = NamespaceManager.sensor_provider_namespaces(plugin_id, sensor.id).sensor_rpc
 
@@ -326,6 +328,7 @@ class SensorManagerProxy:
                 self._registration_json(sensor), self._plugin["id"]
             )
             sensor._setAssignedCameras(registration["assignedCameraIds"])  # pyright: ignore[reportPrivateUsage]
+            sensor._applyDeviceState(registration["deviceState"])  # pyright: ignore[reportPrivateUsage]
         await self._sync_and_announce()
 
     def _registration_json(self, sensor: Sensor[Any, Any, Any]) -> SensorJSON:
@@ -383,11 +386,19 @@ class SensorManagerProxy:
                 if sorted(held.assignedCameraIds) != sorted(camera_ids):
                     held._set_assigned_cameras(camera_ids)  # pyright: ignore[reportPrivateUsage]
                 if data["connected"]:
+                    device_state: SensorDeviceState = {
+                        "displayName": data["displayName"],
+                        "shortName": data["shortName"],
+                        "primary": data["primary"],
+                    }
+                    if device := data.get("device"):
+                        device_state["device"] = device
                     state: SensorRefreshedState = {
                         "type": data["type"],
                         "properties": data["properties"],
                         "capabilities": data.get("capabilities", []),
                         "displayName": data["displayName"],
+                        "deviceState": device_state,
                     }
                     held._apply_refreshed_state(state, marks.get(data["id"]))  # pyright: ignore[reportPrivateUsage]
         return added
@@ -530,6 +541,15 @@ class SensorManagerProxy:
             sensor_proxy = await self._add_consumed(fetched)
             if self._plugin_instance:
                 await self._plugin_instance.onSensorAdded(sensor_proxy)
+
+        elif event_type == "sensor:device:changed":
+            changed = cast("SensorDeviceChangedEvent", message.get("data"))
+            for owned in (self._owned.get(changed["sensorId"]), self._external.get(changed["sensorId"])):
+                if owned:
+                    owned._applyDeviceState(changed["deviceState"])  # pyright: ignore[reportPrivateUsage]
+            consumed = self._consumed.get(changed["sensorId"])
+            if consumed is not None:
+                consumed._apply_device_event(changed["deviceState"])  # pyright: ignore[reportPrivateUsage]
 
         elif event_type == "sensor:assignment:changed":
             assignment = cast("SensorAssignmentChangedEvent", message.get("data"))

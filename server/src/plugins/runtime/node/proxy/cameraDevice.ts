@@ -245,6 +245,7 @@ export class CameraDeviceProxy extends CameraDevice {
     for (const { sensor } of [...this.#ownedSensors.values()]) {
       const registration = await this.#sensorRegistryProxy.registerSensor(this.#registrationJson(sensor, true), this.#plugin.id, { assignCameraId: this.id });
       sensor._setAssignedCameras(registration.assignedCameraIds);
+      sensor._applyDeviceState(registration.deviceState);
     }
     if (this.#connectWanted) {
       await this.#cameraControllerProxy.connect();
@@ -274,6 +275,7 @@ export class CameraDeviceProxy extends CameraDevice {
     const registration = await this.#sensorRegistryProxy.registerSensor(sensorJSON, this.#plugin.id, { assignCameraId: this.id });
     sensor._setAssignedCameras(registration.assignedCameraIds);
     sensor._setAssignmentLocked?.();
+    sensor._applyDeviceState(registration.deviceState);
 
     await this.#sensorManager._trackCameraSensor(sensor);
 

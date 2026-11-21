@@ -18,6 +18,7 @@ import type {
   SensorAssignmentChangedEvent,
   SensorConnectedChangedEvent,
   SensorDeletedEvent,
+  SensorDeviceChangedEvent,
   SensorEventMessage,
   SensorExposedChangedEvent,
   SensorRegistryInterface,
@@ -161,6 +162,7 @@ export class SensorManagerProxy implements SensorManager {
     for (const sensor of [...this.#owned.values()]) {
       const registration = await this.#registryProxy.registerSensor(this.#registrationJson(sensor), this.#plugin.id);
       sensor._setAssignedCameras(registration.assignedCameraIds);
+      sensor._applyDeviceState(registration.deviceState);
     }
     await this.#resync();
   }
@@ -241,6 +243,7 @@ export class SensorManagerProxy implements SensorManager {
     const sensorJSON = this.#registrationJson(sensor);
     const registration = await this.#registryProxy.registerSensor(sensorJSON, this.#plugin.id);
     sensor._setAssignedCameras(registration.assignedCameraIds);
+    sensor._applyDeviceState(registration.deviceState);
 
     const sensorNamespace = NamespaceManager.sensorProviderNamespaces(this.#plugin.id, sensor.id).sensorRpc;
 
@@ -397,7 +400,16 @@ export class SensorManagerProxy implements SensorManager {
         held._setConnected(data.connected);
         syncAssignedCameras(held, data.assignedCameraIds);
         if (data.connected) {
-          held._applyRefreshedState({ type: data.type, properties: data.properties, capabilities: data.capabilities, displayName: data.displayName }, marks.get(data.id));
+          held._applyRefreshedState(
+            {
+              type: data.type,
+              properties: data.properties,
+              capabilities: data.capabilities,
+              displayName: data.displayName,
+              deviceState: { device: data.device, displayName: data.displayName, shortName: data.shortName, primary: data.primary },
+            },
+            marks.get(data.id),
+          );
         }
       }
     }
@@ -499,6 +511,13 @@ export class SensorManagerProxy implements SensorManager {
         if (!data || !this.#isConsumable(data)) return;
         const proxySensor = await this.#addConsumed(data);
         await this.#pluginInstance?.onSensorAdded?.(proxySensor);
+        break;
+      }
+      case 'sensor:device:changed': {
+        const event = message.data as SensorDeviceChangedEvent;
+        this.#owned.get(event.sensorId)?._applyDeviceState(event.deviceState);
+        this.#external.get(event.sensorId)?._applyDeviceState(event.deviceState);
+        this.#consumed.get(event.sensorId)?._applyDeviceEvent(event.deviceState);
         break;
       }
       case 'sensor:assignment:changed': {

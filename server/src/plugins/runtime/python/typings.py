@@ -5,10 +5,11 @@ from _camera_ui_tools.camera_ui_sdk import (
     Camera,
     ModelSpec,
     PluginInfo,
+    SensorDevice,
     SensorSourceState,
     SensorType,
 )
-from _camera_ui_tools.camera_ui_sdk.internal import PropertyChangedEvent
+from _camera_ui_tools.camera_ui_sdk.internal import PropertyChangedEvent, SensorDeviceState
 
 
 class ProcessSession(TypedDict):
@@ -72,6 +73,9 @@ class StoredSensorData(TypedDict):
     type: SensorType
     name: str
     displayName: str
+    shortName: str
+    device: NotRequired[SensorDevice]
+    primary: bool
     nativeId: NotRequired[str]
     pluginId: str
     assignedCameraIds: list[str]
@@ -92,6 +96,7 @@ class SensorRegistration(TypedDict):
     assignedCameraIds: list[str]
     active: bool
     stateSubject: NotRequired[bool]
+    deviceState: SensorDeviceState
 
 
 class SensorRefreshedState(TypedDict):
@@ -99,6 +104,7 @@ class SensorRefreshedState(TypedDict):
     properties: dict[str, Any]
     capabilities: list[str]
     displayName: NotRequired[str]
+    deviceState: NotRequired[SensorDeviceState]
 
 
 class SensorAddedEvent(TypedDict):
@@ -144,6 +150,12 @@ class SensorExposedChangedEvent(TypedDict):
     exposed: bool
 
 
+class SensorDeviceChangedEvent(TypedDict):
+    sensorId: str
+    sensorType: SensorType
+    deviceState: SensorDeviceState
+
+
 class SensorAssignmentChangedEvent(TypedDict):
     sensorId: str
     sensorType: SensorType
@@ -163,6 +175,7 @@ class SensorEventMessage(TypedDict):
         "sensor:capabilities:changed",
         "sensor:assignment:changed",
         "sensor:exposed:changed",
+        "sensor:device:changed",
     ]
     data: (
         PropertyChangedEvent
@@ -175,6 +188,7 @@ class SensorEventMessage(TypedDict):
         | SensorCapabilitiesChangedEvent
         | SensorAssignmentChangedEvent
         | SensorExposedChangedEvent
+        | SensorDeviceChangedEvent
     )
 
 

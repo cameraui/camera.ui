@@ -1,3 +1,4 @@
+import { isEqual } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
 import { canProvideSensorsToAnyCameras, hasInterface, PluginInterface, SensorType } from '@camera.ui/sdk';
 import { randomUUID } from 'node:crypto';
@@ -19,14 +20,15 @@ import {
   VIRTUAL_SENSOR_OWNER_ID,
   VIRTUAL_SENSOR_OWNER_NAME,
 } from '../sensors/types.js';
+import { composeDeviceState, pickPrimary } from './devices.js';
 import { disposeVirtualSensorHost, registerVirtualSensorHost } from './virtual.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { DiscoveredSensor, ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
-import type { SensorJSON, SensorSourcePatch } from '@camera.ui/sdk/internal';
+import type { DeviceInfo, DiscoveredSensor, ModelSpec, PluginContract, SensorLike } from '@camera.ui/sdk';
+import type { SensorDeviceState, SensorJSON, SensorMembership, SensorSourcePatch } from '@camera.ui/sdk/internal';
 import type { Database } from '../api/database/index.js';
-import type { DBSensor, DBSensorHistoryEntry } from '../api/database/types.js';
+import type { DBSensor, DBSensorDevice, DBSensorHistoryEntry } from '../api/database/types.js';
 import type { CoordinatorSensorInfo, DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
 import type { RegisterSensorOptions, SensorRefreshedState, SensorRegistration, StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { SensorContext } from '../sensors/sensor.js';
@@ -53,6 +55,9 @@ interface SensorRuntime {
 
 export class SensorRegistry {
   private readonly records = new Map<string, DBSensor>();
+  private readonly devices = new Map<string, DBSensorDevice>();
+  // last device state the plugins saw per sensor, changes are announced against it
+  private readonly deviceStates = new Map<string, SensorDeviceState>();
   private readonly runtime = new Map<string, SensorRuntime>();
   private readonly propertyValues = new Map<string, unknown>();
   private readonly coordinators = new Map<string, Promisify<DetectionCoordinatorInterface>>();
@@ -84,7 +89,6 @@ export class SensorRegistry {
         const ns = NamespaceManager.sensorProviderNamespaces(pluginId, sensorId).sensorRpc;
         return this.proxy.createProxy<SensorLike>(ns);
       },
-      persistDisplayName: (sensorId, displayName) => this.persistRecord(sensorId, (record) => (record.displayName = displayName)),
       persistState: (sensorId, delta) => this.persistRecord(sensorId, (record) => (record.state = { ...record.state, ...delta })),
       appendHistory: (sensorId, delta) => this.appendHistory(sensorId, delta),
     };
@@ -122,6 +126,8 @@ export class SensorRegistry {
     this.disposables.length = 0;
 
     this.records.clear();
+    this.devices.clear();
+    this.deviceStates.clear();
     this.runtime.clear();
     this.propertyValues.clear();
     this.coordinators.clear();
@@ -178,6 +184,7 @@ export class SensorRegistry {
         this.enqueue(other, () => this.removeSensorFromCoordinator(sensorId, other));
       }
     }
+    const deviceIds = sensor.membership ? this.applyMembership(record, sensor.membership) : [];
     record.updatedAt = Date.now();
     this.persistRecord(record._id, () => {});
 
@@ -205,12 +212,14 @@ export class SensorRegistry {
     for (const cameraId of record.assignedCameraIds) {
       this.enqueue(cameraId, () => this.pushSensorToCoordinator(record, cameraId));
     }
+    this.settleDevices([record._id], deviceIds);
 
     return {
       id: record._id,
       assignedCameraIds: [...record.assignedCameraIds],
       active: true,
       stateSubject: true,
+      deviceState: this.deviceStateFor(record),
     };
   }
 
@@ -238,6 +247,7 @@ export class SensorRegistry {
       };
       this.records.set(record._id, record);
       this.persistRecord(record._id, () => {});
+      this.syncDeviceStates([record._id]);
       this.announceAdded(record);
       if (options?.assignCameraId) {
         this.autoEnableDoorbellTrigger(record, options.assignCameraId).catch((error: unknown) =>
@@ -283,12 +293,14 @@ export class SensorRegistry {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+    const deviceIds = sensor.device ? this.applyMembership(record, { device: sensor.device, primary: sensor.primary ?? false }) : [];
     this.records.set(record._id, record);
     this.persistRecord(record._id, () => {});
     this.announceAdded(record);
 
     const ns = NamespaceManager.sensorRegistryNamespaces();
     this.safePublish(ns.sensorsSubject, { type: 'sensor:adopted', data: { sensor: this.toStoredData(record) } });
+    this.settleDevices([record._id], deviceIds);
     this.logger.debug(`Sensor adopted: "${record.name}" (${record.type}) from plugin "${pluginId}"`);
     return record;
   }
@@ -297,6 +309,11 @@ export class SensorRegistry {
   public updateSource(sensorId: string, patch: SensorSourcePatch): void {
     const record = this.records.get(sensorId);
     if (!record) return;
+    if (patch.membership) {
+      const deviceIds = this.applyMembership(record, patch.membership);
+      this.persistRecord(sensorId, () => {});
+      this.settleDevices([sensorId], deviceIds);
+    }
     const stateChanged = patch.sourceState !== undefined && patch.sourceState !== record.sourceState;
     const addressChanged = patch.address !== undefined && patch.address !== record.address;
     if (!stateChanged && !addressChanged) return;
@@ -325,10 +342,12 @@ export class SensorRegistry {
     if (this.runtime.has(sensorId)) this.disconnectSensor(sensorId);
     if (record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) await disposeVirtualSensorHost(sensorId);
     this.records.delete(sensorId);
+    this.deviceStates.delete(sensorId);
     await this.dbs.sensorsDB.remove(sensorId);
     this.pruneHistory(sensorId, 0);
     await new FloorPlanService().dropSensors([sensorId]);
     this.announceDeleted(record);
+    if (record.deviceId) this.settleDevices([], [record.deviceId]);
 
     this.logger.debug(`Sensor deleted: "${record.displayName ?? record.name}" (${record.type})`);
   }
@@ -354,6 +373,7 @@ export class SensorRegistry {
 
     this.records.set(record._id, record);
     await this.dbs.sensorsDB.put(record._id, record);
+    this.syncDeviceStates([record._id]);
 
     this.runtime.set(record._id, { capabilities: this.virtualCapabilities(record.type) });
     this.seedPropertyValues(record._id, record.state ?? {});
@@ -579,19 +599,48 @@ export class SensorRegistry {
   }
 
   @RPCMethod
-  public async setDisplayName(sensorId: string, displayName: string): Promise<void> {
-    const sensor = this.getSensor(sensorId);
-    if (!sensor) throw new Error(`Sensor ${sensorId} not found`);
-    await sensor.setDisplayNameAsync(displayName);
+  public setDisplayName(sensorId: string, displayName: string): void {
+    if (!this.records.has(sensorId)) throw new Error(`Sensor ${sensorId} not found`);
+    this.persistRecord(sensorId, (record) => (record.displayName = displayName));
+    this.syncDeviceStates([sensorId]);
+  }
+
+  public getDevice(deviceId: string): DBSensorDevice | undefined {
+    return this.devices.get(deviceId);
+  }
+
+  public getDeviceMembers(deviceId: string): DBSensor[] {
+    return Array.from(this.records.values()).filter((record) => record.deviceId === deviceId);
+  }
+
+  public setDeviceDisplayName(deviceId: string, displayName: string): void {
+    const device = this.devices.get(deviceId);
+    if (!device) throw new Error(`Sensor device ${deviceId} not found`);
+    // the source name again means no rename, a later rename at the source shows then
+    device.displayName = displayName === device.name ? undefined : displayName;
+    this.persistDevice(device);
+    this.settleDevices([], [deviceId]);
+  }
+
+  public async setDeviceExposed(deviceId: string, exposed: boolean): Promise<void> {
+    for (const member of this.getDeviceMembers(deviceId)) await this.setExposed(member._id, exposed);
+  }
+
+  public async deleteDevice(deviceId: string): Promise<void> {
+    for (const member of this.getDeviceMembers(deviceId)) await this.deleteSensor(member._id);
   }
 
   public toStoredData(record: DBSensor): StoredSensorData {
     const runtime = this.runtime.get(record._id);
+    const deviceState = this.deviceStateFor(record);
     return {
       id: record._id,
       type: record.type,
       name: record.name,
-      displayName: record.displayName ?? record.name,
+      displayName: deviceState.displayName,
+      shortName: deviceState.shortName,
+      device: deviceState.device,
+      primary: deviceState.primary,
       nativeId: record.nativeId,
       pluginId: record.pluginInfo.id,
       assignedCameraIds: [...record.assignedCameraIds],
@@ -654,6 +703,97 @@ export class SensorRegistry {
       if (record.pluginInfo.id === pluginId && record.nativeId === nativeId) return record;
     }
     return undefined;
+  }
+
+  private applyMembership(record: DBSensor, membership: SensorMembership): (string | undefined)[] {
+    if (record.boundCameraId) {
+      this.logger.debug(`Sensor "${record.name}" belongs to its camera, the device it reports is ignored`);
+      return [];
+    }
+    const previous = record.deviceId;
+    const device = membership.device ? this.resolveDevice(record.pluginInfo, membership.device) : undefined;
+    record.deviceId = device?._id;
+    record.primary = device ? membership.primary : undefined;
+    return [previous, device?._id];
+  }
+
+  private resolveDevice(pluginInfo: DBSensor['pluginInfo'], info: DeviceInfo): DBSensorDevice {
+    const device = Array.from(this.devices.values()).find((candidate) => candidate.pluginInfo?.id === pluginInfo.id && candidate.nativeId === info.id);
+    if (!device) {
+      const now = Date.now();
+      const created: DBSensorDevice = {
+        _id: randomUUID(),
+        pluginInfo: { ...pluginInfo },
+        nativeId: info.id,
+        // a go plugin sends an unset name as an empty string
+        name: info.name || info.id,
+        manufacturer: info.manufacturer,
+        model: info.model,
+        firmware: info.firmware,
+        serialNumber: info.serialNumber,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.devices.set(created._id, created);
+      this.persistDevice(created);
+      this.logger.debug(`Sensor device created: "${created.name}" of plugin "${pluginInfo.id}"`);
+      return created;
+    }
+
+    // sensors of one device report different subsets, a field one leaves out keeps what another reported
+    const reported: DBSensorDevice = {
+      ...device,
+      name: info.name || device.name,
+      manufacturer: info.manufacturer ?? device.manufacturer,
+      model: info.model ?? device.model,
+      firmware: info.firmware ?? device.firmware,
+      serialNumber: info.serialNumber ?? device.serialNumber,
+    };
+    if (!isEqual(reported, device)) {
+      Object.assign(device, reported);
+      this.persistDevice(device);
+    }
+    return device;
+  }
+
+  private deviceStateFor(record: DBSensor): SensorDeviceState {
+    const device = record.deviceId ? this.devices.get(record.deviceId) : undefined;
+    return composeDeviceState(record, device, device && pickPrimary(this.getDeviceMembers(device._id))?._id);
+  }
+
+  private settleDevices(sensorIds: string[], deviceIds: (string | undefined)[]): void {
+    const affected = new Set(sensorIds);
+    for (const deviceId of new Set(deviceIds)) {
+      if (!deviceId) continue;
+      const members = this.getDeviceMembers(deviceId);
+      if (members.length === 0) this.removeDevice(deviceId);
+      for (const member of members) affected.add(member._id);
+    }
+    this.syncDeviceStates(affected);
+  }
+
+  private syncDeviceStates(sensorIds: Iterable<string>): void {
+    for (const sensorId of sensorIds) {
+      const record = this.records.get(sensorId);
+      if (!record) continue;
+      const state = this.deviceStateFor(record);
+      const previous = this.deviceStates.get(sensorId);
+      this.deviceStates.set(sensorId, state);
+      if (previous && !isEqual(previous, state)) this.announceDeviceState(record, state, previous);
+    }
+  }
+
+  private removeDevice(deviceId: string): void {
+    const device = this.devices.get(deviceId);
+    if (!device) return;
+    this.devices.delete(deviceId);
+    this.dbs.sensorDevicesDB.remove(deviceId).catch((error: unknown) => this.logger.warn(`Failed to remove sensor device ${deviceId}:`, error));
+    this.logger.debug(`Sensor device removed: "${device.displayName ?? device.name}"`);
+  }
+
+  private persistDevice(device: DBSensorDevice): void {
+    device.updatedAt = Date.now();
+    this.dbs.sensorDevicesDB.put(device._id, device).catch((error: unknown) => this.logger.warn(`Failed to persist sensor device ${device._id}:`, error));
   }
 
   private assertMayCreate(sensor: SensorJSON, pluginId: string, options?: RegisterSensorOptions): void {
@@ -754,6 +894,10 @@ export class SensorRegistry {
   }
 
   private async loadRecords(): Promise<void> {
+    for (const { key, value } of this.dbs.sensorDevicesDB.getRange()) {
+      this.devices.set(String(key), value);
+    }
+
     for (const { key, value } of this.dbs.sensorsDB.getRange()) {
       const record = value;
       if (!isKnownSensorType(record.type)) {
@@ -770,6 +914,7 @@ export class SensorRegistry {
 
       this.announceAdded(record);
     }
+    this.syncDeviceStates(this.records.keys());
   }
 
   private async sweepOrphanedRecords(): Promise<void> {
@@ -791,6 +936,10 @@ export class SensorRegistry {
       await this.deleteSensor(record._id).catch((error: unknown) =>
         this.logger.warn(`Failed to delete sensor "${record.displayName ?? record.name}" left behind by a reinstall:`, error),
       );
+    }
+
+    for (const deviceId of Array.from(this.devices.keys())) {
+      if (this.getDeviceMembers(deviceId).length === 0) this.removeDevice(deviceId);
     }
   }
 
@@ -933,6 +1082,18 @@ export class SensorRegistry {
       sensorName: record.name,
       assignedCameraIds: [...record.assignedCameraIds],
     });
+  }
+
+  private announceDeviceState(record: DBSensor, state: SensorDeviceState, previous: SensorDeviceState): void {
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    const assignedCameraIds = [...record.assignedCameraIds];
+    this.safePublish(ns.sensorsSubject, { type: 'sensor:device:changed', data: { sensorId: record._id, sensorType: record.type, deviceState: state } });
+    emitInternalEvent('sensor:device:changed', { sensorId: record._id, sensorType: String(record.type), assignedCameraIds, deviceState: state });
+
+    // consumers that know no devices follow the full name
+    if (state.displayName === previous.displayName) return;
+    this.publishSensorEvent(record._id, { type: 'sensor:displayName:changed', data: { sensorId: record._id, displayName: state.displayName } });
+    emitInternalEvent('sensor:displayName:changed', { sensorId: record._id, sensorType: String(record.type), assignedCameraIds, displayName: state.displayName });
   }
 
   private async autoEnableDoorbellTrigger(record: DBSensor, cameraId: string): Promise<void> {

@@ -757,11 +757,27 @@ export interface DBSensor {
   displayName?: string;
   assignedCameraIds: string[];
   boundCameraId?: string;
+  deviceId?: string;
+  primary?: boolean;
   exposed: boolean;
   origin?: string;
   address?: string;
   sourceState?: SensorSourceState;
   state?: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DBSensorDevice {
+  readonly _id: string;
+  pluginInfo?: { id: string; name: string };
+  nativeId?: string;
+  name: string;
+  displayName?: string;
+  manufacturer?: string;
+  model?: string;
+  firmware?: string;
+  serialNumber?: string;
   createdAt: number;
   updatedAt: number;
 }
