@@ -1,6 +1,10 @@
+import { SensorType } from '@camera.ui/sdk';
+
 import type { SettingsViews, UiSettingsLocalStorage } from '@shared/types';
 
 export const settingsViews: SettingsViews[] = ['account', 'appearance', 'user', 'notifications', 'permissions', 'recordings', 'remote', 'backup', 'system'];
+
+const ANALYSIS_SENSOR_TYPES = [SensorType.FaceEmbedder, SensorType.PersonEmbedder, SensorType.Segmenter, SensorType.Clip];
 
 interface LoggerLocalStorage {
   'cui-logger-debug': number;
@@ -35,6 +39,7 @@ const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
   sensors: {
     hideAllCameraBound: false,
     onlyEnabledCameraBound: true,
+    hiddenTypes: ANALYSIS_SENSOR_TYPES,
   },
   plugins: {
     view: 'cards',
@@ -53,6 +58,7 @@ export const useUiStore = defineStore('ui', () => {
   uiSettings.value.camview.detections ??= true;
   uiSettings.value.sensors.hideAllCameraBound ??= false;
   uiSettings.value.sensors.onlyEnabledCameraBound ??= true;
+  uiSettings.value.sensors.hiddenTypes ??= [...ANALYSIS_SENSOR_TYPES];
 
   return {
     uiSettings,
