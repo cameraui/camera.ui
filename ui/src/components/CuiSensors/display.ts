@@ -35,6 +35,8 @@ import {
   SceneProperty,
   SecuritySystemProperty,
   SecuritySystemState,
+  SensorCategory,
+  sensorMeta,
   SensorType,
   SirenProperty,
   SwitchProperty,
@@ -43,6 +45,7 @@ import {
   ValveProperty,
   ValveState,
 } from '@camera.ui/sdk';
+import { SENSOR_TYPE_CONFIG } from '@shared/types';
 
 import { isSensorActive, sensorOffers, sensorPropertySpec } from '@/common/sensorDisplay.js';
 
@@ -50,6 +53,14 @@ import type { ReactiveMediaPlayerControl, ReactiveSensor } from '@camera.ui/brow
 
 const SECURITY_MODES = [SecuritySystemState.Disarmed, SecuritySystemState.StayArm, SecuritySystemState.AwayArm, SecuritySystemState.NightArm];
 const ROBOT_STOPS = [VacuumCommand.Dock, VacuumCommand.Stop, VacuumCommand.Pause];
+
+export function sensorHasPrimaryAction(type: string): boolean {
+  const category = SENSOR_TYPE_CONFIG[type as SensorType]?.category;
+  if (category === SensorCategory.Sensor || category === SensorCategory.Info) return false;
+  // a thermostat needs a mode and a target, one click has nothing to switch
+  if (type === SensorType.Thermostat) return false;
+  return Object.values(sensorMeta(type)?.properties ?? {}).some((spec) => spec.writable);
+}
 
 export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<void> {
   if (!sensor) return;
@@ -107,6 +118,11 @@ export async function setSecurityState(sensor: ReactiveSensor | undefined, state
 export function securityModes(sensor: ReactiveSensor<object> | undefined): SecuritySystemState[] {
   const offered = sensor?.propertySpecs.value[SecuritySystemProperty.TargetState]?.values;
   return offered ? SECURITY_MODES.filter((mode) => Object.values(offered).includes(mode)) : SECURITY_MODES;
+}
+
+export function securityModeLabelKey(mode: SecuritySystemState): string {
+  const name = Object.entries(sensorMeta(SensorType.SecuritySystem)?.semantics?.states ?? {}).find(([, state]) => state === mode)?.[0];
+  return `components.sensor_state.${name}`;
 }
 
 export function securityState(sensor: ReactiveSensor | undefined): SecuritySystemState {

@@ -486,6 +486,7 @@
     "useRegisterSW": true,
     "useResizableZoom": true,
     "useResizeObserver": true,
+    "useRestingValue": true,
     "useRoute": true,
     "useRouteMeta": true,
     "useRouter": true,

@@ -73,6 +73,7 @@ interface PropertyRow {
 const props = defineProps<{
   sensor: ReactiveSensor<object>;
   disabled?: boolean;
+  everyProperty?: boolean;
 }>();
 
 const { t, te } = useI18n();
@@ -94,7 +95,7 @@ const rows = computed<PropertyRow[]>(() => {
         spec,
         value,
         text: readingOf(spec, value, options),
-        input: spec.writable ? input : undefined,
+        input: spec.writable || props.everyProperty ? input : undefined,
         options,
       },
     ];

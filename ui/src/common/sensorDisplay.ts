@@ -2,6 +2,8 @@ import {
   AirPurifierProperty,
   BatteryProperty,
   ChargingState,
+  ContactKind,
+  ContactProperty,
   CoverKind,
   CoverProperty,
   LawnMowerActivity,
@@ -14,8 +16,8 @@ import {
   SecuritySystemProperty,
   SecuritySystemState,
   SensorDomain,
-  SensorType,
   sensorMeta,
+  SensorType,
   ThermostatAction,
   ThermostatMode,
   VacuumActivity,
@@ -31,11 +33,11 @@ import AirPurifierIcon from '~icons/mdi/air-purifier';
 import AirPurifierOffIcon from '~icons/mdi/air-purifier-off';
 import SirenIcon from '~icons/mdi/alarm-light';
 import SirenOffIcon from '~icons/mdi/alarm-light-outline';
+import ProblemIcon from '~icons/mdi/alert-circle-outline';
 import ReceiverIcon from '~icons/mdi/audio-video';
 import ReceiverOffIcon from '~icons/mdi/audio-video-off';
 import AwningIcon from '~icons/mdi/awning';
 import AwningClosedIcon from '~icons/mdi/awning-outline';
-import ProblemIcon from '~icons/mdi/alert-circle-outline';
 import Battery100Icon from '~icons/mdi/battery';
 import Battery20Icon from '~icons/mdi/battery-20';
 import Battery40Icon from '~icons/mdi/battery-40';
@@ -64,6 +66,8 @@ import DoorClosedIcon from '~icons/mdi/door-closed';
 import DoorOpenIcon from '~icons/mdi/door-open';
 import DoorbellIcon from '~icons/mdi/doorbell';
 import FaceIcon from '~icons/mdi/face-recognition';
+import FanIcon from '~icons/mdi/fan';
+import FanOffIcon from '~icons/mdi/fan-off';
 import AccessIcon from '~icons/mdi/fingerprint';
 import FireIcon from '~icons/mdi/fire';
 import GarageOpenIcon from '~icons/mdi/garage-open-variant';
@@ -89,9 +93,11 @@ import DisplayIcon from '~icons/mdi/message-text-outline';
 import CoIcon from '~icons/mdi/molecule-co';
 import Co2Icon from '~icons/mdi/molecule-co2';
 import MotionIcon from '~icons/mdi/motion-sensor';
+import SceneActiveIcon from '~icons/mdi/palette';
+import SceneIcon from '~icons/mdi/palette-outline';
+import OutletOnIcon from '~icons/mdi/power-plug';
 import PowerOffIcon from '~icons/mdi/power-plug-off-outline';
 import PowerIcon from '~icons/mdi/power-plug-outline';
-import OutletOnIcon from '~icons/mdi/power-plug';
 import OutletIcon from '~icons/mdi/power-socket-eu';
 import ProjectorIcon from '~icons/mdi/projector';
 import ProjectorOffIcon from '~icons/mdi/projector-off';
@@ -115,20 +121,16 @@ import SmokeAlertIcon from '~icons/mdi/smoke-detector-variant-alert';
 import ColdIcon from '~icons/mdi/snowflake';
 import SpeakerIcon from '~icons/mdi/speaker';
 import SpeakerOffIcon from '~icons/mdi/speaker-off';
+import SprinklerIcon from '~icons/mdi/sprinkler';
+import SprinklerOnIcon from '~icons/mdi/sprinkler-variant';
 import TelevisionIcon from '~icons/mdi/television';
 import TelevisionOffIcon from '~icons/mdi/television-off';
 import TemperatureIcon from '~icons/mdi/thermometer';
 import ThermostatIcon from '~icons/mdi/thermostat';
-import ValveIcon from '~icons/mdi/valve-closed';
-import ValveOpenIcon from '~icons/mdi/valve-open';
-import FanIcon from '~icons/mdi/fan';
-import FanOffIcon from '~icons/mdi/fan-off';
-import SceneActiveIcon from '~icons/mdi/palette';
-import SceneIcon from '~icons/mdi/palette-outline';
-import SprinklerIcon from '~icons/mdi/sprinkler';
-import SprinklerOnIcon from '~icons/mdi/sprinkler-variant';
 import SwitchOnIcon from '~icons/mdi/toggle-switch';
 import SwitchIcon from '~icons/mdi/toggle-switch-off-outline';
+import ValveIcon from '~icons/mdi/valve-closed';
+import ValveOpenIcon from '~icons/mdi/valve-open';
 import SegmenterIcon from '~icons/mdi/vector-polygon';
 import VibrationIcon from '~icons/mdi/vibrate';
 import PersonEmbedderIcon from '~icons/mdi/walk';
@@ -151,7 +153,8 @@ import type { ReactiveSensor } from '@camera.ui/browser';
 import type { SensorClimate, SensorHumidifier, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { Component } from 'vue';
 
-type Tone = 'alarm' | 'warn' | 'ok' | 'info' | 'light';
+export type Tone = 'alarm' | 'warn' | 'ok' | 'info' | 'light';
+
 type ReadProperty = (property: string) => unknown;
 type AnySensor = ReactiveSensor<object>;
 
@@ -258,6 +261,12 @@ const COVER_KIND_ICONS: Record<CoverKind, readonly [closed: Component, open: Com
   [CoverKind.Window]: [WindowClosedIcon, WindowOpenIcon],
 };
 
+const CONTACT_KIND_ICONS: Record<ContactKind, readonly [closed: Component, open: Component]> = {
+  [ContactKind.Door]: [DoorClosedIcon, DoorOpenIcon],
+  [ContactKind.GarageDoor]: [GarageIcon, GarageOpenIcon],
+  [ContactKind.Window]: [WindowClosedIcon, WindowOpenIcon],
+};
+
 const DETECTION_STATES = ['idle', 'detected'] as const;
 
 export function sensorTypeIcon(type: string, active = false): Component {
@@ -320,7 +329,11 @@ export function isSensorActive(sensor: AnySensor | undefined): boolean {
 
 export function sensorToneColor(type: string, active: boolean): string | undefined {
   const tone = lookOf(type).tone;
-  return active && tone ? `rgb(${TONES[tone]})` : undefined;
+  return active && tone ? toneColor(tone) : undefined;
+}
+
+export function toneColor(tone: Tone): string {
+  return `rgb(${TONES[tone]})`;
 }
 
 export function sensorTone(type: string, sensor: AnySensor | undefined): Record<string, string> {
@@ -331,6 +344,7 @@ export function sensorReadTone(type: string, read: ReadProperty): Record<string,
   if (type === SensorType.SecuritySystem && read(SecuritySystemProperty.CurrentState) === SecuritySystemState.AlarmTriggered) return toneStyle('alarm');
   if (read(sensorMeta(type)?.semantics?.climate?.action ?? '') === ThermostatAction.Cooling) return toneStyle('info');
   if (type === SensorType.Lock && read(LockProperty.CurrentState) === LockState.Jammed) return toneStyle('alarm');
+  if ((type === SensorType.Cover || type === SensorType.Garage) && read(CoverProperty.ObstructionDetected) === true) return toneStyle('alarm');
   if (ROBOT_TYPES.has(type) && read(VacuumProperty.Activity) === VacuumActivity.Error) return toneStyle('alarm');
   return toneStyle(sensorActive(type, read) ? lookOf(type).tone : undefined);
 }
@@ -389,9 +403,9 @@ export function sensorPropertyLabelKey(type: string, property: string): string {
   return i18n.global.te(`components.automation_nodes.${own}`) ? own : `sensor_property_${property}`;
 }
 
-export function formatMeasurement(value: number, spec: SensorPropertySpec | undefined): string {
+export function formatMeasurement(value: number, spec: SensorPropertySpec | undefined, fallbackDecimals?: number): string {
   const shown = shownValue(value, spec?.unit);
-  const decimals = spec?.step ? decimalsOf(spec.step) : Number.isInteger(shown.value) ? 0 : 1;
+  const decimals = spec?.step ? decimalsOf(spec.step) : (fallbackDecimals ?? (Number.isInteger(shown.value) ? 0 : 1));
   const text = shown.value.toFixed(decimals);
   return shown.unit ? `${text} ${shown.unit}` : text;
 }
@@ -414,6 +428,7 @@ function lookOf(type: string): SensorLook {
 
 function kindIconsOf(type: string, sensor: AnySensor | undefined): readonly [Component, Component] | undefined {
   if (type === SensorType.Cover) return COVER_KIND_ICONS[sensor?.getProperty(CoverProperty.Kind) as CoverKind];
+  if (type === SensorType.Contact) return CONTACT_KIND_ICONS[sensor?.getProperty(ContactProperty.Kind) as ContactKind];
   if (type === SensorType.Valve) return VALVE_KIND_ICONS[sensor?.getProperty(ValveProperty.Kind) as ValveKind];
   if (type === SensorType.MediaPlayer) return MEDIA_PLAYER_KIND_ICONS[sensor?.getProperty(MediaPlayerProperty.Kind) as MediaPlayerKind];
   return undefined;
@@ -477,7 +492,7 @@ function requested(semantics: SensorSemantics, read: ReadProperty): unknown {
   return read(semantics.commandProperty) ?? read(semantics.stateProperty);
 }
 
-function decimalsOf(step: number): number {
+export function decimalsOf(step: number): number {
   const [, fraction = ''] = String(step).split('.');
   return fraction.length;
 }

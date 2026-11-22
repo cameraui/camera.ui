@@ -40,7 +40,7 @@
     <div v-if="hasColor" class="cui-light-control__setting">
       <div class="cui-light-control__setting-header">
         <i-mdi:palette class="cui-light-control__setting-icon" />
-        <span class="cui-light-control__swatch" :style="{ background: colorCss(shownColor) }" />
+        <span class="cui-light-control__swatch" :style="{ background: lightColorCss(shownColor) }" />
       </div>
 
       <Slider
@@ -67,6 +67,8 @@
 
 <script setup lang="ts">
 import { LightColorMode } from '@camera.ui/sdk';
+
+import { kelvinColor, lightColorCss } from '@/common/lightColor.js';
 
 import { CUI_LIGHT_CONTROL_DEFAULTS } from './types.js';
 
@@ -140,11 +142,11 @@ const saturationValue = computed({
 
 const temperatureTrack = computed(() => `linear-gradient(to right, ${kelvinColor(temperatureMin.value)}, ${kelvinColor(temperatureMax.value)})`);
 const saturationTrack = computed(
-  () => `linear-gradient(to right, ${colorCss({ hue: shownColor.value.hue, saturation: 0 })}, ${colorCss({ hue: shownColor.value.hue, saturation: 100 })})`,
+  () => `linear-gradient(to right, ${lightColorCss({ hue: shownColor.value.hue, saturation: 0 })}, ${lightColorCss({ hue: shownColor.value.hue, saturation: 100 })})`,
 );
 
 const glowColor = computed(() => {
-  if (hasColor.value && (colorMode.value === LightColorMode.Color || !hasColorTemperature.value)) return colorCss(shownColor.value);
+  if (hasColor.value && (colorMode.value === LightColorMode.Color || !hasColorTemperature.value)) return lightColorCss(shownColor.value);
   if (hasColorTemperature.value) return kelvinColor(temperatureValue.value);
   return 'rgb(250, 204, 21)';
 });
@@ -179,17 +181,6 @@ function changeColor(value: LightColor) {
 function flushColor() {
   if (localColor.value) emit('update:color', localColor.value);
   localColor.value = undefined;
-}
-
-function colorCss({ hue, saturation }: LightColor): string {
-  return `hsl(${hue} ${saturation}% 55%)`;
-}
-
-function kelvinColor(kelvin: number): string {
-  // warm white at 2000 K to cool white at 6500 K, close enough for a glow and a track
-  const ratio = Math.min(Math.max((kelvin - 2000) / 4500, 0), 1);
-  const channel = (warm: number, cool: number) => Math.round(warm + (cool - warm) * ratio);
-  return `rgb(${channel(255, 201)} ${channel(167, 218)} ${channel(87, 255)})`;
 }
 </script>
 

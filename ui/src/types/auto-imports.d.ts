@@ -399,6 +399,7 @@ declare global {
   const useRegisterSW: typeof import('../composables/pwa-register-stub').useRegisterSW
   const useResizableZoom: typeof import('../composables/useResizableZoom').useResizableZoom
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
+  const useRestingValue: typeof import('../composables/useRestingValue').useRestingValue
   const useRoute: typeof import('vue-router').useRoute
   const useRouteMeta: typeof import('../composables/useRouteMeta').useRouteMeta
   const useRouter: typeof import('vue-router').useRouter
@@ -1035,6 +1036,7 @@ declare module 'vue' {
     readonly useRegisterSW: UnwrapRef<typeof import('../composables/pwa-register-stub')['useRegisterSW']>
     readonly useResizableZoom: UnwrapRef<typeof import('../composables/useResizableZoom')['useResizableZoom']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
+    readonly useRestingValue: UnwrapRef<typeof import('../composables/useRestingValue')['useRestingValue']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouteMeta: UnwrapRef<typeof import('../composables/useRouteMeta')['useRouteMeta']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>

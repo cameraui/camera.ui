@@ -566,3 +566,13 @@
   @apply flex rounded-xl items-center justify-center transition-all min-h-[200px];
   background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='10' ry='10' stroke='%238B8B8B63' stroke-width='5' stroke-dasharray='6%2c 14' stroke-dashoffset='23' stroke-linecap='round'/%3e%3c/svg%3e");
 }
+
+.cui-tile {
+  --tile-color: var(--text-secondary-color);
+  /* a pale light on a white page needs a darker ink to stay visible */
+  --tile-ink: color-mix(in oklab, var(--tile-color) 72%, black);
+}
+
+.dark-mode .cui-tile {
+  --tile-ink: var(--tile-color);
+}

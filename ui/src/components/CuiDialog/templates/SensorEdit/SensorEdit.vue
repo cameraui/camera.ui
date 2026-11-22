@@ -21,6 +21,16 @@
       <InputText id="sensorNativeId" :model-value="sensor.nativeId" readonly class="w-full font-mono text-sm" />
     </div>
 
+    <template v-if="sensor.virtual">
+      <CuiVirtualSensorCapabilities
+        :sensor-id="sensor.id"
+        :type="sensor.type as VirtualSensorType"
+        :capabilities="sensor.capabilities"
+        :property-specs="sensor.propertySpecs"
+      />
+      <CuiVirtualDeviceField v-model="device" :devices="devices" />
+    </template>
+
     <div class="flex flex-col field-gap">
       <label class="cui-label">{{ $t('views.sensors.assigned_cameras') }}</label>
       <div v-if="sensor.assignmentLocked" class="flex flex-wrap gap-2">
@@ -51,8 +61,13 @@ import { useAllSensors } from '@camera.ui/browser';
 
 import CuiSensorControl from '@/components/CuiSensorControl/CuiSensorControl.vue';
 import { hasSensorControlWidget } from '@/components/CuiSensorControl/types.js';
+import CuiVirtualDeviceField from '@/components/CuiVirtualDeviceField/CuiVirtualDeviceField.vue';
+import { isIncompleteChoice } from '@/components/CuiVirtualDeviceField/types.js';
+import CuiVirtualSensorCapabilities from '@/components/CuiVirtualSensorCapabilities/CuiVirtualSensorCapabilities.vue';
 
+import type { VirtualDeviceChoice } from '@/components/CuiVirtualDeviceField/types.js';
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
+import type { VirtualSensorType } from '@shared/types';
 import type { SensorEditProps, SensorEditResult } from './types.js';
 
 const props = defineProps<SensorEditProps>();
@@ -60,6 +75,10 @@ const props = defineProps<SensorEditProps>();
 const displayName = ref(props.device?.name ?? (props.sensor.shortName || props.sensor.name));
 const assignedCameraIds = ref<string[]>([...props.sensor.assignedCameraIds]);
 const exposed = ref(props.sensor.exposed);
+const device = ref<VirtualDeviceChoice>({ deviceId: props.sensor.device?.id ?? null, newName: null });
+
+const { t } = useI18n();
+const toast = useCuiToast();
 
 const { sensors: allSensors } = useAllSensors();
 
@@ -69,10 +88,20 @@ const hasWidget = computed(() => hasSensorControlWidget(props.sensor.type));
 const liveSensor = computed(() => allSensors.value.find((sensor) => sensor.id === props.sensor.id));
 
 defineExpose<CustomDialogComponent>({
-  onConfirm: async (): Promise<SensorEditResult> => ({
-    displayName: displayName.value || (props.device?.sourceName ?? props.sensor.name),
-    assignedCameraIds: assignedCameraIds.value,
-    exposed: exposed.value,
-  }),
+  onConfirm: async (): Promise<SensorEditResult | null> => {
+    if (isIncompleteChoice(device.value)) {
+      toast.add({ severity: 'error', detail: t('components.toast.validation_failed'), life: 3000 });
+      return null;
+    }
+
+    const deviceId = props.sensor.device?.id ?? null;
+    return {
+      displayName: displayName.value || (props.device?.sourceName ?? props.sensor.name),
+      assignedCameraIds: assignedCameraIds.value,
+      exposed: exposed.value,
+      deviceId: device.value.newName === null && device.value.deviceId !== deviceId ? device.value.deviceId : undefined,
+      newDeviceName: device.value.newName?.trim() || undefined,
+    };
+  },
 });
 </script>
