@@ -37,6 +37,7 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
     if (sensor.type === SensorType.Doorbell) return value ? 'ringing' : 'idle';
     if (sensor.type === SensorType.Scene) return value ? 'running' : 'idle';
     if (value && semantics.fan?.speed) return `on, ${String(sensor.properties[semantics.fan.speed])}% speed`;
+    if (value && semantics.humidifier) return humidifierState(sensor, semantics.humidifier);
     return value ? 'on' : 'off';
   }
   if (typeof value === 'number' && semantics.unit) {
@@ -44,6 +45,16 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
     return `${shown.value} ${shown.unit}`;
   }
   return value as string | number | undefined;
+}
+
+function humidifierState(sensor: TransformedSensor, humidifier: NonNullable<SensorSemantics['humidifier']>): string {
+  const current = humidifier.current ? sensor.properties[humidifier.current] : undefined;
+  const parts = [
+    humidifier.action ? sensor.properties[humidifier.action] : 'on',
+    `target ${String(sensor.properties[humidifier.target])}%`,
+    typeof current === 'number' ? `now ${current}%` : undefined,
+  ];
+  return parts.filter(Boolean).join(', ');
 }
 
 function detailOf(sensor: TransformedSensor, semantics: SensorSemantics): string | undefined {
@@ -110,7 +121,7 @@ const setSensorPropertyInput = zod.object({
     .optional()
     .describe(
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
-      'covers and valves targetPosition (0 closed, 100 open), thermostats targetTemperature and targetHumidity, fans speed (0 to 100)',
+      'covers and valves targetPosition (0 closed, 100 open), thermostats targetTemperature and targetHumidity, humidifiers targetHumidity, fans speed (0 to 100)',
     ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])

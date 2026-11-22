@@ -139,6 +139,25 @@
     @update:preset="(value) => sensor.setProperty(FanProperty.Preset, value)"
   />
 
+  <CuiHumidifierControl
+    v-else-if="kind === SensorDomain.Humidifier"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :label="sensor.displayName.value"
+    :on="sensor.getProperty(HumidifierProperty.On) ?? false"
+    :target-humidity="sensor.getProperty(HumidifierProperty.TargetHumidity) ?? 50"
+    v-bind="sensorControlRange(sensor, HumidifierProperty.TargetHumidity)"
+    :mode="String(sensor.getProperty(HumidifierProperty.Mode) ?? '')"
+    :modes="sensorOffers(sensor, HumidifierProperty.Mode) ? choiceOptions(sensor, HumidifierProperty.Mode) : []"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:on="(value) => sensor.setProperty(HumidifierProperty.On, value)"
+    @update:target-humidity="(value) => sensor.setProperty(HumidifierProperty.TargetHumidity, value)"
+    @update:mode="(value) => sensor.setProperty(HumidifierProperty.Mode, value)"
+  />
+
   <CuiSceneControl
     v-else-if="kind === SensorDomain.Scene"
     :icon="sensorIcon(sensor.type, sensor)"
@@ -250,6 +269,7 @@ import {
   DoorbellProperty,
   FanDirection,
   FanProperty,
+  HumidifierProperty,
   LightCapability,
   LightProperty,
   LockProperty,

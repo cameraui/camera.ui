@@ -162,6 +162,7 @@ declare module 'vue' {
     CuiFaceCard: typeof import('./../components/CuiFaceCard/CuiFaceCard.vue')['default']
     CuiFaceMarkBadge: typeof import('./../components/CuiFaceMarkBadge/CuiFaceMarkBadge.vue')['default']
     CuiFanControl: typeof import('./../components/CuiFanControl/CuiFanControl.vue')['default']
+    CuiHumidifierControl: typeof import('./../components/CuiHumidifierControl/CuiHumidifierControl.vue')['default']
     CuiFindObjectView: typeof import('./../components/CuiFindObjectView/CuiFindObjectView.vue')['default']
     CuiFloatingButton: typeof import('./../components/CuiFloatingButton/CuiFloatingButton.vue')['default']
     CuiFloatingButtonGroup: typeof import('./../components/CuiFloatingButtonGroup/CuiFloatingButtonGroup.vue')['default']

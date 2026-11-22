@@ -12,14 +12,16 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, color, position, tilt, stop, climate, fan, duration, readings, deviceClassProperty, ...rest } = base;
+  const { brightness, volume, color, position, tilt, stop, climate, fan, humidifier, duration, readings, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
   const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
   const colors = color && offeredColor(color, offered);
   const fanParts = fan && offeredFan(fan, offered);
+  // a humidifier carries its modes itself
+  const nativeChoices = new Set([base.commandProperty, humidifier?.mode]);
   const choices = Object.entries(sensor.propertySpecs ?? {}).flatMap(([property, spec]) =>
-    spec.writable && spec.choices?.length && property !== base.commandProperty && offered(property) ? [property] : [],
+    spec.writable && spec.choices?.length && !nativeChoices.has(property) && offered(property) ? [property] : [],
   );
   return {
     ...rest,
@@ -34,6 +36,7 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...(stop && offered(stop.property) ? { stop } : {}),
     ...(climate ? { climate: offeredClimate(climate, offered) } : {}),
     ...(fanParts ? { fan: fanParts } : {}),
+    ...(humidifier ? { humidifier: offeredHumidifier(humidifier, offered) } : {}),
     ...(duration && offered(duration.property) ? { duration } : {}),
     ...(readings ? { readings: readings.filter((reading) => offered(reading.property)) } : {}),
   };
@@ -56,6 +59,16 @@ function offeredClimate(climate: NonNullable<SensorSemantics['climate']>, offere
     ...(action && offered(action) ? { action } : {}),
     ...(humidity && offered(humidity) ? { humidity } : {}),
     ...(targetHumidity && offered(targetHumidity) ? { targetHumidity } : {}),
+  };
+}
+
+function offeredHumidifier(humidifier: NonNullable<SensorSemantics['humidifier']>, offered: (property: string) => boolean): SensorSemantics['humidifier'] {
+  const { current, action, mode, target } = humidifier;
+  return {
+    target,
+    ...(current && offered(current) ? { current } : {}),
+    ...(action && offered(action) ? { action } : {}),
+    ...(mode && offered(mode) ? { mode } : {}),
   };
 }
 

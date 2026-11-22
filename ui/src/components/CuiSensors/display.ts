@@ -4,6 +4,7 @@ import {
   isReactiveDoorbellTrigger,
   isReactiveFanControl,
   isReactiveGarageControl,
+  isReactiveHumidifierControl,
   isReactiveLightControl,
   isReactiveLockControl,
   isReactiveOutletControl,
@@ -19,6 +20,7 @@ import {
   DoorbellProperty,
   FanProperty,
   GarageProperty,
+  HumidifierProperty,
   LightProperty,
   LockProperty,
   OutletProperty,
@@ -54,6 +56,7 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
   if (isReactiveFanControl(sensor)) return await sensor.setProperty(FanProperty.On, !active);
   if (isReactiveValveControl(sensor)) return await sensor.setProperty(ValveProperty.TargetState, active ? ValveState.Closed : ValveState.Open);
   if (isReactiveSceneControl(sensor)) return await sensor.setProperty(SceneProperty.Active, true);
+  if (isReactiveHumidifierControl(sensor)) return await sensor.setProperty(HumidifierProperty.On, !active);
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);
 }
 

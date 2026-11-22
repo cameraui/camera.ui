@@ -18,6 +18,8 @@ import {
 } from '@camera.ui/sdk';
 import FaceEmbedderIcon from '~icons/mdi/account-search-outline';
 import AirQualityIcon from '~icons/mdi/air-filter';
+import HumidifierIcon from '~icons/mdi/air-humidifier';
+import HumidifierOffIcon from '~icons/mdi/air-humidifier-off';
 import SirenIcon from '~icons/mdi/alarm-light';
 import SirenOffIcon from '~icons/mdi/alarm-light-outline';
 import AwningIcon from '~icons/mdi/awning';
@@ -122,7 +124,7 @@ import { shownValue } from '@/common/units.js';
 import { i18n } from '@/i18n/index.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
-import type { SensorClimate, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
+import type { SensorClimate, SensorHumidifier, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { Component } from 'vue';
 
 type Tone = 'alarm' | 'warn' | 'ok' | 'info' | 'light';
@@ -156,6 +158,7 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.Fan]: { icon: FanOffIcon, activeIcon: FanIcon, states: ['off', 'on'], tone: 'info' },
   [SensorDomain.Valve]: { icon: ValveIcon, activeIcon: ValveOpenIcon, states: ['closed', 'open'], tone: 'info' },
   [SensorDomain.Scene]: { icon: SceneIcon, activeIcon: SceneActiveIcon, states: ['ready', 'running'], tone: 'info' },
+  [SensorDomain.Humidifier]: { icon: HumidifierOffIcon, activeIcon: HumidifierIcon, states: ['off', 'on'], tone: 'info' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
   [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
   [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
@@ -298,6 +301,7 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
   if (semantics?.domain === SensorDomain.Event) return namedState(value, t) ?? t('components.sensor_state.idle');
   if (semantics?.domain === SensorDomain.Text) return typeof value === 'string' && value ? value : '--';
   if (sensor && semantics?.climate) return climateStatus(sensor, semantics.climate, t);
+  if (sensor && semantics?.humidifier) return humidifierStatus(sensor, semantics.humidifier, value === true, t);
   if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return t('components.sensor_state.jammed');
   const speed = semantics?.fan?.speed;
   if (sensor && speed && value === true && sensorOffers(sensor, speed)) {
@@ -365,14 +369,26 @@ function kindIconsOf(type: string, sensor: AnySensor | undefined): readonly [Com
 
 function climateStatus(sensor: AnySensor, climate: SensorClimate, t: (key: string) => string): string {
   const { action, humidity } = climate;
-  const named = (value: unknown) => (typeof value === 'string' && value ? t(`components.automation_nodes.${sensor.type}_state_${value}`) : undefined);
-  const reading = (property: string) => {
-    const value = sensor.getProperty(property);
-    return typeof value === 'number' ? formatMeasurement(value, sensorPropertySpec(sensor, property)) : undefined;
-  };
-  const doing = action && sensorOffers(sensor, action) ? named(sensor.getProperty(action)) : undefined;
-  const wet = humidity && sensorOffers(sensor, humidity) ? reading(humidity) : undefined;
-  return [reading(climate.current), doing ?? named(sensor.getProperty(climate.mode)), wet].filter(Boolean).join(' · ') || '--';
+  const doing = action && sensorOffers(sensor, action) ? valueName(sensor, action, t) : undefined;
+  const wet = humidity && sensorOffers(sensor, humidity) ? propertyReading(sensor, humidity) : undefined;
+  return [propertyReading(sensor, climate.current), doing ?? valueName(sensor, climate.mode, t), wet].filter(Boolean).join(' · ') || '--';
+}
+
+function humidifierStatus(sensor: AnySensor, humidifier: SensorHumidifier, on: boolean, t: (key: string) => string): string {
+  const { action, current } = humidifier;
+  const doing = on && action && sensorOffers(sensor, action) ? valueName(sensor, action, t) : undefined;
+  const reading = current && sensorOffers(sensor, current) ? propertyReading(sensor, current) : undefined;
+  return [doing ?? t(`components.sensor_state.${on ? 'on' : 'off'}`), reading].filter(Boolean).join(' · ');
+}
+
+function valueName(sensor: AnySensor, property: string, t: (key: string) => string): string | undefined {
+  const value = sensor.getProperty(property);
+  return typeof value === 'string' && value ? t(`components.automation_nodes.${sensor.type}_state_${value}`) : undefined;
+}
+
+function propertyReading(sensor: AnySensor, property: string): string | undefined {
+  const value = sensor.getProperty(property);
+  return typeof value === 'number' ? formatMeasurement(value, sensorPropertySpec(sensor, property)) : undefined;
 }
 
 function namedState(value: unknown, t: (key: string) => string): string | undefined {

@@ -5,7 +5,7 @@ import { getSensorPropertySpec } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
 import { sanitizeTopicSegment } from './topics.js';
 
-import type { Camera, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
+import type { Camera, SensorPropertyChoice, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { MqttTopics } from './topics.js';
 
@@ -94,6 +94,7 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Fan]: 'fan',
   [SensorDomain.Valve]: 'valve',
   [SensorDomain.Scene]: 'scene',
+  [SensorDomain.Humidifier]: 'humidifier',
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -183,8 +184,6 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
 
   for (const property of semantics.choices ?? []) {
     const choices = sensor.propertySpecs[property]?.choices ?? [];
-    const values = Object.fromEntries(choices.map((choice) => [choice.value, choice.label]));
-    const labels = Object.fromEntries(choices.map((choice) => [choice.label, choice.value]));
     messages.push({
       topic: configTopic(haPrefix, 'select', `sensor_${sensor.id}`, property),
       payload: JSON.stringify({
@@ -192,9 +191,9 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
         unique_id: `cameraui_sensor_${sensor.id}_${property}`,
         ...shared,
         state_topic: state(property),
-        value_template: `{% set labels = ${JSON.stringify(values)} %}{{ labels[value_json] | default('') }}`,
+        value_template: choiceLabelTemplate(choices, ''),
         command_topic: command(property),
-        command_template: `{% set values = ${JSON.stringify(labels)} %}{{ values[value] | tojson }}`,
+        command_template: choiceValueTemplate(choices),
         options: choices.map((choice) => choice.label),
       }),
     });
@@ -321,6 +320,9 @@ function domainConfig(
     case SensorDomain.Scene:
       return { state_topic: undefined, command_topic: commandTopic, payload_on: 'true' };
 
+    case SensorDomain.Humidifier:
+      return humidifierConfig(semantics, spec, commandTopic, state, command);
+
     case SensorDomain.Alarm: {
       const offered = spec(semantics.commandProperty)?.values;
       return {
@@ -403,6 +405,51 @@ function climateConfig(
         }
       : {}),
   };
+}
+
+function humidifierConfig(
+  semantics: SensorSemantics,
+  spec: (property: string) => SensorPropertySpec | undefined,
+  commandTopic: string,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const humidifier = semantics.humidifier;
+  if (!humidifier) return {};
+  const target = spec(humidifier.target);
+  const modes = humidifier.mode ? (spec(humidifier.mode)?.choices ?? []) : [];
+  const json = '{{ value_json }}';
+  return {
+    command_topic: commandTopic,
+    payload_on: 'true',
+    payload_off: 'false',
+    target_humidity_state_topic: state(humidifier.target),
+    target_humidity_command_topic: command(humidifier.target),
+    min_humidity: target?.min ?? 0,
+    max_humidity: target?.max ?? 100,
+    ...(humidifier.current ? { current_humidity_topic: state(humidifier.current), current_humidity_template: json } : {}),
+    ...(humidifier.action ? { action_topic: state(humidifier.action), action_template: json } : {}),
+    ...(humidifier.mode && modes.length
+      ? {
+          modes: modes.map((choice) => choice.label),
+          mode_state_topic: state(humidifier.mode),
+          // HA resets the mode on "None"
+          mode_state_template: choiceLabelTemplate(modes, 'None'),
+          mode_command_topic: command(humidifier.mode),
+          mode_command_template: choiceValueTemplate(modes),
+        }
+      : {}),
+  };
+}
+
+function choiceLabelTemplate(choices: readonly SensorPropertyChoice[], fallback: string): string {
+  const labels = Object.fromEntries(choices.map((choice) => [choice.value, choice.label]));
+  return `{% set labels = ${JSON.stringify(labels)} %}{{ labels[value_json] | default('${fallback}') }}`;
+}
+
+function choiceValueTemplate(choices: readonly SensorPropertyChoice[]): string {
+  const values = Object.fromEntries(choices.map((choice) => [choice.label, choice.value]));
+  return `{% set values = ${JSON.stringify(values)} %}{{ values[value] | tojson }}`;
 }
 
 function fanConfig(
