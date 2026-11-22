@@ -485,19 +485,7 @@ export class FrameWorker extends Subscribed {
     }
 
     if (property === 'sources') {
-      const newSource = (newData as CameraInput[]).map((source) => ({
-        name: source.name,
-        urls: source.urls,
-        role: source.role,
-      }));
-
-      const oldSource = (oldData as CameraInput[]).map((source) => ({
-        name: source.name,
-        urls: source.urls,
-        role: source.role,
-      }));
-
-      if (isEqual(newSource, oldSource)) {
+      if (isEqual(workerSourceShape(newData as CameraInput[]), workerSourceShape(oldData as CameraInput[]))) {
         return;
       }
 
@@ -998,4 +986,8 @@ export class FrameWorker extends Subscribed {
       timeout: 10,
     });
   }
+}
+
+function workerSourceShape(sources: CameraInput[]): Pick<CameraInput, 'name' | 'urls' | 'role' | 'hotMode'>[] {
+  return sources.map((source) => ({ name: source.name, urls: source.urls, role: source.role, hotMode: source.hotMode === true }));
 }
