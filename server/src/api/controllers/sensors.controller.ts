@@ -3,6 +3,7 @@ import { SensorsService } from '../services/sensors.service.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type {
   AuthLoginRequest,
+  SensorDevicesCreateRequest,
   SensorDevicesPatchRequest,
   SensorsBulkDeleteRequest,
   SensorsCommandRequest,
@@ -56,6 +57,14 @@ export class SensorsController {
         return reply.code(404).send({ statusCode: 404, message: 'Sensor not found' });
       }
       return reply.code(200).send(sensor);
+    } catch (error: any) {
+      return reply.code(400).send({ statusCode: 400, message: error.message });
+    }
+  }
+
+  public createDevice(req: FastifyRequest<AuthLoginRequest & SensorDevicesCreateRequest>, reply: FastifyReply): FastifyReply {
+    try {
+      return reply.code(201).send({ sensors: this.service.createDevice(req.body) });
     } catch (error: any) {
       return reply.code(400).send({ statusCode: 400, message: error.message });
     }

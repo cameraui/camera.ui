@@ -4,7 +4,7 @@ import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '.
 
 import type { SensorPropertySpec, SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
-import type { CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
+import type { CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
 
 export interface TransformedSensorDevice {
   id: string;
@@ -67,8 +67,22 @@ export class SensorsService {
 
   public async createVirtual(input: CreateVirtualSensorInput): Promise<TransformedSensor> {
     if (input.cameraId) this.assertCameraExists(input.cameraId);
-    const record = await this.registry.createVirtualSensor({ type: input.type, name: input.name, assignCameraId: input.cameraId });
+    const record = await this.registry.createVirtualSensor({
+      type: input.type,
+      name: input.name,
+      assignCameraId: input.cameraId,
+      capabilities: input.capabilities,
+      sources: input.sources,
+      kind: input.kind,
+      exposed: input.exposed,
+      deviceId: input.deviceId,
+    });
     return this.transform(record._id)!;
+  }
+
+  public createDevice(input: CreateSensorDeviceInput): TransformedSensor[] {
+    const device = this.registry.createVirtualDevice(input.name, input.sensorIds);
+    return this.registry.getDeviceMembers(device._id).map((record) => this.transform(record._id)!);
   }
 
   public async patch(id: string, input: PatchSensorInput): Promise<TransformedSensor | undefined> {
@@ -85,6 +99,22 @@ export class SensorsService {
 
     if (input.exposed !== undefined) {
       await this.registry.setExposed(id, input.exposed);
+    }
+
+    if (input.deviceId !== undefined) {
+      this.registry.setVirtualDevice(id, input.deviceId);
+    }
+
+    if (input.capabilities !== undefined) {
+      this.registry.setVirtualCapabilities(id, input.capabilities);
+    }
+
+    if (input.sources !== undefined) {
+      this.registry.setVirtualSources(id, input.sources);
+    }
+
+    if (input.kind !== undefined) {
+      this.registry.setVirtualKind(id, input.kind);
     }
 
     return this.transform(id);

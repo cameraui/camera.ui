@@ -1,10 +1,18 @@
 import { RPCMethod } from '@camera.ui/rpc';
 import {
+  AirPurifierProperty,
+  AirPurifierState,
   COMMAND_AUTO_RESET_MS,
+  CoverProperty,
+  CoverState,
   DoorbellProperty,
+  HumidifierAction,
+  HumidifierProperty,
   LawnMowerActivity,
   LawnMowerCommand,
   LawnMowerProperty,
+  LightColorMode,
+  LightProperty,
   LockProperty,
   MediaPlayerCommand,
   MediaPlayerProperty,
@@ -13,6 +21,9 @@ import {
   SCENE_AUTO_RESET_MS,
   SceneProperty,
   SensorType,
+  ThermostatAction,
+  ThermostatMode,
+  ThermostatProperty,
   VacuumActivity,
   VacuumCommand,
   VacuumProperty,
@@ -20,7 +31,7 @@ import {
 
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
-import { VIRTUAL_SENSOR_OWNER_ID } from '../sensors/types.js';
+import { PROPERTY_CAPABILITY_MAP, VIRTUAL_SENSOR_OWNER_ID } from '../sensors/types.js';
 
 import type { SensorRegistry } from './registry.js';
 
@@ -31,6 +42,9 @@ interface Momentary {
 }
 
 const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.Cover, SensorType.Valve, SensorType.SecuritySystem]);
+
+// valves share the position names and the open and closed values of covers
+const POSITION_TYPES = new Set<SensorType>([SensorType.Cover, SensorType.Valve]);
 
 const MOMENTARY: Partial<Record<SensorType, Momentary>> = {
   [SensorType.Doorbell]: { property: DoorbellProperty.Ring, resetMs: RING_AUTO_RESET_MS, idle: false },
@@ -68,6 +82,10 @@ export async function registerVirtualSensorHost(registry: SensorRegistry, sensor
   const host = new VirtualSensorHost(registry, sensorId, type);
   hosts.set(sensorId, host);
   await host.register();
+}
+
+export function writeVirtualSensor(sensorId: string, property: string, value: unknown): void {
+  hosts.get(sensorId)?.applyUpdate(property, value);
 }
 
 export async function disposeVirtualSensorHost(sensorId: string): Promise<void> {
@@ -125,24 +143,61 @@ export class VirtualSensorHost {
       return;
     }
 
-    // no hardware reports back, so currentState mirrors targetState or the UI waits forever
+    this.write({ [property]: value, ...this.offered(this.followUps(property, value)) });
+  }
+
+  private followUps(property: string, value: unknown): Record<string, unknown> {
+    // no hardware reports back, so what a device would report follows the write or the UI waits forever
     if (TARGET_STATE_MIRROR_TYPES.has(this.type) && (property as LockProperty) === LockProperty.TargetState) {
-      this.write({ [LockProperty.TargetState]: value, [LockProperty.CurrentState]: value });
-      return;
+      if (!POSITION_TYPES.has(this.type)) return { [LockProperty.CurrentState]: value };
+      const position = value === CoverState.Open ? 100 : 0;
+      return { [CoverProperty.CurrentState]: value, [CoverProperty.TargetPosition]: position, [CoverProperty.CurrentPosition]: position };
+    }
+
+    if (POSITION_TYPES.has(this.type) && (property as CoverProperty) === CoverProperty.TargetPosition) {
+      const state = (value as number) > 0 ? CoverState.Open : CoverState.Closed;
+      return { [CoverProperty.CurrentPosition]: value, [CoverProperty.TargetState]: state, [CoverProperty.CurrentState]: state };
+    }
+
+    if (this.type === SensorType.Cover && (property as CoverProperty) === CoverProperty.TargetTilt) return { [CoverProperty.CurrentTilt]: value };
+    if (this.type === SensorType.Cover && (property as CoverProperty) === CoverProperty.Stop) {
+      return { [CoverProperty.Stop]: false, [CoverProperty.CurrentState]: CoverState.Stopped };
     }
 
     if (this.type === SensorType.MediaPlayer && (property as MediaPlayerProperty) === MediaPlayerProperty.On) {
-      this.write({ [MediaPlayerProperty.On]: value, [MediaPlayerProperty.State]: value ? MediaPlayerState.Idle : MediaPlayerState.Off });
-      return;
+      return { [MediaPlayerProperty.State]: value ? MediaPlayerState.Idle : MediaPlayerState.Off };
     }
 
-    this.write({ [property]: value });
+    if (this.type === SensorType.Humidifier && (property as HumidifierProperty) === HumidifierProperty.On) {
+      return { [HumidifierProperty.Action]: value ? HumidifierAction.Idle : HumidifierAction.Off };
+    }
+
+    if (this.type === SensorType.AirPurifier && (property as AirPurifierProperty) === AirPurifierProperty.On) {
+      return { [AirPurifierProperty.State]: value ? AirPurifierState.Idle : AirPurifierState.Inactive };
+    }
+
+    if (this.type === SensorType.Light) return lightFollowUps(property as LightProperty, value);
+
+    if (this.type === SensorType.Thermostat && (property as ThermostatProperty) === ThermostatProperty.Mode) {
+      return { [ThermostatProperty.Action]: value === ThermostatMode.Off ? ThermostatAction.Off : ThermostatAction.Idle };
+    }
+
+    return {};
+  }
+
+  private offered(properties: Record<string, unknown> | undefined): Record<string, unknown> {
+    // a follow-up for a capability the sensor lacks would only log a warning
+    const gates = PROPERTY_CAPABILITY_MAP[this.type];
+    if (!properties || !gates) return properties ?? {};
+
+    const capabilities = this.registry.getCapabilities(this.sensorId);
+    return Object.fromEntries(Object.entries(properties).filter(([property]) => !gates[property] || capabilities.includes(gates[property])));
   }
 
   private trigger({ property, resetMs, idle }: Momentary, value: unknown): void {
     if (this.resetTimer) clearTimeout(this.resetTimer);
 
-    this.write({ [property]: value, ...COMMAND_EFFECTS[this.type]?.[String(value)] });
+    this.write({ [property]: value, ...this.offered(COMMAND_EFFECTS[this.type]?.[String(value)]) });
     this.resetTimer = setTimeout(() => {
       this.resetTimer = undefined;
       this.write({ [property]: idle });
@@ -152,6 +207,13 @@ export class VirtualSensorHost {
   private write(properties: Record<string, unknown>): void {
     this.registry.updatePropertyValues(this.sensorId, properties);
   }
+}
+
+function lightFollowUps(property: LightProperty, value: unknown): Record<string, unknown> {
+  if (property === LightProperty.Brightness) return { [LightProperty.On]: (value as number) > 0 };
+  if (property === LightProperty.Color) return { [LightProperty.ColorMode]: LightColorMode.Color };
+  if (property === LightProperty.ColorTemperature) return { [LightProperty.ColorMode]: LightColorMode.Temperature };
+  return {};
 }
 
 class VirtualSensorRpcHandler {

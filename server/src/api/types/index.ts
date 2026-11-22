@@ -95,7 +95,7 @@ import type {
   NotificationSeenInput,
 } from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
-import type { CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
+import type { CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, ServerUnitSystemInput, UpdateServerInput } from '../schemas/server.schema.js';
 import type { RunUpdatesInput } from '../schemas/updates.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
@@ -1045,6 +1045,7 @@ export interface InterfaceSettinges {
 export interface SensorsSettings {
   hideAllCameraBound: boolean;
   onlyEnabledCameraBound: boolean;
+  hiddenTypes: SensorType[];
 }
 
 export interface PluginsViewSettings {
@@ -1538,6 +1539,10 @@ export interface SensorsCreateVirtualRequest {
 
 export interface SensorsPatchRequest {
   Body: PatchSensorInput;
+}
+
+export interface SensorDevicesCreateRequest {
+  Body: CreateSensorDeviceInput;
 }
 
 export interface SensorDevicesPatchRequest {

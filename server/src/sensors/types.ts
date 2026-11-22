@@ -1,6 +1,6 @@
 import { SENSOR_META, SensorCategory } from '@camera.ui/sdk';
 
-import type { EventTriggerType, SensorMeta, SensorPropertySpec, SensorType } from '@camera.ui/sdk';
+import type { EventTriggerType, SensorMeta, SensorPropertySpec, SensorType, SensorVirtualDefaults } from '@camera.ui/sdk';
 
 export interface SensorTypeMetadata {
   category: SensorCategory;
@@ -151,13 +151,26 @@ export type VirtualSensorType = Extract<(typeof SENSOR_META)[number], { virtual:
 
 export const VIRTUAL_SENSOR_TYPES = (SENSOR_META as readonly SensorMeta[]).filter((meta) => meta.virtual).map((meta) => meta.type) as VirtualSensorType[];
 
-export const VIRTUAL_SENSOR_DEFAULT_PROPERTIES = Object.fromEntries(
-  (SENSOR_META as readonly SensorMeta[]).filter((meta) => meta.virtual).map((meta) => [meta.type, meta.virtual?.properties ?? {}]),
-) as Record<VirtualSensorType, Record<string, unknown>>;
+export interface VirtualSensorCapabilities {
+  offered: string[];
+  defaults: string[];
+}
 
-export const VIRTUAL_SENSOR_DEFAULT_CAPABILITIES = Object.fromEntries(
-  (SENSOR_META as readonly SensorMeta[]).filter((meta) => meta.virtual?.capabilities).map((meta) => [meta.type, meta.virtual?.capabilities]),
-) as Partial<Record<VirtualSensorType, string[]>>;
+const VIRTUAL_DEFAULTS = Object.fromEntries((SENSOR_META as readonly SensorMeta[]).filter((meta) => meta.virtual).map((meta) => [meta.type, meta.virtual])) as Record<
+  VirtualSensorType,
+  SensorVirtualDefaults
+>;
+
+export const VIRTUAL_SENSOR_CAPABILITIES = Object.fromEntries(
+  Object.entries(VIRTUAL_DEFAULTS)
+    .filter(([, virtual]) => virtual.optionalCapabilities)
+    .map(([type, virtual]) => [type, { offered: Object.keys(virtual.optionalCapabilities ?? {}), defaults: [...(virtual.capabilities ?? [])] }]),
+) as Partial<Record<VirtualSensorType, VirtualSensorCapabilities>>;
+
+export function virtualSensorStartState(type: VirtualSensorType, capabilities: readonly string[]): Record<string, unknown> {
+  const virtual = VIRTUAL_DEFAULTS[type];
+  return Object.assign({ ...virtual.properties }, ...capabilities.map((capability) => virtual.optionalCapabilities?.[capability]));
+}
 
 export function isVirtualSensorType(type: SensorType): type is VirtualSensorType {
   return (VIRTUAL_SENSOR_TYPES as readonly SensorType[]).includes(type);

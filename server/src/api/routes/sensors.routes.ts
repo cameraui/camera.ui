@@ -5,6 +5,7 @@ import { onlyAdminCanDoThisAction } from '../middlewares/authPermission.middlewa
 import { validJWTNeeded } from '../middlewares/authValidation.middleware.js';
 import {
   bulkDeleteSensorsSchema,
+  createSensorDeviceSchema,
   createVirtualSensorSchema,
   patchSensorDeviceSchema,
   patchSensorSchema,
@@ -61,7 +62,7 @@ export const SensorsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
     handler: controller.update.bind(controller),
     schema: {
       tags: ['Sensors'],
-      summary: 'Update a sensor (display name, camera assignments, export)',
+      summary: 'Update a sensor (display name, camera assignments, export, device, capabilities and inputs of a virtual sensor)',
       params: sensorParamsSchema,
       body: patchSensorSchema,
     },
@@ -88,6 +89,18 @@ export const SensorsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       tags: ['Sensors'],
       summary: 'Delete a sensor',
       params: sensorParamsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/devices',
+    method: 'POST',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: controller.createDevice.bind(controller),
+    schema: {
+      tags: ['Sensors'],
+      summary: 'Group virtual sensors into a new device',
+      body: createSensorDeviceSchema,
     },
   });
 

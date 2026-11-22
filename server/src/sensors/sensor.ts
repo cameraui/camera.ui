@@ -3,6 +3,7 @@ import { Disposable, Observable, SensorType } from '@camera.ui/sdk';
 import { checkPropertyWrite } from '@camera.ui/sdk/internal';
 
 import { DETECTION_SENSOR_TYPES, PROPERTY_CAPABILITY_MAP, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from './types.js';
+import { writeVirtualSensor } from './virtual.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
@@ -121,7 +122,12 @@ export class ServerSensor implements SensorLike {
 
   public async updateValue(property: string, value: unknown): Promise<void> {
     value = checkPropertyWrite(this.propertySpecs, property, value);
-    if (!this.pluginId || this.pluginId === VIRTUAL_SENSOR_OWNER_ID) {
+    // the host mirrors what hardware would report and resets momentary values
+    if (this.pluginId === VIRTUAL_SENSOR_OWNER_ID) {
+      writeVirtualSensor(this.id, property, value);
+      return;
+    }
+    if (!this.pluginId) {
       this.applyPropertyWrites({ [property]: value });
       return;
     }

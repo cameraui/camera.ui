@@ -12,6 +12,11 @@ export const createVirtualSensorSchema = zod.object({
   cameraId: zod.string().min(1).optional(),
   type: zod.enum(VIRTUAL_SENSOR_TYPES as [VirtualSensorType, ...VirtualSensorType[]]),
   name: zod.string().trim().min(1, 'Name is required').max(100, 'Name cannot be more than 100 characters'),
+  capabilities: zod.array(zod.string().min(1)).optional(),
+  sources: zod.array(zod.string().trim().min(1).max(64)).max(96).optional(),
+  kind: zod.string().min(1).max(32).optional(),
+  exposed: zod.boolean().optional(),
+  deviceId: zod.string().min(1).optional(),
 });
 
 export const patchSensorSchema = zod
@@ -19,10 +24,19 @@ export const patchSensorSchema = zod
     displayName: zod.string().trim().min(1, 'Display name is required').max(100, 'Display name cannot be more than 100 characters').optional(),
     assignedCameraIds: zod.array(zod.string().min(1)).optional(),
     exposed: zod.boolean().optional(),
+    deviceId: zod.string().min(1).nullable().optional(),
+    capabilities: zod.array(zod.string().min(1)).optional(),
+    sources: zod.array(zod.string().trim().min(1).max(64)).max(96).optional(),
+    kind: zod.string().min(1).max(32).optional(),
   })
-  .refine((body) => body.displayName !== undefined || body.assignedCameraIds !== undefined || body.exposed !== undefined, {
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: 'Nothing to update',
   });
+
+export const createSensorDeviceSchema = zod.object({
+  name: zod.string().trim().min(1, 'Name is required').max(100, 'Name cannot be more than 100 characters'),
+  sensorIds: zod.array(zod.string().min(1)).min(1).max(100),
+});
 
 export const patchSensorDeviceSchema = zod
   .object({
@@ -45,5 +59,6 @@ export const bulkDeleteSensorsSchema = zod.object({
 export type CreateVirtualSensorInput = zod.infer<typeof createVirtualSensorSchema>;
 export type PatchSensorInput = zod.infer<typeof patchSensorSchema>;
 export type PatchSensorDeviceInput = zod.infer<typeof patchSensorDeviceSchema>;
+export type CreateSensorDeviceInput = zod.infer<typeof createSensorDeviceSchema>;
 export type BulkDeleteSensorsInput = zod.infer<typeof bulkDeleteSensorsSchema>;
 export type SensorCommandInput = zod.infer<typeof sensorCommandSchema>;

@@ -1,6 +1,6 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
-import { canProvideSensorsToAnyCameras, hasInterface, PluginInterface, SensorType } from '@camera.ui/sdk';
+import { canProvideSensorsToAnyCameras, hasInterface, MediaPlayerCapability, MediaPlayerProperty, PluginInterface, sensorMeta, SensorType } from '@camera.ui/sdk';
 import { randomUUID } from 'node:crypto';
 
 import { CamerasService } from '../api/services/cameras.service.js';
@@ -13,12 +13,12 @@ import { ServerSensor } from '../sensors/sensor.js';
 import {
   DETECTION_SENSOR_TYPES,
   isKnownSensorType,
-  isVirtualSensorType,
+  SENSOR_PROPERTY_SPECS,
   SENSOR_TYPE_CONFIG,
-  VIRTUAL_SENSOR_DEFAULT_CAPABILITIES,
-  VIRTUAL_SENSOR_DEFAULT_PROPERTIES,
+  VIRTUAL_SENSOR_CAPABILITIES,
   VIRTUAL_SENSOR_OWNER_ID,
   VIRTUAL_SENSOR_OWNER_NAME,
+  virtualSensorStartState,
 } from '../sensors/types.js';
 import { composeDeviceState, pickPrimary } from './devices.js';
 import { resolvePropertySpecs, sanitizePropertySpecs } from './specs.js';
@@ -33,11 +33,18 @@ import type { DBSensor, DBSensorDevice, DBSensorHistoryEntry } from '../api/data
 import type { CoordinatorSensorInfo, DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
 import type { RegisterSensorOptions, SensorRefreshedState, SensorRegistration, StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { SensorContext } from '../sensors/sensor.js';
+import type { VirtualSensorType } from '../sensors/types.js';
 
 const HISTORY_MAX_ENTRIES = 500;
 
 function stamp(timestamp: number): string {
   return String(Math.max(timestamp, 0)).padStart(15, '0');
+}
+
+function virtualKindProperty(type: SensorType): string {
+  const property = sensorMeta(type)?.semantics?.deviceClassProperty;
+  if (!property) throw new Error(`A virtual ${type} sensor has no kind`);
+  return property;
 }
 const HISTORY_COALESCE_MS = 1000;
 const TICK_RATE_PROPERTIES: ReadonlySet<string> = new Set(['detections', 'staticDetections', 'decibels']);
@@ -363,30 +370,52 @@ export class SensorRegistry {
     this.logger.debug(`Sensor deleted: "${record.displayName ?? record.name}" (${record.type})`);
   }
 
-  public async createVirtualSensor(input: { type: SensorType; name: string; assignCameraId?: string }): Promise<DBSensor> {
+  public async createVirtualSensor(input: {
+    type: VirtualSensorType;
+    name: string;
+    assignCameraId?: string;
+    capabilities?: string[];
+    sources?: string[];
+    kind?: string;
+    exposed?: boolean;
+    deviceId?: string;
+  }): Promise<DBSensor> {
     const duplicate = this.getRecords().find((r) => r.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID && r.type === input.type && r.name === input.name);
     if (duplicate) {
       throw new Error(`A virtual ${input.type} sensor named "${input.name}" already exists`);
     }
 
-    const defaults = isVirtualSensorType(input.type) ? VIRTUAL_SENSOR_DEFAULT_PROPERTIES[input.type] : {};
+    const capabilities = this.pickVirtualCapabilities(input.type, input.capabilities);
+    const device = input.deviceId ? this.getVirtualDevice(input.deviceId) : undefined;
     const record: DBSensor = {
       _id: randomUUID(),
       pluginInfo: { id: VIRTUAL_SENSOR_OWNER_ID, name: VIRTUAL_SENSOR_OWNER_NAME },
       type: input.type,
       name: input.name,
       assignedCameraIds: input.assignCameraId ? [input.assignCameraId] : [],
-      exposed: true,
-      state: { ...defaults },
+      deviceId: device?._id,
+      primary: device ? true : undefined,
+      exposed: input.exposed ?? true,
+      state: virtualSensorStartState(input.type, capabilities),
+      capabilities,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+    if (input.sources) {
+      this.applyVirtualSources(record, input.sources);
+      const first = this.virtualSources(record)[0];
+      if (first && capabilities.includes(MediaPlayerCapability.Source)) record.state = { ...record.state, [MediaPlayerProperty.Source]: first };
+    }
+    if (input.kind) {
+      this.applyVirtualKind(record, input.kind);
+      record.state = { ...record.state, [virtualKindProperty(record.type)]: input.kind };
+    }
 
     this.records.set(record._id, record);
     await this.dbs.sensorsDB.put(record._id, record);
-    this.syncDeviceStates([record._id]);
+    this.settleDevices([record._id], [record.deviceId]);
 
-    this.runtime.set(record._id, { capabilities: this.virtualCapabilities(record.type) });
+    this.runtime.set(record._id, { capabilities: [...capabilities] });
     this.seedPropertyValues(record._id, record.state ?? {});
     await registerVirtualSensorHost(this, record._id, record.type);
 
@@ -521,6 +550,10 @@ export class SensorRegistry {
     return this.runtime.has(sensorId);
   }
 
+  public getCapabilities(sensorId: string): string[] {
+    return this.runtime.get(sensorId)?.capabilities ?? [];
+  }
+
   @RPCMethod
   public updatePropertyValues(sensorId: string, properties: Record<string, unknown>): void {
     this.getSensor(sensorId)?.applyPropertyWrites(properties);
@@ -634,6 +667,60 @@ export class SensorRegistry {
 
   public async setDeviceExposed(deviceId: string, exposed: boolean): Promise<void> {
     for (const member of this.getDeviceMembers(deviceId)) await this.setExposed(member._id, exposed);
+  }
+
+  public createVirtualDevice(name: string, sensorIds: string[]): DBSensorDevice {
+    const records = sensorIds.map((sensorId) => this.getVirtualRecord(sensorId));
+    const now = Date.now();
+    const device: DBSensorDevice = {
+      _id: randomUUID(),
+      pluginInfo: { id: VIRTUAL_SENSOR_OWNER_ID, name: VIRTUAL_SENSOR_OWNER_NAME },
+      name,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.devices.set(device._id, device);
+    this.persistDevice(device);
+    this.moveToVirtualDevice(records, device._id);
+    this.logger.debug(`Virtual sensor device created: "${name}"`);
+    return device;
+  }
+
+  public setVirtualCapabilities(sensorId: string, capabilities: string[]): void {
+    const record = this.getVirtualRecord(sensorId);
+    const picked = this.pickVirtualCapabilities(record.type as VirtualSensorType, capabilities);
+    const added = picked.filter((capability) => !this.getCapabilities(sensorId).includes(capability));
+    this.updateCapabilities(sensorId, picked);
+
+    // a capability turned on again keeps the value it had
+    const start = virtualSensorStartState(record.type as VirtualSensorType, added);
+    const missing = Object.fromEntries(Object.entries(start).filter(([property]) => this.getPropertyValue(sensorId, property) === undefined));
+    if (Object.keys(missing).length > 0) this.updatePropertyValues(sensorId, missing);
+  }
+
+  public setVirtualKind(sensorId: string, kind: string): void {
+    const record = this.getVirtualRecord(sensorId);
+    if (!this.applyVirtualKind(record, kind)) return;
+    this.persistRecord(sensorId, () => {});
+    this.announcePropertySpecs(record);
+    this.updatePropertyValues(sensorId, { [virtualKindProperty(record.type)]: kind });
+  }
+
+  public setVirtualSources(sensorId: string, sources: string[]): void {
+    const record = this.getVirtualRecord(sensorId);
+    if (!this.applyVirtualSources(record, sources)) return;
+    this.persistRecord(sensorId, () => {});
+    this.announcePropertySpecs(record);
+
+    const names = this.virtualSources(record);
+    if (names.length > 0 && !names.includes(String(this.getPropertyValue(sensorId, MediaPlayerProperty.Source)))) {
+      this.updatePropertyValues(sensorId, { [MediaPlayerProperty.Source]: names[0] });
+    }
+  }
+
+  public setVirtualDevice(sensorId: string, deviceId: string | null): void {
+    const record = this.getVirtualRecord(sensorId);
+    this.moveToVirtualDevice([record], deviceId ? this.getVirtualDevice(deviceId)._id : undefined);
   }
 
   public async deleteDevice(deviceId: string): Promise<void> {
@@ -927,7 +1014,7 @@ export class SensorRegistry {
       this.seedPropertyValues(record._id, record.state ?? {});
 
       if (record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) {
-        this.runtime.set(record._id, { capabilities: this.virtualCapabilities(record.type) });
+        this.runtime.set(record._id, { capabilities: [...(record.capabilities ?? VIRTUAL_SENSOR_CAPABILITIES[record.type as VirtualSensorType]?.defaults ?? [])] });
         await registerVirtualSensorHost(this, record._id, record.type);
       }
 
@@ -1150,8 +1237,68 @@ export class SensorRegistry {
     }
   }
 
-  private virtualCapabilities(type: SensorType): string[] {
-    return [...((VIRTUAL_SENSOR_DEFAULT_CAPABILITIES as Partial<Record<SensorType, string[]>>)[type] ?? [])];
+  private pickVirtualCapabilities(type: VirtualSensorType, picked: string[] | undefined): string[] {
+    const offer = VIRTUAL_SENSOR_CAPABILITIES[type];
+    if (!picked) return [...(offer?.defaults ?? [])];
+
+    const unknown = picked.filter((capability) => !offer?.offered.includes(capability));
+    if (unknown.length > 0) throw new Error(`A virtual ${type} sensor can't have ${unknown.join(', ')}`);
+    return [...new Set(picked)];
+  }
+
+  private applyVirtualSources(record: DBSensor, sources: string[]): boolean {
+    if (record.type !== SensorType.MediaPlayer) throw new Error(`A virtual ${record.type} sensor has no inputs`);
+    const names = [...new Set(sources.map((source) => source.trim()).filter(Boolean))];
+    const choices = names.map((name) => ({ value: name, label: name }));
+    return this.applyVirtualSpec(record, MediaPlayerProperty.Source, choices.length > 0 ? { choices } : undefined);
+  }
+
+  private applyVirtualKind(record: DBSensor, kind: string): boolean {
+    const property = virtualKindProperty(record.type);
+    if (!Object.values(SENSOR_PROPERTY_SPECS[record.type]?.[property]?.values ?? {}).includes(kind)) {
+      throw new Error(`A virtual ${record.type} sensor can't be a ${kind}`);
+    }
+    // the one value left is what Home Assistant and MQTT take as the device class
+    return this.applyVirtualSpec(record, property, { values: [kind] });
+  }
+
+  private applyVirtualSpec(record: DBSensor, property: string, spec: PropertySpecOverride | undefined): boolean {
+    const others = Object.entries(record.propertySpecs ?? {}).filter(([key]) => key !== property);
+    return this.applyPropertySpecs(record, Object.fromEntries(spec ? [...others, [property, spec]] : others));
+  }
+
+  private virtualSources(record: DBSensor): string[] {
+    return (record.propertySpecs?.[MediaPlayerProperty.Source]?.choices ?? []).map((choice) => String(choice.value));
+  }
+
+  private getVirtualRecord(sensorId: string): DBSensor {
+    const record = this.records.get(sensorId);
+    if (!record) throw new Error(`Sensor ${sensorId} not found`);
+    if (record.pluginInfo.id !== VIRTUAL_SENSOR_OWNER_ID) throw new Error(`Sensor "${record.displayName ?? record.name}" is not virtual, its plugin sets its device`);
+    return record;
+  }
+
+  private getVirtualDevice(deviceId: string): DBSensorDevice {
+    const device = this.devices.get(deviceId);
+    if (!device) throw new Error(`Sensor device ${deviceId} not found`);
+    if (device.pluginInfo?.id !== VIRTUAL_SENSOR_OWNER_ID)
+      throw new Error(`Sensor device "${device.displayName ?? device.name}" belongs to a plugin, only virtual sensors can join it`);
+    return device;
+  }
+
+  private moveToVirtualDevice(records: DBSensor[], deviceId: string | undefined): void {
+    const previous = records.map((record) => record.deviceId);
+    for (const record of records) {
+      this.persistRecord(record._id, (stored) => {
+        stored.deviceId = deviceId;
+        // every member is marked, so the lead goes by type and age as on plugin devices
+        stored.primary = deviceId ? true : undefined;
+      });
+    }
+    this.settleDevices(
+      records.map((record) => record._id),
+      [...previous, deviceId],
+    );
   }
 
   private appendHistory(sensorId: string, delta: Record<string, unknown>): void {
