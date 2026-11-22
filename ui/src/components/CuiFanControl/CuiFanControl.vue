@@ -51,6 +51,11 @@
         @update:model-value="(value: string) => emit('update:preset', value)"
       />
     </div>
+
+    <div v-for="toggle in toggles" :key="toggle.property" class="cui-fan-control__row">
+      <span class="cui-fan-control__row-label">{{ toggle.label }}</span>
+      <ToggleSwitch :model-value="toggle.value" :disabled @update:model-value="(value: boolean) => emit('update:toggle', toggle.property, value)" />
+    </div>
   </div>
 </template>
 

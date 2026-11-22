@@ -1,4 +1,5 @@
 import {
+  AirPurifierProperty,
   BatteryProperty,
   ChargingState,
   CoverKind,
@@ -20,6 +21,8 @@ import FaceEmbedderIcon from '~icons/mdi/account-search-outline';
 import AirQualityIcon from '~icons/mdi/air-filter';
 import HumidifierIcon from '~icons/mdi/air-humidifier';
 import HumidifierOffIcon from '~icons/mdi/air-humidifier-off';
+import AirPurifierIcon from '~icons/mdi/air-purifier';
+import AirPurifierOffIcon from '~icons/mdi/air-purifier-off';
 import SirenIcon from '~icons/mdi/alarm-light';
 import SirenOffIcon from '~icons/mdi/alarm-light-outline';
 import AwningIcon from '~icons/mdi/awning';
@@ -111,6 +114,8 @@ import SegmenterIcon from '~icons/mdi/vector-polygon';
 import VibrationIcon from '~icons/mdi/vibrate';
 import PersonEmbedderIcon from '~icons/mdi/walk';
 import LeakAlertIcon from '~icons/mdi/water-alert';
+import WaterBoilerIcon from '~icons/mdi/water-boiler';
+import WaterBoilerOffIcon from '~icons/mdi/water-boiler-off';
 import LeakIcon from '~icons/mdi/water-off';
 import HumidityIcon from '~icons/mdi/water-percent';
 import AudioIcon from '~icons/mdi/waveform';
@@ -159,6 +164,8 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.Valve]: { icon: ValveIcon, activeIcon: ValveOpenIcon, states: ['closed', 'open'], tone: 'info' },
   [SensorDomain.Scene]: { icon: SceneIcon, activeIcon: SceneActiveIcon, states: ['ready', 'running'], tone: 'info' },
   [SensorDomain.Humidifier]: { icon: HumidifierOffIcon, activeIcon: HumidifierIcon, states: ['off', 'on'], tone: 'info' },
+  [SensorDomain.AirPurifier]: { icon: AirPurifierOffIcon, activeIcon: AirPurifierIcon, states: ['off', 'on'], tone: 'info' },
+  [SensorDomain.WaterHeater]: { icon: WaterBoilerOffIcon, activeIcon: WaterBoilerIcon, states: ['off', 'on'], tone: 'warn' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
   [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
   [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
@@ -251,7 +258,8 @@ export function sensorActive(type: string, read: ReadProperty): boolean {
     case SensorDomain.Cover:
     case SensorDomain.Valve:
       return requested(semantics, read) === semantics.states?.open;
-    case SensorDomain.Climate: {
+    case SensorDomain.Climate:
+    case SensorDomain.WaterHeater: {
       const mode = read(semantics.stateProperty);
       return mode !== undefined && mode !== ThermostatMode.Off;
     }
@@ -302,6 +310,7 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
   if (semantics?.domain === SensorDomain.Text) return typeof value === 'string' && value ? value : '--';
   if (sensor && semantics?.climate) return climateStatus(sensor, semantics.climate, t);
   if (sensor && semantics?.humidifier) return humidifierStatus(sensor, semantics.humidifier, value === true, t);
+  if (sensor && semantics?.domain === SensorDomain.AirPurifier) return purifierStatus(sensor, value === true, t);
   if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return t('components.sensor_state.jammed');
   const speed = semantics?.fan?.speed;
   if (sensor && speed && value === true && sensorOffers(sensor, speed)) {
@@ -379,6 +388,13 @@ function humidifierStatus(sensor: AnySensor, humidifier: SensorHumidifier, on: b
   const doing = on && action && sensorOffers(sensor, action) ? valueName(sensor, action, t) : undefined;
   const reading = current && sensorOffers(sensor, current) ? propertyReading(sensor, current) : undefined;
   return [doing ?? t(`components.sensor_state.${on ? 'on' : 'off'}`), reading].filter(Boolean).join(' · ');
+}
+
+function purifierStatus(sensor: AnySensor, on: boolean, t: (key: string) => string): string {
+  const doing = on && sensorOffers(sensor, AirPurifierProperty.State) ? valueName(sensor, AirPurifierProperty.State, t) : undefined;
+  const speed = on && sensorOffers(sensor, AirPurifierProperty.Speed) ? propertyReading(sensor, AirPurifierProperty.Speed) : undefined;
+  const filter = sensor.getProperty(AirPurifierProperty.FilterChange) === true ? t('components.sensor_state.change_filter') : undefined;
+  return [doing ?? t(`components.sensor_state.${on ? 'on' : 'off'}`), speed, filter].filter(Boolean).join(' · ');
 }
 
 function valueName(sensor: AnySensor, property: string, t: (key: string) => string): string | undefined {

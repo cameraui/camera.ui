@@ -121,7 +121,8 @@ const setSensorPropertyInput = zod.object({
     .optional()
     .describe(
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
-      'covers and valves targetPosition (0 closed, 100 open), thermostats targetTemperature and targetHumidity, humidifiers targetHumidity, fans speed (0 to 100)',
+      'covers and valves targetPosition (0 closed, 100 open), thermostats and water heaters targetTemperature, ' +
+      'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100)',
     ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])

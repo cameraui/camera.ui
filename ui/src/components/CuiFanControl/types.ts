@@ -7,6 +7,12 @@ export interface FanOption {
   value: string;
 }
 
+export interface FanToggle {
+  property: string;
+  label: string;
+  value: boolean;
+}
+
 export interface CuiFanControlProps {
   icon: Component;
   iconStyle?: Record<string, string>;
@@ -21,6 +27,7 @@ export interface CuiFanControlProps {
   hasOscillation?: boolean;
   preset?: string;
   presets?: FanOption[];
+  toggles?: FanToggle[];
   label?: string;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
@@ -32,6 +39,7 @@ export interface CuiFanControlEmits {
   'update:direction': [value: FanDirection];
   'update:oscillating': [value: boolean];
   'update:preset': [value: string];
+  'update:toggle': [property: string, value: boolean];
 }
 
 export const CUI_FAN_CONTROL_DEFAULTS = {

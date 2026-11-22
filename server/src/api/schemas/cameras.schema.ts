@@ -432,6 +432,8 @@ export const assignmentsSchema = zod
     valve: pluginInfo.array().optional(),
     scene: pluginInfo.array().optional(),
     humidifier: pluginInfo.array().optional(),
+    airPurifier: pluginInfo.array().optional(),
+    waterHeater: pluginInfo.array().optional(),
     gas: pluginInfo.array().optional(),
     carbonMonoxide: pluginInfo.array().optional(),
     carbonDioxide: pluginInfo.array().optional(),

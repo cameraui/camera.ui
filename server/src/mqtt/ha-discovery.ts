@@ -5,7 +5,7 @@ import { getSensorPropertySpec } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
 import { sanitizeTopicSegment } from './topics.js';
 
-import type { Camera, SensorPropertyChoice, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
+import type { Camera, SensorClimate, SensorPropertyChoice, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { MqttTopics } from './topics.js';
 
@@ -95,6 +95,8 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Valve]: 'valve',
   [SensorDomain.Scene]: 'scene',
   [SensorDomain.Humidifier]: 'humidifier',
+  [SensorDomain.AirPurifier]: 'fan',
+  [SensorDomain.WaterHeater]: 'water_heater',
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -174,7 +176,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
       payload: JSON.stringify({
         unique_id: `cameraui_sensor_${sensor.id}_${reading.property}`,
         ...shared,
-        ...(reading.deviceClass ? { device_class: reading.deviceClass } : {}),
+        ...(reading.deviceClass ? { device_class: reading.deviceClass } : { name: settingName(entityName, reading.property) }),
         ...(reading.unit ? { unit_of_measurement: reading.unit } : {}),
         state_topic: state(reading.property),
         state_class: 'measurement',
@@ -187,7 +189,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     messages.push({
       topic: configTopic(haPrefix, 'select', `sensor_${sensor.id}`, property),
       payload: JSON.stringify({
-        name: entityName ? `${entityName} ${capitalize(property)}` : capitalize(property),
+        name: settingName(entityName, property),
         unique_id: `cameraui_sensor_${sensor.id}_${property}`,
         ...shared,
         state_topic: state(property),
@@ -195,6 +197,23 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
         command_topic: command(property),
         command_template: choiceValueTemplate(choices),
         options: choices.map((choice) => choice.label),
+      }),
+    });
+  }
+
+  for (const property of semantics.toggles ?? []) {
+    messages.push({
+      topic: configTopic(haPrefix, 'switch', `sensor_${sensor.id}`, property),
+      payload: JSON.stringify({
+        name: settingName(entityName, property),
+        unique_id: `cameraui_sensor_${sensor.id}_${property}`,
+        ...shared,
+        state_topic: state(property),
+        command_topic: command(property),
+        state_on: 'true',
+        state_off: 'false',
+        payload_on: 'true',
+        payload_off: 'false',
       }),
     });
   }
@@ -323,6 +342,12 @@ function domainConfig(
     case SensorDomain.Humidifier:
       return humidifierConfig(semantics, spec, commandTopic, state, command);
 
+    case SensorDomain.AirPurifier:
+      return fanConfig(semantics, commandTopic, state, command);
+
+    case SensorDomain.WaterHeater:
+      return semantics.climate ? temperatureControlConfig(semantics, semantics.climate, spec, state, command) : {};
+
     case SensorDomain.Alarm: {
       const offered = spec(semantics.commandProperty)?.values;
       return {
@@ -370,21 +395,9 @@ function climateConfig(
   const climate = semantics.climate;
   if (!climate) return {};
   const target = spec(climate.target);
-  // strings and null arrive as JSON, HA reads the rendered "None" as unknown
   const json = '{{ value_json }}';
   return {
-    temperature_unit: 'C',
-    precision: 0.1,
-    modes: Object.values(semantics.states ?? {}).map(String),
-    mode_state_topic: state(climate.mode),
-    mode_state_template: json,
-    mode_command_topic: command(climate.mode),
-    current_temperature_topic: state(climate.current),
-    current_temperature_template: json,
-    temperature_state_topic: state(climate.target),
-    temperature_command_topic: command(climate.target),
-    ...(target?.min !== undefined ? { min_temp: target.min } : {}),
-    ...(target?.max !== undefined ? { max_temp: target.max } : {}),
+    ...temperatureControlConfig(semantics, climate, spec, state, command),
     ...(target?.step !== undefined ? { temp_step: target.step } : {}),
     ...(climate.targetLow && climate.targetHigh
       ? {
@@ -404,6 +417,32 @@ function climateConfig(
           max_humidity: spec(climate.targetHumidity)?.max ?? 100,
         }
       : {}),
+  };
+}
+
+function temperatureControlConfig(
+  semantics: SensorSemantics,
+  climate: SensorClimate,
+  spec: (property: string) => SensorPropertySpec | undefined,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const target = spec(climate.target);
+  // strings and null arrive as JSON, HA reads the rendered "None" as unknown
+  const json = '{{ value_json }}';
+  return {
+    temperature_unit: 'C',
+    precision: 0.1,
+    modes: Object.values(semantics.states ?? {}).map(String),
+    mode_state_topic: state(climate.mode),
+    mode_state_template: json,
+    mode_command_topic: command(climate.mode),
+    current_temperature_topic: state(climate.current),
+    current_temperature_template: json,
+    temperature_state_topic: state(climate.target),
+    temperature_command_topic: command(climate.target),
+    ...(target?.min !== undefined ? { min_temp: target.min } : {}),
+    ...(target?.max !== undefined ? { max_temp: target.max } : {}),
   };
 }
 
@@ -534,6 +573,11 @@ function baseConfig(topics: MqttTopics, camera: Camera, uid: string, name: strin
       sw_version: ConfigService.VERSION,
     },
   };
+}
+
+function settingName(entityName: string | null, property: string): string {
+  const label = capitalize(property.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`));
+  return entityName ? `${entityName} ${label}` : label;
 }
 
 function capitalize(value: string): string {

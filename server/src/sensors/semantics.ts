@@ -12,12 +12,13 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, color, position, tilt, stop, climate, fan, humidifier, duration, readings, deviceClassProperty, ...rest } = base;
+  const { brightness, volume, color, position, tilt, stop, climate, fan, humidifier, duration, readings, toggles, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
   const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
   const colors = color && offeredColor(color, offered);
   const fanParts = fan && offeredFan(fan, offered);
+  const offeredToggles = toggles?.filter(offered) ?? [];
   // a humidifier carries its modes itself
   const nativeChoices = new Set([base.commandProperty, humidifier?.mode]);
   const choices = Object.entries(sensor.propertySpecs ?? {}).flatMap(([property, spec]) =>
@@ -28,6 +29,7 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...(deviceClass ? { deviceClass } : {}),
     ...(states ? { states } : {}),
     ...(choices.length ? { choices } : {}),
+    ...(offeredToggles.length ? { toggles: offeredToggles } : {}),
     ...(brightness && offered(brightness.property) ? { brightness } : {}),
     ...(volume && offered(volume.property) ? { volume } : {}),
     ...(colors ? { color: colors } : {}),

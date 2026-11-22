@@ -5,6 +5,12 @@ export interface ThermostatOption {
   value: string;
 }
 
+export interface ThermostatToggle {
+  property: string;
+  label: string;
+  value: boolean;
+}
+
 export interface CuiThermostatControlProps {
   icon: Component;
   iconStyle?: Record<string, string>;
@@ -28,6 +34,7 @@ export interface CuiThermostatControlProps {
   presets?: ThermostatOption[];
   fanMode?: string;
   fanModes?: ThermostatOption[];
+  toggles?: ThermostatToggle[];
   label?: string;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
@@ -41,6 +48,7 @@ export interface CuiThermostatControlEmits {
   'update:mode': [value: string];
   'update:preset': [value: string];
   'update:fanMode': [value: string];
+  'update:toggle': [property: string, value: boolean];
 }
 
 export const CUI_THERMOSTAT_CONTROL_DEFAULTS = {

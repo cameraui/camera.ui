@@ -139,6 +139,28 @@
     @update:preset="(value) => sensor.setProperty(FanProperty.Preset, value)"
   />
 
+  <CuiFanControl
+    v-else-if="kind === SensorDomain.AirPurifier"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :label="sensor.displayName.value"
+    :on="sensor.getProperty(AirPurifierProperty.On) ?? false"
+    :speed="sensor.getProperty(AirPurifierProperty.Speed) ?? 100"
+    :speed-step="sensorControlRange(sensor, AirPurifierProperty.Speed).step"
+    :has-speed="sensorOffers(sensor, AirPurifierProperty.Speed)"
+    :preset="String(sensor.getProperty(AirPurifierProperty.Preset) ?? '')"
+    :presets="sensorOffers(sensor, AirPurifierProperty.Preset) ? choiceOptions(sensor, AirPurifierProperty.Preset) : []"
+    :toggles="toggleOptions(sensor)"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:on="(value) => sensor.setProperty(AirPurifierProperty.On, value)"
+    @update:speed="(value) => sensor.setProperty(AirPurifierProperty.Speed, value)"
+    @update:preset="(value) => sensor.setProperty(AirPurifierProperty.Preset, value)"
+    @update:toggle="(property, value) => sensor.setProperty(property, value)"
+  />
+
   <CuiHumidifierControl
     v-else-if="kind === SensorDomain.Humidifier"
     :icon="sensorIcon(sensor.type, sensor)"
@@ -182,7 +204,7 @@
     :target-temperature-high="sensor.getProperty(ThermostatProperty.TargetTemperatureHigh) ?? undefined"
     :show-target="mode !== ThermostatMode.Off"
     :show-range="mode === ThermostatMode.HeatCool && sensorOffers(sensor, ThermostatProperty.TargetTemperatureLow)"
-    v-bind="targetRange"
+    v-bind="temperatureRange(sensor, ThermostatProperty.TargetTemperature)"
     :mode
     :modes="enumOptions(sensor, ThermostatProperty.Mode)"
     :preset="String(sensor.getProperty(ThermostatProperty.Preset) ?? '')"
@@ -204,6 +226,26 @@
     @update:preset="(value) => sensor.setProperty(ThermostatProperty.Preset, value)"
     @update:fan-mode="(value) => sensor.setProperty(ThermostatProperty.FanMode, value)"
     @update:target-humidity="(value) => sensor.setProperty(ThermostatProperty.TargetHumidity, value)"
+  />
+
+  <CuiThermostatControl
+    v-else-if="kind === SensorDomain.WaterHeater"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :label="sensor.displayName.value"
+    :target-temperature="sensor.getProperty(WaterHeaterProperty.TargetTemperature) ?? undefined"
+    :show-target="mode !== WaterHeaterMode.Off"
+    v-bind="temperatureRange(sensor, WaterHeaterProperty.TargetTemperature)"
+    :mode
+    :modes="enumOptions(sensor, WaterHeaterProperty.Mode)"
+    :toggles="toggleOptions(sensor)"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:target-temperature="(value) => sensor.setProperty(WaterHeaterProperty.TargetTemperature, value)"
+    @update:mode="(value) => sensor.setProperty(WaterHeaterProperty.Mode, value)"
+    @update:toggle="(property, value) => sensor.setProperty(property, value)"
   />
 
   <CuiDoorbellTrigger
@@ -262,6 +304,7 @@
 
 <script setup lang="ts">
 import {
+  AirPurifierProperty,
   AudioProperty,
   BatteryProperty,
   CoverProperty,
@@ -283,10 +326,12 @@ import {
   ThermostatMode,
   ThermostatProperty,
   ValveProperty,
+  WaterHeaterMode,
+  WaterHeaterProperty,
 } from '@camera.ui/sdk';
 
 import { getSensorHistoryFn } from '@/api/routes/sensors.js';
-import { isSensorActive, sensorIcon, sensorOffers, sensorPropertySpec, sensorReadings, sensorStatus, sensorTone } from '@/common/sensorDisplay.js';
+import { isSensorActive, sensorIcon, sensorOffers, sensorPropertyLabelKey, sensorPropertySpec, sensorReadings, sensorStatus, sensorTone } from '@/common/sensorDisplay.js';
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
 import { securityModes } from '@/components/CuiSensors/display.js';
 import CuiSensorPropertyRows from './CuiSensorPropertyRows.vue';
@@ -323,13 +368,23 @@ watch(
   },
 );
 
-const targetRange = computed(() => {
-  const { min, max, step } = sensorControlRange(props.sensor, ThermostatProperty.TargetTemperature);
+function temperatureRange(sensor: ReactiveSensor<any>, property: string): { min: number; max: number; step: number } {
+  const { min, max, step } = sensorControlRange(sensor, property);
   return { min, max, step };
-});
+}
 
 function choiceOptions(sensor: ReactiveSensor<any>, property: string): { label: string; value: string }[] {
   return (sensorPropertySpec(sensor, property)?.choices ?? []).map(({ label, value }) => ({ label, value: String(value) }));
+}
+
+function toggleOptions(sensor: ReactiveSensor<any>): { property: string; label: string; value: boolean }[] {
+  return (sensorMeta(sensor.type)?.semantics?.toggles ?? [])
+    .filter((property) => sensorOffers(sensor, property))
+    .map((property) => ({
+      property,
+      label: t(`components.automation_nodes.${sensorPropertyLabelKey(sensor.type, property)}`),
+      value: sensor.getProperty(property) === true,
+    }));
 }
 
 function enumOptions(sensor: ReactiveSensor<any>, property: string): { label: string; value: string }[] {

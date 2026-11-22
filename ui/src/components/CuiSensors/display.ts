@@ -1,4 +1,5 @@
 import {
+  isReactiveAirPurifierControl,
   isReactiveChimeControl,
   isReactiveCoverControl,
   isReactiveDoorbellTrigger,
@@ -14,6 +15,7 @@ import {
   isReactiveValveControl,
 } from '@camera.ui/browser';
 import {
+  AirPurifierProperty,
   ChimeProperty,
   CoverProperty,
   CoverState,
@@ -57,6 +59,7 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
   if (isReactiveValveControl(sensor)) return await sensor.setProperty(ValveProperty.TargetState, active ? ValveState.Closed : ValveState.Open);
   if (isReactiveSceneControl(sensor)) return await sensor.setProperty(SceneProperty.Active, true);
   if (isReactiveHumidifierControl(sensor)) return await sensor.setProperty(HumidifierProperty.On, !active);
+  if (isReactiveAirPurifierControl(sensor)) return await sensor.setProperty(AirPurifierProperty.On, !active);
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);
 }
 
