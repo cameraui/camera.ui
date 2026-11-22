@@ -61,6 +61,8 @@
           @update:model-value="(value: number | null) => value && setRepeat(value)"
         />
       </div>
+
+      <CuiTileMoments :sensor :moments :loaded :describe />
     </div>
   </CuiTilePanel>
 </template>
@@ -76,11 +78,14 @@ import CuiBellScene from '../event/CuiBellScene.vue';
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTileControl from '../frame/CuiTileControl.vue';
+import CuiTileMoments from '../frame/CuiTileMoments.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import CuiTileReading from '../frame/CuiTileReading.vue';
+import { useSensorMoments } from '../useSensorMoments.js';
 import { useTileSensor } from '../useTileSensor.js';
 import { useChime } from './useChime.js';
 
+import type { TileMomentRow } from '../frame/types.js';
 import type { SensorTileProps } from '../types.js';
 
 const MAX_TONE_BUTTONS = 3;
@@ -109,7 +114,12 @@ const {
   commitVolume,
   propertyLabel,
 } = useChime(() => props.sensor);
+const { moments, loaded } = useSensorMoments(() => props.sensor, [ChimeProperty.Active]);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 const playLabel = computed(() => t(`components.sensor_tile.${active.value ? 'stop' : 'play'}`));
+
+function describe(): TileMomentRow {
+  return { label: t('components.sensor_tile.rang') };
+}
 </script>

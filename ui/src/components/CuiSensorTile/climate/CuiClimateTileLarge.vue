@@ -88,6 +88,8 @@
           <ToggleSwitch :model-value="toggle.value" :disabled="!interactive" @update:model-value="(value) => send(toggle.property, value)" />
         </CuiToggleRow>
       </div>
+
+      <CuiMeasurementTrend :sensor :property="names.current" :format="degrees" />
     </div>
   </CuiTilePanel>
 </template>
@@ -102,6 +104,7 @@ import { sensorIcon, toneColor } from '@/common/sensorDisplay.js';
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
+import CuiMeasurementTrend from '../measurement/CuiMeasurementTrend.vue';
 import { fromRatio, toRatio } from '../range.js';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiClimateDial from './CuiClimateDial.vue';
@@ -142,6 +145,7 @@ const {
   modeLabel,
   propertyLabel,
   degrees,
+  names,
 } = useClimate(() => props.sensor);
 
 const heatColor = toneColor('warn');

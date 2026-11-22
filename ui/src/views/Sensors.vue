@@ -13,18 +13,29 @@
     </CuiTopbarSlot>
 
     <div class="flex gap-2 mb-4">
-      <IconField class="flex-1">
-        <InputIcon>
-          <i-carbon:search class="w-4 h-4" />
-        </InputIcon>
-        <InputText v-model="searchQuery" :placeholder="t('views.sensors.search')" class="w-full" />
-      </IconField>
+      <InputGroup class="flex-1">
+        <IconField class="flex-1">
+          <InputIcon>
+            <i-carbon:search class="w-4 h-4" />
+          </InputIcon>
+          <InputText v-model="searchQuery" :placeholder="t('views.sensors.search')" class="w-full" />
+        </IconField>
+        <InputGroupAddon>
+          <Button severity="secondary" text :class="hidesTypes ? 'text-primary' : 'text-color'" @click="typeMenuRef?.toggleMenu($event)">
+            <template #icon>
+              <i-mdi:filter-variant class="w-4 h-4" />
+            </template>
+          </Button>
+        </InputGroupAddon>
+      </InputGroup>
 
       <Button v-tooltip.left="{ value: t('views.sensors.settings') }" severity="secondary" outlined class="cui-button shrink-0" @click="menuRef?.toggleMenu($event)">
         <template #icon>
           <i-carbon:settings class="w-4.5 h-4.5" />
         </template>
       </Button>
+
+      <CuiMenu ref="typeMenuRef" :items="typeMenuItems" :auto-hide="false" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
 
       <CuiMenu
         ref="menuRef"
@@ -421,11 +432,18 @@
           @click="exitSelectionMode"
         />
         <CuiFloatingButton
-          :tooltip-props="{ value: $t('components.form.tooltip.select_all') }"
+          :tooltip-props="{ value: allSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: allSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
           :icon-props="{ width: '100%', height: '100%' }"
           @click="toggleSelectAll"
+        />
+        <CuiFloatingButton
+          :tooltip-props="{ value: t('views.sensors.group_selected') }"
+          :button-props="{ severity: 'secondary', disabled: !groupableSelected.length || bulkBusy }"
+          :icon="GroupIcon"
+          :icon-props="{ width: '100%', height: '100%' }"
+          @click="openGroupDialog"
         />
         <CuiFloatingButton
           :tooltip-props="{ value: t('views.sensors.delete_selected') }"
@@ -445,7 +463,7 @@
           @click="exitDiscoveredSelectionMode"
         />
         <CuiFloatingButton
-          :tooltip-props="{ value: $t('components.form.tooltip.select_all') }"
+          :tooltip-props="{ value: discoveredAllSelected ? $t('components.form.tooltip.deselect_all') : $t('components.form.tooltip.select_all') }"
           :button-props="{ severity: discoveredAllSelected ? 'primary' : 'secondary' }"
           :icon="SelectAllIcon"
           :icon-props="{ width: '100%', height: '100%' }"
@@ -477,6 +495,7 @@ import SelectAllIcon from '~icons/fluent/select-all-on-20-filled';
 import CloseIcon from '~icons/mdi/close';
 import EyeIcon from '~icons/mdi/eye';
 import EyeOffIcon from '~icons/mdi/eye-off';
+import GroupIcon from '~icons/mdi/group';
 import SelectDiscoveredIcon from '~icons/mdi/playlist-check';
 import AdoptIcon from '~icons/mdi/playlist-plus';
 import TrashIcon from '~icons/mdi/trash-can-outline';
@@ -489,11 +508,14 @@ import { asyncComponent } from '@/common/asyncComponent.js';
 import { sensorActive, sensorIcon, sensorReading, sensorReadTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { keepUnchangedItems } from '@/common/utils.js';
 import { useCardSelection } from '@/composables/useCardSelection.js';
+import { useSensorHistoryDialog } from '@/components/CuiDialog/templates/SensorHistory/useSensorHistoryDialog.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { SensorDeviceEditResult } from '@/components/CuiDialog/templates/SensorDeviceEdit/types.js';
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
+import type { MenuItem } from '@/components/CuiMenu/types.js';
+import type { VirtualDeviceChoice } from '@/components/CuiVirtualDeviceField/types.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { PassThrough } from '@openvue/core';
 import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor, TransformedSensorDevice } from '@shared/types';
@@ -535,8 +557,8 @@ interface DiscoveredRow {
 
 const SensorEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorEdit/SensorEdit.vue'));
 const SensorDeviceEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorDeviceEdit/SensorDeviceEdit.vue'));
-const SensorHistoryDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorHistory/SensorHistory.vue'));
 const VirtualSensorCreateDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue'));
+const SensorGroupDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorGroup/SensorGroup.vue'));
 
 const STATE_COLORS: Record<SensorState, string> = {
   connected: 'green',
@@ -552,6 +574,7 @@ const camerasQuery = new CamerasQuery();
 
 const { goBack } = useBackNavigation();
 const dialog = useCuiDialog();
+const openSensorHistory = useSensorHistoryDialog();
 const sensorsSocket = useSensorsSocket();
 const queryClient = useQueryClient();
 const toast = useCuiToast();
@@ -570,6 +593,7 @@ const { mutateAsync: patchSensor } = sensorsQuery.patchSensorQuery();
 const { mutateAsync: deleteSensor, isPending: isDeleting } = sensorsQuery.deleteSensorQuery();
 const { mutateAsync: bulkDeleteSensors } = sensorsQuery.bulkDeleteSensorsQuery();
 const { mutateAsync: patchSensorDevice } = sensorsQuery.patchSensorDeviceQuery();
+const { mutateAsync: createSensorDevice } = sensorsQuery.createSensorDeviceQuery();
 const { mutateAsync: deleteSensorDevice, isPending: isDeletingDevice } = sensorsQuery.deleteSensorDeviceQuery();
 
 const tablePtOptions: PassThrough<DataTablePassThroughOptions> = {
@@ -587,6 +611,7 @@ const tablePtOptions: PassThrough<DataTablePassThroughOptions> = {
 };
 
 const menuRef = useTemplateRef('menuRef');
+const typeMenuRef = useTemplateRef('typeMenuRef');
 
 const searchQuery = ref('');
 const isAdopting = ref(false);
@@ -626,7 +651,42 @@ const menuItems = computed(() => [
   },
 ]);
 
+const hiddenTypes = computed(() => new Set<string>(uiSettings.value.sensors.hiddenTypes));
+
+const typeCounts = computed(() => {
+  const counts = new Map<SensorType, number>();
+  for (const sensor of sensors.value) counts.set(sensor.type, (counts.get(sensor.type) ?? 0) + 1);
+  return counts;
+});
+
+const hidesTypes = computed(() => [...typeCounts.value.keys()].some((type) => hiddenTypes.value.has(type)));
+
+const typeMenuItems = computed<MenuItem[]>(() => [
+  {
+    key: 'all',
+    label: t('views.sensors.filter_all_types'),
+    position: 'header',
+    active: !hidesTypes.value,
+    onClick: () => (uiSettings.value.sensors.hiddenTypes = []),
+  },
+  ...[...typeCounts.value]
+    .map(([type, count]) => ({
+      key: type,
+      label: sensorTypeLabel(type),
+      badge: String(count),
+      toggle: true,
+      toggleState: !hiddenTypes.value.has(type),
+      onClick: () => toggleType(type),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
+]);
+
 const cameraOptions = computed(() => (camerasData.value?.result ?? []).map((camera) => ({ label: camera.name, value: camera._id })));
+
+const virtualDevices = computed(() => {
+  const devices = new Map(sensors.value.filter((sensor) => sensor.virtual && sensor.device).map((sensor) => [sensor.device!.id, sensor.device!.name]));
+  return [...devices].map(([value, label]) => ({ label, value })).sort((a, b) => a.label.localeCompare(b.label));
+});
 
 const cameraById = computed(() => new Map((camerasData.value?.result ?? []).map((camera) => [camera._id, camera])));
 
@@ -646,6 +706,7 @@ const rows = computed<SensorRow[]>((previous) => {
   const next = allRows.value
     .filter((row) => !uiSettings.value.sensors.hideAllCameraBound || !row.sensor.assignmentLocked)
     .filter((row) => !uiSettings.value.sensors.onlyEnabledCameraBound || isEnabledForItsCamera(row.sensor))
+    .filter((row) => rowSensors(row).some((sensor) => !hiddenTypes.value.has(sensor.type)))
     .filter((row) => !query || row.searchText.includes(query));
 
   return keepUnchangedItems(previous, next, rowKey);
@@ -681,6 +742,10 @@ const {
 } = useCardSelection(() => discoveredRows.value.flatMap((row) => row.items), discoveredKey);
 
 const deletableSelected = computed(() => selectedItems.value.flatMap(rowSensors).filter(canDelete));
+const groupableSelected = computed(() => {
+  const members = selectedItems.value.flatMap(rowSensors);
+  return members.every((sensor) => sensor.virtual) ? members : [];
+});
 
 function rowKey(row: SensorRow): string {
   return row.key;
@@ -698,6 +763,11 @@ function groupBy<T>(list: T[], key: (entry: T) => string): Map<string, T[]> {
     else groups.set(key(entry), [entry]);
   }
   return groups;
+}
+
+function toggleType(type: SensorType) {
+  const hidden = uiSettings.value.sensors.hiddenTypes;
+  uiSettings.value.sensors.hiddenTypes = hidden.includes(type) ? hidden.filter((entry) => entry !== type) : [...hidden, type];
 }
 
 function sensorTypeLabel(type: string): string {
@@ -763,7 +833,7 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
     exposure: exposureOf(members),
     typeLabel,
     nativeLabel: '',
-    pluginLabel: sensor.pluginName,
+    pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
     assignedLabel,
     searchText: searchText([label, typeLabel, sensor.pluginName, assignedLabel, ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)])]),
     state,
@@ -985,17 +1055,15 @@ function openSensorDialog(sensor: TransformedSensor, device?: TransformedSensorD
         sensor,
         device,
         cameraOptions: cameraOptions.value,
+        devices: virtualDevices.value,
       },
     },
     onConfirm: async (result: SensorEditResult | null) => {
       if (!result) return;
-      if (!device) {
-        await patchSensor({ id: sensor.id, data: result });
-        return;
-      }
-      const { displayName, ...rest } = result;
-      await patchSensorDevice({ id: device.id, data: { displayName } });
-      await patchSensor({ id: sensor.id, data: rest });
+      const { displayName, newDeviceName, ...rest } = result;
+      if (device) await patchSensorDevice({ id: device.id, data: { displayName } });
+      await patchSensor({ id: sensor.id, data: device ? rest : { displayName, ...rest } });
+      if (newDeviceName) await createSensorDevice({ data: { name: newDeviceName, sensorIds: [sensor.id] } });
     },
   });
 }
@@ -1019,16 +1087,7 @@ function openDeviceDialog(device: TransformedSensorDevice, row: SensorRow) {
 }
 
 function openHistoryDialog(sensor: TransformedSensor) {
-  dialog.openComponentDialog(SensorHistoryDialog, {
-    data: {
-      title: `${sensor.displayName || sensor.name} · ${t('views.sensors.history')}`,
-      hideConfirmButton: true,
-      contentProps: {
-        sensorId: sensor.id,
-        sensorType: String(sensor.type),
-      },
-    },
-  });
+  openSensorHistory({ id: sensor.id, name: sensor.displayName || sensor.name, type: String(sensor.type), propertySpecs: sensor.propertySpecs });
 }
 
 function reportBulk(done: number, failed: string[], doneKey: string): void {
@@ -1116,11 +1175,31 @@ function openCreateDialog() {
       title: t('views.sensors.create_virtual'),
       confirmText: t('components.form.button.save'),
       loading: isCreating,
-      contentProps: {},
+      contentProps: { devices: virtualDevices.value },
     },
     onConfirm: async (result: VirtualSensorCreateResult | null) => {
       if (!result) return;
-      await createVirtualSensor({ data: result });
+      const { device, ...data } = result;
+      const sensor = await createVirtualSensor({ data: { ...data, deviceId: device.deviceId ?? undefined } });
+      if (device.newName) await createSensorDevice({ data: { name: device.newName.trim(), sensorIds: [sensor.id] } });
+    },
+  });
+}
+
+function openGroupDialog() {
+  const members = groupableSelected.value;
+  dialog.openComponentDialog(SensorGroupDialog, {
+    data: {
+      title: t('views.sensors.group_selected'),
+      confirmText: t('components.form.button.save'),
+      contentProps: { devices: virtualDevices.value },
+    },
+    onConfirm: async (choice: VirtualDeviceChoice | null) => {
+      if (!choice) return;
+      if (choice.newName) await createSensorDevice({ data: { name: choice.newName.trim(), sensorIds: members.map((sensor) => sensor.id) } });
+      else for (const sensor of members) await patchSensor({ id: sensor.id, data: { deviceId: choice.deviceId } });
+      toast.add({ severity: 'success', detail: t('views.sensors.group_selected_done', { count: members.length }), life: 3000 });
+      exitSelectionMode();
     },
   });
 }
@@ -1129,7 +1208,7 @@ function confirmDelete(sensor: TransformedSensor) {
   dialog.openTextDialog({
     data: {
       title: t('views.sensors.delete'),
-      contentText: t('views.sensors.delete_confirm'),
+      contentText: sensor.virtual ? t('views.sensors.delete_virtual_confirm') : t('views.sensors.delete_confirm'),
       confirmText: t('components.form.button.remove'),
       loading: isDeleting,
       confirmButtonProps: {
@@ -1151,7 +1230,9 @@ function confirmDeleteDevice(device: TransformedSensorDevice, members: Transform
   dialog.openTextDialog({
     data: {
       title: t('views.sensors.delete_device'),
-      contentText: t('views.sensors.delete_device_confirm', { names: members.map((member) => member.shortName).join(', ') }),
+      contentText: t(members.every((member) => member.virtual) ? 'views.sensors.delete_virtual_device_confirm' : 'views.sensors.delete_device_confirm', {
+        names: members.map((member) => member.shortName).join(', '),
+      }),
       confirmText: t('components.form.button.remove'),
       loading: isDeletingDevice,
       confirmButtonProps: {

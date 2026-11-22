@@ -90,3 +90,7 @@ export const SENSOR_TILES: Partial<Record<string, Record<SensorTileSize, Compone
   [SensorType.AirQuality]: MEASUREMENT_TILES,
   [SensorType.Battery]: MEASUREMENT_TILES,
 };
+
+export function hasSensorTile(type: string): boolean {
+  return type in SENSOR_TILES;
+}

@@ -2,6 +2,7 @@ import { CoverCapability, CoverKind, CoverProperty, CoverState, SensorType } fro
 
 import { sensorOffers, sensorTone, sensorToneColor } from '@/common/sensorDisplay.js';
 
+import { SEGMENT_ACTIVE, SEGMENT_SOFT } from '../frame/segments.js';
 import { useGuardedPress } from '../useGuardedPress.js';
 import { useLiveProperty } from '../useLiveProperty.js';
 
@@ -74,6 +75,11 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
     else open();
   }
 
+  function timelineColor(value: unknown): string | undefined {
+    if (value === CoverState.Open) return SEGMENT_ACTIVE;
+    return value === CoverState.Closed || value === undefined || value === null ? undefined : SEGMENT_SOFT;
+  }
+
   return {
     isGarage,
     kind,
@@ -95,6 +101,7 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
     close,
     stop,
     toggle,
+    timelineColor,
     inputPosition: targetPosition.input,
     commitPosition: targetPosition.commit,
     inputTilt: targetTilt.input,

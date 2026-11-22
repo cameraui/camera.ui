@@ -2,6 +2,7 @@ import { MediaPlayerCommand, MediaPlayerKind, MediaPlayerProperty, MediaPlayerSt
 
 import { sensorOffers, sensorPropertySpec, sensorToneColor } from '@/common/sensorDisplay.js';
 
+import { SEGMENT_ACTIVE, SEGMENT_SOFT } from '../frame/segments.js';
 import { useSensorSettings } from '../useSensorSettings.js';
 import { useVolumeLevel } from '../useVolumeLevel.js';
 
@@ -75,6 +76,11 @@ export function useMediaPlayer(sensor: () => ReactiveSensor<object>) {
     return !!property && sensorOffers(sensor(), property);
   }
 
+  function timelineColor(value: unknown): string | undefined {
+    if (PLAYING.has(String(value))) return SEGMENT_ACTIVE;
+    return value === MediaPlayerState.Off || value === undefined || value === null ? undefined : SEGMENT_SOFT;
+  }
+
   return {
     kind,
     hasPower,
@@ -103,5 +109,6 @@ export function useMediaPlayer(sensor: () => ReactiveSensor<object>) {
     setMuted,
     setSource,
     propertyLabel,
+    timelineColor,
   };
 }

@@ -1,7 +1,8 @@
 import { LockProperty, LockState } from '@camera.ui/sdk';
 
-import { sensorTone, sensorToneColor } from '@/common/sensorDisplay.js';
+import { sensorTone, sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
 
+import { SEGMENT_ACTIVE } from '../frame/segments.js';
 import { useGuardedPress } from '../useGuardedPress.js';
 import { useLiveProperty } from '../useLiveProperty.js';
 
@@ -47,7 +48,12 @@ export function useLock(sensor: () => ReactiveSensor<object>) {
     else lock();
   }
 
-  return { jammed, wantsLocked, moving, color, stateText, lock, unlock, retry, toggle };
+  function timelineColor(value: unknown): string | undefined {
+    if (value === LockState.Jammed) return toneColor('alarm');
+    return value === LockState.Secured ? SEGMENT_ACTIVE : undefined;
+  }
+
+  return { jammed, wantsLocked, moving, color, stateText, lock, unlock, retry, toggle, timelineColor };
 }
 
 export function useLockPress(target: MaybeRefOrGetter<HTMLElement | null | undefined>, lock: ReturnType<typeof useLock>, interactive: () => boolean) {

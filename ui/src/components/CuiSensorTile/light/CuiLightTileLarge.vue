@@ -48,16 +48,20 @@
       @input="inputColor"
       @commit="commitColor"
     />
+
+    <CuiTileHistoryTimeline :sensor :property="LightProperty.On" />
   </CuiTilePanel>
 </template>
 
 <script setup lang="ts">
+import { LightProperty } from '@camera.ui/sdk';
 import PowerIcon from '~icons/lucide/power';
 
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiLightColorWheel from './CuiLightColorWheel.vue';

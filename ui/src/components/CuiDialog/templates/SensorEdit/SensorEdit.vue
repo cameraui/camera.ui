@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col gap-4 w-full">
-    <div v-if="hasWidget" class="flex flex-col field-gap">
+    <div v-if="hasTile" class="flex flex-col field-gap">
       <label class="cui-label">{{ $t('views.sensors.control') }}</label>
-      <CuiSensorControl v-if="liveSensor" :sensor="liveSensor" :disabled="!canControl" />
+      <CuiSensorTile v-if="liveSensor" :sensor="liveSensor" size="large" :disabled="!canControl" />
       <Message v-else severity="secondary" variant="simple" size="small" class="cui-input-hint">
         {{ $t('views.sensors.control_offline') }}
       </Message>
@@ -59,8 +59,8 @@
 <script setup lang="ts">
 import { useAllSensors } from '@camera.ui/browser';
 
-import CuiSensorControl from '@/components/CuiSensorControl/CuiSensorControl.vue';
-import { hasSensorControlWidget } from '@/components/CuiSensorControl/types.js';
+import CuiSensorTile from '@/components/CuiSensorTile/CuiSensorTile.vue';
+import { hasSensorTile } from '@/components/CuiSensorTile/tiles.js';
 import CuiVirtualDeviceField from '@/components/CuiVirtualDeviceField/CuiVirtualDeviceField.vue';
 import { isIncompleteChoice } from '@/components/CuiVirtualDeviceField/types.js';
 import CuiVirtualSensorCapabilities from '@/components/CuiVirtualSensorCapabilities/CuiVirtualSensorCapabilities.vue';
@@ -84,7 +84,7 @@ const { sensors: allSensors } = useAllSensors();
 
 const canControl = computed(() => hasPermission(undefined, 'admin'));
 const lockedCameras = computed(() => props.cameraOptions.filter((camera) => props.sensor.assignedCameraIds.includes(camera.value)));
-const hasWidget = computed(() => hasSensorControlWidget(props.sensor.type));
+const hasTile = computed(() => hasSensorTile(props.sensor.type));
 const liveSensor = computed(() => allSensors.value.find((sensor) => sensor.id === props.sensor.id));
 
 defineExpose<CustomDialogComponent>({

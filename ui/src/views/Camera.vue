@@ -171,7 +171,7 @@
         :export-available="true"
         :delete-available="isAdmin && !cameraCardIsFullscreen"
         :ignore-bottom-safe-area="!horizontalTimeline"
-        :md-breakpoint="mdBreakpoint || shortBreakpoint"
+        :md-breakpoint="phoneBreakpoint"
         :zone-filter-active="gridSearchActive"
         :zone-has-regions="gridSearchRegions.length > 0"
         :zone-box-matcher="zoneBoxMatcher"
@@ -321,7 +321,7 @@ const router = useRouter();
 const assistantActions = useAssistantActions();
 const { openEventTrace } = useEventTraceDialog();
 const { openSimilarSearch, openOnCamera, cameraSearch, forgetCameraSearch } = useSimilarSearchRoute();
-const { xmdBreakpoint, smBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
+const { xmdBreakpoint, smBreakpoint, phoneBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
 const { topbarOffset } = useSharedCuiStates();
 const { isAvailable: nvrAvailable } = useRecordingExport();
 const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();

@@ -8,13 +8,18 @@
         <CuiOutletSocket :on :in-use="inUse" :color />
       </template>
     </div>
+
+    <CuiTileHistoryTimeline :sensor :property="SwitchProperty.On" />
   </CuiTilePanel>
 </template>
 
 <script setup lang="ts">
+import { SwitchProperty } from '@camera.ui/sdk';
+
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiFlowLine from '../frame/CuiFlowLine.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiOutletSocket from './CuiOutletSocket.vue';

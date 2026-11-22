@@ -66,6 +66,8 @@ export interface CuiTileTimelineProps {
   colorOf?: (value: unknown) => string | undefined;
 }
 
+export type CuiTileHistoryTimelineProps = Pick<CuiTileTimelineProps, 'sensor' | 'property' | 'colorOf'>;
+
 export interface CuiTileControlProps {
   caption: string;
 }

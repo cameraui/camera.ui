@@ -18,7 +18,7 @@
       <span class="text-muted text-sm">{{ $t('views.sensors.history_empty') }}</span>
     </div>
 
-    <div v-else-if="view === 'chart'" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto overflow-x-hidden">
+    <div v-else-if="view === 'chart'" class="flex flex-col gap-1 overflow-x-clip">
       <div class="h-4 text-xs text-muted tabular-nums text-right">{{ cursor === undefined ? '' : formatTimestamp(cursor) }}</div>
 
       <div
@@ -62,7 +62,7 @@
           </svg>
         </div>
 
-        <div class="relative h-4 text-[11px] text-muted tabular-nums">
+        <div class="relative h-4 text-[11px] leading-4 text-muted tabular-nums">
           <span v-for="tick in axis.ticks" :key="tick" class="absolute -translate-x-1/2 whitespace-nowrap" :style="{ left: `${xOf(tick)}px` }">
             {{ formatTick(tick) }}
           </span>
@@ -88,7 +88,7 @@ import ChartIcon from '~icons/mdi/chart-timeline-variant';
 import ListIcon from '~icons/mdi/format-list-bulleted';
 
 import { getSensorHistoryFn } from '@/api/routes/sensors.js';
-import { formatMeasurement, sensorPropertyLabelKey, sensorStateKey } from '@/common/sensorDisplay.js';
+import { sensorPropertyLabelKey, sensorValueLabel } from '@/common/sensorDisplay.js';
 import { hoverActive } from '@/plugins/hover.js';
 
 import { buildHistorySeries, seriesChangeTimes, seriesValueAt, timeTicks } from './history.js';
@@ -273,18 +273,7 @@ function propertyLabel(property: string): string {
 }
 
 function valueLabel(property: string, value: unknown): string {
-  if (value === null || value === undefined || value === '') return '–';
-  const spec = specOf(property);
-  if (typeof value === 'boolean') {
-    const isState = property === (meta.value?.semantics?.stateProperty ?? 'detected');
-    return t(isState ? sensorStateKey(props.sensorType, value) : `components.sensor_state.${value ? 'on' : 'off'}`);
-  }
-  if (typeof value === 'number' && spec?.type === 'number') return formatMeasurement(value, spec);
-  const choice = spec?.choices?.find((entry) => entry.value === value);
-  if (choice) return choice.label;
-  const name = spec?.type === 'enum' ? Object.entries(spec.values ?? {}).find(([, wire]) => wire === value)?.[0] : undefined;
-  const key = name ? `components.automation_nodes.${props.sensorType}_state_${name}` : '';
-  return key && te(key) ? t(key) : String(value);
+  return sensorValueLabel(props.sensorType, property, value, specOf(property));
 }
 
 function formatTimestamp(timestamp: number): string {

@@ -174,7 +174,8 @@
 
               <g v-if="hoveredCameraId === camera.id || isSelected('camera', camera.id) || activity.has(camera.id)" class="camera-chip">
                 <rect :x="camera.x - chipBox(camera).width / 2" :y="camera.y - 42 / zoom" :width="chipBox(camera).width" :height="20 / zoom" :rx="10 / zoom" />
-                <foreignObject
+                <component
+                  :is="detectionStyle(label).icon"
                   v-for="(label, index) in labelsOfCamera(camera)"
                   :key="label"
                   :x="camera.x - chipBox(camera).width / 2 + (8 + index * 17) / zoom"
@@ -182,9 +183,7 @@
                   :width="15 / zoom"
                   :height="15 / zoom"
                   class="chip-glyph"
-                >
-                  <component :is="detectionStyle(label).icon" width="100%" height="100%" />
-                </foreignObject>
+                />
                 <text :x="camera.x - chipBox(camera).width / 2 + chipBox(camera).textOffset" :y="camera.y - 28 / zoom" :font-size="12 / zoom">
                   {{ camera.name }}
                 </text>
@@ -225,14 +224,20 @@
               <circle
                 :cx="sensor.x"
                 :cy="sensor.y"
-                :r="11 / zoom"
+                :r="sensorMarker.radius / zoom"
                 class="sensor-body"
                 :class="{ 'sensor-selected': isSelected('sensor', sensor.id) }"
                 :stroke-width="2 / zoom"
               />
-              <foreignObject :x="sensor.x - 7 / zoom" :y="sensor.y - 7 / zoom" :width="14 / zoom" :height="14 / zoom" class="sensor-glyph">
-                <component :is="sensorIcon(sensor.sensorType, liveSensor(sensor.id))" width="100%" height="100%" :style="sensorStyle(sensor)" />
-              </foreignObject>
+              <component
+                :is="sensorIcon(sensor.sensorType, liveSensor(sensor.id))"
+                :x="sensor.x - sensorMarker.glyph / 2 / zoom"
+                :y="sensor.y - sensorMarker.glyph / 2 / zoom"
+                :width="sensorMarker.glyph / zoom"
+                :height="sensorMarker.glyph / zoom"
+                class="sensor-glyph"
+                :style="sensorStyle(sensor)"
+              />
 
               <g v-if="hoveredSensorId === sensor.id || isSelected('sensor', sensor.id)" class="camera-chip">
                 <rect
@@ -447,12 +452,15 @@ const resizingRoomId = ref<string | null>(null);
 const CAMERA_MARGIN = 60;
 const MOTION_SENSORS = new Set(['motion', 'audio']);
 const DETECTION_SENSORS = new Set(['object', 'face', 'licensePlate', 'classifier', 'objectAssist', 'clip']);
+const SENSOR_MARKER = { radius: 11, glyph: 14 };
+const SENSOR_MARKER_TOUCH = { radius: 14, glyph: 18 };
 
 let drag: Drag | null = null;
 let dragCommitted = false;
 let tap: { target: FloorplanSelection; x: number; y: number } | null = null;
 
 const { viewport, zoomIn, zoomOut, fitBounds } = useVueFlow();
+const { mdBreakpoint } = useSharedCuiBreakpoint();
 const { sensors: liveSensors } = useAllSensors();
 
 const levelSensors = computed(() => props.sensors.filter((sensor) => sensor.levelId === props.levelId));
@@ -490,6 +498,7 @@ const sizeChip = computed(() => {
 });
 
 const zoom = computed(() => viewport.value.zoom);
+const sensorMarker = computed(() => (mdBreakpoint.value ? SENSOR_MARKER_TOUCH : SENSOR_MARKER));
 const pan = computed(() => ({ x: viewport.value.x, y: viewport.value.y }));
 
 const northAngle = computed(() => props.north ?? 0);
@@ -1436,7 +1445,6 @@ defineExpose({ fit });
 
 .sensor-glyph {
   pointer-events: none;
-  overflow: visible;
 }
 
 .camera-lens {
@@ -1455,7 +1463,6 @@ defineExpose({ fit });
 .chip-glyph {
   color: #ffffff;
   pointer-events: none;
-  overflow: visible;
 }
 
 .camera-chip text {

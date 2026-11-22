@@ -30,11 +30,14 @@
         @commit="(ratio) => commitTilt(Math.round(ratio * 100))"
       />
     </div>
+
+    <CuiMeasurementTrend v-if="hasPosition" :sensor :property="CoverProperty.CurrentPosition" :format="(value) => `${Math.round(value)} %`" />
+    <CuiTileHistoryTimeline v-else :sensor :property="CoverProperty.CurrentState" :color-of="timelineColor" />
   </CuiTilePanel>
 </template>
 
 <script setup lang="ts">
-import { CoverState } from '@camera.ui/sdk';
+import { CoverProperty, CoverState } from '@camera.ui/sdk';
 import CloseIcon from '~icons/lucide/chevrons-down';
 import OpenIcon from '~icons/lucide/chevrons-up';
 import StopIcon from '~icons/lucide/square';
@@ -43,7 +46,9 @@ import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
+import CuiMeasurementTrend from '../measurement/CuiMeasurementTrend.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiCoverScene from './CuiCoverScene.vue';
 import { useCover } from './useCover.js';
@@ -74,6 +79,7 @@ const {
   commitPosition,
   inputTilt,
   commitTilt,
+  timelineColor,
 } = useCover(() => props.sensor);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));

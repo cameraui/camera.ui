@@ -49,6 +49,8 @@
           @update:model-value="setMode"
         />
       </div>
+
+      <CuiMeasurementTrend v-if="names.current" :sensor :property="names.current" :format="percent" />
     </div>
   </CuiTilePanel>
 </template>
@@ -62,6 +64,7 @@ import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
+import CuiMeasurementTrend from '../measurement/CuiMeasurementTrend.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiClimateDial from './CuiClimateDial.vue';
 import { useHumidifier } from './useHumidifier.js';

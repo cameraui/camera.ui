@@ -68,25 +68,22 @@
       :ref="(el: any) => functionRef(el, resolved.shortcut._id)"
       :key="resolved.shortcut._id"
       v-on-long-press="[
-        () => onSensorLongPress(resolved.shortcut),
+        (event: PointerEvent) => onSensorLongPress(resolved.shortcut._id, event),
         {
           distanceThreshold: 24,
           delay: 500,
-          onMouseUp: () => onSensorMouseUp(resolved),
+          onMouseUp: (_duration: number, _distance: number, _isLongPress: boolean, event: PointerEvent) => onSensorMouseUp(resolved.shortcut._id, event),
         },
       ]"
-      @mouseenter="onSensorHover(resolved.shortcut._id, true)"
-      @mouseleave="onSensorHover(resolved.shortcut._id, false)"
+      @pointerdown="delete longPressTriggeredMap[resolved.shortcut._id]"
+      @pointerenter="onSensorEnter($event, resolved)"
+      @pointerleave="leaveSensorHover"
       @mousedown.stop
       @touchstart.stop
       @wheel.stop
       class="draggable absolute pointer-events-auto sensor-shortcut"
-      :class="{
-        'sensor-active': isSensorActive(resolved.sensor),
-        'sensor-offline': !resolved.isOnline,
-        'sensor-readonly': SENSOR_READONLY_TYPES.has(resolved.shortcut.sensorType) || !canControlSensors,
-      }"
-      :style="{ background: isHoveringMap[resolved.shortcut._id] ? '#545454' : undefined }"
+      :class="{ 'sensor-offline': !resolved.isOnline }"
+      :style="{ background: hoveredSensor?.shortcut._id === resolved.shortcut._id ? '#545454' : undefined }"
     >
       <Button severity="secondary" rounded class="cui-icon-lg shadow-sm pointer-events-auto">
         <template #icon>
@@ -98,73 +95,31 @@
           />
         </template>
       </Button>
-
-      <Popover
-        v-if="resolved.shortcut.sensorType === 'securitySystem' && mountedPopovers.has(resolved.shortcut._id)"
-        :ref="(el: any) => securitySystemMenuRef(el, resolved.shortcut._id)"
-        class="shadow-lg cui-rounded-corner"
-        :pt="{ content: { class: 'p-2' } }"
-        append-to="body"
-      >
-        <div class="flex flex-col gap-1 min-w-[160px]">
-          <button
-            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.Disarmed)"
-            type="button"
-            class="security-state-button"
-            :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.Disarmed) }"
-            @click="setSecuritySystemState(resolved, SecuritySystemState.Disarmed)"
-          >
-            <i-mdi:shield-off-outline class="w-4 h-4" />
-            <span class="text-sm">Disarmed</span>
-          </button>
-          <button
-            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.StayArm)"
-            type="button"
-            class="security-state-button"
-            :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.StayArm) }"
-            @click="setSecuritySystemState(resolved, SecuritySystemState.StayArm)"
-          >
-            <i-mdi:shield-home class="w-4 h-4" />
-            <span class="text-sm">Stay Arm</span>
-          </button>
-          <button
-            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.AwayArm)"
-            type="button"
-            class="security-state-button"
-            :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.AwayArm) }"
-            @click="setSecuritySystemState(resolved, SecuritySystemState.AwayArm)"
-          >
-            <i-mdi:shield-lock class="w-4 h-4" />
-            <span class="text-sm">Away Arm</span>
-          </button>
-          <button
-            v-if="securityModes(resolved.sensor).includes(SecuritySystemState.NightArm)"
-            type="button"
-            class="security-state-button"
-            :class="{ 'security-state-button--active': isSecuritySystemStateActive(resolved.sensor, SecuritySystemState.NightArm) }"
-            @click="setSecuritySystemState(resolved, SecuritySystemState.NightArm)"
-          >
-            <i-mdi:shield-moon class="w-4 h-4" />
-            <span class="text-sm">Night Arm</span>
-          </button>
-        </div>
-      </Popover>
-
-      <Popover
-        v-if="mountedPopovers.has(resolved.shortcut._id)"
-        :ref="(el: any) => previewMenuRef(el, resolved.shortcut._id)"
-        class="shadow-lg cui-rounded-corner"
-        :pt="{ content: { class: 'p-2' } }"
-      >
-        <div class="sensor-tooltip">
-          <div class="sensor-tooltip-name">{{ resolved.sensor?.displayName.value ?? $t(`components.camera_options.sensor_type_${resolved.shortcut.sensorType}`) }}</div>
-          <div class="sensor-tooltip-status" :style="{ color: sensorTone(resolved.shortcut.sensorType, resolved.sensor).color }">
-            {{ sensorStatus(resolved.shortcut.sensorType, resolved.sensor, $t) }}
-          </div>
-          <div v-if="!resolved.isOnline" class="sensor-tooltip-offline text-orange-500">{{ $t('connection.offline') }}</div>
-        </div>
-      </Popover>
     </div>
+
+    <Popover ref="sensorHoverRef" :pt="TILE_HOVER_PT" @hide="onSensorHoverHide">
+      <div v-if="hoveredSensor" @pointerenter="keepSensorHover" @pointerleave="leaveSensorHover">
+        <CuiSensorTile
+          v-if="hoveredSensor.sensor"
+          :key="hoveredSensor.shortcut._id"
+          v-model:expanded="sensorExpanded"
+          :sensor="hoveredSensor.sensor"
+          size="medium"
+          expand-in-place
+          :disabled="!canControlSensors"
+        >
+          <Button severity="secondary" size="small" :label="$t('components.sensor_tile.remove_from_image')" @click="removeSensor(hoveredSensor.shortcut)" />
+        </CuiSensorTile>
+        <div v-else class="sensor-tooltip">
+          <div class="sensor-tooltip-name">{{ $t(`components.camera_options.sensor_type_${hoveredSensor.shortcut.sensorType}`) }}</div>
+          <div class="sensor-tooltip-offline text-orange-500">{{ $t('connection.offline') }}</div>
+        </div>
+      </div>
+    </Popover>
+
+    <CuiSensorTileSheet v-if="sheetSensor?.sensor" ref="sensorSheetRef" :key="sheetSensor.shortcut._id" :sensor="sheetSensor.sensor" :disabled="!canControlSensors">
+      <Button severity="secondary" size="small" :label="$t('components.sensor_tile.remove_from_image')" @click="removeSensor(sheetSensor.shortcut)" />
+    </CuiSensorTileSheet>
 
     <div
       v-if="placeholderPosition"
@@ -253,9 +208,9 @@
 </template>
 
 <script setup lang="ts">
-import { isReactiveSecuritySystem, useCameraUi, useSensors } from '@camera.ui/browser';
+import { useCameraUi, useSensors } from '@camera.ui/browser';
 import { createNvrPlayback, NvrPlaybackKey, playheadUs, useNvrCtx } from '@camera.ui/nvr';
-import { SecuritySystemProperty, SecuritySystemState, SensorType } from '@camera.ui/sdk';
+import { SensorType } from '@camera.ui/sdk';
 import { vElementHover, vOnLongPress } from '@vueuse/components';
 import Draggabilly from 'draggabilly';
 
@@ -263,10 +218,11 @@ import { CamerasQuery, getCameraFn } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
 
-import { isSensorActive, sensorIcon, sensorStatus, sensorTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
-import { securityModes, setSecurityState, toggleSensor as toggleSharedSensor } from '@/components/CuiSensors/display.js';
-import { SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from './types.js';
+import { sensorIcon, sensorTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
+import { TILE_HOVER_PT } from '@/components/CuiSensorTile/hover.js';
+import { SENSOR_SHORTCUTABLE_TYPES } from './types.js';
 
+import type CuiSensorTileSheet from '@/components/CuiSensorTile/CuiSensorTileSheet.vue';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { NvrPlayback } from '@camera.ui/nvr';
 import type { DBCamera, DBCameraShortcut, DBSensorShortcut, DBShortcut, SensorShortcutType } from '@shared/types';
@@ -278,8 +234,8 @@ const usersQuery = new UsersQuery();
 
 const props = defineProps<CuiShortcutsProps>();
 
-const log = useLogger();
 const router = useRouter();
+const { phoneBreakpoint } = useSharedCuiBreakpoint();
 
 const { cameraName, visible, editing, interactionLocked } = toRefs(props);
 
@@ -309,7 +265,8 @@ const shortcutContainerRef = useTemplateRef('shortcutContainerRef');
 const camerasMenuRef = useTemplateRef<InstanceType<typeof Popover>>('camerasMenuRef');
 const shortcutElementRefs = shallowRef<{ [key: string]: HTMLElement | Element | ComponentPublicInstance }>({});
 const previewMenuRefs = shallowRef<{ [key: string]: InstanceType<typeof Popover> | null }>({});
-const securitySystemMenuRefs = shallowRef<{ [key: string]: InstanceType<typeof Popover> | null }>({});
+const sensorHoverRef = useTemplateRef<InstanceType<typeof Popover>>('sensorHoverRef');
+const sensorSheetRef = useTemplateRef<InstanceType<typeof CuiSensorTileSheet>>('sensorSheetRef');
 const draggies = shallowRef<{ [key: string]: Draggabilly }>({});
 const draggablePositions = ref<{ [key: string]: { x: number; y: number } }>({});
 const isDragging = ref(false);
@@ -323,6 +280,11 @@ const addMenuTab = ref<'cameras' | 'sensors'>('cameras');
 const longPressTriggeredMap = ref<{ [key: string]: boolean }>({});
 const removingShortcuts = ref<Set<string>>(new Set());
 const mountedPopovers = ref(new Set<string>());
+const hoveredSensorId = ref<string>();
+const sheetSensorId = ref<string>();
+const sensorExpanded = ref(false);
+
+let sensorHideTimer: ReturnType<typeof setTimeout> | undefined;
 
 const shortcutContainerSize = useElementSize(shortcutContainerRef);
 
@@ -345,6 +307,9 @@ const resolvedSensorShortcuts = computed<ResolvedSensorShortcut[]>(() => {
     };
   });
 });
+
+const hoveredSensor = computed(() => findSensorShortcut(hoveredSensorId.value));
+const sheetSensor = computed(() => findSensorShortcut(sheetSensorId.value));
 
 const isLoading = computed(
   () => cameraLoading.value || shortcutsLoading.value || patchShortcutLoading.value || camerasLoading.value || addShortcutLoading.value || removeShortcutLoading.value,
@@ -387,59 +352,6 @@ function isCameraAlreadyAdded(cam: DBCamera): boolean {
 function mapSensorTypeToShortcutType(type: SensorType): SensorShortcutType {
   const shortcut = String(type) as SensorShortcutType;
   return SENSOR_SHORTCUTABLE_TYPES.has(shortcut) ? shortcut : 'contact';
-}
-
-async function toggleSensor(resolved: ResolvedSensorShortcut): Promise<void> {
-  if (!canControlSensors) return;
-
-  try {
-    await toggleSharedSensor(allSensors.value.find((sensor) => sensor.id === resolved.shortcut.sensorId));
-  } catch (error) {
-    log.error('Failed to toggle sensor:', error);
-  }
-}
-
-async function setSecuritySystemState(resolved: ResolvedSensorShortcut, state: SecuritySystemState): Promise<void> {
-  if (!canControlSensors) return;
-
-  try {
-    await setSecurityState(
-      allSensors.value.find((sensor) => sensor.id === resolved.shortcut.sensorId),
-      state,
-    );
-  } catch (error) {
-    log.error('Failed to set security system state:', error);
-  }
-}
-
-function isSecuritySystemStateActive(sensor: ReactiveSensor | undefined, state: SecuritySystemState): boolean {
-  if (!sensor || !isReactiveSecuritySystem(sensor)) return false;
-  return sensor.getProperty(SecuritySystemProperty.TargetState) === state;
-}
-
-function securitySystemMenuRef(el: any, id: string): void {
-  if (el) securitySystemMenuRefs.value[id] = el;
-}
-
-async function onSensorClick(resolved: ResolvedSensorShortcut): Promise<void> {
-  if (SENSOR_READONLY_TYPES.has(resolved.shortcut.sensorType)) return;
-  if (!canControlSensors) return;
-
-  // synthetic event so the PrimeVue popover anchors to the shortcut icon
-  if (resolved.shortcut.sensorType === 'securitySystem') {
-    if (!mountedPopovers.value.has(resolved.shortcut._id)) {
-      mountedPopovers.value.add(resolved.shortcut._id);
-      await nextTick();
-    }
-    const popover = securitySystemMenuRefs.value[resolved.shortcut._id];
-    const target = shortcutElementRefs.value[resolved.shortcut._id] as HTMLElement | undefined;
-    if (popover && target) {
-      popover.toggle({ currentTarget: target } as unknown as Event);
-    }
-    return;
-  }
-
-  toggleSensor(resolved);
 }
 
 function onHover(id: string, isHovering: boolean): void {
@@ -485,45 +397,80 @@ function onMouseUpCallback(isLongPress: boolean, shortcut: DBCameraShortcut) {
   }
 }
 
-function onSensorHover(id: string, isHovering: boolean): void {
-  if (isDragging.value) return;
-  isHoveringMap.value[id] = isDragging.value ? false : isHovering;
-  mountedPopovers.value.add(id);
-
-  if (isHovering) {
-    Object.entries(isHoveringMap.value).forEach(([key, value]) => {
-      if (key !== id && value) {
-        isHoveringMap.value[key] = false;
-      }
-    });
-  }
+function onSensorEnter(event: PointerEvent, resolved: ResolvedSensorShortcut): void {
+  if (!usesHoverCard(event) || isDragging.value || sensorExpanded.value) return;
+  showSensorHover(resolved);
 }
 
-function onSensorLongPress(shortcut: DBSensorShortcut): void {
-  if (!isDragging.value) {
-    longPressTriggeredMap.value[shortcut._id] = true;
-    removeSensor(shortcut);
-  }
+function usesHoverCard(event: PointerEvent): boolean {
+  return event.pointerType === 'mouse' && !phoneBreakpoint.value;
 }
 
-function onSensorMouseUp(resolved: ResolvedSensorShortcut): void {
-  if (longPressTriggeredMap.value[resolved.shortcut._id]) {
-    delete longPressTriggeredMap.value[resolved.shortcut._id];
+function keepSensorHover(): void {
+  clearTimeout(sensorHideTimer);
+}
+
+function leaveSensorHover(): void {
+  clearTimeout(sensorHideTimer);
+  if (sensorExpanded.value) return;
+  sensorHideTimer = setTimeout(() => sensorHoverRef.value?.hide(), 220);
+}
+
+function showSensorHover(resolved: ResolvedSensorShortcut): void {
+  clearTimeout(sensorHideTimer);
+  if (hoveredSensorId.value !== resolved.shortcut._id) sensorExpanded.value = false;
+  hoveredSensorId.value = resolved.shortcut._id;
+  const target = shortcutElementRefs.value[resolved.shortcut._id] as HTMLElement | undefined;
+  if (!target) return;
+  sensorHoverRef.value?.show({ currentTarget: target } as unknown as Event);
+  // show keeps the old position while the popover is already open for another shortcut
+  nextTick(() => sensorHoverRef.value?.alignOverlay());
+}
+
+function onSensorHoverHide(): void {
+  hoveredSensorId.value = undefined;
+  sensorExpanded.value = false;
+}
+
+function findSensorShortcut(id: string | undefined): ResolvedSensorShortcut | undefined {
+  return resolvedSensorShortcuts.value.find((resolved) => resolved.shortcut._id === id);
+}
+
+function onSensorLongPress(id: string, event: PointerEvent): void {
+  const resolved = findSensorShortcut(id);
+  if (isDragging.value || !resolved) return;
+  longPressTriggeredMap.value[id] = true;
+  if (resolved.sensor) openSensorLarge(resolved, event);
+  else removeSensor(resolved.shortcut);
+}
+
+function onSensorMouseUp(id: string, event: PointerEvent): void {
+  if (longPressTriggeredMap.value[id]) {
+    delete longPressTriggeredMap.value[id];
+    return;
+  }
+  const resolved = findSensorShortcut(id);
+  if (isDragging.value || !resolved?.sensor) return;
+  openSensorLarge(resolved, event);
+}
+
+async function openSensorLarge(resolved: ResolvedSensorShortcut, event: PointerEvent): Promise<void> {
+  if (usesHoverCard(event)) {
+    showSensorHover(resolved);
+    sensorExpanded.value = true;
     return;
   }
 
-  if (!isDragging.value) {
-    if (!SENSOR_READONLY_TYPES.has(resolved.shortcut.sensorType) && canControlSensors) {
-      onSensorClick(resolved);
-    }
-  }
+  sheetSensorId.value = resolved.shortcut._id;
+  await nextTick();
+  sensorSheetRef.value?.open({ currentTarget: shortcutElementRefs.value[resolved.shortcut._id] } as unknown as Event);
 }
 
 function removeSensor(shortcut: DBSensorShortcut) {
   removingShortcuts.value.add(shortcut._id);
 
-  previewMenuRefs.value[shortcut._id]?.hide();
-  isHoveringMap.value[shortcut._id] = false;
+  sensorHoverRef.value?.hide();
+  sensorSheetRef.value?.close();
 
   draggies.value[shortcut._id]?.destroy();
   delete draggies.value[shortcut._id];
@@ -642,6 +589,7 @@ function initDraggables(): void {
         isDragging.value = true;
         const popover = previewMenuRefs.value[shortcutId];
         popover?.alignOverlay();
+        if (hoveredSensorId.value === shortcutId) sensorHoverRef.value?.alignOverlay();
       });
 
       draggie.on('dragEnd', () => {
@@ -891,6 +839,7 @@ watch(
 watch(visible, (isVisible) => {
   if (!isVisible) {
     Object.values(previewMenuRefs.value).forEach((p) => p?.hide());
+    sensorHoverRef.value?.hide();
     Object.keys(isHoveringMap.value).forEach((key) => {
       isHoveringMap.value[key] = false;
     });
@@ -981,6 +930,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  clearTimeout(sensorHideTimer);
   Object.values(draggies.value).forEach((draggie) => draggie.destroy());
 });
 </script>
@@ -1058,17 +1008,13 @@ onUnmounted(() => {
   opacity: 0.5;
 }
 
-.sensor-shortcut.sensor-readonly {
-  cursor: default;
-}
-
-.sensor-shortcut.sensor-readonly .p-button {
-  pointer-events: none;
-}
-
 .sensor-tooltip {
   text-align: center;
   min-width: 80px;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--p-content-background);
+  border: 1px solid var(--border-color);
 }
 
 .sensor-tooltip-name {
@@ -1077,71 +1023,9 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 
-.sensor-tooltip-status {
-  font-size: 0.75rem;
-}
-
 .sensor-tooltip-offline {
   font-size: 0.75rem;
   margin-top: 4px;
-}
-
-.doorbell-shake {
-  animation: doorbell-shake 0.15s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@keyframes doorbell-shake {
-  0%,
-  100% {
-    transform: rotate(-15deg);
-  }
-
-  50% {
-    transform: rotate(15deg);
-  }
-}
-
-.security-state-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-color);
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.security-state-button:hover {
-  background: var(--surface-hover, rgba(255, 255, 255, 0.06));
-}
-
-.security-state-button--active {
-  background: rgba(168, 85, 247, 0.15);
-  border-color: rgba(168, 85, 247, 0.5);
-  color: rgb(168, 85, 247);
-}
-
-.security-alarm-pulse {
-  animation: security-alarm-pulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes security-alarm-pulse {
-  from {
-    opacity: 1;
-    filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
-  }
-
-  to {
-    opacity: 0.6;
-    filter: drop-shadow(0 0 14px rgba(239, 68, 68, 1));
-  }
 }
 
 .shortcut-menu-tabs {

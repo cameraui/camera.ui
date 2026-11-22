@@ -25,6 +25,8 @@
         @input="inputVolume"
         @commit="commitVolume"
       />
+
+      <CuiTileHistoryTimeline :sensor :property="SirenProperty.Active" />
     </div>
   </CuiTilePanel>
 </template>
@@ -36,6 +38,7 @@ import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiHoldDial from '../frame/CuiHoldDial.vue';
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useSiren, useSirenPress } from './useSiren.js';

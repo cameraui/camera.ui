@@ -153,7 +153,7 @@ import type { ReactiveSensor } from '@camera.ui/browser';
 import type { SensorClimate, SensorHumidifier, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
 import type { Component } from 'vue';
 
-export type Tone = 'alarm' | 'warn' | 'ok' | 'info' | 'light';
+export type Tone = 'alarm' | 'warn' | 'ok' | 'info' | 'light' | 'night';
 
 type ReadProperty = (property: string) => unknown;
 type AnySensor = ReactiveSensor<object>;
@@ -171,6 +171,14 @@ const TONES: Record<Tone, string> = {
   ok: '34, 197, 94',
   info: '59, 130, 246',
   light: '250, 204, 21',
+  night: '139, 92, 246',
+};
+
+const SECURITY_TONES: Partial<Record<SecuritySystemState, Tone>> = {
+  [SecuritySystemState.StayArm]: 'ok',
+  [SecuritySystemState.AwayArm]: 'info',
+  [SecuritySystemState.NightArm]: 'night',
+  [SecuritySystemState.AlarmTriggered]: 'alarm',
 };
 
 const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
@@ -336,12 +344,17 @@ export function toneColor(tone: Tone): string {
   return `rgb(${TONES[tone]})`;
 }
 
+export function securityColor(state: unknown): string | undefined {
+  const tone = SECURITY_TONES[state as SecuritySystemState];
+  return tone && toneColor(tone);
+}
+
 export function sensorTone(type: string, sensor: AnySensor | undefined): Record<string, string> {
   return sensor ? sensorReadTone(type, readFrom(sensor)) : toneStyle(undefined);
 }
 
 export function sensorReadTone(type: string, read: ReadProperty): Record<string, string> {
-  if (type === SensorType.SecuritySystem && read(SecuritySystemProperty.CurrentState) === SecuritySystemState.AlarmTriggered) return toneStyle('alarm');
+  if (type === SensorType.SecuritySystem) return toneStyle(SECURITY_TONES[shownSecurityState(read) as SecuritySystemState]);
   if (read(sensorMeta(type)?.semantics?.climate?.action ?? '') === ThermostatAction.Cooling) return toneStyle('info');
   if (type === SensorType.Lock && read(LockProperty.CurrentState) === LockState.Jammed) return toneStyle('alarm');
   if ((type === SensorType.Cover || type === SensorType.Garage) && read(CoverProperty.ObstructionDetected) === true) return toneStyle('alarm');
@@ -401,6 +414,21 @@ export function sensorPropertyLabelKey(type: string, property: string): string {
   // a type can name a shared property its own way, an air quality level is no battery level
   const own = `sensor_property_${type}_${property}`;
   return i18n.global.te(`components.automation_nodes.${own}`) ? own : `sensor_property_${property}`;
+}
+
+export function sensorValueLabel(type: string, property: string, value: unknown, spec: SensorPropertySpec | undefined): string {
+  if (value === null || value === undefined || value === '') return '–';
+  const { t, te } = i18n.global;
+  if (typeof value === 'boolean') {
+    const isState = property === (sensorMeta(type)?.semantics?.stateProperty ?? 'detected');
+    return t(isState ? sensorStateKey(type, value) : `components.sensor_state.${value ? 'on' : 'off'}`);
+  }
+  if (typeof value === 'number' && spec?.type === 'number') return formatMeasurement(value, spec);
+  const choice = spec?.choices?.find((entry) => entry.value === value);
+  if (choice) return choice.label;
+  const name = spec?.type === 'enum' ? Object.entries(spec.values ?? {}).find(([, wire]) => wire === value)?.[0] : undefined;
+  const key = name ? `components.automation_nodes.${type}_state_${name}` : '';
+  return key && te(key) ? t(key) : String(value);
 }
 
 export function formatMeasurement(value: number, spec: SensorPropertySpec | undefined, fallbackDecimals?: number): string {
@@ -486,6 +514,11 @@ function toneStyle(tone: Tone | undefined): Record<string, string> {
 
 function readFrom(sensor: AnySensor): ReadProperty {
   return (property) => sensor.getProperty(property);
+}
+
+function shownSecurityState(read: ReadProperty): unknown {
+  const current = read(SecuritySystemProperty.CurrentState);
+  return current === SecuritySystemState.AlarmTriggered ? current : (read(SecuritySystemProperty.TargetState) ?? current);
 }
 
 function requested(semantics: SensorSemantics, read: ReadProperty): unknown {

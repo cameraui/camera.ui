@@ -36,73 +36,21 @@
       </CuiDataTable>
     </div>
 
-    <div v-if="hasDetectionSensors" class="overview-section">
+    <div v-if="detectionSensors.length" class="overview-section">
       <h3 class="overview-section-title">{{ $t('components.camera_options.detection') }}</h3>
-
       <div class="flex flex-col gap-2">
-        <CuiDetection
-          v-for="sensor in motionSensors"
-          :key="sensor.id"
-          type="motion"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(MotionProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-
-        <CuiDetection
-          v-for="sensor in objectSensors"
-          :key="sensor.id"
-          type="object"
-          :label="sensor.displayName.value"
-          :detected="(sensor.getProperty(ObjectProperty.Detections)?.length ?? 0) > 0"
-          :detections="sensor.getProperty(ObjectProperty.Detections)?.map((d: any) => d.label ?? d.class ?? 'unknown')"
-          size="small"
-          class="card-border"
-        />
-
-        <CuiDetection
-          v-for="sensor in audioSensors"
-          :key="sensor.id"
-          type="audio"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(AudioProperty.Detected) ?? false"
-          size="small"
-          class="card-border"
-        />
-
-        <CuiDetection
-          v-for="sensor in faceSensors"
-          :key="sensor.id"
-          type="face"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(FaceProperty.Detected) ?? false"
-          :detections="sensor.getProperty(FaceProperty.Detections)?.map((d: any) => d.identity ?? 'unknown')"
-          size="small"
-          class="card-border"
-        />
-
-        <CuiDetection
-          v-for="sensor in licensePlateSensors"
-          :key="sensor.id"
-          type="licensePlate"
-          :label="sensor.displayName.value"
-          :detected="sensor.getProperty(LicensePlateProperty.Detected) ?? false"
-          :detections="sensor.getProperty(LicensePlateProperty.Detections)?.map((d: any) => d.plateText ?? 'unknown')"
-          size="small"
-          class="card-border"
-        />
+        <CuiSensorTile v-for="sensor in detectionSensors" :key="sensor.id" :sensor size="small" :disabled="!canControlSensors" />
       </div>
     </div>
 
     <div v-for="section in sensorSections" :key="section.type" class="overview-section">
       <h3 class="overview-section-title">{{ $t(`components.camera_options.sensor_type_${section.type}`) }}</h3>
       <div class="flex flex-col gap-2">
-        <CuiSensorControl v-for="sensor in section.sensors" :key="sensor.id" :sensor :disabled="!canControlSensors" />
+        <CuiSensorTile v-for="sensor in section.sensors" :key="sensor.id" :sensor size="small" :disabled="!canControlSensors" />
       </div>
     </div>
 
-    <div v-if="!sensorSections.length && !hasDetectionSensors" class="overview-section">
+    <div v-if="!sensorSections.length && !detectionSensors.length" class="overview-section">
       <div class="no-sensors">
         {{ $t('components.camera_options.no_sensors') }}
       </div>
@@ -111,29 +59,22 @@
 </template>
 
 <script setup lang="ts">
-import {
-  isReactiveAudioSensor,
-  isReactiveFaceSensor,
-  isReactiveLicensePlateSensor,
-  isReactiveMotionSensor,
-  isReactiveObjectSensor,
-  useSensors,
-} from '@camera.ui/browser';
-import { AudioProperty, FaceProperty, LicensePlateProperty, MotionProperty, ObjectProperty, SensorDomain, SensorType } from '@camera.ui/sdk';
+import { isReactiveMotionSensor, useSensors } from '@camera.ui/browser';
+import { MotionProperty, SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
 
-import CuiDetection from '@/components/CuiDetection/CuiDetection.vue';
-import { sensorControlKind } from '@/components/CuiSensorControl/types.js';
+import CuiSensorTile from '@/components/CuiSensorTile/CuiSensorTile.vue';
+import { DETECTION_TYPES, HELPER_TYPES } from '@/components/CuiSensorTile/detection/groups.js';
+import { EVENT_TYPES } from '@/components/CuiSensorTile/event/groups.js';
+import { hasSensorTile } from '@/components/CuiSensorTile/tiles.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
-import type { SensorControlKind } from '@/components/CuiSensorControl/types.js';
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
-import type { SlotSensor } from '@/utils/sensorSlots.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Camera } from '@camera.ui/sdk';
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabProps, OverviewRow } from '../../types.js';
 
-const SECTION_ORDER: SensorControlKind[] = [
+const DOMAIN_ORDER: string[] = [
   SensorDomain.Light,
   SensorDomain.Switch,
   SensorDomain.Lock,
@@ -141,11 +82,19 @@ const SECTION_ORDER: SensorControlKind[] = [
   SensorDomain.Alarm,
   SensorDomain.Cover,
   SensorDomain.Climate,
-  'doorbell',
+  SensorDomain.WaterHeater,
+  SensorDomain.Fan,
+  SensorDomain.AirPurifier,
+  SensorDomain.Humidifier,
+  SensorDomain.Valve,
+  SensorDomain.MediaPlayer,
+  SensorDomain.Vacuum,
+  SensorDomain.LawnMower,
+  SensorDomain.Event,
+  SensorDomain.Scene,
+  SensorDomain.Text,
   SensorDomain.Binary,
   SensorDomain.Measurement,
-  'battery',
-  'properties',
 ];
 
 const TYPE_ORDER: string[] = Object.values(SensorType);
@@ -195,16 +144,13 @@ const statusLabel = computed(() => {
   }
 });
 
-const motionSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveMotionSensor)));
-const objectSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveObjectSensor)));
-const audioSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveAudioSensor)));
-const faceSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveFaceSensor)));
-const licensePlateSensors = computed(() => providedForCamera(allSensors.value.filter(isReactiveLicensePlateSensor)));
+const cameraSensors = computed(() => allSensors.value.filter((sensor) => sensorProvidedForCamera(sensor, cameraObject.value)));
+const motionSensors = computed(() => cameraSensors.value.filter(isReactiveMotionSensor));
+const detectionSensors = computed(() => cameraSensors.value.filter((sensor) => DETECTION_TYPES.includes(sensor.type)));
 const sensorSections = computed(() => {
   const sections = new Map<string, ReactiveSensor[]>();
-  for (const sensor of providedForCamera(allSensors.value)) {
-    const kind = sensorControlKind(sensor.type);
-    if (!kind || kind === 'detection') continue;
+  for (const sensor of cameraSensors.value) {
+    if (!hasSensorTile(sensor.type) || DETECTION_TYPES.includes(sensor.type) || HELPER_TYPES.includes(sensor.type)) continue;
     sections.set(sensor.type, [...(sections.get(sensor.type) ?? []), sensor]);
   }
   return [...sections]
@@ -258,22 +204,10 @@ const overviewRows = computed<OverviewRow[]>(() => {
   return rows;
 });
 
-const hasDetectionSensors = computed(
-  () =>
-    motionSensors.value.length > 0 ||
-    objectSensors.value.length > 0 ||
-    audioSensors.value.length > 0 ||
-    faceSensors.value.length > 0 ||
-    licensePlateSensors.value.length > 0,
-);
-
-function providedForCamera<T extends SlotSensor>(sensors: T[]): T[] {
-  return sensors.filter((sensor) => sensorProvidedForCamera(sensor, cameraObject.value));
-}
-
 function sectionRank(type: string): number {
-  const rank = SECTION_ORDER.indexOf(sensorControlKind(type) as SensorControlKind);
-  return rank === -1 ? SECTION_ORDER.length : rank;
+  const domain = EVENT_TYPES.includes(type) ? SensorDomain.Event : sensorMeta(type)?.semantics?.domain;
+  const rank = DOMAIN_ORDER.indexOf(domain ?? '');
+  return rank === -1 ? DOMAIN_ORDER.length : rank;
 }
 </script>
 

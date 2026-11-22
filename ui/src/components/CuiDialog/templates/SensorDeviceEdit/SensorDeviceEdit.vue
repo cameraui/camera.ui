@@ -9,7 +9,7 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div v-for="field in infoFields" :key="field.label" class="flex flex-col field-gap min-w-0">
+      <div v-for="field in infoFields" :key="field.label" class="flex flex-col field-gap min-w-0 sm:last:odd:col-span-2">
         <label class="cui-label">{{ field.label }}</label>
         <InputText :model-value="field.value" readonly class="w-full" :class="{ 'font-mono text-sm': field.mono }" />
       </div>

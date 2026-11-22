@@ -21,7 +21,7 @@ import CuiTileHistoryHead from './CuiTileHistoryHead.vue';
 
 import type { CuiTileMomentsProps } from './types.js';
 
-const ROWS = 6;
+const ROWS = 3;
 
 const props = defineProps<CuiTileMomentsProps>();
 

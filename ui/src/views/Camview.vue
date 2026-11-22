@@ -238,7 +238,7 @@
             :loading="timelineAnimating"
             :type="verticalTimeline ? 'vertical' : 'horizontal'"
             dark-mode
-            :md-breakpoint="mdBreakpoint || shortBreakpoint"
+            :md-breakpoint="phoneBreakpoint"
             class="shrink-0 transition-[left] duration-200"
             :class="{
               'h-full pt-2 pr-2 pb-[var(--cui-bottom-gap)]': verticalTimeline,
@@ -387,7 +387,7 @@ const { t } = useI18n();
 const timelineLocaleSettings = useTimelineLocale();
 const dialog = useCuiDialog();
 const { bottombarHeight } = useSharedCuiStates();
-const { smBreakpoint, lgBreakpoint, mdBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
+const { smBreakpoint, lgBreakpoint, phoneBreakpoint, shortBreakpoint } = useSharedCuiBreakpoint();
 const topmostFullscreen = useTopmostFullscreenElement();
 const { openOnCamera, openSimilarSearch } = useSimilarSearchRoute();
 

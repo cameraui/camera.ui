@@ -19,18 +19,21 @@
       </CuiHoldDial>
 
       <span v-if="interactive" class="text-xs" :class="hint ? 'text-color font-medium' : 'text-muted'">{{ caption }}</span>
+
+      <CuiTileHistoryTimeline :sensor :property="CoverProperty.CurrentState" :color-of="timelineColor" />
     </div>
   </CuiTilePanel>
 </template>
 
 <script setup lang="ts">
-import { CoverState } from '@camera.ui/sdk';
+import { CoverProperty, CoverState } from '@camera.ui/sdk';
 import CloseIcon from '~icons/lucide/chevrons-down';
 import OpenIcon from '~icons/lucide/chevrons-up';
 
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiHoldDial from '../frame/CuiHoldDial.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiGarageScene from './CuiGarageScene.vue';
@@ -45,7 +48,7 @@ const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const cover = useCover(() => props.sensor);
-const { current, wantsOpen, moving, obstructed, color, stateText } = cover;
+const { current, wantsOpen, moving, obstructed, color, stateText, timelineColor } = cover;
 
 const dialRef = useTemplateRef<ComponentPublicInstance>('dialRef');
 const dialEl = computed(() => dialRef.value?.$el as HTMLElement | undefined);

@@ -4,7 +4,12 @@
       <CuiTileControl v-if="runnable" :caption="t('components.scene_control.run')">
         <CuiTileButton :icon="RunIcon" :label="t('components.scene_control.run')" :color :active hero :interactive @click="run" />
       </CuiTileControl>
-      <CuiBellScene v-else-if="sensor.type === SensorType.Doorbell" :ringing="active" :camera-id="sensor.boundCameraId" />
+      <template v-else-if="sensor.type === SensorType.Doorbell">
+        <CuiBellScene :ringing="active" :camera-id="sensor.boundCameraId" />
+        <CuiTileControl :caption="t('components.sensor_tile.ring')">
+          <CuiTileButton :icon="RingIcon" :label="t('components.sensor_tile.ring')" :color :active :interactive="interactive && !active" @click="ring" />
+        </CuiTileControl>
+      </template>
       <CuiPressScene v-else-if="sensor.type === SensorType.Button" :press="active ? String(last?.value) : undefined" :stamp="last?.timestamp" />
       <CuiAccessScene v-else :active :method="method" :granted="last ? last.value === AccessResult.Granted : undefined" />
 
@@ -17,6 +22,7 @@
 
 <script setup lang="ts">
 import { AccessProperty, AccessResult, SensorType } from '@camera.ui/sdk';
+import RingIcon from '~icons/mdi/bell-ring';
 import RunIcon from '~icons/mdi/play';
 
 import { sensorIcon } from '@/common/sensorDisplay.js';
@@ -39,7 +45,7 @@ const props = defineProps<SensorTileProps>();
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
-const { runnable, moments, loaded, active, last, color, stateText, describe, run } = useEventSensor(() => props.sensor);
+const { runnable, moments, loaded, active, last, color, stateText, describe, run, ring } = useEventSensor(() => props.sensor);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 const method = computed(() => last.value?.details[AccessProperty.Method] as string | undefined);

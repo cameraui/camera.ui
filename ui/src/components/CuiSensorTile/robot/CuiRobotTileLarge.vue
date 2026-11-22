@@ -5,17 +5,20 @@
 
       <CuiTileReading :state="stateText" :detail="sinceText" />
 
-      <div v-if="controls.length > 0" class="flex flex-wrap justify-center gap-4">
-        <CuiTileControl v-for="control in controls" :key="control.command" :caption="commandLabel(control.command)">
-          <CuiTileButton
-            :icon="control.icon"
-            :label="commandLabel(control.command)"
-            :color
-            :hero="control.hero"
-            :active="control.hero && busy"
-            :interactive
-            @click="command(control.command)"
-          />
+      <CuiTileButton
+        v-if="main"
+        :icon="main === VacuumCommand.Pause ? PauseIcon : PlayIcon"
+        :label="commandLabel(main)"
+        :color
+        hero
+        :active="busy"
+        :interactive
+        @click="command(main)"
+      />
+
+      <div v-if="extras.length > 0" class="flex flex-wrap justify-center gap-2">
+        <CuiTileControl v-for="extra in extras" :key="extra.command" :caption="commandLabel(extra.command)">
+          <CuiTileButton :icon="extra.icon" :label="commandLabel(extra.command)" :color :interactive @click="command(extra.command)" />
         </CuiTileControl>
       </div>
 
@@ -75,12 +78,6 @@ import { useRobot } from './useRobot.js';
 import type { Component } from 'vue';
 import type { SensorTileProps } from '../types.js';
 
-interface RobotControl {
-  command: string;
-  icon: Component;
-  hero?: boolean;
-}
-
 const MAX_SPEED_BUTTONS = 4;
 const EXTRA_COMMANDS: [string, Component][] = [
   [VacuumCommand.Stop, StopIcon],
@@ -118,15 +115,9 @@ const { entries, now, sinceText } = useSensorHistory(
 );
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
-const controls = computed(() => {
-  const offered = commands.value;
-  const pause = busy.value && offered.includes(VacuumCommand.Pause);
-  const list: RobotControl[] = [];
-  if (pause) list.push({ command: VacuumCommand.Pause, icon: PauseIcon, hero: true });
-  else if (offered.includes(VacuumCommand.Start)) list.push({ command: VacuumCommand.Start, icon: PlayIcon, hero: true });
-  for (const [extra, extraIcon] of EXTRA_COMMANDS) {
-    if (offered.includes(extra)) list.push({ command: extra, icon: extraIcon });
-  }
-  return list;
+const main = computed(() => {
+  if (busy.value && commands.value.includes(VacuumCommand.Pause)) return VacuumCommand.Pause;
+  return commands.value.includes(VacuumCommand.Start) ? VacuumCommand.Start : undefined;
 });
+const extras = computed(() => EXTRA_COMMANDS.filter(([extra]) => commands.value.includes(extra)).map(([extra, extraIcon]) => ({ command: extra, icon: extraIcon })));
 </script>

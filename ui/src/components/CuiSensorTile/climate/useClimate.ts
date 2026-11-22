@@ -171,6 +171,7 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
     modeLabel,
     propertyLabel,
     degrees,
+    names,
   };
 }
 

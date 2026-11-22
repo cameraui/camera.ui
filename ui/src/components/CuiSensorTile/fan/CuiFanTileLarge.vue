@@ -65,6 +65,8 @@
           <div class="fan-large__meter-fill" :style="{ width: `${Math.min(Math.max(filterLife, 0), 100)}%`, background: filterColor }" />
         </div>
       </div>
+
+      <CuiTileHistoryTimeline :sensor :property="FanProperty.On" />
     </div>
   </CuiTilePanel>
 </template>
@@ -84,6 +86,7 @@ import { sensorIcon } from '@/common/sensorDisplay.js';
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTileControl from '../frame/CuiTileControl.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiFanScene from './CuiFanScene.vue';

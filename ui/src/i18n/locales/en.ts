@@ -951,10 +951,6 @@ export default {
       error: 'Error',
       status: 'Status',
     },
-    detection_sensor: {
-      detected: 'Detected',
-      idle: 'Idle',
-    },
     battery_info: {
       charging: 'Charging...',
       fully_charged: 'Fully charged',
@@ -967,6 +963,9 @@ export default {
       no_data: 'No data available',
     },
     sensor_tile: {
+      back: 'Back',
+      remove_from_image: 'Remove from image',
+      ring: 'Ring',
       power: 'Turn on or off',
       in_use: 'In use',
       hold_to_unlock: 'Hold to unlock',
@@ -1017,6 +1016,7 @@ export default {
       battery_low: 'Low',
       last_day: 'Last 24 hours',
       since: 'Since {time}',
+      span: '{from} to {to}',
       no_history: 'No history yet',
       min_value: 'Min {value}',
       max_value: 'Max {value}',
@@ -1107,10 +1107,6 @@ export default {
       run: 'Run',
       ran: 'Ran {time}',
     },
-    detection: {
-      detected: 'Detected',
-      idle: 'Idle',
-    },
     detection_interface: {
       audio_detected: 'Audio detected',
       audio_not_detected: 'Audio not detected',
@@ -1183,10 +1179,6 @@ export default {
       no_mask: 'No outline for this picture',
       no_outline: 'No outline',
       whole_picture: 'Whole picture',
-    },
-    doorbell_trigger: {
-      ringing: 'Ringing!',
-      ready: 'Ready',
     },
     dialog: {
       open: 'Open',
@@ -4621,11 +4613,6 @@ export default {
       section_camera: 'Camera',
       section_sensor: 'Sensor',
       sensor_passage: 'Belongs to passage',
-      sensor_toggle: 'Toggle',
-      security_disarmed: 'Disarmed',
-      security_stay: 'Armed, home',
-      security_away: 'Armed, away',
-      security_night: 'Armed, night',
       sensor_passage_hint: 'A contact or a lock says something about this one door.',
       remove_sensor: 'Remove sensor',
       section_view: 'View',

@@ -959,10 +959,6 @@ export default {
       error: 'Fehler',
       status: 'Status',
     },
-    detection_sensor: {
-      detected: 'Erkannt',
-      idle: 'Ruhig',
-    },
     battery_info: {
       charging: 'Lädt...',
       fully_charged: 'Voll geladen',
@@ -975,6 +971,9 @@ export default {
       no_data: 'Keine Daten verfügbar',
     },
     sensor_tile: {
+      back: 'Zurück',
+      remove_from_image: 'Vom Bild entfernen',
+      ring: 'Klingeln',
       power: 'Ein- oder ausschalten',
       in_use: 'In Benutzung',
       hold_to_unlock: 'Zum Entriegeln halten',
@@ -1025,6 +1024,7 @@ export default {
       battery_low: 'Schwach',
       last_day: 'Letzte 24 Stunden',
       since: 'Seit {time}',
+      span: '{from} bis {to}',
       no_history: 'Noch kein Verlauf',
       min_value: 'Min. {value}',
       max_value: 'Max. {value}',
@@ -1115,10 +1115,6 @@ export default {
       run: 'Ausführen',
       ran: 'Ausgeführt {time}',
     },
-    detection: {
-      detected: 'Erkannt',
-      idle: 'Inaktiv',
-    },
     detection_interface: {
       audio_detected: 'Audio erkannt',
       audio_not_detected: 'Audio nicht erkannt',
@@ -1191,10 +1187,6 @@ export default {
       no_mask: 'Für dieses Bild kam kein Umriss',
       no_outline: 'Kein Umriss',
       whole_picture: 'Ganzes Bild',
-    },
-    doorbell_trigger: {
-      ringing: 'Klingelt!',
-      ready: 'Bereit',
     },
     dialog: {
       open: 'Öffnen',
@@ -4655,11 +4647,6 @@ export default {
       section_camera: 'Kamera',
       section_sensor: 'Sensor',
       sensor_passage: 'Gehört zu Durchgang',
-      sensor_toggle: 'Schalten',
-      security_disarmed: 'Unscharf',
-      security_stay: 'Anwesend scharf',
-      security_away: 'Abwesend scharf',
-      security_night: 'Nacht scharf',
       sensor_passage_hint: 'Ein Kontakt oder ein Schloss sagt etwas über genau diese Tür.',
       remove_sensor: 'Sensor entfernen',
       section_view: 'Sicht',

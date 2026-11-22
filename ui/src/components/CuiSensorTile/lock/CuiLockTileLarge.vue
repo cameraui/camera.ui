@@ -24,14 +24,19 @@
 
       <Button v-if="jammed" severity="danger" size="small" class="cui-button-medium" :label="t('components.sensor_tile.retry')" :disabled="!interactive" @click="retry" />
       <span v-else-if="interactive" class="text-xs text-muted">{{ caption }}</span>
+
+      <CuiTileHistoryTimeline :sensor :property="LockProperty.CurrentState" :color-of="timelineColor" />
     </div>
   </CuiTilePanel>
 </template>
 
 <script setup lang="ts">
+import { LockProperty } from '@camera.ui/sdk';
+
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiHoldDial from '../frame/CuiHoldDial.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useLock, useLockPress } from './useLock.js';
@@ -45,7 +50,7 @@ const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const lock = useLock(() => props.sensor);
-const { jammed, wantsLocked, moving, color, stateText, retry } = lock;
+const { jammed, wantsLocked, moving, color, stateText, retry, timelineColor } = lock;
 
 const dialRef = useTemplateRef<ComponentPublicInstance>('dialRef');
 const dialEl = computed(() => dialRef.value?.$el as HTMLElement | undefined);

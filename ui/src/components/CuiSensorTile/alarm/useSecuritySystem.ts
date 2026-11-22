@@ -1,6 +1,6 @@
 import { SecuritySystemProperty, SecuritySystemState, sensorMeta } from '@camera.ui/sdk';
 
-import { sensorPropertySpec, sensorStatus, toneColor } from '@/common/sensorDisplay.js';
+import { securityColor, sensorPropertySpec, sensorStatus } from '@/common/sensorDisplay.js';
 
 import { useGuardedPress } from '../useGuardedPress.js';
 import { useSensorSettings } from '../useSensorSettings.js';
@@ -27,11 +27,8 @@ export function useSecuritySystem(sensor: () => ReactiveSensor<object>) {
   const modes = computed(() => Object.values(sensorPropertySpec(sensor(), SecuritySystemProperty.TargetState)?.values ?? {}).map(Number));
   const armModes = computed(() => modes.value.filter((mode) => ARMED.has(mode)));
 
-  const color = computed(() => {
-    if (triggered.value) return toneColor('alarm');
-    return wantsArmed.value ? toneColor('ok') : undefined;
-  });
-  const calm = computed(() => (wantsArmed.value ? toneColor('ok') : 'var(--text-secondary-color)'));
+  const color = computed(() => securityColor(triggered.value ? SecuritySystemState.AlarmTriggered : target.value));
+  const calm = computed(() => securityColor(target.value) ?? 'var(--text-secondary-color)');
 
   const stateText = computed(() => {
     if (!sensor().connected.value) return t('connection.offline');
@@ -71,12 +68,7 @@ export function useSecuritySystem(sensor: () => ReactiveSensor<object>) {
     return armModes.value.includes(SecuritySystemState.AwayArm) ? SecuritySystemState.AwayArm : armModes.value[0];
   }
 
-  function timelineColor(value: unknown): string | undefined {
-    if (value === SecuritySystemState.AlarmTriggered) return toneColor('alarm');
-    return ARMED.has(value) ? toneColor('ok') : undefined;
-  }
-
-  return { current, target, triggered, wantsArmed, pending, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm, toggle, timelineColor };
+  return { current, target, triggered, wantsArmed, pending, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm, toggle };
 }
 
 export function useSecurityPress(target: MaybeRefOrGetter<HTMLElement | null | undefined>, system: ReturnType<typeof useSecuritySystem>, interactive: () => boolean) {

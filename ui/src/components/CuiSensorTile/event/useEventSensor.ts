@@ -1,4 +1,4 @@
-import { AccessProperty, AccessResult, SceneProperty, sensorMeta, SensorType } from '@camera.ui/sdk';
+import { AccessProperty, AccessResult, DoorbellProperty, SceneProperty, sensorMeta, SensorType } from '@camera.ui/sdk';
 
 import { sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
 
@@ -66,5 +66,9 @@ export function useEventSensor(sensor: () => ReactiveSensor<object>) {
     send(SceneProperty.Active, true);
   }
 
-  return { runnable, moments, loaded, active, last, color, stateText, describe, run };
+  function ring() {
+    send(DoorbellProperty.Ring, true);
+  }
+
+  return { runnable, moments, loaded, active, last, color, stateText, describe, run, ring };
 }

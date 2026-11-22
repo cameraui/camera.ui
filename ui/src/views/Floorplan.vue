@@ -231,42 +231,9 @@
 
     <div ref="sensorAnchorRef" class="fixed w-0 h-0" :style="{ left: `${sensorAnchor.x}px`, top: `${sensorAnchor.y}px` }" />
 
-    <Popover ref="sensorPopoverRef" class="shadow-lg cui-rounded-corner" :pt="{ content: { class: 'p-3' } }">
-      <div v-if="hoveredSensor" class="w-[220px] flex flex-col gap-3" @pointerenter="keepSensorPopover" @pointerleave="hideSensorPopover">
-        <div class="flex items-center gap-2.5">
-          <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
-            <component :is="sensorIcon(hoveredSensor.sensorType, liveSensorOf(hoveredSensor.id))" class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold truncate text-color">{{ hoveredSensor.name }}</div>
-            <div v-if="hoveredSensor.owner" class="text-[11px] text-muted truncate">{{ hoveredSensor.owner }}</div>
-            <div class="text-xs text-muted truncate">{{ sensorStatus(hoveredSensor.sensorType, liveSensorOf(hoveredSensor.id), t) }}</div>
-          </div>
-        </div>
-
-        <div v-if="hoveredSensor.note" class="text-xs text-muted">{{ hoveredSensor.note }}</div>
-
-        <div v-if="isAdmin && hoveredSensor.sensorType === 'securitySystem'" class="flex flex-col gap-1">
-          <Button
-            v-for="state in hoveredSecurityStates"
-            :key="state.value"
-            severity="secondary"
-            :outlined="securityState(liveSensorOf(hoveredSensor.id)) !== state.value"
-            size="small"
-            class="cui-button-medium"
-            :label="$t(state.labelKey)"
-            @click="onSetSecurity(hoveredSensor!.id, state.value)"
-          />
-        </div>
-
-        <Button
-          v-else-if="isControllable(hoveredSensor.sensorType)"
-          severity="secondary"
-          size="small"
-          class="cui-button-medium"
-          :label="$t('views.floorplan.sensor_toggle')"
-          @click="onToggleSensor(hoveredSensor!.id)"
-        />
+    <Popover ref="sensorPopoverRef" :pt="TILE_HOVER_PT" @hide="onSensorPopoverHide">
+      <div v-if="hoveredLive" @pointerenter="keepSensorPopover" @pointerleave="hideSensorPopover">
+        <CuiSensorTile :key="hoveredLive.id" v-model:expanded="sensorPinned" :sensor="hoveredLive" size="medium" expand-in-place :disabled="!isAdmin" />
       </div>
     </Popover>
 
@@ -344,14 +311,12 @@ import { CamerasQuery } from '@/api/routes/cameras.js';
 import { getFloorPlan, putFloorPlan } from '@/api/routes/floorplan.js';
 import { getRooms } from '@/api/routes/rooms.js';
 import { useAllSensors } from '@camera.ui/browser';
-import { SecuritySystemState } from '@camera.ui/sdk';
 
 import { extractErrorMessage, randomId } from '@/common/utils.js';
 import FloorplanLevelDialog from '@/components/CuiDialog/templates/FloorplanLevel/FloorplanLevel.vue';
 import { passageOn, planRemovals, sharedWall, withoutRemovals } from '@/components/CuiFloorplan/utils.js';
-import { sensorIcon, sensorStatus } from '@/common/sensorDisplay.js';
-import { securityModes, securityState, setSecurityState, toggleSensor } from '@/components/CuiSensors/display.js';
-import { SENSOR_READONLY_TYPES, SENSOR_SHORTCUTABLE_TYPES } from '@/components/CuiShortcuts/types.js';
+import { TILE_HOVER_PT } from '@/components/CuiSensorTile/hover.js';
+import { SENSOR_SHORTCUTABLE_TYPES } from '@/components/CuiShortcuts/types.js';
 
 import type { FloorplanLevelProps } from '@/components/CuiDialog/templates/FloorplanLevel/types.js';
 import { FLOORPLAN_DOOR_WIDTH } from '@/components/CuiFloorplan/types.js';
@@ -400,6 +365,7 @@ const sensorAnchorRef = ref<HTMLElement | null>(null);
 const sensorAnchor = ref({ x: 0, y: 0 });
 const sensorPopoverRef = ref<InstanceType<typeof Popover>>();
 const hoveredSensorId = ref<string | null>(null);
+const sensorPinned = ref(false);
 const previewCameraId = ref<string | null>(null);
 
 const catalog = ref<DBRoomCatalog>({ version: 0, updatedAt: 0, levels: [], rooms: [] });
@@ -424,13 +390,6 @@ const sheetDragging = ref(false);
 
 const undoStack = shallowRef<string[]>([]);
 const redoStack = shallowRef<string[]>([]);
-
-const SECURITY_STATES = [
-  { value: SecuritySystemState.Disarmed, labelKey: 'views.floorplan.security_disarmed' },
-  { value: SecuritySystemState.StayArm, labelKey: 'views.floorplan.security_stay' },
-  { value: SecuritySystemState.AwayArm, labelKey: 'views.floorplan.security_away' },
-  { value: SecuritySystemState.NightArm, labelKey: 'views.floorplan.security_night' },
-];
 
 const MAX_HISTORY = 50;
 const SHEET_PEEK = 92;
@@ -870,29 +829,10 @@ function onUpdateSensor({ id, patch }: { id: string; patch: Partial<FloorplanSen
   if (sensor) Object.assign(sensor, patch);
 }
 
-const hoveredSensor = computed(() => sensors.value.find((sensor) => sensor.id === hoveredSensorId.value));
-
-const hoveredSecurityStates = computed(() => {
-  const modes = securityModes(hoveredSensor.value && liveSensorOf(hoveredSensor.value.id));
-  return SECURITY_STATES.filter((state) => modes.includes(state.value));
-});
+const hoveredLive = computed(() => (hoveredSensorId.value ? liveSensorOf(hoveredSensorId.value) : undefined));
 
 function liveSensorOf(id: string): ReactiveSensor | undefined {
   return liveSensors.value.find((sensor: ReactiveSensor) => sensor.id === id);
-}
-
-function isControllable(type: string): boolean {
-  return isAdmin && !SENSOR_READONLY_TYPES.has(type as SensorShortcutType);
-}
-
-async function onToggleSensor(id: string): Promise<void> {
-  if (!isAdmin) return;
-  await toggleSensor(liveSensorOf(id));
-}
-
-async function onSetSecurity(id: string, state: SecuritySystemState): Promise<void> {
-  if (!isAdmin) return;
-  await setSecurityState(liveSensorOf(id), state);
 }
 
 function keepSensorPopover(): void {
@@ -901,21 +841,26 @@ function keepSensorPopover(): void {
 
 function hideSensorPopover(): void {
   clearTimeout(sensorHideTimer);
+  if (sensorPinned.value) return;
   sensorHideTimer = setTimeout(() => {
     hoveredSensorId.value = null;
     sensorPopoverRef.value?.hide();
   }, 220);
 }
 
+function onSensorPopoverHide(): void {
+  sensorPinned.value = false;
+  hoveredSensorId.value = null;
+}
+
 function onHoverSensor(hover: { sensorId: string; x: number; y: number } | null): void {
+  if (sensorPinned.value) return;
   if (!hover) return hideSensorPopover();
 
   keepSensorPopover();
   hoveredSensorId.value = hover.sensorId;
   sensorAnchor.value = { x: hover.x, y: hover.y };
-  nextTick(() => {
-    if (sensorAnchorRef.value) sensorPopoverRef.value?.show({ currentTarget: sensorAnchorRef.value } as unknown as Event);
-  });
+  nextTick(() => showPopoverAt(sensorPopoverRef.value, sensorAnchorRef.value));
 }
 
 function onHoverCamera(hover: { cameraId: string; x: number; y: number } | null): void {
@@ -928,9 +873,14 @@ function onHoverCamera(hover: { cameraId: string; x: number; y: number } | null)
 
   previewAnchor.value = { x: hover.x, y: hover.y };
   previewCameraId.value = hover.cameraId;
-  previewTimer = setTimeout(() => {
-    if (previewAnchorRef.value) previewRef.value?.show({ currentTarget: previewAnchorRef.value } as unknown as Event);
-  }, 350);
+  previewTimer = setTimeout(() => showPopoverAt(previewRef.value, previewAnchorRef.value), 350);
+}
+
+function showPopoverAt(popover: InstanceType<typeof Popover> | undefined, anchor: HTMLElement | null): void {
+  if (!popover || !anchor) return;
+  popover.show({ currentTarget: anchor } as unknown as Event);
+  // show keeps the old position while the popover is already open for another marker
+  nextTick(() => popover.alignOverlay());
 }
 
 function keepPreview(): void {

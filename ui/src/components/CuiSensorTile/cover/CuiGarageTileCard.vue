@@ -16,20 +16,30 @@
     :aria-label="name"
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
-  />
+  >
+    <template #corner>
+      <CuiTileCornerButton :label="t('components.sensor_tile.controls')" @click.stop="emit('expand', $event)">
+        <TuneIcon />
+      </CuiTileCornerButton>
+    </template>
+  </CuiTileCard>
 </template>
 
 <script setup lang="ts">
+import TuneIcon from '~icons/mdi/tune-variant';
+
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
+import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useCover, useGaragePress } from './useCover.js';
 
-import type { SensorTileProps } from '../types.js';
+import type { SensorTileEmits, SensorTileProps } from '../types.js';
 import type { ComponentPublicInstance } from 'vue';
 
 const props = defineProps<SensorTileProps>();
+const emit = defineEmits<SensorTileEmits>();
 
 const { t } = useI18n();
 

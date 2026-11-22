@@ -6,10 +6,12 @@ export interface CuiSensorTileProps {
   sensor: ReactiveSensor;
   size?: SensorTileSize;
   disabled?: boolean;
+  expandInPlace?: boolean;
 }
 
-export interface CuiSensorTileEmits {
-  (e: 'open'): void;
+export interface CuiSensorTileSheetProps {
+  sensor: ReactiveSensor;
+  disabled?: boolean;
 }
 
 export interface SensorTileProps {

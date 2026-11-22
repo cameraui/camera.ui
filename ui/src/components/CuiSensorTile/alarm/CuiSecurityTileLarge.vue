@@ -16,14 +16,21 @@
           />
         </CuiTileControl>
         <CuiTileControl v-for="mode in armModes" :key="mode" :caption="modeLabel(mode)">
-          <CuiTileButton :icon="MODE_ICONS[mode] ?? AwayIcon" :label="modeLabel(mode)" :color="okColor" :active="target === mode" :interactive @click="arm(mode)" />
+          <CuiTileButton
+            :icon="MODE_ICONS[mode] ?? AwayIcon"
+            :label="modeLabel(mode)"
+            :color="securityColor(mode)"
+            :active="target === mode"
+            :interactive
+            @click="arm(mode)"
+          />
         </CuiTileControl>
       </div>
       <span class="text-xs text-muted security-large__hint" :class="{ 'security-large__hint--shown': hint }">{{ t('components.sensor_tile.hold_to_disarm') }}</span>
 
       <CuiTileReading :state="stateText" :detail="sinceText" />
 
-      <CuiTileTimeline :sensor :property="SecuritySystemProperty.CurrentState" :entries :now :color-of="timelineColor" />
+      <CuiTileTimeline :sensor :property="SecuritySystemProperty.CurrentState" :entries :now :color-of="securityColor" />
     </div>
   </CuiTilePanel>
 </template>
@@ -35,7 +42,7 @@ import HomeIcon from '~icons/mdi/shield-home';
 import AwayIcon from '~icons/mdi/shield-lock';
 import NightIcon from '~icons/mdi/shield-moon';
 
-import { sensorIcon, toneColor } from '@/common/sensorDisplay.js';
+import { securityColor, sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiAlarmScene from '../binary/CuiAlarmScene.vue';
 import CuiHoldButton from '../frame/CuiHoldButton.vue';
@@ -62,14 +69,13 @@ const props = defineProps<SensorTileProps>();
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
-const { target, triggered, wantsArmed, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm, timelineColor } = useSecuritySystem(() => props.sensor);
+const { target, triggered, wantsArmed, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm } = useSecuritySystem(() => props.sensor);
 const { entries, now, sinceText } = useSensorHistory(
   () => props.sensor,
   () => SecuritySystemProperty.CurrentState,
 );
 
 const hint = ref(false);
-const okColor = toneColor('ok');
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 </script>
 

@@ -51,6 +51,8 @@
         />
         <Select v-else :model-value="source" :options="sources" option-label="label" option-value="value" size="small" fluid :disabled="!interactive" @update:model-value="setSource" />
       </div>
+
+      <CuiTileHistoryTimeline :sensor :property="MediaPlayerProperty.State" :color-of="timelineColor" />
     </div>
   </CuiTilePanel>
 </template>
@@ -65,6 +67,7 @@ import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiLevelBar from '../frame/CuiLevelBar.vue';
 import CuiTileButton from '../frame/CuiTileButton.vue';
+import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import CuiTileReading from '../frame/CuiTileReading.vue';
 import { useTileSensor } from '../useTileSensor.js';
@@ -108,6 +111,7 @@ const {
   setMuted,
   setSource,
   propertyLabel,
+  timelineColor,
 } = useMediaPlayer(() => props.sensor);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));

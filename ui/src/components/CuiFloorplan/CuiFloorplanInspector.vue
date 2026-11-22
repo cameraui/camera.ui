@@ -18,6 +18,8 @@
     </div>
 
     <div class="flex-1 overflow-y-auto" :class="{ 'pb-[var(--cui-bottom-gap)]': readOnly }">
+      <CuiSensorTile v-if="liveSensor" :key="liveSensor.id" :sensor="liveSensor" size="small" :disabled="!canControl" class="p-4 border-bottom-color" />
+
       <Accordion multiple :value="openPanels" :class="fluid ? 'w-full' : 'w-[300px]'">
         <AccordionPanel v-if="room" value="general">
           <AccordionHeader class="px-4 rounded-none!">
@@ -288,6 +290,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAllSensors } from '@camera.ui/browser';
+
 import { FLOORPLAN_CAMERA_RANGE, FLOORPLAN_CONNECTION_TYPES, FLOORPLAN_NOTE_MAX, FLOORPLAN_PASSAGE_RANGE } from './types.js';
 import { lengthLabel, sharedWall } from './utils.js';
 
@@ -298,6 +302,9 @@ const props = defineProps<CuiFloorplanInspectorProps>();
 const emit = defineEmits<CuiFloorplanInspectorEmits>();
 
 const { t } = useI18n();
+const { sensors: liveSensors } = useAllSensors();
+
+const canControl = hasPermission(undefined, 'admin');
 
 const openPanels = ref(['general', 'view']);
 
@@ -339,6 +346,7 @@ const roomOptions = computed(() => {
 });
 
 const sensor = computed(() => (props.selection?.kind === 'sensor' ? props.sensors.find((item) => item.id === props.selection?.id) : undefined));
+const liveSensor = computed(() => sensor.value && liveSensors.value.find((item) => item.id === sensor.value?.id));
 
 const sensorRoomOptions = computed(() => {
   const seen = new Set<string>();
