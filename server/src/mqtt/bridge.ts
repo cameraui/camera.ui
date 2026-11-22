@@ -1,9 +1,10 @@
 import { SensorType } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
+import { resolveSensorSemantics } from '../sensors/semantics.js';
 import { isWritableSensor } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
-import { buildCameraDiscovery, buildSensorDiscovery, haDeviceIdentifier } from './ha-discovery.js';
+import { buildCameraDiscovery, buildSensorDiscovery, COVER_STOP_PAYLOAD, haDeviceIdentifier } from './ha-discovery.js';
 
 import type { DetectionEvent, DetectionEventType } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
@@ -181,7 +182,11 @@ export class MqttBridge {
     const sensor = this.registry.getSensor(sensorId, { connectedOnly: true });
     if (!sensor || !this.isHaExportable(sensor.data) || !isWritableSensor(sensor.type, sensor.pluginId)) return;
 
-    sensor.updateValue(property, parseCommandPayload(payload.toString('utf8'))).catch((error: unknown) => {
+    const value = parseCommandPayload(payload.toString('utf8'));
+    // HA sends a cover's stop on the open/close topic
+    const stop = value === COVER_STOP_PAYLOAD ? resolveSensorSemantics(sensor.data)?.stop : undefined;
+    const write = stop ? sensor.updateValue(stop.property, true) : sensor.updateValue(property, value);
+    write.catch((error: unknown) => {
       inject('logger').warn(`MQTT command for sensor ${sensorId} rejected:`, error);
     });
   }

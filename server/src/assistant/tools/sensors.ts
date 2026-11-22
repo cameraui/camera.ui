@@ -1,4 +1,4 @@
-import { PresenceProperty, SensorDomain, SensorType, toUnitSystem } from '@camera.ui/sdk';
+import { fromUnitSystem, PresenceProperty, SensorDomain, SensorType, ThermostatMode, toUnitSystem } from '@camera.ui/sdk';
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
@@ -10,6 +10,7 @@ import { resolveCameraName } from './cameras.js';
 import { approvalSchema, toolError } from './shared.js';
 
 import type { TransformedSensor } from '../../api/services/sensors.service.js';
+import type { SensorSemantics } from '@camera.ui/sdk';
 import type { CoreTool, ToolContext } from './shared.js';
 
 function findSensor(sensors: SensorsService, idOrName: string): TransformedSensor | undefined {
@@ -25,7 +26,11 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
   if (!semantics) return undefined;
   const value = sensor.properties[semantics.stateProperty];
   if (semantics.domain === SensorDomain.Event) return (value as string) || 'idle';
-  if (semantics.states) return Object.entries(semantics.states).find(([, wire]) => wire === value)?.[0] ?? (value as number | undefined);
+  if (semantics.states) {
+    const name = Object.entries(semantics.states).find(([, wire]) => wire === value)?.[0];
+    const detail = detailOf(sensor, semantics);
+    return name && detail ? `${name}, ${detail}` : (name ?? (value as number | undefined));
+  }
   if (typeof value === 'boolean') {
     if (sensor.type === SensorType.Presence) return value ? 'home' : ['away', sensor.properties[PresenceProperty.Zone]].filter(Boolean).join(', ');
     if (semantics.deviceClass === 'opening' || sensor.type === SensorType.Contact) return value ? 'open' : 'closed';
@@ -37,6 +42,23 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
     return `${shown.value} ${shown.unit}`;
   }
   return value as string | number | undefined;
+}
+
+function detailOf(sensor: TransformedSensor, semantics: SensorSemantics): string | undefined {
+  if (semantics.position) return `${String(sensor.properties[semantics.position.current])}% open`;
+  const climate = semantics.climate;
+  if (!climate) return undefined;
+  const temperature = (property: string) => {
+    const value = sensor.properties[property];
+    if (typeof value !== 'number') return undefined;
+    const shown = toUnitSystem(value, '°C', instanceUnitSystem());
+    return `${shown.value} ${shown.unit}`;
+  };
+  const { targetLow, targetHigh } = climate;
+  const range = targetLow && targetHigh && sensor.properties[climate.mode] === ThermostatMode.HeatCool;
+  const target = range ? `${temperature(targetLow)} to ${temperature(targetHigh)}` : temperature(climate.target);
+  const action = climate.action ? sensor.properties[climate.action] : undefined;
+  return [temperature(climate.current) && `${temperature(climate.current)} now`, action, target && `target ${target}`].filter(Boolean).join(', ');
 }
 
 const listSensors = toolDefinition({
@@ -81,10 +103,16 @@ const listSensors = toolDefinition({
 
 const setSensorPropertyInput = zod.object({
   sensor: zod.string().describe('Sensor id or display name'),
-  property: zod.string().optional().describe('Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color'),
+  property: zod
+    .string()
+    .optional()
+    .describe(
+      'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
+      'covers targetPosition (0 closed, 100 open), thermostats targetTemperature',
+    ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])
-    .describe('New value, for a light color an object with hue (0-360) and saturation (0-100)'),
+    .describe('New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows'),
 });
 
 const setSensorProperty = toolDefinition({
@@ -105,7 +133,9 @@ const setSensorProperty = toolDefinition({
   const target = property ?? found.semantics?.commandProperty;
   if (!target) return toolError(`Sensor "${found.displayName || found.name}" has no command property, pass one explicitly.`);
 
-  const result = await sensors.command(found.id, target, value);
+  const unit = found.propertySpecs[target]?.unit;
+  const stored = typeof value === 'number' && unit ? fromUnitSystem(value, unit, instanceUnitSystem()) : value;
+  const result = await sensors.command(found.id, target, stored);
   if (typeof result === 'object') return toolError(`Sensor "${found.displayName || found.name}" rejected the value: ${result.rejected}.`);
   switch (result) {
     case 'ok':

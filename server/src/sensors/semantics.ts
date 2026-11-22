@@ -12,7 +12,7 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, color, readings, deviceClassProperty, ...rest } = base;
+  const { brightness, volume, color, position, tilt, stop, climate, readings, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
   const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
@@ -28,6 +28,10 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...(brightness && offered(brightness.property) ? { brightness } : {}),
     ...(volume && offered(volume.property) ? { volume } : {}),
     ...(colors ? { color: colors } : {}),
+    ...(position && offered(position.target) ? { position } : {}),
+    ...(tilt && offered(tilt.target) ? { tilt } : {}),
+    ...(stop && offered(stop.property) ? { stop } : {}),
+    ...(climate ? { climate: offeredClimate(climate, offered) } : {}),
     ...(readings ? { readings: readings.filter((reading) => offered(reading.property)) } : {}),
   };
 }
@@ -39,6 +43,16 @@ function offeredColor(color: NonNullable<SensorSemantics['color']>, offered: (pr
   // the mode only tells something when the light has both
   const mode = temperature && hueSaturation ? color.mode : undefined;
   return { ...(temperature ? { temperature } : {}), ...(hueSaturation ? { hueSaturation } : {}), ...(mode ? { mode } : {}) };
+}
+
+function offeredClimate(climate: NonNullable<SensorSemantics['climate']>, offered: (property: string) => boolean): SensorSemantics['climate'] {
+  const { targetLow, targetHigh, action, humidity, ...always } = climate;
+  return {
+    ...always,
+    ...(targetLow && targetHigh && offered(targetLow) && offered(targetHigh) ? { targetLow, targetHigh } : {}),
+    ...(action && offered(action) ? { action } : {}),
+    ...(humidity && offered(humidity) ? { humidity } : {}),
+  };
 }
 
 function isPropertyOffered(sensor: SemanticsInput, property: string): boolean {

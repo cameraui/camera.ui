@@ -1,6 +1,6 @@
 import { getSensorPropertySpec } from '@shared/types';
 
-import { shownValue } from '@/common/units.js';
+import { shownStep, shownValue } from '@/common/units.js';
 
 import type { SensorPropertySpec } from '@camera.ui/sdk';
 
@@ -45,7 +45,7 @@ export function getSensorPropertyInput(sensorType: string, property: string, sen
         kind: 'number',
         ...(spec.min !== undefined ? { min: shownValue(spec.min, spec.unit).value } : {}),
         ...(spec.max !== undefined ? { max: shownValue(spec.max, spec.unit).value } : {}),
-        ...(spec.step !== undefined ? { step: spec.step } : {}),
+        ...(spec.step !== undefined ? { step: shownStep(spec.step, spec.unit) } : {}),
         ...(spec.unit ? { unit: spec.unit, suffix: ` ${shownValue(0, spec.unit).unit}` } : {}),
       };
     case 'enum':

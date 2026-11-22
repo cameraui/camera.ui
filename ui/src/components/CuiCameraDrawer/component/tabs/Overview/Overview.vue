@@ -140,6 +140,7 @@ const SECTION_ORDER: SensorControlKind[] = [
   SensorDomain.Siren,
   SensorDomain.Alarm,
   SensorDomain.Cover,
+  SensorDomain.Climate,
   'doorbell',
   SensorDomain.Binary,
   SensorDomain.Measurement,

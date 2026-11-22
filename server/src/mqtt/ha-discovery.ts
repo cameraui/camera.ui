@@ -80,6 +80,8 @@ const ALARM_ACTIONS: Record<string, string> = {
   DISARM: 'disarmed',
 };
 
+export const COVER_STOP_PAYLOAD = 'STOP';
+
 const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Binary]: 'binary_sensor',
   [SensorDomain.Measurement]: 'sensor',
@@ -88,6 +90,7 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Siren]: 'siren',
   [SensorDomain.Lock]: 'lock',
   [SensorDomain.Cover]: 'cover',
+  [SensorDomain.Climate]: 'climate',
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -268,8 +271,27 @@ function domainConfig(
         state_stopped: String(states.stopped),
         payload_open: String(states.open),
         payload_close: String(states.closed),
-        payload_stop: null,
+        payload_stop: semantics.stop ? COVER_STOP_PAYLOAD : null,
+        ...(semantics.position
+          ? {
+              position_topic: state(semantics.position.current),
+              set_position_topic: command(semantics.position.target),
+              position_open: 100,
+              position_closed: 0,
+            }
+          : {}),
+        ...(semantics.tilt
+          ? {
+              tilt_status_topic: state(semantics.tilt.current),
+              tilt_command_topic: command(semantics.tilt.target),
+              tilt_min: 0,
+              tilt_max: 100,
+            }
+          : {}),
       };
+
+    case SensorDomain.Climate:
+      return climateConfig(semantics, spec, state, command);
 
     case SensorDomain.Alarm: {
       const offered = spec(semantics.commandProperty)?.values;
@@ -307,6 +329,44 @@ function domainConfig(
       };
     }
   }
+}
+
+function climateConfig(
+  semantics: SensorSemantics,
+  spec: (property: string) => SensorPropertySpec | undefined,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const climate = semantics.climate;
+  if (!climate) return {};
+  const target = spec(climate.target);
+  // strings and null arrive as JSON, HA reads the rendered "None" as unknown
+  const json = '{{ value_json }}';
+  return {
+    temperature_unit: 'C',
+    precision: 0.1,
+    modes: Object.values(semantics.states ?? {}).map(String),
+    mode_state_topic: state(climate.mode),
+    mode_state_template: json,
+    mode_command_topic: command(climate.mode),
+    current_temperature_topic: state(climate.current),
+    current_temperature_template: json,
+    temperature_state_topic: state(climate.target),
+    temperature_command_topic: command(climate.target),
+    ...(target?.min !== undefined ? { min_temp: target.min } : {}),
+    ...(target?.max !== undefined ? { max_temp: target.max } : {}),
+    ...(target?.step !== undefined ? { temp_step: target.step } : {}),
+    ...(climate.targetLow && climate.targetHigh
+      ? {
+          temperature_low_state_topic: state(climate.targetLow),
+          temperature_low_command_topic: command(climate.targetLow),
+          temperature_high_state_topic: state(climate.targetHigh),
+          temperature_high_command_topic: command(climate.targetHigh),
+        }
+      : {}),
+    ...(climate.action ? { action_topic: state(climate.action), action_template: json } : {}),
+    ...(climate.humidity ? { current_humidity_topic: state(climate.humidity), current_humidity_template: json } : {}),
+  };
 }
 
 function lightColorConfig(

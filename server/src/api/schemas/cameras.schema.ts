@@ -426,6 +426,8 @@ export const assignmentsSchema = zod
     smoke: pluginInfo.array().optional(),
     leak: pluginInfo.array().optional(),
     garage: pluginInfo.array().optional(),
+    cover: pluginInfo.array().optional(),
+    thermostat: pluginInfo.array().optional(),
     gas: pluginInfo.array().optional(),
     carbonMonoxide: pluginInfo.array().optional(),
     carbonDioxide: pluginInfo.array().optional(),

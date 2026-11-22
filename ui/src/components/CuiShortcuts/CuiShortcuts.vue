@@ -256,6 +256,7 @@
 import {
   isReactiveBatteryInfo,
   isReactiveContactSensor,
+  isReactiveCoverControl,
   isReactiveDoorbellTrigger,
   isReactiveGarageControl,
   isReactiveHumidityInfo,
@@ -268,6 +269,7 @@ import {
   isReactiveSirenControl,
   isReactiveSmokeSensor,
   isReactiveTemperatureInfo,
+  isReactiveThermostatControl,
   useCameraUi,
   useSensors,
 } from '@camera.ui/browser';
@@ -359,6 +361,8 @@ const availableSensorsForShortcuts = computed(() => {
       isReactiveLightControl(s) ||
       isReactiveLockControl(s) ||
       isReactiveGarageControl(s) ||
+      isReactiveCoverControl(s) ||
+      isReactiveThermostatControl(s) ||
       s.type === SensorType.Switch ||
       isReactiveOutletControl(s) ||
       isReactiveSirenControl(s) ||
