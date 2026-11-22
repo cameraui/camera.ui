@@ -34,7 +34,9 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...rest
   } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
-  const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
+  const kind = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : undefined;
+  // a narrowed kind wins, until then the type's own class stays
+  const deviceClass = kind ?? base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty]?.values, sensor.propertySpecs?.[base.stateProperty]);
   const offeredCommands = offeredValues(commands, sensor.propertySpecs?.[base.commandProperty]);
   const colors = color && offeredColor(color, offered);

@@ -17,6 +17,7 @@ import {
   MediaPlayerCommand,
   MediaPlayerProperty,
   MediaPlayerState,
+  PresenceProperty,
   RING_AUTO_RESET_MS,
   SCENE_AUTO_RESET_MS,
   SceneProperty,
@@ -177,6 +178,7 @@ export class VirtualSensorHost {
     }
 
     if (this.type === SensorType.Light) return lightFollowUps(property as LightProperty, value);
+    if (this.type === SensorType.Presence) return presenceFollowUps(property as PresenceProperty, value);
 
     if (this.type === SensorType.Thermostat && (property as ThermostatProperty) === ThermostatProperty.Mode) {
       return { [ThermostatProperty.Action]: value === ThermostatMode.Off ? ThermostatAction.Off : ThermostatAction.Idle };
@@ -207,6 +209,13 @@ export class VirtualSensorHost {
   private write(properties: Record<string, unknown>): void {
     this.registry.updatePropertyValues(this.sensorId, properties);
   }
+}
+
+function presenceFollowUps(property: PresenceProperty, value: unknown): Record<string, unknown> {
+  // a zone names where the person is while away, at home it stays empty
+  if (property === PresenceProperty.Detected && value === true) return { [PresenceProperty.Zone]: '' };
+  if (property === PresenceProperty.Zone && value) return { [PresenceProperty.Detected]: false };
+  return {};
 }
 
 function lightFollowUps(property: LightProperty, value: unknown): Record<string, unknown> {
