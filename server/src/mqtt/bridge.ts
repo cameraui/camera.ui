@@ -4,7 +4,7 @@ import { inject } from '../container.js';
 import { resolveSensorSemantics } from '../sensors/semantics.js';
 import { isWritableSensor } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
-import { buildCameraDiscovery, buildSensorDiscovery, COVER_STOP_PAYLOAD, haDeviceIdentifier } from './ha-discovery.js';
+import { buildCameraDiscovery, buildSensorDiscovery, COVER_STOP_PAYLOAD, haDeviceIdentifier, vacuumStatePayload } from './ha-discovery.js';
 
 import type { DetectionEvent, DetectionEventType } from '@camera.ui/sdk';
 import type { CameraUiAPI } from '../api.js';
@@ -147,6 +147,7 @@ export class MqttBridge {
       const sensor = this.registry.getSensor(change.sensorId);
       if (!this.isHaExportable(sensor?.data)) return;
       this.publishRetained(sensorBucket(change.sensorId), this.manager.topics.sensorProperty(change.sensorId, change.property), JSON.stringify(change.value ?? null));
+      if (sensor?.type === SensorType.Vacuum) this.publishVacuumState(sensor.data);
     });
 
     for (const controller of this.api.getCameras()) {
@@ -320,6 +321,7 @@ export class MqttBridge {
     for (const [property, value] of Object.entries(data.properties)) {
       this.publishRetained(bucket, this.manager.topics.sensorProperty(data.id, property), JSON.stringify(value ?? null));
     }
+    this.publishVacuumState(data);
 
     const ha = this.manager.haDiscovery;
     if (ha.enabled) {
@@ -334,6 +336,11 @@ export class MqttBridge {
         this.publishRetained(bucket, message.topic, message.payload);
       }
     }
+  }
+
+  private publishVacuumState(data: StoredSensorData): void {
+    const payload = vacuumStatePayload(data);
+    if (payload) this.publishRetained(sensorBucket(data.id), this.manager.topics.sensorVacuumState(data.id), payload);
   }
 
   private handleDetectionEvent(controller: CameraController, type: DetectionEventType, event: DetectionEvent): void {

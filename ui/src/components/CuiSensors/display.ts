@@ -6,12 +6,14 @@ import {
   isReactiveFanControl,
   isReactiveGarageControl,
   isReactiveHumidifierControl,
+  isReactiveLawnMowerControl,
   isReactiveLightControl,
   isReactiveLockControl,
   isReactiveOutletControl,
   isReactiveSceneControl,
   isReactiveSecuritySystem,
   isReactiveSirenControl,
+  isReactiveVacuumControl,
   isReactiveValveControl,
 } from '@camera.ui/browser';
 import {
@@ -32,15 +34,18 @@ import {
   SensorType,
   SirenProperty,
   SwitchProperty,
+  VacuumCommand,
+  VacuumProperty,
   ValveProperty,
   ValveState,
 } from '@camera.ui/sdk';
 
-import { isSensorActive } from '@/common/sensorDisplay.js';
+import { isSensorActive, sensorPropertySpec } from '@/common/sensorDisplay.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 
 const SECURITY_MODES = [SecuritySystemState.Disarmed, SecuritySystemState.StayArm, SecuritySystemState.AwayArm, SecuritySystemState.NightArm];
+const ROBOT_STOPS = [VacuumCommand.Dock, VacuumCommand.Stop, VacuumCommand.Pause];
 
 export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<void> {
   if (!sensor) return;
@@ -60,7 +65,17 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
   if (isReactiveSceneControl(sensor)) return await sensor.setProperty(SceneProperty.Active, true);
   if (isReactiveHumidifierControl(sensor)) return await sensor.setProperty(HumidifierProperty.On, !active);
   if (isReactiveAirPurifierControl(sensor)) return await sensor.setProperty(AirPurifierProperty.On, !active);
+  if (isReactiveVacuumControl(sensor) || isReactiveLawnMowerControl(sensor)) {
+    const command = robotCommand(sensor, active);
+    if (command) await sensor.setProperty(VacuumProperty.Command, command);
+    return;
+  }
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);
+}
+
+function robotCommand(sensor: ReactiveSensor, working: boolean): string | undefined {
+  const offered: unknown[] = Object.values(sensorPropertySpec(sensor, VacuumProperty.Command)?.values ?? {});
+  return (working ? ROBOT_STOPS : [VacuumCommand.Start]).find((command) => offered.includes(command));
 }
 
 export async function setSecurityState(sensor: ReactiveSensor | undefined, state: SecuritySystemState): Promise<void> {

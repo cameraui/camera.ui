@@ -434,6 +434,8 @@ export const assignmentsSchema = zod
     humidifier: pluginInfo.array().optional(),
     airPurifier: pluginInfo.array().optional(),
     waterHeater: pluginInfo.array().optional(),
+    vacuum: pluginInfo.array().optional(),
+    lawnMower: pluginInfo.array().optional(),
     gas: pluginInfo.array().optional(),
     carbonMonoxide: pluginInfo.array().optional(),
     carbonDioxide: pluginInfo.array().optional(),

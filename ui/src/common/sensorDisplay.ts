@@ -4,6 +4,7 @@ import {
   ChargingState,
   CoverKind,
   CoverProperty,
+  LawnMowerActivity,
   LockProperty,
   LockState,
   PresenceProperty,
@@ -14,6 +15,8 @@ import {
   sensorMeta,
   ThermostatAction,
   ThermostatMode,
+  VacuumActivity,
+  VacuumProperty,
   ValveKind,
   ValveProperty,
 } from '@camera.ui/sdk';
@@ -85,6 +88,11 @@ import PowerOffIcon from '~icons/mdi/power-plug-off-outline';
 import PowerIcon from '~icons/mdi/power-plug-outline';
 import OutletOnIcon from '~icons/mdi/power-plug';
 import OutletIcon from '~icons/mdi/power-socket-eu';
+import LawnMowerIcon from '~icons/mdi/robot-mower';
+import LawnMowerOffIcon from '~icons/mdi/robot-mower-outline';
+import VacuumIcon from '~icons/mdi/robot-vacuum';
+import VacuumAlertIcon from '~icons/mdi/robot-vacuum-alert';
+import VacuumOffIcon from '~icons/mdi/robot-vacuum-off';
 import ShadeIcon from '~icons/mdi/roller-shade';
 import ShadeClosedIcon from '~icons/mdi/roller-shade-closed';
 import PtzIcon from '~icons/mdi/rotate-orbit';
@@ -166,6 +174,8 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.Humidifier]: { icon: HumidifierOffIcon, activeIcon: HumidifierIcon, states: ['off', 'on'], tone: 'info' },
   [SensorDomain.AirPurifier]: { icon: AirPurifierOffIcon, activeIcon: AirPurifierIcon, states: ['off', 'on'], tone: 'info' },
   [SensorDomain.WaterHeater]: { icon: WaterBoilerOffIcon, activeIcon: WaterBoilerIcon, states: ['off', 'on'], tone: 'warn' },
+  [SensorDomain.Vacuum]: { icon: VacuumOffIcon, activeIcon: VacuumIcon, states: ['docked', 'cleaning'], tone: 'info' },
+  [SensorDomain.LawnMower]: { icon: LawnMowerOffIcon, activeIcon: LawnMowerIcon, states: ['docked', 'mowing'], tone: 'ok' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
   [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
   [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
@@ -212,6 +222,7 @@ const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
 };
 
 const NAMED_STATE_DOMAINS = new Set<SensorDomain>([SensorDomain.Alarm, SensorDomain.Cover, SensorDomain.Valve]);
+const ROBOT_TYPES = new Set<string>([SensorType.Vacuum, SensorType.LawnMower]);
 
 const VALVE_KIND_ICONS: Partial<Record<ValveKind, readonly [closed: Component, open: Component]>> = {
   [ValveKind.Irrigation]: [SprinklerIcon, SprinklerOnIcon],
@@ -240,6 +251,7 @@ export function sensorIcon(type: string, sensor: AnySensor | undefined): Compone
   if (type === SensorType.SecuritySystem) return securityIcon(sensor);
   const active = sensor ? sensorActive(type, readFrom(sensor)) : false;
   if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return LockAlertIcon;
+  if (type === SensorType.Vacuum && sensor?.getProperty(VacuumProperty.Activity) === VacuumActivity.Error) return VacuumAlertIcon;
   const kindIcons = kindIconsOf(type, sensor);
   return kindIcons ? kindIcons[active ? 1 : 0] : sensorTypeIcon(type, active);
 }
@@ -263,6 +275,10 @@ export function sensorActive(type: string, read: ReadProperty): boolean {
       const mode = read(semantics.stateProperty);
       return mode !== undefined && mode !== ThermostatMode.Off;
     }
+    case SensorDomain.Vacuum:
+      return read(semantics.stateProperty) === VacuumActivity.Cleaning;
+    case SensorDomain.LawnMower:
+      return read(semantics.stateProperty) === LawnMowerActivity.Mowing;
     case SensorDomain.Alarm: {
       const state = requested(semantics, read);
       return state !== undefined && state !== semantics.states?.disarmed;
@@ -292,6 +308,7 @@ export function sensorReadTone(type: string, read: ReadProperty): Record<string,
   if (type === SensorType.SecuritySystem && read(SecuritySystemProperty.CurrentState) === SecuritySystemState.AlarmTriggered) return toneStyle('alarm');
   if (read(sensorMeta(type)?.semantics?.climate?.action ?? '') === ThermostatAction.Cooling) return toneStyle('info');
   if (type === SensorType.Lock && read(LockProperty.CurrentState) === LockState.Jammed) return toneStyle('alarm');
+  if (ROBOT_TYPES.has(type) && read(VacuumProperty.Activity) === VacuumActivity.Error) return toneStyle('alarm');
   return toneStyle(sensorActive(type, read) ? lookOf(type).tone : undefined);
 }
 
@@ -311,6 +328,7 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
   if (sensor && semantics?.climate) return climateStatus(sensor, semantics.climate, t);
   if (sensor && semantics?.humidifier) return humidifierStatus(sensor, semantics.humidifier, value === true, t);
   if (sensor && semantics?.domain === SensorDomain.AirPurifier) return purifierStatus(sensor, value === true, t);
+  if (sensor && ROBOT_TYPES.has(type)) return valueName(sensor, VacuumProperty.Activity, t) ?? '--';
   if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return t('components.sensor_state.jammed');
   const speed = semantics?.fan?.speed;
   if (sensor && speed && value === true && sensorOffers(sensor, speed)) {

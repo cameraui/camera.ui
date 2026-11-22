@@ -1,5 +1,19 @@
 import { RPCMethod } from '@camera.ui/rpc';
-import { DoorbellProperty, LockProperty, RING_AUTO_RESET_MS, SCENE_AUTO_RESET_MS, SceneProperty, SensorType } from '@camera.ui/sdk';
+import {
+  COMMAND_AUTO_RESET_MS,
+  DoorbellProperty,
+  LawnMowerActivity,
+  LawnMowerCommand,
+  LawnMowerProperty,
+  LockProperty,
+  RING_AUTO_RESET_MS,
+  SCENE_AUTO_RESET_MS,
+  SceneProperty,
+  SensorType,
+  VacuumActivity,
+  VacuumCommand,
+  VacuumProperty,
+} from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
@@ -7,10 +21,33 @@ import { VIRTUAL_SENSOR_OWNER_ID } from '../sensors/types.js';
 
 import type { SensorRegistry } from './registry.js';
 
+interface Momentary {
+  property: string;
+  resetMs: number;
+  idle: unknown;
+}
+
 const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.Cover, SensorType.Valve, SensorType.SecuritySystem]);
-const MOMENTARY: Partial<Record<SensorType, { property: string; resetMs: number }>> = {
-  [SensorType.Doorbell]: { property: DoorbellProperty.Ring, resetMs: RING_AUTO_RESET_MS },
-  [SensorType.Scene]: { property: SceneProperty.Active, resetMs: SCENE_AUTO_RESET_MS },
+const MOMENTARY: Partial<Record<SensorType, Momentary>> = {
+  [SensorType.Doorbell]: { property: DoorbellProperty.Ring, resetMs: RING_AUTO_RESET_MS, idle: false },
+  [SensorType.Scene]: { property: SceneProperty.Active, resetMs: SCENE_AUTO_RESET_MS, idle: false },
+  [SensorType.Vacuum]: { property: VacuumProperty.Command, resetMs: COMMAND_AUTO_RESET_MS, idle: '' },
+  [SensorType.LawnMower]: { property: LawnMowerProperty.Command, resetMs: COMMAND_AUTO_RESET_MS, idle: '' },
+};
+// no hardware reports back, so a command moves the robot where it would go
+const ROBOT_ACTIVITIES: Partial<Record<SensorType, Record<string, string>>> = {
+  [SensorType.Vacuum]: {
+    [VacuumCommand.Start]: VacuumActivity.Cleaning,
+    [VacuumCommand.Spot]: VacuumActivity.Cleaning,
+    [VacuumCommand.Pause]: VacuumActivity.Paused,
+    [VacuumCommand.Stop]: VacuumActivity.Idle,
+    [VacuumCommand.Dock]: VacuumActivity.Docked,
+  },
+  [SensorType.LawnMower]: {
+    [LawnMowerCommand.Start]: LawnMowerActivity.Mowing,
+    [LawnMowerCommand.Pause]: LawnMowerActivity.Paused,
+    [LawnMowerCommand.Dock]: LawnMowerActivity.Docked,
+  },
 };
 const hosts = new Map<string, VirtualSensorHost>();
 
@@ -46,10 +83,10 @@ export class VirtualSensorHost {
 
     this.disposers.push(await proxy.registerHandler(rpcNamespace, new VirtualSensorRpcHandler(this)));
 
-    // a restart inside the reset window skips the reset, the stored true would stay
+    // a restart inside the reset window skips the reset, the stored value would stay
     const momentary = MOMENTARY[this.type];
-    if (momentary && this.registry.getPropertyValue(this.sensorId, momentary.property) === true) {
-      this.write({ [momentary.property]: false });
+    if (momentary && this.registry.getPropertyValue(this.sensorId, momentary.property) !== momentary.idle) {
+      this.write({ [momentary.property]: momentary.idle });
     }
   }
 
@@ -72,8 +109,8 @@ export class VirtualSensorHost {
   public applyUpdate(property: string, value: unknown): void {
     const momentary = MOMENTARY[this.type];
     if (momentary?.property === property) {
-      // false is owned by the reset timer
-      if (value) this.trigger(momentary.property, momentary.resetMs);
+      // the idle value is owned by the reset timer
+      if (value !== momentary.idle) this.trigger(momentary, value);
       return;
     }
 
@@ -86,13 +123,14 @@ export class VirtualSensorHost {
     this.write({ [property]: value });
   }
 
-  private trigger(property: string, resetMs: number): void {
+  private trigger({ property, resetMs, idle }: Momentary, value: unknown): void {
     if (this.resetTimer) clearTimeout(this.resetTimer);
 
-    this.write({ [property]: true });
+    const activity = ROBOT_ACTIVITIES[this.type]?.[String(value)];
+    this.write({ [property]: value, ...(activity ? { activity } : {}) });
     this.resetTimer = setTimeout(() => {
       this.resetTimer = undefined;
-      this.write({ [property]: false });
+      this.write({ [property]: idle });
     }, resetMs);
   }
 

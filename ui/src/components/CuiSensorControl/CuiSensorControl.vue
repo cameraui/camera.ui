@@ -180,6 +180,22 @@
     @update:mode="(value) => sensor.setProperty(HumidifierProperty.Mode, value)"
   />
 
+  <CuiRobotControl
+    v-else-if="kind === SensorDomain.Vacuum || kind === SensorDomain.LawnMower"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :label="sensor.displayName.value"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :commands="enumOptions(sensor, VacuumProperty.Command)"
+    :fan-speed="String(sensor.getProperty(VacuumProperty.FanSpeed) ?? '')"
+    :fan-speeds="sensorOffers(sensor, VacuumProperty.FanSpeed) ? choiceOptions(sensor, VacuumProperty.FanSpeed) : []"
+    :disabled
+    size="small"
+    class="card-border"
+    @command="(value) => sensor.setProperty(VacuumProperty.Command, value)"
+    @update:fan-speed="(value) => sensor.setProperty(VacuumProperty.FanSpeed, value)"
+  />
+
   <CuiSceneControl
     v-else-if="kind === SensorDomain.Scene"
     :icon="sensorIcon(sensor.type, sensor)"
@@ -325,13 +341,23 @@ import {
   SwitchProperty,
   ThermostatMode,
   ThermostatProperty,
+  VacuumProperty,
   ValveProperty,
   WaterHeaterMode,
   WaterHeaterProperty,
 } from '@camera.ui/sdk';
 
 import { getSensorHistoryFn } from '@/api/routes/sensors.js';
-import { isSensorActive, sensorIcon, sensorOffers, sensorPropertyLabelKey, sensorPropertySpec, sensorReadings, sensorStatus, sensorTone } from '@/common/sensorDisplay.js';
+import {
+  isSensorActive,
+  sensorIcon,
+  sensorOffers,
+  sensorPropertyLabelKey,
+  sensorPropertySpec,
+  sensorReadings,
+  sensorStatus,
+  sensorTone,
+} from '@/common/sensorDisplay.js';
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
 import { securityModes } from '@/components/CuiSensors/display.js';
 import CuiSensorPropertyRows from './CuiSensorPropertyRows.vue';

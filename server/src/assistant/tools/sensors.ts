@@ -122,11 +122,14 @@ const setSensorPropertyInput = zod.object({
     .describe(
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
       'covers and valves targetPosition (0 closed, 100 open), thermostats and water heaters targetTemperature, ' +
-      'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100)',
+      'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100), vacuums fanSpeed',
     ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])
-    .describe('New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows'),
+    .describe(
+      'New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows, ' +
+      'for a vacuum or lawn mower its command: start, pause, stop, dock, locate or spot',
+    ),
 });
 
 const setSensorProperty = toolDefinition({

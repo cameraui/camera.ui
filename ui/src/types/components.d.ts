@@ -215,6 +215,7 @@ declare module 'vue' {
     CuiQRCode: typeof import('./../components/CuiQRCode/CuiQRCode.vue')['default']
     CuiRecordingsGrid: typeof import('./../components/CuiRecordings/CuiRecordingsGrid.vue')['default']
     CuiRecordingSlots: typeof import('./../components/CuiRecordingSlots/CuiRecordingSlots.vue')['default']
+    CuiRobotControl: typeof import('./../components/CuiRobotControl/CuiRobotControl.vue')['default']
     CuiRouterLoading: typeof import('./../components/CuiRouterLoading/CuiRouterLoading.vue')['default']
     CuiSceneControl: typeof import('./../components/CuiSceneControl/CuiSceneControl.vue')['default']
     CuiSchema: typeof import('./../components/CuiSchema/CuiSchema.vue')['default']

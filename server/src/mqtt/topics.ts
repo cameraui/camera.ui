@@ -64,6 +64,10 @@ export class MqttTopics {
   sensorProperty(sensorId: string, property: string): string {
     return `${this.sensorPrefix(sensorId)}/${sanitizeTopicSegment(property)}`;
   }
+
+  sensorVacuumState(sensorId: string): string {
+    return `${this.sensorPrefix(sensorId)}/vacuum_state`;
+  }
 }
 
 export function sanitizeTopicSegment(segment: string): string {

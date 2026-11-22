@@ -82,6 +82,17 @@ const ALARM_ACTIONS: Record<string, string> = {
 
 export const COVER_STOP_PAYLOAD = 'STOP';
 
+const VACUUM_COMMANDS: Record<string, { feature: string; payload: string }> = {
+  start: { feature: 'start', payload: 'payload_start' },
+  pause: { feature: 'pause', payload: 'payload_pause' },
+  stop: { feature: 'stop', payload: 'payload_stop' },
+  dock: { feature: 'return_home', payload: 'payload_return_to_base' },
+  locate: { feature: 'locate', payload: 'payload_locate' },
+  spot: { feature: 'clean_spot', payload: 'payload_clean_spot' },
+};
+
+const LAWN_MOWER_OPTIONS: Record<string, string> = { start: 'start_mowing', pause: 'pause', dock: 'dock' };
+
 const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Binary]: 'binary_sensor',
   [SensorDomain.Measurement]: 'sensor',
@@ -97,6 +108,8 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Humidifier]: 'humidifier',
   [SensorDomain.AirPurifier]: 'fan',
   [SensorDomain.WaterHeater]: 'water_heater',
+  [SensorDomain.Vacuum]: 'vacuum',
+  [SensorDomain.LawnMower]: 'lawn_mower',
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -143,7 +156,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     ...(semantics.deviceClass ? { device_class: semantics.deviceClass } : {}),
     ...(semantics.icon ? { icon: semantics.icon } : {}),
     ...(semantics.diagnostic ? { entity_category: 'diagnostic' } : {}),
-    state_topic: state(semantics.stateProperty),
+    state_topic: semantics.domain === SensorDomain.Vacuum ? topics.sensorVacuumState(sensor.id) : state(semantics.stateProperty),
     ...domainConfig(semantics, (property) => sensor.propertySpecs[property] ?? getSensorPropertySpec(sensor.type, property), state, command),
   };
 
@@ -348,6 +361,28 @@ function domainConfig(
     case SensorDomain.WaterHeater:
       return semantics.climate ? temperatureControlConfig(semantics, semantics.climate, spec, state, command) : {};
 
+    case SensorDomain.Vacuum:
+      return vacuumConfig(semantics, spec, commandTopic, command);
+
+    case SensorDomain.LawnMower:
+      return {
+        state_topic: undefined,
+        activity_state_topic: state(semantics.stateProperty),
+        activity_value_template: '{{ value_json }}',
+        // HA sends the option's name unless a template names the command
+        ...Object.fromEntries(
+          Object.entries(semantics.commands ?? {}).flatMap(([name, value]) => {
+            const option = LAWN_MOWER_OPTIONS[name];
+            return option
+              ? [
+                  [`${option}_command_topic`, commandTopic],
+                  [`${option}_command_template`, value],
+                ]
+              : [];
+          }),
+        ),
+      };
+
     case SensorDomain.Alarm: {
       const offered = spec(semantics.commandProperty)?.values;
       return {
@@ -384,6 +419,30 @@ function domainConfig(
       };
     }
   }
+}
+
+export function vacuumStatePayload(sensor: StoredSensorData): string | undefined {
+  const semantics = resolveSensorSemantics(sensor);
+  if (semantics?.domain !== SensorDomain.Vacuum) return undefined;
+  const fanSpeed = semantics.fanSpeed ? { fan_speed: sensor.properties[semantics.fanSpeed.property] ?? null } : {};
+  return JSON.stringify({ state: sensor.properties[semantics.stateProperty] ?? null, ...fanSpeed });
+}
+
+function vacuumConfig(
+  semantics: SensorSemantics,
+  spec: (property: string) => SensorPropertySpec | undefined,
+  commandTopic: string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const commands = Object.entries(semantics.commands ?? {}).flatMap(([name, value]) => (VACUUM_COMMANDS[name] ? [{ ...VACUUM_COMMANDS[name], value }] : []));
+  // HA sends the fan speed back as it is in the list, so the list holds the choice values
+  const fanSpeeds = semantics.fanSpeed ? (spec(semantics.fanSpeed.property)?.choices ?? []).map((choice) => String(choice.value)) : [];
+  return {
+    command_topic: commandTopic,
+    ...Object.fromEntries(commands.map(({ payload, value }) => [payload, value])),
+    supported_features: [...commands.map(({ feature }) => feature), ...(fanSpeeds.length ? ['fan_speed'] : [])],
+    ...(semantics.fanSpeed && fanSpeeds.length ? { set_fan_speed_topic: command(semantics.fanSpeed.property), fan_speed_list: fanSpeeds } : {}),
+  };
 }
 
 function climateConfig(
