@@ -1,3 +1,5 @@
+import { sensorMeta } from '@camera.ui/sdk';
+
 import { SENSOR_PROPERTY_SPECS } from './types.js';
 
 import type { PropertySpecOverride, SensorPropertySpec, SensorType } from '@camera.ui/sdk';
@@ -8,6 +10,8 @@ export function sanitizePropertySpecs(
   warn: (message: string) => void,
 ): Record<string, PropertySpecOverride> {
   const typeSpecs = SENSOR_PROPERTY_SPECS[type] ?? {};
+  const semantics = sensorMeta(type)?.semantics;
+  const commandProperty = semantics?.commands ? semantics.commandProperty : undefined;
   const result: Record<string, PropertySpecOverride> = {};
 
   for (const [property, override] of Object.entries(overrides)) {
@@ -16,7 +20,8 @@ export function sanitizePropertySpecs(
       warn(`${type} has no property "${property}", its spec is ignored`);
       continue;
     }
-    const kept = sanitizeOverride(base, override, (field) => warn(`${type}.${property}: "${field}" does not fit the type's spec, ignored`));
+    const drop = (field: string) => warn(`${type}.${property}: "${field}" does not fit the type's spec, ignored`);
+    const kept = sanitizeOverride(base, override, property === commandProperty, drop);
     if (Object.keys(kept).length > 0) result[property] = kept;
   }
   return result;
@@ -35,7 +40,7 @@ export function resolvePropertySpecs(type: SensorType, overrides: Record<string,
   return result;
 }
 
-function sanitizeOverride(base: SensorPropertySpec, override: PropertySpecOverride, drop: (field: string) => void): PropertySpecOverride {
+function sanitizeOverride(base: SensorPropertySpec, override: PropertySpecOverride, commands: boolean, drop: (field: string) => void): PropertySpecOverride {
   const kept: PropertySpecOverride = {};
   const numeric = base.type === 'number';
 
@@ -57,7 +62,9 @@ function sanitizeOverride(base: SensorPropertySpec, override: PropertySpecOverri
   }
   if (override.values !== undefined) {
     const allowed = Object.values(base.values ?? {});
-    if (base.type === 'enum' && Array.isArray(override.values) && override.values.length > 0 && override.values.every((value) => allowed.includes(value))) {
+    // a device may take none of its type's commands, every other enum keeps at least one value
+    const fits = Array.isArray(override.values) && (override.values.length > 0 || commands);
+    if (base.type === 'enum' && fits && override.values.every((value) => allowed.includes(value))) {
       kept.values = [...new Set(override.values)];
     } else drop('values');
   }

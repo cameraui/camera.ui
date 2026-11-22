@@ -68,6 +68,10 @@ export class MqttTopics {
   sensorVacuumState(sensorId: string): string {
     return `${this.sensorPrefix(sensorId)}/vacuum_state`;
   }
+
+  sensorLockState(sensorId: string): string {
+    return `${this.sensorPrefix(sensorId)}/lock_state`;
+  }
 }
 
 export function sanitizeTopicSegment(segment: string): string {

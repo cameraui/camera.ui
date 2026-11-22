@@ -93,7 +93,9 @@ const VACUUM_COMMANDS: Record<string, { feature: string; payload: string }> = {
 
 const LAWN_MOWER_OPTIONS: Record<string, string> = { start: 'start_mowing', pause: 'pause', dock: 'dock' };
 
-const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
+const LOCK_STATES = ['locked', 'unlocked', 'locking', 'unlocking', 'jammed'];
+
+const DOMAIN_COMPONENT: Record<SensorDomain, string | undefined> = {
   [SensorDomain.Binary]: 'binary_sensor',
   [SensorDomain.Measurement]: 'sensor',
   [SensorDomain.Switch]: 'switch',
@@ -110,6 +112,8 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.WaterHeater]: 'water_heater',
   [SensorDomain.Vacuum]: 'vacuum',
   [SensorDomain.LawnMower]: 'lawn_mower',
+  // HA's MQTT integration has no media player
+  [SensorDomain.MediaPlayer]: undefined,
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -117,7 +121,8 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
 
 export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, sensor: StoredSensorData, viaCamera?: Camera): DiscoveryMessage[] {
   const semantics = resolveSensorSemantics(sensor);
-  if (!semantics) return [];
+  const component = semantics && DOMAIN_COMPONENT[semantics.domain];
+  if (!component) return [];
 
   const state = (property: string) => topics.sensorProperty(sensor.id, property);
   const command = (property: string) => `${state(property)}/set`;
@@ -156,11 +161,12 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     ...(semantics.deviceClass ? { device_class: semantics.deviceClass } : {}),
     ...(semantics.icon ? { icon: semantics.icon } : {}),
     ...(semantics.diagnostic ? { entity_category: 'diagnostic' } : {}),
-    state_topic: semantics.domain === SensorDomain.Vacuum ? topics.sensorVacuumState(sensor.id) : state(semantics.stateProperty),
+    state_topic: stateTopic(topics, sensor.id, semantics),
     ...domainConfig(semantics, (property) => sensor.propertySpecs[property] ?? getSensorPropertySpec(sensor.type, property), state, command),
   };
 
-  const messages = [{ topic: configTopic(haPrefix, DOMAIN_COMPONENT[semantics.domain], `sensor_${sensor.id}`, 'state'), payload: JSON.stringify(config) }];
+  const messages = [{ topic: configTopic(haPrefix, component, `sensor_${sensor.id}`, 'state'), payload: JSON.stringify(config) }];
+  const category = (property: string) => (semantics.configuration?.includes(property) ? { entity_category: 'config' } : {});
 
   // HA's siren carries volume in the on/off payload, so volume ships as its own number entity
   if (semantics.volume) {
@@ -170,6 +176,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
         name: entityName ? `${entityName} Volume` : 'Volume',
         unique_id: `cameraui_sensor_${sensor.id}_volume`,
         ...shared,
+        ...category(semantics.volume.property),
         icon: 'mdi:volume-high',
         state_topic: state(semantics.volume.property),
         command_topic: command(semantics.volume.property),
@@ -197,6 +204,22 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
     });
   }
 
+  for (const indicator of semantics.indicators ?? []) {
+    // named after the property, HA's name for a problem sensor says too little
+    messages.push({
+      topic: configTopic(haPrefix, 'binary_sensor', `sensor_${sensor.id}`, indicator.property),
+      payload: JSON.stringify({
+        name: settingName(entityName, indicator.property),
+        unique_id: `cameraui_sensor_${sensor.id}_${indicator.property}`,
+        ...shared,
+        ...(indicator.deviceClass ? { device_class: indicator.deviceClass } : {}),
+        state_topic: state(indicator.property),
+        payload_on: 'true',
+        payload_off: 'false',
+      }),
+    });
+  }
+
   for (const property of semantics.choices ?? []) {
     const choices = sensor.propertySpecs[property]?.choices ?? [];
     messages.push({
@@ -205,6 +228,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
         name: settingName(entityName, property),
         unique_id: `cameraui_sensor_${sensor.id}_${property}`,
         ...shared,
+        ...category(property),
         state_topic: state(property),
         value_template: choiceLabelTemplate(choices, ''),
         command_topic: command(property),
@@ -221,6 +245,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
         name: settingName(entityName, property),
         unique_id: `cameraui_sensor_${sensor.id}_${property}`,
         ...shared,
+        ...category(property),
         state_topic: state(property),
         command_topic: command(property),
         state_on: 'true',
@@ -289,11 +314,10 @@ function domainConfig(
     case SensorDomain.Lock:
       return {
         command_topic: commandTopic,
-        state_locked: String(states.locked),
-        state_unlocked: String(states.unlocked),
         payload_lock: String(states.locked),
         payload_unlock: String(states.unlocked),
-        ...(states.jammed !== undefined ? { state_jammed: String(states.jammed) } : {}),
+        ...Object.fromEntries(LOCK_STATES.map((name) => [`state_${name}`, name])),
+        payload_reset: 'unknown',
       };
 
     case SensorDomain.Cover:
@@ -418,6 +442,8 @@ function domainConfig(
         ...(maxLength ? { max: maxLength } : {}),
       };
     }
+    case SensorDomain.MediaPlayer:
+      return {};
   }
 }
 
@@ -426,6 +452,25 @@ export function vacuumStatePayload(sensor: StoredSensorData): string | undefined
   if (semantics?.domain !== SensorDomain.Vacuum) return undefined;
   const fanSpeed = semantics.fanSpeed ? { fan_speed: sensor.properties[semantics.fanSpeed.property] ?? null } : {};
   return JSON.stringify({ state: sensor.properties[semantics.stateProperty] ?? null, ...fanSpeed });
+}
+
+export function lockStatePayload(sensor: StoredSensorData): string | undefined {
+  const semantics = resolveSensorSemantics(sensor);
+  if (semantics?.domain !== SensorDomain.Lock) return undefined;
+  const { locked, unlocked, jammed } = semantics.states ?? {};
+  const current = sensor.properties[semantics.stateProperty];
+  const target = sensor.properties[semantics.commandProperty];
+  // a lock with a target other than its state is on its way there, as in HomeKit
+  if (current === locked) return target === unlocked ? 'unlocking' : 'locked';
+  if (current === unlocked) return target === locked ? 'locking' : 'unlocked';
+  return jammed !== undefined && current === jammed ? 'jammed' : 'unknown';
+}
+
+function stateTopic(topics: MqttTopics, sensorId: string, semantics: SensorSemantics): string {
+  // HA reads these from one topic, the bridge publishes it from several properties
+  if (semantics.domain === SensorDomain.Vacuum) return topics.sensorVacuumState(sensorId);
+  if (semantics.domain === SensorDomain.Lock) return topics.sensorLockState(sensorId);
+  return topics.sensorProperty(sensorId, semantics.stateProperty);
 }
 
 function vacuumConfig(

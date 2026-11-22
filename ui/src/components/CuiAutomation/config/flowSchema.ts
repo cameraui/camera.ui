@@ -2,8 +2,9 @@ import { getObservableSensorProperties, getSensorPropertySpec } from '@shared/ty
 
 import { sensorPropertyLabelKey } from '@/common/sensorDisplay.js';
 
+import type { ReactiveSensor } from '@camera.ui/browser';
 import type { SensorPropertySpec } from '@camera.ui/sdk';
-import type { ComputedRef } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 import type { AutomationFlow, AutomationNodeData } from '../types.js';
 
 export type FlowValueType = 'boolean' | 'number' | 'string' | 'enum' | 'object';
@@ -11,7 +12,10 @@ export type FlowValueType = 'boolean' | 'number' | 'string' | 'enum' | 'object';
 export interface FlowVariableValue {
   value: string;
   labelKey?: string;
+  label?: string;
 }
+
+export type SensorSpecsLookup = (sensorId: string) => Readonly<Record<string, SensorPropertySpec>> | undefined;
 
 export interface FlowVariable {
   template: string;
@@ -34,20 +38,20 @@ interface RawEdge {
   target: string;
 }
 
-export function getFlowVariables(flow: AutomationFlow | null, nodeId: string): FlowVariable[] {
+export function getFlowVariables(flow: AutomationFlow | null, nodeId: string, specsOf?: SensorSpecsLookup): FlowVariable[] {
   if (!flow) return [];
 
   const variables: FlowVariable[] = [];
   const seen = new Set<string>();
   const visited = new Set<string>();
-  collect(flow, nodeId, variables, seen, visited);
+  collect(flow, nodeId, variables, seen, visited, specsOf);
   return variables;
 }
 
-export function findFlowVariable(flow: AutomationFlow | null, nodeId: string, template: string): FlowVariable | undefined {
+export function findFlowVariable(flow: AutomationFlow | null, nodeId: string, template: string, specsOf?: SensorSpecsLookup): FlowVariable | undefined {
   const trimmed = (template ?? '').trim();
   if (!trimmed) return undefined;
-  return getFlowVariables(flow, nodeId).find((v) => v.template === trimmed);
+  return getFlowVariables(flow, nodeId, specsOf).find((v) => v.template === trimmed);
 }
 
 export interface FlowVariableOption {
@@ -73,15 +77,19 @@ export function useFlowVariables(nodeId: MaybeRefOrGetter<string>): {
   return { variables, options };
 }
 
+export function sensorSpecsLookup(sensors: Ref<readonly ReactiveSensor[]>): SensorSpecsLookup {
+  return (sensorId) => sensors.value.find((sensor) => sensor.id === sensorId)?.propertySpecs.value;
+}
+
 export function flowValueOptions(variable: FlowVariable | undefined, t: (key: string) => string): FlowVariableOption[] {
   if (!variable?.values) return [];
   return variable.values.map((v) => ({
-    label: v.labelKey ? `${t(`components.automation_nodes.${v.labelKey}`)} (${v.value})` : v.value,
+    label: v.label ? `${v.label} (${v.value})` : v.labelKey ? `${t(`components.automation_nodes.${v.labelKey}`)} (${v.value})` : v.value,
     value: v.value,
   }));
 }
 
-function collect(flow: AutomationFlow, nodeId: string, variables: FlowVariable[], seen: Set<string>, visited: Set<string>): void {
+function collect(flow: AutomationFlow, nodeId: string, variables: FlowVariable[], seen: Set<string>, visited: Set<string>, specsOf?: SensorSpecsLookup): void {
   if (visited.has(nodeId)) return;
   visited.add(nodeId);
 
@@ -93,7 +101,7 @@ function collect(flow: AutomationFlow, nodeId: string, variables: FlowVariable[]
     const source = nodes.find((n) => n.id === edge.source);
     if (!source?.type) continue;
 
-    const produced = producersFor(source);
+    const produced = producersFor(source, specsOf);
     const alias = typeof source.data?.alias === 'string' ? source.data.alias : undefined;
     for (const variable of produced) {
       if (alias) {
@@ -109,11 +117,11 @@ function collect(flow: AutomationFlow, nodeId: string, variables: FlowVariable[]
       }
     }
 
-    collect(flow, edge.source, variables, seen, visited);
+    collect(flow, edge.source, variables, seen, visited, specsOf);
   }
 }
 
-function producersFor(node: RawNode): FlowVariable[] {
+function producersFor(node: RawNode, specsOf?: SensorSpecsLookup): FlowVariable[] {
   const data = (node.data ?? {}) as Partial<AutomationNodeData> & Record<string, unknown>;
   const out: FlowVariable[] = [];
   const add = (template: string, valueType: FlowValueType, labelKey: string, values?: FlowVariableValue[], label?: string) => {
@@ -159,14 +167,15 @@ function producersFor(node: RawNode): FlowVariable[] {
     case 'trigger-sensor': {
       const sensorType = String(data.sensorType ?? '');
       const watched = ((data.properties as string[]) ?? []).length > 0 ? (data.properties as string[]) : getObservableSensorProperties(sensorType);
-      const specs = watched.map((p) => getSensorPropertySpec(sensorType, p)).filter((s): s is SensorPropertySpec => !!s);
+      const sensorSpecs = specsOf?.(String(data.sensorId ?? ''));
+      const specFor = (property: string) => sensorSpecs?.[property] ?? getSensorPropertySpec(sensorType, property);
+      const specs = watched.map(specFor).filter((s): s is SensorPropertySpec => !!s);
 
       add('{{sensor.value}}', unionValueType(specs), 'variable_sensor_value', sensorValueSuggestions(sensorType, specs));
       add('{{sensor.previousValue}}', unionValueType(specs), 'variable_sensor_previous_value');
       // object values are seeded as scalar paths (sensor.value.pan) at run time
       for (const property of watched) {
-        const spec = getSensorPropertySpec(sensorType, property);
-        for (const key of spec?.keys ?? []) {
+        for (const key of specFor(property)?.keys ?? []) {
           out.push({
             template: `{{sensor.value.${key}}}`,
             valueType: 'number',
@@ -318,14 +327,16 @@ function unionValueType(specs: SensorPropertySpec[]): FlowValueType {
 function sensorValueSuggestions(sensorType: string, specs: SensorPropertySpec[]): FlowVariableValue[] {
   const values: FlowVariableValue[] = [];
   const seen = new Set<string>();
-  const push = (value: string, labelKey?: string) => {
+  const push = (value: string, labelKey?: string, label?: string) => {
     if (seen.has(value)) return;
     seen.add(value);
-    values.push({ value, ...(labelKey ? { labelKey } : {}) });
+    values.push({ value, ...(labelKey ? { labelKey } : {}), ...(label ? { label } : {}) });
   };
 
   for (const spec of specs) {
-    if (spec.type === 'boolean') {
+    if (spec.choices) {
+      for (const choice of spec.choices) push(String(choice.value), undefined, choice.label);
+    } else if (spec.type === 'boolean') {
       push('true');
       push('false');
     } else if (spec.type === 'enum' && spec.values) {

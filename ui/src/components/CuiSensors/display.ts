@@ -9,6 +9,7 @@ import {
   isReactiveLawnMowerControl,
   isReactiveLightControl,
   isReactiveLockControl,
+  isReactiveMediaPlayerControl,
   isReactiveOutletControl,
   isReactiveSceneControl,
   isReactiveSecuritySystem,
@@ -27,6 +28,9 @@ import {
   HumidifierProperty,
   LightProperty,
   LockProperty,
+  MediaPlayerCommand,
+  MediaPlayerProperty,
+  MediaPlayerState,
   OutletProperty,
   SceneProperty,
   SecuritySystemProperty,
@@ -40,9 +44,9 @@ import {
   ValveState,
 } from '@camera.ui/sdk';
 
-import { isSensorActive, sensorPropertySpec } from '@/common/sensorDisplay.js';
+import { isSensorActive, sensorOffers, sensorPropertySpec } from '@/common/sensorDisplay.js';
 
-import type { ReactiveSensor } from '@camera.ui/browser';
+import type { ReactiveMediaPlayerControl, ReactiveSensor } from '@camera.ui/browser';
 
 const SECURITY_MODES = [SecuritySystemState.Disarmed, SecuritySystemState.StayArm, SecuritySystemState.AwayArm, SecuritySystemState.NightArm];
 const ROBOT_STOPS = [VacuumCommand.Dock, VacuumCommand.Stop, VacuumCommand.Pause];
@@ -70,12 +74,29 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
     if (command) await sensor.setProperty(VacuumProperty.Command, command);
     return;
   }
+  if (isReactiveMediaPlayerControl(sensor)) return await toggleMediaPlayer(sensor);
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);
 }
 
 function robotCommand(sensor: ReactiveSensor, working: boolean): string | undefined {
-  const offered: unknown[] = Object.values(sensorPropertySpec(sensor, VacuumProperty.Command)?.values ?? {});
+  const offered = offeredCommands(sensor, VacuumProperty.Command);
   return (working ? ROBOT_STOPS : [VacuumCommand.Start]).find((command) => offered.includes(command));
+}
+
+async function toggleMediaPlayer(sensor: ReactiveMediaPlayerControl): Promise<void> {
+  const state = sensor.getProperty(MediaPlayerProperty.State);
+  const power = sensorOffers(sensor, MediaPlayerProperty.On);
+  if (state === MediaPlayerState.Off) {
+    if (power) await sensor.setProperty(MediaPlayerProperty.On, true);
+    return;
+  }
+  const command = state === MediaPlayerState.Playing ? MediaPlayerCommand.Pause : MediaPlayerCommand.Play;
+  if (offeredCommands(sensor, MediaPlayerProperty.Command).includes(command)) return await sensor.setProperty(MediaPlayerProperty.Command, command);
+  if (power) await sensor.setProperty(MediaPlayerProperty.On, false);
+}
+
+function offeredCommands(sensor: ReactiveSensor<object>, property: string): unknown[] {
+  return Object.values(sensorPropertySpec(sensor, property)?.values ?? {});
 }
 
 export async function setSecurityState(sensor: ReactiveSensor | undefined, state: SecuritySystemState): Promise<void> {

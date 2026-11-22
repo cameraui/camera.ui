@@ -30,6 +30,7 @@ const DOMAIN_CONTROLS: ReadonlySet<string> = new Set([
   SensorDomain.WaterHeater,
   SensorDomain.Vacuum,
   SensorDomain.LawnMower,
+  SensorDomain.MediaPlayer,
   SensorDomain.Alarm,
   SensorDomain.Event,
 ]);

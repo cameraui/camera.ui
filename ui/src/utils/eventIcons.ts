@@ -1,4 +1,6 @@
+import { EVENT_TRIGGER_TYPES } from '@camera.ui/sdk';
 import IconProblem from '~icons/mdi/alert-circle-outline';
+import IconBatteryLow from '~icons/mdi/battery-alert-variant-outline';
 import IconFaceId from '~icons/mdi/face-recognition';
 import IconAccess from '~icons/mdi/fingerprint';
 import IconHeat from '~icons/mdi/fire';
@@ -40,6 +42,8 @@ import IconUrgent from '~icons/tabler/urgent';
 import IconUser from '~icons/tabler/user';
 import IconVolume from '~icons/tabler/volume';
 
+import { sensorTypeIcon } from '@/common/sensorDisplay.js';
+
 const icons: Record<string, Component> = {
   motion: IconActivity,
   person: IconUser,
@@ -73,6 +77,7 @@ const icons: Record<string, Component> = {
   garage: IconGarage,
   glassBreak: IconGlassOff,
   access: IconAccess,
+  battery: IconBatteryLow,
   other: IconPuzzle,
   glass_break: IconGlassOff,
   speaking: IconMessage,
@@ -85,6 +90,8 @@ const icons: Record<string, Component> = {
   car_alarm: IconCarCrash,
   smoke_alarm: IconFlame,
 };
+
+for (const type of EVENT_TRIGGER_TYPES) icons[type] ??= sensorTypeIcon(type, true);
 
 const generic: Component = IconTag;
 

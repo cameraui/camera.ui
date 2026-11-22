@@ -1,4 +1,4 @@
-import { fromUnitSystem, PresenceProperty, SensorDomain, SensorType, ThermostatMode, toUnitSystem } from '@camera.ui/sdk';
+import { fromUnitSystem, MediaPlayerState, PresenceProperty, SensorDomain, SensorType, ThermostatMode, toUnitSystem } from '@camera.ui/sdk';
 import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
@@ -57,8 +57,20 @@ function humidifierState(sensor: TransformedSensor, humidifier: NonNullable<Sens
   return parts.filter(Boolean).join(', ');
 }
 
+function mediaPlayerDetail(sensor: TransformedSensor, player: NonNullable<SensorSemantics['mediaPlayer']>): string | undefined {
+  const text = (property: string | undefined) => {
+    const value = property ? sensor.properties[property] : undefined;
+    return typeof value === 'string' && value ? value : undefined;
+  };
+  const title = text(player.title);
+  const volume = player.volume ? sensor.properties[player.volume] : undefined;
+  const sound = player.muted && sensor.properties[player.muted] ? 'muted' : typeof volume === 'number' ? `volume ${volume}%` : undefined;
+  return [title && [title, text(player.artist)].filter(Boolean).join(' by '), text(player.source), sound].filter(Boolean).join(', ') || undefined;
+}
+
 function detailOf(sensor: TransformedSensor, semantics: SensorSemantics): string | undefined {
   if (semantics.position) return `${String(sensor.properties[semantics.position.current])}% open`;
+  if (semantics.mediaPlayer && sensor.properties[semantics.stateProperty] !== MediaPlayerState.Off) return mediaPlayerDetail(sensor, semantics.mediaPlayer);
   const climate = semantics.climate;
   if (!climate) return undefined;
   const temperature = (property: string) => {
@@ -122,13 +134,15 @@ const setSensorPropertyInput = zod.object({
     .describe(
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
       'covers and valves targetPosition (0 closed, 100 open), thermostats and water heaters targetTemperature, ' +
-      'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100), vacuums fanSpeed',
+      'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100), vacuums fanSpeed, ' +
+      'media players on, volume (0 to 100), muted and source',
     ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])
     .describe(
       'New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows, ' +
-      'for a vacuum or lawn mower its command: start, pause, stop, dock, locate or spot',
+      'for a vacuum or lawn mower its command: start, pause, stop, dock, locate or spot, ' +
+      'for a media player play, pause, stop, next or previous',
     ),
 });
 

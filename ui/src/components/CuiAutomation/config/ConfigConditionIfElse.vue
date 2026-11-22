@@ -58,8 +58,10 @@
 </template>
 
 <script setup lang="ts">
+import { useAllSensors } from '@camera.ui/browser';
+
 import { getNodeDefinition } from '../nodeDefinitions.js';
-import { findFlowVariable, flowValueOptions } from './flowSchema.js';
+import { findFlowVariable, flowValueOptions, sensorSpecsLookup } from './flowSchema.js';
 import VariableInput from './VariableInput.vue';
 
 import type { AutomationFlow, ConfigConditionIfElseProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -71,6 +73,8 @@ const emit = defineEmits<ConfigNodeUpdateEmits>();
 const { t } = useI18n();
 
 const store = useAutomationsStore();
+const { sensors } = useAllSensors();
+const sensorSpecs = sensorSpecsLookup(sensors);
 
 const operators = [
   { label: `== (${t('components.automation_nodes.operator_equals')})`, value: '==' },
@@ -93,7 +97,7 @@ const sourceLabel = computed(() => {
 });
 
 const suggestedValues = computed(() => {
-  const variable = findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.leftOperand);
+  const variable = findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.leftOperand, sensorSpecs);
   return flowValueOptions(variable, t).filter((option) => option.value !== props.data.rightOperand);
 });
 

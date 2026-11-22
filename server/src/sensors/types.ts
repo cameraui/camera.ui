@@ -8,7 +8,7 @@ export interface SensorTypeMetadata {
   multiProvider: boolean;
   isDetectionType: boolean;
   cameraBound: boolean;
-  cascadeTrigger?: { property: string; value: unknown; sustained: boolean; triggerType: EventTriggerType };
+  cascadeTrigger?: { property: string; values: readonly unknown[]; sustained: boolean; triggerType: EventTriggerType };
 }
 
 const TRIGGER_TYPE_BY_KEY: Readonly<Record<string, EventTriggerType>> = {

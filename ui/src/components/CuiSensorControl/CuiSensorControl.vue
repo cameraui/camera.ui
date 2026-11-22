@@ -196,6 +196,32 @@
     @update:fan-speed="(value) => sensor.setProperty(VacuumProperty.FanSpeed, value)"
   />
 
+  <CuiMediaPlayerControl
+    v-else-if="kind === SensorDomain.MediaPlayer"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :label="sensor.displayName.value"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :on="sensor.getProperty(MediaPlayerProperty.On) ?? false"
+    :has-power="sensorOffers(sensor, MediaPlayerProperty.On)"
+    :playing="sensor.getProperty(MediaPlayerProperty.State) === MediaPlayerState.Playing"
+    :commands="enumOptions(sensor, MediaPlayerProperty.Command)"
+    :volume="sensor.getProperty(MediaPlayerProperty.Volume) ?? 0"
+    :has-volume="sensorOffers(sensor, MediaPlayerProperty.Volume)"
+    :muted="sensor.getProperty(MediaPlayerProperty.Muted) ?? false"
+    :has-mute="sensorOffers(sensor, MediaPlayerProperty.Muted)"
+    :source="String(sensor.getProperty(MediaPlayerProperty.Source) ?? '')"
+    :sources="sensorOffers(sensor, MediaPlayerProperty.Source) ? choiceOptions(sensor, MediaPlayerProperty.Source) : []"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:on="(value) => sensor.setProperty(MediaPlayerProperty.On, value)"
+    @command="(value) => sensor.setProperty(MediaPlayerProperty.Command, value)"
+    @update:volume="(value) => sensor.setProperty(MediaPlayerProperty.Volume, value)"
+    @update:muted="(value) => sensor.setProperty(MediaPlayerProperty.Muted, value)"
+    @update:source="(value) => sensor.setProperty(MediaPlayerProperty.Source, value)"
+  />
+
   <CuiSceneControl
     v-else-if="kind === SensorDomain.Scene"
     :icon="sensorIcon(sensor.type, sensor)"
@@ -332,6 +358,8 @@ import {
   LightCapability,
   LightProperty,
   LockProperty,
+  MediaPlayerProperty,
+  MediaPlayerState,
   SceneProperty,
   SecuritySystemProperty,
   SensorDomain,

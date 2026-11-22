@@ -44,7 +44,7 @@ import { useAllSensors } from '@camera.ui/browser';
 
 import { getObservableSensorProperties } from '@shared/types';
 import { getNodeDefinition } from '../nodeDefinitions.js';
-import { findFlowVariable, flowValueOptions, useFlowVariables } from './flowSchema.js';
+import { findFlowVariable, flowValueOptions, sensorSpecsLookup, useFlowVariables } from './flowSchema.js';
 import VariableInput from './VariableInput.vue';
 
 import type { AutomationFlow, ConfigConditionSwitchProps, ConfigNodeUpdateEmits } from '../types.js';
@@ -74,7 +74,10 @@ const sourceLabel = computed(() => {
   return def ? t(def.labelKey) : sourceNode.value.type;
 });
 
-const selectedVariable = computed(() => findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.variable));
+const { sensors } = useAllSensors();
+const sensorSpecs = sensorSpecsLookup(sensors);
+
+const selectedVariable = computed(() => findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.variable, sensorSpecs));
 
 const sensorTrigger = computed<SensorTriggerData | undefined>(() => {
   let node = store.getDraftSourceNode(props.nodeId);
@@ -84,8 +87,6 @@ const sensorTrigger = computed<SensorTriggerData | undefined>(() => {
   }
   return undefined;
 });
-
-const { sensors } = useAllSensors();
 
 const watchedProperties = computed(() => {
   const trigger = sensorTrigger.value;

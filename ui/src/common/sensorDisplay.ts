@@ -7,6 +7,9 @@ import {
   LawnMowerActivity,
   LockProperty,
   LockState,
+  MediaPlayerKind,
+  MediaPlayerProperty,
+  MediaPlayerState,
   PresenceProperty,
   SecuritySystemProperty,
   SecuritySystemState,
@@ -28,6 +31,8 @@ import AirPurifierIcon from '~icons/mdi/air-purifier';
 import AirPurifierOffIcon from '~icons/mdi/air-purifier-off';
 import SirenIcon from '~icons/mdi/alarm-light';
 import SirenOffIcon from '~icons/mdi/alarm-light-outline';
+import ReceiverIcon from '~icons/mdi/audio-video';
+import ReceiverOffIcon from '~icons/mdi/audio-video-off';
 import AwningIcon from '~icons/mdi/awning';
 import AwningClosedIcon from '~icons/mdi/awning-outline';
 import ProblemIcon from '~icons/mdi/alert-circle-outline';
@@ -88,6 +93,8 @@ import PowerOffIcon from '~icons/mdi/power-plug-off-outline';
 import PowerIcon from '~icons/mdi/power-plug-outline';
 import OutletOnIcon from '~icons/mdi/power-plug';
 import OutletIcon from '~icons/mdi/power-socket-eu';
+import ProjectorIcon from '~icons/mdi/projector';
+import ProjectorOffIcon from '~icons/mdi/projector-off';
 import LawnMowerIcon from '~icons/mdi/robot-mower';
 import LawnMowerOffIcon from '~icons/mdi/robot-mower-outline';
 import VacuumIcon from '~icons/mdi/robot-vacuum';
@@ -106,6 +113,10 @@ import ShieldOffIcon from '~icons/mdi/shield-off-outline';
 import SmokeIcon from '~icons/mdi/smoke-detector-variant';
 import SmokeAlertIcon from '~icons/mdi/smoke-detector-variant-alert';
 import ColdIcon from '~icons/mdi/snowflake';
+import SpeakerIcon from '~icons/mdi/speaker';
+import SpeakerOffIcon from '~icons/mdi/speaker-off';
+import TelevisionIcon from '~icons/mdi/television';
+import TelevisionOffIcon from '~icons/mdi/television-off';
 import TemperatureIcon from '~icons/mdi/thermometer';
 import ThermostatIcon from '~icons/mdi/thermostat';
 import ValveIcon from '~icons/mdi/valve-closed';
@@ -176,6 +187,7 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.WaterHeater]: { icon: WaterBoilerOffIcon, activeIcon: WaterBoilerIcon, states: ['off', 'on'], tone: 'warn' },
   [SensorDomain.Vacuum]: { icon: VacuumOffIcon, activeIcon: VacuumIcon, states: ['docked', 'cleaning'], tone: 'info' },
   [SensorDomain.LawnMower]: { icon: LawnMowerOffIcon, activeIcon: LawnMowerIcon, states: ['docked', 'mowing'], tone: 'ok' },
+  [SensorDomain.MediaPlayer]: { icon: TelevisionOffIcon, activeIcon: TelevisionIcon, states: ['off', 'on'], tone: 'info' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
   [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
   [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
@@ -226,6 +238,13 @@ const ROBOT_TYPES = new Set<string>([SensorType.Vacuum, SensorType.LawnMower]);
 
 const VALVE_KIND_ICONS: Partial<Record<ValveKind, readonly [closed: Component, open: Component]>> = {
   [ValveKind.Irrigation]: [SprinklerIcon, SprinklerOnIcon],
+};
+
+const MEDIA_PLAYER_KIND_ICONS: Record<MediaPlayerKind, readonly [off: Component, on: Component]> = {
+  [MediaPlayerKind.Tv]: [TelevisionOffIcon, TelevisionIcon],
+  [MediaPlayerKind.Speaker]: [SpeakerOffIcon, SpeakerIcon],
+  [MediaPlayerKind.Receiver]: [ReceiverOffIcon, ReceiverIcon],
+  [MediaPlayerKind.Projector]: [ProjectorOffIcon, ProjectorIcon],
 };
 
 const COVER_KIND_ICONS: Record<CoverKind, readonly [closed: Component, open: Component]> = {
@@ -279,6 +298,10 @@ export function sensorActive(type: string, read: ReadProperty): boolean {
       return read(semantics.stateProperty) === VacuumActivity.Cleaning;
     case SensorDomain.LawnMower:
       return read(semantics.stateProperty) === LawnMowerActivity.Mowing;
+    case SensorDomain.MediaPlayer: {
+      const state = read(semantics.stateProperty);
+      return state !== undefined && state !== MediaPlayerState.Off;
+    }
     case SensorDomain.Alarm: {
       const state = requested(semantics, read);
       return state !== undefined && state !== semantics.states?.disarmed;
@@ -329,6 +352,7 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
   if (sensor && semantics?.humidifier) return humidifierStatus(sensor, semantics.humidifier, value === true, t);
   if (sensor && semantics?.domain === SensorDomain.AirPurifier) return purifierStatus(sensor, value === true, t);
   if (sensor && ROBOT_TYPES.has(type)) return valueName(sensor, VacuumProperty.Activity, t) ?? '--';
+  if (sensor && type === SensorType.MediaPlayer) return mediaPlayerStatus(sensor, t);
   if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return t('components.sensor_state.jammed');
   const speed = semantics?.fan?.speed;
   if (sensor && speed && value === true && sensorOffers(sensor, speed)) {
@@ -391,6 +415,7 @@ function lookOf(type: string): SensorLook {
 function kindIconsOf(type: string, sensor: AnySensor | undefined): readonly [Component, Component] | undefined {
   if (type === SensorType.Cover) return COVER_KIND_ICONS[sensor?.getProperty(CoverProperty.Kind) as CoverKind];
   if (type === SensorType.Valve) return VALVE_KIND_ICONS[sensor?.getProperty(ValveProperty.Kind) as ValveKind];
+  if (type === SensorType.MediaPlayer) return MEDIA_PLAYER_KIND_ICONS[sensor?.getProperty(MediaPlayerProperty.Kind) as MediaPlayerKind];
   return undefined;
 }
 
@@ -413,6 +438,16 @@ function purifierStatus(sensor: AnySensor, on: boolean, t: (key: string) => stri
   const speed = on && sensorOffers(sensor, AirPurifierProperty.Speed) ? propertyReading(sensor, AirPurifierProperty.Speed) : undefined;
   const filter = sensor.getProperty(AirPurifierProperty.FilterChange) === true ? t('components.sensor_state.change_filter') : undefined;
   return [doing ?? t(`components.sensor_state.${on ? 'on' : 'off'}`), speed, filter].filter(Boolean).join(' · ');
+}
+
+function mediaPlayerStatus(sensor: AnySensor, t: (key: string) => string): string {
+  const state = valueName(sensor, MediaPlayerProperty.State, t) ?? '--';
+  if (sensor.getProperty(MediaPlayerProperty.State) === MediaPlayerState.Off) return state;
+  const playing = [MediaPlayerProperty.Title, MediaPlayerProperty.Artist].flatMap((property) => {
+    const value = sensor.getProperty(property);
+    return sensorOffers(sensor, property) && typeof value === 'string' && value ? [value] : [];
+  });
+  return [state, ...playing].join(' · ');
 }
 
 function valueName(sensor: AnySensor, property: string, t: (key: string) => string): string | undefined {

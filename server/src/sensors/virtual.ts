@@ -6,6 +6,9 @@ import {
   LawnMowerCommand,
   LawnMowerProperty,
   LockProperty,
+  MediaPlayerCommand,
+  MediaPlayerProperty,
+  MediaPlayerState,
   RING_AUTO_RESET_MS,
   SCENE_AUTO_RESET_MS,
   SceneProperty,
@@ -28,27 +31,35 @@ interface Momentary {
 }
 
 const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.Cover, SensorType.Valve, SensorType.SecuritySystem]);
+
 const MOMENTARY: Partial<Record<SensorType, Momentary>> = {
   [SensorType.Doorbell]: { property: DoorbellProperty.Ring, resetMs: RING_AUTO_RESET_MS, idle: false },
   [SensorType.Scene]: { property: SceneProperty.Active, resetMs: SCENE_AUTO_RESET_MS, idle: false },
   [SensorType.Vacuum]: { property: VacuumProperty.Command, resetMs: COMMAND_AUTO_RESET_MS, idle: '' },
   [SensorType.LawnMower]: { property: LawnMowerProperty.Command, resetMs: COMMAND_AUTO_RESET_MS, idle: '' },
+  [SensorType.MediaPlayer]: { property: MediaPlayerProperty.Command, resetMs: COMMAND_AUTO_RESET_MS, idle: '' },
 };
-// no hardware reports back, so a command moves the robot where it would go
-const ROBOT_ACTIVITIES: Partial<Record<SensorType, Record<string, string>>> = {
+
+const COMMAND_EFFECTS: Partial<Record<SensorType, Record<string, Record<string, unknown>>>> = {
   [SensorType.Vacuum]: {
-    [VacuumCommand.Start]: VacuumActivity.Cleaning,
-    [VacuumCommand.Spot]: VacuumActivity.Cleaning,
-    [VacuumCommand.Pause]: VacuumActivity.Paused,
-    [VacuumCommand.Stop]: VacuumActivity.Idle,
-    [VacuumCommand.Dock]: VacuumActivity.Docked,
+    [VacuumCommand.Start]: { [VacuumProperty.Activity]: VacuumActivity.Cleaning },
+    [VacuumCommand.Spot]: { [VacuumProperty.Activity]: VacuumActivity.Cleaning },
+    [VacuumCommand.Pause]: { [VacuumProperty.Activity]: VacuumActivity.Paused },
+    [VacuumCommand.Stop]: { [VacuumProperty.Activity]: VacuumActivity.Idle },
+    [VacuumCommand.Dock]: { [VacuumProperty.Activity]: VacuumActivity.Docked },
   },
   [SensorType.LawnMower]: {
-    [LawnMowerCommand.Start]: LawnMowerActivity.Mowing,
-    [LawnMowerCommand.Pause]: LawnMowerActivity.Paused,
-    [LawnMowerCommand.Dock]: LawnMowerActivity.Docked,
+    [LawnMowerCommand.Start]: { [LawnMowerProperty.Activity]: LawnMowerActivity.Mowing },
+    [LawnMowerCommand.Pause]: { [LawnMowerProperty.Activity]: LawnMowerActivity.Paused },
+    [LawnMowerCommand.Dock]: { [LawnMowerProperty.Activity]: LawnMowerActivity.Docked },
+  },
+  [SensorType.MediaPlayer]: {
+    [MediaPlayerCommand.Play]: { [MediaPlayerProperty.On]: true, [MediaPlayerProperty.State]: MediaPlayerState.Playing },
+    [MediaPlayerCommand.Pause]: { [MediaPlayerProperty.On]: true, [MediaPlayerProperty.State]: MediaPlayerState.Paused },
+    [MediaPlayerCommand.Stop]: { [MediaPlayerProperty.On]: true, [MediaPlayerProperty.State]: MediaPlayerState.Idle },
   },
 };
+
 const hosts = new Map<string, VirtualSensorHost>();
 
 export async function registerVirtualSensorHost(registry: SensorRegistry, sensorId: string, type: SensorType): Promise<void> {
@@ -120,14 +131,18 @@ export class VirtualSensorHost {
       return;
     }
 
+    if (this.type === SensorType.MediaPlayer && (property as MediaPlayerProperty) === MediaPlayerProperty.On) {
+      this.write({ [MediaPlayerProperty.On]: value, [MediaPlayerProperty.State]: value ? MediaPlayerState.Idle : MediaPlayerState.Off });
+      return;
+    }
+
     this.write({ [property]: value });
   }
 
   private trigger({ property, resetMs, idle }: Momentary, value: unknown): void {
     if (this.resetTimer) clearTimeout(this.resetTimer);
 
-    const activity = ROBOT_ACTIVITIES[this.type]?.[String(value)];
-    this.write({ [property]: value, ...(activity ? { activity } : {}) });
+    this.write({ [property]: value, ...COMMAND_EFFECTS[this.type]?.[String(value)] });
     this.resetTimer = setTimeout(() => {
       this.resetTimer = undefined;
       this.write({ [property]: idle });

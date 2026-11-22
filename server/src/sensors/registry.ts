@@ -902,7 +902,7 @@ export class SensorRegistry {
       if (!trigger?.sustained) continue;
 
       const currentValue = this.propertyValues.get(`${sensorId}:${trigger.property}`);
-      if (currentValue !== trigger.value) continue;
+      if (!trigger.values.includes(currentValue)) continue;
 
       try {
         await this.coordinatorFor(cameraId).reportSensorTrigger(sensorId, trigger.triggerType, 'activate', trigger.sustained, settings?.timeout ?? 0);

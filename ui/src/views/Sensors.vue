@@ -86,7 +86,8 @@
                   />
                   <div class="flex items-center gap-2 min-w-0">
                     <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
-                    <i-mdi:eye-off-outline v-if="!data.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                    <i-mdi:eye-off-outline v-if="data.exposure === 'none'" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                    <i-mdi:eye-minus-outline v-else-if="data.exposure === 'some'" v-tooltip="t('views.sensors.partly_exposed')" class="w-4 h-4 shrink-0 text-muted" />
                     <span
                       v-if="data.battery"
                       v-tooltip="batteryLow(data.battery) ? t('components.automation_nodes.sensor_property_low') : sensorTypeLabel(SensorType.Battery)"
@@ -499,6 +500,7 @@ import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSenso
 import type { DataTablePassThroughOptions, DataTableRowClickEvent } from 'openvue';
 
 type SensorState = 'connected' | 'disconnected' | 'unavailable' | 'removed';
+type Exposure = 'all' | 'some' | 'none';
 
 interface SensorRow {
   key: string;
@@ -507,7 +509,7 @@ interface SensorRow {
   members: TransformedSensor[];
   battery?: ReactiveSensor;
   label: string;
-  exposed: boolean;
+  exposure: Exposure;
   typeLabel: string;
   nativeLabel: string;
   pluginLabel: string;
@@ -725,7 +727,7 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
     sensor,
     members: [],
     label,
-    exposed: sensor.exposed,
+    exposure: exposureOf([sensor]),
     typeLabel,
     nativeLabel,
     pluginLabel,
@@ -735,6 +737,12 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
     stateLabel: stateLabel(state, sensor),
     stateColor: STATE_COLORS[state],
   };
+}
+
+function exposureOf(members: TransformedSensor[]): Exposure {
+  const exposed = members.filter((member) => member.exposed).length;
+  if (exposed === members.length) return 'all';
+  return exposed ? 'some' : 'none';
 }
 
 function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
@@ -752,7 +760,7 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
     members,
     battery: battery && liveSensorById.value.get(battery.id),
     label,
-    exposed: members.some((member) => member.exposed),
+    exposure: exposureOf(members),
     typeLabel,
     nativeLabel: '',
     pluginLabel: sensor.pluginName,

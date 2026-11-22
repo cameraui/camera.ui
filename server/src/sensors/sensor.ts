@@ -245,7 +245,7 @@ export class ServerSensor implements SensorLike {
       if (!settings?.triggers.includes(this.id)) continue;
 
       const coordinator = this.ctx.getCoordinator(cameraId);
-      if (value === config.value) {
+      if (config.values.includes(value)) {
         coordinator
           .reportSensorTrigger(this.id, config.triggerType, 'activate', config.sustained, settings.timeout)
           .catch((error: unknown) => this.ctx.logger.warn('Failed to report sensor trigger activate:', error));
