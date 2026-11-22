@@ -91,6 +91,9 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string> = {
   [SensorDomain.Lock]: 'lock',
   [SensorDomain.Cover]: 'cover',
   [SensorDomain.Climate]: 'climate',
+  [SensorDomain.Fan]: 'fan',
+  [SensorDomain.Valve]: 'valve',
+  [SensorDomain.Scene]: 'scene',
   [SensorDomain.Alarm]: 'alarm_control_panel',
   [SensorDomain.Event]: 'event',
   [SensorDomain.Text]: 'text',
@@ -259,6 +262,7 @@ function domainConfig(
         state_unlocked: String(states.unlocked),
         payload_lock: String(states.locked),
         payload_unlock: String(states.unlocked),
+        ...(states.jammed !== undefined ? { state_jammed: String(states.jammed) } : {}),
       };
 
     case SensorDomain.Cover:
@@ -292,6 +296,30 @@ function domainConfig(
 
     case SensorDomain.Climate:
       return climateConfig(semantics, spec, state, command);
+
+    case SensorDomain.Fan:
+      return fanConfig(semantics, commandTopic, state, command);
+
+    case SensorDomain.Valve:
+      return {
+        // HA knows water and gas valves only
+        ...(semantics.deviceClass ? { device_class: semantics.deviceClass === 'gas' ? 'gas' : 'water' } : {}),
+        // with a position HA reads and sends the position on the state and command topics
+        ...(semantics.position
+          ? { state_topic: state(semantics.position.current), command_topic: command(semantics.position.target), reports_position: true }
+          : {
+              command_topic: commandTopic,
+              state_open: String(states.open),
+              state_closed: String(states.closed),
+              state_opening: String(states.opening),
+              state_closing: String(states.closing),
+              payload_open: String(states.open),
+              payload_close: String(states.closed),
+            }),
+      };
+
+    case SensorDomain.Scene:
+      return { state_topic: undefined, command_topic: commandTopic, payload_on: 'true' };
 
     case SensorDomain.Alarm: {
       const offered = spec(semantics.commandProperty)?.values;
@@ -366,6 +394,34 @@ function climateConfig(
       : {}),
     ...(climate.action ? { action_topic: state(climate.action), action_template: json } : {}),
     ...(climate.humidity ? { current_humidity_topic: state(climate.humidity), current_humidity_template: json } : {}),
+    ...(climate.targetHumidity
+      ? {
+          target_humidity_state_topic: state(climate.targetHumidity),
+          target_humidity_command_topic: command(climate.targetHumidity),
+          min_humidity: spec(climate.targetHumidity)?.min ?? 0,
+          max_humidity: spec(climate.targetHumidity)?.max ?? 100,
+        }
+      : {}),
+  };
+}
+
+function fanConfig(
+  semantics: SensorSemantics,
+  commandTopic: string,
+  state: (property: string) => string,
+  command: (property: string) => string,
+): Record<string, unknown> {
+  const { speed, direction, oscillating } = semantics.fan ?? {};
+  return {
+    command_topic: commandTopic,
+    payload_on: 'true',
+    payload_off: 'false',
+    ...(speed ? { percentage_state_topic: state(speed), percentage_command_topic: command(speed), speed_range_min: 1, speed_range_max: 100 } : {}),
+    ...(oscillating
+      ? { oscillation_state_topic: state(oscillating), oscillation_command_topic: command(oscillating), payload_oscillation_on: 'true', payload_oscillation_off: 'false' }
+      : {}),
+    // strings arrive as JSON
+    ...(direction ? { direction_state_topic: state(direction), direction_value_template: '{{ value_json }}', direction_command_topic: command(direction) } : {}),
   };
 }
 

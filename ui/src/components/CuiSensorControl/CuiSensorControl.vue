@@ -93,6 +93,65 @@
     @stop="() => sensor.setProperty(CoverProperty.Stop, true)"
   />
 
+  <CuiCoverControl
+    v-else-if="kind === SensorDomain.Valve"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :label="sensor.displayName.value"
+    :current-state="sensor.getProperty(ValveProperty.CurrentState) ?? CoverState.Closed"
+    :position="sensor.getProperty(ValveProperty.CurrentPosition) ?? 0"
+    :target-position="sensor.getProperty(ValveProperty.TargetPosition) ?? 0"
+    :has-position="sensorOffers(sensor, ValveProperty.TargetPosition)"
+    :duration="sensor.getProperty(ValveProperty.Duration) ?? 600"
+    :duration-max="sensorControlRange(sensor, ValveProperty.Duration).max"
+    :has-duration="sensorOffers(sensor, ValveProperty.Duration)"
+    :remaining="sensor.getProperty(ValveProperty.Remaining) ?? 0"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:target-state="(value) => sensor.setProperty(ValveProperty.TargetState, value)"
+    @update:target-position="(value) => sensor.setProperty(ValveProperty.TargetPosition, value)"
+    @update:duration="(value) => sensor.setProperty(ValveProperty.Duration, value)"
+  />
+
+  <CuiFanControl
+    v-else-if="kind === SensorDomain.Fan"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :status="sensorStatus(sensor.type, sensor, t)"
+    :label="sensor.displayName.value"
+    :on="sensor.getProperty(FanProperty.On) ?? false"
+    :speed="sensor.getProperty(FanProperty.Speed) ?? 100"
+    :speed-step="sensorControlRange(sensor, FanProperty.Speed).step"
+    :has-speed="sensorOffers(sensor, FanProperty.Speed)"
+    :direction="sensor.getProperty(FanProperty.Direction) ?? FanDirection.Forward"
+    :has-direction="sensorOffers(sensor, FanProperty.Direction)"
+    :oscillating="sensor.getProperty(FanProperty.Oscillating) ?? false"
+    :has-oscillation="sensorOffers(sensor, FanProperty.Oscillating)"
+    :preset="String(sensor.getProperty(FanProperty.Preset) ?? '')"
+    :presets="sensorOffers(sensor, FanProperty.Preset) ? choiceOptions(sensor, FanProperty.Preset) : []"
+    :disabled
+    size="small"
+    class="card-border"
+    @update:on="(value) => sensor.setProperty(FanProperty.On, value)"
+    @update:speed="(value) => sensor.setProperty(FanProperty.Speed, value)"
+    @update:direction="(value) => sensor.setProperty(FanProperty.Direction, value)"
+    @update:oscillating="(value) => sensor.setProperty(FanProperty.Oscillating, value)"
+    @update:preset="(value) => sensor.setProperty(FanProperty.Preset, value)"
+  />
+
+  <CuiSceneControl
+    v-else-if="kind === SensorDomain.Scene"
+    :icon="sensorIcon(sensor.type, sensor)"
+    :icon-style="sensorTone(sensor.type, sensor)"
+    :label="sensor.displayName.value"
+    :active="sensor.getProperty(SceneProperty.Active) ?? false"
+    :last-run
+    :disabled
+    size="small"
+    class="card-border"
+    @run="() => sensor.setProperty(SceneProperty.Active, true)"
+  />
+
   <CuiThermostatControl
     v-else-if="kind === SensorDomain.Climate"
     :icon="sensorIcon(sensor.type, sensor)"
@@ -111,6 +170,11 @@
     :presets="sensorOffers(sensor, ThermostatProperty.Preset) ? choiceOptions(sensor, ThermostatProperty.Preset) : []"
     :fan-mode="String(sensor.getProperty(ThermostatProperty.FanMode) ?? '')"
     :fan-modes="sensorOffers(sensor, ThermostatProperty.FanMode) ? choiceOptions(sensor, ThermostatProperty.FanMode) : []"
+    :target-humidity="sensor.getProperty(ThermostatProperty.TargetHumidity) ?? undefined"
+    :has-target-humidity="sensorOffers(sensor, ThermostatProperty.TargetHumidity)"
+    :humidity-min="sensorControlRange(sensor, ThermostatProperty.TargetHumidity).min"
+    :humidity-max="sensorControlRange(sensor, ThermostatProperty.TargetHumidity).max"
+    :humidity-step="sensorControlRange(sensor, ThermostatProperty.TargetHumidity).step"
     :disabled
     size="small"
     class="card-border"
@@ -120,6 +184,7 @@
     @update:mode="(value) => sensor.setProperty(ThermostatProperty.Mode, value)"
     @update:preset="(value) => sensor.setProperty(ThermostatProperty.Preset, value)"
     @update:fan-mode="(value) => sensor.setProperty(ThermostatProperty.FanMode, value)"
+    @update:target-humidity="(value) => sensor.setProperty(ThermostatProperty.TargetHumidity, value)"
   />
 
   <CuiDoorbellTrigger
@@ -183,9 +248,12 @@ import {
   CoverProperty,
   CoverState,
   DoorbellProperty,
+  FanDirection,
+  FanProperty,
   LightCapability,
   LightProperty,
   LockProperty,
+  SceneProperty,
   SecuritySystemProperty,
   SensorDomain,
   SensorType,
@@ -194,8 +262,10 @@ import {
   SwitchProperty,
   ThermostatMode,
   ThermostatProperty,
+  ValveProperty,
 } from '@camera.ui/sdk';
 
+import { getSensorHistoryFn } from '@/api/routes/sensors.js';
 import { isSensorActive, sensorIcon, sensorOffers, sensorPropertySpec, sensorReadings, sensorStatus, sensorTone } from '@/common/sensorDisplay.js';
 import CuiDetectionSensorInfo from '@/components/CuiDetectionSensorInfo/CuiDetectionSensorInfo.vue';
 import { securityModes } from '@/components/CuiSensors/display.js';
@@ -216,6 +286,22 @@ const kind = computed(() => sensorControlKind(props.sensor.type));
 const toneProperty = computed(() => sensorMeta(props.sensor.type)?.semantics?.tone?.property);
 
 const mode = computed(() => String(props.sensor.getProperty(ThermostatProperty.Mode) ?? ''));
+
+const lastRun = ref<number>();
+
+onMounted(async () => {
+  if (kind.value !== SensorDomain.Scene) return;
+  const history = await getSensorHistoryFn({ id: props.sensor.id }).catch(() => []);
+  const runs = history.filter((entry) => entry.property === SceneProperty.Active && entry.value === true).map((entry) => entry.timestamp);
+  if (runs.length) lastRun.value = Math.max(lastRun.value ?? 0, ...runs);
+});
+
+watch(
+  () => props.sensor.getProperty(SceneProperty.Active),
+  (active) => {
+    if (active === true && kind.value === SensorDomain.Scene) lastRun.value = Date.now();
+  },
+);
 
 const targetRange = computed(() => {
   const { min, max, step } = sensorControlRange(props.sensor, ThermostatProperty.TargetTemperature);

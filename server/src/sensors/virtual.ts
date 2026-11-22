@@ -1,5 +1,5 @@
 import { RPCMethod } from '@camera.ui/rpc';
-import { DoorbellProperty, LockProperty, RING_AUTO_RESET_MS, SensorType } from '@camera.ui/sdk';
+import { DoorbellProperty, LockProperty, RING_AUTO_RESET_MS, SCENE_AUTO_RESET_MS, SceneProperty, SensorType } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
@@ -7,7 +7,11 @@ import { VIRTUAL_SENSOR_OWNER_ID } from '../sensors/types.js';
 
 import type { SensorRegistry } from './registry.js';
 
-const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.SecuritySystem]);
+const TARGET_STATE_MIRROR_TYPES = new Set<SensorType>([SensorType.Lock, SensorType.Garage, SensorType.Cover, SensorType.Valve, SensorType.SecuritySystem]);
+const MOMENTARY: Partial<Record<SensorType, { property: string; resetMs: number }>> = {
+  [SensorType.Doorbell]: { property: DoorbellProperty.Ring, resetMs: RING_AUTO_RESET_MS },
+  [SensorType.Scene]: { property: SceneProperty.Active, resetMs: SCENE_AUTO_RESET_MS },
+};
 const hosts = new Map<string, VirtualSensorHost>();
 
 export async function registerVirtualSensorHost(registry: SensorRegistry, sensorId: string, type: SensorType): Promise<void> {
@@ -27,7 +31,7 @@ export async function disposeVirtualSensorHost(sensorId: string): Promise<void> 
 }
 
 export class VirtualSensorHost {
-  private ringResetTimer?: NodeJS.Timeout;
+  private resetTimer?: NodeJS.Timeout;
   private readonly disposers: (() => void | Promise<void>)[] = [];
 
   constructor(
@@ -42,16 +46,17 @@ export class VirtualSensorHost {
 
     this.disposers.push(await proxy.registerHandler(rpcNamespace, new VirtualSensorRpcHandler(this)));
 
-    // a restart inside the ring window skips the reset, the stored ring would stay true
-    if (this.type === SensorType.Doorbell && this.registry.getPropertyValue(this.sensorId, DoorbellProperty.Ring) === true) {
-      this.write({ [DoorbellProperty.Ring]: false });
+    // a restart inside the reset window skips the reset, the stored true would stay
+    const momentary = MOMENTARY[this.type];
+    if (momentary && this.registry.getPropertyValue(this.sensorId, momentary.property) === true) {
+      this.write({ [momentary.property]: false });
     }
   }
 
   public async dispose(): Promise<void> {
-    if (this.ringResetTimer) {
-      clearTimeout(this.ringResetTimer);
-      this.ringResetTimer = undefined;
+    if (this.resetTimer) {
+      clearTimeout(this.resetTimer);
+      this.resetTimer = undefined;
     }
 
     for (const dispose of this.disposers.reverse()) {
@@ -65,10 +70,10 @@ export class VirtualSensorHost {
   }
 
   public applyUpdate(property: string, value: unknown): void {
-    if (this.type === SensorType.Doorbell && (property as DoorbellProperty) === DoorbellProperty.Ring) {
-      // ring=false is owned by the auto-reset timer (SDK DoorbellTrigger parity)
-      if (!value) return;
-      this.trigger();
+    const momentary = MOMENTARY[this.type];
+    if (momentary?.property === property) {
+      // false is owned by the reset timer
+      if (value) this.trigger(momentary.property, momentary.resetMs);
       return;
     }
 
@@ -81,14 +86,14 @@ export class VirtualSensorHost {
     this.write({ [property]: value });
   }
 
-  private trigger(): void {
-    if (this.ringResetTimer) clearTimeout(this.ringResetTimer);
+  private trigger(property: string, resetMs: number): void {
+    if (this.resetTimer) clearTimeout(this.resetTimer);
 
-    this.write({ [DoorbellProperty.Ring]: true });
-    this.ringResetTimer = setTimeout(() => {
-      this.ringResetTimer = undefined;
-      this.write({ [DoorbellProperty.Ring]: false });
-    }, RING_AUTO_RESET_MS);
+    this.write({ [property]: true });
+    this.resetTimer = setTimeout(() => {
+      this.resetTimer = undefined;
+      this.write({ [property]: false });
+    }, resetMs);
   }
 
   private write(properties: Record<string, unknown>): void {

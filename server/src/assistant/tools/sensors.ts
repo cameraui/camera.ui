@@ -35,6 +35,8 @@ function stateOf(sensor: TransformedSensor): string | number | undefined {
     if (sensor.type === SensorType.Presence) return value ? 'home' : ['away', sensor.properties[PresenceProperty.Zone]].filter(Boolean).join(', ');
     if (semantics.deviceClass === 'opening' || sensor.type === SensorType.Contact) return value ? 'open' : 'closed';
     if (sensor.type === SensorType.Doorbell) return value ? 'ringing' : 'idle';
+    if (sensor.type === SensorType.Scene) return value ? 'running' : 'idle';
+    if (value && semantics.fan?.speed) return `on, ${String(sensor.properties[semantics.fan.speed])}% speed`;
     return value ? 'on' : 'off';
   }
   if (typeof value === 'number' && semantics.unit) {
@@ -108,7 +110,7 @@ const setSensorPropertyInput = zod.object({
     .optional()
     .describe(
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
-      'covers targetPosition (0 closed, 100 open), thermostats targetTemperature',
+      'covers and valves targetPosition (0 closed, 100 open), thermostats targetTemperature and targetHumidity, fans speed (0 to 100)',
     ),
   value: zod
     .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])

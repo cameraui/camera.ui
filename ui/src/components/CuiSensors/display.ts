@@ -2,27 +2,34 @@ import {
   isReactiveChimeControl,
   isReactiveCoverControl,
   isReactiveDoorbellTrigger,
+  isReactiveFanControl,
   isReactiveGarageControl,
   isReactiveLightControl,
   isReactiveLockControl,
   isReactiveOutletControl,
+  isReactiveSceneControl,
   isReactiveSecuritySystem,
   isReactiveSirenControl,
+  isReactiveValveControl,
 } from '@camera.ui/browser';
 import {
   ChimeProperty,
   CoverProperty,
   CoverState,
   DoorbellProperty,
+  FanProperty,
   GarageProperty,
   LightProperty,
   LockProperty,
   OutletProperty,
+  SceneProperty,
   SecuritySystemProperty,
   SecuritySystemState,
   SensorType,
   SirenProperty,
   SwitchProperty,
+  ValveProperty,
+  ValveState,
 } from '@camera.ui/sdk';
 
 import { isSensorActive } from '@/common/sensorDisplay.js';
@@ -44,6 +51,9 @@ export async function toggleSensor(sensor: ReactiveSensor | undefined): Promise<
   if (isReactiveLockControl(sensor)) return await sensor.setProperty(LockProperty.TargetState, active ? 1 : 0);
   if (isReactiveGarageControl(sensor)) return await sensor.setProperty(GarageProperty.TargetState, active ? 1 : 0);
   if (isReactiveCoverControl(sensor)) return await sensor.setProperty(CoverProperty.TargetState, active ? CoverState.Closed : CoverState.Open);
+  if (isReactiveFanControl(sensor)) return await sensor.setProperty(FanProperty.On, !active);
+  if (isReactiveValveControl(sensor)) return await sensor.setProperty(ValveProperty.TargetState, active ? ValveState.Closed : ValveState.Open);
+  if (isReactiveSceneControl(sensor)) return await sensor.setProperty(SceneProperty.Active, true);
   if (isReactiveDoorbellTrigger(sensor)) return await sensor.setProperty(DoorbellProperty.Ring, true);
 }
 

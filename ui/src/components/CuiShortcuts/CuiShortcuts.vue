@@ -253,26 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  isReactiveBatteryInfo,
-  isReactiveContactSensor,
-  isReactiveCoverControl,
-  isReactiveDoorbellTrigger,
-  isReactiveGarageControl,
-  isReactiveHumidityInfo,
-  isReactiveLeakSensor,
-  isReactiveLightControl,
-  isReactiveLockControl,
-  isReactiveOccupancySensor,
-  isReactiveOutletControl,
-  isReactiveSecuritySystem,
-  isReactiveSirenControl,
-  isReactiveSmokeSensor,
-  isReactiveTemperatureInfo,
-  isReactiveThermostatControl,
-  useCameraUi,
-  useSensors,
-} from '@camera.ui/browser';
+import { isReactiveSecuritySystem, useCameraUi, useSensors } from '@camera.ui/browser';
 import { createNvrPlayback, NvrPlaybackKey, playheadUs, useNvrCtx } from '@camera.ui/nvr';
 import { SecuritySystemProperty, SecuritySystemState, SensorType } from '@camera.ui/sdk';
 import { vElementHover, vOnLongPress } from '@vueuse/components';
@@ -349,28 +330,7 @@ const isNvrActive = computed(() => parentNvr?.isActive.value ?? false);
 const cameraShortcuts = computed(() => shortcuts.value.filter((s): s is DBCameraShortcut => s.type === 'camera'));
 const sensorShortcuts = computed(() => shortcuts.value.filter((s): s is DBSensorShortcut => s.type === 'sensor'));
 
-const availableSensorsForShortcuts = computed(() => {
-  return allSensors.value.filter(
-    (s) =>
-      isReactiveContactSensor(s) ||
-      isReactiveTemperatureInfo(s) ||
-      isReactiveHumidityInfo(s) ||
-      isReactiveOccupancySensor(s) ||
-      isReactiveSmokeSensor(s) ||
-      isReactiveLeakSensor(s) ||
-      isReactiveLightControl(s) ||
-      isReactiveLockControl(s) ||
-      isReactiveGarageControl(s) ||
-      isReactiveCoverControl(s) ||
-      isReactiveThermostatControl(s) ||
-      s.type === SensorType.Switch ||
-      isReactiveOutletControl(s) ||
-      isReactiveSirenControl(s) ||
-      isReactiveDoorbellTrigger(s) ||
-      isReactiveSecuritySystem(s) ||
-      isReactiveBatteryInfo(s),
-  );
-});
+const availableSensorsForShortcuts = computed(() => allSensors.value.filter((s) => SENSOR_SHORTCUTABLE_TYPES.has(s.type as SensorShortcutType)));
 
 const resolvedSensorShortcuts = computed<ResolvedSensorShortcut[]>(() => {
   const currentSensors = allSensors.value;

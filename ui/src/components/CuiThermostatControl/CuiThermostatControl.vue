@@ -39,6 +39,11 @@
       <CuiNumberStepper v-model="targetValue" v-bind="stepper" />
     </div>
 
+    <div v-if="hasTargetHumidity" class="cui-thermostat-control__row">
+      <span class="cui-thermostat-control__row-label">{{ t('components.automation_nodes.sensor_property_targetHumidity') }}</span>
+      <CuiNumberStepper v-model="humidityValue" :min="humidityMin" :max="humidityMax" :step="humidityStep" suffix=" %" size="small" :disabled />
+    </div>
+
     <div v-if="presets?.length" class="cui-thermostat-control__row">
       <span class="cui-thermostat-control__row-label">{{ t('components.automation_nodes.sensor_property_preset') }}</span>
       <Select
@@ -79,7 +84,7 @@ const emit = defineEmits<CuiThermostatControlEmits>();
 
 const { t } = useI18n();
 
-const { targetTemperature, targetTemperatureLow, targetTemperatureHigh, min, max, step, disabled } = toRefs(props);
+const { targetTemperature, targetTemperatureLow, targetTemperatureHigh, targetHumidity, min, max, step, disabled } = toRefs(props);
 
 const CELSIUS = '°C';
 const STEP_REST = 800;
@@ -87,6 +92,7 @@ const STEP_REST = 800;
 const targetValue = useRestingValue(shown(targetTemperature), (value) => emit('update:targetTemperature', storedValue(value, CELSIUS)), STEP_REST);
 const lowValue = useRestingValue(shown(targetTemperatureLow), (value) => emit('update:targetTemperatureLow', storedValue(value, CELSIUS)), STEP_REST);
 const highValue = useRestingValue(shown(targetTemperatureHigh), (value) => emit('update:targetTemperatureHigh', storedValue(value, CELSIUS)), STEP_REST);
+const humidityValue = useRestingValue(targetHumidity, (value) => emit('update:targetHumidity', value), STEP_REST);
 
 const stepper = computed(() => ({
   min: shownValue(min.value, CELSIUS).value,

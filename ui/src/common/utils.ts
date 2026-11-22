@@ -64,14 +64,14 @@ function withCardDate(ms: number, time: string): string {
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
 }
 
-export function formatRelativeTime(value: string | number | Date): string {
+export function formatRelativeTime(value: string | number | Date, now = Date.now()): string {
   const date = value instanceof Date ? value : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return '';
   }
 
-  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const seconds = Math.round((date.getTime() - now) / 1000);
   const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
   const divisions: [Intl.RelativeTimeFormatUnit, number][] = [

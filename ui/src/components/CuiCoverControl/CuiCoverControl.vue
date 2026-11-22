@@ -47,6 +47,12 @@
 
       <Slider v-model="tiltValue" :min="0" :max="100" :disabled class="w-full" />
     </div>
+
+    <div v-if="hasDuration" class="cui-cover-control__setting-header">
+      <i-mdi:timer-outline class="cui-cover-control__setting-icon" />
+      <span class="cui-cover-control__setting-label">{{ t('components.automation_nodes.sensor_property_duration') }}</span>
+      <CuiNumberStepper v-model="durationMinutes" :min="0" :max="Math.floor(durationMax / 60)" :step="1" suffix=" min" size="small" :disabled class="ml-auto" />
+    </div>
   </div>
 </template>
 
@@ -63,7 +69,7 @@ const emit = defineEmits<CuiCoverControlEmits>();
 
 const { t } = useI18n();
 
-const { currentState, position, targetPosition, tilt, hasPosition } = toRefs(props);
+const { currentState, position, targetPosition, tilt, hasPosition, duration, remaining } = toRefs(props);
 
 const STATE_NAMES: Record<CoverState, string> = {
   [CoverState.Open]: 'open',
@@ -75,6 +81,10 @@ const STATE_NAMES: Record<CoverState, string> = {
 
 const positionValue = useRestingValue(targetPosition, (value) => emit('update:targetPosition', value));
 const tiltValue = useRestingValue(tilt, (value) => emit('update:targetTilt', value));
+const durationMinutes = useRestingValue(
+  computed(() => Math.round(duration.value / 60)),
+  (value) => emit('update:duration', value * 60),
+);
 
 const isOpen = computed(() => currentState.value === CoverState.Open || currentState.value === CoverState.Opening);
 
@@ -83,7 +93,8 @@ const statusText = computed(() => {
   if (!name) return '';
   const state = t(`components.sensor_state.${name}`);
   const partly = currentState.value === CoverState.Open || currentState.value === CoverState.Stopped;
-  return hasPosition.value && partly ? `${state} · ${position.value} %` : state;
+  if (hasPosition.value && partly) return `${state} · ${position.value} %`;
+  return remaining.value > 0 ? `${state} · ${clock(remaining.value)}` : state;
 });
 
 const statusClass = computed(() => {
@@ -113,6 +124,10 @@ const iconStyle = computed(() => {
       return undefined;
   }
 });
+
+function clock(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 
 function onToggle(open: boolean) {
   emit('update:targetState', open ? CoverState.Open : CoverState.Closed);
@@ -232,6 +247,11 @@ function onToggle(open: boolean) {
 .cui-cover-control__setting-icon {
   width: 1rem;
   height: 1rem;
+  color: var(--text-secondary-color);
+}
+
+.cui-cover-control__setting-label {
+  font-size: 0.75rem;
   color: var(--text-secondary-color);
 }
 

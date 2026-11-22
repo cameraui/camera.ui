@@ -12,11 +12,12 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
   const base = meta?.semantics;
   if (!base) return undefined;
 
-  const { brightness, volume, color, position, tilt, stop, climate, readings, deviceClassProperty, ...rest } = base;
+  const { brightness, volume, color, position, tilt, stop, climate, fan, duration, readings, deviceClassProperty, ...rest } = base;
   const offered = (property: string) => isPropertyOffered(sensor, property);
   const deviceClass = deviceClassProperty ? singleValue(sensor.propertySpecs?.[deviceClassProperty]) : base.deviceClass;
   const states = base.states ?? offeredValues(meta.properties[base.stateProperty], sensor.propertySpecs?.[base.stateProperty]);
   const colors = color && offeredColor(color, offered);
+  const fanParts = fan && offeredFan(fan, offered);
   const choices = Object.entries(sensor.propertySpecs ?? {}).flatMap(([property, spec]) =>
     spec.writable && spec.choices?.length && property !== base.commandProperty && offered(property) ? [property] : [],
   );
@@ -32,6 +33,8 @@ export function resolveSensorSemantics(sensor: SemanticsInput): SensorSemantics 
     ...(tilt && offered(tilt.target) ? { tilt } : {}),
     ...(stop && offered(stop.property) ? { stop } : {}),
     ...(climate ? { climate: offeredClimate(climate, offered) } : {}),
+    ...(fanParts ? { fan: fanParts } : {}),
+    ...(duration && offered(duration.property) ? { duration } : {}),
     ...(readings ? { readings: readings.filter((reading) => offered(reading.property)) } : {}),
   };
 }
@@ -46,13 +49,19 @@ function offeredColor(color: NonNullable<SensorSemantics['color']>, offered: (pr
 }
 
 function offeredClimate(climate: NonNullable<SensorSemantics['climate']>, offered: (property: string) => boolean): SensorSemantics['climate'] {
-  const { targetLow, targetHigh, action, humidity, ...always } = climate;
+  const { targetLow, targetHigh, action, humidity, targetHumidity, ...always } = climate;
   return {
     ...always,
     ...(targetLow && targetHigh && offered(targetLow) && offered(targetHigh) ? { targetLow, targetHigh } : {}),
     ...(action && offered(action) ? { action } : {}),
     ...(humidity && offered(humidity) ? { humidity } : {}),
+    ...(targetHumidity && offered(targetHumidity) ? { targetHumidity } : {}),
   };
+}
+
+function offeredFan(fan: NonNullable<SensorSemantics['fan']>, offered: (property: string) => boolean): SensorSemantics['fan'] {
+  const parts = Object.entries(fan).filter(([, property]) => property && offered(property));
+  return parts.length ? Object.fromEntries(parts) : undefined;
 }
 
 function isPropertyOffered(sensor: SemanticsInput, property: string): boolean {

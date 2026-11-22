@@ -3,6 +3,8 @@ import {
   ChargingState,
   CoverKind,
   CoverProperty,
+  LockProperty,
+  LockState,
   PresenceProperty,
   SecuritySystemProperty,
   SecuritySystemState,
@@ -11,6 +13,8 @@ import {
   sensorMeta,
   ThermostatAction,
   ThermostatMode,
+  ValveKind,
+  ValveProperty,
 } from '@camera.ui/sdk';
 import FaceEmbedderIcon from '~icons/mdi/account-search-outline';
 import AirQualityIcon from '~icons/mdi/air-filter';
@@ -65,6 +69,7 @@ import ClassifierIcon from '~icons/mdi/label-multiple-outline';
 import LightOnIcon from '~icons/mdi/lightbulb-on';
 import LightIcon from '~icons/mdi/lightbulb-outline';
 import LockedIcon from '~icons/mdi/lock';
+import LockAlertIcon from '~icons/mdi/lock-alert';
 import UnlockedIcon from '~icons/mdi/lock-open-outline';
 import DisplayActiveIcon from '~icons/mdi/message-text';
 import DisplayIcon from '~icons/mdi/message-text-outline';
@@ -90,6 +95,14 @@ import SmokeAlertIcon from '~icons/mdi/smoke-detector-variant-alert';
 import ColdIcon from '~icons/mdi/snowflake';
 import TemperatureIcon from '~icons/mdi/thermometer';
 import ThermostatIcon from '~icons/mdi/thermostat';
+import ValveIcon from '~icons/mdi/valve-closed';
+import ValveOpenIcon from '~icons/mdi/valve-open';
+import FanIcon from '~icons/mdi/fan';
+import FanOffIcon from '~icons/mdi/fan-off';
+import SceneActiveIcon from '~icons/mdi/palette';
+import SceneIcon from '~icons/mdi/palette-outline';
+import SprinklerIcon from '~icons/mdi/sprinkler';
+import SprinklerOnIcon from '~icons/mdi/sprinkler-variant';
 import SwitchOnIcon from '~icons/mdi/toggle-switch';
 import SwitchIcon from '~icons/mdi/toggle-switch-off-outline';
 import SegmenterIcon from '~icons/mdi/vector-polygon';
@@ -140,6 +153,9 @@ const DOMAIN_LOOKS: Record<SensorDomain, SensorLook> = {
   [SensorDomain.Lock]: { icon: UnlockedIcon, activeIcon: LockedIcon, states: ['unlocked', 'locked'], tone: 'ok' },
   [SensorDomain.Cover]: { icon: WindowShutterIcon, activeIcon: WindowShutterOpenIcon, states: ['closed', 'open'], tone: 'warn' },
   [SensorDomain.Climate]: { icon: ThermostatIcon, states: ['off', 'on'], tone: 'warn' },
+  [SensorDomain.Fan]: { icon: FanOffIcon, activeIcon: FanIcon, states: ['off', 'on'], tone: 'info' },
+  [SensorDomain.Valve]: { icon: ValveIcon, activeIcon: ValveOpenIcon, states: ['closed', 'open'], tone: 'info' },
+  [SensorDomain.Scene]: { icon: SceneIcon, activeIcon: SceneActiveIcon, states: ['ready', 'running'], tone: 'info' },
   [SensorDomain.Alarm]: { icon: SecuritySystemIcon, states: ['disarmed', 'armed_home'], tone: 'ok' },
   [SensorDomain.Event]: { icon: ButtonIcon, tone: 'info' },
   [SensorDomain.Text]: { icon: DisplayIcon, activeIcon: DisplayActiveIcon, tone: 'info' },
@@ -185,6 +201,12 @@ const TYPE_LOOKS: Partial<Record<SensorType, Partial<SensorLook>>> = {
   [SensorType.Battery]: { icon: BatteryIcon, tone: 'alarm' },
 };
 
+const NAMED_STATE_DOMAINS = new Set<SensorDomain>([SensorDomain.Alarm, SensorDomain.Cover, SensorDomain.Valve]);
+
+const VALVE_KIND_ICONS: Partial<Record<ValveKind, readonly [closed: Component, open: Component]>> = {
+  [ValveKind.Irrigation]: [SprinklerIcon, SprinklerOnIcon],
+};
+
 const COVER_KIND_ICONS: Record<CoverKind, readonly [closed: Component, open: Component]> = {
   [CoverKind.Awning]: [AwningClosedIcon, AwningIcon],
   [CoverKind.Blind]: [BlindsIcon, BlindsOpenIcon],
@@ -207,7 +229,8 @@ export function sensorIcon(type: string, sensor: AnySensor | undefined): Compone
   if (type === SensorType.Battery) return batteryIcon(sensor);
   if (type === SensorType.SecuritySystem) return securityIcon(sensor);
   const active = sensor ? sensorActive(type, readFrom(sensor)) : false;
-  const kindIcons = type === SensorType.Cover ? COVER_KIND_ICONS[sensor?.getProperty(CoverProperty.Kind) as CoverKind] : undefined;
+  if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return LockAlertIcon;
+  const kindIcons = kindIconsOf(type, sensor);
   return kindIcons ? kindIcons[active ? 1 : 0] : sensorTypeIcon(type, active);
 }
 
@@ -223,6 +246,7 @@ export function sensorActive(type: string, read: ReadProperty): boolean {
     case SensorDomain.Lock:
       return requested(semantics, read) === semantics.states?.locked;
     case SensorDomain.Cover:
+    case SensorDomain.Valve:
       return requested(semantics, read) === semantics.states?.open;
     case SensorDomain.Climate: {
       const mode = read(semantics.stateProperty);
@@ -256,6 +280,7 @@ export function sensorTone(type: string, sensor: AnySensor | undefined): Record<
 export function sensorReadTone(type: string, read: ReadProperty): Record<string, string> {
   if (type === SensorType.SecuritySystem && read(SecuritySystemProperty.CurrentState) === SecuritySystemState.AlarmTriggered) return toneStyle('alarm');
   if (read(sensorMeta(type)?.semantics?.climate?.action ?? '') === ThermostatAction.Cooling) return toneStyle('info');
+  if (type === SensorType.Lock && read(LockProperty.CurrentState) === LockState.Jammed) return toneStyle('alarm');
   return toneStyle(sensorActive(type, read) ? lookOf(type).tone : undefined);
 }
 
@@ -273,7 +298,12 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
   if (semantics?.domain === SensorDomain.Event) return namedState(value, t) ?? t('components.sensor_state.idle');
   if (semantics?.domain === SensorDomain.Text) return typeof value === 'string' && value ? value : '--';
   if (sensor && semantics?.climate) return climateStatus(sensor, semantics.climate, t);
-  if (sensor && semantics?.states && (semantics.domain === SensorDomain.Alarm || semantics.domain === SensorDomain.Cover)) {
+  if (type === SensorType.Lock && sensor?.getProperty(LockProperty.CurrentState) === LockState.Jammed) return t('components.sensor_state.jammed');
+  const speed = semantics?.fan?.speed;
+  if (sensor && speed && value === true && sensorOffers(sensor, speed)) {
+    return `${t('components.sensor_state.on')} · ${formatMeasurement(Number(sensor.getProperty(speed)), sensorPropertySpec(sensor, speed))}`;
+  }
+  if (sensor && semantics?.states && NAMED_STATE_DOMAINS.has(semantics.domain)) {
     const value = sensor.getProperty(semantics.stateProperty);
     const name = Object.entries(semantics.states).find(([, state]) => state === value)?.[0];
     if (name) return t(`components.sensor_state.${name}`);
@@ -325,6 +355,12 @@ function lookOf(type: string): SensorLook {
   const domain = sensorMeta(type)?.semantics?.domain;
   const base = domain ? DOMAIN_LOOKS[domain] : { icon: UnknownIcon };
   return { ...base, ...TYPE_LOOKS[type as SensorType] };
+}
+
+function kindIconsOf(type: string, sensor: AnySensor | undefined): readonly [Component, Component] | undefined {
+  if (type === SensorType.Cover) return COVER_KIND_ICONS[sensor?.getProperty(CoverProperty.Kind) as CoverKind];
+  if (type === SensorType.Valve) return VALVE_KIND_ICONS[sensor?.getProperty(ValveProperty.Kind) as ValveKind];
+  return undefined;
 }
 
 function climateStatus(sensor: AnySensor, climate: SensorClimate, t: (key: string) => string): string {
