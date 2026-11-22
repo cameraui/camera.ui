@@ -1,10 +1,17 @@
 <template>
   <Teleport to="body">
-    <Transition name="cui-bottom-sheet-backdrop">
-      <div v-if="modelValue && isFirstSheet" class="cui-bottom-sheet-backdrop" :style="backdropStyle" @click="onBackdropClick" />
+    <Transition name="cui-bottom-sheet-backdrop" @after-leave="unstack">
+      <div
+        v-if="modelValue && isFirstSheet"
+        ref="backdropRef"
+        class="cui-bottom-sheet-backdrop"
+        :style="backdropStyle"
+        @pointerdown="onBackdropPress"
+        @click="onBackdropClick"
+      />
     </Transition>
 
-    <Transition name="cui-bottom-sheet">
+    <Transition name="cui-bottom-sheet" @after-leave="unstack">
       <div
         v-if="modelValue"
         ref="sheetRef"
@@ -48,9 +55,13 @@
 </template>
 
 <script setup lang="ts">
+import { ZIndex } from '@openuxkit/utils/zindex';
+
 import { randomLetter } from '@/common/utils.js';
 
 import type { CuiBottomSheetEmits, CuiBottomSheetProps } from './types.js';
+
+const Z_INDEX_BASE = 1000;
 
 const props = withDefaults(defineProps<CuiBottomSheetProps>(), {
   title: undefined,
@@ -75,8 +86,6 @@ const {
   updateMeasuredHeight,
   isTopmost,
   closeAll,
-  getBackdropZIndex,
-  getSheetZIndex,
   getStackTransform,
   topmostMeasuredHeight,
   setDragProgress,
@@ -91,6 +100,7 @@ const { modelValue, height: heightProp, maxHeight, minHeight, draggable, dismiss
 const sheetId = ref(randomLetter());
 const stackPosition = ref(-1);
 const sheetRef = useTemplateRef('sheetRef');
+const backdropRef = useTemplateRef('backdropRef');
 const handleRef = ref<HTMLElement | null>(null);
 const isDragging = ref(false);
 const dragStartY = ref(0);
@@ -112,7 +122,6 @@ const dragOffset = computed(() => {
 });
 
 const backdropStyle = computed(() => ({
-  zIndex: getBackdropZIndex(0),
   '--backdrop-opacity': 1 - dragProgress.value,
 }));
 
@@ -155,7 +164,6 @@ const sheetStyle = computed<Record<string, string | number | undefined>>(() => {
     // a direct transform skips the css variable recalc on every frame
     transform: dragging ? `translateX(-50%) translateY(${dragY}px) scaleX(${scaleX})` : undefined,
     '--sheet-translate-y': dragging ? undefined : `${dragY}px`,
-    zIndex: getSheetZIndex(stackPosition.value),
     opacity: visible ? 1 : 0,
     pointerEvents: visible ? undefined : 'none',
     transition: dragging ? 'none' : undefined,
@@ -168,13 +176,39 @@ const isStackedBehind = computed(() => stackSize.value > 1 && !isTopSheet.value)
 const isStackedOnTop = computed(() => stackPosition.value > 0);
 
 let rafId = 0;
+let backdropPressed = false;
+const stacked = new Set<HTMLElement>();
 
 function close() {
   emit('update:modelValue', false);
   emit('close');
 }
 
+function stack(element: HTMLElement): void {
+  ZIndex.set('modal', element, Z_INDEX_BASE);
+  stacked.add(element);
+}
+
+function restack(backdrop: HTMLElement | null, sheet: HTMLElement | null): void {
+  if (backdrop && !stacked.has(backdrop)) {
+    stack(backdrop);
+    if (sheet && stacked.has(sheet)) unstack(sheet);
+  }
+  if (sheet && !stacked.has(sheet)) stack(sheet);
+}
+
+function unstack(element: Element): void {
+  ZIndex.clear(element as HTMLElement);
+  stacked.delete(element as HTMLElement);
+}
+
+function onBackdropPress() {
+  backdropPressed = true;
+}
+
 function onBackdropClick() {
+  if (!backdropPressed) return;
+  backdropPressed = false;
   if (closeOnBackdrop.value) {
     closeAll();
   }
@@ -303,6 +337,8 @@ watch(modelValue, (open) => {
   }
 });
 
+watch([backdropRef, sheetRef], ([backdrop, sheet]) => restack(backdrop, sheet), { flush: 'post' });
+
 onMounted(() => {
   document.addEventListener('keydown', onKeydown);
 });
@@ -312,6 +348,7 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onMouseMove);
   document.removeEventListener('mouseup', onMouseUp);
   sheetRef.value?.removeEventListener('touchmove', onTouchMove);
+  stacked.forEach(unstack);
 
   if (modelValue.value) {
     unregister(sheetId.value);

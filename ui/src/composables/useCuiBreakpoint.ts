@@ -18,6 +18,9 @@ export function useCuiBreakpoint() {
   // < 768px
   const mdBreakpoint = computed(() => !atLeastMd.value);
 
+  // phones in both orientations
+  const phoneBreakpoint = computed(() => mdBreakpoint.value || shortBreakpoint.value);
+
   // >= 640px && < 1024px
   const xmdBreakpoint = computed(() => atLeastSm.value && !atLeastLg.value);
 
@@ -36,6 +39,7 @@ export function useCuiBreakpoint() {
     shortBreakpoint,
     smBreakpoint,
     mdBreakpoint,
+    phoneBreakpoint,
     xmdBreakpoint,
     lgBreakpoint,
     xlBreakpoint,

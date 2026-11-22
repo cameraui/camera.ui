@@ -9,10 +9,6 @@ const sheetStack = ref<BottomSheetInstance[]>([]);
 const bodyScrollLockCount = ref(0);
 const dragProgress = ref(0); // 0 = no drag, 1 = fully dragged down
 
-const BASE_BACKDROP_Z_INDEX = 1000;
-const BASE_SHEET_Z_INDEX = 1001;
-const Z_INDEX_INCREMENT = 10;
-
 const STACK_TOP_PADDING = 8; // px
 const STACK_PEEK_HEIGHT = 16; // px
 const STACK_SCALE_X = 0.96;
@@ -76,14 +72,6 @@ export function useCuiBottomSheet() {
     for (const sheet of stack) {
       sheet.close();
     }
-  };
-
-  const getBackdropZIndex = (stackPosition: number): number => {
-    return BASE_BACKDROP_Z_INDEX + stackPosition * Z_INDEX_INCREMENT;
-  };
-
-  const getSheetZIndex = (stackPosition: number): number => {
-    return BASE_SHEET_Z_INDEX + stackPosition * Z_INDEX_INCREMENT;
   };
 
   const setDragProgress = (progress: number): void => {
@@ -153,8 +141,6 @@ export function useCuiBottomSheet() {
     isTopmost,
     closeTopmost,
     closeAll,
-    getBackdropZIndex,
-    getSheetZIndex,
     getStackTransform,
     topmostHeight,
     topmostMeasuredHeight,
