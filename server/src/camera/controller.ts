@@ -692,6 +692,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
         const watchedProps = [
           'name',
+          'room',
           'sources',
           'detectionSettings',
           'ptzAutotrack',

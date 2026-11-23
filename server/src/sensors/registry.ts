@@ -289,7 +289,7 @@ export class SensorRegistry {
     }
   }
 
-  public createAdoptedSensor(pluginId: string, sensor: DiscoveredSensor): DBSensor {
+  public createAdoptedSensor(pluginId: string, sensor: DiscoveredSensor, roomId?: string): DBSensor {
     const existing = this.findByNativeId(pluginId, sensor.id);
     if (existing) return existing;
 
@@ -300,6 +300,7 @@ export class SensorRegistry {
       type: sensor.type,
       name: sensor.name,
       address: sensor.address,
+      roomId,
       assignedCameraIds: [],
       exposed: false,
       state: {},
@@ -474,6 +475,19 @@ export class SensorRegistry {
     for (const cameraId of target) {
       if (!current.has(cameraId)) await this.assignCamera(sensorId, cameraId);
     }
+  }
+
+  public setRoom(sensorId: string, roomId: string | null): void {
+    const record = this.records.get(sensorId);
+    if (!record) throw new Error(`Sensor ${sensorId} not found`);
+    if ((record.roomId ?? null) === roomId) return;
+
+    this.persistRecord(sensorId, (current) => {
+      if (roomId) current.roomId = roomId;
+      else delete current.roomId;
+    });
+
+    emitInternalEvent('sensor:room:changed', { sensorId, sensorType: String(record.type), assignedCameraIds: [...record.assignedCameraIds] });
   }
 
   public async setExposed(sensorId: string, exposed: boolean): Promise<void> {

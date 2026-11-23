@@ -760,6 +760,7 @@ export interface DBSensor {
   boundCameraId?: string;
   deviceId?: string;
   primary?: boolean;
+  roomId?: string;
   exposed: boolean;
   origin?: string;
   address?: string;

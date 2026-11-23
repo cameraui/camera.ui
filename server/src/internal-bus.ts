@@ -22,7 +22,8 @@ export type SensorEvent =
   | 'sensor:exposed:changed'
   | 'sensor:assignment:changed'
   | 'sensor:device:changed'
-  | 'sensor:specs:changed';
+  | 'sensor:specs:changed'
+  | 'sensor:room:changed';
 
 export type InternalEvent = SystemEvent | PluginEvent | CameraEvent | SensorEvent;
 

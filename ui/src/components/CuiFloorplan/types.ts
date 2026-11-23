@@ -156,6 +156,7 @@ export interface CuiFloorplanInspectorProps {
   connections: FloorplanConnection[];
   cameras: FloorplanCamera[];
   sensors: FloorplanSensor[];
+  boundSensorIds?: string[];
   levels: FloorplanLevel[];
   selection?: FloorplanSelection | null;
   readOnly?: boolean;

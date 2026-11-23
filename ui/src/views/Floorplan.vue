@@ -144,6 +144,7 @@
           :connections="connections"
           :cameras="cameras"
           :sensors="sensors"
+          :bound-sensor-ids="[...boundCameras.keys()]"
           :levels="levels"
           :selection="selection"
           :read-only="!isAdmin"
@@ -177,6 +178,7 @@
         :connections="connections"
         :cameras="cameras"
         :sensors="sensors"
+        :bound-sensor-ids="[...boundCameras.keys()]"
         :levels="levels"
         :selection="selection"
         :read-only="!isAdmin"
@@ -420,6 +422,10 @@ const cameraNames = computed(() => new Map((cameraList.value?.result ?? []).map(
 
 const placeableSensors = computed(() => liveSensors.value.filter((sensor: ReactiveSensor) => SENSOR_SHORTCUTABLE_TYPES.has(String(sensor.type) as SensorShortcutType)));
 
+const boundCameras = computed(
+  () => new Map(liveSensors.value.flatMap((sensor: ReactiveSensor) => (sensor.boundCameraId ? [[sensor.id, sensor.boundCameraId] as const] : []))),
+);
+
 const sensorNames = computed(
   () => new Map(placeableSensors.value.map((sensor: ReactiveSensor) => [sensor.id, { name: sensorLabelOf(sensor), owner: sensorOwners(sensor) }])),
 );
@@ -626,6 +632,7 @@ function applyPlan(plan: DBFloorPlan, rooms: DBRoomCatalog): void {
     cameras: plan.cameras,
     sensors: plan.sensors ?? [],
   });
+  followCameras();
   savedPlan.value = snapshot();
   undoStack.value = [];
   redoStack.value = [];
@@ -704,10 +711,11 @@ function onSettleRoom(id: string): void {
   for (let suffix = 2; taken.has(name.toLowerCase()); suffix++) name = `${part.name} ${suffix}`;
 
   const roomId = randomId();
-  for (const camera of cameras.value) {
-    if (camera.roomId === part.roomId && contains(part, camera)) camera.roomId = roomId;
+  for (const item of placedItems()) {
+    if (item.roomId === part.roomId && contains(part, item)) item.roomId = roomId;
   }
   Object.assign(part, { roomId, name });
+  followCameras();
 
   toast.add({ severity: 'info', detail: t('views.floorplan.room_detached', { name }), life: 4000 });
 }
@@ -719,14 +727,16 @@ function joinRoom(part: FloorplanRoom, roomId: string): void {
   const previous = part.roomId;
   Object.assign(part, { roomId, name: target.name, note: target.note, levelId: target.levelId, outdoor: target.outdoor, publicSpace: target.publicSpace });
 
-  for (const camera of cameras.value) {
-    if (camera.roomId === previous && contains(part, camera)) camera.roomId = roomId;
+  for (const item of placedItems()) {
+    if (item.roomId === previous && contains(part, item)) item.roomId = roomId;
   }
 
-  if (partsOf(previous).length) return;
-
-  cameras.value = cameras.value.filter((camera) => camera.roomId !== previous);
-  connections.value = connections.value.filter((connection) => connection.fromRoomId !== previous && connection.toRoomId !== previous);
+  if (!partsOf(previous).length) {
+    cameras.value = cameras.value.filter((camera) => camera.roomId !== previous);
+    sensors.value = sensors.value.filter((sensor) => sensor.roomId !== previous);
+    connections.value = connections.value.filter((connection) => connection.fromRoomId !== previous && connection.toRoomId !== previous);
+  }
+  followCameras();
 }
 
 function findCamera(id: string): FloorplanCamera | undefined {
@@ -742,23 +752,23 @@ function onMoveRoom({ id, x, y }: { id: string; x: number; y: number }): void {
   room.x = x;
   room.y = y;
 
-  for (const camera of cameras.value) {
-    if (camera.roomId !== room.roomId || !contains(room, camera)) continue;
-    camera.x += deltaX;
-    camera.y += deltaY;
+  for (const item of placedItems()) {
+    if (item.roomId !== room.roomId || !contains(room, item)) continue;
+    item.x += deltaX;
+    item.y += deltaY;
   }
 }
 
 function onResizeRoom({ id, width, height }: { id: string; width: number; height: number }): void {
   const room = findRoom(id);
   if (!room) return;
+  const inside = placedItems().filter((item) => item.roomId === room.roomId && contains(room, item));
   room.width = width;
   room.height = height;
 
-  for (const camera of cameras.value) {
-    if (camera.roomId !== room.id) continue;
-    camera.x = Math.min(Math.max(camera.x, room.x), room.x + room.width);
-    camera.y = Math.min(Math.max(camera.y, room.y), room.y + room.height);
+  for (const item of inside) {
+    item.x = Math.min(Math.max(item.x, room.x), room.x + room.width);
+    item.y = Math.min(Math.max(item.y, room.y), room.y + room.height);
   }
 }
 
@@ -794,8 +804,8 @@ function onUpdateRoom({ id, patch }: { id: string; patch: Partial<FloorplanRoom>
 
   for (const part of partsOf(room.roomId)) Object.assign(part, roomWide);
   if (patch.levelId) {
-    for (const camera of cameras.value) {
-      if (camera.roomId === room.roomId) camera.levelId = patch.levelId;
+    for (const item of placedItems()) {
+      if (item.roomId === room.roomId) item.levelId = patch.levelId;
     }
   }
 }
@@ -806,16 +816,9 @@ function onUpdateCamera({ id, patch }: { id: string; patch: Partial<FloorplanCam
   if (!camera) return;
 
   Object.assign(camera, patch);
-
-  if (patch.roomId) {
-    const parts = partsOf(patch.roomId);
-    const room = parts.find((part) => contains(part, camera)) ?? parts[0];
-    if (room && !contains(room, camera)) {
-      camera.x = Math.round(room.x + room.width / 2);
-      camera.y = Math.round(room.y + room.height / 2);
-      camera.levelId = room.levelId;
-    }
-  }
+  if (!patch.roomId) return;
+  moveIntoRoom(camera, patch.roomId);
+  followCameras();
 }
 
 function onMoveSensor({ id, x, y }: { id: string; x: number; y: number }): void {
@@ -826,7 +829,9 @@ function onMoveSensor({ id, x, y }: { id: string; x: number; y: number }): void 
 function onUpdateSensor({ id, patch }: { id: string; patch: Partial<FloorplanSensor> }): void {
   pushHistory(true);
   const sensor = sensors.value.find((item) => item.id === id);
-  if (sensor) Object.assign(sensor, patch);
+  if (!sensor) return;
+  Object.assign(sensor, patch);
+  if (patch.roomId) moveIntoRoom(sensor, patch.roomId);
 }
 
 const hoveredLive = computed(() => (hoveredSensorId.value ? liveSensorOf(hoveredSensorId.value) : undefined));
@@ -963,8 +968,36 @@ function onResizeConnection({ id, offset, width }: { id: string; offset: number;
   if (connection) Object.assign(connection, { offset, width });
 }
 
-function contains(room: FloorplanRoom, camera: FloorplanCamera): boolean {
-  return camera.x >= room.x && camera.x <= room.x + room.width && camera.y >= room.y && camera.y <= room.y + room.height;
+function contains(room: FloorplanRoom, item: { x: number; y: number }): boolean {
+  return item.x >= room.x && item.x <= room.x + room.width && item.y >= room.y && item.y <= room.y + room.height;
+}
+
+function placedItems(): (FloorplanCamera | FloorplanSensor)[] {
+  return [...cameras.value, ...sensors.value];
+}
+
+function moveIntoRoom(item: FloorplanCamera | FloorplanSensor, roomId: string): void {
+  const parts = partsOf(roomId);
+  const room = parts.find((part) => contains(part, item)) ?? parts[0];
+  if (!room || contains(room, item)) return;
+  item.x = Math.round(room.x + room.width / 2);
+  item.y = Math.round(room.y + room.height / 2);
+  item.levelId = room.levelId;
+}
+
+function cameraRoomOf(sensorId: string): string | undefined {
+  const cameraId = boundCameras.value.get(sensorId);
+  if (!cameraId) return undefined;
+  return findCamera(cameraId)?.roomId ?? (cameraList.value?.result ?? []).find((camera) => camera._id === cameraId)?.roomId ?? undefined;
+}
+
+function followCameras(): void {
+  for (const sensor of sensors.value) {
+    const roomId = cameraRoomOf(sensor.id);
+    if (!roomId || roomId === sensor.roomId) continue;
+    sensor.roomId = roomId;
+    moveIntoRoom(sensor, roomId);
+  }
 }
 
 function onRemove(target: FloorplanSelection): void {
@@ -975,9 +1008,11 @@ function onRemove(target: FloorplanSelection): void {
 
     rooms.value = rooms.value.filter((room) => room.id !== target.id);
     cameras.value = cameras.value.filter((camera) => camera.roomId !== removed.roomId || !contains(removed, camera));
+    sensors.value = sensors.value.filter((sensor) => sensor.roomId !== removed.roomId || !contains(removed, sensor));
 
     if (!partsOf(removed.roomId).length) {
       cameras.value = cameras.value.filter((camera) => camera.roomId !== removed.roomId);
+      sensors.value = sensors.value.filter((sensor) => sensor.roomId !== removed.roomId);
       connections.value = connections.value.filter((connection) => connection.fromRoomId !== removed.roomId && connection.toRoomId !== removed.roomId);
     }
   } else if (target.kind === 'connection') {
@@ -1065,6 +1100,12 @@ function placeSensor(sensorId: string, sensorType: string, x: number, y: number)
   const room = rooms.value.find((item) => item.levelId === levelId.value && x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
   if (!room) return;
 
+  const cameraRoomId = cameraRoomOf(sensorId);
+  if (cameraRoomId && !partsOf(cameraRoomId).length) {
+    toast.add({ severity: 'warn', detail: t('views.floorplan.sensor_camera_room_missing'), life: 4000 });
+    return;
+  }
+
   pushHistory();
 
   const sensor: FloorplanSensor = {
@@ -1073,12 +1114,13 @@ function placeSensor(sensorId: string, sensorType: string, x: number, y: number)
     owner: sensorNames.value.get(sensorId)?.owner ?? '',
     sensorType,
     levelId: levelId.value,
-    roomId: room.roomId,
+    roomId: cameraRoomId ?? room.roomId,
     connectionId: null,
     note: '',
     x: Math.round(x),
     y: Math.round(y),
   };
+  moveIntoRoom(sensor, sensor.roomId);
 
   sensors.value.push(sensor);
   selection.value = { kind: 'sensor', id: sensor.id };

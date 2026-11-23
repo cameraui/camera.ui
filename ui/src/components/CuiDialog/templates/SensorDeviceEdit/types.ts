@@ -9,4 +9,5 @@ export interface SensorDeviceEditProps {
 export interface SensorDeviceEditResult {
   displayName: string;
   exposed?: boolean;
+  roomId?: string | null;
 }

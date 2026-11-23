@@ -66,6 +66,7 @@ export class FloorPlanService {
     if (!plan) return this.get();
 
     await this.syncCameraRooms(plan, known);
+    this.syncSensorRooms(plan);
     this.emit(plan);
 
     return plan;
@@ -196,6 +197,16 @@ export class FloorPlanService {
         continue;
       }
       await camerasService.assignRoom(camera._id, (await this.roomsService.fallback()).id);
+    }
+  }
+
+  private syncSensorRooms(plan: DBFloorPlan): void {
+    const registry = tryInject('sensorRegistry');
+    if (!registry) return;
+
+    for (const placement of plan.sensors) {
+      const record = registry.getRecord(placement.sensorId);
+      if (record && !record.boundCameraId) registry.setRoom(placement.sensorId, placement.roomId);
     }
   }
 

@@ -158,6 +158,17 @@
               </template>
             </Column>
             <Column
+              field="roomLabel"
+              :header="t('components.form.label.room')"
+              sortable
+              header-class="p-2 whitespace-nowrap cui-col-center"
+              class="p-2 whitespace-nowrap text-center"
+            >
+              <template #body="{ data }">
+                <span v-if="data.roomLabel" class="text-xs text-muted whitespace-nowrap">{{ data.roomLabel }}</span>
+              </template>
+            </Column>
+            <Column
               field="pluginLabel"
               :header="t('views.sensors.plugin')"
               sortable
@@ -554,6 +565,7 @@ interface SensorRow {
   exposure: Exposure;
   typeLabel: string;
   nativeLabel: string;
+  roomLabel: string;
   pluginLabel: string;
   assignedLabel: string;
   cameraCount: number;
@@ -852,6 +864,7 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
   const nativeLabel = sensor.address ?? sensor.nativeId ?? '';
   const pluginLabel = pluginLabelOf(sensor);
   const assignedLabel = cameraNames(sensor.assignedCameraIds);
+  const roomLabel = roomName(sensor.room);
   return {
     key: sensor.id,
     sensor,
@@ -860,11 +873,12 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
     exposure: exposureOf([sensor]),
     typeLabel,
     nativeLabel,
+    roomLabel,
     pluginLabel,
     assignedLabel,
     cameraCount: sensor.assignedCameraIds.length,
     partlyAssigned: false,
-    searchText: searchText([label, typeLabel, nativeLabel, pluginLabel, assignedLabel]),
+    searchText: searchText([label, typeLabel, nativeLabel, roomLabel, pluginLabel, assignedLabel]),
     state,
     stateLabel: stateLabel(state, sensor),
     stateColor: STATE_COLORS[state],
@@ -875,6 +889,11 @@ function exposureOf(members: TransformedSensor[]): Exposure {
   const exposed = members.filter((member) => member.exposed).length;
   if (exposed === members.length) return 'all';
   return exposed ? 'some' : 'none';
+}
+
+function roomName(room: string | undefined): string {
+  if (!room) return '';
+  return room === 'Default' ? t('components.form.label.room_default') : room;
 }
 
 function pluginLabelOf(sensor: TransformedSensor): string {
@@ -904,11 +923,19 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
     exposure: exposureOf(members),
     typeLabel,
     nativeLabel: '',
+    roomLabel: roomName(sensor.room),
     pluginLabel: pluginLabelOf(sensor),
     assignedLabel,
     cameraCount: cameraIds.length,
     partlyAssigned: members.some((member) => member.assignedCameraIds.length < cameraIds.length),
-    searchText: searchText([label, typeLabel, sensor.pluginName, assignedLabel, ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)])]),
+    searchText: searchText([
+      label,
+      typeLabel,
+      roomName(sensor.room),
+      sensor.pluginName,
+      assignedLabel,
+      ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)]),
+    ]),
     state,
     stateLabel: stateLabel(state, sensor),
     stateColor: STATE_COLORS[state],
@@ -922,6 +949,7 @@ function cameraGroupRow(key: string, members: TransformedSensor[]): SensorRow {
   const affected = sorted.filter((member) => sensorState(member) === state).length;
   const typeLabel = sensorTypeLabel(sensor.type);
   const pluginLabel = pluginLabelOf(sensor);
+  const rooms = new Set(sorted.map((member) => roomName(member.room)));
   return {
     key,
     sensor,
@@ -930,11 +958,12 @@ function cameraGroupRow(key: string, members: TransformedSensor[]): SensorRow {
     exposure: exposureOf(sorted),
     typeLabel,
     nativeLabel: '',
+    roomLabel: rooms.size === 1 ? [...rooms][0] : '',
     pluginLabel,
     assignedLabel: t('views.sensors.camera_count', { count: sorted.length }, sorted.length),
     cameraCount: sorted.length,
     partlyAssigned: false,
-    searchText: searchText([sensor.name, typeLabel, pluginLabel, ...sorted.flatMap((member) => [member.displayName, cameraNames(member.assignedCameraIds)])]),
+    searchText: searchText([sensor.name, typeLabel, pluginLabel, ...rooms, ...sorted.flatMap((member) => [member.displayName, cameraNames(member.assignedCameraIds)])]),
     state,
     stateLabel:
       affected < sorted.length ? t('views.sensors.group_state', { state: stateLabel(state, sensor), count: affected, total: sorted.length }) : stateLabel(state, sensor),

@@ -8,6 +8,14 @@
       </Message>
     </div>
 
+    <div class="flex flex-col field-gap">
+      <label class="cui-label">{{ $t('components.form.label.room') }}</label>
+      <CuiRoomSelect v-model="roomId" clearable :placeholder="$t('views.sensors.no_room')" />
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+        {{ $t('views.sensors.device_room_hint') }}
+      </Message>
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div v-for="field in infoFields" :key="field.label" class="flex flex-col field-gap min-w-0 sm:last:odd:col-span-2">
         <label class="cui-label">{{ field.label }}</label>
@@ -43,9 +51,11 @@ const props = defineProps<SensorDeviceEditProps>();
 const { t } = useI18n();
 
 const exposedBefore = props.sensors.every((sensor) => sensor.exposed);
+const roomBefore = (props.sensors.find((sensor) => sensor.primary) ?? props.sensors[0])?.roomId ?? null;
 
 const displayName = ref(props.device.name);
 const exposed = ref(exposedBefore);
+const roomId = ref(roomBefore);
 
 const infoFields = computed(() =>
   [
@@ -61,6 +71,7 @@ defineExpose<CustomDialogComponent>({
   onConfirm: async (): Promise<SensorDeviceEditResult> => ({
     displayName: displayName.value || props.device.sourceName,
     ...(exposed.value !== exposedBefore ? { exposed: exposed.value } : {}),
+    ...(roomId.value !== roomBefore ? { roomId: roomId.value } : {}),
   }),
 });
 </script>

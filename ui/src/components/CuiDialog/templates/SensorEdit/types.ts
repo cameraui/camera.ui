@@ -12,6 +12,7 @@ export interface SensorEditResult {
   displayName: string;
   assignedCameraIds: string[];
   exposed: boolean;
+  roomId?: string | null;
   deviceId?: string | null;
   newDeviceName?: string;
 }

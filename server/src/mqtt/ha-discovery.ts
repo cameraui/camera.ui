@@ -119,7 +119,7 @@ const DOMAIN_COMPONENT: Record<SensorDomain, string | undefined> = {
   [SensorDomain.Text]: 'text',
 };
 
-export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, sensor: StoredSensorData, viaCamera?: Camera): DiscoveryMessage[] {
+export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, sensor: StoredSensorData, viaCamera?: Camera, room?: string): DiscoveryMessage[] {
   const semantics = resolveSensorSemantics(sensor);
   const component = semantics && DOMAIN_COMPONENT[semantics.domain];
   if (!component) return [];
@@ -141,12 +141,14 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
           ...(sensor.device.model ? { model: sensor.device.model } : {}),
           ...(sensor.device.firmware ? { sw_version: sensor.device.firmware } : {}),
           ...(sensor.device.serialNumber ? { serial_number: sensor.device.serialNumber } : {}),
+          ...suggestedArea(room),
         }
       : {
           identifiers: [haDeviceIdentifier(sensor)],
           name: displayName,
           manufacturer: 'camera.ui',
           ...(viaCamera ? { via_device: `cameraui_${viaCamera._id}` } : {}),
+          ...suggestedArea(room),
         },
     origin: {
       name: 'camera.ui',
@@ -671,12 +673,17 @@ function baseConfig(topics: MqttTopics, camera: Camera, uid: string, name: strin
       manufacturer: camera.info?.manufacturer ?? 'camera.ui',
       ...(camera.info?.model ? { model: camera.info.model } : {}),
       ...(camera.info?.firmwareVersion ? { sw_version: camera.info.firmwareVersion } : {}),
+      ...suggestedArea(camera.room),
     },
     origin: {
       name: 'camera.ui',
       sw_version: ConfigService.VERSION,
     },
   };
+}
+
+function suggestedArea(room: string | undefined): { suggested_area?: string } {
+  return room && room !== 'Default' ? { suggested_area: room } : {};
 }
 
 function settingName(entityName: string | null, property: string): string {

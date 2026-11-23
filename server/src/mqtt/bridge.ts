@@ -1,6 +1,7 @@
 import { SensorType } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
+import { resolveSensorRoom } from '../sensors/room.js';
 import { resolveSensorSemantics } from '../sensors/semantics.js';
 import { isWritableSensor } from '../sensors/types.js';
 import { ConfigService } from '../services/config/index.js';
@@ -115,11 +116,15 @@ export class MqttBridge {
       const { cameraId, property } = payload as CameraEventPayload;
       const controller = this.api.getCamera(cameraId);
       if (!controller) return;
-      // a rename changes the HA device block of every discovery config
-      if (property === 'name' && this.manager.haDiscovery.enabled) {
+      // name and room are in the HA device block of every discovery config
+      if ((property === 'name' || property === 'room') && this.manager.haDiscovery.enabled) {
         this.publishCameraState(controller);
       } else {
         this.publishCameraMeta(controller);
+      }
+      if (property !== 'room') return;
+      for (const record of this.registry.getRecords()) {
+        if (record.boundCameraId === cameraId) this.republishSensor(record._id);
       }
     });
 
@@ -141,6 +146,7 @@ export class MqttBridge {
     this.onBus('sensor:specs:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:exposed:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
+    this.onBus('sensor:room:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
 
     this.onBus('sensor:property:changed', (payload) => {
       const change = payload as SensorPropertyChangedPayload;
@@ -332,7 +338,9 @@ export class MqttBridge {
       const previous = this.haDevices.get(data.id);
       if (previous && previous !== identifier) this.clearRetained(bucket, (topic) => topic.startsWith(`${ha.prefix}/`));
       this.haDevices.set(data.id, identifier);
-      for (const message of buildSensorDiscovery(this.manager.topics, ha.prefix, data, viaCamera)) {
+      const record = this.registry.getRecord(data.id);
+      const room = record && resolveSensorRoom(record);
+      for (const message of buildSensorDiscovery(this.manager.topics, ha.prefix, data, viaCamera, room?.name)) {
         this.publishRetained(bucket, message.topic, message.payload);
       }
     }

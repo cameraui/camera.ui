@@ -155,11 +155,14 @@
                 <Select
                   :model-value="sensor.roomId"
                   :options="sensorRoomOptions"
-                  :disabled="readOnly"
+                  :disabled="readOnly || followsCamera"
                   option-label="label"
                   option-value="value"
                   @update:model-value="(value) => value && patchSensor({ roomId: value })"
                 />
+                <Message v-if="followsCamera" severity="secondary" variant="simple" size="small" class="cui-input-hint">
+                  {{ $t('views.floorplan.sensor_follows_camera') }}
+                </Message>
               </div>
 
               <div v-if="passageOptions.length" class="flex flex-col field-gap">
@@ -346,6 +349,7 @@ const roomOptions = computed(() => {
 });
 
 const sensor = computed(() => (props.selection?.kind === 'sensor' ? props.sensors.find((item) => item.id === props.selection?.id) : undefined));
+const followsCamera = computed(() => !!sensor.value && !!props.boundSensorIds?.includes(sensor.value.id));
 const liveSensor = computed(() => sensor.value && liveSensors.value.find((item) => item.id === sensor.value?.id));
 
 const sensorRoomOptions = computed(() => {

@@ -23,28 +23,7 @@
 
     <div class="flex flex-col field-gap">
       <label for="room" class="cui-label">{{ $t('components.form.label.room') }}</label>
-      <div class="flex gap-2">
-        <Select
-          :model-value="form.roomId"
-          :options="roomOptions"
-          option-label="label"
-          option-value="value"
-          :option-group-label="grouped ? 'label' : undefined"
-          :option-group-children="grouped ? 'items' : undefined"
-          :loading="roomsLoading"
-          class="w-full"
-          @update:model-value="(e) => onPickRoom(e)"
-        />
-        <Button
-          v-tooltip.top="$t('components.form.button.create_room')"
-          severity="secondary"
-          outlined
-          class="shrink-0 h-[42px] w-[42px] p-0"
-          @click="openCreateRoomDialog"
-        >
-          <template #icon><i-mdi:plus class="w-4 h-4" /></template>
-        </Button>
-      </div>
+      <CuiRoomSelect :model-value="form.roomId" @update:model-value="onPickRoom" />
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.room') }}</Message>
     </div>
 
@@ -132,47 +111,16 @@
 <script setup lang="ts">
 import { ErrorMessage, Field } from 'vee-validate';
 
-import { RoomsQuery } from '@/api/routes/rooms.js';
-import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
-import { buildRoomOptions } from './rooms.js';
-
 import type { CameraType } from '@camera.ui/sdk';
 import type { CuiCameraDetailsFieldsProps } from './types.js';
 
-const roomsQuery = new RoomsQuery();
-
 const props = defineProps<CuiCameraDetailsFieldsProps>();
 
-const dialog = useCuiDialog();
-const { t } = useI18n();
-
-const { data: catalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
-const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
-
 const cameraTypes = ref<CameraType[]>(['camera', 'doorbell']);
-
-const grouped = computed(() => (catalog.value?.levels.length ?? 0) > 0);
-
-const roomOptions = computed(() => buildRoomOptions(catalog.value, t));
 
 function onPickRoom(roomId: string | null): void {
   // eslint-disable-next-line vue/no-mutating-props
   props.form.roomId = roomId;
-}
-
-function openCreateRoomDialog() {
-  dialog.openComponentDialog<Record<string, never>>(CreateRoomDialog, {
-    data: {
-      title: t('components.dialog.title.create_room'),
-      confirmText: t('components.form.button.add'),
-      contentProps: {},
-    },
-    onConfirm: async (name: string | null) => {
-      if (!name) return;
-      const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
-      onPickRoom(room.id);
-    },
-  });
 }
 </script>
 

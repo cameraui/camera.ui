@@ -32,6 +32,14 @@
     </template>
 
     <div class="flex flex-col field-gap">
+      <label class="cui-label">{{ $t('components.form.label.room') }}</label>
+      <CuiRoomSelect v-model="roomId" clearable :disabled="sensor.assignmentLocked" :placeholder="$t('views.sensors.no_room')" />
+      <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+        {{ sensor.assignmentLocked ? $t('views.sensors.room_locked_hint') : $t('views.sensors.room_hint') }}
+      </Message>
+    </div>
+
+    <div class="flex flex-col field-gap">
       <label class="cui-label">{{ $t('views.sensors.assigned_cameras') }}</label>
       <div v-if="sensor.assignmentLocked" class="flex flex-wrap gap-2">
         <Chip v-for="camera in lockedCameras" :key="camera.value" :label="camera.label" />
@@ -75,6 +83,7 @@ const props = defineProps<SensorEditProps>();
 const displayName = ref(props.device?.name ?? (props.sensor.shortName || props.sensor.name));
 const assignedCameraIds = ref<string[]>([...props.sensor.assignedCameraIds]);
 const exposed = ref(props.sensor.exposed);
+const roomId = ref(props.sensor.roomId ?? null);
 const device = ref<VirtualDeviceChoice>({ deviceId: props.sensor.device?.id ?? null, newName: null });
 
 const { t } = useI18n();
@@ -99,6 +108,7 @@ defineExpose<CustomDialogComponent>({
       displayName: displayName.value || (props.device?.sourceName ?? props.sensor.name),
       assignedCameraIds: assignedCameraIds.value,
       exposed: exposed.value,
+      roomId: roomId.value !== (props.sensor.roomId ?? null) ? roomId.value : undefined,
       deviceId: device.value.newName === null && device.value.deviceId !== deviceId ? device.value.deviceId : undefined,
       newDeviceName: device.value.newName?.trim() || undefined,
     };

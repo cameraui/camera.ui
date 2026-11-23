@@ -1,6 +1,7 @@
 import { PluginInterface } from '@camera.ui/sdk';
 
 import { PluginsService } from '../api/services/plugins.service.js';
+import { RoomsService } from '../api/services/rooms.service.js';
 import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
@@ -19,6 +20,7 @@ export class SensorDiscoveryManager {
   private proxyServer: ProxyServer;
   private logger: LoggerService;
   private pluginsService = new PluginsService();
+  private roomsService = new RoomsService();
 
   private cache = new Map<string, DiscoveredSensorListItem[]>();
   private isScanning = false;
@@ -84,7 +86,8 @@ export class SensorDiscoveryManager {
       throw new Error('Plugin not found or not running');
     }
 
-    this.registry.createAdoptedSensor(pluginId, sensor);
+    const room = sensor.room?.trim() ? await this.roomsService.resolveByName(sensor.room.trim()) : undefined;
+    this.registry.createAdoptedSensor(pluginId, sensor, room?.id);
 
     const items = this.cache.get(pluginId);
     if (items) {

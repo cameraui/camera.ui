@@ -1,6 +1,9 @@
 import { inject } from '../../container.js';
+import { resolveSensorRoom } from '../../sensors/room.js';
 import { resolveSensorSemantics } from '../../sensors/semantics.js';
 import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
+import { FloorPlanService } from './floorplan.service.js';
+import { RoomsService } from './rooms.service.js';
 
 import type { SensorPropertySpec, SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
@@ -34,6 +37,8 @@ export interface TransformedSensor {
   connected: boolean;
   requiresFrames: boolean;
   assignedCameraIds: string[];
+  roomId?: string;
+  room?: string;
   exposed: boolean;
   origin?: string;
   address?: string;
@@ -48,6 +53,8 @@ export interface TransformedSensor {
 
 export class SensorsService {
   private registry: SensorRegistry;
+  private roomsService = new RoomsService();
+  private floorPlanService = new FloorPlanService();
 
   constructor() {
     this.registry = inject('sensorRegistry');
@@ -113,6 +120,10 @@ export class SensorsService {
       this.registry.setVirtualSources(id, input.sources);
     }
 
+    if (input.roomId !== undefined) {
+      await this.setRoom([id], input.roomId);
+    }
+
     if (input.kind !== undefined) {
       this.registry.setVirtualKind(id, input.kind);
     }
@@ -125,6 +136,12 @@ export class SensorsService {
 
     if (input.displayName !== undefined) this.registry.setDeviceDisplayName(id, input.displayName);
     if (input.exposed !== undefined) await this.registry.setDeviceExposed(id, input.exposed);
+    if (input.roomId !== undefined) {
+      await this.setRoom(
+        this.registry.getDeviceMembers(id).map((record) => record._id),
+        input.roomId,
+      );
+    }
 
     return this.registry.getDeviceMembers(id).map((record) => this.transform(record._id)!);
   }
@@ -170,6 +187,7 @@ export class SensorsService {
 
     const data = this.registry.toStoredData(record);
     const device = record.deviceId ? this.registry.getDevice(record.deviceId) : undefined;
+    const room = resolveSensorRoom(record);
     return {
       id: record._id,
       type: record.type,
@@ -188,6 +206,8 @@ export class SensorsService {
       connected: this.registry.isConnected(record._id),
       requiresFrames: data.requiresFrames ?? false,
       assignedCameraIds: data.assignedCameraIds,
+      roomId: room?.id,
+      room: room?.name,
       exposed: record.exposed,
       origin: record.origin,
       address: record.address,
@@ -199,6 +219,20 @@ export class SensorsService {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };
+  }
+
+  private async setRoom(sensorIds: string[], roomId: string | null): Promise<void> {
+    if (roomId && !this.roomsService.byId(roomId)) throw new Error(`Room "${roomId}" not found`);
+
+    // a camera's own sensor sits in its camera's room
+    const movable = sensorIds.filter((sensorId) => !this.registry.getRecord(sensorId)?.boundCameraId);
+    for (const sensorId of movable) this.registry.setRoom(sensorId, roomId);
+
+    const misplaced = this.floorPlanService
+      .get()
+      .sensors.filter((placement) => movable.includes(placement.sensorId) && placement.roomId !== roomId)
+      .map((placement) => placement.sensorId);
+    await this.floorPlanService.dropSensors(misplaced);
   }
 
   private assertCameraExists(cameraId: string): void {

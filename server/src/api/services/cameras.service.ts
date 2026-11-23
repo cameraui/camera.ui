@@ -801,8 +801,14 @@ export class CamerasService {
   }
 
   private async dropMisplacedFloorPlanCamera(camera: DBCamera): Promise<void> {
-    const placement = this.floorPlanService.get().cameras.find((entry) => entry.cameraId === camera._id);
+    const plan = this.floorPlanService.get();
+    const placement = plan.cameras.find((entry) => entry.cameraId === camera._id);
     if (placement && placement.roomId !== camera.roomId) await this.floorPlanService.dropCameras([camera._id]);
+
+    const records = inject('sensorRegistry').getRecords();
+    const own = new Set(records.filter((record) => record.boundCameraId === camera._id).map((record) => record._id));
+    const misplaced = plan.sensors.filter((entry) => own.has(entry.sensorId) && entry.roomId !== camera.roomId).map((entry) => entry.sensorId);
+    if (misplaced.length) await this.floorPlanService.dropSensors(misplaced);
   }
 
   private get go2rtcState(): Go2RtcState {

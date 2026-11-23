@@ -25,6 +25,7 @@ export const patchSensorSchema = zod
     assignedCameraIds: zod.array(zod.string().min(1)).optional(),
     exposed: zod.boolean().optional(),
     deviceId: zod.string().min(1).nullable().optional(),
+    roomId: zod.string().min(1).max(100).nullable().optional(),
     capabilities: zod.array(zod.string().min(1)).optional(),
     sources: zod.array(zod.string().trim().min(1).max(64)).max(96).optional(),
     kind: zod.string().min(1).max(32).optional(),
@@ -42,8 +43,9 @@ export const patchSensorDeviceSchema = zod
   .object({
     displayName: zod.string().trim().min(1, 'Display name is required').max(100, 'Display name cannot be more than 100 characters').optional(),
     exposed: zod.boolean().optional(),
+    roomId: zod.string().min(1).max(100).nullable().optional(),
   })
-  .refine((body) => body.displayName !== undefined || body.exposed !== undefined, {
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: 'Nothing to update',
   });
 
