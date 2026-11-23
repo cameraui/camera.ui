@@ -18,6 +18,8 @@ import { patchStorageSchema, setStorageSchema, submitStorageSchema } from '../sc
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
+const MAX_LOCAL_PLUGIN_SIZE = 512 * 1024 * 1024;
+
 export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Promise<void> => {
   const pluginsController = new PluginsController(app);
 
@@ -95,6 +97,32 @@ export const PluginsRoute: FastifyPluginAsync = async (app: FastifyInstance): Pr
       summary: 'Uninstall all plugins, or only the ones named in the body',
       querystring: removeStorageQuerySchema,
       body: bulkPluginNamesSchema.optional(),
+    },
+  });
+
+  app.route({
+    url: '/local',
+    method: 'POST',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: pluginsController.installLocal.bind(pluginsController),
+    config: {
+      uploadToDisk: true,
+      multipartOptions: { limits: { fileSize: MAX_LOCAL_PLUGIN_SIZE, files: 1 } },
+    },
+    schema: {
+      tags: ['Plugins'],
+      summary: 'Install or update a plugin from a packed build, sent as the form field upload',
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/local',
+    method: 'GET',
+    preValidation: [validJWTNeeded, onlyAdminCanDoThisAction],
+    handler: pluginsController.localTarget.bind(pluginsController),
+    schema: {
+      tags: ['Plugins'],
+      summary: 'The platform a plugin build for this server targets',
     },
   });
 

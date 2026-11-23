@@ -185,7 +185,7 @@ const platformIncompatible = computed(() => pluginCompat.value?.platformCompatib
 
 const platformRequirement = computed(() => describePlatform(pluginCompat.value?.os, pluginCompat.value?.cpu, pluginCompat.value?.libc));
 
-const changelog = computed<string | undefined>(() => {
+const changelog = computed<string | null | undefined>(() => {
   if (isPluginTarget(target.value)) {
     return pluginChangelog.value;
   }
@@ -207,24 +207,14 @@ async function fetchChangelog(): Promise<void> {
   if (isPluginTarget(target.value)) {
     try {
       pluginsQuery.toggleQueryActivator('getPluginChangelogQuery', true);
-      const { isError } = await pluginChangelogSuspense();
-
-      if (isError) {
-        throw new Error('Failed to fetch changelog');
-      }
-
-      showReleaseNotes.value = true;
+      const { data } = await pluginChangelogSuspense();
+      showReleaseNotes.value = !!data;
     } catch {}
   } else if (isServerTarget(target.value)) {
     try {
       serverQuery.toggleQueryActivator('getServerChangelogQuery', true);
-      const { isError } = await serverChangelogSuspense();
-
-      if (isError) {
-        throw new Error('Failed to fetch changelog');
-      }
-
-      showReleaseNotes.value = true;
+      const { data } = await serverChangelogSuspense();
+      showReleaseNotes.value = !!data;
     } catch {}
   }
 }

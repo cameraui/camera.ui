@@ -266,6 +266,7 @@ export class ServerNamespace {
     const pluginStates: INpmPluginState[] = [];
 
     for (const plugin of plugins) {
+      if (plugin.info.local) continue;
       try {
         const state = await checkForUpdate(
           plugin.info.pluginName,

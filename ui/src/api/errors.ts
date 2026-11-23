@@ -1,4 +1,4 @@
-import type { AxiosError } from 'axios';
+import type { AxiosError, AxiosResponse } from 'axios';
 
 const TUNNEL_ERROR_PATTERNS = ['Tunnel unavailable'];
 
@@ -44,4 +44,13 @@ export function isServerGoneError(error: unknown): boolean {
 export function isRemoteDisabledError(error: unknown): boolean {
   if (!isAxiosError(error)) return false;
   return error.response?.status === 503 && readErrorMessage(error) === 'Server remote access is disabled';
+}
+
+export async function dataOrNull<T>(request: Promise<AxiosResponse<T>>): Promise<T | null> {
+  try {
+    return (await request).data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404 && !isServerGoneError(error)) return null;
+    throw error;
+  }
 }

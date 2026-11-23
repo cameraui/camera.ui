@@ -452,6 +452,7 @@ export class BackupService {
         id: plugin.id,
         name: plugin.pluginName,
         version: plugin.info.installedVersion ?? 'latest',
+        ...(plugin.info.local && { local: true }),
       }));
 
       const excludePaths = [...this.configService.BACKUP_EXCLUDED_PATHS, this.configService.BACKUP_INFO_FILE, ...(options.excludePaths ?? [])].map((path) =>

@@ -7,12 +7,13 @@ import { join } from 'node:path';
 import { inject, tryInject } from '../../container.js';
 import { PluginManager } from '../../plugins/index.js';
 import { pythonEnvEntries, writeInstallMarker } from '../../plugins/install-state.js';
-import { extractPackage, getFullManifest, installDependencies } from '../../utils/npm/index.js';
+import { extractLocalPackage, extractPackage, getFullManifest, installDependencies } from '../../utils/npm/index.js';
 import { describeHost, describePlatformRequirement, isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { elidePath, getTerminalCols, InstallLogger } from '../utils/install-logger.js';
 import { CamerasService } from './cameras.service.js';
 import { updatesService } from './updates.service.js';
 
+import type { InstallArtifact } from '../../plugins/install-state.js';
 import type { Plugin } from '../../plugins/plugin.js';
 import type { PluginWorker } from '../../plugins/worker.js';
 import type { ConfigService } from '../../services/config/index.js';
@@ -22,9 +23,23 @@ import type { DBPlugin } from '../database/types.js';
 import type { BackupInfo, PluginsProgress } from '../types/index.js';
 
 const MANAGE_CONCURRENCY = 2;
+const DEPENDENCY_SECTIONS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const;
 const manageQueue: PluginsProgress[] = [];
 const manageWaiters: (() => void)[] = [];
 let manageRunning = 0;
+
+interface ManageOptions {
+  internal?: boolean;
+  restart?: boolean;
+  onLeftStopped?: () => void;
+  tarball?: string;
+}
+
+async function sameDependencies(previousDir: string, nextDir: string): Promise<boolean> {
+  const [previous, next] = await Promise.all([readJson(join(previousDir, 'package.json')).catch(() => null), readJson(join(nextDir, 'package.json')).catch(() => null)]);
+  if (!previous || !next) return false;
+  return DEPENDENCY_SECTIONS.every((section) => JSON.stringify(previous[section] ?? {}) === JSON.stringify(next[section] ?? {}));
+}
 
 function acquireManageSlot(): Promise<void> {
   if (manageRunning < MANAGE_CONCURRENCY) {
@@ -189,13 +204,7 @@ export class PluginsService {
     await Promise.all(orphanedNames.map((name) => this.removePluginDbByName(name)));
   }
 
-  public async manage(
-    pluginName: string,
-    action: 'install' | 'update' | 'uninstall',
-    version?: string,
-    pluginId?: string,
-    opts: { internal?: boolean; restart?: boolean; onLeftStopped?: () => void } = {},
-  ): Promise<string> {
+  public async manage(pluginName: string, action: 'install' | 'update' | 'uninstall', version?: string, pluginId?: string, opts: ManageOptions = {}): Promise<string> {
     if (!opts.internal) {
       updatesService().assertManualAllowed('plugin');
     }
@@ -204,7 +213,7 @@ export class PluginsService {
     const log = this.createLogger(pluginName);
 
     const title = `${action.charAt(0).toUpperCase()}${action.slice(1)} · ${pluginName}${action !== 'uninstall' && version ? `@${version}` : ''}`;
-    log.header(title, { user: userInfo().username, target: elidePath(targetDir) });
+    log.header(title, { user: userInfo().username, target: elidePath(targetDir), ...(opts.tarball && { source: 'local build' }) });
 
     const existingAction = manageQueue.find((entry) => entry.pluginName === pluginName);
     if (existingAction) {
@@ -277,13 +286,7 @@ export class PluginsService {
     return id && !this.getPluginDbById(id) ? id : undefined;
   }
 
-  private async runManage(
-    log: InstallLogger,
-    entry: PluginsProgress,
-    targetDir: string,
-    pluginId?: string,
-    opts: { restart?: boolean; onLeftStopped?: () => void } = {},
-  ): Promise<string> {
+  private async runManage(log: InstallLogger, entry: PluginsProgress, targetDir: string, pluginId?: string, opts: ManageOptions = {}): Promise<string> {
     const { pluginName, action, version } = entry;
 
     const worker = this.getPluginProcessByName(pluginName);
@@ -302,11 +305,11 @@ export class PluginsService {
 
       switch (action) {
         case 'install':
-          await this.installPlugin(log, pluginName, version, targetDir);
+          await this.installPlugin(log, pluginName, version, targetDir, { tarball: opts.tarball });
           installedNew = true;
           break;
         case 'update':
-          installedNew = await this.updatePlugin(log, pluginName, version, targetDir);
+          installedNew = await this.updatePlugin(log, pluginName, version, targetDir, opts.tarball);
           break;
         case 'uninstall':
           await this.uninstallPlugin(log, pluginName, targetDir);
@@ -372,7 +375,13 @@ export class PluginsService {
     inject('socketService').io.of('/plugins').emit('manage-queue', this.installingPlugins());
   }
 
-  private async installPlugin(log: InstallLogger, pluginName: string, version: string, targetDir: string, update?: boolean): Promise<void> {
+  private async installPlugin(
+    log: InstallLogger,
+    pluginName: string,
+    version: string,
+    targetDir: string,
+    { update, tarball }: { update?: boolean; tarball?: string },
+  ): Promise<void> {
     const backupTempDir = join(tmpdir(), `${pluginName}_backup`);
     let backedUp = false;
 
@@ -396,16 +405,25 @@ export class PluginsService {
         log.done();
       }
 
-      log.step('Downloading and extracting package');
-      const manifest = await extractPackage(`${pluginName}@${version}`, targetDir);
+      let artifact: InstallArtifact;
+      if (tarball) {
+        log.step('Extracting local build');
+        await extractLocalPackage(tarball, targetDir);
+        artifact = { version, local: true };
+      } else {
+        log.step('Downloading and extracting package');
+        const manifest = await extractPackage(`${pluginName}@${version}`, targetDir);
+        artifact = { version: manifest.version, integrity: manifest.dist.integrity, tarball: manifest.dist.tarball };
+      }
       log.done();
 
       const pjson = await readJson(join(targetDir, 'package.json')).catch(() => null);
+      const keepDependencies = !!tarball && backedUp && (await sameDependencies(backupTempDir, targetDir));
       if (pjson && !isPlatformCompatible(platformRequirement(pjson))) {
         const requirement = describePlatformRequirement(platformRequirement(pjson));
         log.step(`Skipping dependencies: plugin requires ${requirement}, this host is ${describeHost()} (worker-only plugin)`);
         log.done();
-      } else {
+      } else if (!keepDependencies) {
         log.block('Installing dependencies');
         await installDependencies(targetDir, this.configService.config.plugins.allowBuildScripts ?? false, (chunk) => log.feed(chunk), {
           add: (proc) => this.configService.addProcess(proc),
@@ -419,8 +437,11 @@ export class PluginsService {
       if (update && backedUp) {
         await this.keepPythonEnv(log, backupTempDir, targetDir);
       }
+      if (keepDependencies) {
+        await this.keepNodeModules(log, backupTempDir, targetDir);
+      }
       // workers install the same build
-      await writeInstallMarker(targetDir, { version: manifest.version, integrity: manifest.dist.integrity, tarball: manifest.dist.tarball });
+      await writeInstallMarker(targetDir, artifact);
 
       log.step('Cleaning up');
       await remove(backupTempDir);
@@ -443,7 +464,7 @@ export class PluginsService {
     }
   }
 
-  private async updatePlugin(log: InstallLogger, pluginName: string, version: string, targetDir: string): Promise<boolean> {
+  private async updatePlugin(log: InstallLogger, pluginName: string, version: string, targetDir: string, tarball?: string): Promise<boolean> {
     try {
       log.step('Preparing update');
 
@@ -451,7 +472,8 @@ export class PluginsService {
       const packageJson = await readJson(packageJsonPath);
       const currentVersion = packageJson.version;
 
-      if (currentVersion === version) {
+      // a local build is redeployed under the same version while developing
+      if (currentVersion === version && !tarball) {
         log.done('up to date');
         log.success(`${pluginName}@${version} is already up to date`);
         return false;
@@ -464,7 +486,7 @@ export class PluginsService {
     }
 
     // outside the try, installPlugin reports its own errors and restores
-    await this.installPlugin(log, pluginName, version, targetDir, true);
+    await this.installPlugin(log, pluginName, version, targetDir, { update: true, tarball });
     return true;
   }
 
@@ -480,6 +502,14 @@ export class PluginsService {
       await move(join(backupTempDir, name), join(targetDir, name), { overwrite: true });
     }
 
+    log.done();
+  }
+
+  private async keepNodeModules(log: InstallLogger, backupTempDir: string, targetDir: string): Promise<void> {
+    log.step('Keeping dependencies, they did not change');
+    if (await pathExists(join(backupTempDir, 'node_modules'))) {
+      await move(join(backupTempDir, 'node_modules'), join(targetDir, 'node_modules'));
+    }
     log.done();
   }
 

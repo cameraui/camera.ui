@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { extract } from 'tar';
+import { extract, list } from 'tar';
 import { EnvHttpProxyAgent, ProxyAgent, fetch } from 'undici';
 
 import { resolveNpmOptions } from './auth.js';
@@ -119,26 +119,44 @@ export async function extractTarball(manifest: PackageManifest, dest: string, si
     const [sha512, sha1] = await download(manifest.dist.tarball, tarball, ['sha512', 'sha1'], signal);
     verifyIntegrity(manifest, sha512, sha1);
 
-    await emptyDir(dest);
-    await extract({
-      file: tarball,
-      cwd: dest,
-      strip: 1,
-      chmod: false,
-      noMtime: true,
-      preserveOwner: false,
-      filter: (_path, stat) => {
-        const entry = stat as ReadEntry;
-        if (entry.type.endsWith('Link')) {
-          return false;
-        }
-        entry.mode = entryMode(manifest, entry.path, entry.mode ?? 0, entry.type);
-        return entry.type.endsWith('File');
-      },
-    });
+    await unpackTarball(tarball, dest, manifest);
   } finally {
     await rm(staging, { recursive: true, force: true });
   }
+}
+
+export async function unpackTarball(file: string, dest: string, manifest: Pick<PackageManifest, 'name' | 'bin'>): Promise<void> {
+  await emptyDir(dest);
+  await extract({
+    file,
+    cwd: dest,
+    strip: 1,
+    chmod: false,
+    noMtime: true,
+    preserveOwner: false,
+    filter: (_path, stat) => {
+      const entry = stat as ReadEntry;
+      if (entry.type.endsWith('Link')) {
+        return false;
+      }
+      entry.mode = entryMode(manifest, entry.path, entry.mode ?? 0, entry.type);
+      return entry.type.endsWith('File');
+    },
+  });
+}
+
+export async function readTarballPackageJson(file: string): Promise<Record<string, any>> {
+  const chunks: Buffer[] = [];
+  await list({
+    file,
+    filter: (path) => /^[^/]+\/package\.json$/.test(path),
+    onReadEntry: (entry) => entry.on('data', (chunk: Buffer) => chunks.push(chunk)),
+  });
+
+  if (!chunks.length) {
+    throw new Error('The archive has no package.json at its top level.');
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
 export async function markBins(manifest: PackageManifest, dir: string): Promise<void> {
@@ -311,19 +329,19 @@ function verifyIntegrity(manifest: PackageManifest, sha512Digest: Buffer, sha1Di
   throw registryError(`No integrity published for ${manifest.name}@${manifest.version}`, 'EINTEGRITY');
 }
 
-function entryMode(manifest: PackageManifest, path: string, mode: number, type: string): number {
+function entryMode(manifest: Pick<PackageManifest, 'name' | 'bin'>, path: string, mode: number, type: string): number {
   const floor = /Directory|GNUDumpDir/.test(type) ? 0o777 : type.endsWith('File') ? 0o666 : 0;
   const executable = isPackageBin(manifest, path) ? 0o111 : 0;
 
   return mode | floor | executable | 0o600;
 }
 
-function isPackageBin(manifest: PackageManifest, path: string): boolean {
+function isPackageBin(manifest: Pick<PackageManifest, 'name' | 'bin'>, path: string): boolean {
   const relative = path.replace(/^[^\\/]*\//, '');
   return packageBins(manifest).includes(relative);
 }
 
-function packageBins(manifest: PackageManifest): string[] {
+function packageBins(manifest: Pick<PackageManifest, 'name' | 'bin'>): string[] {
   if (!manifest.bin) {
     return [];
   }

@@ -37,8 +37,10 @@ export async function describeRestoredPlugins(plugins: PluginBackupInfo[], hostV
   }
 }
 
-export async function resolveRestoredPluginVersion(plugin: Pick<PluginBackupInfo, 'name' | 'version'>, hostVersion: string): Promise<RestorePluginTarget> {
+export async function resolveRestoredPluginVersion(plugin: Pick<PluginBackupInfo, 'name' | 'version' | 'local'>, hostVersion: string): Promise<RestorePluginTarget> {
   const { name, version: saved } = plugin;
+  // the registry may hold another package under the same name
+  if (plugin.local) return unavailable(saved, { code: 'local' });
 
   let versions: Record<string, PackageManifest>;
   let latest: string | undefined;
@@ -96,12 +98,15 @@ export function describeRestorePluginIssue(issue: RestorePluginIssue): string {
       return `Version ${issue.version} needs ${issue.engine} ${issue.required}.`;
     case 'platform':
       return `It needs ${describePlatformRequirement(issue)}.`;
+    case 'local':
+      return 'It was installed from a file, install it from the file again.';
   }
 }
 
 function unavailable(version: string, issue: RestorePluginIssue): RestorePluginTarget {
   const reason = describeRestorePluginIssue(issue);
-  return { version, note: 'unavailable', issue, reason: issue.code === 'not-in-registry' ? reason : `${reason} No other version runs on this camera.ui.` };
+  const searched = issue.code !== 'not-in-registry' && issue.code !== 'local';
+  return { version, note: 'unavailable', issue, reason: searched ? `${reason} No other version runs on this camera.ui.` : reason };
 }
 
 function describe(manifest: PackageManifest): RestorePluginTarget {

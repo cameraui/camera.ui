@@ -730,8 +730,13 @@ export class WorkerManager {
 
   public async assignPlugin(pluginName: string, agentId: string, workerOnly?: boolean): Promise<'unchanged' | 'moving'> {
     const pluginsService = new PluginsService();
-    if (!pluginsService.getPluginByName(pluginName)) {
+    const plugin = pluginsService.getPluginByName(pluginName);
+    if (!plugin) {
       throw new WorkerRequestError(404, `Plugin ${pluginName} not found`);
+    }
+    // a worker installs its plugins from the registry
+    if (plugin.info.local) {
+      throw new WorkerRequestError(409, `${pluginName} was installed from a file and runs only on this server`);
     }
     this.checkAssignment(WorkerCapability.PluginHost, pluginName, agentId);
     this.logger.log(`Assigning plugin ${pluginName} to worker ${this.nameOf(agentId)}${describeFallback(workerOnly)}`);

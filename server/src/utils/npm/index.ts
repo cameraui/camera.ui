@@ -9,7 +9,7 @@ import { gt, parse } from 'semver';
 
 import { TtlCache } from '../ttl-cache.js';
 import { nerfDart } from './auth.js';
-import { extractTarball, fetchPackument, markBins, registryFor, resolveManifest, searchRegistry } from './registry.js';
+import { extractTarball, fetchPackument, markBins, readTarballPackageJson, registryFor, resolveManifest, searchRegistry, unpackTarball } from './registry.js';
 
 import type { PackageManifest, Packument } from './registry.js';
 
@@ -130,6 +130,11 @@ export async function extractPackage(spec: string, dest: string): Promise<Packag
 
   await extractTarball(manifest, dest);
   return manifest;
+}
+
+export async function extractLocalPackage(file: string, dest: string): Promise<void> {
+  const { name, bin } = await readTarballPackageJson(file);
+  await unpackTarball(file, dest, { name, bin });
 }
 
 export async function extractArtifact(

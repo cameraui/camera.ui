@@ -271,7 +271,8 @@ function pluginReason({ issue, note, reason }: RestorePluginResult): string {
     issue.code === 'platform'
       ? t('restore.plugin_issue.platform', { platform: describePlatform(issue.os, issue.cpu, issue.libc) })
       : t(`restore.plugin_issue.${issue.code.replaceAll('-', '_')}`, issue);
-  return note === 'unavailable' && issue.code !== 'not-in-registry' ? `${text} ${t('restore.plugin_issue.no_other_version')}` : text;
+  const searched = issue.code !== 'not-in-registry' && issue.code !== 'local';
+  return note === 'unavailable' && searched ? `${text} ${t('restore.plugin_issue.no_other_version')}` : text;
 }
 
 async function openWithKey(): Promise<void> {

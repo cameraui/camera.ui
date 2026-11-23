@@ -777,6 +777,7 @@ export interface PluginBackupInfo {
   id: string;
   name: string;
   version: string;
+  local?: boolean;
 }
 
 export interface BackupExcludedFolder {
@@ -845,7 +846,8 @@ export type RestorePluginIssue =
   | { code: 'needs-newer-server'; version: string }
   | { code: 'built-for-older-server'; version: string }
   | { code: 'engine'; version: string; engine: string; required: string }
-  | { code: 'platform'; os?: string[]; cpu?: string[]; libc?: string[] };
+  | { code: 'platform'; os?: string[]; cpu?: string[]; libc?: string[] }
+  | { code: 'local' };
 
 export interface RestorePluginResult {
   name: string;
@@ -1263,6 +1265,7 @@ export interface CameraUiPlugin {
   id: string;
   pluginName: string;
   private: boolean;
+  local?: boolean;
   displayName: string;
   description?: string;
   publicPackage?: boolean;

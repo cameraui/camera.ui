@@ -11,6 +11,7 @@ export interface InstallArtifact {
   version: string;
   integrity?: string;
   tarball?: string;
+  local?: boolean;
 }
 
 export async function readInstallMarker(installPath: string): Promise<InstallArtifact | undefined> {

@@ -58,6 +58,14 @@
             <i-gg:external class="mb-[1px] ml-1" />
           </Button>
 
+          <Tag
+            v-if="plugin.local"
+            v-tooltip.top="{ value: $t('components.plugin_card.local_hint') }"
+            severity="secondary"
+            :value="$t('components.plugin_card.local')"
+            class="text-xs"
+          />
+
           <Button
             v-if="plugin.restartRequired"
             v-tooltip.top="{ value: $t('components.plugin_card.restart_required') }"

@@ -1,4 +1,4 @@
-import { isAxiosError, isServerGoneError } from '@/api/errors.js';
+import { dataOrNull } from '@/api/errors.js';
 import { axiosInstance as api } from '..';
 
 import type {
@@ -196,13 +196,4 @@ export async function downloadScheduledBackupFn(filename: string): Promise<BlobP
 
 export async function deleteScheduledBackupFn(filename: string): Promise<void> {
   await api.delete(`/backup/scheduler/backups/${encodeURIComponent(filename)}`);
-}
-
-async function dataOrNull<T>(request: Promise<AxiosResponse<T>>): Promise<T | null> {
-  try {
-    return (await request).data;
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 404 && !isServerGoneError(error)) return null;
-    throw error;
-  }
 }

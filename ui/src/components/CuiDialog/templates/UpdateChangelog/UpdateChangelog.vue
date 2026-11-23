@@ -28,14 +28,15 @@ onMounted(async () => {
   const controller = new AbortController();
   try {
     if (props.kind === 'plugin') {
-      changelog.value = await getPluginChangelogFn({
-        pluginName: props.name,
-        query: props.version ? { pluginversion: props.version } : undefined,
-        signal: controller.signal,
-      });
+      changelog.value =
+        (await getPluginChangelogFn({
+          pluginName: props.name,
+          query: props.version ? { pluginversion: props.version } : undefined,
+          signal: controller.signal,
+        })) ?? '';
     } else {
       // workers follow the server release, show the server changelog
-      changelog.value = await getServerChangelogFn({ version: props.version ?? 'latest', signal: controller.signal });
+      changelog.value = (await getServerChangelogFn({ version: props.version ?? 'latest', signal: controller.signal })) ?? '';
     }
   } catch {
     changelog.value = '';

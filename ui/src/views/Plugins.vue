@@ -32,6 +32,19 @@
         </Button>
 
         <Button
+          v-tooltip.left="{ value: t('views.plugins.install_from_file') }"
+          severity="secondary"
+          outlined
+          class="cui-button shrink-0"
+          :loading="installingLocal"
+          @click="openFileDialog()"
+        >
+          <template #icon>
+            <i-carbon:download class="w-4.5 h-4.5" />
+          </template>
+        </Button>
+
+        <Button
           v-if="updatablePlugins.length"
           v-tooltip.left="{ value: t('views.plugins.update_all_hint') }"
           class="cui-button shrink-0 whitespace-nowrap"
@@ -261,6 +274,8 @@ const { uiSettings } = storeToRefs(uiStore);
 const { data: plugins, isBusy: pluginsLoading } = pluginsQuery.getPluginsQuery({ page: 1, pageSize: -1 });
 const { data: config } = configQuery.getConfigQuery(true);
 const { mutateAsync: patchConfig } = configQuery.patchConfigQuery();
+const { mutate: installLocalPlugin, isPending: installingLocal } = pluginsQuery.installLocalPluginQuery();
+const { open: openFileDialog, onChange: onFileChosen } = useFileDialog({ accept: '.tgz,.tar.gz', multiple: false, reset: true });
 
 const menuRef = useTemplateRef('menuRef');
 
@@ -313,6 +328,11 @@ const skeletonCount = computed(() => {
   const cols = smBreakpoint.value ? 1 : Math.max(1, Math.floor(windowWidth.value / 450));
   const rows = Math.max(1, Math.ceil(windowHeight.value / (PLUGIN_CARD_SIZE.HEIGHT + 8)));
   return cols * rows;
+});
+
+onFileChosen((files) => {
+  const file = files?.[0];
+  if (file) installLocalPlugin({ file });
 });
 
 function toggleViewMode() {

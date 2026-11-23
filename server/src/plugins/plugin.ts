@@ -84,6 +84,7 @@ export class Plugin {
   public get info(): CameraUiPlugin {
     this._info.disabled = this.disabled;
     this._info.restartRequired = this.restartRequired;
+    this._info.local = this.artifact?.local === true;
     return this._info;
   }
 

@@ -1,3 +1,4 @@
+import { dataOrNull } from '@/api/errors.js';
 import { i18n } from '@/i18n/index.js';
 import { axiosInstance as api } from '..';
 
@@ -28,6 +29,14 @@ const PLUGIN_UNINSTALL_TIMEOUT_MS = 600_000;
 
 export async function installPluginFn({ pluginData }: { pluginData: InstallPluginInput }): Promise<CameraUiPlugin> {
   const response: AxiosResponse<CameraUiPlugin> = await api.post('/plugins', pluginData, { timeout: PLUGIN_INSTALL_TIMEOUT_MS });
+  return response.data;
+}
+
+export async function installLocalPluginFn({ file }: { file: File }): Promise<CameraUiPlugin> {
+  const form = new FormData();
+  form.append('upload', file);
+
+  const response: AxiosResponse<CameraUiPlugin> = await api.post('/plugins/local', form, { timeout: PLUGIN_INSTALL_TIMEOUT_MS });
   return response.data;
 }
 
@@ -91,14 +100,12 @@ export async function getPluginContractFn({ pluginName, signal }: { pluginName: 
   return response.data;
 }
 
-export async function getPluginReadmeFn({ pluginName, signal }: { pluginName: string; signal: AbortSignal }): Promise<string> {
-  const response: AxiosResponse<string> = await api.get(`/plugins/${pluginName}/readme`, { signal });
-  return response.data;
+export async function getPluginReadmeFn({ pluginName, signal }: { pluginName: string; signal: AbortSignal }): Promise<string | null> {
+  return dataOrNull<string>(api.get(`/plugins/${pluginName}/readme`, { signal }));
 }
 
-export async function getPluginChangelogFn({ pluginName, query, signal }: { pluginName: string; query?: _PluginsQuery; signal: AbortSignal }): Promise<string> {
-  const response: AxiosResponse<string> = await api.get(`/plugins/${pluginName}/changelog`, { params: query, signal });
-  return response.data;
+export async function getPluginChangelogFn({ pluginName, query, signal }: { pluginName: string; query?: _PluginsQuery; signal: AbortSignal }): Promise<string | null> {
+  return dataOrNull<string>(api.get(`/plugins/${pluginName}/changelog`, { params: query, signal }));
 }
 
 export async function getPluginCompatFn({ pluginName, query, signal }: { pluginName: string; query?: _PluginsQuery; signal: AbortSignal }): Promise<EngineCompatResult> {
@@ -275,6 +282,10 @@ export class PluginsQuery {
       enabled: true,
     },
     {
+      name: 'installLocalPluginQuery',
+      enabled: true,
+    },
+    {
       name: 'enablePluginQuery',
       enabled: true,
     },
@@ -327,13 +338,14 @@ export class PluginsQuery {
   public installPluginQuery() {
     return useMutation({
       mutationFn: installPluginFn,
-      onSuccess: async () => {
-        await this._queryClient.refetchQueries({ queryKey: ['pluginsList'] });
-        await this._queryClient.refetchQueries({ queryKey: ['plugins'] });
-        await this._queryClient.refetchQueries({ queryKey: ['pluginsSearch'] });
-        await this._queryClient.refetchQueries({ queryKey: ['pluginsProgress'] });
-        this.toast.add({ severity: 'success', detail: this.t('components.toast.plugin_installed'), life: 3000 });
-      },
+      onSuccess: () => this.afterInstall(),
+    });
+  }
+
+  public installLocalPluginQuery() {
+    return useMutation({
+      mutationFn: installLocalPluginFn,
+      onSuccess: () => this.afterInstall(),
     });
   }
 
@@ -429,12 +441,6 @@ export class PluginsQuery {
       queryKey: ['plugins', pluginName, 'readme'],
       queryFn: ({ signal }) => getPluginReadmeFn({ pluginName: unref(pluginName), signal }),
       enabled: () => this.queryActivator.value.some((query) => query.name === 'getPluginReadmeQuery' && query.enabled),
-      retry: (failerCount, error) => {
-        if (error instanceof Error && error.message.includes('404')) {
-          return false;
-        }
-        return failerCount < 3;
-      },
     });
   }
 
@@ -451,12 +457,6 @@ export class PluginsQuery {
       queryKey: ['plugins', pluginName, 'changelog'],
       queryFn: ({ signal }) => getPluginChangelogFn({ pluginName: unref(pluginName), query: unref(pluginQuery), signal }),
       enabled: () => this.queryActivator.value.some((query) => query.name === 'getPluginChangelogQuery' && query.enabled),
-      retry: (failerCount, error) => {
-        if (error instanceof Error && error.message.includes('404')) {
-          return false;
-        }
-        return failerCount < 3;
-      },
     });
   }
 
@@ -602,5 +602,13 @@ export class PluginsQuery {
     }
 
     return this;
+  }
+
+  private async afterInstall(): Promise<void> {
+    await this._queryClient.refetchQueries({ queryKey: ['pluginsList'] });
+    await this._queryClient.refetchQueries({ queryKey: ['plugins'] });
+    await this._queryClient.refetchQueries({ queryKey: ['pluginsSearch'] });
+    await this._queryClient.refetchQueries({ queryKey: ['pluginsProgress'] });
+    this.toast.add({ severity: 'success', detail: this.t('components.toast.plugin_installed'), life: 3000 });
   }
 }

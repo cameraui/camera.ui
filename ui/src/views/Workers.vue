@@ -174,6 +174,7 @@
                   <div class="flex flex-col">
                     <span class="font-bold text-color text-sm">{{ data.displayName }}</span>
                     <span v-if="platformRequirement(data)" class="text-muted text-xs">{{ platformRequirement(data) }}</span>
+                    <span v-if="data.local" class="text-muted text-xs">{{ $t('views.workers.plugin_local') }}</span>
                   </div>
                 </template>
               </Column>
@@ -190,7 +191,7 @@
                     class="w-64"
                     show-clear
                     :loading="isAssigningPlugin(data.pluginName)"
-                    :disabled="savingPlugins"
+                    :disabled="savingPlugins || data.local"
                     @update:model-value="(val: string | null) => setPluginWorker(data, val)"
                   />
                 </template>

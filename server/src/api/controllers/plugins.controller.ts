@@ -3,7 +3,7 @@ import { canCreateCameras, canProvideSensorsToAnyCameras, hasInterface, PluginIn
 import { pathExists, remove } from 'fs-extra/esm';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { inject } from '../../container.js';
 import { PluginManager } from '../../plugins/index.js';
@@ -13,7 +13,8 @@ import { attachmentHeader } from '../../utils/attachment.js';
 import { checkEngineCompatibility, checkProtocolCompat } from '../../utils/engines.js';
 import { squarePng } from '../../utils/image.js';
 import { checkForUpdate, extractPackage, getFullManifest, getPackument, getVersionsAndDistTags, invalidatePackage, searchPackages } from '../../utils/npm/index.js';
-import { isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
+import { readTarballPackageJson } from '../../utils/npm/registry.js';
+import { hostPlatform, isPlatformCompatible, platformRequirement } from '../../utils/platform.js';
 import { computeTrust, getBlock, getBlocklist, getCatalog, getVerified, getWeeklyDownloads, invalidateRegistry } from '../../utils/plugin-registry/index.js';
 import { TtlCache } from '../../utils/ttl-cache.js';
 import { isAdminRequest } from '../middlewares/authPermission.middleware.js';
@@ -22,6 +23,7 @@ import { PluginsService } from '../services/plugins.service.js';
 import { collectBulk, collectBulkParallel } from '../utils/bulk.js';
 import { resolvePluginName } from '../utils/plugin.js';
 
+import type { MultipartFile } from '@fastify/multipart';
 import type { JsonSchema } from '@camera.ui/sdk';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Server } from 'socket.io';
@@ -54,8 +56,22 @@ import type {
 import type { SocketService } from '../websocket/index.js';
 import type { ServerNamespace } from '../websocket/nsp/server.js';
 
+interface LocalInstallRequest {
+  Body?: { upload?: MultipartFile & { filepath?: string } };
+}
+
 const searchResultBlacklist = new Set(['camera.ui', 'homebridge-camera-ui']);
 const pluginLogoCache = new TtlCache<string, string>({ max: 100, ttl: 1000 * 60 * 60 * 24 });
+
+function assertProtocolCompat(protocolLevel: unknown): void {
+  const protocolCompat = checkProtocolCompat(protocolLevel);
+  if (protocolCompat === 'serverTooOld') {
+    throw Object.assign(new Error('This plugin version needs a newer camera.ui. Update camera.ui first.'), { statusCode: 409 });
+  }
+  if (protocolCompat === 'pluginTooOld') {
+    throw Object.assign(new Error('This plugin version was built for an older camera.ui and cannot run anymore. Pick a newer version.'), { statusCode: 409 });
+  }
+}
 
 function normalizeRepoUrl(url: string): string {
   let normalized = url.trim().replace(/^git\+/, '');
@@ -831,6 +847,31 @@ export class PluginsController {
     }
   }
 
+  public async installLocal(req: FastifyRequest<AuthLoginRequest & LocalInstallRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    const file = req.body?.upload;
+    if (!req.isMultipart() || !file?.filepath) {
+      return reply.code(400).send({ statusCode: 400, message: 'Upload the packed plugin in the form field "upload".' });
+    }
+
+    try {
+      const plugin = await this.installFromFile(file.filepath);
+
+      const serverNsp = this.socketService.namespaces.get('/server');
+      await (serverNsp as ServerNamespace).checkPlugins();
+
+      return reply.code(201).send(plugin.info);
+    } catch (error: any) {
+      const statusCode = error.statusCode ?? 500;
+      return reply.code(statusCode).send({ statusCode, message: error.message });
+    } finally {
+      await remove(dirname(file.filepath)).catch(() => {});
+    }
+  }
+
+  public localTarget(_req: FastifyRequest<AuthLoginRequest>, reply: FastifyReply): FastifyReply {
+    return reply.code(200).send(hostPlatform());
+  }
+
   public async installBulk(req: FastifyRequest<AuthLoginRequest & PluginsBulkInstallRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const versions = new Map(req.body.plugins.map((entry) => [entry.pluginname, entry.pluginversion]));
@@ -974,13 +1015,7 @@ export class PluginsController {
     }
 
     const manifest = await getFullManifest(`${pluginname}@${pluginversion}`).catch(() => undefined);
-    const protocolCompat = manifest ? checkProtocolCompat(manifest.cameraui?.protocolLevel) : 'unknown';
-    if (protocolCompat === 'serverTooOld') {
-      throw Object.assign(new Error('This plugin version needs a newer camera.ui. Update camera.ui first.'), { statusCode: 409 });
-    }
-    if (protocolCompat === 'pluginTooOld') {
-      throw Object.assign(new Error('This plugin version was built for an older camera.ui and cannot run anymore. Pick a newer version.'), { statusCode: 409 });
-    }
+    assertProtocolCompat(manifest?.cameraui?.protocolLevel);
     await this.service.assertWorkerCanRun(pluginname, pluginversion);
 
     let plugin = this.pluginManager.plugins.get(pluginname);
@@ -992,12 +1027,7 @@ export class PluginsController {
     const installPath = await this.service.manage(pluginname, command, pluginversion, plugin?.id);
 
     if (!plugin) {
-      plugin = await this.pluginManager.loadPlugin(installPath);
-      await this.camerasService.relinkPlugin(plugin.pluginName, plugin.id);
-
-      this.logger.log(`Plugin installed: ${plugin.pluginName}.${plugin.displayName} (${plugin.info.installedVersion})`);
-
-      this.pluginManager.initializeInstalledPlugin(plugin);
+      plugin = await this.loadInstalledPlugin(installPath);
     } else {
       this.logger.log(`Plugin updated: ${plugin.pluginName}.${plugin.displayName} (${pluginversion})`);
     }
@@ -1005,6 +1035,51 @@ export class PluginsController {
     invalidatePackage(plugin.pluginName);
     await plugin.reparsePackageJson();
 
+    return plugin;
+  }
+
+  private async installFromFile(tarball: string): Promise<Plugin> {
+    const pjson = await readTarballPackageJson(tarball).catch((error: Error) => {
+      throw Object.assign(error, { statusCode: 400 });
+    });
+    const { name, version } = pjson;
+
+    if (!PluginManager.isQualifiedPluginIdentifier(name) || typeof version !== 'string') {
+      throw Object.assign(new Error("The package.json needs a version and a name that begins with 'camera-ui-' or '@scope/camera-ui-'."), { statusCode: 400 });
+    }
+    if (!pjson.keywords?.includes('camera-ui-plugin')) {
+      throw Object.assign(new Error("The package.json needs the keyword 'camera-ui-plugin'."), { statusCode: 400 });
+    }
+    assertProtocolCompat(pjson.cameraui?.protocolLevel);
+    if (this.service.getPluginDbByName(name)?.workerAgentId) {
+      throw Object.assign(new Error(`${name} runs on a worker. Move it back to this server first.`), { statusCode: 409 });
+    }
+
+    let plugin = this.pluginManager.plugins.get(name);
+
+    this.logger.log(`Installing plugin from a file: ${name}@${version}`);
+
+    const installPath = await this.service.manage(name, plugin ? 'update' : 'install', version, plugin?.id, { tarball });
+
+    if (!plugin) {
+      plugin = await this.loadInstalledPlugin(installPath);
+    } else {
+      // a plugin that crashed or was stopped starts with the new build
+      await this.service.startPlugin(name);
+    }
+
+    await plugin.reparsePackageJson();
+
+    return plugin;
+  }
+
+  private async loadInstalledPlugin(installPath: string): Promise<Plugin> {
+    const plugin = await this.pluginManager.loadPlugin(installPath);
+    await this.camerasService.relinkPlugin(plugin.pluginName, plugin.id);
+
+    this.logger.log(`Plugin installed: ${plugin.pluginName}.${plugin.displayName} (${plugin.info.installedVersion})`);
+
+    this.pluginManager.initializeInstalledPlugin(plugin);
     return plugin;
   }
 
@@ -1112,7 +1187,7 @@ export class PluginsController {
       betaUpdateAvailable: false,
     };
 
-    if (plugin.private) {
+    if (plugin.private || plugin.local) {
       return pluginState;
     }
 
