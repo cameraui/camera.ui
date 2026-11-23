@@ -655,8 +655,8 @@ const cameraNameMap = computed(() => {
   return map;
 });
 
-// 'low' for every tile, parallel 4K decodes blow past the iOS Safari memory budget
-const { master } = useMultiNvrPlayback(viewCameraIds, { sourceRole: 'low', activeIds: playbackCameraIds });
+const playbackRole = computed(() => (playerControls.value.sourceRole === 'high-resolution' ? 'auto' : (playerControls.value.sourceRole ?? 'low-resolution')));
+const { master } = useMultiNvrPlayback(viewCameraIds, { sourceRole: playbackRole, scrubRole: 'low', activeIds: playbackCameraIds });
 
 const timelineInitialTimestamp = computed(() =>
   master.mode.value !== 'idle' && master.currentTimestamp.value > 0 ? Math.floor(master.currentTimestamp.value / 1000) : undefined,
