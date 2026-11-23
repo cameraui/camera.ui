@@ -8,7 +8,8 @@ export class ApiController {
 
   public welcome(_req: FastifyRequest, reply: FastifyReply): FastifyReply {
     const version = ConfigService.RUNNING_VERSION;
-    const installedVersion = inject('configService').STAGED_VERSION ?? ConfigService.VERSION;
+    const configService = inject('configService');
+    const installedVersion = configService.STAGED_VERSION ?? ConfigService.VERSION;
     const dbs = inject('dbs');
     return reply.code(200).send({
       message: 'Welcome to camera.ui API',
@@ -16,6 +17,7 @@ export class ApiController {
       installedVersion,
       restartRequired: installedVersion !== version,
       electron: ConfigService.ENVIRONMENT.electron,
+      homeAssistant: configService.INGRESS_TRUST_IP !== undefined,
       instanceId: dbs.settingsDB.get('settings')?.instanceId ?? '',
     });
   }

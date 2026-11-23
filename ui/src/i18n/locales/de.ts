@@ -3743,6 +3743,7 @@ export default {
       biometric_save_confirm: 'Aktivieren',
       biometric_save_decline: 'Nicht jetzt',
       invalid_credentials: 'Ungültiger Benutzername oder Passwort',
+      home_assistant_hint: 'Dieser Server läuft in Home Assistant. Melde dich mit einem camera.ui-Benutzer an: Öffne camera.ui in der Home-Assistant-Seitenleiste und lege ihn unter Einstellungen, Benutzer an.',
       searching_direct: 'Suche nach einer direkten Verbindung zu deinem Server…',
       offline_title: 'Server nicht erreichbar',
       offline_description: 'Es ist gerade keine direkte Verbindung verfügbar. Stelle sicher, dass der Server online ist, und versuche es erneut.',

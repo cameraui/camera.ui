@@ -3723,6 +3723,7 @@ export default {
       biometric_save_confirm: 'Enable',
       biometric_save_decline: 'Not now',
       invalid_credentials: 'Invalid username or password',
+      home_assistant_hint: 'This server runs in Home Assistant. Sign in with a camera.ui user: open camera.ui in the Home Assistant sidebar and add one under Settings, Users.',
       searching_direct: 'Searching for a direct connection to your server…',
       offline_title: 'Could not reach your server',
       offline_description: 'No direct route is available right now. Make sure the server is online and try again.',

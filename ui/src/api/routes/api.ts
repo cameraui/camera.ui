@@ -9,6 +9,7 @@ export interface ApiInfo {
   installedVersion?: string;
   restartRequired?: boolean;
   electron: boolean;
+  homeAssistant?: boolean;
 }
 
 export async function apiInfo({ signal }: { signal: AbortSignal }): Promise<ApiInfo> {

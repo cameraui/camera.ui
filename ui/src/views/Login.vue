@@ -9,6 +9,7 @@
 
       <Form v-else-if="!requires2FA" id="login-form" key="login" ref="formRef" :validation-schema="authValidationSchema" class="flex flex-col gap-6" @submit="onLogin">
         <Message v-if="movedAway" severity="warn" size="small">{{ $t('restore.moved_away') }}</Message>
+        <Message v-if="homeAssistant" severity="secondary" size="small">{{ $t('views.login.home_assistant_hint') }}</Message>
         <Message v-if="restoreNotice" :severity="restoreNoticeSeverity" size="small">
           <div class="flex flex-col gap-1">
             <span>{{ restoreNoticeText }}</span>
@@ -143,6 +144,7 @@
 <script setup lang="ts">
 import { ErrorMessage, Field, Form } from 'vee-validate';
 
+import { apiInfo } from '@/api/routes/api.js';
 import { movedAwayStateFn } from '@/api/routes/backup.js';
 import { CLOUD_SERVICE_URL } from '@/common/constants.js';
 import { extractErrorMessage } from '@/common/utils.js';
@@ -187,6 +189,7 @@ const hasCredsForServer = ref(false);
 const biometryAvailable = ref(false);
 const restoreNotice = ref<(RestoreNotice & Partial<RestoreStatus>) | null>(null);
 const movedAway = ref(false);
+const homeAssistant = ref(false);
 
 const canGoBack = computed(() => !instanceStore.isHomeActive || instanceStore.redirectInfo !== null);
 const canVerify2FA = computed(() => (useBackupCode.value ? backupCode.value.trim().length === BACKUP_CODE_LENGTH : otpCode.value.length === OTP_LENGTH));
@@ -394,6 +397,7 @@ watch(
   async (reachable) => {
     if (!reachable) return;
     if (!movedAway.value) movedAway.value = (await movedAwayStateFn().catch(() => null)) !== null;
+    if (!homeAssistant.value) homeAssistant.value = (await apiInfo({ signal: AbortSignal.timeout(5000) }).catch(() => null))?.homeAssistant === true;
     if (!restoreNotice.value) restoreNotice.value = await loginNotice();
   },
   { immediate: true },
