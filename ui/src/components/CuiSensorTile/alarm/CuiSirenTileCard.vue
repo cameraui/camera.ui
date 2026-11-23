@@ -17,9 +17,10 @@
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
   >
-    <template v-if="hasVolume" #corner>
-      <CuiTileCornerButton :label="propertyLabel(SirenProperty.Volume)" :disabled="!interactive" @click="emit('expand', $event)">
-        <VolumeIcon />
+    <template #corner>
+      <CuiTileCornerButton :label="hasVolume ? propertyLabel(SirenProperty.Volume) : t('components.sensor_tile.controls')" @click="emit('expand', $event)">
+        <VolumeIcon v-if="hasVolume" />
+        <TuneIcon v-else />
       </CuiTileCornerButton>
     </template>
   </CuiTileCard>
@@ -27,6 +28,7 @@
 
 <script setup lang="ts">
 import { SirenProperty } from '@camera.ui/sdk';
+import TuneIcon from '~icons/mdi/tune-variant';
 import VolumeIcon from '~icons/mdi/volume-high';
 
 import { sensorIcon } from '@/common/sensorDisplay.js';

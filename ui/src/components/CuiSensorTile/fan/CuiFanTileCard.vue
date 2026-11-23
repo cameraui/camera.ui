@@ -21,11 +21,10 @@
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
   >
-    <template v-if="hasMore" #corner>
+    <template #corner>
       <CuiTileCornerButton
         :style="{ color: filterLife !== undefined ? filterColor : 'var(--text-secondary-color)' }"
         :label="t('components.sensor_tile.fan_settings')"
-        :disabled="!interactive"
         @click="emit('expand', $event)"
       >
         <component :is="filterLife !== undefined ? AirFilterIcon : TuneIcon" />
@@ -59,25 +58,8 @@ const emit = defineEmits<SensorTileEmits>();
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
-const {
-  on,
-  lit,
-  color,
-  hasSpeed,
-  ratio,
-  steps,
-  speedText,
-  hasMore,
-  childLock,
-  filterLife,
-  filterColor,
-  caption,
-  stateText,
-  toggle,
-  inputLevel,
-  commitLevel,
-  propertyLabel,
-} = useFan(() => props.sensor);
+const { on, lit, color, hasSpeed, ratio, steps, speedText, childLock, filterLife, filterColor, caption, stateText, toggle, inputLevel, commitLevel, propertyLabel } =
+  useFan(() => props.sensor);
 
 const cardRef = useTemplateRef<ComponentPublicInstance>('cardRef');
 const cardEl = computed(() => cardRef.value?.$el as HTMLElement | undefined);

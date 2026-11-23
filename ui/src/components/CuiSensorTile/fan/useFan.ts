@@ -85,8 +85,6 @@ export function useFan(sensor: () => ReactiveSensor<object>) {
     const head = doing.value ? [] : [t(`components.sensor_state.${lit.value ? 'on' : 'off'}`)];
     return [...head, ...notes.value].join(' · ');
   });
-  const hasMore = computed(() => hasDirection.value || hasOscillation.value || presets.value.length > 0 || toggles.value.length > 0 || filterLife.value !== undefined);
-
   function setStep(value: number) {
     commitLevel(value / steps.value);
   }
@@ -127,7 +125,6 @@ export function useFan(sensor: () => ReactiveSensor<object>) {
     filterColor,
     caption,
     stateText,
-    hasMore,
     toggle,
     inputLevel,
     commitLevel,

@@ -18,19 +18,24 @@
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
   >
-    <template v-if="hasTemperature || hasColor" #corner>
+    <template #corner>
       <CuiTileCornerButton
+        v-if="hasTemperature || hasColor"
         :class="{ 'light-card__swatch--off': !on }"
         :style="{ background: lightColor }"
         :label="t('components.sensor_tile.light_color')"
-        :disabled="!interactive"
         @click="emit('expand', $event)"
       />
+      <CuiTileCornerButton v-else :label="t('components.sensor_tile.controls')" @click="emit('expand', $event)">
+        <TuneIcon />
+      </CuiTileCornerButton>
     </template>
   </CuiTileCard>
 </template>
 
 <script setup lang="ts">
+import TuneIcon from '~icons/mdi/tune-variant';
+
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';

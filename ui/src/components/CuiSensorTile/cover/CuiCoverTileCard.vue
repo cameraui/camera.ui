@@ -18,17 +18,22 @@
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
   >
-    <template v-if="hasTilt" #corner>
-      <CuiTileCornerButton class="cover-card__slats" :label="t('components.sensor_tile.adjust_slats')" :disabled="!interactive" @click="emit('expand', $event)">
+    <template #corner>
+      <CuiTileCornerButton v-if="hasTilt" class="cover-card__slats" :label="t('components.sensor_tile.adjust_slats')" @click="emit('expand', $event)">
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <line v-for="y in SLAT_ROWS" :key="y" x1="5" :y1="y" x2="15" :y2="y" :style="{ transform: `rotate(${slatAngle}deg)` }" />
         </svg>
+      </CuiTileCornerButton>
+      <CuiTileCornerButton v-else :label="t('components.sensor_tile.controls')" @click="emit('expand', $event)">
+        <TuneIcon />
       </CuiTileCornerButton>
     </template>
   </CuiTileCard>
 </template>
 
 <script setup lang="ts">
+import TuneIcon from '~icons/mdi/tune-variant';
+
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';

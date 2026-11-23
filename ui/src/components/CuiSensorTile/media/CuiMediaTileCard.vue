@@ -21,7 +21,7 @@
     @keydown="onKey"
   >
     <template #corner>
-      <CuiTileCornerButton :label="t('components.sensor_tile.controls')" :disabled="!interactive" @click="emit('expand', $event)">
+      <CuiTileCornerButton :label="t('components.sensor_tile.controls')" @click="emit('expand', $event)">
         <RemoteIcon />
       </CuiTileCornerButton>
     </template>

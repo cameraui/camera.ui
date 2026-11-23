@@ -18,7 +18,7 @@
     @keydown="onKey"
   >
     <template #corner>
-      <CuiTileCornerButton :label="t('components.sensor_tile.alarm_modes')" :disabled="!interactive" @click="emit('expand', $event)">
+      <CuiTileCornerButton :label="t('components.sensor_tile.alarm_modes')" @click="emit('expand', $event)">
         <TuneIcon />
       </CuiTileCornerButton>
     </template>
