@@ -14,6 +14,7 @@
         :options="presets"
         :allow-empty="true"
         size="small"
+        fluid
         @update:model-value="(v: string | null) => v && (value = v)"
       />
     </div>

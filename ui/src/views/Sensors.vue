@@ -56,16 +56,23 @@
       <ProgressSpinner stroke-width="5" class="w-[30px] h-[30px]" />
     </div>
 
-    <div v-else-if="!rows.length && !discoveredRows.length && !isScanning" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-20">
-      <i-material-symbols:home-iot-device-outline class="w-12 h-12 text-muted" />
-      <span class="text-muted text-sm">{{ sensors.length ? t('views.sensors.no_matches') : t('views.sensors.no_sensors') }}</span>
+    <div v-else-if="!hasSensors" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
+      <div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center">
+        <i-material-symbols:home-iot-device-outline class="w-8 h-8 text-primary-500" />
+      </div>
+      <div class="flex flex-col items-center gap-1 max-w-[400px] text-center">
+        <span class="text-color font-semibold text-base">{{ isScanning ? t('views.sensors.scanning') : t('views.sensors.no_sensors') }}</span>
+        <span class="text-muted text-sm">{{ isScanning ? t('views.sensors.scanning_hint') : t('views.sensors.no_sensors_hint') }}</span>
+      </div>
+      <Button v-if="isAdmin" class="cui-button-medium mt-2" severity="secondary" :label="t('views.sensors.rescan')" :loading="isScanning" @click="handleRescan" />
     </div>
 
-    <div v-else-if="rows.length" class="flex min-h-0 flex-col">
+    <div v-else class="flex min-h-0 flex-col">
       <span class="card-title">{{ t('views.sensors.adopted_title') }}</span>
       <Card class="cui-card">
         <template #content>
           <CuiDataTable
+            v-if="rows.length"
             v-model:expanded-rows="expandedRows"
             :value="rows"
             data-key="key"
@@ -178,6 +185,7 @@
                   <span class="text-xs truncate" :class="data.assignedLabel ? 'text-muted' : 'text-muted italic'">
                     {{ data.assignedLabel || t('views.sensors.unassigned') }}
                   </span>
+                  <i-mdi:video-minus-outline v-if="data.partlyAssigned" v-tooltip="t('views.sensors.partly_assigned')" class="w-4 h-4 shrink-0 text-muted" />
                 </div>
               </template>
             </Column>
@@ -226,6 +234,14 @@
                   <span v-tooltip="member.displayName" class="font-bold text-color truncate">{{ member.shortName }}</span>
                   <i-mdi:star v-if="member.primary" v-tooltip="t('views.sensors.main_sensor')" class="w-3.5 h-3.5 shrink-0 text-muted" />
                   <i-mdi:eye-off-outline v-if="!member.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
+                  <template v-if="member.assignedCameraIds.length < data.cameraCount">
+                    <i-mdi:video-minus-outline
+                      v-if="member.assignedCameraIds.length"
+                      v-tooltip="t('views.sensors.assigned_only', { cameras: cameraNames(member.assignedCameraIds) })"
+                      class="w-4 h-4 shrink-0 text-muted"
+                    />
+                    <i-mdi:video-off-outline v-else v-tooltip="t('views.sensors.unassigned')" class="w-4 h-4 shrink-0 text-muted" />
+                  </template>
                   <span class="ml-auto text-xs text-muted whitespace-nowrap">{{ sensorTypeLabel(member.type) }}</span>
                   <Button
                     v-tooltip.left="t('views.sensors.history')"
@@ -256,17 +272,16 @@
               </div>
             </template>
           </CuiDataTable>
+          <div v-else class="flex flex-col items-center justify-center py-6 gap-2">
+            <i-mdi:magnify-close v-if="sensors.length" width="32px" height="32px" class="text-muted" />
+            <i-material-symbols:home-iot-device-outline v-else width="32px" height="32px" class="text-muted" />
+            <span class="text-muted text-sm">{{ sensors.length ? t('views.sensors.no_matches') : t('views.sensors.no_adopted') }}</span>
+          </div>
         </template>
       </Card>
     </div>
 
-    <div
-      v-if="isAdmin && !isLoading"
-      class="flex min-h-0 flex-col"
-      :class="{
-        'mt-6': rows.length,
-      }"
-    >
+    <div v-if="isAdmin && !isLoading && hasSensors" class="flex min-h-0 flex-col mt-6">
       <span class="card-title">{{ t('views.sensors.discovered_title') }}</span>
       <Card class="cui-card">
         <template #content>
@@ -378,8 +393,9 @@
           </CuiDataTable>
           <div v-else class="flex flex-col items-center justify-center py-6 gap-2">
             <i-svg-spinners:ring-resize v-if="isScanning" width="24px" height="24px" class="text-muted" />
+            <i-mdi:magnify-close v-else-if="discoveredFilteredOut" width="32px" height="32px" class="text-muted" />
             <i-mdi:radar v-else width="32px" height="32px" class="text-muted" />
-            <span class="text-muted text-sm">{{ isScanning ? t('views.sensors.scanning') : t('views.sensors.no_discovered') }}</span>
+            <span class="text-muted text-sm">{{ discoveredEmptyText }}</span>
           </div>
           <div class="flex flex-wrap items-center gap-2 mt-4">
             <div class="ml-auto"></div>
@@ -536,6 +552,8 @@ interface SensorRow {
   nativeLabel: string;
   pluginLabel: string;
   assignedLabel: string;
+  cameraCount: number;
+  partlyAssigned: boolean;
   searchText: string;
   state: SensorState;
   stateLabel: string;
@@ -716,12 +734,20 @@ const isScanning = computed(() => sensorsSocket.isScanning.value);
 const showHidden = computed(() => sensorsSocket.showHidden.value);
 const hiddenCount = computed(() => sensorsSocket.hiddenCount.value);
 
+const hasSensors = computed(() => sensors.value.length > 0 || (isAdmin.value && (sensorsSocket.sortedSensors.value.length > 0 || hiddenCount.value > 0)));
+
 const discoveredRows = computed<DiscoveredRow[]>((previous) => {
   const query = searchQuery.value.toLowerCase().trim();
   const next = [...groupBy(sensorsSocket.sortedSensors.value, (item) => (item.device ? `${item.pluginId}:device:${item.device.id}` : discoveredKey(item)))]
     .map(([key, items]) => discoveredRow(key, items))
     .filter((row) => !query || row.searchText.includes(query));
   return keepUnchangedItems(previous, next, (row) => row.key);
+});
+
+const discoveredFilteredOut = computed(() => !discoveredRows.value.length && sensorsSocket.sortedSensors.value.length > 0);
+const discoveredEmptyText = computed(() => {
+  if (isScanning.value) return t('views.sensors.scanning');
+  return discoveredFilteredOut.value ? t('views.sensors.no_matches') : t('views.sensors.no_discovered');
 });
 
 const { selectionMode, selectedIds, selectedItems, allSelected, bulkBusy, enterSelectionMode, exitSelectionMode, toggleSelectAll, toggleSelection } = useCardSelection(
@@ -802,6 +828,8 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
     nativeLabel,
     pluginLabel,
     assignedLabel,
+    cameraCount: sensor.assignedCameraIds.length,
+    partlyAssigned: false,
     searchText: searchText([label, typeLabel, nativeLabel, pluginLabel, assignedLabel]),
     state,
     stateLabel: stateLabel(state, sensor),
@@ -821,7 +849,8 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
   const state = STATE_SEVERITY.find((candidate) => states.includes(candidate)) ?? 'connected';
   const label = sensor.device?.name ?? sensor.displayName;
   const typeLabel = t('views.sensors.device_sensors', { count: members.length });
-  const assignedLabel = cameraNames([...new Set(members.flatMap((member) => member.assignedCameraIds))]);
+  const cameraIds = [...new Set(members.flatMap((member) => member.assignedCameraIds))];
+  const assignedLabel = cameraNames(cameraIds);
   const battery = members.find((member) => member.type === SensorType.Battery);
   return {
     key,
@@ -835,6 +864,8 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
     nativeLabel: '',
     pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
     assignedLabel,
+    cameraCount: cameraIds.length,
+    partlyAssigned: members.some((member) => member.assignedCameraIds.length < cameraIds.length),
     searchText: searchText([label, typeLabel, sensor.pluginName, assignedLabel, ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)])]),
     state,
     stateLabel: stateLabel(state, sensor),

@@ -17,7 +17,7 @@
         <ProgressSpinner stroke-width="5" class="w-[30px] h-[30px]" />
       </div>
 
-      <div v-if="!isLoading && !sortedDevices.length" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
+      <div v-if="!isLoading && !hasDevices" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
         <div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center">
           <i-bxs:cctv class="w-8 h-8 text-primary-500" />
         </div>
@@ -28,11 +28,18 @@
         <Button class="cui-button-medium mt-2" severity="secondary" :label="$t('views.devices.rescan')" :loading="isScanning" @click="handleRescan" />
       </div>
 
-      <div v-if="!isLoading && addedDevices.length" class="flex min-h-0 flex-col">
+      <div v-if="!isLoading && hasDevices" class="flex min-h-0 flex-col">
         <span class="card-title">{{ $t('views.devices.status_adopted_cameras') }}</span>
         <Card class="cui-card">
           <template #content>
-            <CuiDataTable :value="addedDevices" striped-rows :pt="tablePtOptions" class="w-full" @row-click="(e: DataTableRowClickEvent) => handleRowClick(e.data)">
+            <CuiDataTable
+              v-if="addedDevices.length"
+              :value="addedDevices"
+              striped-rows
+              :pt="tablePtOptions"
+              class="w-full"
+              @row-click="(e: DataTableRowClickEvent) => handleRowClick(e.data)"
+            >
               <Column header="" header-class="p-2 pl-4 w-5 max-w-5" class="p-2 pl-4 w-5 max-w-5">
                 <template #body="{ data }">
                   <div class="flex items-center justify-center">
@@ -58,17 +65,15 @@
                 </template>
               </Column>
             </CuiDataTable>
+            <div v-else class="flex flex-col items-center justify-center py-6 gap-2">
+              <i-bxs:cctv width="32px" height="32px" class="text-muted" />
+              <span class="text-muted text-sm">{{ $t('views.devices.no_adopted') }}</span>
+            </div>
           </template>
         </Card>
       </div>
 
-      <div
-        v-if="!isLoading && sortedDevices.length"
-        class="flex min-h-0 flex-col"
-        :class="{
-          'mt-6': addedDevices.length,
-        }"
-      >
+      <div v-if="!isLoading && hasDevices" class="flex min-h-0 flex-col mt-6">
         <span class="card-title">{{ $t('views.devices.status_discovered') }}</span>
         <Card class="cui-card">
           <template #content>
@@ -232,6 +237,7 @@ const isScanning = computed(() => camerasSocket.isScanning.value);
 const hiddenDevices = computed(() => camerasSocket.hiddenDevices.value);
 const showHidden = computed(() => camerasSocket.showHidden.value);
 const hiddenCount = computed(() => hiddenDevices.value.length);
+const hasDevices = computed(() => sortedDevices.value.length > 0 || hiddenCount.value > 0);
 
 function getStatusColor(status: DeviceStatus): string {
   switch (status) {
