@@ -122,10 +122,6 @@ export class MqttBridge {
       } else {
         this.publishCameraMeta(controller);
       }
-      if (property !== 'room') return;
-      for (const record of this.registry.getRecords()) {
-        if (record.boundCameraId === cameraId) this.republishSensor(record._id);
-      }
     });
 
     this.onBus('sensor:added', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));

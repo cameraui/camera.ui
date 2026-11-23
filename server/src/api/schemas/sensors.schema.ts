@@ -49,6 +49,15 @@ export const patchSensorDeviceSchema = zod
     message: 'Nothing to update',
   });
 
+export const adoptSensorSettingsSchema = zod.object({
+  displayName: zod.string().trim().min(1).max(100).optional(),
+  deviceName: zod.string().trim().min(1).max(100).optional(),
+  roomId: zod.string().min(1).max(100).nullable().optional(),
+  roomName: zod.string().trim().min(1).max(100).optional(),
+  assignedCameraIds: zod.array(zod.string().min(1)).optional(),
+  exposed: zod.boolean().optional(),
+});
+
 export const sensorCommandSchema = zod.object({
   property: zod.string().trim().min(1, 'Property is required'),
   value: zod.unknown(),
@@ -64,3 +73,4 @@ export type PatchSensorDeviceInput = zod.infer<typeof patchSensorDeviceSchema>;
 export type CreateSensorDeviceInput = zod.infer<typeof createSensorDeviceSchema>;
 export type BulkDeleteSensorsInput = zod.infer<typeof bulkDeleteSensorsSchema>;
 export type SensorCommandInput = zod.infer<typeof sensorCommandSchema>;
+export type AdoptSensorSettings = zod.infer<typeof adoptSensorSettingsSchema>;

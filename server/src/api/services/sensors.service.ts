@@ -1,13 +1,14 @@
 import { inject } from '../../container.js';
+import { getSensorDiscovery } from '../../sensors/discovery.js';
 import { resolveSensorRoom } from '../../sensors/room.js';
 import { resolveSensorSemantics } from '../../sensors/semantics.js';
 import { isWritableSensor, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
 import { FloorPlanService } from './floorplan.service.js';
 import { RoomsService } from './rooms.service.js';
 
-import type { SensorPropertySpec, SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
+import type { DiscoveredSensor, SensorPropertySpec, SensorSemantics, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { SensorRegistry } from '../../sensors/registry.js';
-import type { CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
+import type { AdoptSensorSettings, CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput } from '../schemas/sensors.schema.js';
 
 export interface TransformedSensorDevice {
   id: string;
@@ -129,6 +130,20 @@ export class SensorsService {
     }
 
     return this.transform(id);
+  }
+
+  public async adopt(pluginId: string, sensor: DiscoveredSensor, settings: AdoptSensorSettings): Promise<void> {
+    if (settings.roomId && !this.roomsService.byId(settings.roomId)) throw new Error(`Room "${settings.roomId}" not found`);
+    for (const cameraId of settings.assignedCameraIds ?? []) this.assertCameraExists(cameraId);
+
+    const roomId = settings.roomName ? (await this.roomsService.resolveByName(settings.roomName)).id : settings.roomId;
+    const record = await getSensorDiscovery().adopt(pluginId, sensor, roomId);
+
+    const { displayName, assignedCameraIds, exposed } = settings;
+    if (displayName !== undefined || assignedCameraIds !== undefined || exposed !== undefined) {
+      await this.patch(record._id, { displayName, assignedCameraIds, exposed });
+    }
+    if (settings.deviceName && record.deviceId) this.registry.setDeviceDisplayName(record.deviceId, settings.deviceName);
   }
 
   public async patchDevice(id: string, input: PatchSensorDeviceInput): Promise<TransformedSensor[] | undefined> {

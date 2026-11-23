@@ -21,6 +21,7 @@ import {
   virtualSensorStartState,
 } from '../sensors/types.js';
 import { composeDeviceState, pickPrimary } from './devices.js';
+import { sensorRoomId } from './room.js';
 import { resolvePropertySpecs, sanitizePropertySpecs } from './specs.js';
 import { disposeVirtualSensorHost, registerVirtualSensorHost } from './virtual.js';
 
@@ -118,6 +119,12 @@ export class SensorRegistry {
     };
     bus.onEvent('camera:removed', onCameraRemoved);
     this.disposables.push(() => bus.offEvent('camera:removed', onCameraRemoved));
+    const onCameraChanged = (payload: unknown): void => {
+      const { cameraId, property } = payload as { cameraId?: string; property?: string };
+      if (cameraId && property === 'room') this.onCameraRoomChanged(cameraId);
+    };
+    bus.onEvent('camera:property:changed', onCameraChanged);
+    this.disposables.push(() => bus.offEvent('camera:property:changed', onCameraChanged));
 
     await this.loadRecords();
     await this.sweepOrphanedRecords();
@@ -486,8 +493,13 @@ export class SensorRegistry {
       if (roomId) current.roomId = roomId;
       else delete current.roomId;
     });
+    this.announceRoom(record);
+  }
 
-    emitInternalEvent('sensor:room:changed', { sensorId, sensorType: String(record.type), assignedCameraIds: [...record.assignedCameraIds] });
+  public onCameraRoomChanged(cameraId: string): void {
+    for (const record of this.records.values()) {
+      if (record.boundCameraId === cameraId) this.announceRoom(record);
+    }
   }
 
   public async setExposed(sensorId: string, exposed: boolean): Promise<void> {
@@ -756,6 +768,7 @@ export class SensorRegistry {
       pluginId: record.pluginInfo.id,
       assignedCameraIds: [...record.assignedCameraIds],
       boundCameraId: record.boundCameraId,
+      roomId: sensorRoomId(record),
       exposed: record.exposed,
       address: record.address,
       sourceState: record.sourceState,
@@ -1380,6 +1393,12 @@ export class SensorRegistry {
     for (const key of keys.slice(keep)) {
       this.dbs.sensorHistoryDB.remove(key).catch(() => {});
     }
+  }
+
+  private announceRoom(record: DBSensor): void {
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    this.safePublish(ns.sensorsSubject, { type: 'sensor:room:changed', data: { sensorId: record._id, roomId: sensorRoomId(record) } });
+    emitInternalEvent('sensor:room:changed', { sensorId: record._id, sensorType: String(record.type), assignedCameraIds: [...record.assignedCameraIds] });
   }
 
   private persistRecord(sensorId: string, mutate: (record: DBSensor) => void): void {

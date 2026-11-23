@@ -160,6 +160,11 @@ class SensorExposedChangedEvent(TypedDict):
     exposed: bool
 
 
+class SensorRoomChangedEvent(TypedDict):
+    sensorId: str
+    roomId: NotRequired[str]
+
+
 class SensorDeviceChangedEvent(TypedDict):
     sensorId: str
     sensorType: SensorType
@@ -187,6 +192,7 @@ class SensorEventMessage(TypedDict):
         "sensor:exposed:changed",
         "sensor:device:changed",
         "sensor:specs:changed",
+        "sensor:room:changed",
     ]
     data: (
         PropertyChangedEvent
@@ -201,6 +207,7 @@ class SensorEventMessage(TypedDict):
         | SensorExposedChangedEvent
         | SensorDeviceChangedEvent
         | SensorSpecsChangedEvent
+        | SensorRoomChangedEvent
     )
 
 

@@ -38,8 +38,9 @@
 <script setup lang="ts">
 import { RoomsQuery } from '@/api/routes/rooms.js';
 import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
-import { buildRoomOptions } from './rooms.js';
+import { buildRoomOptions, NEW_ROOM } from './rooms.js';
 
+import type { RoomOption, RoomOptionGroup } from './rooms.js';
 import type { CuiRoomSelectProps } from './types.js';
 
 const props = withDefaults(defineProps<CuiRoomSelectProps>(), { clearable: false, disabled: false, invalid: false });
@@ -55,7 +56,18 @@ const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
 const { mutateAsync: deleteRoom, isPending: deletingRoom } = roomsQuery.deleteRoomMutation();
 
 const grouped = computed(() => (catalog.value?.levels.length ?? 0) > 0);
-const roomOptions = computed(() => buildRoomOptions(catalog.value, t));
+const pendingRoom = computed(() => {
+  const name = props.newRoom?.trim();
+  if (!name || catalog.value?.rooms.some((room) => room.name.toLowerCase() === name.toLowerCase())) return undefined;
+  return name;
+});
+const roomOptions = computed<RoomOption[] | RoomOptionGroup[]>(() => {
+  const options = buildRoomOptions(catalog.value, t);
+  const name = pendingRoom.value;
+  if (!name) return options;
+  if (!grouped.value) return [{ label: t('components.form.label.room_new', { name }), value: NEW_ROOM }, ...(options as RoomOption[])];
+  return [{ label: t('components.form.label.room_new_group'), items: [{ label: name, value: NEW_ROOM }] }, ...(options as RoomOptionGroup[])];
+});
 const defaultRoom = computed(() => catalog.value?.rooms.find((room) => room.name === 'Default'));
 const deletableRoom = computed(() => catalog.value?.rooms.find((room) => room.id === roomId.value && room.id !== defaultRoom.value?.id));
 

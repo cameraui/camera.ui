@@ -1,6 +1,8 @@
 import { inject } from '../../../container.js';
 import { NamespaceManager } from '../../../rpc/namespaces.js';
 import { getSensorDiscovery } from '../../../sensors/discovery.js';
+import { adoptSensorSettingsSchema } from '../../schemas/sensors.schema.js';
+import { SensorsService } from '../../services/sensors.service.js';
 import { UsersService } from '../../services/users.service.js';
 import { onClientEvent } from '../client-events.js';
 
@@ -91,9 +93,11 @@ export class SensorsNamespace {
     onClientEvent(
       socket,
       'sensors:adopt',
-      async (payload: { pluginId: string; sensor: DiscoveredSensor }, callback?: (data: { success: boolean; error?: string }) => void) => {
+      async (payload: { pluginId: string; sensor: DiscoveredSensor; settings?: unknown }, callback?: (data: { success: boolean; error?: string }) => void) => {
         try {
-          await getSensorDiscovery().adopt(payload.pluginId, payload.sensor);
+          const settings = payload.settings === undefined ? undefined : adoptSensorSettingsSchema.parse(payload.settings);
+          if (settings) await new SensorsService().adopt(payload.pluginId, payload.sensor, settings);
+          else await getSensorDiscovery().adopt(payload.pluginId, payload.sensor);
           callback?.({ success: true });
         } catch (error: unknown) {
           callback?.({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });

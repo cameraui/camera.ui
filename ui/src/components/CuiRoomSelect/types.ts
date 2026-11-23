@@ -3,4 +3,5 @@ export interface CuiRoomSelectProps {
   clearable?: boolean;
   disabled?: boolean;
   invalid?: boolean;
+  newRoom?: string;
 }

@@ -6,6 +6,7 @@ import { inject } from '../container.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 
 import type { DiscoveredSensor } from '@camera.ui/sdk';
+import type { DBSensor } from '../api/database/types.js';
 import type { Plugin } from '../plugins/plugin.js';
 import type { ProxyServer } from '../rpc/index.js';
 import type { DiscoveredSensorListItem, SensorDiscoveryEvents, SensorDiscoveryGenericEvent } from '../rpc/interfaces/sensor.js';
@@ -80,14 +81,15 @@ export class SensorDiscoveryManager {
     await this.scan();
   }
 
-  public async adopt(pluginId: string, sensor: DiscoveredSensor): Promise<void> {
+  public async adopt(pluginId: string, sensor: DiscoveredSensor, roomId?: string | null): Promise<DBSensor> {
     const plugin = this.pluginsService.getPluginById(pluginId);
     if (!plugin || !this.isSensorDiscoveryPlugin(plugin) || !plugin.worker?.isRunning()) {
       throw new Error('Plugin not found or not running');
     }
 
-    const room = sensor.room?.trim() ? await this.roomsService.resolveByName(sensor.room.trim()) : undefined;
-    this.registry.createAdoptedSensor(pluginId, sensor, room?.id);
+    // without a choice the sensor takes the room its source puts it in
+    const room = roomId === undefined && sensor.room?.trim() ? await this.roomsService.resolveByName(sensor.room.trim()) : undefined;
+    const record = this.registry.createAdoptedSensor(pluginId, sensor, room?.id ?? roomId ?? undefined);
 
     const items = this.cache.get(pluginId);
     if (items) {
@@ -97,6 +99,7 @@ export class SensorDiscoveryManager {
       );
     }
     this.publish('sensors:adopted', { pluginId, id: sensor.id });
+    return record;
   }
 
   public async scan(): Promise<void> {

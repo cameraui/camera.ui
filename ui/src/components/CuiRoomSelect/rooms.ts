@@ -1,5 +1,7 @@
 import type { DBRoomCatalog } from '@shared/types';
 
+export const NEW_ROOM = 'new-room';
+
 export interface RoomOption {
   label: string;
   value: string;

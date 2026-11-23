@@ -8,11 +8,13 @@ export interface SensorRoom {
   name: string;
 }
 
+export function sensorRoomId(record: DBSensor): string | undefined {
+  if (!record.boundCameraId) return record.roomId;
+  return inject('dbs').camerasDB.get(record.boundCameraId)?.roomId ?? undefined;
+}
+
 export function resolveSensorRoom(record: DBSensor): SensorRoom | undefined {
-  const dbs = inject('dbs');
-  const roomId = record.boundCameraId
-    ? dbs.camerasDB.get(record.boundCameraId)?.roomId
-    : (record.roomId ?? dbs.floorPlanDB.get('floorplan')?.sensors.find((placement) => placement.sensorId === record._id)?.roomId);
-  const name = new RoomsService().label(roomId);
-  return roomId && name ? { id: roomId, name } : undefined;
+  const id = sensorRoomId(record);
+  const name = new RoomsService().label(id);
+  return id && name ? { id, name } : undefined;
 }

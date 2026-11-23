@@ -1,5 +1,5 @@
 import type { SocketChannel } from '@/connection/index.js';
-import type { DBHiddenSensor, DiscoveredSensorListItem, SensorsNamespaceEvents } from '@shared/types';
+import type { AdoptSensorSettings, DBHiddenSensor, DiscoveredSensorListItem, SensorsNamespaceEvents } from '@shared/types';
 
 export interface SensorsSocketState {
   isLoading: boolean;
@@ -176,11 +176,11 @@ export function useSensorsSocket() {
     }
   }
 
-  async function adoptSensor(item: DiscoveredSensorListItem): Promise<AdoptResult> {
+  async function adoptSensor(item: DiscoveredSensorListItem, settings?: AdoptSensorSettings): Promise<AdoptResult> {
     if (!channel?.ready.value) return { success: false, error: 'Not connected' };
     const { pluginId, pluginName: _pluginName, ...sensor } = item;
     try {
-      return await channel.request<AdoptResult>('sensors:adopt', { pluginId, sensor });
+      return await channel.request<AdoptResult>('sensors:adopt', { pluginId, sensor, settings });
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'adopt failed' };
     }

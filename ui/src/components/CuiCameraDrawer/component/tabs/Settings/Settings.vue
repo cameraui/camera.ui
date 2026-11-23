@@ -22,38 +22,7 @@
 
           <Field v-slot="{ errors }" :model-value="cameraForm.roomId" name="roomId" as="div" class="flex flex-col field-gap">
             <label for="room" class="cui-label">{{ $t('components.form.label.room') }}</label>
-            <InputGroup>
-              <Select
-                :model-value="cameraForm.roomId"
-                :options="roomOptions"
-                option-label="label"
-                option-value="value"
-                :option-group-label="roomsGrouped ? 'label' : undefined"
-                :option-group-children="roomsGrouped ? 'items' : undefined"
-                :invalid="errors.length > 0"
-                :loading="roomsLoading"
-                class="min-w-0"
-                @update:model-value="(e) => (cameraForm.roomId = e)"
-              />
-              <InputGroupAddon>
-                <Button v-tooltip.top="$t('components.form.button.create_room')" type="button" severity="secondary" text @click="openCreateRoomDialog">
-                  <template #icon><i-mdi:plus /></template>
-                </Button>
-              </InputGroupAddon>
-              <InputGroupAddon>
-                <Button
-                  v-tooltip.top="$t('components.form.button.delete_room')"
-                  type="button"
-                  severity="danger"
-                  text
-                  :disabled="!deletableRoom"
-                  :loading="deletingRoom"
-                  @click="confirmDeleteRoom"
-                >
-                  <template #icon><i-mdi:delete-outline /></template>
-                </Button>
-              </InputGroupAddon>
-            </InputGroup>
+            <CuiRoomSelect :model-value="cameraForm.roomId" :invalid="errors.length > 0" @update:model-value="(value) => (cameraForm.roomId = value)" />
             <Message v-if="!errors.length" severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.room') }}</Message>
           </Field>
 
@@ -1918,11 +1887,8 @@ import { ErrorMessage, Field } from 'vee-validate';
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { ConfigQuery } from '@/api/routes/config.js';
-import { RoomsQuery } from '@/api/routes/rooms.js';
 import { audioLabelKey, NOTIFY_SENSOR_TYPES, sensorLabelKey } from '@/common/eventLabels.js';
-import { buildRoomOptions } from '@/components/CuiCameraDetailsFields/rooms.js';
 import AspectRatioDialog from '@/components/CuiDialog/templates/AspectRatio/AspectRatio.vue';
-import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
 import ZoneEditorDialog from '@/components/CuiDialog/templates/ZoneEditor/ZoneEditor.vue';
 
 import type { AspectRatioProps } from '@/components/CuiDialog/templates/AspectRatio/types.js';
@@ -1955,7 +1921,6 @@ const TRIGGERABLE_TYPES = new Set(
 
 const camerasQuery = new CamerasQuery();
 const configQuery = new ConfigQuery();
-const roomsQuery = new RoomsQuery();
 
 const props = defineProps<CameraOptionsTabProps>();
 
@@ -1980,9 +1945,6 @@ const { sensors: allSensors } = useSensors(cameraDevice);
 const placementSocket = usePlacementSocket();
 const { placementLabel } = usePlacementLabel();
 
-const { data: roomCatalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
-const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
-const { mutateAsync: deleteRoom, isPending: deletingRoom } = roomsQuery.deleteRoomMutation();
 const { data: cameraExtensions } = camerasQuery.getCameraExtensionsQuery(cameraForm.value.name);
 const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.removeCameraQuery();
 const { mutateAsync: patchZoneConfig, isPending: zoneConfigPatching } = camerasQuery.patchZoneConfigQuery();
@@ -2143,12 +2105,6 @@ const onlineSensorIds = computed(() => new Set(triggerableSensors.value.map((s) 
 
 const visibleSensorTriggerKeys = computed(() => (cameraForm.value.detectionSettings.sensor?.triggers ?? []).filter((sensorId) => onlineSensorIds.value.has(sensorId)));
 
-const roomsGrouped = computed(() => (roomCatalog.value?.levels.length ?? 0) > 0);
-
-const roomOptions = computed(() => buildRoomOptions(roomCatalog.value, t));
-
-const deletableRoom = computed(() => roomCatalog.value?.rooms.find((room) => room.id === cameraForm.value.roomId && room.name !== 'Default'));
-
 const isLoading = computed(() => parentLoading.value || removeLoading.value);
 
 const rtspAddresses = computed(() => streamAddresses('rtsp', settings.value?.streaming.rtsp.port));
@@ -2215,38 +2171,6 @@ function updateSensorTriggers(selectedIds: string[]) {
   const offlineIds = (cameraForm.value.detectionSettings.sensor?.triggers ?? []).filter((sensorId) => !onlineSensorIds.value.has(sensorId));
   if (!cameraForm.value.detectionSettings.sensor) cameraForm.value.detectionSettings.sensor = { timeout: 30, triggers: [] };
   cameraForm.value.detectionSettings.sensor.triggers = [...offlineIds, ...selectedIds];
-}
-
-function openCreateRoomDialog() {
-  dialog.openComponentDialog<Record<string, never>>(CreateRoomDialog, {
-    data: {
-      title: t('components.dialog.title.create_room'),
-      confirmText: t('components.form.button.add'),
-      contentProps: {},
-    },
-    onConfirm: async (name: string | null) => {
-      if (!name) return;
-      const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
-      cameraForm.value.roomId = room.id;
-    },
-  });
-}
-
-function confirmDeleteRoom() {
-  const room = deletableRoom.value;
-  if (!room) return;
-  dialog.openTextDialog({
-    data: {
-      title: t('components.dialog.title.confirm'),
-      confirmText: t('components.form.button.remove'),
-      contentText: t('components.dialog.message.confirm_delete_room', { name: room.name }),
-      confirmButtonProps: { severity: 'danger' },
-    },
-    onConfirm: async () => {
-      await deleteRoom(room.id);
-      if (cameraForm.value.roomId === room.id) cameraForm.value.roomId = props.camera?.roomId ?? null;
-    },
-  });
 }
 
 function deleteCamera() {

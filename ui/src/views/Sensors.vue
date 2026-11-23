@@ -542,6 +542,7 @@ import { useCardSelection } from '@/composables/useCardSelection.js';
 import { useSensorHistoryDialog } from '@/components/CuiDialog/templates/SensorHistory/useSensorHistoryDialog.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
+import type { SensorAdoptProps } from '@/components/CuiDialog/templates/SensorAdopt/types.js';
 import type { SensorDeviceEditResult } from '@/components/CuiDialog/templates/SensorDeviceEdit/types.js';
 import type { SensorEditResult } from '@/components/CuiDialog/templates/SensorEdit/types.js';
 import type { VirtualSensorCreateResult } from '@/components/CuiDialog/templates/VirtualSensorCreate/types.js';
@@ -549,7 +550,7 @@ import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { VirtualDeviceChoice } from '@/components/CuiVirtualDeviceField/types.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { PassThrough } from '@openvue/core';
-import type { DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor, TransformedSensorDevice } from '@shared/types';
+import type { AdoptSensorSettings, DiscoveredSensorListItem, SensorsNamespaceEvents, TransformedSensor, TransformedSensorDevice } from '@shared/types';
 import type { DataTablePassThroughOptions, DataTableRowClickEvent } from 'openvue';
 
 type SensorState = 'connected' | 'disconnected' | 'unavailable' | 'removed';
@@ -590,6 +591,7 @@ interface DiscoveredRow {
 }
 
 const SensorEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorEdit/SensorEdit.vue'));
+const SensorAdoptDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorAdopt/SensorAdopt.vue'));
 const SensorDeviceEditDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorDeviceEdit/SensorDeviceEdit.vue'));
 const VirtualSensorCreateDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue'));
 const SensorGroupDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorGroup/SensorGroup.vue'));
@@ -1103,17 +1105,17 @@ async function hideSelected() {
 }
 
 function confirmAdopt(item: DiscoveredSensorListItem) {
-  dialog.openTextDialog({
+  dialog.openComponentDialog<SensorAdoptProps>(SensorAdoptDialog, {
     data: {
       title: t('views.sensors.adopt_title'),
-      contentText: t('views.sensors.adopt_confirm', { name: item.name, plugin: item.pluginName }),
       confirmText: t('components.form.button.add'),
       loading: isAdopting,
+      contentProps: { items: [item], name: item.name, pluginName: item.pluginName, cameraOptions: cameraOptions.value },
     },
-    onConfirm: async () => {
+    onConfirm: async (settings: AdoptSensorSettings) => {
       isAdopting.value = true;
       try {
-        const result = await sensorsSocket.adoptSensor(item);
+        const result = await sensorsSocket.adoptSensor(item, settings);
         if (!result.success) {
           toast.add({ severity: 'error', summary: t('views.sensors.adopt_title'), detail: result.error, life: 3000 });
           return;
@@ -1274,22 +1276,22 @@ function confirmBulkAdopt() {
 }
 
 function confirmAdoptDevice(row: DiscoveredRow) {
-  dialog.openTextDialog({
+  dialog.openComponentDialog<SensorAdoptProps>(SensorAdoptDialog, {
     data: {
       title: t('views.sensors.adopt_device_title'),
-      contentText: t('views.sensors.adopt_device_confirm', { name: row.name, count: row.items.length, plugin: row.pluginName }),
       confirmText: t('components.form.button.add'),
+      contentProps: { items: row.items, name: row.name, pluginName: row.pluginName, device: true, cameraOptions: [] },
     },
-    onConfirm: () => adoptItems(row.items),
+    onConfirm: (settings: AdoptSensorSettings) => adoptItems(row.items, settings),
   });
 }
 
-async function adoptItems(items: DiscoveredSensorListItem[]) {
+async function adoptItems(items: DiscoveredSensorListItem[], settings?: AdoptSensorSettings) {
   discoveredBulkBusy.value = true;
   try {
     const failed: string[] = [];
     for (const item of items) {
-      const result = await sensorsSocket.adoptSensor(item);
+      const result = await sensorsSocket.adoptSensor(item, settings);
       if (!result.success) failed.push(item.name);
     }
     await queryClient.refetchQueries({ queryKey: ['sensorsList'] });

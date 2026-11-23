@@ -33,6 +33,7 @@ export interface StoredSensorData {
   pluginId: string;
   assignedCameraIds: string[];
   boundCameraId?: string;
+  roomId?: string;
   exposed: boolean;
   origin?: string;
   address?: string;
@@ -153,6 +154,11 @@ export interface SensorExposedChangedEvent {
   origin?: string;
 }
 
+export interface SensorRoomChangedEvent {
+  sensorId: string;
+  roomId?: string;
+}
+
 export interface SensorAssignmentChangedEvent {
   sensorId: string;
   sensorType: SensorType;
@@ -173,7 +179,8 @@ export interface SensorEventMessage {
     | 'sensor:assignment:changed'
     | 'sensor:exposed:changed'
     | 'sensor:device:changed'
-    | 'sensor:specs:changed';
+    | 'sensor:specs:changed'
+    | 'sensor:room:changed';
   data:
     | PropertyChangedEvent
     | SensorAddedEvent
@@ -186,7 +193,8 @@ export interface SensorEventMessage {
     | SensorAssignmentChangedEvent
     | SensorExposedChangedEvent
     | SensorDeviceChangedEvent
-    | SensorSpecsChangedEvent;
+    | SensorSpecsChangedEvent
+    | SensorRoomChangedEvent;
 }
 
 export interface CameraEventMessage {
