@@ -254,6 +254,17 @@
                   </Message>
                 </div>
 
+                <div class="flex flex-col field-gap">
+                  <label class="cui-label">{{ $t('views.workers.pairing_desktop_address') }}</label>
+                  <InputGroup>
+                    <InputText :model-value="desktopWorkerAddress" readonly type="text" />
+                    <CuiCopyAddon :value="desktopWorkerAddress" />
+                  </InputGroup>
+                  <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">
+                    {{ $t('views.workers.pairing_desktop_address_hint') }}
+                  </Message>
+                </div>
+
                 <div v-if="pairing.caFingerprint" class="flex flex-col field-gap">
                   <label class="cui-label">{{ $t('views.workers.ca_fingerprint') }}</label>
                   <span class="text-xs font-mono break-all">{{ pairing.caFingerprint }}</span>
@@ -406,12 +417,16 @@ const pairingMinutesLeft = computed(() => {
 
 const replaceOptions = computed(() => workers.value.map((worker) => ({ label: worker.name, value: worker.agentId })));
 
+const pairingMaster = computed(() => pairing.value?.address || '<MASTER_IP>');
+const desktopWorkerAddress = computed(() => {
+  if (!pairing.value) return '';
+  return pairing.value.apiPort === 3443 ? pairingMaster.value : `${pairingMaster.value}:${pairing.value.apiPort}`;
+});
 const pairingSnippet = computed(() => {
   if (!pairing.value) return '';
-  const master = pairing.value.address || '<MASTER_IP>';
   return [
     'worker:',
-    `  master: ${master}`,
+    `  master: ${pairingMaster.value}`,
     `  apiPort: ${pairing.value.apiPort}`,
     `  pairingCode: ${pairing.value.code}`,
     '  name: my-worker',

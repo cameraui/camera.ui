@@ -3723,7 +3723,8 @@ export default {
       biometric_save_confirm: 'Enable',
       biometric_save_decline: 'Not now',
       invalid_credentials: 'Invalid username or password',
-      home_assistant_hint: 'This server runs in Home Assistant. Sign in with a camera.ui user: open camera.ui in the Home Assistant sidebar and add one under Settings, Users.',
+      home_assistant_hint:
+        'This server runs in Home Assistant. Sign in with a camera.ui user: open camera.ui in the Home Assistant sidebar and add one under Settings, Users.',
       searching_direct: 'Searching for a direct connection to your server…',
       offline_title: 'Could not reach your server',
       offline_description: 'No direct route is available right now. Make sure the server is online and try again.',
@@ -4719,6 +4720,8 @@ export default {
       pair_worker_description:
         'Generate a one-time pairing code and start the worker with it. The worker exchanges the code for its own credentials: no shared secrets, revocable per worker. The internal message broker restarts briefly when the worker pairs.',
       pairing_code: 'Pairing Code',
+      pairing_desktop_address: 'Master address for a desktop app',
+      pairing_desktop_address_hint: 'A desktop app as worker takes this address and the pairing code.',
       pairing_expires: 'Expires in {minutes} min, one-time use',
       pairing_snippet: 'Worker configuration',
       pairing_snippet_hint: 'Paste into the worker\'s camera.ui.yaml, then start it with "cameraui --worker run".',

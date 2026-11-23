@@ -3743,7 +3743,8 @@ export default {
       biometric_save_confirm: 'Aktivieren',
       biometric_save_decline: 'Nicht jetzt',
       invalid_credentials: 'Ungültiger Benutzername oder Passwort',
-      home_assistant_hint: 'Dieser Server läuft in Home Assistant. Melde dich mit einem camera.ui-Benutzer an: Öffne camera.ui in der Home-Assistant-Seitenleiste und lege ihn unter Einstellungen, Benutzer an.',
+      home_assistant_hint:
+        'Dieser Server läuft in Home Assistant. Melde dich mit einem camera.ui-Benutzer an: Öffne camera.ui in der Home-Assistant-Seitenleiste und lege ihn unter Einstellungen, Benutzer an.',
       searching_direct: 'Suche nach einer direkten Verbindung zu deinem Server…',
       offline_title: 'Server nicht erreichbar',
       offline_description: 'Es ist gerade keine direkte Verbindung verfügbar. Stelle sicher, dass der Server online ist, und versuche es erneut.',
@@ -4754,6 +4755,8 @@ export default {
       pair_worker_description:
         'Generiere einen einmaligen Pairing-Code und starte den Worker damit. Der Worker tauscht den Code gegen eigene Zugangsdaten: keine geteilten Secrets, pro Worker widerrufbar. Beim Koppeln startet der interne Message-Broker kurz neu.',
       pairing_code: 'Pairing-Code',
+      pairing_desktop_address: 'Master-Adresse für eine Desktop-App',
+      pairing_desktop_address_hint: 'Eine Desktop-App als Worker braucht diese Adresse und den Pairing-Code.',
       pairing_expires: 'Läuft in {minutes} Min ab, einmalig verwendbar',
       pairing_snippet: 'Worker-Konfiguration',
       pairing_snippet_hint: 'In die camera.ui.yaml des Workers einfügen, dann mit "cameraui --worker run" starten.',

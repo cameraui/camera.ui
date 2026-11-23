@@ -30,6 +30,7 @@ const VERIFY_TIMEOUT_MS = 10_000;
 const MAX_INFO_BYTES = 64 * 1024;
 const BROWSE_MS = 3000;
 const DEFAULT_LEAF_PORTS = [7422, 7422 + DESKTOP_PORT_OFFSET];
+const DEFAULT_API_PORTS = [MASTER_API_PORT, MASTER_API_PORT + DESKTOP_PORT_OFFSET];
 const RETRY_STATUS = new Set([403, 408, 409, 429]);
 
 class PairRequestError extends Error {
@@ -286,7 +287,15 @@ function pairRequest(host: string, port: number, body: { code: string; agentId: 
     );
 
     req.on('timeout', () => req.destroy(new Error(`pairing failed: master ${host}:${port} did not respond`)));
-    req.on('error', (error) => reject(new PairRequestError(`pairing failed: ${error.message}`)));
+    req.on('error', (error) => reject(new PairRequestError(pairingFailure(host, port, error))));
     req.end(payload);
   });
+}
+
+function pairingFailure(host: string, port: number, error: NodeJS.ErrnoException): string {
+  if (error.code !== 'EPROTO') return `pairing failed: ${error.message}`;
+  const [serverPort, desktopPort] = DEFAULT_API_PORTS;
+  const apiPort = DEFAULT_API_PORTS[DEFAULT_LEAF_PORTS.indexOf(port)];
+  if (apiPort) return `pairing failed: ${port} is the master's worker connection port, pairing needs its HTTPS port ${apiPort}`;
+  return `pairing failed: ${host}:${port} does not answer with HTTPS, pairing needs the master's HTTPS port (${serverPort}, or ${desktopPort} for a desktop app)`;
 }
