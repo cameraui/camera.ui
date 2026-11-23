@@ -3,14 +3,14 @@ import { toolDefinition } from '@tanstack/ai';
 import * as zod from 'zod';
 
 import { CamerasService } from '../../api/services/cameras.service.js';
-import { instanceUnitSystem } from '../../i18n/index.js';
 import { SensorsService } from '../../api/services/sensors.service.js';
+import { instanceUnitSystem } from '../../i18n/index.js';
 import { SENSOR_TYPE_CONFIG } from '../../sensors/types.js';
 import { resolveCameraName } from './cameras.js';
 import { approvalSchema, toolError } from './shared.js';
 
-import type { TransformedSensor } from '../../api/services/sensors.service.js';
 import type { SensorSemantics } from '@camera.ui/sdk';
+import type { TransformedSensor } from '../../api/services/sensors.service.js';
 import type { CoreTool, ToolContext } from './shared.js';
 
 function findSensor(sensors: SensorsService, idOrName: string): TransformedSensor | undefined {
@@ -132,18 +132,18 @@ const setSensorPropertyInput = zod.object({
     .string()
     .optional()
     .describe(
+      // prettier-ignore
       'Property to set, default: the command property. Lights also take brightness, colorTemperature (kelvin) and color, ' +
       'covers and valves targetPosition (0 closed, 100 open), thermostats and water heaters targetTemperature, ' +
       'thermostats and humidifiers targetHumidity, fans and air purifiers speed (0 to 100), vacuums fanSpeed, ' +
       'media players on, volume (0 to 100), muted and source',
     ),
-  value: zod
-    .union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())])
-    .describe(
-      'New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows, ' +
-      'for a vacuum or lawn mower its command: start, pause, stop, dock, locate or spot, ' +
-      'for a media player play, pause, stop, next or previous',
-    ),
+  value: zod.union([zod.boolean(), zod.number(), zod.string(), zod.record(zod.string(), zod.number())]).describe(
+    // prettier-ignore
+    'New value, for a light color an object with hue (0-360) and saturation (0-100), a temperature in the unit list_sensors shows, ' +
+    'for a vacuum or lawn mower its command: start, pause, stop, dock, locate or spot, ' +
+    'for a media player play, pause, stop, next or previous',
+  ),
 });
 
 const setSensorProperty = toolDefinition({

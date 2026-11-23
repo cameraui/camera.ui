@@ -43,6 +43,16 @@ export async function setNotificationSettingsFn({ settings }: { settings: DBNoti
   return response.data;
 }
 
+export async function muteNotificationsFn({ minutes, cameraId }: { minutes: number; cameraId?: string }): Promise<DBNotificationSettings> {
+  const response: AxiosResponse<DBNotificationSettings> = await api.put('/notifications/mute', { minutes, cameraId });
+  return response.data;
+}
+
+export async function unmuteNotificationsFn({ cameraId }: { cameraId?: string }): Promise<DBNotificationSettings> {
+  const response: AxiosResponse<DBNotificationSettings> = await api.delete('/notifications/mute', { params: { cameraId } });
+  return response.data;
+}
+
 export async function listNotifierDevicesFn({ signal }: { signal: AbortSignal }): Promise<NotifierDeviceWithSource[]> {
   const response: AxiosResponse<NotifierDeviceWithSource[]> = await api.get('/notifications/devices', { signal });
   return response.data;
@@ -154,6 +164,24 @@ export class NotificationsQuery {
   public setSettingsQuerySilent() {
     return useMutation({
       mutationFn: setNotificationSettingsFn,
+      onSuccess: (saved) => {
+        this._queryClient.setQueryData(['notifications', 'settings'], saved);
+      },
+    });
+  }
+
+  public muteQuery() {
+    return useMutation({
+      mutationFn: muteNotificationsFn,
+      onSuccess: (saved) => {
+        this._queryClient.setQueryData(['notifications', 'settings'], saved);
+      },
+    });
+  }
+
+  public unmuteQuery() {
+    return useMutation({
+      mutationFn: unmuteNotificationsFn,
       onSuccess: (saved) => {
         this._queryClient.setQueryData(['notifications', 'settings'], saved);
       },

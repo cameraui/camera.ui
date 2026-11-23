@@ -16,6 +16,7 @@ export interface NotificationsSocketState {
   local: StoredNotification[];
   unread: number;
   castTargets: CastTarget[];
+  muteRevision: number;
 }
 
 const BELL_LIMIT = 30;
@@ -26,6 +27,7 @@ const state = reactive<NotificationsSocketState>({
   local: [],
   unread: 0,
   castTargets: [],
+  muteRevision: 0,
 });
 
 const unreadCount = computed(() => state.unread + state.local.filter((n) => n.seenAt == null).length);
@@ -45,7 +47,7 @@ function ensureChannel(): SocketChannel {
 
     ch.on<StoredNotification>('added', (n) => {
       if (n.inBell !== false) insertNewest(state.notifications, n, BELL_LIMIT);
-      if (!n.listOnly) forwardToDesktop(n);
+      if (!n.listOnly && !n.muted) forwardToDesktop(n);
     });
     ch.on<StoredNotification>('updated', (n) => replaceNotification(state.notifications, n));
     ch.on<{ ids: string[] }>('removed', ({ ids }) => {
@@ -59,6 +61,9 @@ function ensureChannel(): SocketChannel {
     });
     ch.on('bellChanged', () => {
       fetchNotifications();
+    });
+    ch.on('muteChanged', () => {
+      state.muteRevision++;
     });
 
     ch.on<CastTarget[]>('castTargets', (data) => {
@@ -215,6 +220,7 @@ export function useNotificationsSocket() {
     notifications: computed(() => [...state.local, ...state.notifications]),
     unreadCount,
     castTargets: computed(() => state.castTargets.filter((target) => target.deviceId !== desktopCastDeviceId())),
+    muteRevision: computed(() => state.muteRevision),
 
     connect,
     disconnect,

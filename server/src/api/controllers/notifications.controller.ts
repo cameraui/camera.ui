@@ -12,10 +12,12 @@ import type {
   NotificationsEntryRequest,
   NotificationsIdsRequest,
   NotificationsListRequest,
+  NotificationsMuteRequest,
   NotificationsRegisterDeviceRequest,
   NotificationsRevokeDeviceRequest,
   NotificationsSeenRequest,
   NotificationsSettingsRequest,
+  NotificationsUnmuteRequest,
   NotificationsUpdateDeviceRequest,
 } from '../types/index.js';
 
@@ -39,10 +41,35 @@ export class NotificationsController {
   public async setSettings(req: FastifyRequest<AuthLoginRequest & NotificationsSettingsRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const userId = req.locals.user!._id;
-      const { suppressed } = await this.service.getSettings(userId);
+      // automations and the mute buttons set these, the settings page does not send them
+      const { suppressed, mutedUntil, mutedCameras } = await this.service.getSettings(userId);
       // _id goes last, a client must not pick another user
-      const settings: DBNotificationSettings = { ...req.body, ...(suppressed && { suppressed }), _id: userId };
+      const settings: DBNotificationSettings = {
+        ...req.body,
+        ...(suppressed && { suppressed }),
+        ...(mutedUntil && { mutedUntil }),
+        ...(mutedCameras && { mutedCameras }),
+        _id: userId,
+      };
       await this.service.setSettings(userId, settings);
+      return reply.code(200).send(settings);
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async mute(req: FastifyRequest<AuthLoginRequest & NotificationsMuteRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const settings = await this.service.mute(req.locals.user!._id, req.body.minutes, req.body.cameraId);
+      return reply.code(200).send(settings);
+    } catch (error: any) {
+      return reply.code(500).send({ statusCode: 500, message: error.message });
+    }
+  }
+
+  public async unmute(req: FastifyRequest<AuthLoginRequest & NotificationsUnmuteRequest>, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const settings = await this.service.unmute(req.locals.user!._id, req.query.cameraId);
       return reply.code(200).send(settings);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });

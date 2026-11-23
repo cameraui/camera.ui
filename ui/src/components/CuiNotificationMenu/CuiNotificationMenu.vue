@@ -2,7 +2,8 @@
   <div>
     <Button severity="secondary" text class="cui-button p-2 text-color" @click="toggleMenu">
       <template #icon>
-        <i-solar:bell-bold class="w-6 h-6" />
+        <i-solar:bell-off-bold v-if="notificationsEnabled && mutedUntil" class="w-6 h-6" />
+        <i-solar:bell-bold v-else class="w-6 h-6" />
         <Badge v-if="notificationsEnabled && unreadCount" class="absolute min-w-[8px] w-[8px] h-[8px] right-[10px] top-[7px]"></Badge>
       </template>
     </Button>
@@ -34,6 +35,19 @@
           </div>
           <div class="flex items-center gap-1">
             <Button
+              v-tooltip.left="{ value: mutedUntil ? $t('components.notification_mute.unmute') : $t('components.notification_mute.mute_hours', { count: 1 }, 1) }"
+              severity="secondary"
+              text
+              rounded
+              class="p-2 cui-icon-md"
+              :class="{ 'text-primary': mutedUntil }"
+              @click="mutedUntil ? unmute() : muteFor(1)"
+            >
+              <template #icon>
+                <i-mdi:bell-off-outline width="100%" height="100%" />
+              </template>
+            </Button>
+            <Button
               v-if="unreadCount"
               v-tooltip.left="{ value: $t('components.notification_menu.mark_all_read') }"
               severity="secondary"
@@ -61,6 +75,8 @@
             </Button>
           </div>
         </div>
+
+        <CuiNotificationMuted class="mb-3" />
 
         <div
           class="overflow-y-auto"
@@ -129,6 +145,7 @@ const notificationsQuery = new NotificationsQuery();
 const notificationsSocket = useNotificationsSocket();
 
 const { data: settings, isLoading: settingsLoading } = notificationsQuery.getSettingsQuery();
+const { mutedUntil, muteFor, unmute } = useNotificationMute();
 
 const notificationsMenuRef = useTemplateRef<InstanceType<typeof Popover>>('notificationsMenuRef');
 const swipedId = ref<string>();

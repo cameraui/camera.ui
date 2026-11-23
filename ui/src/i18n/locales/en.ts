@@ -1720,6 +1720,15 @@ export default {
       verbose: 'Verbose',
       warn: 'Warning',
     },
+    notification_mute: {
+      camera_muted_until: 'This camera is muted until {time}',
+      mute: 'Mute notifications',
+      mute_camera: 'Mute this camera for 1 hour',
+      mute_hours: 'Mute for {count} hour | Mute for {count} hours',
+      muted_until: 'Muted until {time}',
+      unmute: 'Unmute',
+      unmute_camera: 'Muted until {time}, unmute',
+    },
     options_sidebar: {
       segment_tab_default: 'Default',
       segment_tab_overview: 'Overview',

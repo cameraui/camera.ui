@@ -47,6 +47,21 @@ export class NotificationsService {
     await this.dbs.commit(this.dbs.notificationsDB, userId, (current) => ({ ...(current ?? { _id: userId, enabled: false }), ...patch, _id: userId }));
   }
 
+  public async mute(userId: string, minutes: number, cameraId?: string): Promise<DBNotificationSettings> {
+    const until = Date.now() + minutes * 60_000;
+    return this.commitMute(userId, (settings) =>
+      cameraId ? { ...settings, mutedCameras: { ...activeCameraMutes(settings), [cameraId]: until } } : { ...settings, mutedUntil: until },
+    );
+  }
+
+  public async unmute(userId: string, cameraId?: string): Promise<DBNotificationSettings> {
+    return this.commitMute(userId, ({ mutedUntil, ...settings }) => {
+      if (!cameraId) return settings;
+      const { [cameraId]: _unmuted, ...mutedCameras } = activeCameraMutes(settings);
+      return { ...settings, ...(mutedUntil && { mutedUntil }), mutedCameras };
+    });
+  }
+
   public async listDevices(userId: string, userRole: DBRoles): Promise<NotifierDeviceWithSource[]> {
     return this.proxyServer.notificationManager.listAllDevices(userId, userRole);
   }
@@ -98,4 +113,15 @@ export class NotificationsService {
   public async updateDevice(deviceId: string, patch: Record<string, unknown>, requesterUserId: string, requesterRole: DBRoles): Promise<NotifierDevice> {
     return this.proxyServer.notificationManager.updateDevice(deviceId, patch, requesterUserId, requesterRole);
   }
+
+  private async commitMute(userId: string, apply: (settings: DBNotificationSettings) => DBNotificationSettings): Promise<DBNotificationSettings> {
+    const settings = await this.dbs.commit(this.dbs.notificationsDB, userId, (current) => apply(current ?? { _id: userId, enabled: false }));
+    this.proxyServer.notificationManager.muteChanged(userId);
+    return settings!;
+  }
+}
+
+function activeCameraMutes(settings: DBNotificationSettings): Record<string, number> {
+  const now = Date.now();
+  return Object.fromEntries(Object.entries(settings.mutedCameras ?? {}).filter(([, until]) => until > now));
 }

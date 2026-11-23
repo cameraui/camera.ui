@@ -14,6 +14,7 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const MAX_METRICS_DATA_POINTS: typeof import('../composables/sockets/useMetricsSocket').MAX_METRICS_DATA_POINTS
   const MAX_WORKERS_DATA_POINTS: typeof import('../composables/sockets/useWorkersSocket').MAX_WORKERS_DATA_POINTS
+  const MUTE_HOURS: typeof import('../composables/useNotificationMute').MUTE_HOURS
   const NAV_GROUPS: typeof import('../composables/useNavLayout').NAV_GROUPS
   const STAGE_MAX_ZOOM: typeof import('../composables/useStageZoom').STAGE_MAX_ZOOM
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
@@ -358,6 +359,7 @@ declare global {
   const useNetwork: typeof import('@vueuse/core').useNetwork
   const useNotificationCenter: typeof import('../composables/useNotificationCenter').useNotificationCenter
   const useNotificationDisplay: typeof import('../composables/useNotificationDisplay').useNotificationDisplay
+  const useNotificationMute: typeof import('../composables/useNotificationMute').useNotificationMute
   const useNotificationsSocket: typeof import('../composables/sockets/useNotificationsSocket').useNotificationsSocket
   const useNow: typeof import('@vueuse/core').useNow
   const useObjectUrl: typeof import('@vueuse/core').useObjectUrl
@@ -661,6 +663,7 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly MAX_METRICS_DATA_POINTS: UnwrapRef<typeof import('../composables/sockets/useMetricsSocket')['MAX_METRICS_DATA_POINTS']>
     readonly MAX_WORKERS_DATA_POINTS: UnwrapRef<typeof import('../composables/sockets/useWorkersSocket')['MAX_WORKERS_DATA_POINTS']>
+    readonly MUTE_HOURS: UnwrapRef<typeof import('../composables/useNotificationMute')['MUTE_HOURS']>
     readonly NAV_GROUPS: UnwrapRef<typeof import('../composables/useNavLayout')['NAV_GROUPS']>
     readonly STAGE_MAX_ZOOM: UnwrapRef<typeof import('../composables/useStageZoom')['STAGE_MAX_ZOOM']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -999,6 +1002,7 @@ declare module 'vue' {
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
     readonly useNotificationCenter: UnwrapRef<typeof import('../composables/useNotificationCenter')['useNotificationCenter']>
     readonly useNotificationDisplay: UnwrapRef<typeof import('../composables/useNotificationDisplay')['useNotificationDisplay']>
+    readonly useNotificationMute: UnwrapRef<typeof import('../composables/useNotificationMute')['useNotificationMute']>
     readonly useNotificationsSocket: UnwrapRef<typeof import('../composables/sockets/useNotificationsSocket')['useNotificationsSocket']>
     readonly useNow: UnwrapRef<typeof import('@vueuse/core')['useNow']>
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>

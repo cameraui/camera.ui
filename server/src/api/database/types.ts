@@ -828,6 +828,8 @@ export interface DBNotificationSettings {
   enabled: boolean;
   // automation mute, separate from the user's own enabled toggle
   suppressed?: boolean;
+  mutedUntil?: number;
+  mutedCameras?: Record<string, number>;
   sources?: Record<string, boolean>;
   systemTypes?: Record<string, boolean>;
   bell?: NotificationBellSettings;
@@ -859,6 +861,7 @@ export interface StoredNotification {
   sourceName?: string;
   cameraName?: string;
   inBell?: boolean;
+  muted?: boolean;
 }
 
 export interface NotificationLogMessage {
@@ -873,7 +876,7 @@ export interface NotificationLogBurst {
   messages: NotificationLogMessage[];
 }
 
-export interface DBNotificationEntry extends Omit<StoredNotification, 'seenAt' | 'bucket' | 'sourceName' | 'cameraName' | 'inBell'> {
+export interface DBNotificationEntry extends Omit<StoredNotification, 'seenAt' | 'bucket' | 'sourceName' | 'cameraName' | 'inBell' | 'muted'> {
   bucket: string;
   recipients: string[];
   seenBy: Record<string, number>;

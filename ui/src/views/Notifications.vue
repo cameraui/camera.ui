@@ -94,6 +94,18 @@
         </InputGroupAddon>
       </InputGroup>
       <Button
+        v-tooltip.left="{ value: t('components.notification_mute.mute') }"
+        severity="secondary"
+        outlined
+        class="cui-button shrink-0"
+        :class="{ 'text-primary': mutedUntil }"
+        @click="muteMenuRef?.toggleMenu($event)"
+      >
+        <template #icon>
+          <i-mdi:bell-off-outline class="w-4.5 h-4.5" />
+        </template>
+      </Button>
+      <Button
         v-tooltip.left="{ value: t('views.notifications.settings') }"
         severity="secondary"
         outlined
@@ -105,6 +117,8 @@
         </template>
       </Button>
     </div>
+
+    <CuiNotificationMuted class="mb-4" />
 
     <div class="flex flex-1 min-h-0 gap-4">
       <div class="relative flex-1 min-w-0">
@@ -181,6 +195,7 @@
 
     <CuiMenu ref="filterMenuRef" :items="filterMenuItems" :popover="menuPopover" />
     <CuiMenu ref="sourceMenuRef" :items="sourceMenuItems" :popover="menuPopover" />
+    <CuiMenu ref="muteMenuRef" :items="muteMenuItems" :popover="menuPopover" />
 
     <CuiFloatingButtonGroup v-if="items.length" :force-visible="selectionMode" :scroll-y="scrollY">
       <template v-if="!selectionMode">
@@ -292,10 +307,12 @@ const expandedIds = ref(new Set<string>());
 const stuckDay = ref<string>();
 const filterMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('filterMenuRef');
 const sourceMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('sourceMenuRef');
+const muteMenuRef = useTemplateRef<InstanceType<typeof CuiMenu>>('muteMenuRef');
 const listRef = useTemplateRef<HTMLElement>('listRef');
 
 const center = useNotificationCenter({ filter: activeFilter, query: appliedQuery, source: activeSource, isAtTop: () => (listRef.value?.scrollTop ?? 0) <= 40 });
 const { items, incoming, counts, sources, unread, loading, hasMore, selected } = center;
+const { mutedUntil, formatMuteEnd, muteFor, unmute } = useNotificationMute();
 
 const filterMenuItems = computed<MenuItem[]>(() =>
   NOTIFICATION_FILTERS.map((key) => {
@@ -313,6 +330,24 @@ const filterMenuItems = computed<MenuItem[]>(() =>
     };
   }),
 );
+
+const muteMenuItems = computed<MenuItem[]>(() => [
+  ...(mutedUntil.value
+    ? [
+        {
+          key: 'unmute',
+          label: t('components.notification_mute.unmute'),
+          description: t('components.notification_mute.muted_until', { time: formatMuteEnd(mutedUntil.value) }),
+          onClick: () => unmute(),
+        },
+      ]
+    : []),
+  ...MUTE_HOURS.map((hours) => ({
+    key: String(hours),
+    label: t('components.notification_mute.mute_hours', { count: hours }, hours),
+    onClick: () => muteFor(hours),
+  })),
+]);
 
 const sourcePicker = computed(() => (activeFilter.value === 'cameras' || activeFilter.value === 'plugins') && (sources.value.length > 1 || !!activeSource.value));
 

@@ -70,6 +70,23 @@
 
         <div class="flex gap-2 ml-auto">
           <Button
+            v-if="cameraId"
+            v-tooltip.top="{
+              value: cameraMuteEnd
+                ? $t('components.notification_mute.unmute_camera', { time: formatMuteEnd(cameraMuteEnd) })
+                : $t('components.notification_mute.mute_camera'),
+            }"
+            severity="secondary"
+            outlined
+            class="cui-button-medium"
+            :class="{ 'text-primary': cameraMuteEnd }"
+            @click="toggleCameraMute"
+          >
+            <template #icon>
+              <i-mdi:bell-off-outline class="w-4.5 h-4.5" />
+            </template>
+          </Button>
+          <Button
             v-tooltip.top="{ value: notification.seenAt == null ? $t('components.notification_menu.mark_read') : $t('views.notifications.mark_unread') }"
             severity="secondary"
             outlined
@@ -139,11 +156,14 @@ const { t } = useI18n();
 const { sourceOf, cameraNameOf, imageOf, videoOf, severityLabel, severityTextClass, tileClass, occurrenceLabel, showsSource, formatDateTime } = useNotificationDisplay();
 
 const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
+const { cameraMutedUntil, formatMuteEnd, muteFor, unmute } = useNotificationMute();
 
 const source = computed(() => sourceOf(props.notification));
 const image = computed(() => imageOf(props.notification));
 const video = computed(() => videoOf(props.notification));
 const cameraName = computed(() => cameraNameOf(props.notification));
+const cameraId = computed(() => notificationCameraId(props.notification));
+const cameraMuteEnd = computed(() => (cameraId.value ? cameraMutedUntil(cameraId.value) : undefined));
 const isRecordingLink = computed(() => !!props.notification.deepLink?.includes('startTs='));
 const assistantReady = computed(() => assistantStatus.value?.state === 'ready');
 const shownMessages = computed(() => props.notification.log?.messages.slice(0, 5) ?? []);
@@ -152,8 +172,7 @@ const logLink = computed(() => {
   const { log, cameraName: currentCamera, sourceName } = props.notification;
   if (!log) return undefined;
 
-  const cameraId = notificationCameraId(props.notification);
-  const target = cameraId ? currentCamera && `camera:${cameraId}` : sourceName && `plugin:${notificationPluginId(props.notification)}`;
+  const target = cameraId.value ? currentCamera && `camera:${cameraId.value}` : sourceName && `plugin:${notificationPluginId(props.notification)}`;
   return target ? `/logs?source=${encodeURIComponent(target)}&at=${log.lastAt}` : undefined;
 });
 
@@ -206,6 +225,12 @@ function assistantPrompt(): string {
 
   const text = [item.title, item.subtitle, item.body].filter(Boolean).join(': ');
   return t('views.notifications.ask_assistant_entry', { source: label, time: formatDateTime(item.createdAt), text });
+}
+
+function toggleCameraMute() {
+  if (!cameraId.value) return;
+  if (cameraMuteEnd.value) unmute(cameraId.value);
+  else muteFor(1, cameraId.value);
 }
 
 function go(target: RouteLocationRaw) {

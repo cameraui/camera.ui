@@ -5,8 +5,10 @@ import {
   notificationClearQuerySchema,
   notificationIdsSchema,
   notificationListQuerySchema,
+  notificationMuteSchema,
   notificationSeenSchema,
   notificationSettingsSchema,
+  notificationUnmuteQuerySchema,
   registerDeviceSchema,
   updateDeviceSchema,
 } from '../schemas/notifications.schema.js';
@@ -85,6 +87,30 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
       tags: ['Notifications'],
       summary: 'Replace the notification settings for the current user',
       body: notificationSettingsSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/mute',
+    method: 'PUT',
+    preValidation: [validJWTNeeded],
+    handler: controller.mute.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'Mute push and desktop alerts for the current user, or only those of one camera',
+      body: notificationMuteSchema,
+    },
+  });
+
+  app.withTypeProvider<ZodTypeProvider>().route({
+    url: '/mute',
+    method: 'DELETE',
+    preValidation: [validJWTNeeded],
+    handler: controller.unmute.bind(controller),
+    schema: {
+      tags: ['Notifications'],
+      summary: 'End the mute of the current user, or of one camera',
+      querystring: notificationUnmuteQuerySchema,
     },
   });
 

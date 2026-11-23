@@ -16,6 +16,15 @@ export const notificationSettingsSchema = zod.object({
     .optional(),
 });
 
+export const notificationMuteSchema = zod.object({
+  minutes: zod.number().int().min(1).max(10_080),
+  cameraId: zod.string().min(1).max(100).optional(),
+});
+
+export const notificationUnmuteQuerySchema = zod.object({
+  cameraId: zod.string().min(1).max(100).optional(),
+});
+
 export const registerDeviceSchema = zod.object({
   pluginName: zod.string().trim().min(1, 'Plugin name is required'),
   input: zod.record(zod.string(), zod.unknown()),
@@ -52,6 +61,8 @@ export const notificationClearQuerySchema = zod.object({
 });
 
 export type NotificationSettingsInput = zod.output<typeof notificationSettingsSchema>;
+export type NotificationMuteInput = zod.output<typeof notificationMuteSchema>;
+export type NotificationUnmuteQueryInput = zod.output<typeof notificationUnmuteQuerySchema>;
 export type RegisterDeviceInput = zod.output<typeof registerDeviceSchema>;
 export type UpdateDeviceInput = zod.output<typeof updateDeviceSchema>;
 export type DeviceParamsInput = zod.output<typeof deviceParamsSchema>;

@@ -89,10 +89,12 @@ import type {
 } from '../schemas/plugins.schema.js';
 import type {
   NotificationClearQueryInput,
+  NotificationMuteInput,
   NotificationFilter,
   NotificationIdsInput,
   NotificationListQueryInput,
   NotificationSeenInput,
+  NotificationUnmuteQueryInput,
 } from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
@@ -1605,6 +1607,14 @@ export interface NotificationsSeenRequest {
 
 export interface NotificationsClearRequest {
   Querystring: NotificationClearQueryInput;
+}
+
+export interface NotificationsMuteRequest {
+  Body: NotificationMuteInput;
+}
+
+export interface NotificationsUnmuteRequest {
+  Querystring: NotificationUnmuteQueryInput;
 }
 
 export interface NotificationPage {

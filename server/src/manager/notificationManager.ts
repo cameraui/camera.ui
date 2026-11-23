@@ -19,7 +19,7 @@ import type { LogEntry } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
 import type { Notification, NotifierDevice, NotifierInterface, PluginInterface } from '@camera.ui/sdk';
 import type { Database } from '../api/database/index.js';
-import type { DBNotificationEntry, DBRoles, NotificationLogBurst, StoredNotification } from '../api/database/types.js';
+import type { DBNotificationEntry, DBNotificationSettings, DBRoles, NotificationLogBurst, StoredNotification } from '../api/database/types.js';
 import type { NotificationFilter, NotificationListQueryInput } from '../api/schemas/notifications.schema.js';
 import type { NotificationPage, NotificationSourceCount } from '../api/types/index.js';
 import type { InternalEventBus, InternalEventPayload, PluginEventPayload } from '../internal-bus.js';
@@ -223,6 +223,10 @@ export class NotificationManager {
     this.emitToUser(userId, 'bellChanged', null);
   }
 
+  public muteChanged(userId: string): void {
+    this.emitToUser(userId, 'muteChanged', null);
+  }
+
   public notePluginLog(pluginId: string, entry: LogEntry): void {
     const severity = entry.level === 'error' ? Severity.Error : entry.level === 'warn' ? Severity.Warn : undefined;
     if (!severity) return;
@@ -294,9 +298,12 @@ export class NotificationManager {
 
     const globalSuppressed = this.isGloballySuppressed();
     const cameraSuppressed = this.isCameraSuppressed(resolved.data?.cameraId);
+    const cameraId = notificationCameraId(resolved);
+    const now = Date.now();
     const recipients: string[] = [];
     const eligibleUserIds: string[] = [];
     const outsideBell = new Set<string>();
+    const muted = new Set<string>();
     for (const userId of userIds) {
       const settings = await this.notificationsService.getSettings(userId);
       if (!settings.enabled) continue;
@@ -307,12 +314,18 @@ export class NotificationManager {
       recipients.push(userId);
       if (!shownInBell(resolved, settings.bell)) outsideBell.add(userId);
 
-      if (resolved.severity !== Severity.Critical && (globalSuppressed || cameraSuppressed || settings.suppressed || this.inQuietHours(settings))) continue;
+      if (
+        resolved.severity !== Severity.Critical &&
+        (globalSuppressed || cameraSuppressed || settings.suppressed || isMutedFor(settings, cameraId, now) || this.inQuietHours(settings))
+      ) {
+        muted.add(userId);
+        continue;
+      }
 
       eligibleUserIds.push(userId);
     }
 
-    if (recipients.length) await this.addEntry(await this.buildEntry(resolved, recipients));
+    if (recipients.length) await this.addEntry(await this.buildEntry(resolved, recipients), muted);
 
     // a tap on a push without a deep link opens this entry in the app
     const pushed: ResolvedNotification = { ...resolved, data: { ...resolved.data, notificationId: resolved.id } };
@@ -669,13 +682,13 @@ export class NotificationManager {
     };
   }
 
-  private async addEntry(entry: DBNotificationEntry): Promise<void> {
+  private async addEntry(entry: DBNotificationEntry, muted?: Set<string>): Promise<void> {
     const change = await this.store.insert(entry);
 
     for (const userId of entry.recipients) {
       const view = this.named(this.store.view(entry, userId));
       const hidden = this.bellFilter(userId)?.(entry) === false;
-      this.emitToUser(userId, 'added', hidden ? { ...view, inBell: false } : view);
+      this.emitToUser(userId, 'added', { ...view, ...(hidden && { inBell: false }), ...(muted?.has(userId) && { muted: true }) });
       if (!entry.listOnly) this.publishLegacy(userId, 'notification', view);
     }
     await this.applyChange(change, entry.recipients);
@@ -813,6 +826,11 @@ export class NotificationManager {
 
 function isAdminRole(role: DBRoles): boolean {
   return role === 'master' || role === 'admin';
+}
+
+function isMutedFor(settings: DBNotificationSettings, cameraId: string | undefined, now: number): boolean {
+  if ((settings.mutedUntil ?? 0) > now) return true;
+  return !!cameraId && (settings.mutedCameras?.[cameraId] ?? 0) > now;
 }
 
 function parseHHmm(s: string): number | null {
