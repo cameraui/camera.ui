@@ -89,7 +89,7 @@
         </CuiToggleRow>
       </div>
 
-      <CuiMeasurementTrend :sensor :property="names.current" :format="degrees" />
+      <CuiMeasurementTrend :sensor :property="names.current" :format="reportedDegrees" />
     </div>
   </CuiTilePanel>
 </template>
@@ -145,6 +145,7 @@ const {
   modeLabel,
   propertyLabel,
   degrees,
+  reportedDegrees,
   names,
 } = useClimate(() => props.sensor);
 

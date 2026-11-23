@@ -1,6 +1,7 @@
 import { sensorMeta, ThermostatAction, ThermostatMode, ThermostatProperty } from '@camera.ui/sdk';
 
 import { decimalsOf, sensorOffers, sensorPropertySpec, toneColor } from '@/common/sensorDisplay.js';
+import { shownRange, shownValue, storedValue } from '@/common/units.js';
 
 import { sensorRange, snapToRange, toRatio } from '../range.js';
 import { useLiveProperty } from '../useLiveProperty.js';
@@ -43,15 +44,20 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
     return modeColor(mode.value);
   });
 
-  const temperatureRange = computed(() => sensorRange(sensor(), names.target, 7, 35));
+  // the tile works in the instance's units, writes go back in the unit the plugin reports
+  const unit = computed(() => sensorPropertySpec(sensor(), names.target)?.unit);
+  const temperatureRange = computed(() => shownRange(sensorRange(sensor(), names.target, 7, 35), unit.value));
   const humidityRange = computed(() => sensorRange(sensor(), names.targetHumidity ?? names.target, 0, 100));
 
-  const current = computed(() => reading(names.current));
+  const current = computed(() => {
+    const value = reading(names.current);
+    return value === undefined ? undefined : shown(value);
+  });
   const humidity = computed(() => reading(names.humidity));
   const targets = computed<ClimateTargets>(() => ({
-    target: target.value.value,
-    low: low?.value.value ?? target.value.value,
-    high: high?.value.value ?? target.value.value,
+    target: shown(target.value.value),
+    low: shown(low?.value.value ?? target.value.value),
+    high: shown(high?.value.value ?? target.value.value),
   }));
   const ratios = computed<ClimateTargets>(() => ({
     target: toRatio(targets.value.target, temperatureRange.value),
@@ -100,17 +106,17 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
     const { min, max } = temperatureRange.value;
     if (hasRange.value && low && high) {
       const shift = Math.min(Math.max(delta, min - from.low), max - from.high);
-      write(low, snap(from.low + shift), final);
-      write(high, snap(from.high + shift), final);
+      write(low, stored(snap(from.low + shift)), final);
+      write(high, stored(snap(from.high + shift)), final);
       return;
     }
-    write(target, snap(from.target + delta), final);
+    write(target, stored(snap(from.target + delta)), final);
   }
 
   function setTarget(knob: keyof ClimateTargets, value: number, final: boolean) {
     const property = { target, low, high }[knob];
     const bounded = knob === 'low' ? Math.min(value, targets.value.high) : knob === 'high' ? Math.max(value, targets.value.low) : value;
-    if (property) write(property, snap(bounded), final);
+    if (property) write(property, stored(snap(bounded)), final);
   }
 
   function setTargetHumidity(value: number, final: boolean) {
@@ -127,6 +133,18 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
 
   function degrees(value: number, step?: number): string {
     return `${value.toFixed(decimalsOf(step ?? 0.1))}°`;
+  }
+
+  function reportedDegrees(value: number): string {
+    return degrees(shown(value));
+  }
+
+  function shown(value: number): number {
+    return shownValue(value, unit.value).value;
+  }
+
+  function stored(value: number): number {
+    return storedValue(value, unit.value);
   }
 
   function defaultMode(): string | undefined {
@@ -171,6 +189,7 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
     modeLabel,
     propertyLabel,
     degrees,
+    reportedDegrees,
     names,
   };
 }
