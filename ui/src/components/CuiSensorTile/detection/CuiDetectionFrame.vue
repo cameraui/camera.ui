@@ -1,20 +1,59 @@
 <template>
-  <div class="detection-frame" :class="{ 'detection-frame--empty': !snapshotSrc }">
-    <img v-if="snapshotSrc" :src="snapshotSrc" class="detection-frame__image" alt="" draggable="false" />
-    <TransitionGroup name="detection-box">
+  <div class="detection-frame" :class="{ 'detection-frame--empty': !snapshotSrc && !showLive }">
+    <CuiCameraCard
+      v-if="showLive && cameraRecord"
+      source-role="low-resolution"
+      activity-mode="always-on"
+      streaming-mode="auto"
+      :camera-info="cameraRecord"
+      :toolbar="false"
+      :control="false"
+      :subcontrol="false"
+      :isolated-stream="true"
+      :double-click-zoom="false"
+      :bounding-box-overlay="false"
+      card-click-action="none"
+      live-indicator-overlay
+      flat-card
+      class="w-full"
+    />
+    <img v-else-if="snapshotSrc" :src="snapshotSrc" class="detection-frame__image" alt="" draggable="false" />
+
+    <TransitionGroup name="detection-box" tag="div" class="detection-frame__boxes">
       <div v-for="item in boxes" :key="item.key" class="detection-frame__box" :style="boxStyle(item)">
         <span v-if="item.text" class="detection-frame__label">{{ item.text }}</span>
       </div>
     </TransitionGroup>
+
+    <div v-if="disabled" class="detection-frame__disabled">
+      <i-fluent:video-off-32-filled class="w-9 h-9" />
+      <span>{{ t('components.sensor_tile.camera_disabled') }}</span>
+    </div>
+    <div v-else-if="cameraRecord" class="detection-frame__toggle">
+      <CuiTileCornerButton :label="live ? t('components.sensor_tile.show_snapshot') : t('components.sensor_tile.show_live')" @click="live = !live">
+        <i-mdi:stop v-if="live" />
+        <i-mdi:play v-else />
+      </CuiTileCornerButton>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
+import { useCameraRecord } from '../useCameraRecord.js';
+
 import type { CuiDetectionFrameProps, DetectionBox } from './types.js';
 
 const props = defineProps<CuiDetectionFrameProps>();
 
+const { t } = useI18n();
+
 const snapshotSrc = props.cameraId ? useSnapshot(props.cameraId).snapshotSrc : undefined;
+const cameraRecord = useCameraRecord(props.cameraId);
+
+const live = ref(false);
+
+const showLive = computed(() => live.value && !props.disabled);
 
 function boxStyle({ box, color }: DetectionBox) {
   return {
@@ -30,6 +69,7 @@ function boxStyle({ box, color }: DetectionBox) {
 <style scoped>
 .detection-frame {
   position: relative;
+  isolation: isolate;
   width: 100%;
   border-radius: 0.75rem;
   overflow: hidden;
@@ -45,6 +85,13 @@ function boxStyle({ box, color }: DetectionBox) {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.detection-frame__boxes {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
 }
 
 .detection-frame__box {
@@ -74,6 +121,27 @@ function boxStyle({ box, color }: DetectionBox) {
   line-height: 1.4;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.detection-frame__disabled {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgb(0 0 0 / 0.7);
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.8125rem;
+}
+
+.detection-frame__toggle {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 21;
 }
 
 .detection-box-enter-active,

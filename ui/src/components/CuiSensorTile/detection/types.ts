@@ -10,6 +10,7 @@ export interface DetectionBox {
 export interface CuiDetectionFrameProps {
   cameraId?: string;
   boxes: DetectionBox[];
+  disabled?: boolean;
 }
 
 export interface CuiAudioMeterProps {

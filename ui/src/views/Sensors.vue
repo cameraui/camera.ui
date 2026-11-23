@@ -97,10 +97,10 @@
               <template #body="{ data }">
                 <div class="flex items-center gap-2 min-w-0">
                   <component
-                    :is="sensorTypeIcon(data.sensor.type, isActive(data.sensor))"
+                    :is="sensorTypeIcon(data.sensor.type, isActive(iconSensor(data)))"
                     class="w-5 h-5 shrink-0 transition-colors"
-                    :class="{ 'text-muted': !isActive(data.sensor) }"
-                    :style="activeStyle(data.sensor)"
+                    :class="{ 'text-muted': !isActive(iconSensor(data)) }"
+                    :style="activeStyle(iconSensor(data))"
                   />
                   <div class="flex items-center gap-2 min-w-0">
                     <span v-tooltip="data.label" class="font-bold text-color truncate">{{ data.label }}</span>
@@ -117,7 +117,7 @@
                     </span>
                   </div>
                   <Button
-                    v-if="data.device"
+                    v-if="data.members.length"
                     v-tooltip="expandedRows[data.key] ? t('views.sensors.hide_sensors') : t('views.sensors.show_sensors')"
                     text
                     rounded
@@ -178,13 +178,18 @@
               <template #body="{ data }">
                 <div class="flex items-center justify-center gap-1 min-w-0">
                   <i-mdi:lock-outline
-                    v-if="data.sensor.assignmentLocked"
+                    v-if="data.sensor.assignmentLocked && !isCameraGroup(data)"
                     v-tooltip="t('views.sensors.assigned_cameras_locked_hint')"
                     class="w-3.5 h-3.5 shrink-0 text-muted"
                   />
                   <span class="text-xs truncate" :class="data.assignedLabel ? 'text-muted' : 'text-muted italic'">
                     {{ data.assignedLabel || t('views.sensors.unassigned') }}
                   </span>
+                  <i-fluent:video-off-20-regular
+                    v-if="!isCameraGroup(data) && isCameraDisabled(data.sensor)"
+                    v-tooltip="t('components.sensor_tile.camera_disabled')"
+                    class="w-4 h-4 shrink-0 text-muted"
+                  />
                   <i-mdi:video-minus-outline v-if="data.partlyAssigned" v-tooltip="t('views.sensors.partly_assigned')" class="w-4 h-4 shrink-0 text-muted" />
                 </div>
               </template>
@@ -193,7 +198,7 @@
               <template #body="{ data }">
                 <div class="flex items-center justify-end gap-1">
                   <Button
-                    v-if="!data.device"
+                    v-if="!data.members.length"
                     v-tooltip.left="t('views.sensors.history')"
                     text
                     rounded
@@ -231,10 +236,15 @@
                     :class="{ 'text-muted': !isActive(member) }"
                     :style="activeStyle(member)"
                   />
-                  <span v-tooltip="member.displayName" class="font-bold text-color truncate">{{ member.shortName }}</span>
+                  <span v-tooltip="member.displayName" class="font-bold text-color truncate">{{ memberLabel(data, member) }}</span>
+                  <i-fluent:video-off-20-regular
+                    v-if="isCameraDisabled(member)"
+                    v-tooltip="t('components.sensor_tile.camera_disabled')"
+                    class="w-4 h-4 shrink-0 text-muted"
+                  />
                   <i-mdi:star v-if="member.primary" v-tooltip="t('views.sensors.main_sensor')" class="w-3.5 h-3.5 shrink-0 text-muted" />
                   <i-mdi:eye-off-outline v-if="!member.exposed" v-tooltip="t('views.sensors.not_exposed')" class="w-4 h-4 shrink-0 text-muted" />
-                  <template v-if="member.assignedCameraIds.length < data.cameraCount">
+                  <template v-if="data.device && member.assignedCameraIds.length < data.cameraCount">
                     <i-mdi:video-minus-outline
                       v-if="member.assignedCameraIds.length"
                       v-tooltip="t('views.sensors.assigned_only', { cameras: cameraNames(member.assignedCameraIds) })"
@@ -242,7 +252,7 @@
                     />
                     <i-mdi:video-off-outline v-else v-tooltip="t('views.sensors.unassigned')" class="w-4 h-4 shrink-0 text-muted" />
                   </template>
-                  <span class="ml-auto text-xs text-muted whitespace-nowrap">{{ sensorTypeLabel(member.type) }}</span>
+                  <span class="ml-auto text-xs text-muted truncate">{{ memberDetail(data, member) }}</span>
                   <Button
                     v-tooltip.left="t('views.sensors.history')"
                     text
@@ -255,19 +265,13 @@
                       <i-mdi:history width="100%" height="100%" />
                     </template>
                   </Button>
-                  <Button
-                    v-if="isAdmin"
-                    v-tooltip.left="t('views.sensors.delete')"
-                    text
-                    rounded
-                    severity="danger"
-                    class="cui-icon-sm shrink-0"
-                    @click.stop="confirmDelete(member)"
-                  >
-                    <template #icon>
-                      <i-mdi:trash-can-outline width="100%" height="100%" />
-                    </template>
-                  </Button>
+                  <span v-if="isAdmin" v-tooltip.left="canDelete(member) ? t('views.sensors.delete') : t('views.sensors.delete_camera_bound')" class="shrink-0">
+                    <Button text rounded severity="danger" class="cui-icon-sm" :disabled="!canDelete(member)" @click.stop="confirmDelete(member)">
+                      <template #icon>
+                        <i-mdi:trash-can-outline width="100%" height="100%" />
+                      </template>
+                    </Button>
+                  </span>
                 </div>
               </div>
             </template>
@@ -466,7 +470,7 @@
           :button-props="{ severity: 'danger', disabled: !deletableSelected.length || bulkBusy }"
           :icon="TrashIcon"
           :icon-props="{ width: '100%', height: '100%' }"
-          @click="confirmBulkDelete"
+          @click="confirmDeleteSensors(deletableSelected)"
         />
       </template>
 
@@ -710,10 +714,14 @@ const cameraById = computed(() => new Map((camerasData.value?.result ?? []).map(
 
 const liveSensorById = computed(() => new Map(liveSensors.value.map((sensor) => [sensor.id, sensor])));
 
+const listedSensors = computed(() =>
+  sensors.value
+    .filter((sensor) => !uiSettings.value.sensors.hideAllCameraBound || !sensor.assignmentLocked)
+    .filter((sensor) => !uiSettings.value.sensors.onlyEnabledCameraBound || isEnabledForItsCamera(sensor)),
+);
+
 const allRows = computed<SensorRow[]>((previous) => {
-  const next = [...groupBy(sensors.value, (sensor) => (sensor.device ? `device:${sensor.device.id}` : sensor.id))]
-    .map(([key, members]) => (members.length > 1 ? deviceRow(key, members) : sensorRow(members[0])))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const next = [...groupBy(listedSensors.value, rowGroupKey)].map(([key, members]) => toRow(key, members)).sort((a, b) => a.label.localeCompare(b.label));
 
   return keepUnchangedItems(previous, next, rowKey);
 });
@@ -722,8 +730,6 @@ const rows = computed<SensorRow[]>((previous) => {
   const query = searchQuery.value.toLowerCase().trim();
 
   const next = allRows.value
-    .filter((row) => !uiSettings.value.sensors.hideAllCameraBound || !row.sensor.assignmentLocked)
-    .filter((row) => !uiSettings.value.sensors.onlyEnabledCameraBound || isEnabledForItsCamera(row.sensor))
     .filter((row) => rowSensors(row).some((sensor) => !hiddenTypes.value.has(sensor.type)))
     .filter((row) => !query || row.searchText.includes(query));
 
@@ -778,7 +784,35 @@ function rowKey(row: SensorRow): string {
 }
 
 function rowSensors(row: SensorRow): TransformedSensor[] {
-  return row.device ? row.members : [row.sensor];
+  return row.members.length ? row.members : [row.sensor];
+}
+
+function rowGroupKey(sensor: TransformedSensor): string {
+  if (sensor.device) return `device:${sensor.device.id}`;
+  if (sensor.boundCameraId) return `cameras:${sensor.pluginId}:${sensor.type}:${sensor.name}`;
+  return sensor.id;
+}
+
+function toRow(key: string, members: TransformedSensor[]): SensorRow {
+  if (members.length === 1) return sensorRow(members[0]);
+  return members[0].device ? deviceRow(key, members) : cameraGroupRow(key, members);
+}
+
+function isCameraGroup(row: SensorRow): boolean {
+  return !row.device && row.members.length > 0;
+}
+
+function iconSensor(row: SensorRow): TransformedSensor {
+  return isCameraGroup(row) ? (row.members.find(isActive) ?? row.sensor) : row.sensor;
+}
+
+function memberLabel(row: SensorRow, member: TransformedSensor): string {
+  return row.device ? member.shortName : cameraNames(member.assignedCameraIds);
+}
+
+function memberDetail(row: SensorRow, member: TransformedSensor): string {
+  if (row.device) return sensorTypeLabel(member.type);
+  return member.displayName === member.name ? '' : member.displayName;
 }
 
 function groupBy<T>(list: T[], key: (entry: T) => string): Map<string, T[]> {
@@ -816,7 +850,7 @@ function sensorRow(sensor: TransformedSensor): SensorRow {
   const label = sensor.displayName || sensor.name;
   const typeLabel = sensorTypeLabel(sensor.type);
   const nativeLabel = sensor.address ?? sensor.nativeId ?? '';
-  const pluginLabel = sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName;
+  const pluginLabel = pluginLabelOf(sensor);
   const assignedLabel = cameraNames(sensor.assignedCameraIds);
   return {
     key: sensor.id,
@@ -843,10 +877,18 @@ function exposureOf(members: TransformedSensor[]): Exposure {
   return exposed ? 'some' : 'none';
 }
 
+function pluginLabelOf(sensor: TransformedSensor): string {
+  return sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName;
+}
+
+function worstState(members: TransformedSensor[]): SensorState {
+  const states = members.map(sensorState);
+  return STATE_SEVERITY.find((candidate) => states.includes(candidate)) ?? 'connected';
+}
+
 function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
   const sensor = members.find((member) => member.primary) ?? members[0];
-  const states = members.map(sensorState);
-  const state = STATE_SEVERITY.find((candidate) => states.includes(candidate)) ?? 'connected';
+  const state = worstState(members);
   const label = sensor.device?.name ?? sensor.displayName;
   const typeLabel = t('views.sensors.device_sensors', { count: members.length });
   const cameraIds = [...new Set(members.flatMap((member) => member.assignedCameraIds))];
@@ -862,13 +904,40 @@ function deviceRow(key: string, members: TransformedSensor[]): SensorRow {
     exposure: exposureOf(members),
     typeLabel,
     nativeLabel: '',
-    pluginLabel: sensor.virtual ? t('views.sensors.owner_virtual') : sensor.pluginName,
+    pluginLabel: pluginLabelOf(sensor),
     assignedLabel,
     cameraCount: cameraIds.length,
     partlyAssigned: members.some((member) => member.assignedCameraIds.length < cameraIds.length),
     searchText: searchText([label, typeLabel, sensor.pluginName, assignedLabel, ...members.flatMap((member) => [member.shortName, sensorTypeLabel(member.type)])]),
     state,
     stateLabel: stateLabel(state, sensor),
+    stateColor: STATE_COLORS[state],
+  };
+}
+
+function cameraGroupRow(key: string, members: TransformedSensor[]): SensorRow {
+  const sorted = [...members].sort((a, b) => cameraNames(a.assignedCameraIds).localeCompare(cameraNames(b.assignedCameraIds)));
+  const sensor = sorted[0];
+  const state = worstState(sorted);
+  const affected = sorted.filter((member) => sensorState(member) === state).length;
+  const typeLabel = sensorTypeLabel(sensor.type);
+  const pluginLabel = pluginLabelOf(sensor);
+  return {
+    key,
+    sensor,
+    members: sorted,
+    label: sensor.name,
+    exposure: exposureOf(sorted),
+    typeLabel,
+    nativeLabel: '',
+    pluginLabel,
+    assignedLabel: t('views.sensors.camera_count', { count: sorted.length }, sorted.length),
+    cameraCount: sorted.length,
+    partlyAssigned: false,
+    searchText: searchText([sensor.name, typeLabel, pluginLabel, ...sorted.flatMap((member) => [member.displayName, cameraNames(member.assignedCameraIds)])]),
+    state,
+    stateLabel:
+      affected < sorted.length ? t('views.sensors.group_state', { state: stateLabel(state, sensor), count: affected, total: sorted.length }) : stateLabel(state, sensor),
     stateColor: STATE_COLORS[state],
   };
 }
@@ -899,6 +968,10 @@ function toggleKey(keys: Record<string, boolean>, key: string): Record<string, b
 
 function discoveredKey(item: DiscoveredSensorListItem): string {
   return `${item.pluginId}:${item.id}`;
+}
+
+function isCameraDisabled(sensor: TransformedSensor): boolean {
+  return !!sensor.boundCameraId && cameraById.value.get(sensor.boundCameraId)?.disabled === true;
 }
 
 function isEnabledForItsCamera(sensor: TransformedSensor): boolean {
@@ -1059,12 +1132,17 @@ function canDeleteRow(row: SensorRow): boolean {
 
 function deleteTooltip(row: SensorRow): string {
   if (row.device) return t('views.sensors.delete_device');
-  return canDelete(row.sensor) ? t('views.sensors.delete') : t('views.sensors.delete_camera_bound');
+  if (!canDeleteRow(row)) return t('views.sensors.delete_camera_bound');
+  return isCameraGroup(row) ? t('views.sensors.delete_camera_group') : t('views.sensors.delete');
 }
 
 function handleRowClick(row: SensorRow) {
   if (selectionMode.value) {
     toggleSelection(row.key);
+    return;
+  }
+  if (isCameraGroup(row)) {
+    expandedRows.value = toggleKey(expandedRows.value, row.key);
     return;
   }
   if (!isAdmin.value) return;
@@ -1130,8 +1208,7 @@ function reportBulk(done: number, failed: string[], doneKey: string): void {
   }
 }
 
-function confirmBulkDelete() {
-  const targets = [...deletableSelected.value];
+function confirmDeleteSensors(targets: TransformedSensor[]) {
   dialog.openTextDialog({
     data: {
       title: t('components.dialog.title.confirm'),
@@ -1254,6 +1331,7 @@ function confirmDelete(sensor: TransformedSensor) {
 
 function confirmDeleteRow(row: SensorRow) {
   if (row.device) confirmDeleteDevice(row.device, row.members);
+  else if (isCameraGroup(row)) confirmDeleteSensors(row.members);
   else confirmDelete(row.sensor);
 }
 

@@ -380,6 +380,7 @@ declare module 'vue' {
     'IFluent:open32Filled': typeof import('~icons/fluent/open32-filled')['default']
     'IFluent:pictureInPicture16Filled': typeof import('~icons/fluent/picture-in-picture16-filled')['default']
     'IFluent:pictureInPicture16Regular': typeof import('~icons/fluent/picture-in-picture16-regular')['default']
+    'IFluent:videoOff20Regular': typeof import('~icons/fluent/video-off20-regular')['default']
     'IFluent:videoOff32Filled': typeof import('~icons/fluent/video-off32-filled')['default']
     'IFontisto:reddit': typeof import('~icons/fontisto/reddit')['default']
     'IGg:external': typeof import('~icons/gg/external')['default']

@@ -6,7 +6,7 @@
     :color
     :active
     :fill="0"
-    :offline="!online"
+    :offline="!online || cameraDisabled"
     :compact="size === 'small'"
     role="button"
     :aria-label="name"
@@ -30,7 +30,7 @@ const props = defineProps<SensorTileProps>();
 const emit = defineEmits<SensorTileEmits>();
 
 const { name, online } = useTileSensor(props);
-const { active, color, stateText } = useDetection(() => props.sensor);
+const { active, color, stateText, cameraDisabled } = useDetection(() => props.sensor);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 </script>

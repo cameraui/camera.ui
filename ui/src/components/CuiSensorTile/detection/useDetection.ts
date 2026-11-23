@@ -4,6 +4,7 @@ import { detectionStyle } from '@/common/detectionLabels.js';
 import { audioLabelKey, detectionLabelKey } from '@/common/eventLabels.js';
 import { formatMeasurement, sensorPropertySpec, sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
 
+import { useCameraRecord } from '../useCameraRecord.js';
 import { useRelativeTime } from '../useRelativeTime.js';
 import { HELPER_TYPES } from './groups.js';
 
@@ -23,11 +24,13 @@ const NAME_PROPERTIES: Partial<Record<string, string>> = {
 export function useDetection(sensor: () => ReactiveSensor<object>) {
   const { t, te } = useI18n();
   const { timeAgo } = useRelativeTime();
+  const camera = useCameraRecord(sensor().boundCameraId);
 
   const type = sensor().type;
   const helper = HELPER_TYPES.includes(type);
   const audio = type === SensorType.Audio;
 
+  const cameraDisabled = computed(() => camera.value?.disabled === true);
   const active = computed(() => sensor().getProperty('detected') === true);
   const color = computed(() => sensorToneColor(type, true) ?? toneColor('warn'));
   const detections = computed(() => (active.value ? (sensor().getProperty<AnyDetection[]>('detections') ?? []) : []));
@@ -61,6 +64,7 @@ export function useDetection(sensor: () => ReactiveSensor<object>) {
 
   const stateText = computed(() => {
     if (!sensor().connected.value) return t('connection.offline');
+    if (cameraDisabled.value) return t('components.sensor_tile.camera_disabled');
     if (helper) return t('components.sensor_tile.ready');
     if (active.value) {
       if (names.value.length) return names.value.join(', ');
@@ -90,5 +94,5 @@ export function useDetection(sensor: () => ReactiveSensor<object>) {
     return labelText(detection.label);
   }
 
-  return { helper, audio, active, color, names, boxes, decibels, levelText, lastTriggered, detectedText, stateText, timeAgo };
+  return { helper, audio, cameraDisabled, active, color, names, boxes, decibels, levelText, lastTriggered, detectedText, stateText, timeAgo };
 }

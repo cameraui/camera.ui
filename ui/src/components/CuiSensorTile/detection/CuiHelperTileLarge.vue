@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="cameraName ?? typeLabel" :offline="!online">
+  <CuiTilePanel :icon :title="name" :state="cameraName ?? typeLabel" :offline="!online || cameraDisabled">
     <div class="flex flex-col items-center gap-4 py-2">
       <span class="helper-large__icon">
         <component :is="icon" />
@@ -25,7 +25,7 @@ const props = defineProps<SensorTileProps>();
 const { t } = useI18n();
 
 const { name, online } = useTileSensor(props);
-const { stateText } = useDetection(() => props.sensor);
+const { stateText, cameraDisabled } = useDetection(() => props.sensor);
 const cameraName = useCameraName(props.sensor.boundCameraId);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
