@@ -1085,28 +1085,12 @@ defineExpose({
 }
 
 .zoom-minimap {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 80px;
   aspect-ratio: v-bind(stageAspect);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.5);
   z-index: 6;
-  pointer-events: none;
-  overflow: hidden;
   transition: bottom 0.2s ease;
 }
 
 .zoom-minimap-raised {
   bottom: 50px;
-}
-
-.zoom-minimap-viewport {
-  position: absolute;
-  border: 1.5px solid rgba(255, 255, 255, 0.7);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.12);
 }
 </style>

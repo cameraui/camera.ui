@@ -123,6 +123,10 @@
   background-color: var(--toggle-switch-background);
 }
 
+.cui-schema-field:has(> .cui-toggle-switch) + .cui-schema-field:has(> .cui-toggle-switch) {
+  @apply -mt-4;
+}
+
 .cui-card {
   @apply w-full h-full shadow-xs relative rounded-xl overflow-hidden;
   border: 1px solid var(--border-color);

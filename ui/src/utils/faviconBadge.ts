@@ -1,10 +1,12 @@
+import { runtimeBase } from '@/common/base.js';
+
 interface IconLink {
   el: HTMLLinkElement;
   href: string;
   type: string;
 }
 
-const BASE_ICON = '/pwa/favicon-64.ico';
+const BASE_ICON = `${runtimeBase()}pwa/favicon-64.ico`;
 const SIZE = 64;
 const BADGE_COLOR = '#ea5455';
 const BADGE_RADIUS = 14;

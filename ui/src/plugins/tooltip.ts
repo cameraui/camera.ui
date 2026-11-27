@@ -125,8 +125,8 @@ function onClick(event: MouseEvent): void {
   const state = states.get(event.currentTarget as Element);
   if (!state) return;
   if (state === active) hide();
-  // a tap on a button inside the host (a wrapper div) is meant for the button
-  else if (lastPointerType === 'touch' && !(event.target as Element).closest(INTERACTIVE)) show(state);
+  // a tap meant for a button shows nothing; checked on the path, an earlier handler may have re-rendered the tapped icon away
+  else if (lastPointerType === 'touch' && !event.composedPath().some((node) => node instanceof Element && node.matches(INTERACTIVE))) show(state);
 }
 
 function onPointerDown(event: PointerEvent): void {

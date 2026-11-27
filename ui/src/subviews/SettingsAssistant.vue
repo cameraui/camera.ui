@@ -385,20 +385,22 @@
                           server.tokenSet ? $t('views.settings.assistant_external_token_set') : $t('views.settings.assistant_external_token_info')
                         }}</Message>
                       </div>
-                      <CuiToggleRow
-                        :label="$t('views.settings.assistant_external_insecure')"
-                        :hint="$t('views.settings.assistant_external_insecure_info')"
-                        :label-for="`server-insecure-${server.id}`"
-                      >
-                        <ToggleSwitch :input-id="`server-insecure-${server.id}`" v-model="server.insecure" />
-                      </CuiToggleRow>
-                      <CuiToggleRow
-                        :label="$t('views.settings.assistant_external_users')"
-                        :hint="$t('views.settings.assistant_external_users_info')"
-                        :label-for="`server-users-${server.id}`"
-                      >
-                        <ToggleSwitch :input-id="`server-users-${server.id}`" v-model="server.userAccess" />
-                      </CuiToggleRow>
+                      <div class="flex flex-col gap-2">
+                        <CuiToggleRow
+                          :label="$t('views.settings.assistant_external_insecure')"
+                          :hint="$t('views.settings.assistant_external_insecure_info')"
+                          :label-for="`server-insecure-${server.id}`"
+                        >
+                          <ToggleSwitch :input-id="`server-insecure-${server.id}`" v-model="server.insecure" />
+                        </CuiToggleRow>
+                        <CuiToggleRow
+                          :label="$t('views.settings.assistant_external_users')"
+                          :hint="$t('views.settings.assistant_external_users_info')"
+                          :label-for="`server-users-${server.id}`"
+                        >
+                          <ToggleSwitch :input-id="`server-users-${server.id}`" v-model="server.userAccess" />
+                        </CuiToggleRow>
+                      </div>
                       <div class="flex">
                         <Button
                           type="button"

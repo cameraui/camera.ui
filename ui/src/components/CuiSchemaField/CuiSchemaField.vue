@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="cui-schema-field">
     <template v-if="isStringType(schemaField) && schemaField.format === 'qrCode'">
       <div class="flex flex-col field-gap">
         <label :for="configKey" class="cui-label">{{ schemaField.title }}</label>

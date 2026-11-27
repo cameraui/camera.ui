@@ -57,6 +57,7 @@ export function downloadPath(filename: string): string {
 }
 
 export async function clearDownloads(): Promise<void> {
+  if (!(await downloadDirExists())) return;
   await Filesystem.rmdir({ path: DOWNLOAD_DIR, directory: Directory.Cache, recursive: true }).catch(() => {});
 }
 
@@ -66,6 +67,7 @@ export function holdDownload(path: string): () => void {
 }
 
 export async function sweepDownloads(): Promise<void> {
+  if (!(await downloadDirExists())) return;
   const listing = await Filesystem.readdir({ path: DOWNLOAD_DIR, directory: Directory.Cache }).catch(() => null);
   if (!listing) return;
 
@@ -99,4 +101,9 @@ async function writeInChunks(path: string, produce: (append: Append) => Promise<
     await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(() => {});
     throw err;
   }
+}
+
+async function downloadDirExists(): Promise<boolean> {
+  const listing = await Filesystem.readdir({ path: '', directory: Directory.Cache }).catch(() => null);
+  return !listing || listing.files.some((file) => file.name === DOWNLOAD_DIR);
 }

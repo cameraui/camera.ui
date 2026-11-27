@@ -27,13 +27,15 @@ const isHidden = computed(() => props.hidden || (scrollHidden.value && !props.fo
 const position = computed(() => {
   if (props.contained) return { bottom: '0.75rem', [props.side]: '0.75rem' };
   return {
-    bottom: props.bottom ?? 'var(--cui-fab-bottom)',
+    bottom: 'var(--cui-fab-bottom)',
     [props.side]: props.offset ?? `calc(1.25rem + var(--safe-area-inset-${props.side}))`,
   };
 });
 
 function syncPageY() {
-  pageY.value = pageScrollY();
+  // ios springs back from past the page end, that is no scroll up
+  const end = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+  pageY.value = Math.min(pageScrollY(), end);
 }
 
 useEventListener(window, 'scroll', useThrottleFn(syncPageY, 100, true), { passive: true });
@@ -41,6 +43,9 @@ useEventListener(window, 'scroll', useThrottleFn(syncPageY, 100, true), { passiv
 
 <style scoped>
 .cui-fab-group {
+  /* its own layer for good, ios webkit shakes or drops a fixed layer that comes and goes during momentum scroll */
+  transform: translateZ(0);
+  will-change: transform, opacity;
   transition:
     bottom 200ms ease-in-out,
     left 200ms ease-in-out,
@@ -50,7 +55,7 @@ useEventListener(window, 'scroll', useThrottleFn(syncPageY, 100, true), { passiv
 }
 
 .cui-fab-group--hidden {
-  transform: scale(0);
+  transform: translateZ(0) scale(0);
   opacity: 0;
   pointer-events: none;
 }

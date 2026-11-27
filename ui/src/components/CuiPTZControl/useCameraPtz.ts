@@ -1,11 +1,13 @@
 import { usePTZControl } from '@camera.ui/browser';
 import { PTZCapability, PTZProperty } from '@camera.ui/sdk';
 
+import { extractErrorMessage } from '@/common/utils.js';
+
 import type { ReactiveCameraDevice } from '@camera.ui/browser';
 import type { MaybeRefOrGetter } from 'vue';
 
 export function useCameraPtz(camera: MaybeRefOrGetter<ReactiveCameraDevice | undefined>) {
-  const log = useLogger();
+  const toast = useCuiToast();
   const { sensor } = usePTZControl(camera);
 
   const hasPan = computed(() => sensor.value?.hasCapability(PTZCapability.Pan) ?? false);
@@ -21,7 +23,7 @@ export function useCameraPtz(camera: MaybeRefOrGetter<ReactiveCameraDevice | und
     try {
       await sensor.value?.setProperty(PTZProperty.Position, { pan: 0, tilt: 0, zoom: 0 });
     } catch (error) {
-      log.error('PTZ go home failed:', error);
+      toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 3000 });
     }
   }
 
@@ -29,7 +31,7 @@ export function useCameraPtz(camera: MaybeRefOrGetter<ReactiveCameraDevice | und
     try {
       await sensor.value?.setProperty(PTZProperty.TargetPreset, preset);
     } catch (error) {
-      log.error('PTZ go to preset failed:', error);
+      toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 3000 });
     }
   }
 
