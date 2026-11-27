@@ -87,18 +87,7 @@
       <p class="text-xs text-muted">{{ formatTime }}</p>
     </div>
 
-    <CuiMenu
-      v-if="fluid && overlays.menu"
-      ref="cardMenuRef"
-      :items="cardMenuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu v-if="fluid && overlays.menu" ref="cardMenuRef" :items="cardMenuItems" />
   </div>
 </template>
 

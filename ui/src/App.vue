@@ -11,7 +11,7 @@
     <CuiLoadingScreen :reload="!isCapacitor" :text="switchingText" />
   </div>
 
-  <div class="app" v-else :style="bottomVars">
+  <div class="app" v-else :style="layoutVars">
     <CuiToast />
 
     <DynamicDialog />
@@ -96,9 +96,12 @@
 </template>
 
 <script setup lang="ts">
+import { TimelineOverlayKey } from '@camera.ui/nvr';
+
 import { clearPendingIntent, readPendingIntent } from '@/common/pushIntent';
 import { BOTTOMBAR_SIZE } from '@/components/CuiBottombar/types.js';
 import { NAVBAR_SIZE } from '@/components/CuiNavbar/types.js';
+import CuiPopoverSheet from '@/components/CuiPopoverSheet/CuiPopoverSheet.vue';
 import { loadUnitSystem } from '@/api/routes/server.js';
 import { getConnection, isCapacitor, isConnectionBooted } from '@/connection/index.js';
 
@@ -120,6 +123,7 @@ useServerCompatibility();
 useDirectServerSync();
 useBackupRestoreDialog(() => !showLoadingScreen.value);
 provideTimelineFilter();
+provide(TimelineOverlayKey, CuiPopoverSheet);
 useElectronNotifications();
 useElectronDeepLinks();
 useElectronDownloads();
@@ -174,7 +178,8 @@ const containerHeight = computed(() => {
   return `calc(100dvh - ${top} - var(--cui-bottom-bar))`;
 });
 
-const bottomVars = computed(() => ({
+const layoutVars = computed(() => ({
+  '--cui-top-bar': topbarRef.value ? `${topbar.height.value}px` : 'var(--safe-area-inset-top)',
   '--cui-bottom-bar': showBottombar.value
     ? `max(calc(${BOTTOMBAR_SIZE.HEIGHT}px + var(--safe-area-inset-bottom)), var(--keyboard-inset, 0px))`
     : 'var(--keyboard-inset, 0px)',

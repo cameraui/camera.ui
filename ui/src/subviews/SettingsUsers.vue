@@ -141,17 +141,7 @@
       </div>
     </div>
 
-    <CuiMenu
-      ref="menuRef"
-      :items
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    ></CuiMenu>
+    <CuiMenu ref="menuRef" :items></CuiMenu>
   </div>
 </template>
 

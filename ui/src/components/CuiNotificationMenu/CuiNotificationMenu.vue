@@ -7,13 +7,7 @@
         <Badge v-if="notificationsEnabled && unreadCount" class="absolute min-w-[8px] w-[8px] h-[8px] right-[10px] top-[7px]"></Badge>
       </template>
     </Button>
-    <Popover
-      ref="notificationsMenuRef"
-      append-to="self"
-      :dismissable="!detailOpen"
-      class="w-[20rem] shadow-lg cui-rounded-corner notification-menu isolate overscroll-contain non-draggable-region"
-      @hide="onHide"
-    >
+    <CuiPopoverSheet ref="notificationsMenuRef" :sheet="false" :width="mdBreakpoint ? 'calc(100vw - 3rem)' : '18.5rem'" :popover="menuPopover" @hide="onHide">
       <div v-if="!settingsResolved" class="flex items-center justify-center py-8">
         <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
       </div>
@@ -78,12 +72,7 @@
 
         <CuiNotificationMuted class="mb-3" />
 
-        <div
-          class="overflow-y-auto"
-          :style="{
-            maxHeight: `234px`,
-          }"
-        >
+        <div class="overflow-y-auto" :style="{ maxHeight: mdBreakpoint ? '45vh' : '234px' }">
           <CuiNotificationItem
             v-for="notification in notifications"
             :key="notification.id"
@@ -101,7 +90,7 @@
 
         <Button severity="secondary" text class="cui-button w-full justify-center text-sm mt-1" :label="$t('components.notification_menu.show_all')" @click="goToAll" />
       </template>
-    </Popover>
+    </CuiPopoverSheet>
 
     <CuiBottomSheet v-model="sheetOpen">
       <div class="-mx-4">
@@ -123,13 +112,13 @@ import { Severity } from '@camera.ui/sdk';
 
 import { NotificationsQuery } from '@/api/routes/notifications.js';
 import CuiNotificationDetail from '@/components/CuiNotificationDetail/CuiNotificationDetail.vue';
+import CuiPopoverSheet from '@/components/CuiPopoverSheet/CuiPopoverSheet.vue';
 import CuiNotificationItem from './CuiNotificationItem.vue';
 import { NotificationSwipeKey } from './types.js';
 
 import type { CuiNotificationDetailProps } from '@/components/CuiNotificationDetail/types.js';
 import type { IpcRendererEvent } from '@/types/electron';
 import type { StoredNotification } from '@shared/types';
-import type { Popover } from 'openvue';
 import type { DynamicDialogInstance } from 'openvue/dynamicdialogoptions';
 import type { NotificationDetailEvents } from './types.js';
 
@@ -147,7 +136,7 @@ const notificationsSocket = useNotificationsSocket();
 const { data: settings, isLoading: settingsLoading } = notificationsQuery.getSettingsQuery();
 const { mutedUntil, muteFor, unmute } = useNotificationMute();
 
-const notificationsMenuRef = useTemplateRef<InstanceType<typeof Popover>>('notificationsMenuRef');
+const notificationsMenuRef = useTemplateRef<InstanceType<typeof CuiPopoverSheet>>('notificationsMenuRef');
 const swipedId = ref<string>();
 const sheetOpen = ref(false);
 const sheetNotification = ref<StoredNotification>();
@@ -158,6 +147,11 @@ const unreadCount = computed(() => notificationsSocket.unreadCount.value);
 const notificationsEnabled = computed(() => settings.value?.enabled ?? false);
 const settingsResolved = computed(() => !settingsLoading.value || settings.value !== undefined);
 const detailOpen = computed(() => sheetOpen.value || !!detailDialog.value);
+const menuPopover = computed(() => ({
+  appendTo: 'self',
+  dismissable: !detailOpen.value,
+  pt: { root: { class: ['notification-menu isolate overscroll-contain non-draggable-region', { 'notification-menu--wide': mdBreakpoint.value }] } },
+}));
 
 provide(NotificationSwipeKey, swipedId);
 
@@ -331,5 +325,9 @@ onUnmounted(() => {
   left: auto !important;
   right: calc(var(--safe-area-inset-right) + 0.5rem) !important;
   top: calc(var(--safe-area-inset-top) + 3.3rem) !important;
+}
+
+.notification-menu--wide {
+  right: calc(var(--safe-area-inset-right) + 0.75rem) !important;
 }
 </style>

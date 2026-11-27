@@ -231,14 +231,9 @@
       </template>
     </CuiFloatingButtonGroup>
 
-    <CuiMenu ref="statusMenuRef" :items="statusMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
-    <CuiMenu ref="cameraMenuRef" :items="cameraMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
-    <CuiMenu
-      ref="settingsMenuRef"
-      :items="settingsMenuItems"
-      :auto-hide="false"
-      :popover="{ pt: { root: { class: 'w-[22rem]' }, content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }"
-    />
+    <CuiMenu ref="statusMenuRef" :items="statusMenuItems" />
+    <CuiMenu ref="cameraMenuRef" :items="cameraMenuItems" />
+    <CuiMenu ref="settingsMenuRef" :items="settingsMenuItems" :auto-hide="false" :popover="{ pt: { root: { class: 'w-[22rem]' } } }" />
   </div>
 </template>
 

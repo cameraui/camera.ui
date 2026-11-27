@@ -770,7 +770,7 @@
       </div>
     </div>
 
-    <CuiMenu ref="rowMenuRef" :items="rowMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
+    <CuiMenu ref="rowMenuRef" :items="rowMenuItems" />
   </div>
 </template>
 

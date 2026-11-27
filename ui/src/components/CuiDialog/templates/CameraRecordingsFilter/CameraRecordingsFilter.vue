@@ -104,9 +104,9 @@
         </InputGroupAddon>
       </InputGroup>
       <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('views.recordings.vehicle_filter_hint') }}</Message>
-      <Popover ref="colorPopover">
+      <CuiPopoverSheet ref="colorPopover" width="24rem" shrink>
         <RecordingsColorSwatches v-model="draft.vehicleColors" />
-      </Popover>
+      </CuiPopoverSheet>
     </div>
 
     <div class="flex flex-col field-gap">
@@ -134,13 +134,13 @@ import { DETECTION_ATTRIBUTES, EVENT_TRIGGER_TYPES, OBJECT_DETECTION_LABELS } fr
 import { vehicleTypeKey } from '@/common/eventLabels.js';
 import { cameraFilterSet } from '@/components/CuiCameraRecordings/filter.js';
 import { CAMERA_RECORDINGS_FILTER_DEFAULTS } from '@/components/CuiCameraRecordings/types.js';
+import CuiPopoverSheet from '@/components/CuiPopoverSheet/CuiPopoverSheet.vue';
 import { VEHICLE_SWATCHES } from '@/components/CuiRecordings/filters.js';
 import { useTriggerOptions } from '@/components/CuiRecordings/useTriggerOptions.js';
 import { resolveEventIcons } from '@/utils/eventIcons.js';
 
 import type { CameraRecordingsFilterState } from '@/components/CuiCameraRecordings/types.js';
 import type { CustomDialogComponent } from '@/composables/useCuiDialog.js';
-import type { Popover } from 'openvue';
 import type { CameraRecordingsFilterProps } from './types.js';
 
 const props = defineProps<CameraRecordingsFilterProps>();
@@ -165,7 +165,7 @@ const typeOptions = [
 
 const vehicleTypeOptions = VEHICLE_TYPES.map((type) => ({ value: type as string, label: t(vehicleTypeKey(type)) }));
 
-const colorPopover = useTemplateRef<InstanceType<typeof Popover>>('colorPopover');
+const colorPopover = useTemplateRef<InstanceType<typeof CuiPopoverSheet>>('colorPopover');
 
 const draft = ref<CameraRecordingsFilterState>(structuredClone(toRaw(props.filter)));
 

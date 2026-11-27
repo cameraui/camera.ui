@@ -297,7 +297,7 @@ const activeFilter = useLocalStorage<NotificationFilter>('cui-notifications-filt
 const [DefineRow, ReuseRow] = createReusableTemplate<{ item: StoredNotification; series?: StoredNotification[]; nested?: boolean }>();
 
 const SERIES_GAP = 5 * 60_000;
-const menuPopover = { pt: { root: { class: 'min-w-56' }, content: { class: 'p-0! rounded-xl! overflow-hidden!' } } };
+const menuPopover = { pt: { root: { class: 'min-w-56' } } };
 
 const searchQuery = ref('');
 const appliedQuery = ref('');

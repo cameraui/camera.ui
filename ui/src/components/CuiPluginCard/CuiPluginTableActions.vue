@@ -30,18 +30,7 @@
       </template>
     </Button>
 
-    <CuiMenu
-      v-if="overlays.menu"
-      ref="menuRef"
-      :items
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    ></CuiMenu>
+    <CuiMenu v-if="overlays.menu" ref="menuRef" :items></CuiMenu>
   </div>
 </template>
 

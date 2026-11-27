@@ -96,7 +96,7 @@
         </Button>
       </CuiFloatingButtonGroup>
 
-      <CuiBottomSheet v-model="showMobilePalette" :title="t('views.automation.add_step')" max-height="70vh">
+      <CuiBottomSheet v-model="showMobilePalette" :title="t('views.automation.add_step')">
         <CuiAutomationNodePalette mode="click" @node-click="onMobileAddNode" />
       </CuiBottomSheet>
     </template>

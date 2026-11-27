@@ -102,17 +102,7 @@
       </template>
     </CuiFloatingButtonGroup>
 
-    <CuiMenu
-      ref="menuRef"
-      :items="menuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="menuRef" :items="menuItems" />
   </div>
 </template>
 

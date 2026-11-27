@@ -10,8 +10,7 @@ export interface CuiBottomSheetProps {
   minHeight?: string;
   draggable?: boolean;
   dismissThreshold?: number;
-  stackable?: boolean;
-  stackableHeight?: string;
+  lowered?: boolean;
 }
 
 export interface CuiBottomSheetEmits {

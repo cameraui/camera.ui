@@ -301,7 +301,7 @@
       ><span>{{ $t('components.training_editor.sc_nav') }}</span>
     </div>
 
-    <CuiMenu ref="labelMenuRef" :items="labelMenuItems" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
+    <CuiMenu ref="labelMenuRef" :sheet="false" :items="labelMenuItems" />
   </div>
 </template>
 

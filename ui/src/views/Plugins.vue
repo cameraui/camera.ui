@@ -65,9 +65,6 @@
           :popover="{
             pt: {
               root: { class: 'w-[22rem]' },
-              content: {
-                class: 'p-0! rounded-xl! overflow-hidden!',
-              },
             },
           }"
         />

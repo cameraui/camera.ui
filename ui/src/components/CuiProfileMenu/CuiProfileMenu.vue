@@ -13,9 +13,6 @@
         appendTo: 'self',
         pt: {
           root: { class: 'w-[18rem] profile-menu' },
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
         },
       }"
     />

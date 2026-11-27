@@ -5,6 +5,7 @@
         v-if="modelValue && isFirstSheet"
         ref="backdropRef"
         class="cui-bottom-sheet-backdrop"
+        :class="{ 'cui-bottom-sheet-backdrop--lowered': lowered }"
         :style="backdropStyle"
         @pointerdown="onBackdropPress"
         @click="onBackdropClick"
@@ -61,8 +62,6 @@ import { randomLetter } from '@/common/utils.js';
 
 import type { CuiBottomSheetEmits, CuiBottomSheetProps } from './types.js';
 
-const Z_INDEX_BASE = 1000;
-
 const props = withDefaults(defineProps<CuiBottomSheetProps>(), {
   title: undefined,
   subtitle: undefined,
@@ -70,12 +69,11 @@ const props = withDefaults(defineProps<CuiBottomSheetProps>(), {
   showHandle: true,
   closeOnBackdrop: true,
   height: 'auto',
-  maxHeight: '85vh',
+  maxHeight: undefined,
   minHeight: '200px',
   draggable: true,
   dismissThreshold: 0.3,
-  stackable: false,
-  stackableHeight: '70vh',
+  lowered: false,
 });
 
 const emit = defineEmits<CuiBottomSheetEmits>();
@@ -85,7 +83,7 @@ const {
   unregister,
   updateMeasuredHeight,
   isTopmost,
-  closeAll,
+  closeTopmost,
   getStackTransform,
   topmostMeasuredHeight,
   setDragProgress,
@@ -95,7 +93,12 @@ const {
   stackSize,
 } = useCuiBottomSheet();
 
-const { modelValue, height: heightProp, maxHeight, minHeight, draggable, dismissThreshold, stackable, stackableHeight, closeOnBackdrop } = toRefs(props);
+const { modelValue, height: heightProp, maxHeight, minHeight, draggable, dismissThreshold, closeOnBackdrop, lowered } = toRefs(props);
+const { shortBreakpoint } = useSharedCuiBreakpoint();
+
+const Z_INDEX_BASE = 1000;
+const LOWERED_OFFSET = '100%';
+const HEIGHT_TRANSITION_MS = 300;
 
 const sheetId = ref(randomLetter());
 const stackPosition = ref(-1);
@@ -110,6 +113,7 @@ const sheetHeight = ref(0);
 const { height: elementHeight } = useElementSize(sheetRef);
 
 const showCloseButton = computed(() => !draggable.value);
+const sheetMaxHeight = computed(() => maxHeight.value ?? (shortBreakpoint.value ? '85vh' : '70vh'));
 
 const isTopSheet = computed(() => isTopmost(sheetId.value));
 
@@ -138,9 +142,9 @@ const sheetStyle = computed<Record<string, string | number | undefined>>(() => {
   let sheetHeightValue: string;
   let maxHeightValue: string;
 
-  const newMaxHeight = stackable.value ? stackableHeight.value : maxHeight.value;
+  const newMaxHeight = sheetMaxHeight.value;
 
-  if (stackable.value && currentStackSize > 1 && !isTopmostSheet && topMeasuredHeight > 0) {
+  if (currentStackSize > 1 && !isTopmostSheet && topMeasuredHeight > 0) {
     const peekHeight = 16;
     sheetHeightValue = `calc(${topMeasuredHeight}px + ${peekHeight}px + var(--safe-area-inset-bottom))`;
     maxHeightValue = sheetHeightValue;
@@ -163,7 +167,7 @@ const sheetStyle = computed<Record<string, string | number | undefined>>(() => {
     '--sheet-brightness': brightness,
     // a direct transform skips the css variable recalc on every frame
     transform: dragging ? `translateX(-50%) translateY(${dragY}px) scaleX(${scaleX})` : undefined,
-    '--sheet-translate-y': dragging ? undefined : `${dragY}px`,
+    '--sheet-translate-y': dragging ? undefined : lowered.value ? LOWERED_OFFSET : `${dragY}px`,
     opacity: visible ? 1 : 0,
     pointerEvents: visible ? undefined : 'none',
     transition: dragging ? 'none' : undefined,
@@ -177,6 +181,7 @@ const isStackedOnTop = computed(() => stackPosition.value > 0);
 
 let rafId = 0;
 let backdropPressed = false;
+let heightTimer: ReturnType<typeof setTimeout> | undefined;
 const stacked = new Set<HTMLElement>();
 
 function close() {
@@ -210,7 +215,7 @@ function onBackdropClick() {
   if (!backdropPressed) return;
   backdropPressed = false;
   if (closeOnBackdrop.value) {
-    closeAll();
+    closeTopmost();
   }
 }
 
@@ -327,33 +332,59 @@ watch(elementHeight, (height) => {
 
 watch(modelValue, (open) => {
   if (open) {
-    const height = stackable.value ? stackableHeight.value : maxHeight.value;
-    stackPosition.value = register(sheetId.value, close, height);
-    lockBodyScroll();
+    stackPosition.value = register(sheetId.value, close, sheetMaxHeight.value);
   } else {
     unregister(sheetId.value);
-    unlockBodyScroll();
     stackPosition.value = -1;
   }
 });
 
+watch(
+  () => modelValue.value && !lowered.value,
+  (locked) => (locked ? lockBodyScroll() : unlockBodyScroll()),
+);
+
 watch([backdropRef, sheetRef], ([backdrop, sheet]) => restack(backdrop, sheet), { flush: 'post' });
+
+watch(
+  () => sheetStyle.value['--sheet-height'],
+  async (next, previous) => {
+    const sheet = sheetRef.value;
+    if (!sheet || isDragging.value || (next !== 'auto' && previous !== 'auto')) return;
+    const from = sheet.offsetHeight;
+    await nextTick();
+    if (!sheet.isConnected) return;
+    clearTimeout(heightTimer);
+    sheet.style.transitionProperty = 'transform, opacity';
+    sheet.style.height = '';
+    sheet.style.maxHeight = '';
+    const to = sheet.offsetHeight;
+    sheet.style.maxHeight = 'none';
+    sheet.style.height = `${from}px`;
+    sheet.getBoundingClientRect();
+    sheet.style.transitionProperty = '';
+    sheet.style.height = `${to}px`;
+    heightTimer = setTimeout(() => {
+      sheet.style.height = '';
+      sheet.style.maxHeight = '';
+    }, HEIGHT_TRANSITION_MS);
+  },
+);
 
 onMounted(() => {
   document.addEventListener('keydown', onKeydown);
 });
 
 onUnmounted(() => {
+  clearTimeout(heightTimer);
   document.removeEventListener('keydown', onKeydown);
   document.removeEventListener('mousemove', onMouseMove);
   document.removeEventListener('mouseup', onMouseUp);
   sheetRef.value?.removeEventListener('touchmove', onTouchMove);
   stacked.forEach(unstack);
 
-  if (modelValue.value) {
-    unregister(sheetId.value);
-    unlockBodyScroll();
-  }
+  if (modelValue.value) unregister(sheetId.value);
+  if (modelValue.value && !lowered.value) unlockBodyScroll();
 });
 </script>
 
@@ -363,6 +394,12 @@ onUnmounted(() => {
   inset: 0;
   background: var(--p-mask-background, rgba(0, 0, 0, 0.6));
   opacity: var(--backdrop-opacity, 1);
+  transition: opacity 0.2s ease;
+}
+
+.cui-bottom-sheet-backdrop--lowered {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .cui-bottom-sheet {

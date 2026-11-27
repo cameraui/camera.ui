@@ -93,18 +93,7 @@
       />
     </CuiFloatingButtonGroup>
 
-    <CuiMenu
-      ref="levelMenuRef"
-      :items="levelMenuItems"
-      :auto-hide="false"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="levelMenuRef" :items="levelMenuItems" :auto-hide="false" />
   </div>
 </template>
 

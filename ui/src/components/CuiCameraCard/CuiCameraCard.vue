@@ -907,47 +907,15 @@
       </template>
     </Card>
 
-    <CuiMenu
-      v-if="mountedOverlays.layers"
-      ref="layerMenuRef"
-      :items="layerMenuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    ></CuiMenu>
-    <CuiMenu
-      v-if="mountedOverlays.actions"
-      ref="actionMenuRef"
-      :items="actionMenuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    ></CuiMenu>
+    <CuiMenu v-if="mountedOverlays.layers" ref="layerMenuRef" :items="layerMenuItems"></CuiMenu>
+    <CuiMenu v-if="mountedOverlays.actions" ref="actionMenuRef" :items="actionMenuItems"></CuiMenu>
 
-    <CuiMenu
-      v-if="mountedOverlays.cast"
-      ref="castMenuRef"
-      :items="castMenuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    ></CuiMenu>
+    <CuiMenu v-if="mountedOverlays.cast" ref="castMenuRef" :items="castMenuItems"></CuiMenu>
 
     <CuiMenu
       v-if="mountedOverlays.fullscreen"
       ref="fullscreenMenuRef"
+      :sheet="false"
       :items="fullscreenMenuItems"
       :popover="appendedMenuPopover"
       @show="controlBarPopoverOpen = true"
@@ -957,6 +925,7 @@
     <CuiMenu
       v-if="mountedOverlays.ptzPreset"
       ref="ptzPresetMenuRef"
+      :sheet="false"
       :items="ptzPresetMenuItems"
       @show="controlBarPopoverOpen = true"
       @hide="controlBarPopoverOpen = false"
@@ -1648,7 +1617,7 @@ const tapsForExpand = computed(() => cardClickAction.value === 'expand' && expan
 const cardIsTappable = computed(() => tapsForRedirect.value || tapsForExpand.value);
 const showOpenCameraButton = computed(() => cardClickAction.value !== 'redirect' && routerLink.value !== undefined);
 const popoverAppendTarget = computed<HTMLElement | 'body'>(() => topmostFullscreen.value ?? 'body');
-const appendedMenuPopover = computed(() => ({ appendTo: popoverAppendTarget.value, pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }));
+const appendedMenuPopover = computed(() => ({ appendTo: popoverAppendTarget.value }));
 
 const controlBarLayout = computed(() => {
   const full = isFullPlayer.value || cameraStream.isFullscreen.value;

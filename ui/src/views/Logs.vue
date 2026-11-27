@@ -70,19 +70,7 @@
       </template>
     </Button>
 
-    <CuiMenu
-      ref="menuRef"
-      :items="sourceItems"
-      dividers="sections"
-      max-height="300px"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="menuRef" :items="sourceItems" dividers="sections" max-height="300px" />
   </div>
 </template>
 

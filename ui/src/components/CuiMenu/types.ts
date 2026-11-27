@@ -1,8 +1,14 @@
 import type { PopoverProps } from 'openvue';
-import type { HTMLAttributes } from 'vue';
+import type { Component, HTMLAttributes } from 'vue';
 
 import type { CuiAvatarProps } from '../CuiAvatar/types.js';
 import type { CuiButtonAttrs } from '../CuiButton/types.js';
+
+export interface MenuItemAction {
+  label: string;
+  icon: Component;
+  onClick: () => void;
+}
 
 export interface MenuItem {
   key?: string;
@@ -17,6 +23,7 @@ export interface MenuItem {
   to?: string;
   toggle?: boolean;
   toggleState?: boolean;
+  actions?: MenuItemAction[];
   iconProps?: HTMLAttributes;
   avatarProps?: CuiAvatarProps & HTMLAttributes;
   labelProps?: HTMLAttributes;
@@ -36,6 +43,7 @@ export interface CuiMenuProps {
   popover?: PopoverProps;
   sortList?: boolean;
   maxHeight?: string | number;
+  sheet?: boolean;
 }
 
 export interface CuiMenuEmits {
@@ -52,4 +60,5 @@ export const CUI_MENU_MIN_HEIGHT = 160;
 export const CUI_MENU_DEFAULTS = {
   autoHide: true,
   dividers: 'all',
+  sheet: true,
 } satisfies Partial<CuiMenuProps>;

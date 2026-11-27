@@ -283,41 +283,11 @@
       @mic="toggleIntercom"
     />
 
-    <CuiMenu
-      ref="menuRef"
-      :items
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="menuRef" :items />
 
-    <CuiMenu
-      ref="cardFitMenuRef"
-      :items="cardFitItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="cardFitMenuRef" :items="cardFitItems" />
 
-    <CuiMenu
-      ref="newViewMenuRef"
-      :items="addViewItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="newViewMenuRef" :items="addViewItems" />
   </div>
 </template>
 

@@ -35,7 +35,7 @@
         </template>
       </Button>
 
-      <CuiMenu ref="typeMenuRef" :items="typeMenuItems" :auto-hide="false" :popover="{ pt: { content: { class: 'p-0! rounded-xl! overflow-hidden!' } } }" />
+      <CuiMenu ref="typeMenuRef" :items="typeMenuItems" :auto-hide="false" />
 
       <CuiMenu
         ref="menuRef"
@@ -44,9 +44,6 @@
         :popover="{
           pt: {
             root: { class: 'w-[22rem]' },
-            content: {
-              class: 'p-0! rounded-xl! overflow-hidden!',
-            },
           },
         }"
       />

@@ -274,30 +274,9 @@
       </div>
     </Popover>
 
-    <CuiMenu
-      ref="stairsMenuRef"
-      :items="stairsMenuItems"
-      max-height="320px"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="stairsMenuRef" :sheet="false" :items="stairsMenuItems" max-height="320px" />
 
-    <CuiMenu
-      ref="levelMenuRef"
-      :items="levelMenuItems"
-      :popover="{
-        pt: {
-          content: {
-            class: 'p-0! rounded-xl! overflow-hidden!',
-          },
-        },
-      }"
-    />
+    <CuiMenu ref="levelMenuRef" :items="levelMenuItems" />
   </div>
 </template>
 
