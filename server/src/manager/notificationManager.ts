@@ -273,8 +273,10 @@ export class NotificationManager {
     if (cloud.oauth?.server_id) originData.originServerId = cloud.oauth.server_id;
     if (cloud.name) originData.originName = cloud.name;
 
+    const pictureless = notificationCameraIds(opts.notification).some((cameraId) => this.inPrivacy(cameraId));
     const resolved: ResolvedNotification = {
       ...opts.notification,
+      ...(pictureless && { thumbnail: undefined, imageUrl: undefined, videoUrl: undefined }),
       severity: opts.notification.severity ?? Severity.Info,
       silent: opts.notification.severity === Severity.Critical ? false : opts.notification.silent,
       id: uuidv4(),
@@ -507,6 +509,10 @@ export class NotificationManager {
       }
     }
     return found;
+  }
+
+  private inPrivacy(cameraId: string): boolean {
+    return this.dbs.camerasDB.get(cameraId)?.privacy.enabled === true;
   }
 
   private inQuietHours(settings: { quietHours?: { from: string; to: string; timezone: string } }): boolean {

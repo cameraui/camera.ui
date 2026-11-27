@@ -47,12 +47,28 @@
         <span class="text-xs font-semibold p-2 bg-black/60 rounded-full text-white flex items-center gap-1 min-w-0">
           <span class="truncate">{{ camera.name }}</span>
           <i-fluent:video-off-32-filled v-if="camera.disabled" class="w-3 h-3 text-red-400 shrink-0" />
+          <i-mdi:eye-off v-else-if="isPrivate" class="w-3 h-3 text-violet-400 shrink-0" />
           <i-solar:moon-sleep-bold v-else-if="camera.detectionSettings?.snooze" class="w-3 h-3 text-amber-400 shrink-0" />
         </span>
 
         <template v-if="!selectionMode">
           <template v-if="!camera.disabled">
             <Button
+              v-if="isPrivate && hasPermission(undefined, 'admin')"
+              v-tooltip.top="{ value: $t('components.player.privacy_off') }"
+              severity="secondary"
+              rounded
+              class="dark-mode cui-icon-md pointer-events-auto ml-auto"
+              :loading="switching"
+              @click.stop="setPrivacy(camera.name, false)"
+            >
+              <template #icon>
+                <i-mdi:eye-outline width="100%" height="100%" />
+              </template>
+            </Button>
+
+            <Button
+              v-else-if="!isPrivate"
               v-tooltip.top="{ value: $t('components.player.refresh_snapshot') }"
               severity="secondary"
               rounded
@@ -102,6 +118,8 @@
 <script setup lang="ts">
 import { useDrag, useDrop } from 'vue3-dnd';
 
+import { usePrivacyActive, usePrivacySwitch } from '@/common/cameraPrivacy.js';
+
 import type { CuiDraggableCameraCardEmits, CuiDraggableCameraCardProps, DragItem } from './types.js';
 
 const props = defineProps<CuiDraggableCameraCardProps>();
@@ -111,6 +129,7 @@ const emit = defineEmits<CuiDraggableCameraCardEmits>();
 const { x: mouseX, y: mouseY } = useSharedMouse();
 const { isTouch } = useSharedCuiUserAgent();
 const routerStore = useRouterStore();
+const { switching, setPrivacy } = usePrivacySwitch();
 
 const { camera, noDrag, viewTransition } = toRefs(props);
 
@@ -126,6 +145,7 @@ const isDraggingActive = ref(false);
 let lastSwapTarget: string | null = null;
 let lastSwapTime = 0;
 
+const isPrivate = usePrivacyActive(camera);
 const canDrag = computed(() => !noDrag.value);
 const originalIndex = computed(() => props.findCard(camera.value._id).index);
 const morphTarget = computed(() => viewTransition.value && routerStore.morphCamera === camera.value.name);

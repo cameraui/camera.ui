@@ -67,6 +67,12 @@ export function notificationCameraId(n: { data?: Record<string, unknown> }): str
   return typeof cameraId === 'string' && cameraId ? cameraId : undefined;
 }
 
+export function notificationCameraIds(n: { data?: Record<string, unknown> }): string[] {
+  const cameraId = notificationCameraId(n);
+  const others = typeof n.data?.cameraIds === 'string' ? n.data.cameraIds.split(',').filter(Boolean) : [];
+  return cameraId ? [cameraId, ...others] : others;
+}
+
 export function isCameraEventNotification(n: { data?: Record<string, unknown> }): boolean {
   return CAMERA_EVENT_TYPES.has(String(n.data?.type));
 }

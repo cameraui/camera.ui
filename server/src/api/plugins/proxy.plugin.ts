@@ -19,6 +19,7 @@ import type { ProxyServer } from '../../rpc/index.js';
 import type { AuthConfig } from '../../rpc/interfaces/config.js';
 import type { LoggerService } from '../../services/logger/index.js';
 import type { Database } from '../database/index.js';
+import type { DBCamera } from '../database/types.js';
 import type { DBToken } from '../types/index.js';
 import type { Go2rtcMessage } from './go2rtcSender.js';
 
@@ -42,6 +43,7 @@ interface Relay {
   tokenId: string;
   userId: string;
   target: ProxyOptions['target'];
+  src?: string;
   privileged: boolean;
   upstream: WebSocket;
   client?: WebSocket;
@@ -116,6 +118,12 @@ function upstreamRefusal(frame: Buffer): Refusal | undefined {
   return undefined;
 }
 
+function liveRefusal(camera: DBCamera, viewer: boolean): Refusal | undefined {
+  if (camera.privacy.enabled) return [4403, 'forbidden: camera is in privacy mode'];
+  if (camera.disabled && viewer) return [4403, 'forbidden: camera is disabled'];
+  return undefined;
+}
+
 function bearerToken(header: string | undefined): string {
   const [scheme, token] = header?.split(/\s+/) ?? [];
   return scheme === 'Bearer' && token ? token : '';
@@ -151,6 +159,16 @@ export class RelayRegistry {
 
   public dropAdmin(userId: string): void {
     this.endAll(this.byUser.get(userId), [4401, 'unauthorized: role changed'], (relay) => relay.privileged);
+  }
+
+  public endLive(before: DBCamera, camera: DBCamera): void {
+    const why = liveRefusal(camera, true);
+    if (!why || why[1] === liveRefusal(before, true)?.[1]) return;
+    const streams = new Set(camera.sources.map((source) => createSourceName(camera.name, source.name)));
+    const admins = !!liveRefusal(camera, false);
+    for (const relays of this.byToken.values()) {
+      this.endAll(relays, why, (relay) => relay.src !== undefined && streams.has(relay.src) && (admins || !relay.privileged));
+    }
   }
 
   public terminate(tokenId: string, match: (relay: Relay) => boolean): number {
@@ -320,9 +338,10 @@ class WebSocketProxy {
       let firewallUserId: string | undefined;
       let go2rtcViewer = false;
       let privileged = false;
+      let src: string | undefined;
 
       if (this.target === 'go2rtc') {
-        const src = url.searchParams.get('src') ?? '';
+        src = url.searchParams.get('src') ?? '';
         go2rtcViewer = this.isGo2rtcViewer(dbToken);
         privileged = !go2rtcViewer;
         const denied = this.go2rtcSrcDenial(dbToken, src, go2rtcViewer);
@@ -391,7 +410,7 @@ class WebSocketProxy {
       };
 
       const serverWs = new WebSocket(targetUrl, wsOptions);
-      const relay: Relay = { tokenId: dbToken.id, userId: dbToken.user_id, target: this.target, privileged, upstream: serverWs, endsAt };
+      const relay: Relay = { tokenId: dbToken.id, userId: dbToken.user_id, target: this.target, src, privileged, upstream: serverWs, endsAt };
       this.relays.add(relay);
       serverWs.once('close', () => {
         if (!relay.client) this.relays.remove(relay);
@@ -819,10 +838,13 @@ class WebSocketProxy {
   }
 
   private go2rtcSrcDenial(dbToken: DBToken, src: string, viewer: boolean): string | undefined {
+    const camera = this.streamCamera(src);
+    const refusal = camera && liveRefusal(camera, viewer);
+    if (refusal) return refusal[1];
     if (dbToken.stream_scope || dbToken.user_id.startsWith(SHARE_USER_PREFIX)) {
       return src && src === dbToken.stream_scope ? undefined : 'forbidden: src out of scope';
     }
-    if (!viewer || this.isCameraStream(src)) {
+    if (!viewer || camera) {
       return undefined;
     }
     return 'forbidden: src is not a camera stream';
@@ -882,13 +904,13 @@ class WebSocketProxy {
     }
   }
 
-  private isCameraStream(src: string): boolean {
+  private streamCamera(src: string): DBCamera | undefined {
     for (const { value: camera } of this.dbs.camerasDB.getRange()) {
       if (camera.sources.some((source) => createSourceName(camera.name, source.name) === src)) {
-        return true;
+        return camera;
       }
     }
-    return false;
+    return undefined;
   }
 
   private extractMessage(data: RawData): string {

@@ -53,7 +53,15 @@ export class MqttTopics {
     return `${this.cameraPrefix(cameraId)}/snapshot`;
   }
 
-  sensorPrefix(sensorId: string): string {
+  public cameraPrivacy(cameraId: string): string {
+    return `${this.cameraPrefix(cameraId)}/privacy`;
+  }
+
+  public cameraPrivacyCommand(cameraId: string): string {
+    return `${this.cameraPrivacy(cameraId)}/set`;
+  }
+
+  public sensorPrefix(sensorId: string): string {
     return `${this.prefix}/sensor/${sanitizeTopicSegment(sensorId)}`;
   }
 

@@ -48,6 +48,18 @@ export function buildCameraDiscovery(topics: MqttTopics, haPrefix: string, camer
   });
 
   messages.push({
+    topic: configTopic(haPrefix, 'switch', cameraId, 'privacy'),
+    payload: JSON.stringify({
+      ...baseConfig(topics, camera, `${cameraId}_privacy`, 'Privacy mode', { bridgeAvailabilityOnly: true }),
+      icon: 'mdi:eye-off',
+      state_topic: topics.cameraPrivacy(cameraId),
+      command_topic: topics.cameraPrivacyCommand(cameraId),
+      payload_on: 'ON',
+      payload_off: 'OFF',
+    }),
+  });
+
+  messages.push({
     topic: configTopic(haPrefix, 'camera', cameraId, 'snapshot'),
     payload: JSON.stringify({
       ...baseConfig(topics, camera, `${cameraId}_snapshot`, 'Snapshot'),

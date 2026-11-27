@@ -8,6 +8,7 @@ import { CamerasService } from '../api/services/cameras.service.js';
 import { PluginsService } from '../api/services/plugins.service.js';
 import { updatesService } from '../api/services/updates.service.js';
 import { WorkersService } from '../api/services/workers.service.js';
+import { detectionPaused } from '../camera/pauses.js';
 import { inject, provide, tryInject } from '../container.js';
 import { NamespaceManager, SUBJECT_TOKEN } from '../rpc/namespaces.js';
 import { DETECTION_SENSOR_TYPES, getAssignmentKey } from '../sensors/types.js';
@@ -1136,7 +1137,7 @@ export class WorkerManager {
     for (const agentId of this.presence.keys()) {
       const keys = new Set<string>();
       for (const camera of this.camerasService.listByAgentId(agentId)) {
-        if (!camera.disabled && !camera.detectionSettings?.snooze) {
+        if (!camera.disabled && !detectionPaused(camera)) {
           keys.add(workloadKey(WorkerCapability.FrameDecoding, camera._id));
         }
       }

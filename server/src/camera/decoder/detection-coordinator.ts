@@ -260,7 +260,7 @@ export class DetectionCoordinator {
       const sourceId = config.controllerSnapshotSourceId;
       const controllerProxy = this.proxy.createProxy<CameraDeviceInterface>(NamespaceManager.cameraNamespaces(config.cameraId).cameraControllerRpc);
       snapshot.snapshotProvider = async () => {
-        const jpeg = await controllerProxy.snapshot(sourceId, true, true);
+        const jpeg = await controllerProxy.detectionSnapshot(sourceId);
         if (!jpeg || jpeg.byteLength === 0) return null;
         return Buffer.from(jpeg);
       };

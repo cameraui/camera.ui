@@ -1,5 +1,6 @@
 import { inject } from '../../container.js';
 import { nvrRpcNamespace } from '../../plugins/nvr.js';
+import { isAdminRequest } from '../middlewares/authPermission.middleware.js';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { NvrEventParams, NvrEventThumbnailQuery } from '../schemas/nvr.schema.js';
@@ -15,7 +16,7 @@ interface EventThumbnails {
 }
 
 interface NvrRpc {
-  getEventThumbnails(cameraId: string, startMs: number, eventId: string, keys?: string[]): Promise<EventThumbnails | undefined>;
+  getEventThumbnails(cameraId: string, startMs: number, eventId: string, keys: string[], asViewer: boolean): Promise<EventThumbnails | undefined>;
 }
 
 export class NvrController {
@@ -32,7 +33,7 @@ export class NvrController {
 
     try {
       const rpc = this.proxyServer.proxy.createProxy<NvrRpc>(namespace);
-      const thumbnails = await rpc.getEventThumbnails(req.query.cameraId, req.query.startMs, req.params.eventId, ['card:cover']);
+      const thumbnails = await rpc.getEventThumbnails(req.query.cameraId, req.query.startMs, req.params.eventId, ['card:cover'], !isAdminRequest(req));
       const image = this.pickPrimaryThumbnail(thumbnails);
       if (!image) {
         return reply.code(404).send({ statusCode: 404, message: 'No thumbnail for this event' });

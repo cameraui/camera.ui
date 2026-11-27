@@ -13,6 +13,7 @@ import { exitInfo } from '../../utils/process-exit.js';
 import { DECODER_STOP_BUDGET_MS, SupervisedChild, supervisedSpawn } from '../../utils/supervised-child.js';
 import { LocalStartAbandoned, RemotePlacement } from '../../workers/lifecycle/remote-placement.js';
 import { WORKER_PROTOCOL, WorkerCapability } from '../../workers/types.js';
+import { detectionPaused } from '../pauses.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { PrivateChannel, Promisify } from '@camera.ui/rpc';
@@ -202,8 +203,8 @@ export class FrameWorker extends Subscribed {
       return;
     }
 
-    if (this.camera.snooze) {
-      this.logger.debug('Camera is snoozed, worker will not start');
+    if (detectionPaused(this.camera)) {
+      this.logger.debug('Detection is paused, worker will not start');
       return;
     }
 

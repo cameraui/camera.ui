@@ -59,6 +59,7 @@ export async function takeSnapshot(camera: string): Promise<{ name: string; data
 
   const controller = inject('api').getCamera(resolved.id);
   if (!controller) return { error: `Camera "${resolved.name}" is not running.` };
+  if (controller.disabled) return { error: `Camera "${resolved.name}" is disabled.` };
   if (!controller.connected) return { error: `Camera "${resolved.name}" is offline right now.` };
 
   const snapshot = await controller.getSnapshot(true).catch(() => undefined);

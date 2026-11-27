@@ -17,6 +17,9 @@ export const recordingSettingsSchema = zod
     mode: zod.enum(['continuous', 'event', 'adhoc']).default('continuous'),
     preBuffer: zod.number().min(0).max(60).default(10),
     sources: zod.array(zod.enum(['high', 'mid', 'low'])).default(['high', 'mid', 'low']),
+    paused: zod.boolean().optional(),
+    pausedSince: zod.number().int().positive().optional(),
+    pausedUntil: zod.number().int().positive().optional(),
   })
   .strict();
 
@@ -188,6 +191,8 @@ export const detectionSettingsSchema = zod.object({
   cascadeDetection: zod.boolean().default(true),
   cascadeTimeout: zod.number().min(1, 'Minimum 1 second').max(300, 'Maximum 300 seconds').default(10),
   snooze: zod.boolean().default(false),
+  snoozeSince: zod.number().int().positive().optional(),
+  snoozeUntil: zod.number().int().positive().optional(),
 });
 
 export const timeWindowSchema = zod.object({
@@ -542,6 +547,17 @@ export const exportSettingsSchema = zod
 
 export const DEFAULT_EXPORT_SETTINGS: zod.infer<typeof exportSettingsSchema> = { onvif: false, rtmp: true };
 
+export const privacySchema = zod
+  .object({
+    enabled: zod.boolean(),
+    pauseRecording: zod.boolean(),
+    since: zod.number().int().positive().optional(),
+    until: zod.number().int().positive().optional(),
+  })
+  .strict();
+
+export const DEFAULT_PRIVACY: zod.infer<typeof privacySchema> = { enabled: false, pauseRecording: false };
+
 const ONVIF_PORT_REQUIRED = { message: 'Port is required', path: ['onvifPort'] };
 
 function hasOnvifPort(settings: { onvif?: boolean; onvifPort?: number }): boolean {
@@ -557,6 +573,7 @@ export const createCameraBaseSchema = zod
     nativeId: zod.string().trim().optional(),
     pluginInfo: cameraPluginInfo.optional(),
     disabled: zod.boolean().default(false),
+    privacy: privacySchema.default(DEFAULT_PRIVACY),
     name: zod.string().trim().min(1, 'Camera name is required'),
     room: zod.string().trim().min(1, 'Room is required').default('Default'),
     roomId: zod.string().trim().min(1).nullable().default(null),
@@ -686,6 +703,7 @@ export const createCameraSchema = createCameraBaseSchema.transform((data) => {
 export const patchCameraSchema = zod
   .object({
     disabled: zod.boolean().optional(),
+    privacy: privacySchema.partial().optional(),
     type: cameraTypeSchema.optional(),
     name: zod.string().trim().min(1, 'Camera name is required').optional(),
     room: zod.string().trim().min(1, 'Room is required').optional(),
@@ -819,10 +837,14 @@ export const bulkPatchCamerasSchema = zod.object({
   cameraData: zod
     .object({
       disabled: zod.boolean().optional(),
-      detectionSettings: zod.object({ snooze: zod.boolean() }).optional(),
-      recordingSettings: zod.object({ enabled: zod.boolean() }).optional(),
+      privacy: zod.object({ enabled: zod.boolean(), pauseRecording: zod.boolean().optional(), until: zod.number().int().positive().optional() }).optional(),
+      detectionSettings: zod.object({ snooze: zod.boolean(), snoozeUntil: zod.number().int().positive().optional() }).optional(),
+      recordingSettings: zod
+        .object({ enabled: zod.boolean().optional(), paused: zod.boolean().optional(), pausedUntil: zod.number().int().positive().optional() })
+        .refine((data) => data.enabled !== undefined || data.paused !== undefined, { message: 'Nothing to update' })
+        .optional(),
     })
-    .refine((data) => data.disabled !== undefined || data.detectionSettings !== undefined || data.recordingSettings !== undefined, {
+    .refine((data) => data.disabled !== undefined || data.privacy !== undefined || data.detectionSettings !== undefined || data.recordingSettings !== undefined, {
       message: 'Nothing to update',
     }),
 });

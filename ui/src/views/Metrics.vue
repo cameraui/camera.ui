@@ -310,7 +310,7 @@ import type { DataTablePassThroughOptions } from 'openvue';
 
 ChartJS.register(DoughnutController, ArcElement);
 
-type RecordingStatus = 'recording' | 'idle' | 'no_slot' | 'off' | 'stopped';
+type RecordingStatus = 'recording' | 'idle' | 'no_slot' | 'off' | 'stopped' | 'paused';
 
 interface CameraStorageRow {
   id: string;
@@ -356,6 +356,7 @@ const RECORDING_STATUS_COLORS: Record<RecordingStatus, string> = {
   no_slot: 'orange',
   off: 'gray',
   stopped: 'red',
+  paused: 'goldenrod',
 };
 
 const storageChartOptions: ChartOptions<'doughnut'> = {

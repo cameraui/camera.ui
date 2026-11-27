@@ -16,6 +16,7 @@
         height: `calc(${height} / 2)`,
       }"
     />
+    <i-mdi:eye-off v-else-if="isPrivate" role="img" :aria-label="$t('views.camera.camera_privacy')" class="w-8 h-8 text-white/60" />
     <CuiImage
       v-else-if="!isDisabled"
       ref="cuiImageRef"
@@ -26,7 +27,7 @@
     />
 
     <span
-      v-if="showTimestamp && snapshotTimestamp && !isDisabled"
+      v-if="showTimestamp && snapshotTimestamp && !isDisabled && !isPrivate"
       class="absolute top-0 right-0 m-4 flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold bg-black/30 rounded-full text-white pointer-events-none"
     >
       <span v-if="isRefreshing" class="w-[10px] h-[10px] shrink-0 rounded-full border-[1.5px] border-white/30 border-t-white animate-spin" />
@@ -36,6 +37,8 @@
 </template>
 
 <script setup lang="ts">
+import { usePrivacyActive } from '@/common/cameraPrivacy.js';
+
 import type { HTMLAttributes } from 'vue';
 import type { CuiCameraSnapshotProps } from './types.js';
 
@@ -63,11 +66,12 @@ const now = props.showTimestamp
 const cuiImageRef = useTemplateRef('cuiImageRef');
 
 const isDisabled = computed(() => typeof camera.value === 'object' && camera.value?.disabled === true);
+const isPrivate = usePrivacyActive(() => (typeof camera.value === 'object' ? camera.value : undefined));
 
 const snapshotSrc = computed(() => src.value || cachedSnapshotSrc.value);
 
 const isLoading = computed(() => {
-  if (isDisabled.value) return false;
+  if (isDisabled.value || isPrivate.value) return false;
   return (loading.value || snapshotLoading.value) && showLoadingScreen.value && !snapshotSrc.value;
 });
 
@@ -116,7 +120,7 @@ function formatAge(ms: number): string {
 }
 
 async function downloadSnapshot() {
-  if (snapshotSrc.value) {
+  if (snapshotSrc.value && !isPrivate.value) {
     const imageName = `${cameraName.value.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString()}.png`;
     await download({ dataUrl: snapshotSrc.value, filename: imageName, mimeType: 'image/png' });
   }

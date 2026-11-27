@@ -2,7 +2,8 @@ import { isEqual, mergeWith } from '@camera.ui/common/utils';
 import { canCreateCameras, isHub, PluginRole, SensorType } from '@camera.ui/sdk';
 
 import { clearSourceCodecInfos, deleteSourceCodecInfo, getSourceCodecInfo } from '../../camera/codecCache.js';
-import { inject } from '../../container.js';
+import { settlePauses } from '../../camera/pauses.js';
+import { inject, tryInject } from '../../container.js';
 import { getMultiProviderTypes, getSingleProviderTypes, getValidSensorTypes, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from '../../sensors/types.js';
 import { createSourceName, generatedSourceUrls, go2rtcStreamUrls, normalizeCameraName, onvifExportPort } from '../../utils/camera.js';
 import { FloorPlanService } from './floorplan.service.js';
@@ -349,6 +350,7 @@ export class CamerasService {
           return mergeTarget;
         }
       });
+      settlePauses(cameraOld, target, cameraData);
     };
 
     const patched = structuredClone(existing);
@@ -378,6 +380,8 @@ export class CamerasService {
     if (cameraOld.disabled !== camera.disabled) {
       this.dbs.syncCamerasToGo2RtcConfig();
     }
+
+    tryInject('relayRegistry')?.endLive(cameraOld, camera);
 
     await this.updateStreamExports();
 

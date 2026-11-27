@@ -453,6 +453,8 @@ const AUDIO_SOUND_OPTIONS = [
 export const CAMERA_CONTROL_PROPERTY_DEFINITIONS: CameraControlPropertyDefinition[] = [
   { key: 'detectionSettings.snooze', labelKey: 'components.automation_nodes.camera_prop_snooze', inputType: 'boolean', defaultValue: 'false' },
   { key: 'disabled', labelKey: 'components.automation_nodes.camera_prop_disabled', inputType: 'boolean', defaultValue: 'false' },
+  { key: 'privacy.enabled', labelKey: 'components.automation_nodes.camera_prop_privacy', inputType: 'boolean', defaultValue: 'true' },
+  { key: 'privacy.pauseRecording', labelKey: 'components.automation_nodes.camera_prop_privacy_pause', inputType: 'boolean', defaultValue: 'false' },
   { key: 'recordingSettings.enabled', labelKey: 'components.automation_nodes.camera_prop_recording', inputType: 'boolean', defaultValue: 'true' },
   {
     key: 'recordingSettings.mode',

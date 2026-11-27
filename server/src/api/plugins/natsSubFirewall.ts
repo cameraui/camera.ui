@@ -1,5 +1,10 @@
+import { CALLER_ROLE_HEADER } from '@camera.ui/rpc';
+
 const CRLF = Buffer.from('\r\n');
 const MAX_CONTROL_LINE = 16384;
+const VIEWER_LINE = Buffer.from(`${CALLER_ROLE_HEADER}: viewer\r\n`);
+const VIEWER_HEADERS = Buffer.concat([Buffer.from('NATS/1.0\r\n'), VIEWER_LINE, CRLF]);
+const MIN_HEADERS = Buffer.byteLength('NATS/1.0\r\n\r\n');
 
 export interface NatsSubFirewallHooks {
   forward: (chunk: Buffer) => void;
@@ -12,6 +17,7 @@ export class NatsSubFirewall {
 
   private buffer: Buffer = Buffer.alloc(0);
   private payloadRemaining = 0;
+  private viewerLineAt = 0;
   private closed = false;
   private readonly allowedPrefixes: string[];
 
@@ -47,7 +53,11 @@ export class NatsSubFirewall {
   private drain(): void {
     while (!this.closed && this.buffer.length > 0) {
       if (this.payloadRemaining > 0) {
-        const take = Math.min(this.payloadRemaining, this.buffer.length);
+        if (this.payloadRemaining === this.viewerLineAt) {
+          this.hooks.forward(VIEWER_LINE);
+          this.viewerLineAt = 0;
+        }
+        const take = Math.min(this.payloadRemaining - this.viewerLineAt, this.buffer.length);
         this.hooks.forward(this.buffer.subarray(0, take));
         this.buffer = this.buffer.subarray(take);
         this.payloadRemaining -= take;
@@ -90,7 +100,7 @@ export class NatsSubFirewall {
         return;
       case 'PUB':
       case 'HPUB':
-        this.handlePub(verb, rest, lineBuffer);
+        this.handlePub(verb, rest);
         return;
       case 'UNSUB':
       case 'PING':
@@ -111,7 +121,8 @@ export class NatsSubFirewall {
 
     try {
       const parsed = JSON.parse(rest) as Record<string, unknown>;
-      const rewritten = this.hooks.rewriteConnect(parsed);
+      // the role header goes on every publish
+      const rewritten = { ...this.hooks.rewriteConnect(parsed), headers: true };
       this.hooks.forward(Buffer.from(`CONNECT ${JSON.stringify(rewritten)}\r\n`));
     } catch {
       this.fail('unparseable CONNECT frame');
@@ -129,19 +140,34 @@ export class NatsSubFirewall {
     this.hooks.forward(lineBuffer);
   }
 
-  private handlePub(verb: string, rest: string, lineBuffer: Buffer): void {
-    // the last token is the payload size for PUB and the total size for HPUB
+  private handlePub(verb: string, rest: string): void {
+    // PUB <subject> [reply] <size>, HPUB <subject> [reply] <header size> <total size>
     const tokens = rest.split(/\s+/).filter((token) => token.length > 0);
-    const byteToken = tokens[tokens.length - 1];
-    const declaredBytes = Number(byteToken);
-
-    if (!Number.isInteger(declaredBytes) || declaredBytes < 0) {
+    const sizes = tokens.splice(verb === 'HPUB' ? -2 : -1).map(Number);
+    if (tokens.length < 1 || tokens.length > 2 || sizes.some((size) => !Number.isInteger(size) || size < 0)) {
       this.fail(`malformed ${verb} frame`);
       return;
     }
 
-    this.hooks.forward(lineBuffer);
-    this.payloadRemaining = declaredBytes + CRLF.length;
+    const target = tokens.join(' ');
+    if (verb === 'PUB') {
+      const [size] = sizes;
+      this.hooks.forward(Buffer.from(`HPUB ${target} ${VIEWER_HEADERS.length} ${VIEWER_HEADERS.length + size}\r\n`));
+      this.hooks.forward(VIEWER_HEADERS);
+      this.payloadRemaining = size + CRLF.length;
+      return;
+    }
+
+    const [headerSize, totalSize] = sizes;
+    if (headerSize < MIN_HEADERS || totalSize < headerSize) {
+      this.fail('malformed HPUB frame');
+      return;
+    }
+
+    this.hooks.forward(Buffer.from(`HPUB ${target} ${headerSize + VIEWER_LINE.length} ${totalSize + VIEWER_LINE.length}\r\n`));
+    this.payloadRemaining = totalSize + CRLF.length;
+    // before the blank line that ends the client's headers
+    this.viewerLineAt = this.payloadRemaining - (headerSize - CRLF.length);
   }
 
   private isSubjectAllowed(subject: string): boolean {

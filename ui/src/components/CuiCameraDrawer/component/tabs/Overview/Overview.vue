@@ -12,12 +12,16 @@
         <i-fluent:video-off-32-filled class="w-3.5 h-3.5 text-red-400" />
         <span class="text-xs text-white/80">{{ $t('views.camera.camera_disabled') }}</span>
       </div>
+      <div v-else-if="isPrivate" class="absolute top-2 right-2 z-2 flex items-center gap-1 px-2 py-1 bg-black/60 rounded-full pointer-events-none">
+        <i-mdi:eye-off class="w-3.5 h-3.5 text-violet-400" />
+        <span class="text-xs text-white/80">{{ privacyLabel }}</span>
+      </div>
       <div
         v-else-if="cameraObject?.detectionSettings?.snooze"
         class="absolute top-2 right-2 z-2 flex items-center gap-1 px-2 py-1 bg-black/60 rounded-full pointer-events-none"
       >
         <i-solar:moon-sleep-bold class="w-3.5 h-3.5 text-amber-400" />
-        <span class="text-xs text-white/80">{{ $t('views.camera.camera_snoozed') }}</span>
+        <span class="text-xs text-white/80">{{ snoozedLabel }}</span>
       </div>
       <CuiCameraSnapshot :camera="cameraObject as unknown as DBCamera" :src="latestSnapshotSrc" />
     </div>
@@ -39,14 +43,14 @@
     <div v-if="detectionSensors.length" class="overview-section">
       <h3 class="overview-section-title">{{ $t('components.camera_options.detection') }}</h3>
       <div class="flex flex-col gap-2">
-        <CuiSensorTile v-for="sensor in detectionSensors" :key="sensor.id" :sensor size="small" :disabled="!canControlSensors" />
+        <CuiSensorTile v-for="sensor in detectionSensors" :key="sensor.id" :sensor size="small" :disabled="!canControl" />
       </div>
     </div>
 
     <div v-for="section in sensorSections" :key="section.type" class="overview-section">
       <h3 class="overview-section-title">{{ $t(`components.camera_options.sensor_type_${section.type}`) }}</h3>
       <div class="flex flex-col gap-2">
-        <CuiSensorTile v-for="sensor in section.sensors" :key="sensor.id" :sensor size="small" :disabled="!canControlSensors" />
+        <CuiSensorTile v-for="sensor in section.sensors" :key="sensor.id" :sensor size="small" :disabled="!canControl" />
       </div>
     </div>
 
@@ -60,12 +64,14 @@
 
 <script setup lang="ts">
 import { isReactiveMotionSensor, useSensors } from '@camera.ui/browser';
-import { MotionProperty, SensorDomain, SensorType, sensorMeta } from '@camera.ui/sdk';
+import { MotionProperty } from '@camera.ui/sdk';
 
 import CuiSensorTile from '@/components/CuiSensorTile/CuiSensorTile.vue';
 import { DETECTION_TYPES, HELPER_TYPES } from '@/components/CuiSensorTile/detection/groups.js';
-import { EVENT_TYPES } from '@/components/CuiSensorTile/event/groups.js';
+import { compareSensorTypes } from '@/components/CuiSensorTile/order.js';
 import { hasSensorTile } from '@/components/CuiSensorTile/tiles.js';
+import { usePrivacyActive, usePrivacyLabel } from '@/common/cameraPrivacy.js';
+import { formatDayTime } from '@/common/utils.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { StreamStatus } from '@/composables/sockets/useStreamStatus.js';
@@ -74,45 +80,26 @@ import type { Camera } from '@camera.ui/sdk';
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabProps, OverviewRow } from '../../types.js';
 
-const DOMAIN_ORDER: string[] = [
-  SensorDomain.Light,
-  SensorDomain.Switch,
-  SensorDomain.Lock,
-  SensorDomain.Siren,
-  SensorDomain.Alarm,
-  SensorDomain.Cover,
-  SensorDomain.Climate,
-  SensorDomain.WaterHeater,
-  SensorDomain.Fan,
-  SensorDomain.AirPurifier,
-  SensorDomain.Humidifier,
-  SensorDomain.Valve,
-  SensorDomain.MediaPlayer,
-  SensorDomain.Vacuum,
-  SensorDomain.LawnMower,
-  SensorDomain.Event,
-  SensorDomain.Scene,
-  SensorDomain.Text,
-  SensorDomain.Binary,
-  SensorDomain.Measurement,
-];
-
-const TYPE_ORDER: string[] = Object.values(SensorType);
-
 const props = defineProps<CameraOptionsTabProps>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { getCameraStatus, connect: connectStreamStatus } = useStreamStatus();
 const { cameraDevice, latestSnapshotSrc } = toRefs(props);
 const { sensors: allSensors } = useSensors(cameraDevice);
 
-const canControlSensors = hasPermission(undefined, 'admin');
+const canControl = canControlSensors();
 
 connectStreamStatus();
 
 const cameraObject = computed<Camera>(() => cameraDevice.value?.camera.value);
+const isPrivate = usePrivacyActive(cameraObject);
+const privacyLabel = usePrivacyLabel(cameraObject);
 
 const cameraStatus = computed<StreamStatus>(() => getCameraStatus(cameraObject.value?._id));
+const snoozedLabel = computed(() => {
+  const until = cameraObject.value?.detectionSettings?.snoozeUntil;
+  return until ? t('views.camera.camera_snoozed_until', { time: formatDayTime(until, locale.value) }) : t('views.camera.camera_snoozed');
+});
 
 const statusSeverity = computed<'success' | 'warn' | 'danger' | 'secondary' | 'contrast'>(() => {
   switch (cameraStatus.value) {
@@ -153,9 +140,7 @@ const sensorSections = computed(() => {
     if (!hasSensorTile(sensor.type) || DETECTION_TYPES.includes(sensor.type) || HELPER_TYPES.includes(sensor.type)) continue;
     sections.set(sensor.type, [...(sections.get(sensor.type) ?? []), sensor]);
   }
-  return [...sections]
-    .map(([type, sensors]) => ({ type, sensors }))
-    .sort((a, b) => sectionRank(a.type) - sectionRank(b.type) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+  return [...sections].map(([type, sensors]) => ({ type, sensors })).sort((a, b) => compareSensorTypes(a.type, b.type));
 });
 
 const isMotionActive = computed(() => motionSensors.value.some((s) => s.getProperty(MotionProperty.Detected)));
@@ -203,12 +188,6 @@ const overviewRows = computed<OverviewRow[]>(() => {
 
   return rows;
 });
-
-function sectionRank(type: string): number {
-  const domain = EVENT_TYPES.includes(type) ? SensorDomain.Event : sensorMeta(type)?.semantics?.domain;
-  const rank = DOMAIN_ORDER.indexOf(domain ?? '');
-  return rank === -1 ? DOMAIN_ORDER.length : rank;
-}
 </script>
 
 <style scoped>

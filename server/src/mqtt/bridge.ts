@@ -1,5 +1,6 @@
 import { SensorType } from '@camera.ui/sdk';
 
+import { CamerasService } from '../api/services/cameras.service.js';
 import { inject } from '../container.js';
 import { resolveSensorRoom } from '../sensors/room.js';
 import { resolveSensorSemantics } from '../sensors/semantics.js';
@@ -119,6 +120,8 @@ export class MqttBridge {
       // name and room are in the HA device block of every discovery config
       if ((property === 'name' || property === 'room') && this.manager.haDiscovery.enabled) {
         this.publishCameraState(controller);
+      } else if (property === 'privacy') {
+        this.publishPrivacy(controller);
       } else {
         this.publishCameraMeta(controller);
       }
@@ -175,6 +178,12 @@ export class MqttBridge {
   }
 
   public handleCommand(topic: string, payload: Buffer): void {
+    const cameraId = /^camera\/([^/]+)\/privacy\/set$/.exec(topic.slice(this.manager.topics.prefix.length + 1))?.[1];
+    if (cameraId && this.manager.topics.cameraPrivacyCommand(cameraId) === topic) {
+      this.setPrivacy(cameraId, payload.toString('utf8').trim().toUpperCase() === 'ON');
+      return;
+    }
+
     const commandRoot = `${this.manager.topics.prefix}/sensor/`;
     if (!topic.startsWith(commandRoot) || !topic.endsWith('/set')) return;
 
@@ -263,6 +272,7 @@ export class MqttBridge {
 
     this.publishRetained(cameraId, this.manager.topics.cameraStatus(cameraId), controller.connected ? 'online' : 'offline');
     this.publishRetained(cameraId, this.manager.topics.cameraFrameWorker(cameraId), controller.frameWorkerConnected ? 'online' : 'offline');
+    this.publishPrivacy(controller);
     this.publishCameraMeta(controller);
 
     const ha = this.manager.haDiscovery;
@@ -272,6 +282,18 @@ export class MqttBridge {
         this.publishRetained(cameraId, message.topic, message.payload);
       }
     }
+  }
+
+  private publishPrivacy(controller: CameraController): void {
+    this.publishRetained(controller.id, this.manager.topics.cameraPrivacy(controller.id), controller.privacy.enabled ? 'ON' : 'OFF');
+  }
+
+  private setPrivacy(cameraId: string, enabled: boolean): void {
+    const camera = this.api.getCamera(cameraId);
+    if (!camera) return;
+    new CamerasService().patchCameraByName(camera.name, { privacy: { enabled } }).catch((error: unknown) => {
+      inject('logger').warn(`MQTT privacy command for camera ${camera.name} rejected:`, error);
+    });
   }
 
   private publishCameraMeta(controller: CameraController): void {

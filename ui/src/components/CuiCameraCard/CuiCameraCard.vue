@@ -38,7 +38,11 @@
           @click="resumeStream"
         >
           <TransitionGroup name="fade">
-            <div v-if="isDisabled && !nvrPlaybackVisible" key="disabled" class="absolute inset-0 bg-black/80 flex items-center justify-center z-8 pointer-events-none">
+            <div
+              v-if="cameraDisabled && !nvrPlaybackVisible"
+              key="disabled"
+              class="absolute inset-0 bg-black/80 flex items-center justify-center z-8 pointer-events-none"
+            >
               <div class="flex flex-col items-center justify-center text-center gap-2">
                 <i-fluent:video-off-32-filled class="text-white/60 w-[50px] h-[50px]" />
                 <p v-if="isFullPlayer" class="text-white/50 text-sm max-w-xs">{{ $t('views.camera.camera_disabled') }}</p>
@@ -46,7 +50,23 @@
               </div>
             </div>
 
-            <div v-if="liveResting && !camera?.disabled" key="sleep" class="absolute inset-0 bg-black/80 flex items-center justify-center z-7 pointer-events-none">
+            <div v-if="isPrivate && !nvrPlaybackVisible" key="privacy" class="absolute inset-0 bg-black flex items-center justify-center z-5 pointer-events-none">
+              <div class="flex flex-col items-center justify-center text-center gap-2">
+                <i-mdi:eye-off class="text-white/60 w-[50px] h-[50px]" />
+                <p v-if="isFullPlayer" class="text-white/50 text-sm max-w-xs">{{ privacyText }}</p>
+                <Button
+                  v-if="isFullPlayer && hasPermission(undefined, 'admin')"
+                  severity="secondary"
+                  size="small"
+                  class="dark-mode pointer-events-auto mt-2"
+                  :label="$t('components.player.privacy_off')"
+                  :loading="privacySwitching"
+                  @click.stop="setPrivacy(cameraName, false)"
+                />
+              </div>
+            </div>
+
+            <div v-if="liveResting && !liveBlocked" key="sleep" class="absolute inset-0 bg-black/80 flex items-center justify-center z-7 pointer-events-none">
               <div class="flex flex-col items-center justify-center text-center">
                 <i-solar:moon-sleep-bold class="text-white w-[50px] h-[50px]" />
                 <p v-if="isFullPlayer" class="text-white/80 text-sm max-w-xs mt-3">{{ $t('components.player.stream_paused') }}</p>
@@ -54,7 +74,7 @@
             </div>
 
             <div
-              v-if="showCenterSpinner && !liveResting && !isDisabled"
+              v-if="showCenterSpinner && !liveResting && !liveBlocked"
               key="loading"
               class="absolute inset-0 flex flex-col items-center justify-center z-6 pointer-events-none"
             >
@@ -64,7 +84,7 @@
               >
             </div>
 
-            <div v-if="infoText && !inStandby && !isDisabled" key="info" class="absolute w-full flex justify-center z-6 mt-4 pointer-events-none">
+            <div v-if="infoText && !inStandby && !liveBlocked" key="info" class="absolute w-full flex justify-center z-6 mt-4 pointer-events-none">
               <span class="camera-card-info-box">{{ infoText }}</span>
             </div>
 
@@ -228,7 +248,7 @@
             ref="arBoxRef"
             :state="zoomState"
             data-native-pip-keep
-            :disabled="resizable || (expandableCard && !isExpanded) || !isHoveredZoom || timelineState || liveResting || gridSearchActive || isDisabled"
+            :disabled="resizable || (expandableCard && !isExpanded) || !isHoveredZoom || timelineState || liveResting || gridSearchActive || liveBlocked"
             :enable-control-button="false"
             :dbl-click-enabled="false"
             :min-zoom="1"
@@ -251,7 +271,7 @@
             <div ref="videoBoxRef" :data-zoomable-content="randomId" class="relative h-full min-w-0" :style="videoWrapperStyle">
               <div class="absolute inset-0 pointer-events-none" :class="showPtz || timelineOverVideo ? 'z-3' : 'z-7'">
                 <CuiShortcuts
-                  v-if="!liveResting && !isDisabled && shortcutsAvailable"
+                  v-if="!liveResting && !liveBlocked && shortcutsAvailable"
                   :camera-name
                   :visible="shortcutsVisible"
                   :editing="shortcutsEditMode"
@@ -267,7 +287,7 @@
                     !timelineOverVideo &&
                     !showPtz &&
                     !liveResting &&
-                    !isDisabled
+                    !liveBlocked
                   "
                   v-tooltip.bottom="{ value: shortcutsEditMode ? t('components.player.finish_editing') : t('components.player.edit_shortcuts') }"
                   class="dark-mode pointer-events-auto absolute top-[10px] bg-black/20 hover:bg-black/40 active:bg-black/60"
@@ -278,21 +298,21 @@
                   @click="shortcutsEditMode ? exitShortcutsEditMode() : enterShortcutsEditMode()"
                 >
                   <template #icon>
-                    <i-lucide:check v-if="shortcutsEditMode" width="100%" height="100%" />
-                    <i-lucide:pencil v-else width="100%" height="100%" />
+                    <i-lucide:check v-if="shortcutsEditMode" class="w-5 h-5" />
+                    <i-lucide:pencil v-else class="w-5 h-5" />
                   </template>
                 </Button>
               </div>
 
               <div class="absolute inset-0 z-3 pointer-events-none">
                 <CuiBBoxPlayground
-                  v-if="boundingBoxOverlay && !inStandby && !nvrPlaybackVisible && !isDisabled && !frozen"
+                  v-if="boundingBoxOverlay && !inStandby && !nvrPlaybackVisible && !liveBlocked && !frozen"
                   ref="detectionCanvasRef"
                   :classes="bboxClasses"
                 />
 
                 <CuiPolygon
-                  v-if="zoneState && !liveResting && !isDisabled"
+                  v-if="zoneState && !liveResting && !liveBlocked"
                   :camera-zones
                   :camera-lines
                   :motion-zones="cameraMotionZones"
@@ -303,7 +323,7 @@
                 <CuiPolygon v-if="privacyOverlay && cameraPrivacyZones.length && !liveResting" :camera-zones="[]" :privacy-zones="cameraPrivacyZones" />
 
                 <CuiGridSearch
-                  v-if="gridSearch?.active.value && !isDisabled"
+                  v-if="gridSearch?.active.value && !liveBlocked"
                   :model-value="gridSearch.regions.value"
                   @update:model-value="
                     (v) => {
@@ -312,7 +332,7 @@
                   "
                 />
 
-                <CuiHeatmap v-if="heatmapEnabled && camera && !isDisabled" :camera-id="camera._id" />
+                <CuiHeatmap v-if="heatmapEnabled && camera && !liveBlocked" :camera-id="camera._id" />
 
                 <CuiSimilarPicker
                   v-if="frozen && camera"
@@ -406,12 +426,12 @@
           <div
             v-if="!liveResting && (showCameraName || liveIndicatorOverlay)"
             class="absolute top-0 w-full p-4 flex items-center gap-2 pointer-events-none"
-            :class="isDisabled ? 'z-9' : 'z-6'"
+            :class="liveBlocked ? 'z-9' : 'z-6'"
           >
             <div
               v-if="liveIndicatorOverlay"
               class="w-[10px] h-[10px] rounded-full shadow-md shrink-0"
-              :class="isDisabled ? 'bg-gray-500' : nvrPlaybackVisible ? 'bg-sky-500' : streamFinishedLoading ? 'bg-red-500' : 'bg-gray-500'"
+              :class="liveBlocked ? 'bg-gray-500' : nvrPlaybackVisible ? 'bg-sky-500' : streamFinishedLoading ? 'bg-red-500' : 'bg-gray-500'"
             />
             <span v-if="showCameraName" class="text-sm font-semibold p-2 bg-black/60 rounded-xl text-white truncate max-w-[60%]">{{ cameraName }}</span>
           </div>
@@ -771,16 +791,17 @@
             <div
               v-else
               class="w-[10px] h-[10px] rounded-full shrink-0"
-              :class="isDisabled && !nvrPlaybackVisible ? 'bg-gray-500' : nvrPlaybackVisible ? 'bg-sky-500' : 'bg-primary-500'"
+              :class="liveBlocked && !nvrPlaybackVisible ? 'bg-gray-500' : nvrPlaybackVisible ? 'bg-sky-500' : 'bg-primary-500'"
             ></div>
             <span class="text-base font-semibold truncate">{{ cameraName }}</span>
-            <i-fluent:video-off-32-filled v-if="isDisabled" v-tooltip.top="{ value: $t('views.camera.camera_disabled') }" class="w-4 h-4 text-red-400 shrink-0" />
+            <i-fluent:video-off-32-filled v-if="cameraDisabled" v-tooltip.top="{ value: $t('views.camera.camera_disabled') }" class="w-4 h-4 text-red-400 shrink-0" />
+            <i-mdi:eye-off v-else-if="isPrivate" v-tooltip.top="{ value: privacyText }" class="w-4 h-4 text-violet-400 shrink-0" />
             <i-solar:moon-sleep-bold v-else-if="isSnoozed" v-tooltip.top="{ value: $t('views.camera.camera_snoozed') }" class="w-4 h-4 text-amber-400 shrink-0" />
           </div>
 
           <div class="ml-auto"></div>
 
-          <template v-if="!isDisabled">
+          <template v-if="!liveBlocked">
             <Button
               v-if="toolbarPipToggleButton"
               v-tooltip.top="{ value: $t('components.player.toggle_pip') }"
@@ -832,7 +853,7 @@
           </Button>
 
           <Button
-            v-if="toolbarAskButton && !isDisabled"
+            v-if="toolbarAskButton && !liveBlocked"
             v-tooltip.top="{ value: $t('components.player.ask_assistant') }"
             fluid
             text
@@ -860,7 +881,7 @@
           </Button>
 
           <Button
-            v-if="!isDisabled"
+            v-if="!liveBlocked"
             v-tooltip.top="{ value: $t('components.player.layers') }"
             fluid
             text
@@ -949,6 +970,7 @@ import { CuiTimeline, NvrPlaybackKey, NvrPlaybackMapKey, playheadUs } from '@cam
 
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { castFn } from '@/api/routes/cast.js';
+import { usePrivacyActive, usePrivacyLabel, usePrivacySwitch } from '@/common/cameraPrivacy.js';
 import { enterNativePip, nativePipActive, registerAutoPipCandidate, unregisterAutoPipCandidate } from '@/common/pipService.js';
 import { randomLetter } from '@/common/utils.js';
 import ShareForm from '@/components/CuiDialog/templates/ShareForm/ShareForm.vue';
@@ -1005,6 +1027,7 @@ const { width: windowWidth, height: windowHeight } = useSharedWindowSize();
 const { isPipSupported, isAndroid } = useSharedCuiUserAgent();
 const { t } = useI18n();
 const timelineLocale = useTimelineLocale();
+const { switching: privacySwitching, setPrivacy } = usePrivacySwitch();
 const { pressed: isMousePressed } = useMousePressed();
 
 const {
@@ -1069,6 +1092,7 @@ const PLAYER_FULL_BREAKPOINT = 350;
 const HORIZONTAL_TIMELINE_HEIGHT = 200;
 const STREAM_WAKE_TIMEOUT_MS = 10_000;
 const EMBEDDED_TIMELINE_VIEWS: TimelineSegment[] = ['timeline'];
+const PRIVACY_REFUSAL = 'camera is in privacy mode';
 
 const randomId = randomLetter();
 const speedOptions = [0.25, 0.5, 1, 2, 4, 8];
@@ -1104,6 +1128,7 @@ const arBoxSize = useElementSize(arBoxRef);
 const isAdapting = ref(false);
 const liveFailing = ref(false);
 const liveFailureReason = shallowRef<Error>();
+const privacyRefused = ref(false);
 const panValue = ref({ x: 0, y: 0 });
 const zoomValue = ref(1);
 const zoomState = { pan: panValue, zoom: zoomValue };
@@ -1187,7 +1212,7 @@ const {
   enabled: resizable,
   zoom: zoomValue,
   pan: panValue,
-  canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !liveResting.value && !isDisabled.value,
+  canDoubleTap: () => doubleClickZoom.value && !timelineState.value && !liveResting.value && !liveBlocked.value,
   onDoubleTap: toggleZoomAt,
 });
 
@@ -1247,6 +1272,11 @@ const cameraAspectRatio = computed(() => {
 
 const { camera: cameraDevice, isLoading: cameraDeviceLoading } = useCameraById(cameraName);
 
+// the device's camera follows the server, the camera list can lag behind it
+const liveCamera = computed(() => cameraDevice.value?.camera.value ?? camera.value);
+const livePrivacy = usePrivacyActive(liveCamera);
+const privacyText = usePrivacyLabel(liveCamera);
+
 const topmostFullscreen = useTopmostFullscreenElement();
 
 const cameraStream = useCameraStream({
@@ -1258,7 +1288,7 @@ const cameraStream = useCameraStream({
     standbyTimeout: 5000,
     activityTimeout: 5000,
   },
-  autoStart: () => nvrMode.value === 'idle' && (camera.value ? !camera.value.disabled : activityMode.value !== undefined),
+  autoStart: () => nvrMode.value === 'idle' && (camera.value ? !liveBlocked.value : activityMode.value !== undefined),
   isolated: props.isolatedStream,
 });
 
@@ -1373,27 +1403,29 @@ const gridSearchActive = computed(() => !!gridSearch?.active.value);
 
 const infoText = computed<string | undefined>(() => undefined);
 const hovered = computed(() => (isHovered.value || initialHover.value) && control.value && !shortcutsEditMode.value);
-const isDisabled = computed(() => camera.value?.disabled === true);
+const cameraDisabled = computed(() => camera.value?.disabled === true);
+const isPrivate = computed(() => !cameraDisabled.value && (livePrivacy.value || privacyRefused.value));
+const liveBlocked = computed(() => cameraDisabled.value || isPrivate.value);
 const liveResting = computed(() => inStandby.value && !nvrPlaybackVisible.value);
-const liveStreamFailed = computed(() => !nvrPlaybackVisible.value && !isDisabled.value && !liveResting.value && (streamStatus.value === 'error' || liveFailing.value));
-const canPickObject = computed(() => hasPermission(undefined, 'admin') && Boolean(camera.value?.assignments?.object) && !isDisabled.value);
+const liveStreamFailed = computed(() => !nvrPlaybackVisible.value && !liveBlocked.value && !liveResting.value && (streamStatus.value === 'error' || liveFailing.value));
+const canPickObject = computed(() => hasPermission(undefined, 'admin') && Boolean(camera.value?.assignments?.object) && !liveBlocked.value);
 const canFind = computed(() => Boolean(find?.pickable.value) && canPickObject.value && control.value);
 const canLongPress = computed(() => canFind.value && !frozen.value && !liveResting.value && !gridSearchActive.value);
 const findViewOpen = computed(() => find?.segment.value === 'find');
-const findUnavailable = computed(() => Boolean(find?.armed.value) && control.value && !isDisabled.value && !camera.value?.assignments?.object);
+const findUnavailable = computed(() => Boolean(find?.armed.value) && control.value && !liveBlocked.value && !camera.value?.assignments?.object);
 // a fullscreen tile shows Find in its own timeline while the page's timeline is gone
 const findArmed = computed(() => canLongPress.value && Boolean(find?.armed.value || (embeddedTimelineShown.value && findViewOpen.value)));
 const embeddedTimelineViews = computed(() => (find ? find.views.value.filter((view) => view !== 'find' || canFind.value) : EMBEDDED_TIMELINE_VIEWS));
 const liveRunning = computed(() => !nvrPlaybackVisible.value && !cameraStream.paused.value);
 const isSnoozed = computed(() => camera.value?.detectionSettings?.snooze === true);
 const isLoading = computed(() => {
-  if (isDisabled.value) return false;
+  if (liveBlocked.value) return false;
   if (nvrPlaybackVisible.value) return nvrLoading.value;
   if (streamUnsupported.value) return false;
   return cameraDeviceLoading.value || cameraLoading.value || !streamFinishedLoading.value || reconnecting.value;
 });
 const showCenterSpinner = computed(() => {
-  if (isDisabled.value) return false;
+  if (liveBlocked.value) return false;
   if (nvrPlaybackVisible.value) return nvrLoading.value;
   return isLoading.value || streamStalled.value;
 });
@@ -1406,7 +1438,7 @@ const streamHasIntercom = computed(() => Boolean(navigator.mediaDevices) && stre
 const micButtonDisabled = computed(() => !streamHasIntercom.value || isLoading.value || nvrPlaybackVisible.value);
 const streamIsLoading = computed(() => {
   if (nvrPlaybackVisible.value) return nvrLoading.value || timelineScrolling.value;
-  if (isDisabled.value || streamUnsupported.value || streamStatus.value === 'error') return false;
+  if (liveBlocked.value || streamUnsupported.value || streamStatus.value === 'error') return false;
   return !streamFinishedLoading.value || timelineScrolling.value;
 });
 const showCameraName = computed(() => cameraNameOverlay.value && hovered.value && !mdBreakpoint.value && isFullPlayer.value && !gridSearchActive.value);
@@ -1415,7 +1447,7 @@ const showControl = computed(
     control.value &&
     (hovered.value || controlBarPopoverOpen.value || morePopoverOpen.value) &&
     !liveResting.value &&
-    !isDisabled.value &&
+    !liveBlocked.value &&
     playerContainer.width.value >= 150 &&
     !gridSearchActive.value,
 );
@@ -1553,15 +1585,15 @@ const actionMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
   const admin = hasPermission(undefined, 'admin');
 
-  if (!isDisabled.value && toolbarSnapshotButton.value) {
+  if (!liveBlocked.value && toolbarSnapshotButton.value) {
     items.push({ key: 'snapshot', label: t('components.player.capture_snapshot'), onClick: () => captureScreenshot() });
   }
 
-  if (!isDisabled.value && toolbarShareButton.value && admin) {
+  if (!liveBlocked.value && toolbarShareButton.value && admin) {
     items.push({ key: 'share', label: t('components.player.share_camera'), onClick: () => openShareDialog() });
   }
 
-  if (!isDisabled.value && props.onOpenTrace && nvrPlaybackVisible.value && admin) {
+  if (!liveBlocked.value && props.onOpenTrace && nvrPlaybackVisible.value && admin) {
     items.push({
       key: 'trace',
       label: t('views.recordings.open_trace'),
@@ -1887,7 +1919,7 @@ function onDoubleClickZoom(event: MouseEvent) {
 }
 
 function toggleZoomAt(clientX: number, clientY: number) {
-  if (!doubleClickZoom.value || timelineState.value || liveResting.value || isDisabled.value) return;
+  if (!doubleClickZoom.value || timelineState.value || liveResting.value || liveBlocked.value) return;
 
   // reset first so a fast second double-click can interrupt the previous one
   isConstraining.value = true;
@@ -1947,7 +1979,7 @@ function trackDetectionKinds(kinds: string[]) {
 }
 
 function resumeStream() {
-  if (isDisabled.value || nvrPlaybackVisible.value) return;
+  if (liveBlocked.value || nvrPlaybackVisible.value) return;
   if (inStandby.value) cameraStream.resumeFromStandby();
   else cameraStream.resetIdleTimer();
 }
@@ -2237,7 +2269,7 @@ watch(nativePipActive, (active) => {
 watchEffect(() => {
   if (!isCapacitor || !isAndroid.value) return;
   const video = cameraStream.videoElement.value;
-  if (video && !cameraStream.paused.value && !inStandby.value && !isDisabled.value) {
+  if (video && !cameraStream.paused.value && !inStandby.value && !liveBlocked.value) {
     registerAutoPipCandidate(randomId, {
       width: video.videoWidth || 16,
       height: video.videoHeight || 9,
@@ -2436,7 +2468,7 @@ watch(resizable, (on) => {
 });
 
 watch(
-  () => [timelineState.value, liveResting.value, isDisabled.value],
+  () => [timelineState.value, liveResting.value, liveBlocked.value],
   ([timeline, standby, disabled]) => {
     if (resizableInteracting.value || isMousePressed.value) return;
     const shouldDisable = timeline || standby || disabled;
@@ -2478,12 +2510,18 @@ watch(
   () => cameraStream.error.value,
   (error) => {
     if (!error) return;
+    if (error.message.includes(PRIVACY_REFUSAL)) {
+      privacyRefused.value = true;
+      return;
+    }
     log.error(cameraName.value, error);
     liveFailureReason.value = error;
   },
 );
 
-watch(isDisabled, (disabled, wasDisabled) => {
+watch([livePrivacy, cameraName], () => (privacyRefused.value = false));
+
+watch(liveBlocked, (disabled, wasDisabled) => {
   if (wasDisabled && !disabled) {
     if (!inStandby.value) cameraStream.stream.value?.restart();
   } else if (!wasDisabled && disabled) {
@@ -2527,6 +2565,8 @@ defineExpose({
   videoBoxRef,
   showControl,
   micActive,
+  speakerOn,
+  streamHasSound,
   streamHasIntercom,
   micButtonDisabled,
   isFullscreen: cameraStream.isFullscreen,
@@ -2833,17 +2873,8 @@ html.cui-native-pip #video-container.native-pip .ar-box {
 }
 
 .zoom-minimap {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 80px;
   aspect-ratio: v-bind(cameraAspectRatio);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.5);
   z-index: 6;
-  pointer-events: none;
-  overflow: hidden;
   transition:
     opacity 0.1s ease,
     bottom 0.2s ease,
@@ -2859,13 +2890,6 @@ html.cui-native-pip #video-container.native-pip .ar-box {
 .zoom-minimap-centered {
   right: 50%;
   transform: translateX(50%);
-}
-
-.zoom-minimap-viewport {
-  position: absolute;
-  border: 1.5px solid rgba(255, 255, 255, 0.7);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.12);
 }
 
 .nvr-spinner :deep(circle) {

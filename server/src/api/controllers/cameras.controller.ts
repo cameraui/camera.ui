@@ -409,7 +409,7 @@ export class CamerasController {
       const camera = this.service.findByName(req.params.cameraname) ?? this.service.findById(req.params.cameraname);
       const cameraController = this.api.getCamera(camera?._id ?? '');
 
-      if (!camera || !cameraController) {
+      if (!camera || !cameraController || (camera.disabled && !isAdminRequest(req))) {
         return reply.code(404).send({
           statusCode: 404,
           message: 'Camera not exists',

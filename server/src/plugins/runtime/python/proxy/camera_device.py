@@ -21,6 +21,7 @@ from _camera_ui_tools.camera_ui_sdk import (
     CameraInput,
     CameraNotificationSettings,
     CameraPluginInfo,
+    CameraPrivacy,
     CameraPropertyObservableObject,
     CameraPublicProperties,
     CameraRecordingSettings,
@@ -233,6 +234,10 @@ class CameraDeviceProxy(Subscribed, CameraDeviceInterface):
     @property
     def disabled(self) -> bool:
         return self._camera_subject.value["disabled"]
+
+    @property
+    def privacy(self) -> CameraPrivacy:
+        return deepcopy(self._camera_subject.value["privacy"])
 
     @property
     def name(self) -> str:

@@ -1,5 +1,5 @@
 import { isEqual, PromiseTimeout } from '@camera.ui/common/utils';
-import { RPCMethod } from '@camera.ui/rpc';
+import { callerIsViewer, RPCMethod } from '@camera.ui/rpc';
 import { API_EVENT, filter, pairwise, SensorType, Subject } from '@camera.ui/sdk';
 
 import { inject } from '../container.js';
@@ -10,6 +10,8 @@ import { buildSnapshotUrl, buildTargetUrl, createSourceName, isTalkUrl } from '.
 import { getSourceCodecInfo, setSourceCodecInfo } from './codecCache.js';
 import { FrameWorker } from './decoder/worker.js';
 import { CameraDevice } from './index.js';
+import { detectionPaused, PauseTimers } from './pauses.js';
+import { privacyPlaceholder } from './privacyPlaceholder.js';
 import { SnapshotPrivacy } from './privacy/snapshot.js';
 import { SensorController } from './sensors/controller.js';
 import { SnapshotStore } from './snapshot-store.js';
@@ -76,6 +78,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   private detectionEventUnsub?: () => void;
   private autoRefreshInterval?: NodeJS.Timeout;
   private snapshotPrivacy: SnapshotPrivacy;
+  private pauses: PauseTimers;
   private readonly snapshots = new SnapshotStore((sourceId, entry) => this.announceSnapshot(sourceId, entry));
   private readonly preloadsInFlight = new Set<string>();
   private readonly snapshotsInFlight = new Map<string, Promise<ArrayBuffer | undefined>>();
@@ -85,6 +88,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
     this.snapshotPrivacy = new SnapshotPrivacy(logger);
     this.snapshotPrivacy.update(camera.zones);
+    this.pauses = new PauseTimers(() => this.name, logger);
 
     this.api = inject('api');
     this.go2rtcApi = inject('go2rtcApi');
@@ -168,6 +172,8 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     });
     await this.sensorController.init();
 
+    this.pauses.sync(this.camera);
+
     const detectionEventSubject = NamespaceManager.detectionEventNamespaces(this.id).detectionEventSubject;
     this.detectionEventUnsub = await this.proxy.subscribe<DetectionEventMessage>(detectionEventSubject, (msg) => {
       this.#detectionEventSubject.next({ type: msg.type, event: msg.data });
@@ -216,27 +222,14 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
 
   @RPCMethod
   public async snapshot(sourceId: string, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined> {
-    if (!forceNew) {
-      const stored = this.snapshots.serve(sourceId, this.snapshotSettings, sourceId === this.snapshotSource?._id);
-      if (stored) return stored;
-    }
+    if (this.privacy.enabled) return privacyPlaceholder();
+    if (this.disabled && callerIsViewer()) return undefined;
+    return this.takeSnapshot(sourceId, forceNew, preferNative);
+  }
 
-    const source = this.sources.find((source) => source._id === sourceId);
-    if (!source) {
-      throw new Error('Source not found');
-    }
-
-    const key = `${sourceId}|${preferNative ? 1 : 0}`;
-    const running = forceNew ? undefined : this.snapshotsInFlight.get(key);
-    if (running) return running;
-
-    const fetching = this.fetchSnapshot(source, forceNew, preferNative);
-    this.snapshotsInFlight.set(key, fetching);
-    try {
-      return await fetching;
-    } finally {
-      if (this.snapshotsInFlight.get(key) === fetching) this.snapshotsInFlight.delete(key);
-    }
+  @RPCMethod
+  public async detectionSnapshot(sourceId: string): Promise<ArrayBuffer | undefined> {
+    return this.takeSnapshot(sourceId, true, true);
   }
 
   @RPCMethod
@@ -356,6 +349,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   public async cleanup(): Promise<void> {
     this.go2rtcState.off('stream', this.handleStreamState);
     this.go2rtcState.off('snapshot', this.handleStreamSnapshot);
+    this.pauses.dispose();
     this.stopAutoRefresh();
     this.snapshots.dispose();
     this.detectionEventUnsub?.();
@@ -519,10 +513,35 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     }
   }
 
+  private async takeSnapshot(sourceId: string, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined> {
+    if (!forceNew) {
+      const stored = this.snapshots.serve(sourceId, this.snapshotSettings, sourceId === this.snapshotSource?._id);
+      if (stored) return stored;
+    }
+
+    const source = this.sources.find((source) => source._id === sourceId);
+    if (!source) {
+      throw new Error('Source not found');
+    }
+
+    const key = `${sourceId}|${preferNative ? 1 : 0}`;
+    const running = forceNew ? undefined : this.snapshotsInFlight.get(key);
+    if (running) return running;
+
+    const fetching = this.fetchSnapshot(source, forceNew, preferNative);
+    this.snapshotsInFlight.set(key, fetching);
+    try {
+      return await fetching;
+    } finally {
+      if (this.snapshotsInFlight.get(key) === fetching) this.snapshotsInFlight.delete(key);
+    }
+  }
+
   private async fetchSnapshot(source: CameraDeviceSource, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined> {
     const storeSnapshot = async (s: CameraDeviceSource, data: ArrayBuffer): Promise<ArrayBuffer | undefined> => {
       const masked = await this.snapshotPrivacy.apply(data);
-      if (masked && masked.byteLength > 0) {
+      // a picture taken in privacy mode or of a disabled camera reaches no client
+      if (masked && masked.byteLength > 0 && !this.privacy.enabled && !this.disabled) {
         this.snapshots.set(s._id, masked, Date.now(), s._id === this.snapshotSource?._id);
       }
 
@@ -701,6 +720,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
           'zones',
           'frameWorkerSettings',
           'interfaceSettings',
+          'privacy',
         ] as const;
 
         for (const prop of watchedProps) {
@@ -732,9 +752,15 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
           this.applyChange('preloads', () => this.reconcilePreloads());
         }
 
-        if (oldCamera.detectionSettings?.snooze !== newCamera.detectionSettings?.snooze) {
-          const snoozed = newCamera.detectionSettings?.snooze;
-          this.applyChange(snoozed ? 'snooze' : 'unsnooze', () => (snoozed ? this.onSnoozed() : this.onUnsnoozed()));
+        this.applyChange('pause end', () => this.pauses.sync(newCamera));
+
+        if (oldCamera.privacy.enabled !== newCamera.privacy.enabled) {
+          emitInternalEvent('camera:snapshot:updated', { cameraId: this.id, cameraName: this.name });
+        }
+
+        const paused = detectionPaused(newCamera);
+        if (detectionPaused(oldCamera) !== paused) {
+          this.applyChange(paused ? 'snooze' : 'unsnooze', () => (paused ? this.onSnoozed() : this.onUnsnoozed()));
         }
 
         if (!newCamera.disabled) {

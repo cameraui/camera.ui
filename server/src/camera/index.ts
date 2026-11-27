@@ -14,6 +14,7 @@ import type {
   CameraInformation,
   CameraNotificationSettings,
   CameraPluginInfo,
+  CameraPrivacy,
   CameraRecordingSettings,
   CameraType,
   CameraUiSettings,
@@ -79,7 +80,11 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
     return this.cameraSubject.getValue().disabled;
   }
 
-  get snooze(): boolean {
+  public get privacy(): CameraPrivacy {
+    return structuredClone(this.cameraSubject.getValue().privacy);
+  }
+
+  public get snooze(): boolean {
     return this.cameraSubject.getValue().detectionSettings?.snooze ?? false;
   }
 

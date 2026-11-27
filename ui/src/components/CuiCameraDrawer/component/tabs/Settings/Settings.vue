@@ -56,6 +56,66 @@
                 />
               </CuiToggleRow>
             </Field>
+
+            <Field :model-value="cameraForm.privacy?.until" name="privacy.until">
+              <Field v-slot="{ field, errors }" :model-value="cameraForm.privacy?.enabled" :value="true" :unchecked-value="false" type="checkbox" name="privacy.enabled">
+                <CuiToggleRow
+                  :label="$t('components.form.label.privacy')"
+                  :hint="$t('components.form.hint.privacy')"
+                  label-for="privacy.enabled"
+                  error-name="privacy.enabled"
+                >
+                  <ToggleSwitch
+                    :model-value="cameraForm.privacy?.enabled"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading="isLoading"
+                    @value-change="togglePrivacy"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </Field>
+
+            <Field
+              v-slot="{ field, errors }"
+              :model-value="cameraForm.privacy?.pauseRecording"
+              :value="true"
+              :unchecked-value="false"
+              type="checkbox"
+              name="privacy.pauseRecording"
+            >
+              <CuiToggleRow
+                :label="$t('components.form.label.privacy_pause_recording')"
+                :hint="$t('components.form.hint.privacy_pause_recording')"
+                label-for="privacy.pauseRecording"
+                error-name="privacy.pauseRecording"
+              >
+                <ToggleSwitch
+                  :model-value="cameraForm.privacy?.pauseRecording"
+                  v-bind="field"
+                  :invalid="errors.length > 0"
+                  :loading="isLoading"
+                  @value-change="(e) => updatePrivacy({ pauseRecording: e })"
+                />
+              </CuiToggleRow>
+            </Field>
+          </div>
+
+          <div v-if="cameraForm.privacy?.enabled" class="flex flex-col field-gap">
+            <label for="privacy.end" class="cui-label">{{ $t('components.form.label.privacy_end') }}</label>
+            <InputGroup>
+              <Select
+                input-id="privacy.end"
+                :model-value="privacyMinutes"
+                :options="privacyEnds"
+                option-label="label"
+                option-value="value"
+                :placeholder="privacyEndPlaceholder"
+                :loading="isLoading"
+                @value-change="setPrivacyEnd"
+              />
+            </InputGroup>
+            <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.privacy_end') }}</Message>
           </div>
 
           <Button severity="danger" outlined fluid :loading="isLoading" class="cui-button-medium" :label="$t('components.form.button.remove')" @click="deleteCamera()" />
@@ -410,32 +470,29 @@
             {{ $t('components.camera_options.detection_hint') }}
           </Message>
           <div class="w-full flex flex-col gap-2">
-            <Field
-              v-slot="{ field, errors }"
-              :model-value="cameraForm.detectionSettings?.snooze"
-              :value="true"
-              :unchecked-value="false"
-              type="checkbox"
-              name="detectionSettings.snooze"
-            >
-              <CuiToggleRow
-                :label="$t('components.form.label.snooze')"
-                :hint="$t('components.form.hint.snooze_camera')"
-                label-for="detectionSettings.snooze"
-                error-name="detectionSettings.snooze"
+            <Field :model-value="cameraForm.detectionSettings?.snoozeUntil" name="detectionSettings.snoozeUntil">
+              <Field
+                v-slot="{ field, errors }"
+                :model-value="cameraForm.detectionSettings?.snooze"
+                :value="true"
+                :unchecked-value="false"
+                type="checkbox"
+                name="detectionSettings.snooze"
               >
-                <ToggleSwitch
-                  :model-value="cameraForm.detectionSettings?.snooze"
-                  v-bind="field"
-                  :invalid="errors.length > 0"
-                  :loading="isLoading"
-                  @value-change="
-                    (e) => {
-                      if (cameraForm.detectionSettings) cameraForm.detectionSettings.snooze = e;
-                    }
-                  "
-                />
-              </CuiToggleRow>
+                <CuiToggleRow :label="$t('components.form.label.snooze')" :hint="snoozeHint" label-for="detectionSettings.snooze" error-name="detectionSettings.snooze">
+                  <ToggleSwitch
+                    :model-value="cameraForm.detectionSettings?.snooze"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading="isLoading"
+                    @value-change="
+                      (e) => {
+                        if (cameraForm.detectionSettings) cameraForm.detectionSettings.snooze = e;
+                      }
+                    "
+                  />
+                </CuiToggleRow>
+              </Field>
             </Field>
           </div>
 
@@ -1033,29 +1090,57 @@
             {{ $t('components.camera_options.recording_requires') }}
           </Message>
 
-          <Field
-            v-slot="{ field, errors }"
-            :model-value="cameraForm.recordingSettings?.enabled ?? true"
-            :value="true"
-            :unchecked-value="false"
-            type="checkbox"
-            name="recordingSettings.enabled"
-          >
-            <CuiToggleRow
-              :label="$t('components.form.label.recording_enabled')"
-              :hint="$t('components.form.hint.recording_enabled')"
-              label-for="recordingSettings.enabled"
-              error-name="recordingSettings.enabled"
+          <div class="w-full flex flex-col gap-2">
+            <Field
+              v-slot="{ field, errors }"
+              :model-value="cameraForm.recordingSettings?.enabled ?? true"
+              :value="true"
+              :unchecked-value="false"
+              type="checkbox"
+              name="recordingSettings.enabled"
             >
-              <ToggleSwitch
-                :model-value="cameraForm.recordingSettings?.enabled ?? true"
-                v-bind="field"
-                :invalid="errors.length > 0"
-                :loading="isLoading"
-                @value-change="(e) => updateRecordingSettings({ enabled: e })"
-              />
-            </CuiToggleRow>
-          </Field>
+              <CuiToggleRow
+                :label="$t('components.form.label.recording_enabled')"
+                :hint="$t('components.form.hint.recording_enabled')"
+                label-for="recordingSettings.enabled"
+                error-name="recordingSettings.enabled"
+              >
+                <ToggleSwitch
+                  :model-value="cameraForm.recordingSettings?.enabled ?? true"
+                  v-bind="field"
+                  :invalid="errors.length > 0"
+                  :loading="isLoading"
+                  @value-change="(e) => updateRecordingSettings({ enabled: e })"
+                />
+              </CuiToggleRow>
+            </Field>
+
+            <Field v-if="cameraForm.recordingSettings?.enabled ?? true" :model-value="cameraForm.recordingSettings?.pausedUntil" name="recordingSettings.pausedUntil">
+              <Field
+                v-slot="{ field, errors }"
+                :model-value="cameraForm.recordingSettings?.paused ?? false"
+                :value="true"
+                :unchecked-value="false"
+                type="checkbox"
+                name="recordingSettings.paused"
+              >
+                <CuiToggleRow
+                  :label="$t('components.form.label.recording_paused')"
+                  :hint="pauseHint"
+                  label-for="recordingSettings.paused"
+                  error-name="recordingSettings.paused"
+                >
+                  <ToggleSwitch
+                    :model-value="cameraForm.recordingSettings?.paused ?? false"
+                    v-bind="field"
+                    :invalid="errors.length > 0"
+                    :loading="isLoading"
+                    @value-change="(e) => updateRecordingSettings({ paused: e, pausedUntil: undefined })"
+                  />
+                </CuiToggleRow>
+              </Field>
+            </Field>
+          </div>
 
           <template v-if="cameraForm.recordingSettings?.enabled ?? true">
             <Field v-slot="{ errors }" :model-value="cameraForm.recordingSettings?.mode" name="recordingSettings.mode" as="div" class="flex flex-col field-gap">
@@ -1150,31 +1235,31 @@
             {{ $t('components.camera_options.recording_requires') }}
           </Message>
 
-          <Field
-            v-slot="{ field, errors }"
-            :model-value="cameraForm.notificationSettings?.enabled ?? true"
-            :value="true"
-            :unchecked-value="false"
-            type="checkbox"
-            name="notificationSettings.enabled"
-          >
-            <CuiToggleRow
-              :label="$t('components.form.label.notify_enabled')"
-              :hint="$t('components.form.hint.notify_enabled')"
-              label-for="notificationSettings.enabled"
-              error-name="notificationSettings.enabled"
+          <div class="w-full flex flex-col gap-2">
+            <Field
+              v-slot="{ field, errors }"
+              :model-value="cameraForm.notificationSettings?.enabled ?? true"
+              :value="true"
+              :unchecked-value="false"
+              type="checkbox"
+              name="notificationSettings.enabled"
             >
-              <ToggleSwitch
-                :model-value="cameraForm.notificationSettings?.enabled ?? true"
-                v-bind="field"
-                :invalid="errors.length > 0"
-                :loading="isLoading"
-                @value-change="(e) => updateNotificationSettings({ enabled: e })"
-              />
-            </CuiToggleRow>
-          </Field>
+              <CuiToggleRow
+                :label="$t('components.form.label.notify_enabled')"
+                :hint="$t('components.form.hint.notify_enabled')"
+                label-for="notificationSettings.enabled"
+                error-name="notificationSettings.enabled"
+              >
+                <ToggleSwitch
+                  :model-value="cameraForm.notificationSettings?.enabled ?? true"
+                  v-bind="field"
+                  :invalid="errors.length > 0"
+                  :loading="isLoading"
+                  @value-change="(e) => updateNotificationSettings({ enabled: e })"
+                />
+              </CuiToggleRow>
+            </Field>
 
-          <template v-if="cameraForm.notificationSettings?.enabled ?? true">
             <Field
               v-slot="{ field, errors }"
               :model-value="cameraForm.notificationSettings?.video ?? false"
@@ -1198,7 +1283,9 @@
                 />
               </CuiToggleRow>
             </Field>
+          </div>
 
+          <template v-if="cameraForm.notificationSettings?.enabled ?? true">
             <Field v-slot="{ errors }" :model-value="cameraForm.notificationSettings?.audio" name="notificationSettings.audio" as="div" class="flex flex-col field-gap">
               <label for="notificationSettings.audio" class="cui-label">{{ $t('components.form.label.notify_audio') }}</label>
               <MultiSelect
@@ -1888,8 +1975,10 @@ import { ErrorMessage, Field } from 'vee-validate';
 import { CamerasQuery } from '@/api/routes/cameras.js';
 import { ConfigQuery } from '@/api/routes/config.js';
 import { audioLabelKey, NOTIFY_SENSOR_TYPES, sensorLabelKey } from '@/common/eventLabels.js';
+import { formatDayTime } from '@/common/utils.js';
 import AspectRatioDialog from '@/components/CuiDialog/templates/AspectRatio/AspectRatio.vue';
 import ZoneEditorDialog from '@/components/CuiDialog/templates/ZoneEditor/ZoneEditor.vue';
+import { actionDurations } from '@/components/CuiHomeDashboard/actions.js';
 
 import type { AspectRatioProps } from '@/components/CuiDialog/templates/AspectRatio/types.js';
 import type { ZoneEditorProps } from '@/components/CuiDialog/templates/ZoneEditor/types.js';
@@ -1913,12 +2002,6 @@ import { createSourceName, defaultCameraSettings, SENSOR_TYPE_CONFIG, streamSour
 import type { DBCamera } from '@shared/types';
 import type { CameraOptionsTabEmits, CameraOptionsTabProps, StreamAddress, ZoneEntry } from '../../types.js';
 
-const TRIGGERABLE_TYPES = new Set(
-  Object.entries(SENSOR_TYPE_CONFIG)
-    .filter(([, meta]) => meta.cascadeTrigger && !meta.isDetectionType)
-    .map(([type]) => type as SensorType),
-);
-
 const camerasQuery = new CamerasQuery();
 const configQuery = new ConfigQuery();
 
@@ -1939,7 +2022,7 @@ function resetDetectionSection<K extends keyof typeof defaultDetectionSettings>(
 const route = useRoute();
 const router = useRouter();
 const dialog = useCuiDialog();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { camera, cameraDevice, loading: parentLoading } = toRefs(props);
 const { sensors: allSensors } = useSensors(cameraDevice);
 const placementSocket = usePlacementSocket();
@@ -1950,6 +2033,12 @@ const { mutateAsync: removeCamera, isPending: removeLoading } = camerasQuery.rem
 const { mutateAsync: patchZoneConfig, isPending: zoneConfigPatching } = camerasQuery.patchZoneConfigQuery();
 const { data: settings } = configQuery.getSettingsQuery();
 const serverHost = useServerHost();
+
+const TRIGGERABLE_TYPES = new Set(
+  Object.entries(SENSOR_TYPE_CONFIG)
+    .filter(([, meta]) => meta.cascadeTrigger && !meta.isDetectionType)
+    .map(([type]) => type as SensorType),
+);
 
 const SNAPSHOT_MODE_KEYS = {
   interval: { label: 'components.form.label.snapshot_mode_interval', hint: 'components.form.hint.snapshot_mode_interval' },
@@ -1967,7 +2056,24 @@ const motionResolutions = ref<MotionResolution[]>(['low', 'medium', 'high']);
 const recordingModes = ref<RecordingMode[]>(['continuous', 'event', 'adhoc']);
 const recordingSources = ref<RecordingSource[]>(['high', 'mid', 'low']);
 const notifySpeeds = ref<NotificationSpeed[]>(['immediate', 'balanced', 'best']);
+const privacyMinutes = ref<number>();
 
+const snoozeHint = computed(() =>
+  pausedUntilHint(cameraForm.value.detectionSettings?.snooze ? cameraForm.value.detectionSettings.snoozeUntil : undefined, t('components.form.hint.snooze_camera')),
+);
+const pauseHint = computed(() =>
+  pausedUntilHint(cameraForm.value.recordingSettings?.paused ? cameraForm.value.recordingSettings.pausedUntil : undefined, t('components.form.hint.recording_paused')),
+);
+const privacyEnds = computed(() =>
+  actionDurations('privacy').map((minutes) => ({
+    label: minutes ? t('components.form.option.privacy_end_hours', { count: minutes / 60 }) : t('components.form.option.privacy_no_end'),
+    value: minutes,
+  })),
+);
+const privacyEndPlaceholder = computed(() => {
+  const until = cameraForm.value.privacy?.until;
+  return until ? t('components.form.option.privacy_end_at', { time: formatDayTime(until, locale.value) }) : t('components.form.option.privacy_no_end');
+});
 const faceMatchSensitivities = computed(() =>
   (['strict', 'balanced', 'relaxed'] as const).map((value) => ({ label: t(`components.form.option.face_match_${value}`), value })),
 );
@@ -2162,6 +2268,24 @@ function updateNotificationSettings(patch: Partial<CameraNotificationSettings>) 
   cameraForm.value.notificationSettings = { ...current, ...patch };
 }
 
+function pausedUntilHint(until: number | undefined, hint: string): string {
+  return until ? t('components.form.hint.paused_until', { time: formatDayTime(until, locale.value) }) : hint;
+}
+
+function updatePrivacy(patch: Partial<DBCamera['privacy']>) {
+  cameraForm.value.privacy = { ...(cameraForm.value.privacy ?? { enabled: false, pauseRecording: false }), ...patch };
+}
+
+function togglePrivacy(enabled: boolean) {
+  privacyMinutes.value = undefined;
+  updatePrivacy({ enabled, until: undefined });
+}
+
+function setPrivacyEnd(minutes: number) {
+  privacyMinutes.value = minutes;
+  updatePrivacy({ until: minutes ? Date.now() + minutes * 60_000 : undefined });
+}
+
 function updateRecordingSettings(patch: Partial<CameraRecordingSettings>) {
   const current: CameraRecordingSettings = cameraForm.value.recordingSettings ?? { enabled: true, mode: 'continuous', preBuffer: 10, sources: ['high', 'mid', 'low'] };
   cameraForm.value.recordingSettings = { ...current, ...patch };
@@ -2257,6 +2381,8 @@ function confirmDeleteZoneEntry(entry: ZoneEntry) {
     },
   });
 }
+
+watch(camera, () => (privacyMinutes.value = undefined));
 
 onBeforeMount(() => {
   placementSocket.connect();
