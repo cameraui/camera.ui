@@ -11,9 +11,9 @@
 <script setup lang="ts">
 import type { CuiBinarySceneProps } from './types.js';
 
-const DROPS = [76, 84];
-
 defineProps<CuiBinarySceneProps>();
+
+const DROPS = [76, 84];
 
 function dropPath(x: number): string {
   return `M${x} 44 C${x} 44 ${x - 5} 52 ${x - 5} 55 a5 5 0 0 0 10 0 C${x + 5} 52 ${x} 44 ${x} 44 Z`;

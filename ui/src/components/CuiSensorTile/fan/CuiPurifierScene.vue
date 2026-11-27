@@ -15,13 +15,13 @@ import { useEasedPhase } from '../useEasedPhase.js';
 
 import type { CuiPurifierSceneProps } from './types.js';
 
-const GRILLE = [94, 102, 110, 118, 126, 134];
-const DOT_COUNT = 7;
-const RISE = 36;
-
 const props = defineProps<CuiPurifierSceneProps>();
 
 const phase = useEasedPhase(() => (props.working ? 0.2 + props.ratio * 0.5 : 0));
+
+const GRILLE = [94, 102, 110, 118, 126, 134];
+const DOT_COUNT = 7;
+const RISE = 36;
 
 const dots = computed(() =>
   Array.from({ length: DOT_COUNT }, (_, index) => {

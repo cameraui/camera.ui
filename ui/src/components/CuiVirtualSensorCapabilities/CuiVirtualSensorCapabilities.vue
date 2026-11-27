@@ -16,20 +16,17 @@ import CuiVirtualSourcesField from '@/components/CuiVirtualSourcesField/CuiVirtu
 import type { PatchSensorInput } from '@shared/types';
 import type { CuiVirtualSensorCapabilitiesProps } from './types.js';
 
+const sensorsQuery = new SensorsQuery();
+
 const props = defineProps<CuiVirtualSensorCapabilitiesProps>();
+
+const toast = useCuiToast();
+
+const { mutateAsync: patchSensor } = sensorsQuery.patchSensorQuery();
 
 const capabilities = ref([...props.capabilities]);
 const sources = ref((props.propertySpecs[MediaPlayerProperty.Source]?.choices ?? []).map((choice) => choice.label));
 const kind = ref(pickedKind(props.type, props.propertySpecs));
-
-const toast = useCuiToast();
-const { mutateAsync: patchSensor } = new SensorsQuery().patchSensorQuery();
-
-watchDebounced(capabilities, (next) => applyNow({ capabilities: next }), { debounce: 300 });
-watchDebounced(sources, (next) => applyNow({ sources: next }), { debounce: 300 });
-watch(kind, (next) => {
-  if (next) applyNow({ kind: next });
-});
 
 async function applyNow(data: PatchSensorInput) {
   try {
@@ -38,4 +35,12 @@ async function applyNow(data: PatchSensorInput) {
     toast.add({ severity: 'error', detail: error, life: 3000 });
   }
 }
+
+watchDebounced(capabilities, (next) => applyNow({ capabilities: next }), { debounce: 300 });
+
+watchDebounced(sources, (next) => applyNow({ sources: next }), { debounce: 300 });
+
+watch(kind, (next) => {
+  if (next) applyNow({ kind: next });
+});
 </script>

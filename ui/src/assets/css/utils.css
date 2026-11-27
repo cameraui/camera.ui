@@ -569,7 +569,6 @@
 
 .cui-tile {
   --tile-color: var(--text-secondary-color);
-  /* a pale light on a white page needs a darker ink to stay visible */
   --tile-ink: color-mix(in oklab, var(--tile-color) 72%, black);
 }
 

@@ -10,9 +10,9 @@
 <script setup lang="ts">
 import type { CuiRatioSceneProps } from './types.js';
 
-const TICKS = [28, 46, 64, 82, 100];
-
 defineProps<CuiRatioSceneProps>();
+
+const TICKS = [28, 46, 64, 82, 100];
 </script>
 
 <style scoped>

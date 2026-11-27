@@ -230,7 +230,7 @@ export function streamSources(camera: DBCamera): CameraInputSettings[] {
   return camera.sources.filter((source) => source.role !== 'snapshot');
 }
 
-export function rtmpSources(camera: DBCamera): CameraInputSettings[] {
+function rtmpSources(camera: DBCamera): CameraInputSettings[] {
   return camera.exportSettings.rtmp ? streamSources(camera) : [];
 }
 

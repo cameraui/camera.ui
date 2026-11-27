@@ -17,17 +17,17 @@ import type { InstallArtifact } from './install-state.js';
 import type { Context } from './types.js';
 
 export class Plugin {
-  readonly id: string;
+  public readonly id: string;
   public main: string;
-  readonly displayName: string;
+  public readonly displayName: string;
   public isPython: boolean;
   public isGo: boolean;
-  readonly isSymLink: boolean;
-  readonly installPath: string;
+  public readonly isSymLink: boolean;
+  public readonly installPath: string;
   public mainPath: string;
-  readonly storagePath: string;
-  readonly logPath: string;
-  readonly worker: PluginWorker;
+  public readonly storagePath: string;
+  public readonly logPath: string;
+  public readonly worker: PluginWorker;
   public runningVersion?: string;
   public artifact?: InstallArtifact;
 

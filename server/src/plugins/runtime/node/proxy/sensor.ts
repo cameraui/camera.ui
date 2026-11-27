@@ -77,51 +77,51 @@ export class SensorProxy implements SensorLike {
     }
   }
 
-  get id(): string {
+  public get id(): string {
     return this._id;
   }
 
-  get type(): SensorType {
+  public get type(): SensorType {
     return this._type;
   }
 
-  get name(): string {
+  public get name(): string {
     return this._name;
   }
 
-  get displayName(): string {
+  public get displayName(): string {
     return this._displayName;
   }
 
-  get shortName(): string {
+  public get shortName(): string {
     return this._shortName;
   }
 
-  get deviceInfo(): SensorDevice | undefined {
+  public get deviceInfo(): SensorDevice | undefined {
     return this._device;
   }
 
-  get primary(): boolean {
+  public get primary(): boolean {
     return this._primary;
   }
 
-  get pluginId(): string | undefined {
+  public get pluginId(): string | undefined {
     return this._ownerId;
   }
 
-  get nativeId(): string | undefined {
+  public get nativeId(): string | undefined {
     return this._nativeId;
   }
 
-  get assignedCameraIds(): readonly string[] {
+  public get assignedCameraIds(): readonly string[] {
     return this._assignedCameraIds;
   }
 
-  get assignmentLocked(): boolean {
+  public get assignmentLocked(): boolean {
     return this._assignmentLocked;
   }
 
-  get connected(): boolean {
+  public get connected(): boolean {
     return this._connected;
   }
 
@@ -129,27 +129,27 @@ export class SensorProxy implements SensorLike {
     return this._exposed;
   }
 
-  get capabilities(): string[] {
+  public get capabilities(): string[] {
     return this._capabilities;
   }
 
-  get propertySpecs(): Readonly<Record<string, SensorPropertySpec>> {
+  public get propertySpecs(): Readonly<Record<string, SensorPropertySpec>> {
     return this._propertySpecs;
   }
 
-  setDisplayName(value: string): void {
+  public setDisplayName(value: string): void {
     this._displayName = value;
   }
 
-  hasCapability(capability: string): boolean {
+  public hasCapability(capability: string): boolean {
     return this._capabilities.includes(capability);
   }
 
-  getValue(property: string): unknown {
+  public getValue(property: string): unknown {
     return this._properties.get(property);
   }
 
-  getValues(): Readonly<Record<string, unknown>> {
+  public getValues(): Readonly<Record<string, unknown>> {
     return Object.fromEntries(this._properties);
   }
 
@@ -157,17 +157,17 @@ export class SensorProxy implements SensorLike {
     await this._rpcProxy.updateValue(property, checkPropertyWrite(this._propertySpecs, property, value));
   }
 
-  _updateCachedValue(property: string, value: unknown, timestamp?: number): void {
+  public _updateCachedValue(property: string, value: unknown, timestamp?: number): void {
     if (isEqual(this._properties.get(property), value, true)) return;
     this._properties.set(property, value);
     this.#propertyChangedSubject.next({ property, value, timestamp: timestamp ?? Date.now() });
   }
 
-  _eventMarks(): Map<string, number> {
+  public _eventMarks(): Map<string, number> {
     return new Map(this._eventCounts);
   }
 
-  _applyRefreshedState(state: SensorRefreshedState, marks?: Map<string, number>): void {
+  public _applyRefreshedState(state: SensorRefreshedState, marks?: Map<string, number>): void {
     const current = (key: string): boolean => !marks || this._eventCounts.get(key) === marks.get(key);
 
     if (state.displayName && current('displayName')) {
@@ -191,17 +191,17 @@ export class SensorProxy implements SensorLike {
     }
   }
 
-  _setDisplayName(displayName: string): void {
+  public _setDisplayName(displayName: string): void {
     this.setDisplayName(displayName);
   }
 
-  _applyDeviceEvent(state: SensorDeviceState): void {
+  public _applyDeviceEvent(state: SensorDeviceState): void {
     this._countEvent('device');
     this._countEvent('displayName');
     this._applyDeviceState(state);
   }
 
-  _applyDeviceState(state: SensorDeviceState): void {
+  public _applyDeviceState(state: SensorDeviceState): void {
     const changed =
       !isEqual(this._device, state.device) || this._shortName !== state.shortName || this._primary !== state.primary || this._displayName !== state.displayName;
     this._device = state.device;
@@ -211,23 +211,23 @@ export class SensorProxy implements SensorLike {
     if (changed) this.#deviceInfoChangedSubject.next(state.device);
   }
 
-  _applyPropertySpecsEvent(specs: Record<string, SensorPropertySpec>): void {
+  public _applyPropertySpecsEvent(specs: Record<string, SensorPropertySpec>): void {
     this._countEvent('propertySpecs');
     this._applyPropertySpecs(specs);
   }
 
-  _applyPropertySpecs(specs: Record<string, SensorPropertySpec>): void {
+  public _applyPropertySpecs(specs: Record<string, SensorPropertySpec>): void {
     if (isEqual(this._propertySpecs, specs)) return;
     this._propertySpecs = specs;
     this.#propertySpecsChangedSubject.next(specs);
   }
 
-  _updateCapabilities(capabilities: string[]): void {
+  public _updateCapabilities(capabilities: string[]): void {
     this._capabilities = capabilities;
     this.#capabilitiesChangedSubject.next(capabilities);
   }
 
-  _setConnected(connected: boolean): void {
+  public _setConnected(connected: boolean): void {
     if (this._connected === connected) return;
     this._connected = connected;
     this.#connectedChangedSubject.next(connected);
@@ -238,11 +238,11 @@ export class SensorProxy implements SensorLike {
     this.#assignmentChangedSubject.next(this._assignedCameraIds);
   }
 
-  _setExposed(exposed: boolean): void {
+  public _setExposed(exposed: boolean): void {
     this._exposed = exposed;
   }
 
-  async _subscribeToEvents(): Promise<void> {
+  public async _subscribeToEvents(): Promise<void> {
     if (this._eventSubscription) return;
 
     const namespace = NamespaceManager.sensorEventNamespaces(this.id);
@@ -251,7 +251,7 @@ export class SensorProxy implements SensorLike {
     });
   }
 
-  _unsubscribeFromEvents(): void {
+  public _unsubscribeFromEvents(): void {
     if (this._eventSubscription) {
       this._eventSubscription();
       this._eventSubscription = undefined;

@@ -9,14 +9,14 @@
 <script setup lang="ts">
 import type { CuiCo2SceneProps } from './types.js';
 
+defineProps<CuiCo2SceneProps>();
+
 const BUBBLES = [
   { x: 62, r: 4 },
   { x: 86, r: 3 },
   { x: 104, r: 3.5 },
   { x: 74, r: 2.5 },
 ];
-
-defineProps<CuiCo2SceneProps>();
 </script>
 
 <style scoped>

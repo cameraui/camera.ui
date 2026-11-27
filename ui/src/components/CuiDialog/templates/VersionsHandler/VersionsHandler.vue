@@ -67,8 +67,6 @@ import type { ITerminalOptions } from '@xterm/xterm';
 import type { DynamicDialogInstance } from 'openvue/dynamicdialogoptions';
 import type { VersionsHandlerProps } from './types.js';
 
-const MIN_SERVER_VERSION = '2.0.0';
-
 const pluginsQuery = new PluginsQuery();
 const serverQuery = new ServerQuery();
 const configQuery = new ConfigQuery();
@@ -131,6 +129,8 @@ const { mutate: restartServer, isPending: restartServerLoading } = serverQuery.r
 const { mutateAsync: installPlugin, isPending: installPluginLoading } = pluginsQuery.installPluginQuery();
 const { mutateAsync: uninstallPlugin, isPending: uninstallPluginLoading } = pluginsQuery.uninstallPluginQuery();
 const { mutateAsync: updateServer, isPending: updateServerLoading } = serverQuery.updateServerQuery();
+
+const MIN_SERVER_VERSION = '2.0.0';
 
 const consoleRef = useTemplateRef<InstanceType<typeof CuiConsole>>('consoleRef');
 const showConsole = ref(false);

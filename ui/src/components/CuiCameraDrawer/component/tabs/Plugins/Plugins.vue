@@ -483,12 +483,6 @@ import type { CameraOptionsTabEmits, CameraOptionsTabProps } from '../../types.j
 
 type ExtensionTypes = 'hub' | 'detection' | 'core' | 'accessories' | 'cameraController' | 'more';
 
-const EXTENSION_TYPES: ExtensionTypes[] = ['cameraController', 'hub', 'detection', 'core', 'accessories', 'more'];
-
-const DETECTION_SENSOR_TYPES = getDetectionSensorTypes().filter((type: SensorType) => type !== SensorType.ObjectAssist);
-const CORE_SENSOR_TYPES = getCoreSensorTypes();
-const ACCESSORIES_SENSOR_TYPES = getAccessorySensorTypes();
-
 const camerasQuery = new CamerasQuery();
 const pluginsQuery = new PluginsQuery();
 const sensorsQuery = new SensorsQuery();
@@ -518,6 +512,12 @@ const pluginStatuses = usePluginStatuses(() => [
   ...(cameraExtensions.value ?? []).map((p) => p.pluginName),
   ...(camera.value.pluginInfo ? [camera.value.pluginInfo.name] : []),
 ]);
+
+const EXTENSION_TYPES: ExtensionTypes[] = ['cameraController', 'hub', 'detection', 'core', 'accessories', 'more'];
+
+const DETECTION_SENSOR_TYPES = getDetectionSensorTypes().filter((type: SensorType) => type !== SensorType.ObjectAssist);
+const CORE_SENSOR_TYPES = getCoreSensorTypes();
+const ACCESSORIES_SENSOR_TYPES = getAccessorySensorTypes();
 
 const schemaRef = useTemplateRef<InstanceType<typeof CuiSchema>>('schemaRef');
 const selectedExtension = ref<ExtensionTypes>();

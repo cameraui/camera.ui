@@ -87,23 +87,23 @@ export class CameraUiCLI {
   private readonly restartBudget = new RestartBudget();
   private lastStartTime = 0;
 
-  get abortRestart(): boolean {
+  public get abortRestart(): boolean {
     return this.shuttingDownNodemon || this.serverManager.serverCrashed;
   }
 
-  get isDocker(): boolean {
+  public get isDocker(): boolean {
     return IS_DOCKER ?? this.docker ?? false;
   }
 
-  get logPath(): string {
+  public get logPath(): string {
     return join(this.storagePath, 'camera.ui.log');
   }
 
-  get configFilePath(): string {
+  public get configFilePath(): string {
     return join(this.storagePath, 'camera.ui.yaml');
   }
 
-  get uiPort(): number {
+  public get uiPort(): number {
     try {
       const config: any = load(readFileSync(this.configFilePath, 'utf-8'));
       return config?.port ?? this.DEFAULT_PORT;

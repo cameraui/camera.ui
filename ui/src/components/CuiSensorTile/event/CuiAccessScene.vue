@@ -18,8 +18,8 @@ import UnknownIcon from '~icons/mdi/key-chain-variant';
 import NfcIcon from '~icons/mdi/nfc-variant';
 import PinIcon from '~icons/mdi/dialpad';
 
-import type { CuiAccessSceneProps } from './types.js';
 import type { Component } from 'vue';
+import type { CuiAccessSceneProps } from './types.js';
 
 const METHOD_ICONS: Record<string, Component> = {
   [AccessMethod.Fingerprint]: FingerprintIcon,

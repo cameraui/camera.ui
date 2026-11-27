@@ -40,6 +40,7 @@ export function toSensorDevice(device: DBSensorDevice): SensorDevice {
 
 // names from before the grouping still carry the device name ("Hallway sensor Temperature")
 function stripDevicePrefix(name: string, device: DBSensorDevice): string {
+  // names from before the grouping still carry the device name ("Hallway sensor Temperature")
   for (const prefix of [device.displayName, device.name]) {
     if (!prefix || !name.toLowerCase().startsWith(`${prefix.toLowerCase()} `)) continue;
     const rest = name.slice(prefix.length + 1).trim();

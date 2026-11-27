@@ -43,10 +43,10 @@ import { buildRoomOptions, NEW_ROOM } from './rooms.js';
 import type { RoomOption, RoomOptionGroup } from './rooms.js';
 import type { CuiRoomSelectProps } from './types.js';
 
+const roomsQuery = new RoomsQuery();
+
 const props = withDefaults(defineProps<CuiRoomSelectProps>(), { clearable: false, disabled: false, invalid: false });
 const roomId = defineModel<string | null>({ required: true });
-
-const roomsQuery = new RoomsQuery();
 
 const dialog = useCuiDialog();
 const { t } = useI18n();

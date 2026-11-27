@@ -43,6 +43,10 @@
 <script setup lang="ts">
 import type { CuiRobotSceneProps } from './types.js';
 
+const props = defineProps<CuiRobotSceneProps>();
+
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+
 const LAP_S = 14;
 const HOME_S = 4;
 const LANES = 'M36 115 H176 V92 H36 V69 H176 V46 H36 V23 H176';
@@ -51,9 +55,6 @@ const STRIPES = [16, 40, 64, 88, 112];
 const DOCK: [number, number] = [36, 115];
 const MIDWAY: [number, number] = [106, 69];
 
-const props = defineProps<CuiRobotSceneProps>();
-
-const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 const moving = computed(() => !reducedMotion.value);
 
 const still = computed(() => {

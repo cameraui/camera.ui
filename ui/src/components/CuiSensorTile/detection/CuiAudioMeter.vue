@@ -13,10 +13,10 @@ import { toRatio } from '../range.js';
 
 import type { CuiAudioMeterProps } from './types.js';
 
+const props = defineProps<CuiAudioMeterProps>();
+
 const BARS = 32;
 const PEAK_HOLD = 3_000;
-
-const props = defineProps<CuiAudioMeterProps>();
 
 const bars = ref<number[]>(Array.from({ length: BARS }, () => 0));
 const peak = ref<number>();

@@ -13,7 +13,6 @@ export function useLevelSwitch(sensor: () => ReactiveSensor<object>, onProperty:
   const on = computed(() => sensor().getProperty(onProperty) === true);
   const hasLevel = computed(() => sensorOffers(sensor(), levelProperty));
   const levelRange = computed(() => sensorRange(sensor(), levelProperty, 0, 100));
-  // a level on its way decides, so 0 % reads as off at once
   const lit = computed(() => (level.pending.value ? level.value.value > levelRange.value.min : on.value));
   const ratio = computed(() => (hasLevel.value ? toRatio(level.value.value, levelRange.value) : 1));
   const percent = computed(() => Math.round(ratio.value * 100));

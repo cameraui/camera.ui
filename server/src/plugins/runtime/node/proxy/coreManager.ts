@@ -22,7 +22,7 @@ import type { CoreManagerInterface, CoreManagerListenerMessagePayload } from '..
 import type { CoreManagerNamespaces, PluginNamespaces } from '../../../../rpc/namespaces.js';
 
 export class CoreManagerProxy implements CoreManager {
-  readonly onEvent: Observable<CoreManagerEvent>;
+  public readonly onEvent: Observable<CoreManagerEvent>;
 
   #proxy: RPCClient;
   #plugin: PluginInfo;

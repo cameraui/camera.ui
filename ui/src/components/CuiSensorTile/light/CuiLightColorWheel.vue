@@ -41,6 +41,11 @@ import { usePointerDrag } from '../usePointerDrag.js';
 import type { LightColor } from '@camera.ui/sdk';
 import type { CuiLightColorWheelEmits, CuiLightColorWheelProps } from './types.js';
 
+const props = defineProps<CuiLightColorWheelProps>();
+const emit = defineEmits<CuiLightColorWheelEmits>();
+
+const { t } = useI18n();
+
 const SWATCHES: LightColor[] = [
   { hue: 0, saturation: 0 },
   { hue: 30, saturation: 100 },
@@ -53,11 +58,6 @@ const SWATCHES: LightColor[] = [
   { hue: 0, saturation: 100 },
 ];
 const KEY_STEP = 10;
-
-const props = defineProps<CuiLightColorWheelProps>();
-const emit = defineEmits<CuiLightColorWheelEmits>();
-
-const { t } = useI18n();
 
 const wheelRef = useTemplateRef<HTMLElement>('wheelRef');
 

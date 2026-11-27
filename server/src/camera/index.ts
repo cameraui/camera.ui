@@ -52,30 +52,30 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
     this.cameraSubject = new BehaviorSubject(camera);
   }
 
-  abstract get sources(): CameraDeviceSource[];
+  public abstract get sources(): CameraDeviceSource[];
 
-  get id(): string {
+  public get id(): string {
     return this.cameraSubject.getValue()._id;
   }
 
-  get nativeId(): string | undefined {
+  public get nativeId(): string | undefined {
     return this.cameraSubject.getValue().nativeId;
   }
 
-  get pluginInfo(): CameraPluginInfo | undefined {
+  public get pluginInfo(): CameraPluginInfo | undefined {
     const info = this.cameraSubject.getValue().pluginInfo;
     return info ? structuredClone(info) : undefined;
   }
 
-  get connected(): boolean {
+  public get connected(): boolean {
     return this.cameraState.getValue();
   }
 
-  get frameWorkerConnected(): boolean {
+  public get frameWorkerConnected(): boolean {
     return this.frameWorkerState.getValue();
   }
 
-  get disabled(): boolean {
+  public get disabled(): boolean {
     return this.cameraSubject.getValue().disabled;
   }
 
@@ -83,88 +83,88 @@ export abstract class CameraDevice extends Subscribed implements CameraDeviceInt
     return this.cameraSubject.getValue().detectionSettings?.snooze ?? false;
   }
 
-  get name(): string {
+  public get name(): string {
     return this.cameraSubject.getValue().name;
   }
 
-  get room(): string {
+  public get room(): string {
     return this.cameraSubject.getValue().room;
   }
 
-  get type(): CameraType {
+  public get type(): CameraType {
     return this.cameraSubject.getValue().type;
   }
 
-  get info(): CameraInformation {
+  public get info(): CameraInformation {
     return structuredClone(this.cameraSubject.getValue().info);
   }
 
-  get isCloud(): boolean {
+  public get isCloud(): boolean {
     return this.cameraSubject.getValue().isCloud;
   }
 
-  get assignments(): PluginAssignments {
+  public get assignments(): PluginAssignments {
     return structuredClone(this.cameraSubject.getValue().assignments);
   }
 
-  get snapshotSettings(): SnapshotSettings {
+  public get snapshotSettings(): SnapshotSettings {
     return structuredClone(this.cameraSubject.getValue().snapshotSettings);
   }
 
-  get zones(): CameraZones {
+  public get zones(): CameraZones {
     return normalizeZones(structuredClone(this.cameraSubject.getValue().zones));
   }
 
-  get detectionSettings(): CameraDetectionSettings {
+  public get detectionSettings(): CameraDetectionSettings {
     return structuredClone(this.cameraSubject.getValue().detectionSettings);
   }
 
-  get ptzAutotrack(): PtzAutotrackSettings {
+  public get ptzAutotrack(): PtzAutotrackSettings {
     return structuredClone(this.cameraSubject.getValue().ptzAutotrack);
   }
 
-  get recordingSettings(): CameraRecordingSettings {
+  public get recordingSettings(): CameraRecordingSettings {
     return structuredClone(this.cameraSubject.getValue().recordingSettings);
   }
 
-  get notificationSettings(): CameraNotificationSettings {
+  public get notificationSettings(): CameraNotificationSettings {
     return structuredClone(this.cameraSubject.getValue().notificationSettings);
   }
 
-  get exportSettings(): CameraExportSettings {
+  public get exportSettings(): CameraExportSettings {
     return structuredClone(this.cameraSubject.getValue().exportSettings);
   }
 
-  get frameWorkerSettings(): CameraFrameWorkerSettings {
+  public get frameWorkerSettings(): CameraFrameWorkerSettings {
     return structuredClone(this.cameraSubject.getValue().frameWorkerSettings);
   }
 
-  get interfaceSettings(): CameraUiSettings {
+  public get interfaceSettings(): CameraUiSettings {
     return structuredClone(this.cameraSubject.getValue().interfaceSettings);
   }
 
-  get streamSource(): CameraDeviceSource {
+  public get streamSource(): CameraDeviceSource {
     return (this.highResolutionSource ?? this.midResolutionSource ?? this.lowResolutionSource)!;
   }
 
-  get highResolutionSource(): CameraDeviceSource | undefined {
+  public get highResolutionSource(): CameraDeviceSource | undefined {
     return this.sources.find((source) => source.role === 'high-resolution');
   }
 
-  get midResolutionSource(): CameraDeviceSource | undefined {
+  public get midResolutionSource(): CameraDeviceSource | undefined {
     return this.sources.find((source) => source.role === 'mid-resolution');
   }
 
-  get lowResolutionSource(): CameraDeviceSource | undefined {
+  public get lowResolutionSource(): CameraDeviceSource | undefined {
     return this.sources.find((source) => source.role === 'low-resolution');
   }
 
-  get designatedSnapshotSource(): CameraDeviceSource | undefined {
+  public get designatedSnapshotSource(): CameraDeviceSource | undefined {
     const sources = this.sources;
     return sources.find((source) => source.role === 'snapshot') ?? sources.find((source) => source.useForSnapshot);
   }
 
-  get snapshotSource(): CameraDeviceSource | undefined {
+  public get snapshotSource(): CameraDeviceSource | undefined {
     return this.designatedSnapshotSource ?? this.lowResolutionSource ?? this.midResolutionSource ?? this.highResolutionSource;
   }
 

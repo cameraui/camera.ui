@@ -25,16 +25,16 @@
 <script setup lang="ts">
 import type { CuiGarageSceneProps } from './types.js';
 
+defineProps<CuiGarageSceneProps>();
+
+const clipId = useId();
+
 const DX = 42;
 const DY = 86;
 const DW = 116;
 const DH = 78;
 const PANELS = 4;
 const PANEL = DH / PANELS;
-
-defineProps<CuiGarageSceneProps>();
-
-const clipId = useId();
 </script>
 
 <style scoped>

@@ -1,55 +1,55 @@
 export class MqttTopics {
   constructor(public readonly prefix: string) {}
 
-  get availability(): string {
+  public get availability(): string {
     return `${this.prefix}/status`;
   }
 
-  get serverState(): string {
+  public get serverState(): string {
     return `${this.prefix}/server/state`;
   }
 
-  get serverEvent(): string {
+  public get serverEvent(): string {
     return `${this.prefix}/server/event`;
   }
 
-  get serverNotification(): string {
+  public get serverNotification(): string {
     return `${this.prefix}/server/notification`;
   }
 
-  pluginStatus(pluginName: string): string {
+  public pluginStatus(pluginName: string): string {
     return `${this.prefix}/plugin/${sanitizeTopicSegment(pluginName)}/status`;
   }
 
-  cameraPrefix(cameraId: string): string {
+  public cameraPrefix(cameraId: string): string {
     return `${this.prefix}/camera/${sanitizeTopicSegment(cameraId)}`;
   }
 
-  cameraStatus(cameraId: string): string {
+  public cameraStatus(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/status`;
   }
 
-  cameraFrameWorker(cameraId: string): string {
+  public cameraFrameWorker(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/frameworker`;
   }
 
-  cameraMeta(cameraId: string): string {
+  public cameraMeta(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/meta`;
   }
 
-  cameraEvent(cameraId: string): string {
+  public cameraEvent(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/event`;
   }
 
-  cameraMotion(cameraId: string): string {
+  public cameraMotion(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/motion`;
   }
 
-  cameraDetection(cameraId: string, label: string): string {
+  public cameraDetection(cameraId: string, label: string): string {
     return `${this.cameraPrefix(cameraId)}/detection/${sanitizeTopicSegment(label)}`;
   }
 
-  cameraSnapshot(cameraId: string): string {
+  public cameraSnapshot(cameraId: string): string {
     return `${this.cameraPrefix(cameraId)}/snapshot`;
   }
 
@@ -61,15 +61,15 @@ export class MqttTopics {
     return `${this.sensorPrefix(sensorId)}/meta`;
   }
 
-  sensorProperty(sensorId: string, property: string): string {
+  public sensorProperty(sensorId: string, property: string): string {
     return `${this.sensorPrefix(sensorId)}/${sanitizeTopicSegment(property)}`;
   }
 
-  sensorVacuumState(sensorId: string): string {
+  public sensorVacuumState(sensorId: string): string {
     return `${this.sensorPrefix(sensorId)}/vacuum_state`;
   }
 
-  sensorLockState(sensorId: string): string {
+  public sensorLockState(sensorId: string): string {
     return `${this.sensorPrefix(sensorId)}/lock_state`;
   }
 }

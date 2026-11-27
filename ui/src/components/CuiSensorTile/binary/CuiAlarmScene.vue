@@ -12,11 +12,11 @@ import { toneColor } from '@/common/sensorDisplay.js';
 
 import type { CuiAlarmSceneProps } from './types.js';
 
-const WAVES = [0, 1, 2];
-
 withDefaults(defineProps<CuiAlarmSceneProps>(), {
   calm: toneColor('ok'),
 });
+
+const WAVES = [0, 1, 2];
 </script>
 
 <style scoped>

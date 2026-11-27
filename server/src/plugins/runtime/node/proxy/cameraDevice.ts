@@ -41,7 +41,7 @@ import type { SensorManagerProxy } from './sensorManager.js';
 const DETECTION_SENSOR_TYPES: ReadonlySet<SensorType> = new Set(getDetectionTypes());
 
 export class CameraDeviceProxy extends CameraDevice {
-  readonly onDetectionEvent: Observable<{ type: DetectionEventType; event: DetectionEvent }>;
+  public readonly onDetectionEvent: Observable<{ type: DetectionEventType; event: DetectionEvent }>;
 
   #proxy: RPCClient;
   #namespaces: CameraNamespaces & FrameWorkerDetectionNamespaces & PluginCameraNamespaces & SensorRegistryNamespaces;
@@ -113,7 +113,7 @@ export class CameraDeviceProxy extends CameraDevice {
     return this.#proxy.createProxy<DetectionCoordinatorInterface>(this.#namespaces.detectionRpc);
   }
 
-  get sources(): CameraDeviceSource[] {
+  public get sources(): CameraDeviceSource[] {
     const sources: CameraInput[] = JSON.parse(JSON.stringify(this.cameraSubject.getValue().sources));
 
     return sources.map((source): CameraDeviceSource => {

@@ -346,10 +346,6 @@ import { resolveEventIcons } from '@/utils/eventIcons.js';
 import type { Component } from 'vue';
 import type { RecordingsFilterSidebarEmits, RecordingsFilterSidebarProps, RecordingsFilterState, RecordingsSearchMode } from './types.js';
 
-const SIDEBAR_WIDTH = 288;
-
-const NON_FILTER_LABELS = new Set(['motion', 'audio']);
-
 const props = defineProps<RecordingsFilterSidebarProps>();
 
 const emit = defineEmits<RecordingsFilterSidebarEmits>();
@@ -357,6 +353,10 @@ const emit = defineEmits<RecordingsFilterSidebarEmits>();
 const { t } = useI18n();
 const { topbarOffset } = useSharedCuiStates();
 const { icons: DETECTION_ICONS, generic: GENERIC_ICON } = resolveEventIcons();
+
+const SIDEBAR_WIDTH = 288;
+
+const NON_FILTER_LABELS = new Set(['motion', 'audio']);
 
 const chevronUp = IconChevronUp;
 const chevronDown = IconChevronDown;

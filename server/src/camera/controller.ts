@@ -113,24 +113,24 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     this.initialized.next(true);
   }
 
-  get logPath(): string {
+  public get logPath(): string {
     return this.loggerService.getCameraLogPath(this.id) ?? '';
   }
 
-  get streamSource(): CameraDeviceSource {
+  public get streamSource(): CameraDeviceSource {
     return (this.highResolutionSource ?? this.midResolutionSource ?? this.lowResolutionSource)!;
   }
 
-  get camera(): Camera {
+  public get camera(): Camera {
     return this.cameraObject;
   }
 
-  get cameraDeviceProxy(): Promisify<CameraDeviceInterface & Partial<CameraImplementation>> | undefined {
+  public get cameraDeviceProxy(): Promisify<CameraDeviceInterface & Partial<CameraImplementation>> | undefined {
     const namespace = this.pluginCameraImplRpc;
     return namespace ? this.proxy.createProxy<CameraDeviceInterface & Partial<CameraImplementation>>(namespace) : undefined;
   }
 
-  get sources(): CameraDeviceSource[] {
+  public get sources(): CameraDeviceSource[] {
     const sources: CameraInput[] = JSON.parse(JSON.stringify(this.cameraSubject.getValue().sources));
 
     return sources.map((source): CameraDeviceSource => {

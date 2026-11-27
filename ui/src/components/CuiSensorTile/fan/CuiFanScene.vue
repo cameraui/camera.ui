@@ -18,14 +18,14 @@ import { useEasedPhase } from '../useEasedPhase.js';
 
 import type { CuiFanSceneProps } from './types.js';
 
-const BLADES = [0, 72, 144, 216, 288];
-const BLADE = 'M80 57 C95 50 100 26 86 19 C74 14 66 32 74 54 Z';
-const SWING = 0.6;
-
 const props = defineProps<CuiFanSceneProps>();
 
 const spin = useEasedPhase(() => (props.lit ? (props.reverse ? -1 : 1) * (0.4 + props.ratio * 2.2) : 0));
 const swing = useEasedPhase(() => (props.lit && props.oscillating ? 0.1 : 0));
+
+const BLADES = [0, 72, 144, 216, 288];
+const BLADE = 'M80 57 C95 50 100 26 86 19 C74 14 66 32 74 54 Z';
+const SWING = 0.6;
 
 const headStyle = computed(() => {
   const yaw = Math.sin(swing.value * 2 * Math.PI) * SWING;

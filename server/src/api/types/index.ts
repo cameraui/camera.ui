@@ -71,9 +71,17 @@ import type { ConfigQueryInput, PatchConfigInput } from '../schemas/config.schem
 import type { FilesParamsInput } from '../schemas/files.schema.js';
 import type { FrameWorkerParamsInput } from '../schemas/frameWorkers.schema.js';
 import type { PatchGo2RtcConfigInput } from '../schemas/go2rtc.schema.js';
-import type { SettingsPatchInput } from '../schemas/settings.schema.js';
 import type { BulkDeleteInstancesInput, CreateInstanceInput, InstanceLoginInput, UpdateInstanceInput } from '../schemas/instances.schema.js';
 import type { PatchMqttInput, TestMqttInput } from '../schemas/mqtt.schema.js';
+import type {
+  NotificationClearQueryInput,
+  NotificationFilter,
+  NotificationIdsInput,
+  NotificationListQueryInput,
+  NotificationMuteInput,
+  NotificationSeenInput,
+  NotificationUnmuteQueryInput,
+} from '../schemas/notifications.schema.js';
 import type {
   ActionPluginInput,
   BulkInstallPluginsInput,
@@ -87,20 +95,12 @@ import type {
   TestMotionInput,
   TestObjectInput,
 } from '../schemas/plugins.schema.js';
-import type {
-  NotificationClearQueryInput,
-  NotificationMuteInput,
-  NotificationFilter,
-  NotificationIdsInput,
-  NotificationListQueryInput,
-  NotificationSeenInput,
-  NotificationUnmuteQueryInput,
-} from '../schemas/notifications.schema.js';
 import type { CloudflareManagedConnectInput, PairInitInput, PairPollInput, PatchRemoteInput, PutRelayInput, PutWebrtcInput } from '../schemas/remote.schema.js';
 import type { CreateSensorDeviceInput, CreateVirtualSensorInput, PatchSensorDeviceInput, PatchSensorInput, SensorCommandInput } from '../schemas/sensors.schema.js';
 import type { PatchServerInput, ServerChangelogQueryInput, ServerLanguageInput, ServerUnitSystemInput, UpdateServerInput } from '../schemas/server.schema.js';
-import type { RunUpdatesInput } from '../schemas/updates.schema.js';
+import type { SettingsPatchInput } from '../schemas/settings.schema.js';
 import type { PatchStorateInput, SetStorageInput, SubmitStorageInput } from '../schemas/storage.schema.js';
+import type { RunUpdatesInput } from '../schemas/updates.schema.js';
 import type {
   CreateShortcutInput,
   CreateUserInput,
@@ -1056,6 +1056,11 @@ export interface PluginsViewSettings {
   view: 'cards' | 'table';
 }
 
+export interface HomeSettings {
+  deviceProfiles: Record<string, string>;
+  dashboard: boolean;
+}
+
 export interface UiSettingsLocalStorage {
   cameras: CamerasSettings;
   camview: CamviewSettings;
@@ -1064,6 +1069,7 @@ export interface UiSettingsLocalStorage {
   interface: InterfaceSettinges;
   sensors: SensorsSettings;
   plugins: PluginsViewSettings;
+  home: HomeSettings;
 }
 
 export interface ThemeLocalStorage {

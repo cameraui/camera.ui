@@ -26,16 +26,16 @@
 <script setup lang="ts">
 import type { CuiSunSceneProps } from './types.js';
 
+defineProps<CuiSunSceneProps>();
+
+const maskId = useId();
+
 const RAYS = Array.from({ length: 12 }, (_, index) => index * 30);
 const STARS = [
   { x: 118, y: 46, r: 2.5 },
   { x: 128, y: 74, r: 1.5 },
   { x: 108, y: 112, r: 2 },
 ];
-
-defineProps<CuiSunSceneProps>();
-
-const maskId = useId();
 </script>
 
 <style scoped>

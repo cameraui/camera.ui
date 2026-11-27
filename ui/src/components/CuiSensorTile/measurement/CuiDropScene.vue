@@ -18,13 +18,13 @@
 <script setup lang="ts">
 import type { CuiDropSceneProps } from './types.js';
 
-const DROP = 'M60 18 C60 18 26 62 26 94 a34 34 0 0 0 68 0 C94 62 60 18 60 18 Z';
-const TOP = 18;
-const HEIGHT = 110;
-
 const props = defineProps<CuiDropSceneProps>();
 
 const clipId = useId();
+
+const DROP = 'M60 18 C60 18 26 62 26 94 a34 34 0 0 0 68 0 C94 62 60 18 60 18 Z';
+const TOP = 18;
+const HEIGHT = 110;
 
 const labels = computed(() =>
   props.zones.flatMap((zone) => (zone.label ? [{ label: zone.label, active: zone.active, y: TOP + HEIGHT * (1 - (zone.from + zone.to) / 2) + 4 }] : [])),

@@ -14,12 +14,12 @@
 <script setup lang="ts">
 import type { CuiAirQualitySceneProps } from './types.js';
 
+const props = defineProps<CuiAirQualitySceneProps>();
+
 const CENTER_X = 80;
 const CENTER_Y = 96;
 const RADIUS = 62;
 const GAP = 4;
-
-const props = defineProps<CuiAirQualitySceneProps>();
 
 const segments = computed(() => {
   const sweep = (180 - GAP * (props.colors.length - 1)) / props.colors.length;

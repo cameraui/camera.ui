@@ -17,13 +17,13 @@
 <script setup lang="ts">
 import type { CuiVirtualDeviceFieldProps, VirtualDeviceChoice } from './types.js';
 
-const NO_DEVICE = 'none';
-const NEW_DEVICE = 'new';
-
 const props = defineProps<CuiVirtualDeviceFieldProps>();
 const choice = defineModel<VirtualDeviceChoice>({ required: true });
 
 const { t } = useI18n();
+
+const NO_DEVICE = 'none';
+const NEW_DEVICE = 'new';
 
 const options = computed(() => [
   { label: t('views.sensors.device_none'), value: NO_DEVICE },

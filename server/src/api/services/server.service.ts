@@ -11,10 +11,10 @@ import { assertServerUpdateSpace } from '../../utils/disk-space.js';
 import { getTerminalCols, InstallLogger } from '../utils/install-logger.js';
 import { updatesService } from './updates.service.js';
 
+import type { UnitSystem } from '@camera.ui/sdk';
 import type { Database } from '../database/index.js';
 import type { DBServer } from '../database/types.js';
 import type { LanguageAbbreviations } from '../schemas/users.schema.js';
-import type { UnitSystem } from '@camera.ui/sdk';
 
 export class ServerService {
   private dbs: Database;

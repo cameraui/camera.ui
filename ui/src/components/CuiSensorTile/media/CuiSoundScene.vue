@@ -7,6 +7,8 @@
 <script setup lang="ts">
 import type { CuiSoundSceneProps } from './types.js';
 
+defineProps<CuiSoundSceneProps>();
+
 const BARS = [
   { rest: 0.35, delay: 0, duration: 0.9 },
   { rest: 0.55, delay: 0.2, duration: 1.1 },
@@ -16,8 +18,6 @@ const BARS = [
   { rest: 0.6, delay: 0.4, duration: 1.05 },
   { rest: 0.4, delay: 0.1, duration: 0.85 },
 ];
-
-defineProps<CuiSoundSceneProps>();
 </script>
 
 <style scoped>
