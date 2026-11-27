@@ -65,7 +65,11 @@ export class MqttTopics {
     return `${this.prefix}/sensor/${sanitizeTopicSegment(sensorId)}`;
   }
 
-  sensorMeta(sensorId: string): string {
+  public sensorAvailability(sensorId: string): string {
+    return `${this.sensorPrefix(sensorId)}/availability`;
+  }
+
+  public sensorMeta(sensorId: string): string {
     return `${this.sensorPrefix(sensorId)}/meta`;
   }
 

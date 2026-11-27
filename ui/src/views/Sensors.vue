@@ -535,8 +535,8 @@ import { SensorsQuery } from '@/api/routes/sensors.js';
 import { asyncComponent } from '@/common/asyncComponent.js';
 import { sensorActive, sensorIcon, sensorReading, sensorReadTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { keepUnchangedItems } from '@/common/utils.js';
-import { useCardSelection } from '@/composables/useCardSelection.js';
 import { useSensorHistoryDialog } from '@/components/CuiDialog/templates/SensorHistory/useSensorHistoryDialog.js';
+import { useCardSelection } from '@/composables/useCardSelection.js';
 import { sensorProvidedForCamera } from '@/utils/sensorSlots.js';
 
 import type { SensorAdoptProps } from '@/components/CuiDialog/templates/SensorAdopt/types.js';
@@ -593,15 +593,6 @@ const SensorDeviceEditDialog = asyncComponent(() => import('@/components/CuiDial
 const VirtualSensorCreateDialog = asyncComponent(() => import('@/components/CuiDialog/templates/VirtualSensorCreate/VirtualSensorCreate.vue'));
 const SensorGroupDialog = asyncComponent(() => import('@/components/CuiDialog/templates/SensorGroup/SensorGroup.vue'));
 
-const STATE_COLORS: Record<SensorState, string> = {
-  connected: 'green',
-  disconnected: 'gray',
-  unavailable: 'orange',
-  removed: 'red',
-};
-
-const STATE_SEVERITY: SensorState[] = ['removed', 'unavailable', 'disconnected'];
-
 const sensorsQuery = new SensorsQuery();
 const camerasQuery = new CamerasQuery();
 
@@ -613,11 +604,10 @@ const queryClient = useQueryClient();
 const toast = useCuiToast();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
+const { sensors: liveSensors } = useAllSensors();
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
-
-const { sensors: liveSensors } = useAllSensors();
 
 const { data: sensorsData, isBusy: isFetchingSensors } = sensorsQuery.getSensorsQuery();
 const { data: camerasData } = camerasQuery.getCamerasQuery({ page: 1, pageSize: -1 });
@@ -628,6 +618,15 @@ const { mutateAsync: bulkDeleteSensors } = sensorsQuery.bulkDeleteSensorsQuery()
 const { mutateAsync: patchSensorDevice } = sensorsQuery.patchSensorDeviceQuery();
 const { mutateAsync: createSensorDevice } = sensorsQuery.createSensorDeviceQuery();
 const { mutateAsync: deleteSensorDevice, isPending: isDeletingDevice } = sensorsQuery.deleteSensorDeviceQuery();
+
+const STATE_COLORS: Record<SensorState, string> = {
+  connected: 'green',
+  disconnected: 'gray',
+  unavailable: 'orange',
+  removed: 'red',
+};
+
+const STATE_SEVERITY: SensorState[] = ['removed', 'unavailable', 'disconnected'];
 
 const tablePtOptions: PassThrough<DataTablePassThroughOptions> = {
   bodyRow: {
@@ -1015,8 +1014,10 @@ function isConnected(sensor: TransformedSensor): boolean {
 
 function sensorState(sensor: TransformedSensor): SensorState {
   if (!isConnected(sensor)) return 'disconnected';
-  if (sensor.sourceState === 'removed') return 'removed';
-  if (sensor.sourceState === 'unavailable') return 'unavailable';
+  const live = liveSensorById.value.get(sensor.id);
+  const sourceState = live ? live.sourceState.value : sensor.sourceState;
+  if (sourceState === 'removed') return 'removed';
+  if (sourceState === 'unavailable') return 'unavailable';
   return 'connected';
 }
 

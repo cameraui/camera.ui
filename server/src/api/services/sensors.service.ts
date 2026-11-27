@@ -226,7 +226,7 @@ export class SensorsService {
       exposed: record.exposed,
       origin: record.origin,
       address: record.address,
-      sourceState: record.sourceState,
+      sourceState: data.sourceState,
       properties: data.properties,
       capabilities: data.capabilities,
       propertySpecs: data.propertySpecs,

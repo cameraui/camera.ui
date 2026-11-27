@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         SensorEventMessage,
         SensorExposedChangedEvent,
         SensorRefreshedState,
+        SensorSourceChangedEvent,
         SensorSpecsChangedEvent,
         StoredSensorData,
     )
@@ -522,6 +523,12 @@ class SensorManagerProxy:
                 except Exception as e:
                     self._logger.warn(f"onSensorUnadopted failed for {unbound.nativeId}: {e}")
             await self._release_consumed(deleted["sensorId"])
+
+        elif event_type == "sensor:source:changed":
+            source = cast("SensorSourceChangedEvent", message.get("data"))
+            consumed = self._consumed.get(source["sensorId"])
+            if consumed:
+                consumed._set_source_state(source.get("sourceState"))  # pyright: ignore[reportPrivateUsage]
 
         elif event_type == "sensor:connected:changed":
             connected = cast("SensorConnectedChangedEvent", message.get("data"))

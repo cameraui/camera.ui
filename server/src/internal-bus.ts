@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 
 import { provide, tryInject } from './container.js';
 
-import type { SensorPropertySpec } from '@camera.ui/sdk';
+import type { SensorPropertySpec, SensorSourceState } from '@camera.ui/sdk';
 import type { SensorDeviceState } from '@camera.ui/sdk/internal';
 
 export type SystemEvent = 'system:started' | 'system:shutdown' | 'system:notification' | 'camera:added' | 'camera:removed';
@@ -23,6 +23,7 @@ export type SensorEvent =
   | 'sensor:assignment:changed'
   | 'sensor:device:changed'
   | 'sensor:specs:changed'
+  | 'sensor:source:changed'
   | 'sensor:room:changed';
 
 export type InternalEvent = SystemEvent | PluginEvent | CameraEvent | SensorEvent;
@@ -79,6 +80,7 @@ export interface SensorLifecyclePayload {
   assignedCameraIds: string[];
   connected?: boolean;
   exposed?: boolean;
+  sourceState?: SensorSourceState;
 }
 
 export interface SensorDisplayNameChangedPayload {

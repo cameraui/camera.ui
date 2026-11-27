@@ -1,13 +1,13 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { Disposable, Observable, SensorType } from '@camera.ui/sdk';
-import { checkPropertyWrite } from '@camera.ui/sdk/internal';
+import { checkPropertyWrite, isSourceReachable } from '@camera.ui/sdk/internal';
 
-import { DETECTION_SENSOR_TYPES, PROPERTY_CAPABILITY_MAP, SENSOR_TYPE_CONFIG, VIRTUAL_SENSOR_OWNER_ID } from './types.js';
+import { DETECTION_SENSOR_TYPES, PROPERTY_CAPABILITY_MAP, SENSOR_TYPE_CONFIG, sensorPropertySpec, VIRTUAL_SENSOR_OWNER_ID } from './types.js';
 import { writeVirtualSensor } from './virtual.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
-import type { ModelSpec, SensorDevice, SensorLike, SensorPropertySpec, SensorPropertyType, SensorTriggerSettings } from '@camera.ui/sdk';
+import type { ModelSpec, SensorDevice, SensorLike, SensorPropertySpec, SensorPropertyType, SensorSourceState, SensorTriggerSettings } from '@camera.ui/sdk';
 import type { PropertyChangedEvent } from '@camera.ui/sdk/internal';
 import type { InternalEvent, InternalEventPayload } from '../internal-bus.js';
 import type { DetectionCoordinatorInterface } from '../rpc/interfaces/detection.js';
@@ -35,6 +35,7 @@ export class ServerSensor implements SensorLike {
   public readonly onPropertyChanged = new Observable<{ property: string; value: unknown; timestamp: number }>(() => new Disposable(() => {}));
   public readonly onCapabilitiesChanged = new Observable<string[]>(() => new Disposable(() => {}));
   public readonly onConnectedChanged = new Observable<boolean>(() => new Disposable(() => {}));
+  public readonly onSourceStateChanged = new Observable<SensorSourceState | undefined>(() => new Disposable(() => {}));
   public readonly onAssignmentChanged = new Observable<readonly string[]>(() => new Disposable(() => {}));
   public readonly onDeviceInfoChanged = new Observable<SensorDevice | undefined>(() => new Disposable(() => {}));
   public readonly onPropertySpecsChanged = new Observable<Readonly<Record<string, SensorPropertySpec>>>(() => new Disposable(() => {}));
@@ -88,6 +89,10 @@ export class ServerSensor implements SensorLike {
     return this.data.connected;
   }
 
+  public get sourceState(): SensorSourceState | undefined {
+    return this.data.sourceState;
+  }
+
   public setDisplayName(value: string): void {
     this.data.displayName = value;
   }
@@ -121,7 +126,9 @@ export class ServerSensor implements SensorLike {
   }
 
   public async updateValue(property: string, value: unknown): Promise<void> {
-    value = checkPropertyWrite(this.propertySpecs, property, value);
+    if (!isSourceReachable(this.data.sourceState)) throw new Error(`${this.displayName} is not reachable`);
+    const spec = sensorPropertySpec(this, property);
+    if (spec) value = checkPropertyWrite({ [property]: spec }, property, value);
     // the host mirrors what hardware would report and resets momentary values
     if (this.pluginId === VIRTUAL_SENSOR_OWNER_ID) {
       writeVirtualSensor(this.id, property, value);
@@ -132,12 +139,7 @@ export class ServerSensor implements SensorLike {
       return;
     }
 
-    try {
-      const rpc = this.ctx.createPluginSensorRpc(this.pluginId, this.id);
-      await rpc.updateValue(property, value);
-    } catch (error) {
-      this.ctx.logger.warn(`Failed to updateValue on plugin sensor ${this.pluginId}/${this.id} (${property}):`, error);
-    }
+    await this.ctx.createPluginSensorRpc(this.pluginId, this.id).updateValue(property, value);
   }
 
   public applyCapabilityUpdate(capabilities: string[]): void {

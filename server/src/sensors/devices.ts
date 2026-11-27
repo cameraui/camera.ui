@@ -2,7 +2,7 @@ import { SensorCategory, SensorType } from '@camera.ui/sdk';
 
 import { SENSOR_TYPE_CONFIG } from './types.js';
 
-import type { SensorDevice } from '@camera.ui/sdk';
+import type { DeviceInfo, SensorDevice } from '@camera.ui/sdk';
 import type { SensorDeviceState } from '@camera.ui/sdk/internal';
 import type { DBSensor, DBSensorDevice } from '../api/database/types.js';
 
@@ -27,6 +27,17 @@ export function pickPrimary(members: DBSensor[]): DBSensor | undefined {
   return marked.sort((a, b) => typeRank(a.type) - typeRank(b.type) || a.createdAt - b.createdAt || a._id.localeCompare(b._id))[0];
 }
 
+export function sanitizeDeviceInfo(info: DeviceInfo): DeviceInfo {
+  return {
+    id: String(info.id),
+    name: deviceText(info.name) ?? '',
+    manufacturer: deviceText(info.manufacturer),
+    model: deviceText(info.model),
+    firmware: deviceText(info.firmware),
+    serialNumber: deviceText(info.serialNumber),
+  };
+}
+
 export function toSensorDevice(device: DBSensorDevice): SensorDevice {
   return {
     id: device._id,
@@ -38,7 +49,11 @@ export function toSensorDevice(device: DBSensorDevice): SensorDevice {
   };
 }
 
-// names from before the grouping still carry the device name ("Hallway sensor Temperature")
+function deviceText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  return typeof value === 'number' ? String(value) : undefined;
+}
+
 function stripDevicePrefix(name: string, device: DBSensorDevice): string {
   // names from before the grouping still carry the device name ("Hallway sensor Temperature")
   for (const prefix of [device.displayName, device.name]) {

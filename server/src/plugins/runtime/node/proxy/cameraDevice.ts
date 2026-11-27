@@ -9,6 +9,7 @@ import { getDetectionTypes } from '../../../../sensors/types.js';
 import { buildSnapshotUrl, buildTargetUrl } from '../../../../utils/camera.js';
 import { rewriteSourceUrlsForRemote } from '../remoteUrls.js';
 import { limitRegistration } from './limiter.js';
+import { sensorHandlerOptions } from './sensor.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -326,10 +327,7 @@ export class CameraDeviceProxy extends CameraDevice {
         .catch((error) => this.logger.debug(`Capability write for sensor ${sensor.id} failed:`, error));
     });
 
-    const sensorCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, {
-      withoutDecorators: true,
-      concurrency: (sensor as { _rpcConcurrency?: Record<string, number> })._rpcConcurrency,
-    });
+    const sensorCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, sensorHandlerOptions(sensor));
     this.#sensorCleanupFunctions.set(sensor.id, sensorCleanup);
 
     this.#ownedSensors.set(sensor.id, { sensor, type: sensor.type });

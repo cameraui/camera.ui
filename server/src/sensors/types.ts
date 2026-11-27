@@ -117,6 +117,13 @@ export function getSensorPropertySpec(type: SensorType | string, property: strin
   return SENSOR_PROPERTY_SPECS[type as SensorType]?.[property];
 }
 
+export function sensorPropertySpec(
+  sensor: { type: SensorType | string; propertySpecs: Readonly<Record<string, SensorPropertySpec>> },
+  property: string,
+): SensorPropertySpec | undefined {
+  return sensor.propertySpecs[property] ?? getSensorPropertySpec(sensor.type, property);
+}
+
 export function getObservableSensorProperties(type: SensorType | string): string[] {
   const specs = SENSOR_PROPERTY_SPECS[type as SensorType];
   if (!specs) return [];

@@ -1,4 +1,5 @@
 import { SensorType } from '@camera.ui/sdk';
+import { isSourceReachable } from '@camera.ui/sdk/internal';
 
 import { CamerasService } from '../api/services/cameras.service.js';
 import { inject } from '../container.js';
@@ -135,6 +136,11 @@ export class MqttBridge {
       const sensor = payload as SensorLifecyclePayload;
       if (sensor.connected) this.republishSensor(sensor.sensorId);
       else this.clearSensor(sensor.sensorId);
+    });
+
+    this.onBus('sensor:source:changed', (payload) => {
+      const data = this.registry.getSensor((payload as SensorLifecyclePayload).sensorId, { connectedOnly: true })?.data;
+      if (data && this.isHaExportable(data)) this.publishSensorAvailability(data);
     });
 
     this.onBus('sensor:displayName:changed', (payload) => this.republishSensor((payload as SensorLifecyclePayload).sensorId));
@@ -341,6 +347,7 @@ export class MqttBridge {
       assignedCameraIds: data.assignedCameraIds,
     };
     this.publishRetained(bucket, this.manager.topics.sensorMeta(data.id), JSON.stringify(meta));
+    this.publishSensorAvailability(data);
 
     for (const [property, value] of Object.entries(data.properties)) {
       this.publishRetained(bucket, this.manager.topics.sensorProperty(data.id, property), JSON.stringify(value ?? null));
@@ -362,6 +369,11 @@ export class MqttBridge {
         this.publishRetained(bucket, message.topic, message.payload);
       }
     }
+  }
+
+  private publishSensorAvailability(data: StoredSensorData): void {
+    const availability = isSourceReachable(data.sourceState) ? 'online' : 'offline';
+    this.publishRetained(sensorBucket(data.id), this.manager.topics.sensorAvailability(data.id), availability);
   }
 
   private publishCombinedState(data: StoredSensorData): void {

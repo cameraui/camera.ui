@@ -1,25 +1,27 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { Subject } from '@camera.ui/sdk';
-import { checkPropertyWrite } from '@camera.ui/sdk/internal';
+import { checkPropertyWrite, isSourceReachable, WRITE_CALL_TIMEOUT_MS, WRITE_CONCURRENCY } from '@camera.ui/sdk/internal';
 
 import { NamespaceManager } from '../../../../rpc/namespaces.js';
 
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { Observable, SensorDevice, SensorLike, SensorPropertySpec, SensorType } from '@camera.ui/sdk';
+import type { Observable, SensorDevice, SensorLike, SensorPropertySpec, SensorSourceState, SensorType } from '@camera.ui/sdk';
 import type { PropertyChangedEvent, SensorDeviceState } from '@camera.ui/sdk/internal';
 import type { SensorRefreshedState, StoredSensorData } from '../../../../rpc/interfaces/sensor.js';
 
 export class SensorProxy implements SensorLike {
-  readonly onPropertyChanged: Observable<{ property: string; value: unknown; timestamp: number }>;
-  readonly onCapabilitiesChanged: Observable<string[]>;
-  readonly onConnectedChanged: Observable<boolean>;
-  readonly onAssignmentChanged: Observable<readonly string[]>;
-  readonly onDeviceInfoChanged: Observable<SensorDevice | undefined>;
-  readonly onPropertySpecsChanged: Observable<Readonly<Record<string, SensorPropertySpec>>>;
+  public readonly onPropertyChanged: Observable<{ property: string; value: unknown; timestamp: number }>;
+  public readonly onCapabilitiesChanged: Observable<string[]>;
+  public readonly onConnectedChanged: Observable<boolean>;
+  public readonly onSourceStateChanged: Observable<SensorSourceState | undefined>;
+  public readonly onAssignmentChanged: Observable<readonly string[]>;
+  public readonly onDeviceInfoChanged: Observable<SensorDevice | undefined>;
+  public readonly onPropertySpecsChanged: Observable<Readonly<Record<string, SensorPropertySpec>>>;
 
   readonly #propertyChangedSubject = new Subject<{ property: string; value: unknown; timestamp: number }>();
   readonly #capabilitiesChangedSubject = new Subject<string[]>();
   readonly #connectedChangedSubject = new Subject<boolean>();
+  readonly #sourceStateChangedSubject = new Subject<SensorSourceState | undefined>();
   readonly #assignmentChangedSubject = new Subject<readonly string[]>();
   readonly #deviceInfoChangedSubject = new Subject<SensorDevice | undefined>();
   readonly #propertySpecsChangedSubject = new Subject<Readonly<Record<string, SensorPropertySpec>>>();
@@ -37,6 +39,7 @@ export class SensorProxy implements SensorLike {
   private _assignmentLocked: boolean;
   private _exposed: boolean;
   private _connected: boolean;
+  private _sourceState?: SensorSourceState;
   private _proxy: RPCClient;
   private _properties = new Map<string, unknown>();
   private _capabilities: string[] = [];
@@ -59,6 +62,7 @@ export class SensorProxy implements SensorLike {
     this._assignmentLocked = data.boundCameraId !== undefined;
     this._exposed = data.exposed;
     this._connected = data.connected;
+    this._sourceState = data.sourceState;
     this._proxy = proxy;
     this._capabilities = data.capabilities ?? [];
     this._propertySpecs = data.propertySpecs ?? {};
@@ -66,11 +70,12 @@ export class SensorProxy implements SensorLike {
     this.onPropertyChanged = this.#propertyChangedSubject.asObservable();
     this.onCapabilitiesChanged = this.#capabilitiesChangedSubject.asObservable();
     this.onConnectedChanged = this.#connectedChangedSubject.asObservable();
+    this.onSourceStateChanged = this.#sourceStateChangedSubject.asObservable();
     this.onAssignmentChanged = this.#assignmentChangedSubject.asObservable();
     this.onDeviceInfoChanged = this.#deviceInfoChangedSubject.asObservable();
     this.onPropertySpecsChanged = this.#propertySpecsChangedSubject.asObservable();
 
-    this._rpcProxy = proxy.createProxy<SensorLike>(ownerNamespace);
+    this._rpcProxy = proxy.createProxy<SensorLike>(ownerNamespace, { timeout: WRITE_CALL_TIMEOUT_MS });
 
     for (const [key, value] of Object.entries(data.properties)) {
       this._properties.set(key, value);
@@ -125,7 +130,11 @@ export class SensorProxy implements SensorLike {
     return this._connected;
   }
 
-  get exposed(): boolean {
+  public get sourceState(): SensorSourceState | undefined {
+    return this._sourceState;
+  }
+
+  public get exposed(): boolean {
     return this._exposed;
   }
 
@@ -153,7 +162,8 @@ export class SensorProxy implements SensorLike {
     return Object.fromEntries(this._properties);
   }
 
-  async updateValue(property: string, value: unknown): Promise<void> {
+  public async updateValue(property: string, value: unknown): Promise<void> {
+    if (!isSourceReachable(this._sourceState)) throw new Error(`${this._displayName} is not reachable`);
     await this._rpcProxy.updateValue(property, checkPropertyWrite(this._propertySpecs, property, value));
   }
 
@@ -233,7 +243,13 @@ export class SensorProxy implements SensorLike {
     this.#connectedChangedSubject.next(connected);
   }
 
-  _setAssignedCameras(cameraIds: string[]): void {
+  public _setSourceState(sourceState: SensorSourceState | undefined): void {
+    if (this._sourceState === sourceState) return;
+    this._sourceState = sourceState;
+    this.#sourceStateChangedSubject.next(sourceState);
+  }
+
+  public _setAssignedCameras(cameraIds: string[]): void {
     this._assignedCameraIds = [...cameraIds];
     this.#assignmentChangedSubject.next(this._assignedCameraIds);
   }
@@ -256,6 +272,30 @@ export class SensorProxy implements SensorLike {
       this._eventSubscription();
       this._eventSubscription = undefined;
     }
+  }
+
+  public toStoredData(): StoredSensorData {
+    return {
+      id: this.id,
+      type: this.type,
+      name: this.name,
+      displayName: this.displayName,
+      shortName: this._shortName,
+      device: this._device,
+      primary: this._primary,
+      nativeId: this._nativeId,
+      pluginId: this._ownerId,
+      assignedCameraIds: [...this._assignedCameraIds],
+      exposed: this._exposed,
+      connected: this._connected,
+      properties: this.getValues(),
+      capabilities: this._capabilities,
+      propertySpecs: { ...this._propertySpecs },
+    };
+  }
+
+  public get isAvailable(): boolean {
+    return this._id !== '';
   }
 
   private _handleSensorEvent(event: { type: string; data: unknown }): void {
@@ -284,28 +324,9 @@ export class SensorProxy implements SensorLike {
   private _countEvent(key: string): void {
     this._eventCounts.set(key, (this._eventCounts.get(key) ?? 0) + 1);
   }
+}
 
-  toStoredData(): StoredSensorData {
-    return {
-      id: this.id,
-      type: this.type,
-      name: this.name,
-      displayName: this.displayName,
-      shortName: this._shortName,
-      device: this._device,
-      primary: this._primary,
-      nativeId: this._nativeId,
-      pluginId: this._ownerId,
-      assignedCameraIds: [...this._assignedCameraIds],
-      exposed: this._exposed,
-      connected: this._connected,
-      properties: this.getValues(),
-      capabilities: this._capabilities,
-      propertySpecs: { ...this._propertySpecs },
-    };
-  }
-
-  get isAvailable(): boolean {
-    return this._id !== '';
-  }
+export function sensorHandlerOptions(sensor: object): { withoutDecorators: true; concurrency: Record<string, number> } {
+  const declared = (sensor as { _rpcConcurrency?: Record<string, number> })._rpcConcurrency;
+  return { withoutDecorators: true, concurrency: { ...declared, updateValue: WRITE_CONCURRENCY } };
 }

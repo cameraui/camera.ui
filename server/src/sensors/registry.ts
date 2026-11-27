@@ -1,6 +1,7 @@
 import { isEqual } from '@camera.ui/common/utils';
 import { RPCMethod } from '@camera.ui/rpc';
 import { canProvideSensorsToAnyCameras, hasInterface, MediaPlayerCapability, MediaPlayerProperty, PluginInterface, sensorMeta, SensorType } from '@camera.ui/sdk';
+import { WRITE_CALL_TIMEOUT_MS } from '@camera.ui/sdk/internal';
 import { randomUUID } from 'node:crypto';
 
 import { CamerasService } from '../api/services/cameras.service.js';
@@ -20,14 +21,14 @@ import {
   VIRTUAL_SENSOR_OWNER_NAME,
   virtualSensorStartState,
 } from '../sensors/types.js';
-import { composeDeviceState, pickPrimary } from './devices.js';
+import { composeDeviceState, pickPrimary, sanitizeDeviceInfo } from './devices.js';
 import { sensorRoomId } from './room.js';
 import { resolvePropertySpecs, sanitizePropertySpecs } from './specs.js';
 import { disposeVirtualSensorHost, registerVirtualSensorHost } from './virtual.js';
 
 import type { Logger } from '@camera.ui/common/logger';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
-import type { DeviceInfo, DiscoveredSensor, ModelSpec, PluginContract, PropertySpecOverride, SensorLike } from '@camera.ui/sdk';
+import type { DeviceInfo, DiscoveredSensor, ModelSpec, PluginContract, PropertySpecOverride, SensorLike, SensorSourceState } from '@camera.ui/sdk';
 import type { SensorDeviceState, SensorJSON, SensorMembership, SensorSourcePatch } from '@camera.ui/sdk/internal';
 import type { Database } from '../api/database/index.js';
 import type { DBSensor, DBSensorDevice, DBSensorHistoryEntry } from '../api/database/types.js';
@@ -96,7 +97,7 @@ export class SensorRegistry {
       emitBus: emitInternalEvent,
       createPluginSensorRpc: (pluginId, sensorId) => {
         const ns = NamespaceManager.sensorProviderNamespaces(pluginId, sensorId).sensorRpc;
-        return this.proxy.createProxy<SensorLike>(ns);
+        return this.proxy.createProxy<SensorLike>(ns, { timeout: WRITE_CALL_TIMEOUT_MS });
       },
       persistState: (sensorId, delta) => this.persistRecord(sensorId, (record) => (record.state = { ...record.state, ...delta })),
       appendHistory: (sensorId, delta) => this.appendHistory(sensorId, delta),
@@ -125,6 +126,17 @@ export class SensorRegistry {
     };
     bus.onEvent('camera:property:changed', onCameraChanged);
     this.disposables.push(() => bus.offEvent('camera:property:changed', onCameraChanged));
+    for (const [event, online] of [
+      ['camera:connected', true],
+      ['camera:disconnected', false],
+    ] as const) {
+      const onConnection = (payload: unknown): void => {
+        const { cameraId } = payload as { cameraId?: string };
+        if (cameraId) this.onCameraConnectionChanged(cameraId, online);
+      };
+      bus.onEvent(event, onConnection);
+      this.disposables.push(() => bus.offEvent(event, onConnection));
+    }
 
     await this.loadRecords();
     await this.sweepOrphanedRecords();
@@ -344,16 +356,25 @@ export class SensorRegistry {
     const addressChanged = patch.address !== undefined && patch.address !== record.address;
     if (!stateChanged && !addressChanged) return;
 
+    const previous = this.sourceStateOf(record);
     this.persistRecord(sensorId, (r) => {
       if (stateChanged) r.sourceState = patch.sourceState;
       if (addressChanged) r.address = patch.address;
     });
+    if (addressChanged || this.sourceStateOf(record) !== previous) this.announceSource(record);
+  }
 
-    const ns = NamespaceManager.sensorRegistryNamespaces();
-    this.safePublish(ns.sensorsSubject, {
-      type: 'sensor:source:changed',
-      data: { sensorId, sensorType: record.type, sourceState: record.sourceState, address: record.address },
-    });
+  public onCameraConnectionChanged(cameraId: string, online: boolean): void {
+    for (const record of this.records.values()) {
+      if (record.boundCameraId !== cameraId || record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) continue;
+      const sourceState = this.sourceStateOf(record, online);
+      if (sourceState !== this.sourceStateOf(record, !online)) this.announceSource(record, sourceState);
+    }
+  }
+
+  public sourceStateOf(record: DBSensor, cameraOnline = this.boundCameraOnline(record)): SensorSourceState | undefined {
+    if (record.sourceState === 'removed' || cameraOnline) return record.sourceState;
+    return 'unavailable';
   }
 
   public async deleteSensor(sensorId: string): Promise<void> {
@@ -771,7 +792,7 @@ export class SensorRegistry {
       roomId: sensorRoomId(record),
       exposed: record.exposed,
       address: record.address,
-      sourceState: record.sourceState,
+      sourceState: this.sourceStateOf(record),
       connected: this.runtime.has(record._id),
       properties: this.getAllPropertyValues(record._id),
       capabilities: runtime?.capabilities ?? record.capabilities ?? [],
@@ -836,7 +857,7 @@ export class SensorRegistry {
       return [];
     }
     const previous = record.deviceId;
-    const device = membership.device ? this.resolveDevice(record.pluginInfo, membership.device) : undefined;
+    const device = membership.device ? this.resolveDevice(record.pluginInfo, sanitizeDeviceInfo(membership.device)) : undefined;
     record.deviceId = device?._id;
     record.primary = device ? membership.primary : undefined;
     return [previous, device?._id];
@@ -1138,6 +1159,26 @@ export class SensorRegistry {
     const assignment = assignments?.[assignmentKey as keyof typeof assignments];
     if (Array.isArray(assignment)) return assignment.some((p) => p.id === record.pluginInfo.id);
     return assignment?.id === record.pluginInfo.id;
+  }
+
+  private boundCameraOnline(record: DBSensor): boolean {
+    if (!record.boundCameraId || record.pluginInfo.id === VIRTUAL_SENSOR_OWNER_ID) return true;
+    return inject('api').getCamera(record.boundCameraId)?.connected === true;
+  }
+
+  private announceSource(record: DBSensor, sourceState = this.sourceStateOf(record)): void {
+    const ns = NamespaceManager.sensorRegistryNamespaces();
+    this.safePublish(ns.sensorsSubject, {
+      type: 'sensor:source:changed',
+      data: { sensorId: record._id, sensorType: record.type, sourceState, address: record.address },
+    });
+    emitInternalEvent('sensor:source:changed', {
+      sensorId: record._id,
+      sensorType: String(record.type),
+      sensorName: record.name,
+      assignedCameraIds: [...record.assignedCameraIds],
+      sourceState,
+    });
   }
 
   private hasFrameWorker(cameraId: string): boolean {

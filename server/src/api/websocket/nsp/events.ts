@@ -2,7 +2,7 @@ import { inject } from '../../../container.js';
 import { resolveSensorSemantics } from '../../../sensors/semantics.js';
 import { onClientEvent } from '../client-events.js';
 
-import type { DetectionEvent, DetectionEventType, SensorDevice, SensorPropertySpec, SensorSemantics } from '@camera.ui/sdk';
+import type { DetectionEvent, DetectionEventType, SensorDevice, SensorPropertySpec, SensorSemantics, SensorSourceState } from '@camera.ui/sdk';
 import type { Namespace, Server, Socket } from 'socket.io';
 import type { CameraUiAPI } from '../../../api.js';
 import type { CameraController } from '../../../camera/controller.js';
@@ -58,6 +58,7 @@ interface SensorMessage {
   propertySpecs?: Record<string, SensorPropertySpec>;
   semantics?: SensorSemantics;
   connected?: boolean;
+  sourceState?: SensorSourceState | null;
 }
 
 interface SubscribeReply {
@@ -162,6 +163,12 @@ export class EventsNamespace {
     this.onBus(bus, 'sensor:connected:changed', (payload) => {
       const p = payload as SensorLifecyclePayload;
       this.emitSensor({ type: 'meta', sensorId: p.sensorId, sensorType: p.sensorType, assignedCameraIds: p.assignedCameraIds, connected: p.connected });
+    });
+
+    this.onBus(bus, 'sensor:source:changed', (payload) => {
+      const p = payload as SensorLifecyclePayload;
+      // null tells the client the source is fine again
+      this.emitSensor({ type: 'meta', sensorId: p.sensorId, sensorType: p.sensorType, assignedCameraIds: p.assignedCameraIds, sourceState: p.sourceState ?? null });
     });
 
     this.onBus(bus, 'sensor:displayName:changed', (payload) => {

@@ -81,6 +81,7 @@ class StoredSensorData(TypedDict):
     pluginId: str
     assignedCameraIds: list[str]
     boundCameraId: NotRequired[str]
+    roomId: NotRequired[str]
     exposed: bool
     origin: NotRequired[str]
     address: NotRequired[str]

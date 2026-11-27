@@ -5,7 +5,7 @@ import { NamespaceManager } from '../../../../rpc/namespaces.js';
 import { getDetectionTypes } from '../../../../sensors/types.js';
 import { limitRegistration } from './limiter.js';
 import { watchReconnect } from './reconnect.js';
-import { SensorProxy } from './sensor.js';
+import { SensorProxy, sensorHandlerOptions } from './sensor.js';
 
 import type { Logger } from '@camera.ui/common';
 import type { Promisify, RPCClient } from '@camera.ui/rpc';
@@ -22,6 +22,7 @@ import type {
   SensorEventMessage,
   SensorExposedChangedEvent,
   SensorRegistryInterface,
+  SensorSourceChangedEvent,
   SensorSpecsChangedEvent,
   StoredSensorData,
 } from '../../../../rpc/interfaces/sensor.js';
@@ -288,10 +289,7 @@ export class SensorManagerProxy implements SensorManager {
       this.#registryProxy.updateSource(sensor.id, patch).catch((error) => this.#logger.debug(`Source write for sensor ${sensor.id} failed:`, error));
     });
 
-    const rpcCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, {
-      withoutDecorators: true,
-      concurrency: (sensor as { _rpcConcurrency?: Record<string, number> })._rpcConcurrency,
-    });
+    const rpcCleanup = await this.#proxy.registerHandler(sensorNamespace, sensor, sensorHandlerOptions(sensor));
 
     const eventNs = NamespaceManager.sensorEventNamespaces(sensor.id);
     // frame-fed owners skip the echo of their per-frame detection writes
@@ -491,6 +489,11 @@ export class SensorManagerProxy implements SensorManager {
           this.#pluginInstance?.onSensorUnadopted?.(unbound.nativeId).catch((error) => this.#logger.warn(`onSensorUnadopted failed for ${unbound.nativeId}:`, error));
         }
         this.#releaseConsumed(event.sensorId);
+        break;
+      }
+      case 'sensor:source:changed': {
+        const event = message.data as SensorSourceChangedEvent;
+        this.#consumed.get(event.sensorId)?._setSourceState(event.sourceState);
         break;
       }
       case 'sensor:connected:changed': {

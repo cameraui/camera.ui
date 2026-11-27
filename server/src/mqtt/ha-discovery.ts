@@ -143,7 +143,7 @@ export function buildSensorDiscovery(topics: MqttTopics, haPrefix: string, senso
   // null names the main sensor after its device
   const entityName = sensor.device ? (sensor.primary ? null : sensor.shortName) : displayName;
   const shared = {
-    availability: [{ topic: topics.availability }],
+    availability: [{ topic: topics.availability }, { topic: topics.sensorAvailability(sensor.id) }],
     availability_mode: 'all',
     device: sensor.device
       ? {

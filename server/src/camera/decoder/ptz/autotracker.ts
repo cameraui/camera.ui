@@ -1,4 +1,5 @@
 import { PTZCapability, PTZProperty } from '@camera.ui/sdk';
+import { WRITE_CALL_TIMEOUT_MS } from '@camera.ui/sdk/internal';
 
 import { NamespaceManager } from '../../../rpc/namespaces.js';
 import { PAN_TO_IMAGE_RATIO } from '../detection-pipeline.js';
@@ -111,6 +112,7 @@ export class PtzAutotracker {
   private externalControlUntil = 0;
   private lastStrategy?: MoveStrategy;
   private currentPose: { pan: number; tilt: number; zoom: number } = { pan: 0, tilt: 0, zoom: 0 };
+  private writeRefused = false;
 
   private aimStreak = { x: { dir: 0, frames: 0 }, y: { dir: 0, frames: 0 } };
 
@@ -559,16 +561,12 @@ export class PtzAutotracker {
 
   private sendRelativeMove(ptz: PtzSensorInfo, move: PTZRelativeMove): void {
     this.markOwnMoveStart();
-    this.getPtzRpc(ptz)
-      .updateValue(PTZProperty.RelativeMove, move)
-      .catch(() => {});
+    this.write(ptz, PTZProperty.RelativeMove, move);
   }
 
   private sendAbsoluteMove(ptz: PtzSensorInfo, target: { pan: number; tilt: number; zoom: number }): void {
     this.markOwnMoveStart();
-    this.getPtzRpc(ptz)
-      .updateValue(PTZProperty.Position, target)
-      .catch(() => {});
+    this.write(ptz, PTZProperty.Position, target);
   }
 
   private markOwnMoveStart(): void {
@@ -722,19 +720,31 @@ export class PtzAutotracker {
     if (isStop) {
       this.lastStopIssuedAt = Date.now();
     }
-    this.getPtzRpc(ptz)
-      .updateValue(PTZProperty.Velocity, v)
-      .catch(() => {});
+    this.write(ptz, PTZProperty.Velocity, v);
   }
 
   private sendPosition(ptz: PtzSensorInfo, p: { pan: number; tilt: number; zoom: number }): void {
+    this.write(ptz, PTZProperty.Position, p);
+  }
+
+  private write(ptz: PtzSensorInfo, property: string, value: unknown): void {
     this.getPtzRpc(ptz)
-      .updateValue(PTZProperty.Position, p)
-      .catch(() => {});
+      .updateValue(property, value)
+      .then(
+        () => {
+          this.writeRefused = false;
+        },
+        (error: unknown) => {
+          // the tracker writes several times a second, one line until a write goes through again
+          if (this.writeRefused) return;
+          this.writeRefused = true;
+          this.deps.logger.warn(`[autotracker] the camera refused ${property}:`, error);
+        },
+      );
   }
 
   private getPtzRpc(ptz: PtzSensorInfo): Promisify<SensorLike> {
     const ns = NamespaceManager.sensorProviderNamespaces(ptz.pluginId, ptz.sensorId).sensorRpc;
-    return this.deps.proxy.createProxy<SensorLike>(ns);
+    return this.deps.proxy.createProxy<SensorLike>(ns, { timeout: WRITE_CALL_TIMEOUT_MS });
   }
 }

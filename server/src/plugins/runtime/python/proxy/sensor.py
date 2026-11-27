@@ -10,14 +10,18 @@ from _camera_ui_tools.camera_ui_sdk import (
     SensorLike,
     SensorPropertyChangeData,
     SensorPropertySpec,
+    SensorSourceState,
     SensorType,
     Subject,
 )
 from _camera_ui_tools.camera_ui_sdk.internal import (
+    WRITE_CALL_TIMEOUT_MS,
+    WRITE_CONCURRENCY,
     SensorDeviceState,
     SensorJSON,
     SensorSourcePatch,
     check_property_write,
+    is_source_reachable,
 )
 from plugins.runtime.python.namespaces import NamespaceManager
 from plugins.runtime.python.typings import (
@@ -58,14 +62,16 @@ class SensorProxy(SensorLike):
         self._assignment_locked = data.get("boundCameraId") is not None
         self._exposed = data.get("exposed", False)
         self._connected = data.get("connected", False)
+        self._source_state: SensorSourceState | None = data.get("sourceState")
         self._proxy = proxy
         self._properties: dict[str, Any] = dict(data.get("properties", {}))
         self._capabilities: list[str] = list(data.get("capabilities", []))
         self._property_specs: Mapping[str, SensorPropertySpec] = data.get("propertySpecs", {})
-        self._rpc_proxy = proxy.create_proxy(owner_namespace)
+        self._rpc_proxy = proxy.create_proxy(owner_namespace, timeout=WRITE_CALL_TIMEOUT_MS)
         self._property_changed_subject: Subject[SensorPropertyChangeData] = Subject()
         self._capabilities_changed_subject: Subject[list[str]] = Subject()
         self._connected_changed_subject: Subject[bool] = Subject()
+        self._source_state_changed_subject: Subject[SensorSourceState | None] = Subject()
         self._assignment_changed_subject: Subject[list[str]] = Subject()
         self._device_info_changed_subject: Subject[SensorDevice | None] = Subject()
         self._property_specs_changed_subject: Subject[Mapping[str, SensorPropertySpec]] = Subject()
@@ -125,6 +131,10 @@ class SensorProxy(SensorLike):
         return self._connected
 
     @property
+    def sourceState(self) -> SensorSourceState | None:
+        return self._source_state
+
+    @property
     def exposed(self) -> bool:
         return self._exposed
 
@@ -146,6 +156,8 @@ class SensorProxy(SensorLike):
         return self._properties.copy()
 
     async def updateValue(self, property: str, value: Any) -> None:
+        if not is_source_reachable(self._source_state):
+            raise RuntimeError(f"{self._display_name} is not reachable")
         await self._rpc_proxy.updateValue(
             property, check_property_write(self._property_specs, property, value)
         )
@@ -161,6 +173,10 @@ class SensorProxy(SensorLike):
     @property
     def onConnectedChanged(self) -> Observable[bool]:
         return self._connected_changed_subject.as_observable()
+
+    @property
+    def onSourceStateChanged(self) -> Observable[SensorSourceState | None]:
+        return self._source_state_changed_subject.as_observable()
 
     @property
     def onAssignmentChanged(self) -> Observable[list[str]]:
@@ -228,6 +244,12 @@ class SensorProxy(SensorLike):
             return
         self._connected = connected
         self._connected_changed_subject.next(connected)
+
+    def _set_source_state(self, source_state: SensorSourceState | None) -> None:
+        if self._source_state == source_state:
+            return
+        self._source_state = source_state
+        self._source_state_changed_subject.next(source_state)
 
     def _set_assigned_cameras(self, camera_ids: list[str]) -> None:
         self._assigned_camera_ids = list(camera_ids)
@@ -358,9 +380,13 @@ class DetectionCoordinatorRPC(Protocol):
 
 def sensor_handler_options(sensor: object) -> dict[str, Any]:
     declared = getattr(sensor, "_rpc_concurrency", None)
-    if not isinstance(declared, Mapping):
-        return {}
-    limits = {
-        method: limit for method, limit in declared.items() if isinstance(method, str) and type(limit) is int
-    }
-    return {"concurrency": limits} if limits else {}
+    limits = (
+        {
+            method: limit
+            for method, limit in declared.items()
+            if isinstance(method, str) and type(limit) is int
+        }
+        if isinstance(declared, Mapping)
+        else {}
+    )
+    return {"concurrency": {**limits, "updateValue": WRITE_CONCURRENCY}}

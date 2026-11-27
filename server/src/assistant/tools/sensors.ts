@@ -5,7 +5,7 @@ import * as zod from 'zod';
 import { CamerasService } from '../../api/services/cameras.service.js';
 import { SensorsService } from '../../api/services/sensors.service.js';
 import { instanceUnitSystem } from '../../i18n/index.js';
-import { SENSOR_TYPE_CONFIG } from '../../sensors/types.js';
+import { SENSOR_TYPE_CONFIG, sensorPropertySpec } from '../../sensors/types.js';
 import { resolveCameraName } from './cameras.js';
 import { approvalSchema, toolError } from './shared.js';
 
@@ -164,7 +164,7 @@ const setSensorProperty = toolDefinition({
   const target = property ?? found.semantics?.commandProperty;
   if (!target) return toolError(`Sensor "${found.displayName || found.name}" has no command property, pass one explicitly.`);
 
-  const unit = found.propertySpecs[target]?.unit;
+  const unit = sensorPropertySpec(found, target)?.unit;
   const stored = typeof value === 'number' && unit ? fromUnitSystem(value, unit, instanceUnitSystem()) : value;
   const result = await sensors.command(found.id, target, stored);
   if (typeof result === 'object') return toolError(`Sensor "${found.displayName || found.name}" rejected the value: ${result.rejected}.`);
