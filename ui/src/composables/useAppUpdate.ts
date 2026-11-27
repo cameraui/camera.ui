@@ -1,5 +1,6 @@
 import { entryScriptSrc } from '@/common/appEntry.js';
 import { isEmbedded, runtimeBase } from '@/common/base.js';
+import { noteReload } from '@/common/reloadReason.js';
 import { isCapacitor, useConnection } from '@/connection/index.js';
 import { i18n } from '@/i18n/index.js';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
@@ -14,6 +15,7 @@ const ENTRY_CHECK_TIMEOUT_MS = 10_000;
 const updateAvailable = ref(false);
 const isApplying = ref(false);
 let applyImpl: () => Promise<void> = async () => {};
+let runningBundleGone = false;
 
 let registration: ServiceWorkerRegistration | undefined;
 let lastSWCheck = 0;
@@ -45,16 +47,19 @@ async function checkEntryForUpdate(): Promise<void> {
     sessionStorage.setItem(SW_RELOADED_FLAG, '1');
     window.location.reload();
   };
+  runningBundleGone = true;
   updateAvailable.value = true;
 }
 
 async function runApply(): Promise<void> {
   if (isApplying.value || !updateAvailable.value) return;
   isApplying.value = true;
+  noteReload('to apply an update');
   try {
     await applyImpl();
   } catch (err) {
     log.error('apply failed', err);
+    noteReload(null);
     isApplying.value = false;
   }
   // isApplying stays set on success, the page reloads
@@ -69,7 +74,7 @@ export function useAppUpdate() {
 }
 
 export function adoptUpdateIfPending(): void {
-  if (!updateAvailable.value || isApplying.value) return;
+  if (!runningBundleGone || !updateAvailable.value || isApplying.value) return;
   runApply();
 }
 

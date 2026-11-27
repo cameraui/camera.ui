@@ -60,7 +60,8 @@ import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
 import { isAppPath, isWebUrl } from '@/common/utils.js';
 import { dropParkedPage, holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
-import { isCapacitor, isInAppSession, useConnection } from '@/connection/index.js';
+import { noteReload } from '@/common/reloadReason.js';
+import { isAppPath, isWebUrl } from '@/common/utils.js';
 import { scrollPageToTop } from '@/composables/useCuiTopbarSlots.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
@@ -1658,7 +1659,10 @@ router.onError((error, to) => {
   routerStore.routerLoading = false;
 
   if (isDynamicImportError(error)) {
-    attemptChunkReload(() => window.location.assign(to.fullPath));
+    attemptChunkReload(() => {
+      noteReload('because a file of the app failed to load');
+      window.location.assign(to.fullPath);
+    });
   }
 });
 

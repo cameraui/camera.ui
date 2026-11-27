@@ -21,6 +21,7 @@ import { isEmbedded, isProxySignIn } from '@/common/base.js';
 import { installCertTrustBridge } from '@/common/certTrustService.js';
 import { attemptChunkReload, markLoadStable } from '@/common/chunkReload.js';
 import { initHostSync, reportHostRoute } from '@/common/hostSync.js';
+import { logLastReload, noteReload } from '@/common/reloadReason.js';
 import { bootApp, consumeAuthParam, consumeEmbedSession, isCapacitor } from '@/connection/index.js';
 import { instanceOverride } from '@/connection/instance.js';
 import { registerEcosystemPlugins } from '@/plugins/cameraui.js';
@@ -29,7 +30,14 @@ import { installHoverGate } from '@/plugins/hover.js';
 import { registerUiPlugins } from '@/plugins/index.js';
 import Router from '@/router/index.js';
 
-window.addEventListener('vite:preloadError', () => attemptChunkReload(() => window.location.reload()));
+logLastReload();
+
+window.addEventListener('vite:preloadError', () =>
+  attemptChunkReload(() => {
+    noteReload('because a file of the app failed to load');
+    window.location.reload();
+  }),
+);
 
 installCertTrustBridge();
 

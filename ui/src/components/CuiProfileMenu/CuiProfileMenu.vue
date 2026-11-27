@@ -23,6 +23,7 @@
 import ReloadIcon from '~icons/iconoir/reload-window';
 import PowerIcon from '~icons/tabler/power';
 
+import { reloadFromMenu } from '@/common/reloadReason.js';
 import { routes } from '@/router/index.js';
 
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
@@ -61,7 +62,7 @@ const items = computed<MenuItem[]>(() => {
     {
       label: t('components.user_menu.reload'),
       icon: ReloadIcon,
-      onClick: handleReload,
+      onClick: reloadFromMenu,
     },
   ];
 
@@ -83,10 +84,6 @@ const items = computed<MenuItem[]>(() => {
 
   return [headerItem, ...bodyItems, footerItem];
 });
-
-function handleReload() {
-  window.location.reload();
-}
 </script>
 
 <style>

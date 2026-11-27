@@ -35,7 +35,7 @@
             <i-mdi:chevron-right class="w-5 h-5 text-muted" />
           </template>
         </CuiListItem>
-        <CuiListItem @click="handleReload">
+        <CuiListItem @click="reloadFromMenu">
           <template #prepend>
             <i-iconoir:reload-window class="w-5 h-5 text-muted" />
           </template>
@@ -60,6 +60,7 @@
 
 <script lang="ts" setup>
 import { canSignOut } from '@/common/base.js';
+import { reloadFromMenu } from '@/common/reloadReason.js';
 import { bounceToCloudFrontend, isCapacitor } from '@/connection/index.js';
 import { routes } from '@/router/index.js';
 
@@ -106,10 +107,6 @@ function toItems(routesList: RouteRecordRaw[]): MenuItemDef[] {
       label: t(`navigation.${(r.name as string).toLowerCase()}`),
       icon: r.meta!.menu!.icon.default,
     }));
-}
-
-function handleReload() {
-  window.location.reload();
 }
 
 async function handleSwitchServer() {
