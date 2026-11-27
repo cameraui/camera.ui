@@ -30,7 +30,7 @@
           v-if="!hasSlot('left') && hasPermission(undefined, 'admin') && router.currentRoute.value.name === 'Home' && isMultiInstance"
           class="cui-topbar-default non-draggable-region"
         />
-        <div id="cui-topbar-left" class="cui-topbar-slot non-draggable-region" />
+        <div id="cui-topbar-left" class="cui-topbar-slot min-w-0 non-draggable-region" />
       </div>
 
       <div class="shrink-0 flex items-center justify-center min-w-0 cursor-pointer" @click="scrollToTop">
@@ -124,5 +124,6 @@ const assistantReady = computed(() => assistantStatus.value?.state === 'ready');
 .cui-topbar {
   background: var(--topbar-background);
   border-bottom: 1px solid var(--border-color);
+  transform: translateZ(0);
 }
 </style>

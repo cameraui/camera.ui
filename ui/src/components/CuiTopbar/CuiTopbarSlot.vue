@@ -1,5 +1,5 @@
 <template>
-  <Teleport v-if="smBreakpoint" :to="`#cui-topbar-${position}`" defer>
+  <Teleport v-if="smBreakpoint && showTopbar" :to="`#cui-topbar-${position}`" defer>
     <slot />
   </Teleport>
 </template>
@@ -10,6 +10,7 @@ import type { CuiTopbarSlotProps } from './types.js';
 const props = defineProps<CuiTopbarSlotProps>();
 
 const { smBreakpoint } = useSharedCuiBreakpoint();
+const { showTopbar } = useSharedCuiStates();
 const { registerSlot } = useCuiTopbarSlots();
 
 registerSlot(props.position);

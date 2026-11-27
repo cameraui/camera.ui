@@ -13,13 +13,12 @@ export function useTabSwipe(target: Ref<HTMLElement | null>, onTabSwipe: (direct
   const excludeSelectors = [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])];
   const allowSwipe = ref(true);
 
-  function inHorizontalScroller(el: HTMLElement): boolean {
+  function handlesHorizontalDrag(el: HTMLElement): boolean {
     let node: HTMLElement | null = el;
     while (node && node !== target.value) {
-      if (node.scrollWidth > node.clientWidth + 1) {
-        const overflowX = getComputedStyle(node).overflowX;
-        if (overflowX === 'auto' || overflowX === 'scroll') return true;
-      }
+      const style = getComputedStyle(node);
+      if (style.touchAction === 'none' || style.touchAction.startsWith('pan-y')) return true;
+      if (node.scrollWidth > node.clientWidth + 1 && (style.overflowX === 'auto' || style.overflowX === 'scroll')) return true;
       node = node.parentElement;
     }
     return false;
@@ -27,7 +26,7 @@ export function useTabSwipe(target: Ref<HTMLElement | null>, onTabSwipe: (direct
 
   function onSwipeStart(e: TouchEvent | PointerEvent) {
     const eventTarget = e.target as HTMLElement;
-    if (INTERACTIVE_ELEMENTS.includes(eventTarget.tagName) || excludeSelectors.some((selector) => eventTarget.closest(selector)) || inHorizontalScroller(eventTarget)) {
+    if (INTERACTIVE_ELEMENTS.includes(eventTarget.tagName) || excludeSelectors.some((selector) => eventTarget.closest(selector)) || handlesHorizontalDrag(eventTarget)) {
       allowSwipe.value = false;
     }
   }

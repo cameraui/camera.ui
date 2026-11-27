@@ -5,12 +5,12 @@
       class="absolute top-0 overflow-x-auto overflow-y-hidden hide-scrollbar overscroll-x-contain"
       :style="bleedStyle"
       :class="{
-        'overflow-x-hidden!': displayEvents.length === 0 && (isLoading || needsMoreEvents || noEvents),
+        'overflow-x-hidden!': skeleton,
       }"
     >
       <div class="relative" :style="{ width: `${displayEvents.length * EVENT_CARD_WIDTH}px`, height: `${EVENT_CARD_HEIGHT}px` }">
         <div class="absolute top-0 left-0 flex" :style="{ transform: `translateX(${renderOffset}px)` }">
-          <template v-if="displayEvents.length === 0 && (isLoading || needsMoreEvents || noEvents)">
+          <template v-if="skeleton">
             <div v-for="i in skeletonCount" :key="`skeleton-${i}`" class="event-card flex flex-col items-center justify-center w-[140px] mr-3">
               <Skeleton class="rounded-xl" width="140px" height="140px" :animation="noEvents ? 'none' : 'wave'" />
               <Skeleton class="mt-2" width="50px" height="16px" :animation="noEvents ? 'none' : 'wave'" />
@@ -69,7 +69,7 @@ import { provideEventHoverPreview } from '@/composables/provideEventHoverPreview
 import type { DBCamera } from '@shared/types';
 import type { CuiCameraEventsProps } from './types.js';
 
-const props = defineProps<CuiCameraEventsProps>();
+const props = withDefaults(defineProps<CuiCameraEventsProps>(), { bleed: true });
 
 provideEventHoverPreview(20);
 
@@ -83,7 +83,8 @@ const containerRef = useTemplateRef('containerRef');
 const scrollContainerRef = useTemplateRef('scrollContainerRef');
 
 const { containerWidth, bleedLeft, bleedStyle, fadeStyle, scrollLeft, isAtStart, isSwiping, scrollToStart } = useBleedScroll(containerRef, scrollContainerRef, {
-  disabled: () => displayEvents.value.length === 0 && (isLoading.value || needsMoreEvents.value || noEvents.value),
+  disabled: () => skeleton.value,
+  bleed: () => props.bleed,
 });
 
 const cameraMap = computed(() => {
@@ -133,7 +134,8 @@ const {
 const displayEvents = computed(() => segmentItems.value);
 const visibleCardCount = computed(() => Math.ceil((containerWidth.value || 800) / EVENT_CARD_WIDTH));
 const needsMoreEvents = computed(() => displayEvents.value.length < visibleCardCount.value && hasMore.value);
-const noEvents = computed(() => !isLoading.value && displayEvents.value.length === 0 && !hasMore.value);
+const noEvents = computed(() => !props.pending && !isLoading.value && displayEvents.value.length === 0 && !hasMore.value);
+const skeleton = computed(() => displayEvents.value.length === 0 && (props.pending || isLoading.value || needsMoreEvents.value || noEvents.value));
 const skeletonCount = computed(() => (displayEvents.value.length === 0 ? 15 : 5));
 
 const renderStart = computed(() => Math.max(0, Math.floor(scrollLeft.value / EVENT_CARD_WIDTH) - BUFFER));

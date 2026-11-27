@@ -6,6 +6,7 @@ export interface CuiCameraEventsProps {
   hiddenTypes?: EventTypesByCamera;
   shownTypes?: EventTypesByCamera;
   pending?: boolean;
+  bleed?: boolean;
 }
 
 export type EventType = 'motion' | 'person' | 'face' | 'vehicle' | 'animal' | 'audio' | 'license_plate' | (string & {});

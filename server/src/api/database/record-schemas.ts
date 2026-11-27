@@ -8,6 +8,7 @@ import {
   camviewCardFitSchema,
   camviewViewSizeSchema,
   camviewViewTypeSchema,
+  homeProfileSchema,
   sensorShortcutTypeSchema,
   userLanguageSchema,
   userPreferencesCamviewViewsLayoutCameras,
@@ -78,7 +79,7 @@ export const dbUserSchema = zod.object({
           cameras: zod.record(zod.string(), userPreferencesCameraRecordingsFilter).optional(),
         })
         .optional(),
-      home: zod.object({ hiddenCameras: zod.string().array().default([]) }).optional(),
+      home: zod.object({ hiddenCameras: zod.string().array().default([]), profiles: homeProfileSchema.array().optional() }).optional(),
       timeline: userPreferencesTimeline.optional(),
     })
     .default({ language: 'auto', camview: { views: [] }, cameras: {} }),

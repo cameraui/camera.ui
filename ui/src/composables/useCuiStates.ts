@@ -10,6 +10,7 @@ export function useCuiStates() {
   const routeMeta = useRouteMeta();
   const { state } = useCuiBus();
   const { mdBreakpoint, smBreakpoint, xlBreakpoint } = useSharedCuiBreakpoint();
+  const kiosk = useKioskMode();
 
   const { uiSettings } = storeToRefs(uiStore);
 
@@ -31,13 +32,13 @@ export function useCuiStates() {
     return route.path.includes('/settings') ? (xlBreakpoint.value ? 'opened' : state.subbarState ? state.subbarState : 'closed') : undefined;
   });
 
-  const showNavbar = computed(() => routeMeta.showNavbar.value);
+  const showNavbar = computed(() => routeMeta.showNavbar.value && !kiosk.active.value);
 
   const showBottombar = computed(() => {
-    return routeMeta.showBottombar.value && uiSettings.value.interface.showBottomBarOnMobile && smBreakpoint.value;
+    return routeMeta.showBottombar.value && uiSettings.value.interface.showBottomBarOnMobile && smBreakpoint.value && !kiosk.active.value;
   });
 
-  const showTopbar = computed(() => routeMeta.showTopbar.value);
+  const showTopbar = computed(() => routeMeta.showTopbar.value && !kiosk.active.value);
 
   const topbarHeight = computed(() => (showTopbar.value ? (routeMeta.minifiedTopbar.value ? 0 : TOPBAR_SIZE.HEIGHT) : 0));
 

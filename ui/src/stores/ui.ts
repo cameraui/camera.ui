@@ -44,6 +44,10 @@ const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
   plugins: {
     view: 'cards',
   },
+  home: {
+    deviceProfiles: {},
+    dashboard: false,
+  },
   'cui-logger-debug': 1,
   'cui-logger-recording': 1,
 };
@@ -59,6 +63,8 @@ export const useUiStore = defineStore('ui', () => {
   uiSettings.value.sensors.hideAllCameraBound ??= false;
   uiSettings.value.sensors.onlyEnabledCameraBound ??= true;
   uiSettings.value.sensors.hiddenTypes ??= [...ANALYSIS_SENSOR_TYPES];
+  uiSettings.value.home.deviceProfiles ??= {};
+  uiSettings.value.home.dashboard ??= false;
 
   return {
     uiSettings,

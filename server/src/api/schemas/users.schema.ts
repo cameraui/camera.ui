@@ -218,9 +218,76 @@ export const userPreferencesTimeline = timelineFilter.extend({
   cameras: zod.record(zod.string().trim().min(1), timelineFilter).optional(),
 });
 
-export const userPreferencesHome = zod.object({
-  hiddenCameras: zod.string().trim().min(1).array().max(1000),
+export const HOME_BREAKPOINTS = ['xl', 'lg', 'md', 'sm'] as const;
+
+export const HOME_WIDGET_KINDS = ['camera', 'sensor', 'notes', 'events', 'lights', 'automation', 'floorplan', 'group', 'clock', 'action'] as const;
+export const HOME_ACTIONS = ['snooze', 'recording', 'mute', 'privacy'] as const;
+export const HOME_CAMERA_FOLLOW = ['motion', 'detection'] as const;
+
+export const HOME_DOCK_KEYS = ['light', 'climate', 'security', 'locks', 'openings', 'media', 'cameras'] as const;
+
+export const HOME_ORIENTATIONS = ['portrait', 'landscape'] as const;
+
+const homeWidgetPosition = zod.object({
+  x: zod.number().int().min(0).max(15),
+  y: zod.number().int().min(0).max(10_000),
+  w: zod.number().int().min(1).max(16),
+  h: zod.number().int().min(1).max(48),
 });
+
+const homeWindowSize = zod.number().int().min(0).max(20_000);
+
+export const homeProfileSchema = zod.object({
+  id: zod.string().trim().min(1).max(100),
+  name: zod.string().trim().min(1).max(60).optional(),
+  rule: zod
+    .object({
+      orientation: zod.enum(HOME_ORIENTATIONS),
+      minWidth: homeWindowSize,
+      maxWidth: homeWindowSize,
+      minHeight: homeWindowSize,
+      maxHeight: homeWindowSize,
+    })
+    .partial()
+    .optional(),
+  pages: zod
+    .object({
+      id: zod.string().trim().min(1).max(200),
+      size: zod.enum(HOME_BREAKPOINTS).optional(),
+      autoAdd: zod.boolean(),
+      widgets: zod
+        .object({
+          id: zod.string().trim().min(1).max(300),
+          kind: zod.enum(HOME_WIDGET_KINDS),
+          ref: zod.string().trim().min(1).max(200).optional(),
+          layout: homeWidgetPosition.optional(),
+          fit: camviewCardFitSchema.optional(),
+          cameras: zod.string().trim().min(1).max(200).array().max(32).optional(),
+          rotate: zod.number().int().min(5).max(3600).optional(),
+          follow: zod.enum(HOME_CAMERA_FOLLOW).optional(),
+          name: zod.string().trim().min(1).max(60).optional(),
+          sensors: zod.string().trim().min(1).max(200).array().max(64).optional(),
+          room: zod.string().trim().min(1).max(200).optional(),
+          actions: zod.enum(HOME_ACTIONS).array().min(1).max(HOME_ACTIONS.length).optional(),
+          minutes: zod.number().int().min(0).max(10_080).optional(),
+        })
+        .array()
+        .max(500),
+      hidden: zod.string().trim().min(1).max(300).array().max(2000),
+    })
+    .array()
+    .max(200),
+  dock: zod.enum(HOME_DOCK_KEYS).array().max(HOME_DOCK_KEYS.length).optional(),
+  rooms: zod.string().trim().min(1).max(200).array().max(500).optional(),
+  hiddenRooms: zod.string().trim().min(1).max(200).array().max(500).optional(),
+});
+
+export const userPreferencesHome = zod
+  .object({
+    hiddenCameras: zod.string().trim().min(1).array().max(1000),
+    profiles: homeProfileSchema.array().max(20),
+  })
+  .partial();
 
 const navLayoutOrder = zod
   .object({

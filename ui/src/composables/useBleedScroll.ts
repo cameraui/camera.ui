@@ -2,6 +2,7 @@ import type { MaybeRefOrGetter, ShallowRef } from 'vue';
 
 interface BleedScrollOptions {
   disabled?: MaybeRefOrGetter<boolean>;
+  bleed?: MaybeRefOrGetter<boolean>;
 }
 
 export function useBleedScroll(
@@ -26,11 +27,17 @@ export function useBleedScroll(
     { immediate: false },
   );
 
-  const bleedStyle = computed(() => ({
-    marginLeft: `${-bleedLeft.value}px`,
-    width: '100dvw',
-    paddingLeft: `${bleedLeft.value}px`,
-  }));
+  const bleeds = () => toValue(options.bleed) ?? true;
+
+  const bleedStyle = computed(() =>
+    bleeds()
+      ? {
+          marginLeft: `${-bleedLeft.value}px`,
+          width: '100dvw',
+          paddingLeft: `${bleedLeft.value}px`,
+        }
+      : { width: '100%' },
+  );
 
   const fadeStyle = computed(() => {
     const totalWidth = bleedLeft.value + 50;
@@ -49,7 +56,7 @@ export function useBleedScroll(
   function updateBleed(): void {
     const el = container.value;
     if (!el) return;
-    bleedLeft.value = el.getBoundingClientRect().left;
+    bleedLeft.value = bleeds() ? el.getBoundingClientRect().left : 0;
   }
 
   function updateScrollPosition(): void {

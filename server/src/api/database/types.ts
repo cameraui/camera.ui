@@ -4,7 +4,16 @@ import type { Types } from '@eneris/push-receiver/dist/client.js';
 import type { NotificationSource } from '../../manager/types.js';
 import type { WorkerUpdate } from '../../workers/lifecycle/update.js';
 import type { NotificationBellSettings } from '../schemas/notifications.schema.js';
-import type { LanguageAbbreviations, UserLanguage } from '../schemas/users.schema.js';
+import type {
+  HOME_ACTIONS,
+  HOME_BREAKPOINTS,
+  HOME_CAMERA_FOLLOW,
+  HOME_DOCK_KEYS,
+  HOME_ORIENTATIONS,
+  HOME_WIDGET_KINDS,
+  LanguageAbbreviations,
+  UserLanguage,
+} from '../schemas/users.schema.js';
 import type { NavLayoutSettings } from '../types/index.js';
 
 export interface DBCamera extends BaseCamera {
@@ -625,9 +634,69 @@ export interface DBUserPreferences {
     cameras?: Record<string, DBCameraRecordingsFilter | undefined>;
   };
   home?: {
-    hiddenCameras: string[];
+    hiddenCameras?: string[];
+    profiles?: DBHomeProfile[];
   };
   timeline?: DBTimelinePreferences;
+}
+
+export type DBHomeBreakpoint = (typeof HOME_BREAKPOINTS)[number];
+
+export type DBHomeWidgetKind = (typeof HOME_WIDGET_KINDS)[number];
+export type DBHomeAction = (typeof HOME_ACTIONS)[number];
+export type DBHomeCameraFollow = (typeof HOME_CAMERA_FOLLOW)[number];
+
+export type DBHomeDockKey = (typeof HOME_DOCK_KEYS)[number];
+
+export type DBHomeOrientation = (typeof HOME_ORIENTATIONS)[number];
+
+export interface DBHomeWidgetPosition {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface DBHomeWidget {
+  id: string;
+  kind: DBHomeWidgetKind;
+  ref?: string;
+  layout?: DBHomeWidgetPosition;
+  fit?: DBCamviewCardFit;
+  cameras?: string[];
+  rotate?: number;
+  follow?: DBHomeCameraFollow;
+  name?: string;
+  sensors?: string[];
+  room?: string;
+  actions?: DBHomeAction[];
+  minutes?: number;
+}
+
+export interface DBHomePage {
+  id: string;
+  size?: DBHomeBreakpoint;
+  autoAdd: boolean;
+  widgets: DBHomeWidget[];
+  hidden: string[];
+}
+
+export interface DBHomeProfileRule {
+  orientation?: DBHomeOrientation;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+}
+
+export interface DBHomeProfile {
+  id: string;
+  name?: string;
+  rule?: DBHomeProfileRule;
+  pages: DBHomePage[];
+  dock?: DBHomeDockKey[];
+  rooms?: string[];
+  hiddenRooms?: string[];
 }
 
 export interface DBInstanceCredentials {

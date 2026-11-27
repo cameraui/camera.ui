@@ -53,7 +53,7 @@
           :class="smBreakpoint ? 'h-auto' : 'aspect-video'"
           :style="smBreakpoint ? undefined : { maxWidth: `${maxWidth}px` }"
         >
-          <div ref="gridRef" class="grid-stack w-full h-full">
+          <div ref="gridRef" class="grid-stack camview-grid w-full h-full">
             <div
               v-for="{ card, index: idx } in visibleCards"
               :key="idx"
@@ -575,7 +575,7 @@ defineExpose({
 </style>
 
 <style>
-.grid-stack > .grid-stack-item > .grid-stack-item-content {
+.camview-grid > .grid-stack-item > .grid-stack-item-content {
   overflow: hidden;
   background: #000;
   border: 2px solid transparent;
@@ -587,13 +587,13 @@ defineExpose({
     border-radius 0.25s ease;
 }
 
-.grid-stack > .grid-stack-placeholder > .placeholder-content {
+.camview-grid > .grid-stack-placeholder > .placeholder-content {
   border: 2px dashed rgba(223, 42, 76, 0.6) !important;
   background: rgba(223, 42, 76, 0.08) !important;
   border-radius: 8px;
 }
 
-.grid-stack:not(.grid-stack-static) > .grid-stack-item:not(.ui-resizable-disabled) > .ui-resizable-se {
+.camview-grid:not(.grid-stack-static) > .grid-stack-item:not(.ui-resizable-disabled) > .ui-resizable-se {
   display: block !important;
   width: 24px !important;
   height: 24px !important;
@@ -605,15 +605,15 @@ defineExpose({
   z-index: 10;
 }
 
-.grid-stack:not(.grid-stack-static) > .grid-stack-item:hover > .ui-resizable-se {
+.camview-grid:not(.grid-stack-static) > .grid-stack-item:hover > .ui-resizable-se {
   opacity: 1;
 }
 
-:root:not(.cui-hover) .grid-stack:not(.grid-stack-static) > .grid-stack-item > .ui-resizable-se {
+:root:not(.cui-hover) .camview-grid:not(.grid-stack-static) > .grid-stack-item > .ui-resizable-se {
   opacity: 1;
 }
 
-.grid-stack:not(.grid-stack-static) > .grid-stack-item > .grid-stack-item-content {
+.camview-grid:not(.grid-stack-static) > .grid-stack-item > .grid-stack-item-content {
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.2);
   animation: rearrange-border-pulse 0.5s ease-out;
@@ -640,11 +640,11 @@ defineExpose({
   }
 }
 
-.grid-stack:not(.grid-stack-static) > .grid-stack-item:hover > .grid-stack-item-content {
+.camview-grid:not(.grid-stack-static) > .grid-stack-item:hover > .grid-stack-item-content {
   border-color: rgba(223, 42, 76, 0.5);
 }
 
-.grid-stack > .grid-stack-item.ui-draggable-dragging > .grid-stack-item-content {
+.camview-grid > .grid-stack-item.ui-draggable-dragging > .grid-stack-item-content {
   border-color: rgba(223, 42, 76, 0.8);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }

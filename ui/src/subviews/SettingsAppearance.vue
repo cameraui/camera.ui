@@ -67,8 +67,12 @@
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.table_rows') }}</Message>
               </div>
 
-              <div v-if="!smBreakpoint" class="w-full flex flex-col gap-2">
-                <CuiToggleRow :label="$t('components.form.label.navbar_stay_collapsed')" :hint="$t('components.form.hint.navbar_stay_collapsed')">
+              <div class="w-full flex flex-col gap-2">
+                <CuiToggleRow :label="$t('components.form.label.home_dashboard')" :hint="$t('components.form.hint.home_dashboard')">
+                  <ToggleSwitch v-model="uiSettings.home.dashboard" />
+                </CuiToggleRow>
+
+                <CuiToggleRow v-if="!smBreakpoint" :label="$t('components.form.label.navbar_stay_collapsed')" :hint="$t('components.form.hint.navbar_stay_collapsed')">
                   <ToggleSwitch v-model="uiSettings.interface.navbarStayCollapsed" />
                 </CuiToggleRow>
               </div>

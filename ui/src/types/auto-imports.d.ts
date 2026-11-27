@@ -23,6 +23,7 @@ declare global {
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
   const axios: typeof import('axios').default
   const bringDialogToFront: typeof import('../composables/useCuiDialog').bringDialogToFront
+  const canControlSensors: typeof import('../composables/hasPermission').canControlSensors
   const checkAppUpdate: typeof import('../composables/useAppUpdate').checkAppUpdate
   const checkBiometryAvailable: typeof import('../composables/useBiometricCredentials').checkBiometryAvailable
   const clearCredentials: typeof import('../composables/useBiometricCredentials').clearCredentials
@@ -229,6 +230,7 @@ declare global {
   const useBrowserLocation: typeof import('@vueuse/core').useBrowserLocation
   const useCached: typeof import('@vueuse/core').useCached
   const useCameraById: typeof import('@camera.ui/browser').useCameraById
+  const useCameraConsoleDialog: typeof import('../composables/useCameraConsoleDialog').useCameraConsoleDialog
   const useCameraStream: typeof import('@camera.ui/browser').useCameraStream
   const useCameraUi: typeof import('@camera.ui/browser').useCameraUi
   const useCamerasSocket: typeof import('../composables/sockets/useCamerasSocket').useCamerasSocket
@@ -330,6 +332,7 @@ declare global {
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
   const useKeyboardInset: typeof import('../composables/useKeyboardInset').useKeyboardInset
+  const useKioskMode: typeof import('../composables/useKioskMode').useKioskMode
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLazyOverlays: typeof import('../composables/useLazyOverlays').useLazyOverlays
   const useLink: typeof import('vue-router').useLink
@@ -672,6 +675,7 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly axios: UnwrapRef<typeof import('axios')['default']>
     readonly bringDialogToFront: UnwrapRef<typeof import('../composables/useCuiDialog')['bringDialogToFront']>
+    readonly canControlSensors: UnwrapRef<typeof import('../composables/hasPermission')['canControlSensors']>
     readonly checkAppUpdate: UnwrapRef<typeof import('../composables/useAppUpdate')['checkAppUpdate']>
     readonly checkBiometryAvailable: UnwrapRef<typeof import('../composables/useBiometricCredentials')['checkBiometryAvailable']>
     readonly clearCredentials: UnwrapRef<typeof import('../composables/useBiometricCredentials')['clearCredentials']>
@@ -872,6 +876,7 @@ declare module 'vue' {
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
     readonly useCameraById: UnwrapRef<typeof import('@camera.ui/browser')['useCameraById']>
+    readonly useCameraConsoleDialog: UnwrapRef<typeof import('../composables/useCameraConsoleDialog')['useCameraConsoleDialog']>
     readonly useCameraStream: UnwrapRef<typeof import('@camera.ui/browser')['useCameraStream']>
     readonly useCameraUi: UnwrapRef<typeof import('@camera.ui/browser')['useCameraUi']>
     readonly useCamerasSocket: UnwrapRef<typeof import('../composables/sockets/useCamerasSocket')['useCamerasSocket']>
@@ -973,6 +978,7 @@ declare module 'vue' {
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
     readonly useKeyModifier: UnwrapRef<typeof import('@vueuse/core')['useKeyModifier']>
     readonly useKeyboardInset: UnwrapRef<typeof import('../composables/useKeyboardInset')['useKeyboardInset']>
+    readonly useKioskMode: UnwrapRef<typeof import('../composables/useKioskMode')['useKioskMode']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLazyOverlays: UnwrapRef<typeof import('../composables/useLazyOverlays')['useLazyOverlays']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>
