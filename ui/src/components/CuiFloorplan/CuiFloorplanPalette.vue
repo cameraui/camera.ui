@@ -12,8 +12,10 @@
         class="floorplan-palette-item"
         :class="[mode === 'drag' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer', { 'palette-disabled': disabled }]"
         :draggable="mode === 'drag' && !disabled"
-        @dragstart="onDragStart($event, 'room')"
-        @click="!disabled && emit('pick', { kind: 'room' })"
+        @dragstart="onDragStart($event, { kind: 'room' })"
+        @pointerdown="onPress($event, { kind: 'room' })"
+        @touchmove="drag.holdScroll"
+        @click="onPick({ kind: 'room' })"
       >
         <div class="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2.5">
           <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
@@ -31,8 +33,10 @@
           class="floorplan-palette-item"
           :class="[mode === 'drag' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer', { 'palette-disabled': disabled }]"
           :draggable="mode === 'drag' && !disabled"
-          @dragstart="onDragStart($event, 'room', undefined, room.id)"
-          @click="!disabled && emit('pick', { kind: 'room', roomId: room.id })"
+          @dragstart="onDragStart($event, { kind: 'room', roomId: room.id })"
+          @pointerdown="onPress($event, { kind: 'room', roomId: room.id })"
+          @touchmove="drag.holdScroll"
+          @click="onPick({ kind: 'room', roomId: room.id })"
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2.5">
             <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
@@ -56,8 +60,10 @@
           class="floorplan-palette-item"
           :class="[mode === 'drag' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer', { 'palette-disabled': disabled }]"
           :draggable="mode === 'drag' && !disabled"
-          @dragstart="onDragStart($event, 'camera', camera.id)"
-          @click="!disabled && emit('pick', { kind: 'camera', cameraId: camera.id })"
+          @dragstart="onDragStart($event, { kind: 'camera', cameraId: camera.id })"
+          @pointerdown="onPress($event, { kind: 'camera', cameraId: camera.id })"
+          @touchmove="drag.holdScroll"
+          @click="onPick({ kind: 'camera', cameraId: camera.id })"
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2.5">
             <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
@@ -80,8 +86,10 @@
           class="floorplan-palette-item"
           :class="[mode === 'drag' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer', { 'palette-disabled': disabled }]"
           :draggable="mode === 'drag' && !disabled"
-          @dragstart="onDragStart($event, 'sensor', undefined, undefined, sensor)"
-          @click="!disabled && emit('pick', { kind: 'sensor', sensorId: sensor.id, sensorType: sensor.sensorType })"
+          @dragstart="onDragStart($event, { kind: 'sensor', sensorId: sensor.id, sensorType: sensor.sensorType })"
+          @pointerdown="onPress($event, { kind: 'sensor', sensorId: sensor.id, sensorType: sensor.sensorType })"
+          @touchmove="drag.holdScroll"
+          @click="onPick({ kind: 'sensor', sensorId: sensor.id, sensorType: sensor.sensorType })"
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2.5">
             <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 palette-icon">
@@ -100,18 +108,35 @@
 
 <script setup lang="ts">
 import { sensorTypeIcon } from '@/common/sensorDisplay.js';
-import { FLOORPLAN_DRAG_TYPE } from './types.js';
 
-import type { CuiFloorplanPaletteEmits, CuiFloorplanPaletteProps, FloorplanPaletteSensor } from './types.js';
+import { FLOORPLAN_DRAG_TYPE, FLOORPLAN_MARKER_DRAG_TYPE } from './types.js';
+import { usePaletteDrag } from './usePaletteDrag.js';
+
+import type { CuiFloorplanPaletteEmits, CuiFloorplanPaletteProps, FloorplanPaletteItem } from './types.js';
 
 const props = withDefaults(defineProps<CuiFloorplanPaletteProps>(), { mode: 'drag' });
 
 const emit = defineEmits<CuiFloorplanPaletteEmits>();
 
-function onDragStart(event: DragEvent, kind: 'room' | 'camera' | 'sensor', cameraId?: string, roomId?: string, sensor?: FloorplanPaletteSensor): void {
+const drag = usePaletteDrag({
+  start: (item) => emit('drag-start', item),
+  move: (item, point) => emit('drag-move', item, point),
+  end: (item, point) => emit('drag-end', item, point),
+});
+
+function onDragStart(event: DragEvent, item: FloorplanPaletteItem): void {
   if (props.disabled || !event.dataTransfer) return;
-  event.dataTransfer.setData(FLOORPLAN_DRAG_TYPE, JSON.stringify({ kind, cameraId, roomId, sensorId: sensor?.id, sensorType: sensor?.sensorType }));
+  event.dataTransfer.setData(FLOORPLAN_DRAG_TYPE, JSON.stringify(item));
+  if (item.kind !== 'room') event.dataTransfer.setData(FLOORPLAN_MARKER_DRAG_TYPE, '1');
   event.dataTransfer.effectAllowed = 'move';
+}
+
+function onPress(event: PointerEvent, item: FloorplanPaletteItem): void {
+  if (props.mode === 'click' && !props.disabled) drag.begin(event, item);
+}
+
+function onPick(item: FloorplanPaletteItem): void {
+  if (!props.disabled && !drag.wasDragged()) emit('pick', item);
 }
 </script>
 
@@ -123,6 +148,9 @@ function onDragStart(event: DragEvent, kind: 'room' | 'camera' | 'sensor', camer
   border: 1px solid var(--border-color);
   background: var(--card-background);
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .floorplan-palette-item:hover {

@@ -7,8 +7,9 @@
     @pointerup="endDrag"
     @pointercancel="endDrag"
     @drop="onDrop"
-    @dragover.prevent
+    @dragover.prevent="onDragOver"
     @dragenter.prevent
+    @dragleave="onDragLeave"
   >
     <VueFlow
       :nodes="sceneNodes"
@@ -56,7 +57,7 @@
           </defs>
 
           <g :transform="`translate(${-sceneBox.x} ${-sceneBox.y})`">
-            <g v-for="group in roomShapes" :key="group.roomId">
+            <g v-for="group in roomShapes" :key="group.roomId" :class="{ 'room-target': group.roomId === targetRoomId }">
               <path
                 :d="group.fill"
                 class="room"
@@ -385,44 +386,37 @@ import {
   FLOORPLAN_DOT,
   FLOORPLAN_DRAG_TYPE,
   FLOORPLAN_GRID,
+  FLOORPLAN_MARKER_DRAG_TYPE,
   FLOORPLAN_MIN_ROOM,
   FLOORPLAN_PASSAGE_RANGE,
   FLOORPLAN_SNAP,
   FLOORPLAN_UNITS_PER_FOOT,
   FLOORPLAN_UNITS_PER_METER,
   FLOORPLAN_ZOOM_RANGE,
-  ROOM_LABEL_ASPECT,
   ROOM_LABEL_MIN,
-  ROOM_LABEL_SIZE,
   SNAP_PX,
 } from './types.js';
-import { connectionGeometry, lengthLabel, passageOn, roomOutline, sharedWall } from './utils.js';
+import { cameraActivity, connectionGeometry, lengthLabel, passageOn, roomLabel, roomOutline, sharedWall } from './utils.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type {
   CuiFloorplanCanvasEmits,
   CuiFloorplanCanvasProps,
   FloorplanCamera,
+  FloorplanClientPoint,
   FloorplanConnection,
+  FloorplanPaletteItem,
   FloorplanRoom,
   FloorplanSelection,
   FloorplanSensor,
 } from './types.js';
-import type { ConnectionGeometry, Segment, Wall } from './utils.js';
+import type { ConnectionGeometry, RoomLabel, Segment, Wall } from './utils.js';
 
 interface Rect {
   x: number;
   y: number;
   width: number;
   height: number;
-}
-
-interface RoomLabel {
-  text: string;
-  size: number;
-  x: number;
-  y: number;
-  upright: boolean;
 }
 
 type Drag =
@@ -448,10 +442,9 @@ const hoveredCameraId = ref<string | null>(null);
 const hoveredFlight = ref<string | null>(null);
 const hoveredSensorId = ref<string | null>(null);
 const resizingRoomId = ref<string | null>(null);
+const targetRoomId = ref<string | null>(null);
 
 const CAMERA_MARGIN = 60;
-const MOTION_SENSORS = new Set(['motion', 'audio']);
-const DETECTION_SENSORS = new Set(['object', 'face', 'licensePlate', 'classifier', 'objectAssist', 'clip']);
 const SENSOR_MARKER = { radius: 11, glyph: 14 };
 const SENSOR_MARKER_TOUCH = { radius: 14, glyph: 18 };
 
@@ -465,29 +458,7 @@ const { sensors: liveSensors } = useAllSensors();
 
 const levelSensors = computed(() => props.sensors.filter((sensor) => sensor.levelId === props.levelId));
 
-const activity = computed(() => {
-  const out = new Map<string, { level: 'motion' | 'detection'; labels: string[] }>();
-
-  for (const sensor of liveSensors.value as ReactiveSensor[]) {
-    const type = String(sensor.type);
-    const motion = MOTION_SENSORS.has(type);
-    const detection = DETECTION_SENSORS.has(type);
-    if ((!motion && !detection) || sensor.getProperty('detected') !== true) continue;
-
-    const labels = labelsOfSensor(sensor, type);
-
-    for (const cameraId of sensor.assignedCameraIds.value) {
-      const current = out.get(cameraId);
-
-      out.set(cameraId, {
-        level: current?.level === 'detection' || detection ? 'detection' : 'motion',
-        labels: [...new Set([...(current?.labels ?? []), ...labels])],
-      });
-    }
-  }
-
-  return out;
-});
+const activity = computed(() => cameraActivity(liveSensors.value as ReactiveSensor[]));
 
 const sizeChip = computed(() => {
   const room = levelRooms.value.find((item) => item.id === resizingRoomId.value);
@@ -754,28 +725,6 @@ const viewBounds = computed(() => {
 
 const activeRooms = computed(() => new Set(levelCameras.value.filter((camera) => activity.value.has(camera.id)).map((camera) => camera.roomId)));
 
-function labelsOfSensor(sensor: ReactiveSensor, type: string): string[] {
-  switch (type) {
-    case 'object':
-    case 'classifier': {
-      const labels = sensor.getProperty('labels');
-      return Array.isArray(labels) && labels.length ? (labels as string[]) : ['other'];
-    }
-    case 'face':
-      return ['face'];
-    case 'licensePlate':
-      return ['license_plate'];
-    case 'motion':
-    case 'audio':
-      return ['motion'];
-    case 'clip':
-    case 'objectAssist':
-      return [];
-    default:
-      return ['other'];
-  }
-}
-
 function activityOf(cameraId: string): 'motion' | 'detection' | undefined {
   return activity.value.get(cameraId)?.level;
 }
@@ -839,25 +788,7 @@ function labelsOf(group: { roomId: string }): RoomLabel[] {
 }
 
 function labelOf(room: FloorplanRoom): RoomLabel | null {
-  const upright = room.width >= room.height;
-  const along = upright ? room.width : room.height;
-  const across = upright ? room.height : room.width;
-
-  const floor = ROOM_LABEL_MIN / zoom.value;
-  const size = Math.max(Math.min(ROOM_LABEL_SIZE, across * 0.3), floor);
-  if (size > across) return null;
-
-  const available = along - size;
-  const perCharacter = size * ROOM_LABEL_ASPECT;
-
-  let text = room.name;
-  if (perCharacter * text.length > available) {
-    const fits = Math.floor(available / perCharacter) - 1;
-    if (fits < 2) return null;
-    text = `${text.slice(0, fits)}…`;
-  }
-
-  return { text, size, x: room.x + room.width / 2, y: room.y + room.height / 2 + size * 0.35, upright };
+  return roomLabel(room, ROOM_LABEL_MIN / zoom.value);
 }
 
 function onCameraEnter(event: PointerEvent, camera: FloorplanCamera): void {
@@ -898,7 +829,7 @@ function conePath(camera: FloorplanCamera): string {
   return `M 0 0 L ${x1} ${y1} A ${camera.range} ${camera.range} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 }
 
-function toPlan(event: PointerEvent): { x: number; y: number } {
+function toPlan(event: FloorplanClientPoint): { x: number; y: number } {
   const rect = wrapperRef.value?.getBoundingClientRect();
   if (!rect) return { x: 0, y: 0 };
   return { x: (event.clientX - rect.left - pan.value.x) / zoom.value, y: (event.clientY - rect.top - pan.value.y) / zoom.value };
@@ -1115,6 +1046,7 @@ function onPointerMove(event: PointerEvent): void {
   if (drag.mode === 'sensor') {
     const dragged = drag.id;
     const sensor = levelSensors.value.find((item) => item.id === dragged);
+    targetRoomId.value = sensor?.roomId ?? null;
     const spot = clampToRoom(sensor?.roomId ?? '', snap(point.x - drag.offsetX), snap(point.y - drag.offsetY));
 
     emit('move-sensor', { id: dragged, ...spot });
@@ -1124,6 +1056,7 @@ function onPointerMove(event: PointerEvent): void {
   if (drag.mode === 'camera') {
     const dragged = drag.id;
     const camera = levelCameras.value.find((item) => item.id === dragged);
+    targetRoomId.value = camera?.roomId ?? null;
     const spot = clampToRoom(camera?.roomId ?? '', snap(point.x - drag.offsetX), snap(point.y - drag.offsetY));
 
     emit('move-camera', { id: dragged, ...spot });
@@ -1160,20 +1093,46 @@ function startNorthDrag(event: PointerEvent): void {
   compassRef.value?.setPointerCapture?.(event.pointerId);
 }
 
+function onDragOver(event: DragEvent): void {
+  const marker = !props.readOnly && event.dataTransfer?.types.includes(FLOORPLAN_MARKER_DRAG_TYPE);
+  targetRoomId.value = marker ? roomAt(event) : null;
+}
+
+function onDragLeave(event: DragEvent): void {
+  if (!wrapperRef.value?.contains(event.relatedTarget as Node | null)) targetRoomId.value = null;
+}
+
 function onDrop(event: DragEvent): void {
+  targetRoomId.value = null;
   const raw = event.dataTransfer?.getData(FLOORPLAN_DRAG_TYPE);
   if (!raw || props.readOnly) return;
 
   event.preventDefault();
-  const item = JSON.parse(raw) as { kind: 'room' | 'camera'; cameraId?: string };
-  const rect = wrapperRef.value?.getBoundingClientRect();
-  if (!rect) return;
+  dropAt(JSON.parse(raw) as FloorplanPaletteItem, event);
+}
 
-  emit('drop', {
-    ...item,
-    x: snap((event.clientX - rect.left - pan.value.x) / zoom.value),
-    y: snap((event.clientY - rect.top - pan.value.y) / zoom.value),
-  });
+function previewDrop(item: FloorplanPaletteItem, point: FloorplanClientPoint | null): void {
+  targetRoomId.value = point && item.kind !== 'room' && !props.readOnly && over(point) ? roomAt(point) : null;
+}
+
+function dropAt(item: FloorplanPaletteItem, point: FloorplanClientPoint): void {
+  targetRoomId.value = null;
+  if (props.readOnly || !over(point)) return;
+
+  const spot = toPlan(point);
+  emit('drop', { ...item, x: snap(spot.x), y: snap(spot.y) });
+}
+
+function over(point: FloorplanClientPoint): boolean {
+  // sheets and buttons float above the canvas, a drop there doesn't land on the plan
+  const hit = document.elementFromPoint(point.clientX, point.clientY);
+  return !!hit && !!wrapperRef.value?.contains(hit);
+}
+
+function roomAt(point: FloorplanClientPoint): string | null {
+  const spot = toPlan(point);
+  const part = levelRooms.value.find((room) => spot.x >= room.x && spot.x <= room.x + room.width && spot.y >= room.y && spot.y <= room.y + room.height);
+  return part?.roomId ?? null;
 }
 
 function startSensorDrag(event: PointerEvent, sensor: FloorplanSensor): void {
@@ -1213,6 +1172,7 @@ function selectOnTap(event: PointerEvent, target: FloorplanSelection): void {
 
 function endDrag(event?: PointerEvent): void {
   resizingRoomId.value = null;
+  targetRoomId.value = null;
 
   if (tap) {
     const stayed = event ? Math.abs(event.clientX - tap.x) < 4 && Math.abs(event.clientY - tap.y) < 4 : false;
@@ -1260,7 +1220,7 @@ onMounted(() => {
 
 onUnmounted(() => window.removeEventListener('pointerup', endDrag));
 
-defineExpose({ fit });
+defineExpose({ fit, previewDrop, dropAt });
 </script>
 
 <style>
@@ -1369,6 +1329,15 @@ defineExpose({ fit });
 .room-active {
   fill: var(--p-primary-color);
   fill-opacity: 0.14;
+}
+
+.room-target .room {
+  fill: var(--p-primary-color);
+  fill-opacity: 0.2;
+}
+
+.room-target .room-wall {
+  stroke: var(--p-primary-color);
 }
 
 .room-label {

@@ -307,7 +307,7 @@ const emit = defineEmits<CuiFloorplanInspectorEmits>();
 const { t } = useI18n();
 const { sensors: liveSensors } = useAllSensors();
 
-const canControl = hasPermission(undefined, 'admin');
+const canControl = canControlSensors();
 
 const openPanels = ref(['general', 'view']);
 

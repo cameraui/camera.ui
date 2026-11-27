@@ -107,6 +107,7 @@
       />
 
       <CuiFloorplanCanvas
+        ref="canvasRef"
         :mobile="smBreakpoint"
         :levels="levels"
         :rooms="rooms"
@@ -159,20 +160,7 @@
       </div>
     </div>
 
-    <div
-      v-if="smBreakpoint && selection"
-      ref="sheetRef"
-      class="fixed inset-x-0 z-[16] rounded-t-xl overflow-hidden shadow-lg border-top-color card-background"
-      :style="{
-        bottom: `calc(${bottombarHeight}px + var(--safe-area-inset-bottom))`,
-        transform: `translateY(${sheetOffset}px)`,
-        transition: sheetDragging ? 'none' : 'transform 0.2s ease-in-out',
-      }"
-    >
-      <div class="flex justify-center py-2 cursor-grab active:cursor-grabbing sheet-grip" @pointerdown="startSheetDrag">
-        <div class="w-10 h-1 rounded-full sheet-grip-bar" />
-      </div>
-
+    <CuiBottomSheet :model-value="smBreakpoint && !!selection" @update:model-value="selection = null">
       <CuiFloorplanInspector
         :rooms="rooms"
         :connections="connections"
@@ -183,7 +171,7 @@
         :selection="selection"
         :read-only="!isAdmin"
         fluid
-        class="max-h-[55vh]"
+        class="-mx-4 max-h-[55vh]"
         @close="selection = null"
         @update-room="onUpdateRoom"
         @update-camera="onUpdateCamera"
@@ -191,9 +179,9 @@
         @update-connection="onUpdateConnection"
         @remove="onRemove"
       />
-    </div>
+    </CuiBottomSheet>
 
-    <CuiFloatingButtonGroup v-if="isAdmin && !loading" :offset="fabRight" :bottom="fabBottom" class="pointer-events-none items-center gap-2" :style="{ zIndex: 15 }">
+    <CuiFloatingButtonGroup v-if="isAdmin && !loading" :offset="fabRight" class="pointer-events-none items-center gap-2" :style="{ zIndex: 15 }">
       <CuiSpeedDial :model="speedDialItems" />
 
       <Button
@@ -210,21 +198,25 @@
         </template>
       </Button>
 
-      <Button
-        v-if="smBreakpoint"
-        v-tooltip.left="{ value: $t('views.floorplan.palette') }"
-        rounded
-        class="pointer-events-auto text-white"
-        @click="showMobilePalette = true"
-      >
+      <Button v-if="smBreakpoint" v-tooltip.left="{ value: $t('views.floorplan.palette') }" rounded class="pointer-events-auto text-white" @click="openPalette">
         <template #icon>
           <i-mdi:plus class="w-5 h-5" />
         </template>
       </Button>
     </CuiFloatingButtonGroup>
 
-    <CuiBottomSheet v-model="showMobilePalette" :title="$t('views.floorplan.palette')" max-height="70vh">
-      <CuiFloorplanPalette :cameras="unplacedCameras" :sensors="unplacedSensors" :rooms="undrawnRooms" :disabled="!levels.length" mode="click" @pick="onMobilePick" />
+    <CuiBottomSheet v-model="showMobilePalette" :lowered="paletteLowered" :title="$t('views.floorplan.palette')">
+      <CuiFloorplanPalette
+        :cameras="unplacedCameras"
+        :sensors="unplacedSensors"
+        :rooms="undrawnRooms"
+        :disabled="!levels.length"
+        mode="click"
+        @pick="onMobilePick"
+        @drag-start="paletteLowered = true"
+        @drag-move="(item, point) => canvasRef?.previewDrop(item, point)"
+        @drag-end="onPaletteDragEnd"
+      />
     </CuiBottomSheet>
 
     <div ref="menuAnchorRef" class="fixed w-0 h-0" :style="{ left: `${menuAnchor.x}px`, top: `${menuAnchor.y}px` }" />
@@ -235,7 +227,7 @@
 
     <Popover ref="sensorPopoverRef" :pt="TILE_HOVER_PT" @hide="onSensorPopoverHide">
       <div v-if="hoveredLive" @pointerenter="keepSensorPopover" @pointerleave="hideSensorPopover">
-        <CuiSensorTile :key="hoveredLive.id" v-model:expanded="sensorPinned" :sensor="hoveredLive" size="medium" expand-in-place :disabled="!isAdmin" />
+        <CuiSensorTile :key="hoveredLive.id" v-model:expanded="sensorPinned" :sensor="hoveredLive" size="small" expand-in-place :disabled="!canControl" />
       </div>
     </Popover>
 
@@ -302,7 +294,17 @@ import { SENSOR_SHORTCUTABLE_TYPES } from '@/components/CuiShortcuts/types.js';
 import type { FloorplanLevelProps } from '@/components/CuiDialog/templates/FloorplanLevel/types.js';
 import { FLOORPLAN_DOOR_WIDTH } from '@/components/CuiFloorplan/types.js';
 
-import type { FloorplanCamera, FloorplanConnection, FloorplanLevel, FloorplanRoom, FloorplanSelection, FloorplanSensor } from '@/components/CuiFloorplan/types.js';
+import type CuiFloorplanCanvas from '@/components/CuiFloorplan/CuiFloorplanCanvas.vue';
+import type {
+  FloorplanCamera,
+  FloorplanClientPoint,
+  FloorplanConnection,
+  FloorplanLevel,
+  FloorplanPaletteItem,
+  FloorplanRoom,
+  FloorplanSelection,
+  FloorplanSensor,
+} from '@/components/CuiFloorplan/types.js';
 import type { Wall } from '@/components/CuiFloorplan/utils.js';
 import type CuiMenu from '@/components/CuiMenu/CuiMenu.vue';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
@@ -310,20 +312,11 @@ import type { ReactiveSensor } from '@camera.ui/browser';
 import type { DBFloorPlan, DBRoomCatalog, PutFloorPlanInput, SensorShortcutType } from '@shared/types';
 import type { Popover } from 'openvue';
 
-interface PlanDrop {
-  kind: 'room' | 'camera' | 'sensor';
-  cameraId?: string;
-  sensorId?: string;
-  sensorType?: string;
-  roomId?: string;
-  x: number;
-  y: number;
-}
+type PlanDrop = FloorplanPaletteItem & { x: number; y: number };
 
 const { goBack } = useBackNavigation();
 const { t } = useI18n();
 const { smBreakpoint } = useSharedCuiBreakpoint();
-const { bottombarHeight } = useSharedCuiStates();
 const dialog = useCuiDialog();
 const toast = useCuiToast();
 const router = useRouter();
@@ -359,34 +352,26 @@ const levelId = ref('');
 const north = ref<number | null>(null);
 const selection = ref<FloorplanSelection | null>(null);
 const showMobilePalette = ref(false);
+const paletteLowered = ref(false);
+const canvasRef = useTemplateRef<InstanceType<typeof CuiFloorplanCanvas>>('canvasRef');
 const loading = ref(true);
 const saving = ref(false);
 const stale = ref<'plan' | 'rooms' | null>(null);
 const savedPlan = ref('');
 
-const sheetRef = useTemplateRef<HTMLElement>('sheetRef');
-const sheetHeight = ref(0);
-const sheetOffset = ref(0);
-const sheetDragging = ref(false);
-
 const undoStack = shallowRef<string[]>([]);
 const redoStack = shallowRef<string[]>([]);
 
 const MAX_HISTORY = 50;
-const SHEET_PEEK = 92;
 
 let lastPushAt = 0;
 let leaveConfirmed = false;
 let previewTimer: ReturnType<typeof setTimeout> | undefined;
 let sensorHideTimer: ReturnType<typeof setTimeout> | undefined;
-let sheetObserver: ResizeObserver | undefined;
 let basePlan: DBFloorPlan | null = null;
 
 const isAdmin = hasPermission(undefined, 'admin');
-
-const sheetParked = computed(() => Math.max(sheetHeight.value - SHEET_PEEK, 0));
-const sheetFolded = computed(() => sheetParked.value > 0 && sheetOffset.value >= sheetParked.value);
-const fabBottom = computed(() => `calc(var(--cui-fab-bottom) + ${sheetFolded.value ? SHEET_PEEK : 0}px)`);
+const canControl = canControlSensors();
 
 const canUndo = computed(() => undoStack.value.length > 0);
 const canRedo = computed(() => redoStack.value.length > 0);
@@ -1113,13 +1098,25 @@ function onDropItem({ kind, cameraId, sensorId, sensorType, roomId, x, y }: Plan
   else if (cameraId) placeCamera(cameraId, x, y);
 }
 
-function onPalettePick(item: Omit<PlanDrop, 'x' | 'y'>): void {
+function onPalettePick(item: FloorplanPaletteItem): void {
   onDropItem({ ...item, x: levelCenter.value.x, y: levelCenter.value.y });
 }
 
-function onMobilePick(item: Omit<PlanDrop, 'x' | 'y'>): void {
+function onMobilePick(item: FloorplanPaletteItem): void {
   showMobilePalette.value = false;
   onPalettePick(item);
+}
+
+function openPalette(): void {
+  paletteLowered.value = false;
+  showMobilePalette.value = true;
+}
+
+function onPaletteDragEnd(item: FloorplanPaletteItem, point: FloorplanClientPoint | null): void {
+  if (point) canvasRef.value?.dropAt(item, point);
+  else canvasRef.value?.previewDrop(item, null);
+  showMobilePalette.value = false;
+  selection.value = null;
 }
 
 function addLevel(): void {
@@ -1341,34 +1338,6 @@ const offPlan = floorplanSocket.onPlan(async (plan) => {
 
 camerauiSocket.onReady(() => resync());
 
-function startSheetDrag(event: PointerEvent): void {
-  const startY = event.clientY;
-  const startOffset = sheetOffset.value;
-  let moved = false;
-
-  sheetDragging.value = true;
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-
-  const onMove = (move: PointerEvent) => {
-    if (Math.abs(move.clientY - startY) > 3) moved = true;
-    sheetOffset.value = Math.min(Math.max(startOffset + (move.clientY - startY), 0), sheetParked.value);
-  };
-
-  const onUp = () => {
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', onUp);
-    window.removeEventListener('pointercancel', onUp);
-
-    sheetDragging.value = false;
-    if (!moved) sheetOffset.value = startOffset > 0 ? 0 : sheetParked.value;
-    else sheetOffset.value = sheetOffset.value > sheetParked.value * 0.35 ? sheetParked.value : 0;
-  };
-
-  window.addEventListener('pointermove', onMove);
-  window.addEventListener('pointerup', onUp);
-  window.addEventListener('pointercancel', onUp);
-}
-
 watch(cameraNames, (names) => {
   for (const camera of cameras.value) {
     camera.name = names.get(camera.id) ?? camera.id;
@@ -1382,20 +1351,11 @@ watch(sensorNames, (names) => {
   }
 });
 
-watch(sheetRef, (element) => {
-  sheetObserver?.disconnect();
-  if (!element) {
-    sheetHeight.value = 0;
-    return;
-  }
-
-  sheetObserver = new ResizeObserver(([entry]) => (sheetHeight.value = Math.round(entry.contentRect.height)));
-  sheetObserver.observe(element);
-});
-
 watch(
   () => selection.value && `${selection.value.kind}:${selection.value.id}`,
-  () => (sheetOffset.value = 0),
+  (selected) => {
+    if (selected) showMobilePalette.value = false;
+  },
 );
 
 onMounted(() => {
@@ -1426,20 +1386,11 @@ onUnmounted(() => {
   clearTimeout(previewTimer);
   clearTimeout(sensorHideTimer);
   offPlan();
-  sheetObserver?.disconnect();
   window.removeEventListener('keydown', onKeyDown);
 });
 </script>
 
 <style scoped>
-.sheet-grip {
-  touch-action: none;
-}
-
-.sheet-grip-bar {
-  background: var(--p-content-border-color);
-}
-
 .floorplan-divider {
   margin: 0 0.25rem;
   height: 22px;

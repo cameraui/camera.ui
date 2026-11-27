@@ -64,6 +64,7 @@ export const FLOORPLAN_DOOR_WIDTH = 90;
 export const FLOORPLAN_PASSAGE_RANGE = { min: 40, max: 400 };
 export const FLOORPLAN_NOTE_MAX = 240;
 export const FLOORPLAN_DRAG_TYPE = 'application/floorplanitem';
+export const FLOORPLAN_MARKER_DRAG_TYPE = 'application/floorplanmarker'; // dragover sees the types of a drag but not its data
 
 export interface FloorplanConnection {
   id: string;
@@ -112,7 +113,7 @@ export interface CuiFloorplanCanvasEmits {
   'create-connection': [{ fromRoomId: string; toRoomId: string; fromShapeId: string; toShapeId: string }];
   'move-connection': [{ id: string; offset: number }];
   'resize-connection': [{ id: string; offset: number; width: number }];
-  drop: [{ kind: 'room' | 'camera' | 'sensor'; cameraId?: string; sensorId?: string; sensorType?: string; roomId?: string; x: number; y: number }];
+  drop: [FloorplanPaletteItem & { x: number; y: number }];
   'update-north': [number];
   'request-stairs': [{ roomId: string; event: PointerEvent }];
   'settle-room': [string];
@@ -138,6 +139,16 @@ export interface FloorplanPaletteRoom {
   name: string;
 }
 
+export interface FloorplanPaletteItem {
+  kind: 'room' | 'camera' | 'sensor';
+  cameraId?: string;
+  sensorId?: string;
+  sensorType?: string;
+  roomId?: string;
+}
+
+export type FloorplanClientPoint = Pick<MouseEvent, 'clientX' | 'clientY'>;
+
 export interface CuiFloorplanPaletteProps {
   cameras: FloorplanPaletteCamera[];
   sensors: FloorplanPaletteSensor[];
@@ -147,7 +158,10 @@ export interface CuiFloorplanPaletteProps {
 }
 
 export interface CuiFloorplanPaletteEmits {
-  pick: [{ kind: 'room' | 'camera' | 'sensor'; cameraId?: string; sensorId?: string; sensorType?: string; roomId?: string }];
+  pick: [FloorplanPaletteItem];
+  'drag-start': [FloorplanPaletteItem];
+  'drag-move': [FloorplanPaletteItem, FloorplanClientPoint];
+  'drag-end': [FloorplanPaletteItem, FloorplanClientPoint | null];
 }
 
 export interface CuiFloorplanInspectorProps {

@@ -2,10 +2,27 @@ import { UnitSystem } from '@camera.ui/sdk';
 
 import { unitSystem } from '@/common/units.js';
 
-import { FLOORPLAN_UNITS_PER_FOOT, FLOORPLAN_UNITS_PER_METER } from './types.js';
+import { FLOORPLAN_UNITS_PER_FOOT, FLOORPLAN_UNITS_PER_METER, ROOM_LABEL_ASPECT, ROOM_LABEL_SIZE } from './types.js';
 
+import type { ReactiveSensor } from '@camera.ui/browser';
 import type { DBFloorPlan, PutFloorPlanInput } from '@shared/types';
 import type { FloorplanConnection, FloorplanRemovals, FloorplanRoom } from './types.js';
+
+export interface RoomLabel {
+  text: string;
+  size: number;
+  x: number;
+  y: number;
+  upright: boolean;
+}
+
+export interface CameraActivity {
+  level: 'motion' | 'detection';
+  labels: string[];
+}
+
+const MOTION_SENSORS = new Set(['motion', 'audio']);
+const DETECTION_SENSORS = new Set(['object', 'face', 'licensePlate', 'classifier', 'objectAssist', 'clip']);
 
 export function lengthLabel(units: number, digits = 2): string {
   if (unitSystem.value === UnitSystem.Metric) return `${(units / FLOORPLAN_UNITS_PER_METER).toFixed(digits)} m`;
@@ -305,4 +322,71 @@ function removedKeys<T extends object>(base: T[], next: T[], key: (item: T) => s
 function sameEntry(a: object, b: object): boolean {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => (a as Record<string, unknown>)[key] === (b as Record<string, unknown>)[key]);
+}
+
+export function cameraActivity(sensors: ReactiveSensor[]): Map<string, CameraActivity> {
+  const out = new Map<string, CameraActivity>();
+
+  for (const sensor of sensors) {
+    const type = String(sensor.type);
+    const motion = MOTION_SENSORS.has(type);
+    const detection = DETECTION_SENSORS.has(type);
+    if ((!motion && !detection) || sensor.getProperty('detected') !== true) continue;
+
+    const labels = labelsOfSensor(sensor, type);
+
+    for (const cameraId of sensor.assignedCameraIds.value) {
+      const current = out.get(cameraId);
+
+      out.set(cameraId, {
+        level: current?.level === 'detection' || detection ? 'detection' : 'motion',
+        labels: [...new Set([...(current?.labels ?? []), ...labels])],
+      });
+    }
+  }
+
+  return out;
+}
+
+export function roomLabel(room: FloorplanRoom, minSize: number): RoomLabel | null {
+  const upright = room.width >= room.height;
+  const along = upright ? room.width : room.height;
+  const across = upright ? room.height : room.width;
+
+  const size = Math.max(Math.min(ROOM_LABEL_SIZE, across * 0.3), minSize);
+  if (size > across) return null;
+
+  const available = along - size;
+  const perCharacter = size * ROOM_LABEL_ASPECT;
+
+  let text = room.name;
+  if (perCharacter * text.length > available) {
+    const fits = Math.floor(available / perCharacter) - 1;
+    if (fits < 2) return null;
+    text = `${text.slice(0, fits)}…`;
+  }
+
+  return { text, size, x: room.x + room.width / 2, y: room.y + room.height / 2 + size * 0.35, upright };
+}
+
+function labelsOfSensor(sensor: ReactiveSensor, type: string): string[] {
+  switch (type) {
+    case 'object':
+    case 'classifier': {
+      const labels = sensor.getProperty('labels');
+      return Array.isArray(labels) && labels.length ? (labels as string[]) : ['other'];
+    }
+    case 'face':
+      return ['face'];
+    case 'licensePlate':
+      return ['license_plate'];
+    case 'motion':
+    case 'audio':
+      return ['motion'];
+    case 'clip':
+    case 'objectAssist':
+      return [];
+    default:
+      return ['other'];
+  }
 }
