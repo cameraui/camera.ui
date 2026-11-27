@@ -43,13 +43,13 @@ export async function setNotificationSettingsFn({ settings }: { settings: DBNoti
   return response.data;
 }
 
-export async function muteNotificationsFn({ minutes, cameraId }: { minutes: number; cameraId?: string }): Promise<DBNotificationSettings> {
-  const response: AxiosResponse<DBNotificationSettings> = await api.put('/notifications/mute', { minutes, cameraId });
+export async function muteNotificationsFn({ minutes, cameraIds }: { minutes?: number; cameraIds?: string[] }): Promise<DBNotificationSettings> {
+  const response: AxiosResponse<DBNotificationSettings> = await api.put('/notifications/mute', { minutes, cameraIds });
   return response.data;
 }
 
-export async function unmuteNotificationsFn({ cameraId }: { cameraId?: string }): Promise<DBNotificationSettings> {
-  const response: AxiosResponse<DBNotificationSettings> = await api.delete('/notifications/mute', { params: { cameraId } });
+export async function unmuteNotificationsFn({ cameraIds }: { cameraIds?: string[] }): Promise<DBNotificationSettings> {
+  const response: AxiosResponse<DBNotificationSettings> = await api.delete('/notifications/mute', { params: { cameraIds: cameraIds?.join(',') } });
   return response.data;
 }
 

@@ -47,7 +47,7 @@ export class NotificationsController {
       const settings: DBNotificationSettings = {
         ...req.body,
         ...(suppressed && { suppressed }),
-        ...(mutedUntil && { mutedUntil }),
+        ...(mutedUntil !== undefined && { mutedUntil }),
         ...(mutedCameras && { mutedCameras }),
         _id: userId,
       };
@@ -60,7 +60,7 @@ export class NotificationsController {
 
   public async mute(req: FastifyRequest<AuthLoginRequest & NotificationsMuteRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const settings = await this.service.mute(req.locals.user!._id, req.body.minutes, req.body.cameraId);
+      const settings = await this.service.mute(req.locals.user!._id, req.body.minutes, req.body.cameraIds);
       return reply.code(200).send(settings);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });
@@ -69,7 +69,7 @@ export class NotificationsController {
 
   public async unmute(req: FastifyRequest<AuthLoginRequest & NotificationsUnmuteRequest>, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const settings = await this.service.unmute(req.locals.user!._id, req.query.cameraId);
+      const settings = await this.service.unmute(req.locals.user!._id, req.query.cameraIds);
       return reply.code(200).send(settings);
     } catch (error: any) {
       return reply.code(500).send({ statusCode: 500, message: error.message });

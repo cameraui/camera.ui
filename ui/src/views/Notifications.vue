@@ -293,6 +293,7 @@ const { registerScrollToTop } = useCuiTopbarSlots();
 const { openTextDialog } = useCuiDialog();
 const { sourceOf, summaryOf, occurrencesOf, showsSource, imageOf, videoOf, isAlarm, severityLabel, severityIcon, severityTextClass, tileClass, dayLabel, formatTime } =
   useNotificationDisplay();
+const { mutedUntil, muteLabel, muteFor, unmute } = useNotificationMute();
 const activeFilter = useLocalStorage<NotificationFilter>('cui-notifications-filter', 'all');
 const [DefineRow, ReuseRow] = createReusableTemplate<{ item: StoredNotification; series?: StoredNotification[]; nested?: boolean }>();
 
@@ -312,7 +313,6 @@ const listRef = useTemplateRef<HTMLElement>('listRef');
 
 const center = useNotificationCenter({ filter: activeFilter, query: appliedQuery, source: activeSource, isAtTop: () => (listRef.value?.scrollTop ?? 0) <= 40 });
 const { items, incoming, counts, sources, unread, loading, hasMore, selected } = center;
-const { mutedUntil, formatMuteEnd, muteFor, unmute } = useNotificationMute();
 
 const filterMenuItems = computed<MenuItem[]>(() =>
   NOTIFICATION_FILTERS.map((key) => {
@@ -337,7 +337,7 @@ const muteMenuItems = computed<MenuItem[]>(() => [
         {
           key: 'unmute',
           label: t('components.notification_mute.unmute'),
-          description: t('components.notification_mute.muted_until', { time: formatMuteEnd(mutedUntil.value) }),
+          description: muteLabel('muted_until', mutedUntil.value),
           onClick: () => unmute(),
         },
       ]
@@ -345,8 +345,9 @@ const muteMenuItems = computed<MenuItem[]>(() => [
   ...MUTE_HOURS.map((hours) => ({
     key: String(hours),
     label: t('components.notification_mute.mute_hours', { count: hours }, hours),
-    onClick: () => muteFor(hours),
+    onClick: () => muteFor(hours * 60),
   })),
+  { key: 'no_end', label: t('components.notification_mute.mute_no_end'), onClick: () => muteFor() },
 ]);
 
 const sourcePicker = computed(() => (activeFilter.value === 'cameras' || activeFilter.value === 'plugins') && (sources.value.length > 1 || !!activeSource.value));

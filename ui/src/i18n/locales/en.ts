@@ -1725,12 +1725,16 @@ export default {
     },
     notification_mute: {
       camera_muted_until: 'This camera is muted until {time}',
+      camera_muted_until_no_end: 'This camera is muted until you turn it back on',
       mute: 'Mute notifications',
       mute_camera: 'Mute this camera for 1 hour',
       mute_hours: 'Mute for {count} hour | Mute for {count} hours',
+      mute_no_end: 'Until I turn them back on',
       muted_until: 'Muted until {time}',
+      muted_until_no_end: 'Muted until you turn them back on',
       unmute: 'Unmute',
       unmute_camera: 'Muted until {time}, unmute',
+      unmute_camera_no_end: 'Muted, unmute',
     },
     options_sidebar: {
       segment_tab_default: 'Default',

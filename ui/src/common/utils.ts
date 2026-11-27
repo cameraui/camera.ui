@@ -48,6 +48,11 @@ export function formatCardTimeRange(startMs: number, endMs: number): string {
   return withCardDate(startMs, formatTimeRange(startMs, endMs));
 }
 
+export function formatDayTime(ms: number, locale: string): string {
+  const sameDay = new Date(ms).toDateString() === new Date().toDateString();
+  return new Intl.DateTimeFormat(locale, { weekday: sameDay ? undefined : 'short', hour: '2-digit', minute: '2-digit' }).format(ms);
+}
+
 export function formatTimeRange(startMs: number, endMs: number): string {
   const start = formatClock(startMs);
   const end = formatClock(endMs);

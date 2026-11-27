@@ -1737,12 +1737,16 @@ export default {
     },
     notification_mute: {
       camera_muted_until: 'Diese Kamera ist stumm bis {time}',
+      camera_muted_until_no_end: 'Diese Kamera ist stumm, bis du sie wieder einschaltest',
       mute: 'Benachrichtigungen stummschalten',
       mute_camera: 'Diese Kamera 1 Stunde stummschalten',
       mute_hours: 'Für {count} Stunde stummschalten | Für {count} Stunden stummschalten',
+      mute_no_end: 'Bis ich sie wieder einschalte',
       muted_until: 'Stumm bis {time}',
+      muted_until_no_end: 'Stumm, bis du sie wieder einschaltest',
       unmute: 'Wieder einschalten',
       unmute_camera: 'Stumm bis {time}, wieder einschalten',
+      unmute_camera_no_end: 'Stumm, wieder einschalten',
     },
     options_sidebar: {
       segment_tab_default: 'Standard',

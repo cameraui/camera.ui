@@ -13,7 +13,16 @@ import { emitInternalEvent } from '../internal-bus.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { NotificationStore } from './notificationStore.js';
 import { burstMessages, PluginLogBursts } from './pluginLogBursts.js';
-import { notificationBucket, notificationCameraId, notificationPluginId, shownInBell, SYSTEM_NOTIFICATION_TYPES, SystemNotificationTypeId } from './types.js';
+import {
+  isMuteActive,
+  notificationBucket,
+  notificationCameraId,
+  notificationCameraIds,
+  notificationPluginId,
+  shownInBell,
+  SYSTEM_NOTIFICATION_TYPES,
+  SystemNotificationTypeId,
+} from './types.js';
 
 import type { LogEntry } from '@camera.ui/common/logger';
 import type { Promisify } from '@camera.ui/rpc';
@@ -829,8 +838,8 @@ function isAdminRole(role: DBRoles): boolean {
 }
 
 function isMutedFor(settings: DBNotificationSettings, cameraId: string | undefined, now: number): boolean {
-  if ((settings.mutedUntil ?? 0) > now) return true;
-  return !!cameraId && (settings.mutedCameras?.[cameraId] ?? 0) > now;
+  if (isMuteActive(settings.mutedUntil, now)) return true;
+  return !!cameraId && isMuteActive(settings.mutedCameras?.[cameraId], now);
 }
 
 function parseHHmm(s: string): number | null {

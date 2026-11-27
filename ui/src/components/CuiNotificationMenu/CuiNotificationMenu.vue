@@ -35,7 +35,7 @@
               rounded
               class="p-2 cui-icon-md"
               :class="{ 'text-primary': mutedUntil }"
-              @click="mutedUntil ? unmute() : muteFor(1)"
+              @click="mutedUntil ? unmute() : muteFor(60)"
             >
               <template #icon>
                 <i-mdi:bell-off-outline width="100%" height="100%" />

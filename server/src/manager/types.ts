@@ -178,3 +178,7 @@ export interface TrainingSubmissionPage {
   servers?: TrainingSubmissionServer[];
   removed?: number;
 }
+
+export function isMuteActive(until: number | null | undefined, now: number): boolean {
+  return until === null || (until ?? 0) > now;
+}

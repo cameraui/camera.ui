@@ -1,6 +1,7 @@
 import { isEqual } from '@camera.ui/common/utils';
 
 import { inject } from '../../container.js';
+import { isMuteActive } from '../../manager/types.js';
 
 import type { NotifierDevice } from '@camera.ui/sdk';
 import type { NotifierDeviceWithSource, SourcesListing } from '../../manager/types.js';
@@ -47,18 +48,23 @@ export class NotificationsService {
     await this.dbs.commit(this.dbs.notificationsDB, userId, (current) => ({ ...(current ?? { _id: userId, enabled: false }), ...patch, _id: userId }));
   }
 
-  public async mute(userId: string, minutes: number, cameraId?: string): Promise<DBNotificationSettings> {
-    const until = Date.now() + minutes * 60_000;
+  public async mute(userId: string, minutes: number | undefined, cameraIds?: string[]): Promise<DBNotificationSettings> {
+    const until = minutes ? Date.now() + minutes * 60_000 : null;
     return this.commitMute(userId, (settings) =>
-      cameraId ? { ...settings, mutedCameras: { ...activeCameraMutes(settings), [cameraId]: until } } : { ...settings, mutedUntil: until },
+      cameraIds
+        ? { ...settings, mutedCameras: { ...activeCameraMutes(settings), ...Object.fromEntries(cameraIds.map((cameraId) => [cameraId, until])) } }
+        : { ...settings, mutedUntil: until },
     );
   }
 
-  public async unmute(userId: string, cameraId?: string): Promise<DBNotificationSettings> {
+  public async unmute(userId: string, cameraIds?: string[]): Promise<DBNotificationSettings> {
+    const cameras = [...this.dbs.camerasDB.getRange()].map(({ value }) => value._id);
     return this.commitMute(userId, ({ mutedUntil, ...settings }) => {
-      if (!cameraId) return settings;
-      const { [cameraId]: _unmuted, ...mutedCameras } = activeCameraMutes(settings);
-      return { ...settings, ...(mutedUntil && { mutedUntil }), mutedCameras };
+      if (!cameraIds) return settings;
+      const muted = activeCameraMutes(settings);
+      if (isMuteActive(mutedUntil, Date.now())) for (const cameraId of cameras) muted[cameraId] = laterEnd(muted[cameraId], mutedUntil!);
+      const mutedCameras = Object.fromEntries(Object.entries(muted).filter(([cameraId]) => !cameraIds.includes(cameraId)));
+      return { ...settings, mutedCameras };
     });
   }
 
@@ -121,7 +127,12 @@ export class NotificationsService {
   }
 }
 
-function activeCameraMutes(settings: DBNotificationSettings): Record<string, number> {
+function activeCameraMutes(settings: DBNotificationSettings): Record<string, number | null> {
   const now = Date.now();
-  return Object.fromEntries(Object.entries(settings.mutedCameras ?? {}).filter(([, until]) => until > now));
+  return Object.fromEntries(Object.entries(settings.mutedCameras ?? {}).filter(([, until]) => isMuteActive(until, now)));
+}
+
+function laterEnd(a: number | null | undefined, b: number | null): number | null {
+  if (a === null || b === null) return null;
+  return Math.max(a ?? 0, b);
 }

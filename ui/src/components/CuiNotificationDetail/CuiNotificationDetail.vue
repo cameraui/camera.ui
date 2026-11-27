@@ -72,9 +72,7 @@
           <Button
             v-if="cameraId"
             v-tooltip.top="{
-              value: cameraMuteEnd
-                ? $t('components.notification_mute.unmute_camera', { time: formatMuteEnd(cameraMuteEnd) })
-                : $t('components.notification_mute.mute_camera'),
+              value: cameraMuteEnd ? muteLabel('unmute_camera', cameraMuteEnd) : $t('components.notification_mute.mute_camera'),
             }"
             severity="secondary"
             outlined
@@ -156,7 +154,7 @@ const { t } = useI18n();
 const { sourceOf, cameraNameOf, imageOf, videoOf, severityLabel, severityTextClass, tileClass, occurrenceLabel, showsSource, formatDateTime } = useNotificationDisplay();
 
 const { data: assistantStatus } = assistantQuery.getAssistantStatusQuery();
-const { cameraMutedUntil, formatMuteEnd, muteFor, unmute } = useNotificationMute();
+const { cameraMutedUntil, muteLabel, muteFor, unmute } = useNotificationMute();
 
 const source = computed(() => sourceOf(props.notification));
 const image = computed(() => imageOf(props.notification));
@@ -229,8 +227,8 @@ function assistantPrompt(): string {
 
 function toggleCameraMute() {
   if (!cameraId.value) return;
-  if (cameraMuteEnd.value) unmute(cameraId.value);
-  else muteFor(1, cameraId.value);
+  if (cameraMuteEnd.value) unmute([cameraId.value]);
+  else muteFor(60, [cameraId.value]);
 }
 
 function go(target: RouteLocationRaw) {

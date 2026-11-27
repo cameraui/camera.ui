@@ -17,12 +17,17 @@ export const notificationSettingsSchema = zod.object({
 });
 
 export const notificationMuteSchema = zod.object({
-  minutes: zod.number().int().min(1).max(10_080),
-  cameraId: zod.string().min(1).max(100).optional(),
+  minutes: zod.number().int().min(1).max(10_080).optional(),
+  cameraIds: zod.array(zod.string().min(1).max(100)).min(1).max(1000).optional(),
 });
 
 export const notificationUnmuteQuerySchema = zod.object({
-  cameraId: zod.string().min(1).max(100).optional(),
+  cameraIds: zod
+    .string()
+    .min(1)
+    .max(100_000)
+    .transform((value) => value.split(','))
+    .optional(),
 });
 
 export const registerDeviceSchema = zod.object({

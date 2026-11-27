@@ -1,4 +1,5 @@
 import { NotificationsQuery } from '@/api/routes/notifications.js';
+import { formatDayTime } from '@/common/utils.js';
 
 export const MUTE_HOURS = [1, 8, 24];
 
@@ -17,7 +18,8 @@ export function useNotificationMute() {
 
   watch(notificationsSocket.muteRevision, () => refetch());
 
-  function activeUntil(until: number | undefined): number | undefined {
+  function activeUntil(until: number | null | undefined): number | undefined {
+    if (until === null) return Infinity;
     return until && until > now.value.getTime() ? until : undefined;
   }
 
@@ -25,28 +27,27 @@ export function useNotificationMute() {
     return activeUntil(settings.value?.mutedCameras?.[cameraId]);
   }
 
-  function formatMuteEnd(until: number): string {
-    const sameDay = new Date(until).toDateString() === new Date().toDateString();
-    return new Intl.DateTimeFormat(locale.value, { weekday: sameDay ? undefined : 'short', hour: '2-digit', minute: '2-digit' }).format(until);
+  function muteLabel(key: 'muted_until' | 'camera_muted_until' | 'unmute_camera', until: number): string {
+    if (!Number.isFinite(until)) return t(`components.notification_mute.${key}_no_end`);
+    return t(`components.notification_mute.${key}`, { time: formatDayTime(until, locale.value) });
   }
 
-  function muteFor(hours: number, cameraId?: string): void {
+  function muteFor(minutes?: number, cameraIds?: string[]): void {
     mute(
-      { minutes: hours * 60, cameraId },
+      { minutes, cameraIds },
       {
         onSuccess: (saved) => {
-          const until = cameraId ? saved.mutedCameras?.[cameraId] : saved.mutedUntil;
+          const until = activeUntil(cameraIds ? saved.mutedCameras?.[cameraIds[0]] : saved.mutedUntil);
           if (!until) return;
-          const detail = t(cameraId ? 'components.notification_mute.camera_muted_until' : 'components.notification_mute.muted_until', { time: formatMuteEnd(until) });
-          toast.add({ severity: 'success', detail, life: 3000 });
+          toast.add({ severity: 'success', detail: muteLabel(cameraIds ? 'camera_muted_until' : 'muted_until', until), life: 3000 });
         },
       },
     );
   }
 
-  function unmuteNow(cameraId?: string): void {
-    unmute({ cameraId });
+  function unmuteNow(cameraIds?: string[]): void {
+    unmute({ cameraIds });
   }
 
-  return { mutedUntil, cameraMutedUntil, formatMuteEnd, muteFor, unmute: unmuteNow };
+  return { mutedUntil, cameraMutedUntil, muteLabel, muteFor, unmute: unmuteNow };
 }

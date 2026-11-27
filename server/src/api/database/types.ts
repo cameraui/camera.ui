@@ -829,8 +829,9 @@ export interface DBNotificationSettings {
   enabled: boolean;
   // automation mute, separate from the user's own enabled toggle
   suppressed?: boolean;
-  mutedUntil?: number;
-  mutedCameras?: Record<string, number>;
+  // null mutes until lifted by hand
+  mutedUntil?: number | null;
+  mutedCameras?: Record<string, number | null>;
   sources?: Record<string, boolean>;
   systemTypes?: Record<string, boolean>;
   bell?: NotificationBellSettings;

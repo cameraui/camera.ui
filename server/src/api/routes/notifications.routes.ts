@@ -97,7 +97,7 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     handler: controller.mute.bind(controller),
     schema: {
       tags: ['Notifications'],
-      summary: 'Mute push and desktop alerts for the current user, or only those of one camera',
+      summary: 'Mute push and desktop alerts for the current user, or only those of the given cameras',
       body: notificationMuteSchema,
     },
   });
@@ -109,7 +109,7 @@ export const NotificationsRoute: FastifyPluginAsync = async (app: FastifyInstanc
     handler: controller.unmute.bind(controller),
     schema: {
       tags: ['Notifications'],
-      summary: 'End the mute of the current user, or of one camera',
+      summary: 'End the mute of the current user, or of the given cameras',
       querystring: notificationUnmuteQuerySchema,
     },
   });
