@@ -31,7 +31,7 @@
     "prettier": "^3.10.1",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",
-    "updates": "^20.0.1"
+    "updates": "^20.0.2"
   },
   "dependencies": {
     "commander": "^15.1.0",
