@@ -96,9 +96,11 @@ import { buildHistorySeries, seriesChangeTimes, seriesValueAt, timeTicks } from 
 import type { SensorHistoryEntry } from '@/api/routes/sensors.js';
 import type { SensorPropertySpec } from '@camera.ui/sdk';
 import type { LineSeries } from './history.js';
-import type { SensorHistoryProps } from './types.js';
+import type { HistoryRange, SensorHistoryProps } from './types.js';
 
-type HistoryRange = 'day' | 'week' | 'all';
+const props = defineProps<SensorHistoryProps>();
+
+const { t, te, locale } = useI18n();
 
 const LINE_HEIGHT = 64;
 const BAND_HEIGHT = 20;
@@ -106,10 +108,6 @@ const SEGMENT_GAP = 2;
 const SNAP_PX = 10;
 const SERIES_SLOTS = 8;
 const RANGE_MS: Record<Exclude<HistoryRange, 'all'>, number> = { day: 24 * 3_600_000, week: 7 * 24 * 3_600_000 };
-
-const props = defineProps<SensorHistoryProps>();
-
-const { t, te, locale } = useI18n();
 
 const plotRef = useTemplateRef<HTMLElement>('plotRef');
 const { width: plotWidth } = useElementSize(plotRef);
@@ -159,23 +157,7 @@ const valueSlots = computed(() => {
   return slots;
 });
 
-onMounted(async () => {
-  try {
-    entries.value = await getSensorHistoryFn({ id: props.sensorId, limit: 500 });
-  } catch {
-    entries.value = [];
-  } finally {
-    to.value = Date.now();
-    isLoading.value = false;
-  }
-});
-
 onClickOutside(plotRef, () => {
-  cursor.value = undefined;
-});
-
-watch(range, () => {
-  to.value = Date.now();
   cursor.value = undefined;
 });
 
@@ -284,6 +266,22 @@ function formatTick(tick: number): string {
   const options: Intl.DateTimeFormatOptions = axis.value.step >= 24 * 3_600_000 ? { day: 'numeric', month: 'short' } : { hour: '2-digit', minute: '2-digit' };
   return new Date(tick).toLocaleString(locale.value, options);
 }
+
+watch(range, () => {
+  to.value = Date.now();
+  cursor.value = undefined;
+});
+
+onMounted(async () => {
+  try {
+    entries.value = await getSensorHistoryFn({ id: props.sensorId, limit: 500 });
+  } catch {
+    entries.value = [];
+  } finally {
+    to.value = Date.now();
+    isLoading.value = false;
+  }
+});
 </script>
 
 <style scoped>

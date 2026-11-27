@@ -2,7 +2,7 @@
   <button
     type="button"
     class="cui-tile tile-button"
-    :class="{ 'tile-button--active': active, 'tile-button--static': !interactive, 'tile-button--offline': offline, 'tile-button--hero': hero }"
+    :class="{ 'tile-button--active': active, 'tile-button--static': !interactive, 'tile-button--hero': hero }"
     :style="color ? { '--tile-color': color } : undefined"
     :aria-label="label"
     :aria-pressed="interactive ? active : undefined"
@@ -13,13 +13,13 @@
 </template>
 
 <script setup lang="ts">
-import type { CuiTileButtonProps } from './types.js';
+import type { CuiTileButtonEmits, CuiTileButtonProps } from './types.js';
 
 withDefaults(defineProps<CuiTileButtonProps>(), {
   interactive: true,
 });
 
-const emit = defineEmits<{ (e: 'click'): void }>();
+const emit = defineEmits<CuiTileButtonEmits>();
 </script>
 
 <style scoped>
@@ -46,17 +46,12 @@ const emit = defineEmits<{ (e: 'click'): void }>();
 }
 
 .tile-button--active {
-  background: color-mix(in srgb, var(--tile-ink) 20%, var(--p-content-background));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--tile-ink) 45%, transparent);
+  background: color-mix(in srgb, var(--tile-ink) 18%, var(--p-content-background));
 }
 
 .tile-button--hero {
   width: 6rem;
   height: 6rem;
-}
-
-.tile-button--hero.tile-button--active {
-  box-shadow: 0 0 36px color-mix(in srgb, var(--tile-ink) 50%, transparent);
 }
 
 .tile-button--hero .tile-button__icon {
@@ -66,10 +61,6 @@ const emit = defineEmits<{ (e: 'click'): void }>();
 
 .tile-button--static {
   cursor: default;
-}
-
-.tile-button--offline {
-  opacity: 0.5;
 }
 
 .tile-button__icon {

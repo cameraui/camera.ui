@@ -1,15 +1,15 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="headline" :color :active :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="headline" :color :active :offline="!online">
     <div class="flex flex-col items-center gap-4">
-      <CuiAlarmScene v-if="group === 'alarm'" :icon :active />
-      <CuiLeakScene v-else-if="group === 'leak'" :active />
-      <CuiGarageScene v-else-if="kind === ContactKind.GarageDoor" :open-ratio="active ? 1 : 0" />
-      <CuiContactScene v-else-if="group === 'contact'" :open="active" :window="kind === ContactKind.Window" />
-      <CuiPresenceScene v-else-if="group === 'presence'" :active />
-      <CuiPowerScene v-else-if="group === 'power'" :active />
-      <CuiVibrationScene v-else :active />
+      <CuiAlarmScene class="tile-art" v-if="group === 'alarm'" :icon :active />
+      <CuiLeakScene class="tile-art" v-else-if="group === 'leak'" :active />
+      <CuiGarageScene class="tile-art" v-else-if="kind === ContactKind.GarageDoor" :open-ratio="active ? 1 : 0" />
+      <CuiContactScene class="tile-art" v-else-if="group === 'contact'" :open="active" :window="kind === ContactKind.Window" />
+      <CuiPresenceScene class="tile-art" v-else-if="group === 'presence'" :active />
+      <CuiPowerScene class="tile-art" v-else-if="group === 'power'" :active />
+      <CuiVibrationScene class="tile-art" v-else :active />
 
-      <CuiTileReading :state="stateText" :detail="sinceText" />
+      <CuiTileReading :state="stateText" :detail="sinceText ?? ''" />
 
       <CuiTileTimeline :sensor :property :entries :now />
     </div>

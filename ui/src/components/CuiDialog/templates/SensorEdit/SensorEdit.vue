@@ -91,7 +91,7 @@ const toast = useCuiToast();
 
 const { sensors: allSensors } = useAllSensors();
 
-const canControl = computed(() => hasPermission(undefined, 'admin'));
+const canControl = canControlSensors();
 const lockedCameras = computed(() => props.cameraOptions.filter((camera) => props.sensor.assignedCameraIds.includes(camera.value)));
 const hasTile = computed(() => hasSensorTile(props.sensor.type));
 const liveSensor = computed(() => allSensors.value.find((sensor) => sensor.id === props.sensor.id));

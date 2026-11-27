@@ -1,20 +1,20 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="headline" :color :active="lit" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="headline" :color :active="lit" :offline="!online">
     <template v-if="hasPower" #actions>
       <CuiTileButton :icon="PowerIcon" :label="t('components.sensor_tile.power')" :color :active="on" :interactive @click="toggle" />
     </template>
 
     <div class="flex flex-col items-center gap-4">
-      <CuiScreenScene v-if="kind === MediaPlayerKind.Tv || kind === MediaPlayerKind.Projector" :lit :playing :projector="kind === MediaPlayerKind.Projector" />
-      <CuiSoundScene v-else :lit :playing />
+      <CuiScreenScene class="tile-art" v-if="kind === MediaPlayerKind.Tv || kind === MediaPlayerKind.Projector" :lit :playing :projector="kind === MediaPlayerKind.Projector" />
+      <CuiSoundScene class="tile-art" v-else :lit :playing />
 
       <CuiTileReading :state="title ?? stateWord" :detail="title ? artist : undefined" />
 
-      <CuiMediaTransport v-if="commands.length > 0" :commands :playing :interactive @command="command" />
+      <CuiMediaTransport v-if="commands.length > 0 && !disabled" :commands :playing :interactive @command="command" />
 
       <div v-if="hasVolume || hasMute" class="media-large__volume">
         <CuiLevelBar
-          v-if="hasVolume"
+          v-if="hasVolume && !disabled"
           class="flex-1"
           :value="ratio"
           :label="muted ? t('components.sensor_tile.muted') : `${percent} %`"
@@ -24,6 +24,10 @@
           @input="inputVolume"
           @commit="commitVolume"
         />
+        <div v-else-if="hasVolume" class="flex flex-col gap-1 flex-1">
+          <span class="text-xs font-medium text-muted">{{ propertyLabel(MediaPlayerProperty.Volume) }}</span>
+          <span class="text-sm font-semibold tabular-nums">{{ percent }} %</span>
+        </div>
         <CuiTileButton
           v-if="hasMute"
           :icon="muted ? MuteIcon : VolumeIcon"
@@ -35,7 +39,7 @@
         />
       </div>
 
-      <div v-if="sources.length > 0" class="flex flex-col gap-1 w-full">
+      <div v-if="sources.length > 0 && !disabled" class="flex flex-col gap-1 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(MediaPlayerProperty.Source) }}</span>
         <SelectButton
           v-if="sources.length <= MAX_SOURCE_BUTTONS"
@@ -78,8 +82,6 @@ import { useMediaPlayer } from './useMediaPlayer.js';
 
 import type { SensorTileProps } from '../types.js';
 
-const MAX_SOURCE_BUTTONS = 4;
-
 const props = defineProps<SensorTileProps>();
 
 const { t } = useI18n();
@@ -113,6 +115,8 @@ const {
   propertyLabel,
   timelineColor,
 } = useMediaPlayer(() => props.sensor);
+
+const MAX_SOURCE_BUTTONS = 4;
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 const headline = computed(() => {

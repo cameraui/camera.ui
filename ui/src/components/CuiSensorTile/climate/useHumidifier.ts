@@ -39,7 +39,7 @@ export function useHumidifier(sensor: () => ReactiveSensor<object>) {
   const mode = computed(() => (names.mode ? sensor().getProperty<string>(names.mode) : undefined));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (!on.value) return t('components.sensor_state.off');
     if (activity.value === 'cool') return t('components.sensor_tile.humidifying_to', { value: targetText.value });
     if (activity.value === 'heat') return t('components.sensor_tile.drying_to', { value: targetText.value });

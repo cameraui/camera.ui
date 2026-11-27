@@ -24,7 +24,7 @@
         :key="preset.name"
         type="button"
         class="kelvin-preset"
-        :class="{ 'kelvin-preset--active': Math.abs(preset.kelvin - kelvin) < 100 }"
+        :class="{ 'kelvin-preset--active': isWhite(preset, kelvin) }"
         :disabled
         @click="emit('commit', preset.kelvin)"
       >
@@ -37,18 +37,13 @@
 </template>
 
 <script setup lang="ts">
-import { kelvinColor, WARM_WHITE_KELVIN } from '@/common/lightColor.js';
+import { kelvinColor } from '@/common/lightColor.js';
 
 import { fromRatio, toRatio } from '../range.js';
 import { useTrackDrag } from '../usePointerDrag.js';
+import { isWhite, whitesIn } from './whites.js';
 
 import type { CuiLightTemperatureEmits, CuiLightTemperatureProps } from './types.js';
-
-const PRESETS = [
-  { name: 'warm', kelvin: WARM_WHITE_KELVIN },
-  { name: 'neutral', kelvin: 4000 },
-  { name: 'cool', kelvin: 6500 },
-];
 
 const props = defineProps<CuiLightTemperatureProps>();
 const emit = defineEmits<CuiLightTemperatureEmits>();
@@ -59,7 +54,7 @@ const stripRef = useTemplateRef<HTMLElement>('stripRef');
 
 const ratio = computed(() => toRatio(props.kelvin, props.range));
 const track = computed(() => `linear-gradient(90deg, ${kelvinColor(props.range.min)}, ${kelvinColor(props.range.max)})`);
-const presets = computed(() => PRESETS.filter((preset) => preset.kelvin >= props.range.min && preset.kelvin <= props.range.max));
+const presets = computed(() => whitesIn(props.range));
 
 const { dragging, onKey } = useTrackDrag(stripRef, {
   disabled: () => props.disabled,

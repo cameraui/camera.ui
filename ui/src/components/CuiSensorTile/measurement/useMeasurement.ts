@@ -60,8 +60,8 @@ export function useMeasurement(sensor: () => ReactiveSensor<object>) {
     return zone.value?.word ? t(`components.sensor_tile.${zone.value.word}`) : undefined;
   });
   const caption = computed(() => (isAirQuality && readingProperty.value ? [propertyLabel(readingProperty.value), word.value].filter(Boolean).join(' · ') : word.value));
-  const cardState = computed(() => (sensor().connected.value ? (word.value ?? '--') : t('connection.offline')));
-  const headline = computed(() => (sensor().connected.value ? t(`components.camera_options.sensor_type_${type}`) : t('connection.offline')));
+  const cardState = computed(() => (sensor().online.value ? (word.value ?? '--') : t('connection.offline')));
+  const headline = computed(() => (sensor().online.value ? t(`components.camera_options.sensor_type_${type}`) : t('connection.offline')));
 
   const zoneViews = computed<MeasurementZoneView[] | undefined>(() => {
     if (!scale?.zones) return undefined;

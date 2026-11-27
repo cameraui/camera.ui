@@ -17,7 +17,7 @@ export function useSwitch(sensor: () => ReactiveSensor<object>) {
   const color = computed(() => sensorToneColor(sensor().type, true));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (inUse.value) return t('components.sensor_tile.in_use');
     return t(`components.sensor_state.${on.value ? 'on' : 'off'}`);
   });

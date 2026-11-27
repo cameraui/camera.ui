@@ -21,6 +21,7 @@ export interface CuiClimateDialProps {
   low?: number;
   high?: number;
   disabled?: boolean;
+  still?: boolean;
 }
 
 export interface CuiClimateDialEmits {

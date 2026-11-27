@@ -2,6 +2,8 @@ import { pressesInnerControl, SLOP_PX } from './usePointerDrag.js';
 
 import type { MaybeRefOrGetter } from 'vue';
 
+const TOUCH_REST_MS = 150;
+
 export interface HoldPressOptions {
   duration: number;
   holds: () => boolean;
@@ -16,15 +18,15 @@ export function useHoldPress(target: MaybeRefOrGetter<HTMLElement | null | undef
   let press: { id: number; x: number; y: number } | undefined;
   let started = 0;
   let frame = 0;
+  let resting: ReturnType<typeof setTimeout> | undefined;
 
   useEventListener(target, 'pointerdown', (event: PointerEvent) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (pressesInnerControl(event, toValue(target))) return;
     press = { id: event.pointerId, x: event.clientX, y: event.clientY };
     if (!options.holds()) return;
-    holding.value = true;
-    started = performance.now();
-    frame = requestAnimationFrame(tick);
+    if (event.pointerType === 'mouse') begin();
+    else resting = setTimeout(begin, TOUCH_REST_MS);
   });
 
   useEventListener(target, 'pointermove', (event: PointerEvent) => {
@@ -45,7 +47,16 @@ export function useHoldPress(target: MaybeRefOrGetter<HTMLElement | null | undef
   // a long press on touch would open the context menu instead
   useEventListener(target, 'contextmenu', (event: Event) => event.preventDefault());
 
-  onBeforeUnmount(() => cancelAnimationFrame(frame));
+  onBeforeUnmount(() => {
+    clearTimeout(resting);
+    cancelAnimationFrame(frame);
+  });
+
+  function begin() {
+    holding.value = true;
+    started = performance.now();
+    frame = requestAnimationFrame(tick);
+  }
 
   function tick(now: number) {
     progress.value = Math.min((now - started) / options.duration, 1);
@@ -59,6 +70,7 @@ export function useHoldPress(target: MaybeRefOrGetter<HTMLElement | null | undef
   }
 
   function drop() {
+    clearTimeout(resting);
     cancelAnimationFrame(frame);
     press = undefined;
     holding.value = false;

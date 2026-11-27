@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2 w-full">
+  <div class="tile-history flex flex-col gap-2 w-full">
     <CuiTileHistoryHead :sensor :label="t('components.sensor_tile.recent')" />
     <ul v-if="rows.length > 0" class="tile-moments">
       <li v-for="row in rows" :key="row.key" class="tile-moments__row">
@@ -11,7 +11,7 @@
         <span class="tile-moments__time">{{ row.time }}</span>
       </li>
     </ul>
-    <span v-else-if="loaded" class="text-xs text-muted">{{ t('components.sensor_tile.nothing_yet') }}</span>
+    <span v-else class="tile-moments tile-moments--empty">{{ loaded ? t('components.sensor_tile.nothing_yet') : '' }}</span>
   </div>
 </template>
 
@@ -21,11 +21,11 @@ import CuiTileHistoryHead from './CuiTileHistoryHead.vue';
 
 import type { CuiTileMomentsProps } from './types.js';
 
-const ROWS = 3;
-
 const props = defineProps<CuiTileMomentsProps>();
 
 const { t, locale } = useI18n();
+
+const ROWS = 3;
 
 const rows = computed(() => {
   const now = Date.now();
@@ -42,13 +42,21 @@ const rows = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+  min-height: calc(v-bind(ROWS) * 2rem + (v-bind(ROWS) - 1) * 0.125rem);
+}
+
+.tile-moments--empty {
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-muted-color);
 }
 
 .tile-moments__row {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 0.375rem 0;
+  height: 2rem;
   font-size: 0.8125rem;
 }
 
@@ -65,22 +73,30 @@ const rows = computed(() => {
 
 .tile-moments__text {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 0.375rem;
   flex: 1;
   min-width: 0;
 }
 
+.tile-moments__label,
+.tile-moments__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tile-moments__label {
+  flex-shrink: 0;
+  max-width: 100%;
   color: var(--text-color);
   font-weight: 500;
 }
 
 .tile-moments__detail {
+  min-width: 0;
   font-size: 0.75rem;
   color: var(--text-muted-color);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tile-moments__time {

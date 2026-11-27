@@ -21,13 +21,13 @@ export function useBinary(sensor: () => ReactiveSensor<object>) {
   const kind = computed(() => (type === SensorType.Contact ? sensor().getProperty<string>(ContactProperty.Kind) : undefined));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     // "inactive" reads oddly on a calm alarm, "all clear" says what it means
     if (alarm && !active.value && sensorStateKey(type, false) === GENERIC_CALM) return t('components.sensor_tile.all_clear');
     return sensorStatus(type, sensor(), t);
   });
   const headline = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     return kind.value ? t(`components.camera_options.sensor_kind_${kind.value}`) : t(`components.camera_options.sensor_type_${type}`);
   });
 

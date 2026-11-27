@@ -20,6 +20,8 @@
 <script setup lang="ts">
 import CuiSensorTileSheet from './CuiSensorTileSheet.vue';
 import { SENSOR_TILES } from './tiles.js';
+import { TILE_EXPAND, TILE_WAIT } from './types.js';
+import { useTileWait } from './useTileWait.js';
 
 import type { CuiSensorTileProps } from './types.js';
 
@@ -41,6 +43,12 @@ function expand(event: Event) {
   if (props.expandInPlace) expanded.value = true;
   else sheetRef.value?.open(event);
 }
+
+provide(TILE_EXPAND, expand);
+provide(
+  TILE_WAIT,
+  useTileWait(() => props.sensor),
+);
 </script>
 
 <style scoped>
@@ -49,7 +57,7 @@ function expand(event: Event) {
 }
 
 .sensor-tile--in-place {
-  width: 12.5rem;
+  width: 15rem;
   max-width: calc(100vw - 3rem);
 }
 

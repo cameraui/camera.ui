@@ -15,17 +15,7 @@ const WHITE: LightColor = { hue: 0, saturation: 0 };
 export function useLight(sensor: () => ReactiveSensor<object>) {
   const { t } = useI18n();
 
-  const {
-    on,
-    lit,
-    hasLevel: hasBrightness,
-    levelRange: brightnessRange,
-    ratio: level,
-    percent,
-    toggle,
-    inputLevel,
-    commitLevel,
-  } = useLevelSwitch(sensor, LightProperty.On, LightProperty.Brightness);
+  const { on, lit, hasLevel: hasBrightness, ratio: level, percent, toggle, inputLevel, commitLevel } = useLevelSwitch(sensor, LightProperty.On, LightProperty.Brightness);
   const temperature = useLiveProperty(sensor, LightProperty.ColorTemperature, WARM_WHITE_KELVIN);
   const color = useLiveProperty(sensor, LightProperty.Color, WHITE);
 
@@ -48,7 +38,7 @@ export function useLight(sensor: () => ReactiveSensor<object>) {
   });
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     return t(`components.sensor_state.${lit.value ? 'on' : 'off'}`);
   });
   const summary = computed(() => (lit.value && hasBrightness.value ? `${stateText.value} · ${percent.value} %` : stateText.value));
@@ -93,9 +83,7 @@ export function useLight(sensor: () => ReactiveSensor<object>) {
     hasBrightness,
     hasTemperature,
     hasColor,
-    showsColor,
     mode,
-    brightnessRange,
     temperatureRange,
     level,
     percent,

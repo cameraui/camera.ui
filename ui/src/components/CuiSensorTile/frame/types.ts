@@ -1,8 +1,8 @@
 import type { SensorHistoryEntry } from '@/api/routes/sensors.js';
-import type { TileOption } from '../types.js';
-import type { SensorMoment } from '../useSensorMoments.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Component } from 'vue';
+import type { TileOption } from '../types.js';
+import type { SensorMoment } from '../useSensorMoments.js';
 
 export interface CuiTileButtonProps {
   icon: Component;
@@ -10,8 +10,11 @@ export interface CuiTileButtonProps {
   color?: string;
   active?: boolean;
   interactive?: boolean;
-  offline?: boolean;
   hero?: boolean;
+}
+
+export interface CuiTileButtonEmits {
+  (e: 'click'): void;
 }
 
 export interface CuiTileIconProps {
@@ -38,6 +41,7 @@ export interface CuiTileCardProps {
   dragging?: boolean;
   offline?: boolean;
   compact?: boolean;
+  mini?: boolean;
 }
 
 export interface TileScaleZone {
@@ -64,6 +68,7 @@ export interface CuiTileTimelineProps {
   entries: SensorHistoryEntry[];
   now: number;
   colorOf?: (value: unknown) => string | undefined;
+  bare?: boolean;
 }
 
 export type CuiTileHistoryTimelineProps = Pick<CuiTileTimelineProps, 'sensor' | 'property' | 'colorOf'>;
@@ -96,6 +101,77 @@ export interface CuiTileReadingProps {
   detail?: string;
 }
 
+export type TileWidgetForm = 'compact' | 'short' | 'tall';
+
+export interface CuiTileWidgetProps {
+  icon: Component;
+  title: string;
+  state?: string;
+  summary?: string;
+  color?: string;
+  active?: boolean;
+  offline?: boolean;
+  badge?: Component;
+  badgeLabel?: string;
+  hero?: string;
+  heroNote?: string;
+  heroWord?: boolean;
+  heroToned?: boolean;
+  extraShowsHero?: boolean;
+  opens?: boolean;
+  note?: string;
+}
+
+export interface CuiTileWidgetEmits {
+  (e: 'open', event: Event): void;
+}
+
+export interface CuiTileActionProps {
+  icon?: Component;
+  label: string;
+  showLabel?: boolean;
+  color?: string;
+  active?: boolean;
+  interactive?: boolean;
+  progress?: number;
+  waiting?: boolean;
+  failed?: boolean;
+}
+
+export interface CuiTileActionEmits {
+  (e: 'click', event: MouseEvent): void;
+}
+
+export interface CuiTileHoldActionProps extends Omit<CuiTileActionProps, 'progress'> {
+  guarded: boolean;
+  interactive: boolean;
+}
+
+export interface CuiTileHoldActionEmits {
+  (e: 'press'): void;
+  (e: 'hint', shown: boolean): void;
+}
+
+export interface CuiTileChoiceRowProps {
+  options: TileOption[];
+  selected?: string;
+  interactive: boolean;
+}
+
+export interface CuiTileChoiceRowEmits {
+  (e: 'select', value: string): void;
+}
+
+export interface CuiTileStepRowProps {
+  downLabel: string;
+  upLabel: string;
+  interactive: boolean;
+}
+
+export interface CuiTileStepRowEmits {
+  (e: 'step', direction: 1 | -1): void;
+}
+
 export interface CuiTilePanelProps {
   icon: Component;
   title: string;
@@ -103,6 +179,7 @@ export interface CuiTilePanelProps {
   color?: string;
   active?: boolean;
   offline?: boolean;
+  fit?: boolean;
 }
 
 export interface CuiLevelBarProps {
@@ -160,6 +237,7 @@ export interface CuiTileChipsProps {
   options: TileOption[];
   selected?: string;
   disabled?: boolean;
+  limit?: number;
 }
 
 export interface CuiTileChipsEmits {

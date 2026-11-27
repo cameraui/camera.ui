@@ -1,12 +1,12 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="headline" :color :active="!!color" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="headline" :color :active="!!color" :offline="!online">
     <div class="flex flex-col items-center gap-4">
-      <CuiThermometerScene v-if="type === SensorType.Temperature" :ratio="ratio ?? 0" />
-      <CuiDropScene v-else-if="type === SensorType.Humidity" :ratio="ratio ?? 0" :zones="zoneViews ?? []" />
-      <CuiSunScene v-else-if="type === SensorType.Illuminance" :ratio="ratio ?? 0" :dark="!!zoneViews?.[0]?.active" />
-      <CuiCo2Scene v-else-if="type === SensorType.CarbonDioxide" :poor="!!zoneViews?.[2]?.active" />
-      <CuiAirQualityScene v-else-if="isAirQuality" :level :colors="AIR_COLORS" />
-      <CuiBatteryScene v-else-if="type === SensorType.Battery" :ratio="ratio ?? 0" :charging="isCharging" />
+      <CuiThermometerScene class="tile-art" v-if="type === SensorType.Temperature" :ratio="ratio ?? 0" />
+      <CuiDropScene class="tile-art" v-else-if="type === SensorType.Humidity" :ratio="ratio ?? 0" :zones="zoneViews ?? []" />
+      <CuiSunScene class="tile-art" v-else-if="type === SensorType.Illuminance" :ratio="ratio ?? 0" :dark="!!zoneViews?.[0]?.active" />
+      <CuiCo2Scene class="tile-art" v-else-if="type === SensorType.CarbonDioxide" :poor="!!zoneViews?.[2]?.active" />
+      <CuiAirQualityScene class="tile-art" v-else-if="isAirQuality" :level :colors="AIR_COLORS" />
+      <CuiBatteryScene class="tile-art" v-else-if="type === SensorType.Battery" :ratio="ratio ?? 0" :charging="isCharging" />
 
       <div class="measurement-large__reading">
         <span class="measurement-large__value">{{ (isAirQuality ? word : text) ?? '--' }}</span>
@@ -60,15 +60,15 @@ import { useMeasurement } from './useMeasurement.js';
 
 import type { SensorTileProps } from '../types.js';
 
-// the scene of these two shows no zones, the scale under the value does
-const LABELED_SCALE = new Set<string>([SensorType.Illuminance, SensorType.CarbonDioxide]);
-
 const props = defineProps<SensorTileProps>();
 
 const { name, online } = useTileSensor(props);
 const { isAirQuality, readings, readingProperty, text, level, ratio, isCharging, color, word, headline, scaleZones, zoneViews, format } = useMeasurement(
   () => props.sensor,
 );
+
+// the scene of these two shows no zones, the scale under the value does
+const LABELED_SCALE = new Set<string>([SensorType.Illuminance, SensorType.CarbonDioxide]);
 
 const type = computed(() => props.sensor.type);
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));

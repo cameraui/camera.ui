@@ -1,15 +1,15 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active :offline="!online">
     <div class="flex flex-col items-center gap-4">
-      <CuiBellScene :ringing="active" />
+      <CuiBellScene class="tile-art" :ringing="active" />
 
       <CuiTileReading :state="stateText" />
 
-      <CuiTileControl :caption="playLabel">
+      <CuiTileControl v-if="!disabled" :caption="playLabel">
         <CuiTileButton :icon="active ? StopIcon : PlayIcon" :label="playLabel" :color :active hero :interactive @click="toggle" />
       </CuiTileControl>
 
-      <div v-if="tones.length > 0" class="flex flex-col gap-1 w-full">
+      <div v-if="tones.length > 0 && !disabled" class="flex flex-col gap-1 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(ChimeProperty.Tone) }}</span>
         <SelectButton
           v-if="tones.length <= MAX_TONE_BUTTONS"
@@ -39,6 +39,7 @@
       <div v-if="hasVolume" class="flex flex-col gap-2 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(ChimeProperty.Volume) }}</span>
         <CuiLevelBar
+          v-if="!disabled"
           :value="ratio"
           :label="`${percent} %`"
           :aria-label="propertyLabel(ChimeProperty.Volume)"
@@ -47,11 +48,13 @@
           @input="inputVolume"
           @commit="commitVolume"
         />
+        <span v-else class="text-sm font-semibold tabular-nums">{{ percent }} %</span>
       </div>
 
       <div v-if="hasRepeat" class="flex items-center justify-between gap-3 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(ChimeProperty.Repeat) }}</span>
         <CuiNumberStepper
+          v-if="!disabled"
           :model-value="repeat.value.value"
           :min="repeatRange.min"
           :max="repeatRange.max"
@@ -60,6 +63,7 @@
           :disabled="!interactive"
           @update:model-value="(value: number | null) => value && setRepeat(value)"
         />
+        <span v-else class="text-sm font-semibold tabular-nums">{{ repeat.value.value }}</span>
       </div>
 
       <CuiTileMoments :sensor :moments :loaded :describe />
@@ -88,8 +92,6 @@ import { useChime } from './useChime.js';
 import type { TileMomentRow } from '../frame/types.js';
 import type { SensorTileProps } from '../types.js';
 
-const MAX_TONE_BUTTONS = 3;
-
 const props = defineProps<SensorTileProps>();
 
 const { t } = useI18n();
@@ -115,6 +117,8 @@ const {
   propertyLabel,
 } = useChime(() => props.sensor);
 const { moments, loaded } = useSensorMoments(() => props.sensor, [ChimeProperty.Active]);
+
+const MAX_TONE_BUTTONS = 3;
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 const playLabel = computed(() => t(`components.sensor_tile.${active.value ? 'stop' : 'play'}`));

@@ -31,7 +31,7 @@ export function useSecuritySystem(sensor: () => ReactiveSensor<object>) {
   const calm = computed(() => securityColor(target.value) ?? 'var(--text-secondary-color)');
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (pending.value) return t(`components.sensor_tile.${wantsArmed.value ? 'arming' : 'disarming'}`);
     return sensorStatus(type, sensor(), t);
   });
@@ -68,7 +68,7 @@ export function useSecuritySystem(sensor: () => ReactiveSensor<object>) {
     return armModes.value.includes(SecuritySystemState.AwayArm) ? SecuritySystemState.AwayArm : armModes.value[0];
   }
 
-  return { current, target, triggered, wantsArmed, pending, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm, toggle };
+  return { target, triggered, wantsArmed, guarded, armModes, color, calm, stateText, modeLabel, arm, disarm, toggle };
 }
 
 export function useSecurityPress(target: MaybeRefOrGetter<HTMLElement | null | undefined>, system: ReturnType<typeof useSecuritySystem>, interactive: () => boolean) {

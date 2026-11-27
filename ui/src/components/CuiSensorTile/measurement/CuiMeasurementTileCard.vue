@@ -10,6 +10,7 @@
     :fill="0"
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     role="button"
     :aria-label="name"
     tabindex="0"

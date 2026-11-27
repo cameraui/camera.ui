@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active="moving" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active="moving" :offline="!online">
     <div class="flex flex-col items-center gap-4">
       <div class="ptz-view">
         <CuiCameraCard
@@ -25,11 +25,18 @@
 
       <CuiTileReading :state="stateText" />
 
-      <CuiTileControl v-if="hasHome" :caption="t('components.player.ptz_go_to_home')">
+      <CuiTileControl v-if="hasHome && !disabled" :caption="t('components.player.ptz_go_to_home')">
         <CuiTileButton :icon="HomeIcon" :label="t('components.player.ptz_go_to_home')" :color :interactive="steerable" @click="goToHome" />
       </CuiTileControl>
 
-      <CuiTileChips v-if="hasPresets" :label="t('components.player.ptz_presets')" :options="presetOptions" :disabled="!steerable" @select="goToPreset" />
+      <CuiTileChips
+        v-if="hasPresets && !disabled"
+        :label="t('components.player.ptz_presets')"
+        :options="presetOptions"
+        :limit="PRESET_CHIPS"
+        :disabled="!steerable"
+        @select="goToPreset"
+      />
     </div>
   </CuiTilePanel>
 </template>
@@ -48,7 +55,7 @@ import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import CuiTileReading from '../frame/CuiTileReading.vue';
 import { useCameraRecord } from '../useCameraRecord.js';
 import { useTileSensor } from '../useTileSensor.js';
-import { usePtzState } from './usePtzState.js';
+import { PRESET_CHIPS, usePtzState } from './usePtzState.js';
 
 import type { SensorTileProps } from '../types.js';
 

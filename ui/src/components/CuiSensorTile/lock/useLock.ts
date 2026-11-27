@@ -1,6 +1,6 @@
 import { LockProperty, LockState } from '@camera.ui/sdk';
 
-import { sensorTone, sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
+import { sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
 
 import { SEGMENT_ACTIVE } from '../frame/segments.js';
 import { useGuardedPress } from '../useGuardedPress.js';
@@ -19,10 +19,10 @@ export function useLock(sensor: () => ReactiveSensor<object>) {
   const jammed = computed(() => current.value === LockState.Jammed);
   const wantsLocked = computed(() => wanted.value === LockState.Secured);
   const moving = computed(() => !jammed.value && current.value !== undefined && wanted.value !== current.value);
-  const color = computed(() => (jammed.value ? sensorTone(sensor().type, sensor()).color : sensorToneColor(sensor().type, true)));
+  const color = computed(() => (jammed.value ? toneColor('alarm') : sensorToneColor(sensor().type, true)));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (jammed.value) return t('components.sensor_state.jammed');
     if (moving.value) return t(`components.lock.status_${wantsLocked.value ? 'locking' : 'unlocking'}`);
     if (current.value === LockState.Secured) return t('components.lock.status_locked');

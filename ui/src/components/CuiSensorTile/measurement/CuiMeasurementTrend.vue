@@ -1,19 +1,26 @@
 <template>
-  <div class="trend">
-    <CuiTileHistoryHead :sensor :label="spanLabel" />
+  <div class="trend tile-history" :class="{ 'trend--fill': fill }">
+    <CuiTileHistoryHead v-if="!bare" :sensor :label="spanLabel" />
+    <div v-else-if="caption" class="trend__caption">
+      <span class="trend__span">{{ spanLabel }}</span>
+      <span v-if="lines.length > 0">{{ format(low) }}–{{ format(high) }}</span>
+    </div>
 
-    <div v-if="lines.length > 0" class="trend__chart" v-on="listeners">
+    <!-- chart and range row keep their height while loading and when empty, a sheet would jump otherwise -->
+    <div class="trend__chart" v-on="listeners">
       <svg class="trend__plot" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="none" aria-hidden="true">
         <path v-for="(line, index) in lines" :key="`area-${index}`" :d="line.area" class="trend__area" />
         <path v-for="(line, index) in lines" :key="`line-${index}`" :d="line.stroke" class="trend__line" />
       </svg>
       <span v-if="marker" class="trend__dot" :style="marker" />
+      <span v-if="loaded && lines.length === 0" class="trend__empty">{{ t('components.sensor_tile.no_history') }}</span>
     </div>
-    <span v-else-if="loaded" class="trend__empty">{{ t('components.sensor_tile.no_history') }}</span>
 
-    <div v-if="lines.length > 0" class="trend__range">
-      <span>{{ t('components.sensor_tile.min_value', { value: format(low) }) }}</span>
-      <span>{{ t('components.sensor_tile.max_value', { value: format(high) }) }}</span>
+    <div v-if="!bare" class="trend__range">
+      <template v-if="lines.length > 0">
+        <span>{{ t('components.sensor_tile.min_value', { value: format(low) }) }}</span>
+        <span>{{ t('components.sensor_tile.max_value', { value: format(high) }) }}</span>
+      </template>
     </div>
 
     <CuiChartTooltip :anchor :title="tip?.title" :rows="tip?.rows" />
@@ -23,21 +30,13 @@
 <script setup lang="ts">
 import { sensorPropertySpec } from '@/common/sensorDisplay.js';
 import { buildHistorySeries } from '@/components/CuiDialog/templates/SensorHistory/history.js';
-import { usePointerTooltip } from '@/composables/usePointerTooltip.js';
 
 import CuiTileHistoryHead from '../frame/CuiTileHistoryHead.vue';
 import { DAY, shortMoment, useSensorHistory } from '../useSensorHistory.js';
 
 import type { HistoryPoint } from '@/components/CuiDialog/templates/SensorHistory/history.js';
 import type { PointerTooltipHit } from '@/composables/usePointerTooltip.js';
-import type { CuiMeasurementTrendProps } from './types.js';
-
-type KnownPoint = HistoryPoint & { value: number };
-
-const MINUTE = 60_000;
-const WIDTH = 300;
-const HEIGHT = 64;
-const INSET = 4;
+import type { CuiMeasurementTrendProps, KnownPoint } from './types.js';
 
 const props = defineProps<CuiMeasurementTrendProps>();
 
@@ -46,6 +45,11 @@ const { entries, loaded, now } = useSensorHistory(
   () => props.sensor,
   () => props.property,
 );
+
+const MINUTE = 60_000;
+const WIDTH = 300;
+const HEIGHT = 64;
+const INSET = 4;
 
 const points = computed(() => {
   const series = buildHistorySeries(entries.value, now.value - DAY, now.value, (property) => sensorPropertySpec(props.sensor, property), [props.property]);
@@ -124,6 +128,36 @@ function runs(list: HistoryPoint[]): HistoryPoint[][] {
   position: relative;
 }
 
+.trend--fill {
+  height: 100%;
+}
+
+.trend--fill .trend__chart {
+  flex: 1 1 0;
+  min-height: 2rem;
+}
+
+.trend--fill .trend__plot {
+  height: 100%;
+}
+
+.trend__caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--text-secondary-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trend__span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .trend__plot {
   display: block;
   width: 100%;
@@ -156,16 +190,21 @@ function runs(list: HistoryPoint[]): HistoryPoint[][] {
 }
 
 .trend__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.75rem;
   color: var(--text-secondary-color);
-  text-align: center;
-  padding: 1rem 0;
 }
 
 .trend__range {
   display: flex;
   justify-content: space-between;
+  min-height: 1.125rem;
   font-size: 0.75rem;
+  line-height: 1.5;
   color: var(--text-secondary-color);
   font-variant-numeric: tabular-nums;
 }

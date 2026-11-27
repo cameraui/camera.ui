@@ -19,7 +19,7 @@
     />
     <img v-else-if="snapshotSrc" :src="snapshotSrc" class="detection-frame__image" alt="" draggable="false" />
 
-    <TransitionGroup name="detection-box" tag="div" class="detection-frame__boxes">
+    <TransitionGroup v-if="!isPrivate" name="detection-box" tag="div" class="detection-frame__boxes">
       <div v-for="item in boxes" :key="item.key" class="detection-frame__box" :style="boxStyle(item)">
         <span v-if="item.text" class="detection-frame__label">{{ item.text }}</span>
       </div>
@@ -39,6 +39,8 @@
 </template>
 
 <script setup lang="ts">
+import { usePrivacyActive } from '@/common/cameraPrivacy.js';
+
 import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { useCameraRecord } from '../useCameraRecord.js';
 
@@ -50,6 +52,7 @@ const { t } = useI18n();
 
 const snapshotSrc = props.cameraId ? useSnapshot(props.cameraId).snapshotSrc : undefined;
 const cameraRecord = useCameraRecord(props.cameraId);
+const isPrivate = usePrivacyActive(cameraRecord);
 
 const live = ref(false);
 

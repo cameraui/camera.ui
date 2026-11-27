@@ -81,7 +81,7 @@ export function useFan(sensor: () => ReactiveSensor<object>) {
   });
   const caption = computed(() => notes.value.join(' · ') || undefined);
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     const head = doing.value ? [] : [t(`components.sensor_state.${lit.value ? 'on' : 'off'}`)];
     return [...head, ...notes.value].join(' · ');
   });

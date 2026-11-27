@@ -1,5 +1,5 @@
 <template>
-  <div class="display-screen">
+  <div class="display-screen" :class="{ 'display-screen--fill': fill }">
     <div class="display-screen__pixels">
       <Transition name="display-screen__text" mode="out-in">
         <span :key="text" class="display-screen__text" :class="{ 'display-screen__text--empty': !text }">{{ text || empty }}</span>
@@ -51,6 +51,32 @@ defineProps<CuiDisplayScreenProps>();
   text-align: center;
   overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--tile-color) 55%, white);
+}
+
+.display-screen--fill {
+  height: 100%;
+  container-type: size;
+}
+
+.display-screen--fill .display-screen__pixels {
+  height: 100%;
+  min-height: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.display-screen--fill .display-screen__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: clamp(0.625rem, (100cqb - 1rem) / 3.9, 1.5rem);
+}
+
+@container (height < 4.5rem) {
+  .display-screen--fill .display-screen__text {
+    -webkit-line-clamp: 1;
+    font-size: clamp(0.625rem, (100cqb - 1rem) / 1.3, 1.5rem);
+  }
 }
 
 .display-screen__text--empty {

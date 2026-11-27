@@ -1,4 +1,5 @@
 import { clampRatio } from './range.js';
+import { TILE_WAIT } from './types.js';
 
 import type { MaybeRefOrGetter } from 'vue';
 
@@ -21,6 +22,15 @@ export const SLOP_PX = 6;
 export function usePointerDrag(target: MaybeRefOrGetter<Element | null | undefined>, options: PointerDragOptions) {
   const dragging = ref(false);
   let press: { id: number; x: number; y: number } | undefined;
+
+  const wait = inject(TILE_WAIT, undefined);
+  watch(
+    dragging,
+    (now) => {
+      if (wait) wait.dragging.value = now;
+    },
+    { flush: 'sync' },
+  );
 
   useEventListener(target, 'pointerdown', (event: PointerEvent) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;

@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="!isOff" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="!isOff" :offline="!online">
     <div class="flex flex-col items-center gap-4">
       <CuiClimateDial
         :range="temperatureRange"
@@ -19,14 +19,14 @@
           <span class="climate-large__range" :style="{ color: heatColor }">{{ degrees(targets.high, temperatureRange.step) }}</span>
         </template>
 
-        <template v-if="!isOff" #bottom>
+        <template v-if="!isOff && !disabled" #bottom>
           <CuiTileButton :icon="MinusIcon" :label="t('components.sensor_tile.colder')" :interactive @click="nudge(targets, -temperatureRange.step, true)" />
           <CuiTileButton :icon="PlusIcon" :label="t('components.sensor_tile.warmer')" :interactive @click="nudge(targets, temperatureRange.step, true)" />
         </template>
       </CuiClimateDial>
 
-      <div v-if="modes.length > 1" class="flex flex-col items-center gap-2">
-        <div class="flex flex-wrap justify-center gap-3">
+      <div v-if="modes.length > 1 && (mode || !disabled)" class="flex flex-col items-center gap-2">
+        <div v-if="!disabled" class="flex flex-wrap justify-center gap-3">
           <CuiTileButton
             v-for="value in modes"
             :key="value"
@@ -44,7 +44,9 @@
       <div v-if="presets.length > 0 || fanModes.length > 0" class="climate-large__choices">
         <div v-if="presets.length > 0" class="flex flex-col gap-1">
           <span class="text-xs font-medium text-muted">{{ propertyLabel(ThermostatProperty.Preset) }}</span>
+          <span v-if="disabled" class="text-sm font-semibold">{{ choiceLabel(presets, preset) }}</span>
           <Select
+            v-else
             :model-value="preset"
             :options="presets"
             option-label="label"
@@ -57,7 +59,9 @@
         </div>
         <div v-if="fanModes.length > 0" class="flex flex-col gap-1">
           <span class="text-xs font-medium text-muted">{{ propertyLabel(ThermostatProperty.FanMode) }}</span>
+          <span v-if="disabled" class="text-sm font-semibold">{{ choiceLabel(fanModes, fanMode) }}</span>
           <Select
+            v-else
             :model-value="fanMode"
             :options="fanModes"
             option-label="label"
@@ -72,7 +76,9 @@
 
       <div v-if="targetHumidity !== undefined" class="flex flex-col gap-2 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(ThermostatProperty.TargetHumidity) }}</span>
+        <span v-if="disabled" class="text-sm font-semibold tabular-nums">{{ targetHumidity }} %</span>
         <CuiLevelBar
+          v-else
           :value="toRatio(targetHumidity, humidityRange)"
           :label="`${targetHumidity} %`"
           :aria-label="propertyLabel(ThermostatProperty.TargetHumidity)"
@@ -83,7 +89,7 @@
         />
       </div>
 
-      <div v-if="toggles.length > 0" class="flex flex-col gap-2 w-full">
+      <div v-if="toggles.length > 0 && !disabled" class="flex flex-col gap-2 w-full">
         <CuiToggleRow v-for="toggle in toggles" :key="toggle.property" :label="toggle.label">
           <ToggleSwitch :model-value="toggle.value" :disabled="!interactive" @update:model-value="(value) => send(toggle.property, value)" />
         </CuiToggleRow>
@@ -111,7 +117,7 @@ import CuiClimateDial from './CuiClimateDial.vue';
 import { modeColor, modeIcon } from './modes.js';
 import { useClimate } from './useClimate.js';
 
-import type { SensorTileProps } from '../types.js';
+import type { SensorTileProps, TileOption } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
 
@@ -164,6 +170,10 @@ const reading = computed(() => {
   if (humidity.value !== undefined) parts.push(t('components.sensor_tile.humidity_value', { value: `${Math.round(humidity.value)} %` }));
   return parts.filter(Boolean).join(' · ');
 });
+
+function choiceLabel(options: TileOption[], value: string | undefined) {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
 </script>
 
 <style scoped>

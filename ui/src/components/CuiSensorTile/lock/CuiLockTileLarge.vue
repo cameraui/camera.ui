@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="jammed || wantsLocked" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="jammed || wantsLocked" :offline="!online">
     <div class="flex flex-col items-center gap-3 py-2">
       <CuiHoldDial
         ref="dialRef"
@@ -22,7 +22,15 @@
         </svg>
       </CuiHoldDial>
 
-      <Button v-if="jammed" severity="danger" size="small" class="cui-button-medium" :label="t('components.sensor_tile.retry')" :disabled="!interactive" @click="retry" />
+      <Button
+        v-if="jammed && !disabled"
+        severity="danger"
+        size="small"
+        class="cui-button-medium"
+        :label="t('components.sensor_tile.retry')"
+        :disabled="!interactive"
+        @click="retry"
+      />
       <span v-else-if="interactive" class="text-xs text-muted">{{ caption }}</span>
 
       <CuiTileHistoryTimeline :sensor :property="LockProperty.CurrentState" :color-of="timelineColor" />
@@ -41,8 +49,8 @@ import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useLock, useLockPress } from './useLock.js';
 
-import type { SensorTileProps } from '../types.js';
 import type { ComponentPublicInstance } from 'vue';
+import type { SensorTileProps } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
 

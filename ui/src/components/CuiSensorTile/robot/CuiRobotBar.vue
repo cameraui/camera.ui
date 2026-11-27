@@ -24,6 +24,7 @@ import PauseIcon from '~icons/mdi/pause';
 import PlayIcon from '~icons/mdi/play';
 
 import CuiTileMiniButton from '../frame/CuiTileMiniButton.vue';
+import { mainCommand } from './useRobot.js';
 
 import type { CuiRobotBarEmits, CuiRobotBarProps } from './types.js';
 
@@ -32,10 +33,7 @@ const emit = defineEmits<CuiRobotBarEmits>();
 
 const { t } = useI18n();
 
-const main = computed(() => {
-  if (props.busy && props.commands.includes(VacuumCommand.Pause)) return VacuumCommand.Pause;
-  return props.commands.includes(VacuumCommand.Start) ? VacuumCommand.Start : undefined;
-});
+const main = computed(() => mainCommand(props.commands, props.busy));
 
 function label(command: string): string {
   return t(`components.automation_nodes.${props.type}_state_${command}`);

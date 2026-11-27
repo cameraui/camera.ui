@@ -1,7 +1,7 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="cameraName ?? typeLabel" :offline="!online || cameraDisabled">
+  <CuiTilePanel fit :icon :title="name" :state="cameraName ?? typeLabel" :offline="!online || cameraDisabled">
     <div class="flex flex-col items-center gap-4 py-2">
-      <span class="helper-large__icon">
+      <span class="helper-large__icon tile-art">
         <component :is="icon" />
       </span>
       <CuiTileReading :state="stateText" :detail="t(`components.sensor_tile.helper_${sensor.type}`)" />

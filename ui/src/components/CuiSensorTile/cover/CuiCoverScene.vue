@@ -13,7 +13,7 @@
     <defs>
       <clipPath :id="clipId">
         <rect v-if="kind === CoverKind.Damper" x="34" y="44" width="132" height="132" rx="66" />
-        <rect v-else :x="GX" :y="GY" :width="GW" :height="GH" rx="3" />
+        <rect v-else :x="GX" :y="GY" :width="GW" :height="GH" :rx="RADIUS" />
       </clipPath>
     </defs>
 
@@ -27,13 +27,8 @@
     </template>
 
     <template v-else>
-      <rect x="16" y="16" width="168" height="192" rx="10" class="cover-scene__frame" />
-      <rect :x="GX" :y="GY" :width="GW" :height="GH" rx="3" :class="opensInward ? 'cover-scene__air' : 'cover-scene__glass'" />
-
-      <template v-if="!opensInward">
-        <line x1="100" :y1="GY" x2="100" :y2="GY + GH" class="cover-scene__muntin" />
-        <line :x1="GX" :y1="GY + GH / 2" :x2="GX + GW" :y2="GY + GH / 2" class="cover-scene__muntin" />
-      </template>
+      <rect :x="GX" :y="GY" :width="GW" :height="GH" :rx="RADIUS" class="cover-scene__frame" />
+      <rect v-if="opensInward" :x="GX" :y="GY" :width="GW" :height="GH" :rx="RADIUS" class="cover-scene__air" />
 
       <g :clip-path="`url(#${clipId})`">
         <g v-if="fromTop" class="cover-scene__move" :style="{ transform: `translateY(${-openRatio * (GH - RAIL)}px)` }">
@@ -61,7 +56,7 @@
           </g>
         </template>
 
-        <polygon v-else-if="kind === CoverKind.Window" :points="sashPoints" class="cover-scene__glass cover-scene__sash" />
+        <polygon v-else-if="kind === CoverKind.Window" :points="sashPoints" class="cover-scene__frame" />
 
         <template v-else-if="kind === CoverKind.Door">
           <polygon :points="doorPoints" class="cover-scene__fabric cover-scene__sash" />
@@ -86,7 +81,7 @@
       </g>
     </template>
 
-    <rect v-if="obstructed" :x="GX" :y="GY + GH - 5" :width="GW" height="5" rx="2" class="cover-scene__obstruction" />
+    <rect v-if="obstructed" :x="GX + RADIUS" :y="GY + GH - 5" :width="GW - 2 * RADIUS" height="5" rx="2" class="cover-scene__obstruction" />
   </svg>
 </template>
 
@@ -98,17 +93,23 @@ import { usePointerDrag } from '../usePointerDrag.js';
 
 import type { CuiCoverSceneEmits, CuiCoverSceneProps } from './types.js';
 
-const GX = 26;
-const GY = 26;
-const GW = 148;
-const GH = 172;
+const props = defineProps<CuiCoverSceneProps>();
+const emit = defineEmits<CuiCoverSceneEmits>();
+
+const GX = 16;
+const GY = 16;
+const GW = 168;
+const GH = 192;
+const RADIUS = 18;
 const RAIL = 6;
+const SLAT_PITCH = 20;
 const CURTAIN_TRAVEL = GW / 2 - 12;
 const AWNING_STRIPE = 22;
 const FROM_TOP = new Set<CoverKind>([CoverKind.Shutter, CoverKind.Blind, CoverKind.Shade]);
-
-const props = defineProps<CuiCoverSceneProps>();
-const emit = defineEmits<CuiCoverSceneEmits>();
+const shutterLines = range(GY + SLAT_PITCH, GY + GH - RAIL, SLAT_PITCH);
+const blindSlats = range(GY + 6, GY + GH - RAIL - 2, 12);
+const curtainFolds = range(14, GW / 2, 14);
+const awningStripes = range(GX - 12, GX + GW + 12, AWNING_STRIPE);
 
 const sceneRef = useTemplateRef<SVGSVGElement>('sceneRef');
 const clipId = useId();
@@ -116,13 +117,7 @@ const clipId = useId();
 const closed = computed(() => 1 - props.openRatio);
 const fromTop = computed(() => FROM_TOP.has(props.kind));
 const opensInward = computed(() => props.kind === CoverKind.Window || props.kind === CoverKind.Door);
-const slatHeight = computed(() => 7 * (1 - 0.8 * ((props.tilt ?? 0) / 100)));
-
-const shutterLines = range(GY + 8, GY + GH - RAIL, 8);
-const blindSlats = range(GY + 5, GY + GH - RAIL - 2, 9);
-const curtainFolds = range(9, GW / 2, 9);
-const awningStripes = range(GX - 12, GX + GW + 12, AWNING_STRIPE);
-
+const slatHeight = computed(() => 9 * (1 - 0.8 * ((props.tilt ?? 0) / 100)));
 const sashPoints = computed(() => {
   const inset = 10 * props.openRatio;
   const drop = 16 * props.openRatio;
@@ -148,7 +143,8 @@ const { dragging } = usePointerDrag(sceneRef, {
   },
   onEnd: () => emit('commit', last),
   onTap: (event) => {
-    if (props.draggable) emit('commit', ratioAt(event));
+    if (props.tapToggles) emit('toggle');
+    else if (props.draggable) emit('commit', ratioAt(event));
   },
 });
 
@@ -169,6 +165,11 @@ function range(from: number, to: number, step: number): number[] {
 
 <style scoped>
 .cover-scene {
+  --cover-pane: var(--p-content-hover-background);
+  --cover-slat: color-mix(in srgb, var(--text-color) 8%, var(--cover-pane));
+  --cover-seam: color-mix(in srgb, var(--text-color) 18%, var(--cover-pane));
+  --cover-line: color-mix(in srgb, var(--text-color) 10%, transparent);
+
   width: min(100%, 13rem);
   aspect-ratio: 200 / 220;
   user-select: none;
@@ -184,44 +185,38 @@ function range(from: number, to: number, step: number): number[] {
   cursor: ew-resize;
 }
 
-.cover-scene__frame {
-  fill: var(--p-content-hover-background);
-  stroke: var(--border-color);
-  stroke-width: 2;
+.cover-scene__frame,
+.cover-scene__sash {
+  stroke: var(--cover-line);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
-.cover-scene__glass {
-  fill: color-mix(in srgb, #38bdf8 20%, var(--p-content-background));
+.cover-scene__frame {
+  fill: var(--cover-pane);
 }
 
 .cover-scene__air {
   fill: color-mix(in srgb, var(--text-color) 55%, var(--p-content-background));
 }
 
-.cover-scene__muntin {
-  stroke: var(--p-content-hover-background);
-  stroke-width: 3;
-}
-
 .cover-scene__fabric {
-  fill: color-mix(in srgb, var(--text-color) 22%, var(--p-content-background));
+  fill: var(--cover-slat);
 }
 
 .cover-scene__gap {
   fill: transparent;
 }
 
-.cover-scene__slat {
-  fill: color-mix(in srgb, var(--text-color) 30%, var(--p-content-background));
+.cover-scene__slat,
+.cover-scene__rail {
+  fill: var(--cover-seam);
 }
 
 .cover-scene__line {
-  stroke: color-mix(in srgb, var(--text-color) 35%, var(--p-content-background));
+  stroke: var(--cover-seam);
   stroke-width: 1;
-}
-
-.cover-scene__rail {
-  fill: color-mix(in srgb, var(--text-color) 55%, var(--p-content-background));
+  vector-effect: non-scaling-stroke;
 }
 
 .cover-scene__cord {
@@ -233,11 +228,6 @@ function range(from: number, to: number, step: number): number[] {
   stroke: color-mix(in srgb, var(--text-color) 55%, var(--p-content-background));
   stroke-width: 3;
   stroke-linecap: round;
-}
-
-.cover-scene__sash {
-  stroke: var(--border-color);
-  stroke-width: 2;
 }
 
 .cover-scene__awning-dark {

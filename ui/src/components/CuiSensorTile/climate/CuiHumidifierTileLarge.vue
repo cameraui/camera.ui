@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="on" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="on" :offline="!online">
     <template #actions>
       <CuiTileButton :icon="PowerIcon" :label="t('components.sensor_tile.power')" :color :active="on" :interactive @click="toggle" />
     </template>
@@ -17,7 +17,7 @@
         @input="(_knob, value) => setTarget(value, false)"
         @commit="(_knob, value) => setTarget(value, true)"
       >
-        <template v-if="on" #bottom>
+        <template v-if="on && !disabled" #bottom>
           <CuiTileButton :icon="MinusIcon" :label="t('components.sensor_tile.drier')" :interactive @click="setTarget(target.value.value - range.step, true)" />
           <CuiTileButton :icon="PlusIcon" :label="t('components.sensor_tile.moister')" :interactive @click="setTarget(target.value.value + range.step, true)" />
         </template>
@@ -25,8 +25,9 @@
 
       <div v-if="modes.length > 0 && names.mode" class="flex flex-col gap-1 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(names.mode) }}</span>
+        <span v-if="disabled" class="text-sm font-semibold">{{ modeText }}</span>
         <SelectButton
-          v-if="modes.length <= MAX_MODE_BUTTONS"
+          v-else-if="modes.length <= MAX_MODE_BUTTONS"
           :model-value="mode"
           :options="modes"
           option-label="label"
@@ -71,8 +72,6 @@ import { useHumidifier } from './useHumidifier.js';
 
 import type { SensorTileProps } from '../types.js';
 
-const MAX_MODE_BUTTONS = 4;
-
 const props = defineProps<SensorTileProps>();
 
 const { t } = useI18n();
@@ -82,7 +81,10 @@ const { names, on, activity, color, range, current, target, targetText, modes, m
   () => props.sensor,
 );
 
+const MAX_MODE_BUTTONS = 4;
+
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
+const modeText = computed(() => modes.value.find((option) => option.value === mode.value)?.label ?? mode.value);
 const reading = computed(() => {
   if (current.value === undefined) return undefined;
   return on.value ? t('components.sensor_tile.current_value', { value: percent(current.value) }) : t('components.sensor_tile.current');

@@ -1,6 +1,6 @@
 <template>
-  <div class="timeline">
-    <CuiTileHistoryHead :sensor :label="t('components.sensor_tile.last_day')" />
+  <div class="timeline tile-history">
+    <CuiTileHistoryHead v-if="!bare" :sensor :label="t('components.sensor_tile.last_day')" />
     <div class="timeline__track" v-on="listeners">
       <span v-for="(segment, index) in segments" :key="index" class="timeline__segment" :style="segment" />
     </div>
@@ -16,7 +16,6 @@
 <script setup lang="ts">
 import { sensorPropertySpec, sensorValueLabel } from '@/common/sensorDisplay.js';
 import { buildHistorySeries } from '@/components/CuiDialog/templates/SensorHistory/history.js';
-import { usePointerTooltip } from '@/composables/usePointerTooltip.js';
 
 import { DAY, shortMoment } from '../useSensorHistory.js';
 import CuiTileHistoryHead from './CuiTileHistoryHead.vue';

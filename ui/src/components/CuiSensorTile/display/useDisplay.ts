@@ -22,7 +22,7 @@ export function useDisplay(sensor: () => ReactiveSensor<object>) {
   const maxLength = computed(() => sensorPropertySpec(sensor(), DisplayProperty.Message)?.maxLength);
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     return shown.value || t('components.sensor_state.empty');
   });
 

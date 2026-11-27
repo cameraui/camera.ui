@@ -30,3 +30,7 @@ export function hasPermission(route?: RouteRecordRaw | RouteLocationNormalizedLo
 
   return explizit ? userRole === requiredRole : hasMinRole(userRole, requiredRole);
 }
+
+export function canControlSensors(): boolean {
+  return hasPermission(undefined, 'admin');
+}

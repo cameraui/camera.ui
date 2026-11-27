@@ -19,9 +19,9 @@
 <script setup lang="ts">
 import { VIRTUAL_SENSOR_CAPABILITIES } from '@shared/types';
 
-import type { VirtualSensorType } from '@shared/types';
+import type { CuiVirtualCapabilitiesFieldProps } from './types.js';
 
-const props = defineProps<{ type: VirtualSensorType }>();
+const props = defineProps<CuiVirtualCapabilitiesFieldProps>();
 const capabilities = defineModel<string[]>({ required: true });
 
 const { t } = useI18n();

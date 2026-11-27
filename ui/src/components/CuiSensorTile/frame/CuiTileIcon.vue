@@ -1,5 +1,5 @@
 <template>
-  <span class="tile-icon" :class="{ 'tile-icon--active': active }">
+  <span class="tile-icon cui-wait-ring" :class="{ 'tile-icon--active': active, 'cui-wait-ring--on': wait?.waiting.value, 'cui-wait-ring--failed': wait?.failed.value }">
     <component :is="icon" class="tile-icon__svg" />
     <span v-if="badge" v-tooltip.top="badgeLabel" class="tile-icon__badge" role="img" :aria-label="badgeLabel">
       <component :is="badge" />
@@ -8,9 +8,13 @@
 </template>
 
 <script setup lang="ts">
+import { TILE_WAIT } from '../types.js';
+
 import type { CuiTileIconProps } from './types.js';
 
 defineProps<CuiTileIconProps>();
+
+const wait = inject(TILE_WAIT, undefined);
 </script>
 
 <style scoped>
@@ -27,14 +31,12 @@ defineProps<CuiTileIconProps>();
   color: var(--text-secondary-color);
   transition:
     background 0.25s ease,
-    color 0.25s ease,
-    box-shadow 0.25s ease;
+    color 0.25s ease;
 }
 
 .tile-icon--active {
-  background: color-mix(in srgb, var(--tile-ink) 24%, var(--p-content-background));
+  background: color-mix(in srgb, var(--tile-ink) 18%, var(--p-content-background));
   color: var(--tile-ink);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--tile-ink) 40%, transparent);
 }
 
 .tile-icon__svg {
@@ -44,6 +46,7 @@ defineProps<CuiTileIconProps>();
 
 .tile-icon__badge {
   position: absolute;
+  z-index: 1;
   right: -0.25rem;
   bottom: -0.25rem;
   display: flex;

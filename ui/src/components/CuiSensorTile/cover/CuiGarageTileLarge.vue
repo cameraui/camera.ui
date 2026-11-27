@@ -1,9 +1,10 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="wantsOpen || obstructed" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="wantsOpen || obstructed" :offline="!online">
     <div class="flex flex-col items-center gap-3">
-      <CuiGarageScene :open-ratio="doorRatio" :moving :obstructed />
+      <CuiGarageScene class="tile-art" :open-ratio="doorRatio" :moving :obstructed />
 
       <CuiHoldDial
+        v-if="!disabled"
         ref="dialRef"
         class="garage-dial"
         :label="name"
@@ -26,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { CoverProperty, CoverState } from '@camera.ui/sdk';
+import { CoverProperty } from '@camera.ui/sdk';
 import CloseIcon from '~icons/lucide/chevrons-down';
 import OpenIcon from '~icons/lucide/chevrons-up';
 
@@ -48,7 +49,7 @@ const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const cover = useCover(() => props.sensor);
-const { current, wantsOpen, moving, obstructed, color, stateText, timelineColor } = cover;
+const { wantsOpen, doorRatio, moving, obstructed, color, stateText, timelineColor } = cover;
 
 const dialRef = useTemplateRef<ComponentPublicInstance>('dialRef');
 const dialEl = computed(() => dialRef.value?.$el as HTMLElement | undefined);
@@ -56,7 +57,6 @@ const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 
 const { progress, holding, hint, onKey } = useGaragePress(dialEl, cover, () => interactive.value);
 
-const doorRatio = computed(() => (current.value === CoverState.Stopped ? 0.5 : wantsOpen.value ? 1 : 0));
 const caption = computed(() => t(`components.sensor_tile.${wantsOpen.value ? 'tap_to_close' : 'hold_to_open'}`));
 </script>
 

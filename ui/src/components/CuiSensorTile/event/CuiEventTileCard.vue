@@ -8,27 +8,19 @@
     :fill="active ? 1 : 0"
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     role="button"
     :aria-label="name"
     :tabindex="runnable && !interactive ? -1 : 0"
     @click="onClick"
     @keydown="onKey"
-  >
-    <template v-if="runnable" #corner>
-      <CuiTileCornerButton :label="t('components.sensor_tile.recent')" @click.stop="emit('expand', $event)">
-        <HistoryIcon />
-      </CuiTileCornerButton>
-    </template>
-  </CuiTileCard>
+  />
 </template>
 
 <script setup lang="ts">
-import HistoryIcon from '~icons/mdi/history';
-
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
-import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { onExpandKey, onToggleKey } from '../keys.js';
 import { useTileSensor } from '../useTileSensor.js';
 import { useEventSensor } from './useEventSensor.js';
@@ -37,8 +29,6 @@ import type { SensorTileEmits, SensorTileProps } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
 const emit = defineEmits<SensorTileEmits>();
-
-const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const { runnable, active, color, stateText, run } = useEventSensor(() => props.sensor);

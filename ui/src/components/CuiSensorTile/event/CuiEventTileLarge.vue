@@ -1,17 +1,19 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="t(`components.camera_options.sensor_type_${sensor.type}`)" :color :active :offline="!online">
     <div class="flex flex-col items-center gap-4">
-      <CuiTileControl v-if="runnable" :caption="t('components.scene_control.run')">
-        <CuiTileButton :icon="RunIcon" :label="t('components.scene_control.run')" :color :active hero :interactive @click="run" />
-      </CuiTileControl>
+      <template v-if="runnable">
+        <CuiTileControl v-if="!disabled" :caption="t('components.scene_control.run')">
+          <CuiTileButton :icon="RunIcon" :label="t('components.scene_control.run')" :color :active hero :interactive @click="run" />
+        </CuiTileControl>
+      </template>
       <template v-else-if="sensor.type === SensorType.Doorbell">
-        <CuiBellScene :ringing="active" :camera-id="sensor.boundCameraId" />
-        <CuiTileControl :caption="t('components.sensor_tile.ring')">
+        <CuiBellScene class="tile-art" :ringing="active" :camera-id="sensor.boundCameraId" />
+        <CuiTileControl v-if="!disabled" :caption="t('components.sensor_tile.ring')">
           <CuiTileButton :icon="RingIcon" :label="t('components.sensor_tile.ring')" :color :active :interactive="interactive && !active" @click="ring" />
         </CuiTileControl>
       </template>
-      <CuiPressScene v-else-if="sensor.type === SensorType.Button" :press="active ? String(last?.value) : undefined" :stamp="last?.timestamp" />
-      <CuiAccessScene v-else :active :method="method" :granted="last ? last.value === AccessResult.Granted : undefined" />
+      <CuiPressScene class="tile-art" v-else-if="sensor.type === SensorType.Button" :press="active ? String(last?.value) : undefined" :stamp="last?.timestamp" />
+      <CuiAccessScene class="tile-art" v-else :active :method :granted="last ? last.value === AccessResult.Granted : undefined" />
 
       <CuiTileReading :state="stateText" />
 

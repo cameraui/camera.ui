@@ -575,3 +575,65 @@
 .dark-mode .cui-tile {
   --tile-ink: var(--tile-color);
 }
+
+.cui-wait-ring {
+  position: relative;
+}
+
+.cui-wait-ring::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+  border: 2px solid transparent;
+  border-top-color: var(--text-secondary-color);
+  border-right-color: var(--text-secondary-color);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.cui-wait-ring--on::after {
+  opacity: 1;
+  animation: cui-wait-ring 0.9s linear infinite;
+}
+
+.cui-wait-ring--failed::after {
+  opacity: 1;
+  border-color: var(--p-red-500);
+  animation: none;
+  transition: none;
+}
+
+@keyframes cui-wait-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cui-wait-ring--on::after {
+    animation: none;
+  }
+}
+
+.zoom-minimap {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.zoom-minimap-viewport {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}

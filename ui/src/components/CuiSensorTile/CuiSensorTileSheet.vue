@@ -1,42 +1,39 @@
 <template>
-  <Popover ref="popoverRef" class="w-[22rem] shadow-lg cui-rounded-corner" :pt="{ content: { class: 'p-4' } }">
+  <CuiPopoverSheet ref="sheetRef" width="20rem" :popover="{ pt: { content: { class: 'p-4' } } }">
     <div class="flex flex-col gap-4">
       <component :is="large" :sensor size="large" :disabled class="sensor-sheet__tile" />
       <slot />
     </div>
-  </Popover>
-
-  <CuiBottomSheet v-model="sheetOpen">
-    <div class="flex flex-col gap-4 pt-4">
-      <component :is="large" :sensor size="large" :disabled class="sensor-sheet__tile" />
-      <slot />
-    </div>
-  </CuiBottomSheet>
+  </CuiPopoverSheet>
 </template>
 
 <script setup lang="ts">
+import CuiPopoverSheet from '../CuiPopoverSheet/CuiPopoverSheet.vue';
 import { SENSOR_TILES } from './tiles.js';
+import { TILE_WAIT } from './types.js';
+import { useTileWait } from './useTileWait.js';
 
-import type { Popover } from 'openvue';
 import type { CuiSensorTileSheetProps } from './types.js';
 
 const props = defineProps<CuiSensorTileSheetProps>();
 
-const { phoneBreakpoint } = useSharedCuiBreakpoint();
-
-const popoverRef = useTemplateRef<InstanceType<typeof Popover>>('popoverRef');
-const sheetOpen = ref(false);
+const sheetRef = useTemplateRef<InstanceType<typeof CuiPopoverSheet>>('sheetRef');
 
 const large = computed(() => SENSOR_TILES[props.sensor.type]?.large);
 
-function open(event: Event, anchor = event.currentTarget) {
-  if (phoneBreakpoint.value) sheetOpen.value = true;
-  else popoverRef.value?.toggle(event, anchor);
+function open(event: Event, target: EventTarget | null = event.currentTarget) {
+  sheetRef.value?.toggle(event, target);
 }
 
 function close() {
-  sheetOpen.value = false;
-  popoverRef.value?.hide();
+  sheetRef.value?.hide();
+}
+
+if (!inject(TILE_WAIT, undefined)) {
+  provide(
+    TILE_WAIT,
+    useTileWait(() => props.sensor),
+  );
 }
 
 defineExpose({ open, close });

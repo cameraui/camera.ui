@@ -386,7 +386,6 @@ export function sensorStatus(type: string, sensor: AnySensor | undefined, t: (ke
     return `${t('components.sensor_state.on')} · ${formatMeasurement(Number(sensor.getProperty(speed)), sensorPropertySpec(sensor, speed))}`;
   }
   if (sensor && semantics?.states && NAMED_STATE_DOMAINS.has(semantics.domain)) {
-    const value = sensor.getProperty(semantics.stateProperty);
     const name = Object.entries(semantics.states).find(([, state]) => state === value)?.[0];
     if (name) return t(`components.sensor_state.${name}`);
   }
@@ -398,16 +397,6 @@ export function sensorReading(sensor: AnySensor | undefined): string | undefined
   if (!sensor || semantics?.domain !== SensorDomain.Measurement) return undefined;
   const value = sensor.getProperty(semantics.stateProperty);
   return typeof value === 'number' ? formatMeasurement(value, sensorPropertySpec(sensor, semantics.stateProperty)) : undefined;
-}
-
-export function sensorReadings(sensor: AnySensor, t: (key: string) => string): string | undefined {
-  const meta = sensorMeta(sensor.type);
-  const readings = (meta?.semantics?.readings ?? []).flatMap(({ property }) => {
-    const value = sensor.getProperty(property);
-    if (!sensorOffers(sensor, property) || typeof value !== 'number') return [];
-    return [`${t(`components.automation_nodes.sensor_property_${property}`)} ${formatMeasurement(value, sensorPropertySpec(sensor, property))}`];
-  });
-  return readings.length ? readings.join(' · ') : undefined;
 }
 
 export function sensorPropertyLabelKey(type: string, property: string): string {
@@ -446,6 +435,11 @@ export function sensorOffers(sensor: AnySensor, property: string): boolean {
 
 export function sensorPropertySpec(sensor: AnySensor, property: string): SensorPropertySpec | undefined {
   return sensor.propertySpecs.value[property] ?? sensorMeta(sensor.type)?.properties[property];
+}
+
+export function decimalsOf(step: number): number {
+  const [, fraction = ''] = String(step).split('.');
+  return fraction.length;
 }
 
 function lookOf(type: string): SensorLook {
@@ -525,15 +519,8 @@ function requested(semantics: SensorSemantics, read: ReadProperty): unknown {
   return read(semantics.commandProperty) ?? read(semantics.stateProperty);
 }
 
-export function decimalsOf(step: number): number {
-  const [, fraction = ''] = String(step).split('.');
-  return fraction.length;
-}
-
 function securityIcon(sensor: AnySensor | undefined): Component {
-  const state = sensor?.getProperty(SecuritySystemProperty.CurrentState) ?? sensor?.getProperty(SecuritySystemProperty.TargetState);
-
-  switch (state) {
+  switch (sensor && shownSecurityState(readFrom(sensor))) {
     case SecuritySystemState.AlarmTriggered:
       return ShieldAlertIcon;
     case SecuritySystemState.StayArm:

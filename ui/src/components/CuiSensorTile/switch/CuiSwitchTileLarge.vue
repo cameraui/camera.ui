@@ -1,11 +1,11 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="on" :offline="!online">
-    <div class="switch-stage">
-      <CuiRockerSwitch :on :label="name" :color :disabled="!interactive" @change="setOn" />
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="on" :offline="!online">
+    <div v-if="!disabled || isOutlet" class="switch-stage">
+      <CuiRockerSwitch v-if="!disabled" :on :label="name" :color :disabled="!interactive" @change="setOn" />
 
       <template v-if="isOutlet">
-        <CuiFlowLine :flowing="inUse" class="switch-stage__flow" />
-        <CuiOutletSocket :on :in-use="inUse" :color />
+        <CuiFlowLine v-if="!disabled" :flowing="inUse" class="switch-stage__flow tile-art" />
+        <CuiOutletSocket :on :in-use="inUse" :color class="tile-art" />
       </template>
     </div>
 

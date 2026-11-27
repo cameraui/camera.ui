@@ -10,45 +10,33 @@
     :dragging="holding"
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     class="siren-card"
     role="switch"
     :aria-checked="active"
     :aria-label="name"
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
-  >
-    <template #corner>
-      <CuiTileCornerButton :label="hasVolume ? propertyLabel(SirenProperty.Volume) : t('components.sensor_tile.controls')" @click="emit('expand', $event)">
-        <VolumeIcon v-if="hasVolume" />
-        <TuneIcon v-else />
-      </CuiTileCornerButton>
-    </template>
-  </CuiTileCard>
+  />
 </template>
 
 <script setup lang="ts">
-import { SirenProperty } from '@camera.ui/sdk';
-import TuneIcon from '~icons/mdi/tune-variant';
-import VolumeIcon from '~icons/mdi/volume-high';
-
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
-import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useSiren, useSirenPress } from './useSiren.js';
 
-import type { SensorTileEmits, SensorTileProps } from '../types.js';
 import type { ComponentPublicInstance } from 'vue';
+import type { SensorTileProps } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
-const emit = defineEmits<SensorTileEmits>();
 
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const siren = useSiren(() => props.sensor);
-const { active, color, hasVolume, stateText, propertyLabel } = siren;
+const { active, color, stateText } = siren;
 
 const cardRef = useTemplateRef<ComponentPublicInstance>('cardRef');
 const cardEl = computed(() => cardRef.value?.$el as HTMLElement | undefined);

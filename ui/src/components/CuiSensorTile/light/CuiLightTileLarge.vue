@@ -1,11 +1,11 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="summary" :color="lightColor" :active="lit" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="summary" :color="lightColor" :active="lit" :offline="!online">
     <template v-if="hasBrightness" #actions>
       <CuiTileButton :icon="PowerIcon" :label="t('components.sensor_tile.power')" :color="lightColor" :active="lit" :interactive @click="toggle" />
     </template>
 
     <CuiLevelBar
-      v-if="hasBrightness"
+      v-if="hasBrightness && !disabled"
       :value="lit ? level : 0"
       :label="lit ? `${percent} %` : stateText"
       :aria-label="t('components.sensor_tile.brightness')"
@@ -15,12 +15,12 @@
       @commit="commitLevel"
     />
 
-    <div v-else class="flex justify-center py-3">
+    <div v-else-if="!hasBrightness" class="flex justify-center py-3">
       <CuiTileButton hero :icon="PowerIcon" :label="t('components.sensor_tile.power')" :color="lightColor" :active="lit" :interactive @click="toggle" />
     </div>
 
     <SelectButton
-      v-if="hasTemperature && hasColor"
+      v-if="hasTemperature && hasColor && !disabled"
       :model-value="mode"
       :options="modes"
       option-label="label"
@@ -33,7 +33,7 @@
     />
 
     <CuiLightTemperature
-      v-if="hasTemperature && (!hasColor || mode === 'white')"
+      v-if="hasTemperature && (!hasColor || mode === 'white') && !disabled"
       :kelvin
       :range="temperatureRange"
       :disabled="!interactive"
@@ -42,7 +42,7 @@
     />
 
     <CuiLightColorWheel
-      v-if="hasColor && (!hasTemperature || mode === 'color')"
+      v-if="hasColor && (!hasTemperature || mode === 'color') && !disabled"
       :color="hueSaturation"
       :disabled="!interactive"
       @input="inputColor"

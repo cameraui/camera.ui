@@ -39,7 +39,7 @@ defineProps<CuiTileCornerButtonProps>();
   inset: -0.5rem;
 }
 
-.tile-corner:hover:not(:disabled) {
+.tile-corner:hover {
   background-color: color-mix(in srgb, var(--text-color) 14%, var(--p-content-background));
   box-shadow: 0 0 0 1px var(--text-muted-color);
 }
@@ -49,11 +49,7 @@ defineProps<CuiTileCornerButtonProps>();
   height: 1rem;
 }
 
-.tile-corner:active:not(:disabled) {
+.tile-corner:active {
   transform: scale(0.9);
-}
-
-.tile-corner:disabled {
-  cursor: default;
 }
 </style>

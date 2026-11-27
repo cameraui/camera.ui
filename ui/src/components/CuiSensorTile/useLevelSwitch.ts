@@ -2,11 +2,12 @@ import { sensorOffers } from '@/common/sensorDisplay.js';
 
 import { fromRatio, sensorRange, toRatio } from './range.js';
 import { useLiveProperty } from './useLiveProperty.js';
+import { useSensorSettings } from './useSensorSettings.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 
 export function useLevelSwitch(sensor: () => ReactiveSensor<object>, onProperty: string, levelProperty: string) {
-  const toast = useCuiToast();
+  const { send } = useSensorSettings(sensor);
 
   const level = useLiveProperty(sensor, levelProperty, 100);
 
@@ -25,7 +26,7 @@ export function useLevelSwitch(sensor: () => ReactiveSensor<object>, onProperty:
       commitLevel(toRatio(restore ?? levelRange.value.max, levelRange.value));
       return;
     }
-    setOn(!lit.value);
+    send(onProperty, !lit.value);
   }
 
   function inputLevel(next: number) {
@@ -37,19 +38,12 @@ export function useLevelSwitch(sensor: () => ReactiveSensor<object>, onProperty:
     if (!level.pending.value) remember();
     const value = fromRatio(next, levelRange.value);
     const wantsOn = value > levelRange.value.min;
-    await level.commit(value);
     // plugins differ in whether a level turns the device on, so say it
-    if (wantsOn !== on.value) setOn(wantsOn);
+    if ((await level.commit(value)) && wantsOn !== on.value) send(onProperty, wantsOn);
   }
 
   function remember() {
     if (lit.value && level.value.value > levelRange.value.min) restore = level.value.value;
-  }
-
-  function setOn(value: boolean) {
-    sensor()
-      .setProperty(onProperty, value)
-      .catch((error) => toast.add({ severity: 'error', detail: error, life: 3000 }));
   }
 
   return { on, lit, hasLevel, levelRange, ratio, percent, toggle, inputLevel, commitLevel };

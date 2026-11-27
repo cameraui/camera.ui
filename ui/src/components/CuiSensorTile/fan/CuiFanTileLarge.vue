@@ -1,16 +1,17 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active="lit" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active="lit" :offline="!online">
     <template v-if="hasSpeed" #actions>
       <CuiTileButton :icon="PowerIcon" :label="t('components.sensor_tile.power')" :color :active="lit" :interactive @click="toggle" />
     </template>
 
     <div class="flex flex-col items-center gap-4">
-      <CuiPurifierScene v-if="isPurifier" :lit :working :ratio />
-      <CuiFanScene v-else :lit :ratio :reverse :oscillating />
+      <CuiPurifierScene class="tile-art" v-if="isPurifier" :lit :working :ratio />
+      <CuiFanScene class="tile-art" v-else :lit :ratio :reverse :oscillating />
 
       <template v-if="hasSpeed">
+        <CuiTileReading v-if="disabled" :state="lit ? (speedText ?? '') : stateText" />
         <SelectButton
-          v-if="steps > 0 && steps <= MAX_STEP_BUTTONS"
+          v-else-if="steps > 0 && steps <= MAX_STEP_BUTTONS"
           :model-value="lit ? step : undefined"
           :options="stepOptions"
           option-label="label"
@@ -42,7 +43,7 @@
         </CuiTileControl>
       </div>
 
-      <div v-if="presets.length > 0" class="flex flex-col gap-1 w-full">
+      <div v-if="presets.length > 0 && !disabled" class="flex flex-col gap-1 w-full">
         <span class="text-xs font-medium text-muted">{{ propertyLabel(FanProperty.Preset) }}</span>
         <Select
           :model-value="preset"
@@ -88,6 +89,7 @@ import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTileControl from '../frame/CuiTileControl.vue';
 import CuiTileHistoryTimeline from '../frame/CuiTileHistoryTimeline.vue';
 import CuiTilePanel from '../frame/CuiTilePanel.vue';
+import CuiTileReading from '../frame/CuiTileReading.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiFanScene from './CuiFanScene.vue';
 import CuiPurifierScene from './CuiPurifierScene.vue';
@@ -95,8 +97,6 @@ import { useFan } from './useFan.js';
 
 import type { SensorTileProps } from '../types.js';
 import type { FanControl } from './types.js';
-
-const MAX_STEP_BUTTONS = 6;
 
 const props = defineProps<SensorTileProps>();
 
@@ -133,6 +133,8 @@ const {
   propertyLabel,
   send,
 } = useFan(() => props.sensor);
+
+const MAX_STEP_BUTTONS = 6;
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 const stepOptions = computed(() => Array.from({ length: steps.value }, (_, index) => ({ label: String(index + 1), value: index + 1 })));

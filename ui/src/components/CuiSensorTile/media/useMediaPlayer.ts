@@ -8,7 +8,7 @@ import { useVolumeLevel } from '../useVolumeLevel.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 
-const PLAYING = new Set<string>([MediaPlayerState.Playing, MediaPlayerState.Buffering]);
+export const PLAYING = new Set<string>([MediaPlayerState.Playing, MediaPlayerState.Buffering]);
 
 export function useMediaPlayer(sensor: () => ReactiveSensor<object>) {
   const { t } = useI18n();
@@ -40,7 +40,7 @@ export function useMediaPlayer(sensor: () => ReactiveSensor<object>) {
   const artist = computed(() => text(names.artist));
   const stateWord = computed(() => (state.value ? t(`components.automation_nodes.${type}_state_${state.value}`) : t('components.sensor_state.off')));
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (playing.value && title.value) return [title.value, artist.value].filter(Boolean).join(' · ');
     return stateWord.value;
   });
@@ -102,7 +102,6 @@ export function useMediaPlayer(sensor: () => ReactiveSensor<object>) {
     stateWord,
     stateText,
     toggle,
-    playPause,
     command,
     inputVolume,
     commitVolume,

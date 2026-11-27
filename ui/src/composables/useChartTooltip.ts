@@ -1,5 +1,3 @@
-import { usePointerTooltip } from './usePointerTooltip.js';
-
 import type { ChartTooltipAnchor } from '@/components/CuiChartTooltip/types.js';
 import type { ActiveDataPoint, ActiveElement, Chart, ChartType } from 'chart.js';
 

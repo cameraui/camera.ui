@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="stateText" :color :active :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="stateText" :color :active :offline="!online">
     <div class="flex flex-col items-center gap-3 py-2">
       <CuiHoldDial ref="dialRef" class="siren-dial" :label="name" :checked="active" :active :holding :progress :interactive @keydown="onKey">
         <svg class="siren-dial__siren" :class="{ 'siren-dial__siren--active': active }" viewBox="0 0 120 120" aria-hidden="true">
@@ -15,7 +15,7 @@
       <span v-if="interactive" class="text-xs text-muted">{{ t(`components.sensor_tile.${active ? 'tap_to_silence' : 'hold_to_sound'}`) }}</span>
 
       <CuiLevelBar
-        v-if="hasVolume"
+        v-if="hasVolume && !disabled"
         class="w-full"
         :value="ratio"
         :label="`${Math.round(ratio * 100)} %`"
@@ -25,6 +25,10 @@
         @input="inputVolume"
         @commit="commitVolume"
       />
+      <div v-else-if="hasVolume" class="flex flex-col gap-1 w-full">
+        <span class="text-xs font-medium text-muted">{{ propertyLabel(SirenProperty.Volume) }}</span>
+        <span class="text-sm font-semibold tabular-nums">{{ Math.round(ratio * 100) }} %</span>
+      </div>
 
       <CuiTileHistoryTimeline :sensor :property="SirenProperty.Active" />
     </div>
@@ -43,8 +47,8 @@ import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import { useSiren, useSirenPress } from './useSiren.js';
 
-import type { SensorTileProps } from '../types.js';
 import type { ComponentPublicInstance } from 'vue';
+import type { SensorTileProps } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
 

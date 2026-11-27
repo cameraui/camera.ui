@@ -1,5 +1,6 @@
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Tone } from '@/common/sensorDisplay.js';
+import type { HistoryPoint } from '@/components/CuiDialog/templates/SensorHistory/history.js';
 
 export interface MeasurementZone {
   upTo: number;
@@ -61,4 +62,9 @@ export interface CuiMeasurementTrendProps {
   sensor: ReactiveSensor;
   property: string;
   format: (value: number) => string;
+  bare?: boolean;
+  caption?: boolean;
+  fill?: boolean;
 }
+
+export type KnownPoint = HistoryPoint & { value: number };

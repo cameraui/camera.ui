@@ -4,13 +4,14 @@ import { detectionStyle } from '@/common/detectionLabels.js';
 import { audioLabelKey, detectionLabelKey } from '@/common/eventLabels.js';
 import { formatMeasurement, sensorPropertySpec, sensorToneColor, toneColor } from '@/common/sensorDisplay.js';
 
-import { useCameraRecord } from '../useCameraRecord.js';
+import { useCameraName, useCameraRecord } from '../useCameraRecord.js';
 import { useRelativeTime } from '../useRelativeTime.js';
+import { useSensorHistory } from '../useSensorHistory.js';
 import { HELPER_TYPES } from './groups.js';
 
-import type { DetectionBox } from './types.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { Detection, FaceDetection, LicensePlateDetection, TrackedDetection } from '@camera.ui/sdk';
+import type { DetectionBox } from './types.js';
 
 type AnyDetection = Detection & Partial<Pick<FaceDetection, 'identity'> & Pick<LicensePlateDetection, 'plateText'> & Pick<TrackedDetection, 'trackId'>>;
 
@@ -63,7 +64,7 @@ export function useDetection(sensor: () => ReactiveSensor<object>) {
   });
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (cameraDisabled.value) return t('components.sensor_tile.camera_disabled');
     if (helper) return t('components.sensor_tile.ready');
     if (active.value) {
@@ -94,5 +95,27 @@ export function useDetection(sensor: () => ReactiveSensor<object>) {
     return labelText(detection.label);
   }
 
-  return { helper, audio, cameraDisabled, active, color, names, boxes, decibels, levelText, lastTriggered, detectedText, stateText, timeAgo };
+  return { audio, cameraDisabled, active, color, names, boxes, decibels, levelText, lastTriggered, detectedText, stateText, timeAgo };
+}
+
+export function useDetectionPanel(sensor: () => ReactiveSensor<object>) {
+  const { t } = useI18n();
+  const detection = useDetection(sensor);
+  const { entries, now, sinceText } = useSensorHistory(sensor, () => 'detected');
+  const cameraName = useCameraName(sensor().boundCameraId);
+
+  const { active, cameraDisabled, detectedText, lastTriggered, timeAgo } = detection;
+
+  const typeLabel = computed(() => t(`components.camera_options.sensor_type_${sensor().type}`));
+  const reading = computed(() => {
+    if (cameraDisabled.value) return t('components.sensor_tile.camera_disabled');
+    return active.value ? detectedText.value : t('components.sensor_state.idle');
+  });
+  const last = computed(() => lastTriggered.value ?? entries.value.findLast((entry) => entry.value === true)?.timestamp);
+  const detail = computed(() => {
+    if (active.value) return sinceText.value;
+    return last.value === undefined ? undefined : t('components.sensor_tile.last_time', { time: timeAgo(last.value) });
+  });
+
+  return { ...detection, entries, now, cameraName, typeLabel, reading, detail };
 }

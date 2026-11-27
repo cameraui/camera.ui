@@ -5,17 +5,20 @@ import { sensorOffers, sensorTone, sensorToneColor } from '@/common/sensorDispla
 import { SEGMENT_ACTIVE, SEGMENT_SOFT } from '../frame/segments.js';
 import { useGuardedPress } from '../useGuardedPress.js';
 import { useLiveProperty } from '../useLiveProperty.js';
+import { useSensorSettings } from '../useSensorSettings.js';
+import { useMovePress } from './useMovePress.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { MaybeRefOrGetter } from 'vue';
 
 export function useCover(sensor: () => ReactiveSensor<object>) {
   const { t } = useI18n();
-  const toast = useCuiToast();
+  const { send } = useSensorSettings(sensor);
 
   const target = useLiveProperty<CoverState | undefined>(sensor, CoverProperty.TargetState, undefined);
   const targetPosition = useLiveProperty<number | undefined>(sensor, CoverProperty.TargetPosition, undefined);
   const targetTilt = useLiveProperty<number | undefined>(sensor, CoverProperty.TargetTilt, undefined);
+  const held = shallowRef<number>();
 
   const isGarage = computed(() => sensor().type === SensorType.Garage);
   const kind = computed(() => sensor().getProperty<CoverKind>(CoverProperty.Kind) ?? CoverKind.Shutter);
@@ -30,6 +33,7 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
   const obstructed = computed(() => sensor().getProperty(CoverProperty.ObstructionDetected) === true);
 
   const position = computed(() => {
+    if (held.value !== undefined) return held.value;
     if (targetPosition.pending.value) return targetPosition.value.value ?? 0;
     return sensor().getProperty<number>(CoverProperty.CurrentPosition) ?? targetPosition.value.value ?? (wantsOpen.value ? 100 : 0);
   });
@@ -43,10 +47,11 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
     return wantsOpen.value || current.value === CoverState.Stopped;
   });
   const openRatio = computed(() => (hasPosition.value ? position.value / 100 : isOpen.value ? 1 : 0));
+  const doorRatio = computed(() => (current.value === CoverState.Stopped ? 0.5 : wantsOpen.value ? 1 : 0));
   const color = computed(() => (obstructed.value ? sensorTone(sensor().type, sensor()).color : sensorToneColor(sensor().type, true)));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (obstructed.value) return t('components.sensor_tile.obstructed');
     if (current.value === CoverState.Opening) return t('components.sensor_state.opening');
     if (current.value === CoverState.Closing) return t('components.sensor_state.closing');
@@ -64,9 +69,7 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
   }
 
   function stop() {
-    sensor()
-      .setProperty(CoverProperty.Stop, true)
-      .catch((error) => toast.add({ severity: 'error', detail: error, life: 3000 }));
+    send(CoverProperty.Stop, true);
   }
 
   function toggle() {
@@ -81,7 +84,6 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
   }
 
   return {
-    isGarage,
     kind,
     hasPosition,
     hasTilt,
@@ -90,10 +92,12 @@ export function useCover(sensor: () => ReactiveSensor<object>) {
     wantsOpen,
     moving,
     obstructed,
+    held,
     position,
     tilt,
     isOpen,
     openRatio,
+    doorRatio,
     color,
     stateText,
     summary,
@@ -116,5 +120,15 @@ export function useGaragePress(target: MaybeRefOrGetter<HTMLElement | null | und
     onGuarded: cover.open,
     onTap: cover.close,
     onToggle: cover.toggle,
+  });
+}
+
+export function useCoverPress(cover: ReturnType<typeof useCover>, interactive: () => boolean) {
+  return useMovePress({
+    interactive,
+    level: () => (cover.hasPosition.value ? cover.position.value : undefined),
+    onMove: (direction) => (direction === 'up' ? cover.open() : cover.close()),
+    onCount: (percent) => (cover.held.value = percent),
+    onSet: cover.commitPosition,
   });
 }

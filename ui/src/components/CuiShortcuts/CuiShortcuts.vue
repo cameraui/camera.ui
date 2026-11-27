@@ -104,9 +104,9 @@
           :key="hoveredSensor.shortcut._id"
           v-model:expanded="sensorExpanded"
           :sensor="hoveredSensor.sensor"
-          size="medium"
+          size="small"
           expand-in-place
-          :disabled="!canControlSensors"
+          :disabled="!canControl"
         >
           <Button severity="secondary" size="small" :label="$t('components.sensor_tile.remove_from_image')" @click="removeSensor(hoveredSensor.shortcut)" />
         </CuiSensorTile>
@@ -117,7 +117,7 @@
       </div>
     </Popover>
 
-    <CuiSensorTileSheet v-if="sheetSensor?.sensor" ref="sensorSheetRef" :key="sheetSensor.shortcut._id" :sensor="sheetSensor.sensor" :disabled="!canControlSensors">
+    <CuiSensorTileSheet v-if="sheetSensor?.sensor" ref="sensorSheetRef" :key="sheetSensor.shortcut._id" :sensor="sheetSensor.sensor" :disabled="!canControl">
       <Button severity="secondary" size="small" :label="$t('components.sensor_tile.remove_from_image')" @click="removeSensor(sheetSensor.shortcut)" />
     </CuiSensorTileSheet>
 
@@ -147,11 +147,11 @@
         <TabList :pt="{ content: { class: 'border-b border-color' } }">
           <Tab value="cameras" class="flex items-center gap-2 px-3 py-2">
             <i-mingcute:computer-camera-fill class="w-4 h-4" />
-            <span class="text-sm">Cameras</span>
+            <span class="text-sm">{{ $t('navigation.cameras') }}</span>
           </Tab>
           <Tab value="sensors" class="flex items-center gap-2 px-3 py-2">
             <i-lucide:settings-2 class="w-4 h-4" />
-            <span class="text-sm">Sensors</span>
+            <span class="text-sm">{{ $t('navigation.sensors') }}</span>
           </Tab>
         </TabList>
 
@@ -170,7 +170,7 @@
                   <i-lucide:check class="w-6 h-6 text-green-500" />
                 </div>
               </div>
-              <div v-if="availableCameras.length === 0" class="shortcut-menu-empty">No other cameras available</div>
+              <div v-if="availableCameras.length === 0" class="shortcut-menu-empty">{{ $t('components.view_box.no_cameras') }}</div>
             </div>
           </TabPanel>
 
@@ -198,7 +198,7 @@
                   <Divider v-if="index < availableSensorsForShortcuts.length - 1" class="!my-1" />
                 </template>
               </template>
-              <div v-else class="shortcut-menu-empty">No sensors available</div>
+              <div v-else class="shortcut-menu-empty">{{ $t('components.camera_options.no_sensors') }}</div>
             </div>
           </TabPanel>
         </TabPanels>
@@ -208,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { useCameraUi, useSensors } from '@camera.ui/browser';
+import { useSensors } from '@camera.ui/browser';
 import { createNvrPlayback, NvrPlaybackKey, playheadUs, useNvrCtx } from '@camera.ui/nvr';
 import { SensorType } from '@camera.ui/sdk';
 import { vElementHover, vOnLongPress } from '@vueuse/components';
@@ -217,7 +217,6 @@ import Draggabilly from 'draggabilly';
 import { CamerasQuery, getCameraFn } from '@/api/routes/cameras.js';
 import { UsersQuery } from '@/api/routes/users.js';
 import { deepToRaw } from '@/common/utils.js';
-
 import { sensorIcon, sensorTone, sensorTypeIcon } from '@/common/sensorDisplay.js';
 import { TILE_HOVER_PT } from '@/components/CuiSensorTile/hover.js';
 import { SENSOR_SHORTCUTABLE_TYPES } from './types.js';
@@ -243,7 +242,7 @@ const { camera: cameraDevice } = useCameraById(cameraName);
 const { sensors: allSensors } = useSensors(cameraDevice);
 const cameraUi = useCameraUi();
 const nvrCtx = useNvrCtx();
-const canControlSensors = hasPermission(undefined, 'admin');
+const canControl = canControlSensors();
 const parentNvr = inject(NvrPlaybackKey, undefined);
 
 const authStore = useAuthStore();

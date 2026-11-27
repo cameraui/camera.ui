@@ -13,6 +13,7 @@
     :dragging
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     class="media-card"
     role="switch"
     :aria-checked="hasPower ? on : playing"
@@ -20,12 +21,7 @@
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
   >
-    <template #corner>
-      <CuiTileCornerButton :label="t('components.sensor_tile.controls')" @click="emit('expand', $event)">
-        <RemoteIcon />
-      </CuiTileCornerButton>
-    </template>
-    <template v-if="size === 'medium' && lit" #bottom>
+    <template v-if="size === 'medium' && lit && !disabled" #bottom>
       <CuiMediaTransport compact :commands :playing :interactive @command="command" />
     </template>
   </CuiTileCard>
@@ -33,32 +29,27 @@
 
 <script setup lang="ts">
 import { MediaPlayerProperty } from '@camera.ui/sdk';
-import RemoteIcon from '~icons/mdi/remote';
 import MuteIcon from '~icons/mdi/volume-off';
 
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
-import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { useCardLevel } from '../useCardLevel.js';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiMediaTransport from './CuiMediaTransport.vue';
 import { useMediaPlayer } from './useMediaPlayer.js';
 
-import type { SensorTileEmits, SensorTileProps } from '../types.js';
+import type { SensorTileProps } from '../types.js';
 import type { ComponentPublicInstance } from 'vue';
 
-const KEY_STEP = 0.05;
-
 const props = defineProps<SensorTileProps>();
-const emit = defineEmits<SensorTileEmits>();
-
-const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const { hasPower, on, lit, playing, color, hasVolume, ratio, percent, muted, commands, stateText, toggle, command, inputVolume, commitVolume, propertyLabel } = useMediaPlayer(
   () => props.sensor,
 );
+
+const KEY_STEP = 0.05;
 
 const cardRef = useTemplateRef<ComponentPublicInstance>('cardRef');
 const cardEl = computed(() => cardRef.value?.$el as HTMLElement | undefined);

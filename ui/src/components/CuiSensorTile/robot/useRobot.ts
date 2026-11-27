@@ -4,8 +4,8 @@ import { sensorPropertySpec, sensorToneColor, toneColor } from '@/common/sensorD
 
 import { useSensorSettings } from '../useSensorSettings.js';
 
-import type { RobotPhase } from './types.js';
 import type { ReactiveSensor } from '@camera.ui/browser';
+import type { RobotPhase } from './types.js';
 
 const PHASES: Partial<Record<string, RobotPhase>> = {
   [VacuumActivity.Cleaning]: 'working',
@@ -29,7 +29,7 @@ export function useRobot(sensor: () => ReactiveSensor<object>) {
   const lawn = type === SensorType.LawnMower;
 
   const activity = computed(() => sensor().getProperty<string>(activityProperty));
-  const phase = computed<RobotPhase>(() => PHASES[activity.value ?? ''] ?? 'docked');
+  const phase = computed(() => robotPhase(activity.value));
   const busy = computed(() => phase.value === 'working' || phase.value === 'returning');
   const error = computed(() => phase.value === 'error');
   const workColor = sensorToneColor(type, true) ?? toneColor('ok');
@@ -40,12 +40,13 @@ export function useRobot(sensor: () => ReactiveSensor<object>) {
   const fanSpeed = computed(() => (fanSpeedProperty ? sensor().getProperty<string>(fanSpeedProperty) : undefined));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     return activity.value ? commandLabel(activity.value) : '--';
   });
 
   function toggle() {
-    command(busy.value && commands.value.includes(VacuumCommand.Pause) ? VacuumCommand.Pause : VacuumCommand.Start);
+    const main = mainCommand(commands.value, busy.value);
+    if (main) command(main);
   }
 
   function command(value: string) {
@@ -84,4 +85,13 @@ export function useRobot(sensor: () => ReactiveSensor<object>) {
     propertyLabel,
     timelineColor,
   };
+}
+
+export function robotPhase(activity: string | undefined): RobotPhase {
+  return PHASES[activity ?? ''] ?? 'docked';
+}
+
+export function mainCommand(commands: string[], busy: boolean): string | undefined {
+  if (busy && commands.includes(VacuumCommand.Pause)) return VacuumCommand.Pause;
+  return commands.includes(VacuumCommand.Start) ? VacuumCommand.Start : undefined;
 }

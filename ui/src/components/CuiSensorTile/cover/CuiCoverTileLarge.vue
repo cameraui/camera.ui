@@ -1,5 +1,5 @@
 <template>
-  <CuiTilePanel :icon :title="name" :state="summary" :color :active="isOpen || obstructed" :offline="!online">
+  <CuiTilePanel fit :icon :title="name" :state="summary" :color :active="isOpen || obstructed" :offline="!online">
     <div class="flex justify-center">
       <CuiCoverScene
         :kind
@@ -12,15 +12,17 @@
       />
     </div>
 
-    <div class="flex justify-center gap-4">
-      <CuiTileButton :icon="OpenIcon" :label="t('components.sensor_tile.open')" :color :active="current === CoverState.Opening" :interactive @click="open" />
-      <CuiTileButton v-if="canStop" :icon="StopIcon" :label="t('components.cover_control.stop')" :color :interactive @click="stop" />
-      <CuiTileButton :icon="CloseIcon" :label="t('components.sensor_tile.close')" :color :active="current === CoverState.Closing" :interactive @click="close" />
+    <div v-if="!disabled" class="flex justify-center gap-4">
+      <CuiTileButton :icon="OpenIcon" :label="t('components.sensor_tile.open')" :color :active="current === CoverState.Opening" :interactive v-on="listeners('up')" />
+      <CuiTileButton v-if="canStop" :icon="StopIcon" :label="t('components.sensor_tile.stop')" :color :interactive @click="stop" />
+      <CuiTileButton :icon="CloseIcon" :label="t('components.sensor_tile.close')" :color :active="current === CoverState.Closing" :interactive v-on="listeners('down')" />
     </div>
 
     <div v-if="hasTilt" class="flex flex-col gap-2">
       <span class="text-xs font-medium text-muted">{{ t('components.sensor_tile.slats') }}</span>
+      <span v-if="disabled" class="text-sm font-semibold tabular-nums">{{ tilt }} %</span>
       <CuiLevelBar
+        v-else
         :value="tilt / 100"
         :label="`${tilt} %`"
         :aria-label="t('components.sensor_tile.slats')"
@@ -51,7 +53,7 @@ import CuiTilePanel from '../frame/CuiTilePanel.vue';
 import CuiMeasurementTrend from '../measurement/CuiMeasurementTrend.vue';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiCoverScene from './CuiCoverScene.vue';
-import { useCover } from './useCover.js';
+import { useCover, useCoverPress } from './useCover.js';
 
 import type { SensorTileProps } from '../types.js';
 
@@ -60,6 +62,7 @@ const props = defineProps<SensorTileProps>();
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
+const cover = useCover(() => props.sensor);
 const {
   kind,
   hasPosition,
@@ -72,15 +75,15 @@ const {
   openRatio,
   color,
   summary,
-  open,
-  close,
   stop,
   inputPosition,
   commitPosition,
   inputTilt,
   commitTilt,
   timelineColor,
-} = useCover(() => props.sensor);
+} = cover;
+
+const { listeners } = useCoverPress(cover, () => interactive.value);
 
 const icon = computed(() => sensorIcon(props.sensor.type, props.sensor));
 </script>

@@ -1,3 +1,5 @@
+import type { Component } from 'vue';
+
 export interface CuiMediaTransportProps {
   commands: string[];
   playing: boolean;
@@ -7,6 +9,13 @@ export interface CuiMediaTransportProps {
 
 export interface CuiMediaTransportEmits {
   (e: 'command', command: string): void;
+}
+
+export interface TransportButton {
+  key: string;
+  command: string;
+  icon: Component;
+  label: string;
 }
 
 export interface CuiScreenSceneProps {

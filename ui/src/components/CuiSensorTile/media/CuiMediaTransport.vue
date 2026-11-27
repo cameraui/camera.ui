@@ -18,15 +18,8 @@ import StopIcon from '~icons/mdi/stop';
 import CuiTileButton from '../frame/CuiTileButton.vue';
 import CuiTileMiniButton from '../frame/CuiTileMiniButton.vue';
 
-import type { CuiMediaTransportEmits, CuiMediaTransportProps } from './types.js';
+import type { CuiMediaTransportEmits, CuiMediaTransportProps, TransportButton } from './types.js';
 import type { Component } from 'vue';
-
-interface TransportButton {
-  key: string;
-  command: string;
-  icon: Component;
-  label: string;
-}
 
 const props = defineProps<CuiMediaTransportProps>();
 const emit = defineEmits<CuiMediaTransportEmits>();

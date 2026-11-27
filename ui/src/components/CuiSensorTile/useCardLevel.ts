@@ -1,4 +1,4 @@
-import { onToggleKey } from './keys.js';
+import { onStepKey, onToggleKey } from './keys.js';
 import { clampRatio } from './range.js';
 import { usePointerDrag } from './usePointerDrag.js';
 
@@ -38,10 +38,7 @@ export function useCardLevel(card: MaybeRefOrGetter<HTMLElement | null | undefin
 
   function onKey(event: KeyboardEvent) {
     if (!options.interactive() || event.target !== event.currentTarget || onToggleKey(event, options.onToggle)) return;
-    const sign = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
-    if (sign === undefined || !options.draggable()) return;
-    event.preventDefault();
-    options.onCommit(clampRatio(options.ratio() + sign * options.keyStep()));
+    if (options.draggable()) onStepKey(event, (sign) => options.onCommit(clampRatio(options.ratio() + sign * options.keyStep())));
   }
 
   return { dragging, onKey };

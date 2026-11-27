@@ -8,6 +8,7 @@
     :fill="0"
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     class="robot-card"
     :class="{ 'robot-card--error': error }"
     role="switch"
@@ -17,35 +18,24 @@
     @click="onClick"
     @keydown="onKey"
   >
-    <template #corner>
-      <CuiTileCornerButton :label="t('components.sensor_tile.controls')" @click.stop="emit('expand', $event)">
-        <TuneIcon />
-      </CuiTileCornerButton>
-    </template>
-    <template v-if="size === 'medium'" #bottom>
+    <template v-if="size === 'medium' && !disabled" #bottom>
       <CuiRobotBar :type="sensor.type" :commands :busy :interactive @command="command" />
     </template>
   </CuiTileCard>
 </template>
 
 <script setup lang="ts">
-import TuneIcon from '~icons/mdi/tune-variant';
-
 import { sensorIcon } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
-import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
 import { onToggleKey } from '../keys.js';
 import { useTileSensor } from '../useTileSensor.js';
 import CuiRobotBar from './CuiRobotBar.vue';
 import { useRobot } from './useRobot.js';
 
-import type { SensorTileEmits, SensorTileProps } from '../types.js';
+import type { SensorTileProps } from '../types.js';
 
 const props = defineProps<SensorTileProps>();
-const emit = defineEmits<SensorTileEmits>();
-
-const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
 const { busy, error, color, commands, stateText, toggle, command } = useRobot(() => props.sensor);

@@ -43,6 +43,11 @@ export function modeIcon(mode: string | undefined): Component {
   return (mode && MODE_ICONS[mode]) || ThermostatIcon;
 }
 
+export function nextMode(modes: string[], mode: string | undefined): string | undefined {
+  if (modes.length < 2) return undefined;
+  return modes[(modes.indexOf(mode ?? '') + 1) % modes.length];
+}
+
 export function modeColor(mode: string | undefined): string | undefined {
   if (!mode || mode === OFF_MODE || mode === ThermostatMode.FanOnly) return undefined;
   return toneColor(COOL_MODES.has(mode) ? 'info' : 'warn');

@@ -6,9 +6,9 @@ import { useRelativeTime } from '../useRelativeTime.js';
 import { useSensorMoments } from '../useSensorMoments.js';
 import { useSensorSettings } from '../useSensorSettings.js';
 
+import type { ReactiveSensor } from '@camera.ui/browser';
 import type { TileMomentRow } from '../frame/types.js';
 import type { SensorMoment } from '../useSensorMoments.js';
-import type { ReactiveSensor } from '@camera.ui/browser';
 
 const DETAILS: Partial<Record<string, string[]>> = {
   [SensorType.Access]: [AccessProperty.Method, AccessProperty.User],
@@ -28,7 +28,7 @@ export function useEventSensor(sensor: () => ReactiveSensor<object>) {
   const color = computed(() => (last.value ? describe(last.value).color : undefined) ?? baseColor());
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     const moment = last.value;
     if (active.value && moment) return momentText(moment);
     if (!moment) return t(`components.sensor_state.${runnable ? 'ready' : 'idle'}`);

@@ -16,7 +16,7 @@ export function useSiren(sensor: () => ReactiveSensor<object>) {
 
   const active = computed(() => sensor().getProperty(SirenProperty.Active) === true);
   const color = toneColor('alarm');
-  const stateText = computed(() => (sensor().connected.value ? sensorStatus(sensor().type, sensor(), t) : t('connection.offline')));
+  const stateText = computed(() => (sensor().online.value ? sensorStatus(sensor().type, sensor(), t) : t('connection.offline')));
 
   function setActive(value: boolean) {
     send(SirenProperty.Active, value);

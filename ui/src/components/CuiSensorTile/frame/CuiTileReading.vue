@@ -1,7 +1,7 @@
 <template>
   <div class="tile-reading">
     <span class="tile-reading__state">{{ state }}</span>
-    <span v-if="detail" class="tile-reading__detail">{{ detail }}</span>
+    <span v-if="detail !== undefined" class="tile-reading__detail">{{ detail }}</span>
   </div>
 </template>
 
@@ -28,6 +28,7 @@ defineProps<CuiTileReadingProps>();
 }
 
 .tile-reading__detail {
+  min-height: 1lh;
   font-size: 0.8125rem;
   color: var(--text-secondary-color);
 }

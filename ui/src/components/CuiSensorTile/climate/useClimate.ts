@@ -85,7 +85,7 @@ export function useClimate(sensor: () => ReactiveSensor<object>) {
     if (hasRange.value) return t('components.sensor_tile.keeping', { value: targetText.value });
     return `${modeLabel(mode.value)} · ${targetText.value}`;
   });
-  const stateText = computed(() => (sensor().connected.value ? [...flags.value, doing.value].join(' · ') : t('connection.offline')));
+  const stateText = computed(() => (sensor().online.value ? [...flags.value, doing.value].join(' · ') : t('connection.offline')));
 
   let lastMode: string | undefined;
 

@@ -3,12 +3,16 @@
     <svg ref="svgRef" viewBox="0 0 240 240" aria-hidden="true">
       <path :d="ARC" class="climate-dial__track" />
       <path v-if="target !== undefined && !ranged" :d="ARC" pathLength="1" class="climate-dial__level" :style="stretch(0, ratio(target))" />
-      <path v-if="band" :d="ARC" pathLength="1" class="climate-dial__band" :class="{ 'climate-dial__band--working': working }" :style="stretch(band[0], band[1])" />
+      <path
+        v-if="band"
+        :d="ARC"
+        pathLength="1"
+        class="climate-dial__band"
+        :class="{ 'climate-dial__band--working': working && !still }"
+        :style="stretch(band[0], band[1])"
+      />
 
       <line v-if="current !== undefined" v-bind="TICK" class="climate-dial__turn climate-dial__current" :style="turn(ratio(current))" />
-
-      <text v-bind="label(0)" class="climate-dial__end">{{ range.min }}{{ unit }}</text>
-      <text v-bind="label(1)" class="climate-dial__end">{{ range.max }}{{ unit }}</text>
 
       <template v-if="ranged">
         <circle v-bind="KNOB" class="climate-dial__turn climate-dial__knob climate-dial__knob--low" :style="turn(ratio(low!))" />
@@ -18,6 +22,9 @@
 
       <path ref="hitRef" :d="ARC" class="climate-dial__hit" />
     </svg>
+
+    <span class="climate-dial__end" :style="label(0)">{{ range.min }}{{ unit }}</span>
+    <span class="climate-dial__end" :style="label(1)">{{ range.max }}{{ unit }}</span>
 
     <div class="climate-dial__center">
       <slot>
@@ -40,6 +47,11 @@ import { usePointerDrag } from '../usePointerDrag.js';
 
 import type { ClimateKnob, CuiClimateDialEmits, CuiClimateDialProps } from './types.js';
 
+const props = withDefaults(defineProps<CuiClimateDialProps>(), {
+  unit: '°',
+});
+const emit = defineEmits<CuiClimateDialEmits>();
+
 const CENTER = 120;
 const RADIUS = 96;
 const START = 135;
@@ -47,11 +59,8 @@ const SWEEP = 270;
 const ARC = arc();
 const KNOB = { cx: point(0)[0], cy: point(0)[1], r: 11 };
 const TICK = { x1: point(0, RADIUS - 11)[0], y1: point(0, RADIUS - 11)[1], x2: point(0, RADIUS + 11)[0], y2: point(0, RADIUS + 11)[1] };
-
-const props = withDefaults(defineProps<CuiClimateDialProps>(), {
-  unit: '°',
-});
-const emit = defineEmits<CuiClimateDialEmits>();
+const heatColor = toneColor('warn');
+const coolColor = toneColor('info');
 
 const svgRef = useTemplateRef<SVGSVGElement>('svgRef');
 const hitRef = useTemplateRef<SVGPathElement>('hitRef');
@@ -65,8 +74,6 @@ const band = computed<[number, number] | undefined>(() => {
   const ends = [ratio(props.current), ratio(props.target)];
   return [Math.min(...ends), Math.max(...ends)];
 });
-const heatColor = toneColor('warn');
-const coolColor = toneColor('info');
 
 let held: ClimateKnob = 'target';
 let last = 0;
@@ -112,8 +119,10 @@ function turn(at: number) {
 }
 
 function label(at: number) {
-  const [x, y] = point(at, RADIUS + 24);
-  return { x, y: y + 4 };
+  const angle = ((START + at * SWEEP) * Math.PI) / 180;
+  // the text keeps its size, so its distance from the arc is part dial size and part rem
+  const reach = `(${(((RADIUS + 8) / 240) * 100).toFixed(2)}% + 0.625rem)`;
+  return { left: `calc(50% + ${Math.cos(angle).toFixed(4)} * ${reach})`, top: `calc(50% + ${Math.sin(angle).toFixed(4)} * ${reach})` };
 }
 
 function ratioAt(event: PointerEvent): number {
@@ -144,6 +153,7 @@ function nearestKnob(at: number): ClimateKnob {
   position: relative;
   width: min(100%, 15rem);
   aspect-ratio: 1;
+  container-type: inline-size;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -185,9 +195,13 @@ function nearestKnob(at: number): ClimateKnob {
 }
 
 .climate-dial__end {
-  fill: var(--text-muted-color);
-  font-size: 12px;
-  text-anchor: middle;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--text-muted-color);
+  pointer-events: none;
 }
 
 .climate-dial__turn {
@@ -258,7 +272,7 @@ function nearestKnob(at: number): ClimateKnob {
 }
 
 .climate-dial__value {
-  font-size: 2.75rem;
+  font-size: clamp(1.5rem, 18cqi, 2.75rem);
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -276,12 +290,12 @@ function nearestKnob(at: number): ClimateKnob {
 
 .climate-dial__bottom {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 22%;
+  right: 22%;
   bottom: 0;
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: min(1rem, 4cqi);
 }
 
 @keyframes climate-glow {

@@ -24,7 +24,7 @@ export function useChime(sensor: () => ReactiveSensor<object>) {
   const repeatRange = computed(() => sensorRange(sensor(), ChimeProperty.Repeat, 1, 10));
 
   const stateText = computed(() => {
-    if (!sensor().connected.value) return t('connection.offline');
+    if (!sensor().online.value) return t('connection.offline');
     if (active.value) return t('components.sensor_tile.playing');
     return toneLabel.value || t('components.sensor_state.ready');
   });

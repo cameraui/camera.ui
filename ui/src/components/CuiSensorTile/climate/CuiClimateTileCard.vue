@@ -14,49 +14,35 @@
     :dragging
     :offline="!online"
     :compact="size === 'small'"
+    :mini="size === 'mini'"
     class="climate-card"
     role="switch"
     :aria-checked="!isOff"
     :aria-label="name"
     :tabindex="interactive ? 0 : -1"
     @keydown="onKey"
-  >
-    <template #corner>
-      <CuiTileCornerButton
-        :style="{ color: modeColor(mode) ?? 'var(--text-secondary-color)' }"
-        :label="t('components.sensor_tile.climate_settings')"
-        @click="emit('expand', $event)"
-      >
-        <component :is="modeIcon(mode)" />
-      </CuiTileCornerButton>
-    </template>
-  </CuiTileCard>
+  />
 </template>
 
 <script setup lang="ts">
 import { sensorIcon, toneColor } from '@/common/sensorDisplay.js';
 
 import CuiTileCard from '../frame/CuiTileCard.vue';
-import CuiTileCornerButton from '../frame/CuiTileCornerButton.vue';
-import { onToggleKey } from '../keys.js';
+import { onStepKey, onToggleKey } from '../keys.js';
 import { usePointerDrag } from '../usePointerDrag.js';
 import { useTileSensor } from '../useTileSensor.js';
-import { modeColor, modeIcon } from './modes.js';
 import { useClimate } from './useClimate.js';
 
-import type { SensorTileEmits, SensorTileProps } from '../types.js';
+import type { SensorTileProps } from '../types.js';
 import type { ClimateKnob, ClimateTargets } from './types.js';
 import type { ComponentPublicInstance } from 'vue';
 
 const props = defineProps<SensorTileProps>();
-const emit = defineEmits<SensorTileEmits>();
 
 const { t } = useI18n();
 
 const { name, online, interactive } = useTileSensor(props);
-const { mode, isOff, hasRange, color, temperatureRange, current, targets, ratios, targetText, stateText, toggle, nudge, setTarget, degrees } = useClimate(
-  () => props.sensor,
-);
+const { isOff, hasRange, color, temperatureRange, current, targets, ratios, targetText, stateText, toggle, nudge, setTarget, degrees } = useClimate(() => props.sensor);
 
 const heatColor = toneColor('warn');
 const coolColor = toneColor('info');
@@ -107,10 +93,7 @@ function nearestEdge(at: number, direction: number): ClimateKnob {
 
 function onKey(event: KeyboardEvent) {
   if (!interactive.value || event.target !== event.currentTarget || onToggleKey(event, toggle)) return;
-  const sign = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
-  if (sign === undefined || isOff.value) return;
-  event.preventDefault();
-  nudge(targets.value, sign * temperatureRange.value.step, true);
+  if (!isOff.value) onStepKey(event, (sign) => nudge(targets.value, sign * temperatureRange.value.step, true));
 }
 </script>
 

@@ -40,7 +40,7 @@ export function useSensorHistory(sensor: () => ReactiveSensor<object>, property:
     since.value === undefined ? undefined : t('components.sensor_tile.since', { time: shortMoment(since.value, now.value, locale.value) }),
   );
 
-  return { entries, loaded, now, since, sinceText };
+  return { entries, loaded, now, sinceText };
 }
 
 export function shortMoment(time: number, now: number, locale: string): string {
