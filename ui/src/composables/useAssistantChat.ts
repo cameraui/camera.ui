@@ -77,6 +77,7 @@ const PROVIDER_FAILURES: Record<string, string> = {
   api_error: 'provider',
   server_error: 'provider',
   timeout_error: 'provider',
+  'truncated-stream': 'provider',
   500: 'provider',
   502: 'provider',
   504: 'provider',
