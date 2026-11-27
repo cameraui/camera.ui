@@ -12,6 +12,7 @@ const migration: Migration = {
   async up(ctx) {
     await ctx.db.camerasDB.transaction(() => {
       for (const { key, value: camera } of ctx.db.camerasDB.getRange()) {
+        if (camera.exportSettings) continue;
         const sources = camera.sources as LegacySource[];
         camera.exportSettings = { onvif: false, rtmp: sources.some((source) => source.role !== 'snapshot' && !source.rtmpDisabled) };
         for (const source of sources) {
