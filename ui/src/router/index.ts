@@ -58,11 +58,11 @@ import PluginsIconActive from '~icons/tabler/puzzle-filled';
 
 import { runtimeBase } from '@/common/base.js';
 import { attemptChunkReload } from '@/common/chunkReload.js';
-import { isAppPath, isWebUrl } from '@/common/utils.js';
 import { dropParkedPage, holdPageAt, isPageHeld, pageScrollY, settlePage } from '@/common/pageScroll.js';
 import { noteReload } from '@/common/reloadReason.js';
 import { isAppPath, isWebUrl } from '@/common/utils.js';
 import { scrollPageToTop } from '@/composables/useCuiTopbarSlots.js';
+import { isCapacitor, isInAppSession, useConnection } from '@/connection/index.js';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
 
@@ -1397,9 +1397,9 @@ export function resolveLandingPage(): string {
 
 function getTransitionInfo(path: string): { group: string; key: string; ignore?: string; depth?: number } | null {
   const p = path.toLowerCase();
-  if (p === '/home') return { group: 'main', key: 'home', ignore: 'camview' };
-  if (p === '/camview') return { group: 'main', key: 'camview', ignore: 'home' };
-  if (p.startsWith('/cameras/')) return { group: 'main', key: 'cameras' };
+  if (p === '/home') return { group: 'main', key: 'home', ignore: 'camview', depth: 0 };
+  if (p === '/camview') return { group: 'main', key: 'camview', ignore: 'home', depth: 0 };
+  if (p.startsWith('/cameras/')) return { group: 'main', key: 'cameras', depth: 1 };
   if (p === '/menu') return { group: 'menu', key: 'menu', depth: 0 };
   if (p === '/sensors') return { group: 'menu', key: 'sensors', depth: 1 };
   if (p === '/floorplan') return { group: 'menu', key: 'floorplan', depth: 1 };
@@ -1425,8 +1425,16 @@ function getTransitionInfo(path: string): { group: string; key: string; ignore?:
 
 const scrollPositions = new Map<string, number>();
 
+function returnsToParent(to: string, from: string): boolean {
+  if (from.startsWith(`${to}/`)) return true;
+  const toInfo = getTransitionInfo(to);
+  const fromInfo = getTransitionInfo(from);
+  return toInfo?.group === fromInfo?.group && toInfo?.depth !== undefined && fromInfo?.depth !== undefined && toInfo.depth < fromInfo.depth;
+}
+
 const MORPH_MAX_WAIT_MS = 600;
 const MORPH_QUIET_MS = 150;
+
 // inside an iframe on iOS (HA app) view transitions leave the camera card and the bars undrawn and swallow taps
 const VIEW_TRANSITIONS = window.parent === window || !useCuiUserAgent().isIos.value;
 
@@ -1481,31 +1489,20 @@ function cameraMorphReady(queryClient: ReturnType<typeof useQueryClient>): Promi
 const router = createRouter({
   history: isCapacitor ? createWebHashHistory() : createWebHistory(runtimeBase()),
   routes,
-  scrollBehavior: async (to, from, savedPosition) => {
+  scrollBehavior: async (to, from) => {
     if (activeMorphs || isPageHeld()) return false;
-
-    if (savedPosition) {
-      return savedPosition;
-    }
 
     if (to.fullPath === from.fullPath) {
       scrollPageToTop();
       return false;
     }
 
-    if (from.path === to.path || to.path === '/') {
-      return { top: 0, left: 0 };
-    }
-
-    await sleep(10);
-
     const saved = scrollPositions.get(to.path);
-    if (saved !== undefined) {
-      scrollPositions.delete(to.path);
-      return { top: saved, left: 0 };
-    }
+    if (saved === undefined || !returnsToParent(to.path, from.path)) return { top: 0, left: 0 };
 
-    return { top: 0, left: 0, behavior: 'smooth' };
+    scrollPositions.delete(to.path);
+    await sleep(10);
+    return { top: saved, left: 0 };
   },
 });
 
@@ -1616,7 +1613,7 @@ router.beforeResolve(async (to, from) => {
   routerStore.isTransitioning = true;
 
   const queryClient = useQueryClient();
-  const scrollTop = scrollPositions.get(to.path) ?? 0;
+  const scrollTop = returnsToParent(to.path, from.path) ? (scrollPositions.get(to.path) ?? 0) : 0;
   if (morph) {
     scrollPositions.delete(to.path);
     activeMorphs++;
