@@ -336,7 +336,7 @@ export default definePreset(Aura, {
         paddingX: '0.875rem',
         paddingY: '0.625rem',
       },
-      borderRadius: '{border.radius.md}',
+      borderRadius: '10px',
       focusRing: {
         width: '0',
         style: 'none',
@@ -354,7 +354,7 @@ export default definePreset(Aura, {
       },
       option: {
         padding: '0.5rem 0.75rem',
-        borderRadius: '{border.radius.sm}',
+        borderRadius: '{border.radius.lg}',
       },
       optionGroup: {
         padding: '0.5rem 0.75rem',
@@ -362,7 +362,7 @@ export default definePreset(Aura, {
       },
     },
     content: {
-      borderRadius: '{border.radius.md}',
+      borderRadius: '{border.radius.lg}',
     },
     mask: {
       transitionDuration: '0.15s',
@@ -374,7 +374,7 @@ export default definePreset(Aura, {
       },
       item: {
         padding: '0.5rem 0.75rem',
-        borderRadius: '{border.radius.sm}',
+        borderRadius: '{border.radius.lg}',
         gap: '0.5rem',
       },
       submenuLabel: {
@@ -387,11 +387,11 @@ export default definePreset(Aura, {
     },
     overlay: {
       select: {
-        borderRadius: '{border.radius.md}',
+        borderRadius: '{border.radius.xl}',
         shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
       },
       popover: {
-        borderRadius: '{border.radius.md}',
+        borderRadius: '{border.radius.xl}',
         padding: '0.75rem',
         shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
       },

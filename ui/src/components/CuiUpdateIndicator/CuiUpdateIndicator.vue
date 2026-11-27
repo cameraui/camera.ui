@@ -41,7 +41,7 @@ function onApply() {
   transform: translateX(-50%);
   z-index: 9999;
   padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   background: var(--card-background);
   border: 1px solid var(--border-color);
 }

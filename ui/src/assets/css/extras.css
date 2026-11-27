@@ -83,7 +83,7 @@ html[dir='rtl'],
   position: fixed;
   width: var(--width);
   font-family: inherit;
-  --border-radius: var(--border-radius-lg, 10px);
+  --border-radius: var(--border-radius-xl);
   box-sizing: border-box;
   padding: 0;
   margin: 0;
@@ -216,7 +216,7 @@ html[dir='rtl'],
   gap: 2px;
 }
 [data-sonner-toast][data-styled='true'] [data-button] {
-  border-radius: var(--border-radius-sm, 6px);
+  border-radius: var(--p-form-field-border-radius);
   padding-left: 10px;
   padding-right: 10px;
   height: 26px;

@@ -122,7 +122,7 @@
             <template v-else-if="selected">
               <span class="font-mono text-sm text-white ml-1">+{{ relativeSeconds(selected.tick.tMs) }}s</span>
               <span class="text-xs text-white/70">{{ formatTime(selected.tick.tMs) }}</span>
-              <span :class="['text-[10px] px-1.5 py-0.5 rounded-md font-semibold', statusClass(selected.status)]">
+              <span :class="['text-[10px] px-1.5 py-0.5 rounded-lg font-semibold', statusClass(selected.status)]">
                 {{ $t(`views.recordings.trace.status_${selected.status}`) }}
               </span>
               <span class="ml-auto text-[10px] font-mono text-white/50">{{ frameSource(selected.tick) }}</span>
@@ -186,7 +186,7 @@
               v-for="(frame, index) in frames"
               :key="frame.tick.tMs"
               type="button"
-              class="thumb shrink-0 rounded-md overflow-hidden bg-black border-2 transition cursor-pointer"
+              class="thumb shrink-0 rounded-lg overflow-hidden bg-black border-2 transition cursor-pointer"
               :class="index === selectedIndex ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100 hover:border-white/40'"
               :style="{ width: `${THUMB_WIDTH}px`, aspectRatio: frameAspect(frame) }"
               v-tooltip.top="{ value: `+${relativeSeconds(frame.tick.tMs)}s · ${formatTime(frame.tick.tMs)}` }"
@@ -1240,7 +1240,7 @@ onMounted(() => {
   height: 36px !important;
   min-width: 36px !important;
   flex-shrink: 0;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   transition: background 0.15s ease !important;
 }
 
@@ -1295,7 +1295,7 @@ onMounted(() => {
   max-width: 100%;
   padding: 0.125rem 0.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   font-size: 0.75rem;
   color: var(--text-color);
 }

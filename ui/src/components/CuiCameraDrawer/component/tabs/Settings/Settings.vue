@@ -1710,7 +1710,7 @@
           </Message>
 
           <div v-if="zoneEntries.length" class="flex flex-col gap-2">
-            <div v-for="entry in zoneEntries" :key="`${entry.kind}-${entry.index}`" class="flex items-center gap-2 p-2 rounded-md border-color">
+            <div v-for="entry in zoneEntries" :key="`${entry.kind}-${entry.index}`" class="flex items-center gap-2 p-2 rounded-lg border-color">
               <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: entry.color }" />
               <div class="flex flex-col flex-1 min-w-0">
                 <span class="text-sm font-medium truncate">{{ entry.name }}</span>

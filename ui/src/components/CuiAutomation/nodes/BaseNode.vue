@@ -8,7 +8,7 @@
       <i-mdi:exclamation-thick class="w-3.5 h-3.5" />
     </div>
     <div class="flex items-center gap-2 px-3 py-2.5">
-      <div class="flex items-center justify-center w-8 h-8 rounded-md shrink-0" :style="{ backgroundColor: `${color}20`, color }">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" :style="{ backgroundColor: `${color}20`, color }">
         <component :is="icon" class="w-4.5 h-4.5" />
       </div>
       <div class="flex-1 min-w-0">

@@ -1372,7 +1372,7 @@ defineExpose({
   -webkit-touch-callout: none;
 
   @media (min-width: 800px) {
-    border-radius: 0 0 2px 2px;
+    border-radius: 0 0 4px 4px;
   }
 
   .playground {
@@ -1415,7 +1415,7 @@ defineExpose({
         padding: 1rem;
         margin: 0 2rem;
         transition: opacity 0.25s;
-        border-radius: 2px;
+        border-radius: 8px;
         box-shadow: 0 1px 2px rgba(16, 10, 9, 0.15);
         opacity: 1;
 
@@ -1544,7 +1544,7 @@ defineExpose({
       top: 0;
       width: 25px;
       padding-left: 5px;
-      border-radius: 3px;
+      border-radius: 4px;
       background: #d3d0c9;
       transform: scale3d(0, 0, 0);
       transform-origin: left center;

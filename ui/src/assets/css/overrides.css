@@ -25,7 +25,7 @@
 .p-inputgroup:not(:has(.p-inputgroupaddon)) > .p-multiselect,
 .p-inputgroup:not(:has(.p-inputgroupaddon)) > .p-autocomplete,
 .p-inputgroup:not(:has(.p-inputgroupaddon)) > .p-autocomplete .p-autocomplete-input-multiple {
-  border-radius: 10px !important;
+  border-radius: var(--p-form-field-border-radius) !important;
 }
 
 .p-inputgroup > .p-textarea {
@@ -38,8 +38,8 @@
 }
 
 .p-inputgroup > .p-inputgroupaddon:last-child {
-  border-top-right-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
+  border-top-right-radius: var(--p-form-field-border-radius) !important;
+  border-bottom-right-radius: var(--p-form-field-border-radius) !important;
 }
 
 .p-inputgroup > .p-inputgroupaddon:not(:last-child) {
@@ -53,8 +53,8 @@
 .p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete:first-child,
 .p-inputgroup:has(.p-inputgroupaddon) > .p-password:first-child,
 .p-inputgroup:has(.p-inputgroupaddon) > .p-autocomplete:first-child .p-autocomplete-input-multiple {
-  border-top-left-radius: 10px !important;
-  border-bottom-left-radius: 10px !important;
+  border-top-left-radius: var(--p-form-field-border-radius) !important;
+  border-bottom-left-radius: var(--p-form-field-border-radius) !important;
 }
 
 .p-inputgroup:has(.p-inputgroupaddon) > .p-password,
@@ -80,8 +80,8 @@
 .p-autocomplete > .p-autocomplete-dropdown {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
-  border-top-right-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
+  border-top-right-radius: var(--p-form-field-border-radius) !important;
+  border-bottom-right-radius: var(--p-form-field-border-radius) !important;
 }
 
 .p-inputtext.p-invalid,

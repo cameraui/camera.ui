@@ -24,7 +24,7 @@
         <img v-for="src in userImages" :key="src" :src="src" class="h-24 rounded-lg" alt="" />
       </div>
       <div v-if="userMedia.length" class="mt-2 flex flex-wrap gap-2">
-        <span v-for="(item, index) in userMedia" :key="index" class="cui-assistant-media inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted">
+        <span v-for="(item, index) in userMedia" :key="index" class="cui-assistant-media inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted">
           <i-mdi:music-note v-if="item.kind === 'audio'" class="w-3.5 h-3.5" />
           <i-mdi:video-outline v-else class="w-3.5 h-3.5" />
           {{ item.kind === 'audio' ? $t('views.assistant.attachment_audio') : $t('views.assistant.attachment_video') }}

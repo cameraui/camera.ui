@@ -379,7 +379,7 @@ defineExpose({ focus });
 .cui-assistant-send {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: var(--p-form-field-border-radius);
 }
 .cui-assistant-voice-active {
   color: var(--p-primary-color);

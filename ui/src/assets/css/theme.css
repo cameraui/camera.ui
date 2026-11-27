@@ -119,6 +119,7 @@
   --p-popover-border-color: var(--p-overlay-popover-border-color);
   --p-popover-color: var(--p-overlay-popover-color);
   --p-popover-border-radius: var(--p-overlay-popover-border-radius);
+  --p-datepicker-panel-border-radius: var(--p-overlay-popover-border-radius);
   --p-popover-shadow: var(--p-overlay-popover-shadow);
   --p-card-subtitle-color: var(--p-text-muted-color);
   --p-card-background: var(--p-content-background);
@@ -518,6 +519,7 @@
   --p-popover-border-color: var(--p-overlay-popover-border-color);
   --p-popover-color: var(--p-overlay-popover-color);
   --p-popover-border-radius: var(--p-overlay-popover-border-radius);
+  --p-datepicker-panel-border-radius: var(--p-overlay-popover-border-radius);
   --p-popover-shadow: var(--p-overlay-popover-shadow);
   --p-card-subtitle-color: var(--p-text-muted-color);
   --p-card-background: var(--p-content-background);

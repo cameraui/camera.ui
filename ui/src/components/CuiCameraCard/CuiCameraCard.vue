@@ -2595,7 +2595,7 @@ defineExpose({
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
   overflow: hidden;
   padding: 0 !important;
@@ -2614,7 +2614,7 @@ defineExpose({
   color: rgba(255, 255, 255, 0.9);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
   width: 100%;
@@ -2745,7 +2745,7 @@ html.cui-native-pip #video-container.native-pip .ar-box {
   height: 36px !important;
   min-width: 36px !important;
   flex-shrink: 0;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   transition: background 0.15s ease !important;
 }
 

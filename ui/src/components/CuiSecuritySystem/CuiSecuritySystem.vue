@@ -275,7 +275,7 @@ function resetAlarm() {
   padding: 0.5rem;
   background-color: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   color: rgb(239, 68, 68);
   font-weight: 500;
   font-size: 0.75rem;
@@ -305,7 +305,7 @@ function resetAlarm() {
   gap: 0.125rem;
   padding: 0.5rem 0.25rem;
   border: 1px solid var(--surface-border);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   background-color: var(--surface-ground);
   color: var(--text-secondary-color);
   cursor: pointer;

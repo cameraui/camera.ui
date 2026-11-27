@@ -1,7 +1,7 @@
 <template>
   <nav
     ref="navbarRef"
-    class="navbar-background fixed transition-[width,left] duration-200 shadow shadow-black/20 overflow-hidden border-[1px] border-base-color rounded-[15px] [clip-path:inset(0_round_15px)] before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-[20px] before:blur-2xl before:opacity-70 before:bg-primary-500 before:-z-1 non-draggable-region"
+    class="navbar-background fixed transition-[width,left] duration-200 shadow shadow-black/20 overflow-hidden border-[1px] border-base-color rounded-2xl [clip-path:inset(0_round_16px)] before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-[20px] before:blur-2xl before:opacity-70 before:bg-primary-500 before:-z-1 non-draggable-region"
     :class="{
       'shadow-xl': mdBreakpoint && navbarWidth === NAVBAR_SIZE.EXPANDED,
     }"

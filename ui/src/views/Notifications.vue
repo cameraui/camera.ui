@@ -20,7 +20,7 @@
         <span class="hidden sm:block w-11 shrink-0 text-xs text-muted tabular-nums" :class="{ 'pt-0.5': !nested }">{{ formatTime(item.createdAt) }}</span>
 
         <div
-          class="relative flex items-center justify-center w-16 aspect-video rounded-md overflow-hidden shrink-0"
+          class="relative flex items-center justify-center w-16 aspect-video rounded-lg overflow-hidden shrink-0"
           :class="[imageOf(item) ? 'bg-black' : tileClass(item), { 'ring-2 ring-red-500': isAlarm(item) }]"
         >
           <img v-if="imageOf(item)" :src="imageOf(item)" alt="" loading="lazy" decoding="async" class="w-full h-full object-cover" />

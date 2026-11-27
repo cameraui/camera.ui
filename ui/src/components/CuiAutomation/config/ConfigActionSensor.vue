@@ -17,7 +17,7 @@
 
     <div v-if="data.sensorId && propertyOptions.length" class="flex flex-col gap-3">
       <label class="cui-label">{{ t('components.automation_nodes.sensor_properties') }}</label>
-      <div v-for="prop in propertyOptions" :key="prop.value" class="flex flex-col gap-1.5 p-2 rounded-md border-color">
+      <div v-for="prop in propertyOptions" :key="prop.value" class="flex flex-col gap-1.5 p-2 rounded-lg border-color">
         <div class="flex items-center gap-2">
           <label class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0">
             <Checkbox :model-value="isPropertyEnabled(prop.value)" binary class="shrink-0" @update:model-value="toggleProperty(prop.value, $event)" />

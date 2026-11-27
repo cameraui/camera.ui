@@ -54,7 +54,7 @@
             v-for="(image, index) in images"
             :key="index"
             type="button"
-            class="shrink-0 w-[144px] aspect-video rounded-md overflow-hidden bg-black border-2 transition cursor-pointer"
+            class="shrink-0 w-[144px] aspect-video rounded-lg overflow-hidden bg-black border-2 transition cursor-pointer"
             :class="index === selectedIndex ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100 hover:border-white/40'"
             v-tooltip.top="{ value: image.note }"
             @click="selectedIndex = index"
@@ -512,7 +512,7 @@ onBeforeUnmount(() => {
   max-width: 100%;
   padding: 0.125rem 0.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   font-size: 0.75rem;
   color: var(--text-color);
 }

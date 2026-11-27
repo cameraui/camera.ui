@@ -315,7 +315,7 @@ button.cui-assistant-option:hover {
   visibility: visible;
   color: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 0.3rem;
+  border-radius: 0.25rem;
 }
 
 .cui-assistant-option-on .cui-assistant-option-mark {

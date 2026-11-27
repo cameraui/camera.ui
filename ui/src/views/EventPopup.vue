@@ -308,7 +308,7 @@ onUnmounted(() => {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1.5px solid rgba(255, 255, 255, 0.8);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   color: #ffffff;
   background: #1f1f1f;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);

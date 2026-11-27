@@ -119,7 +119,7 @@ function onDragStart(event: DragEvent, kind: 'room' | 'camera' | 'sensor', camer
 .floorplan-palette-item {
   display: flex;
   align-items: stretch;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--card-background);
   overflow: hidden;

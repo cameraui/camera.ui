@@ -1,7 +1,7 @@
 <template>
   <div class="h-full overflow-y-auto flex flex-col">
     <div class="flex items-center gap-2 px-4 py-3 border-bottom-color">
-      <div class="flex items-center justify-center w-8 h-8 rounded-md shrink-0" :style="{ backgroundColor: `${definition?.color}20`, color: definition?.color }">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" :style="{ backgroundColor: `${definition?.color}20`, color: definition?.color }">
         <component :is="definition?.icon" class="w-4 h-4" />
       </div>
       <div class="flex-1 min-w-0">

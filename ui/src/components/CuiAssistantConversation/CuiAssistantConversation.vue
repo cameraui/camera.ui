@@ -638,7 +638,7 @@ defineExpose({ refreshFromStore });
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: 9999px;
   font-size: 9px;
   line-height: 14px;
   text-align: center;

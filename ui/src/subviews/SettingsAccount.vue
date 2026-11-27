@@ -722,7 +722,7 @@ defineExpose({
 .tfa-row-enabled {
   padding: 0.75rem;
   background: color-mix(in srgb, var(--p-green-500) 10%, transparent);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .tfa-status-icon {

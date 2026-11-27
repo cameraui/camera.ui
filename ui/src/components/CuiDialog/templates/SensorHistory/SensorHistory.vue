@@ -10,7 +10,7 @@
     </div>
 
     <div v-if="isLoading" class="flex flex-col gap-3">
-      <Skeleton v-for="i in 3" :key="i" height="48px" class="rounded-md" />
+      <Skeleton v-for="i in 3" :key="i" height="48px" class="rounded-lg" />
     </div>
 
     <div v-else-if="!series.length" class="flex flex-1 flex-col items-center justify-center gap-3 py-10">
@@ -71,7 +71,7 @@
     </div>
 
     <div v-else class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
-      <div v-for="(entry, idx) in listEntries" :key="idx" class="flex items-center gap-3 p-2 rounded-md border-color">
+      <div v-for="(entry, idx) in listEntries" :key="idx" class="flex items-center gap-3 p-2 rounded-lg border-color">
         <div class="flex flex-col flex-1 min-w-0">
           <span class="text-sm font-medium truncate">{{ propertyLabel(entry.property) }}</span>
           <span class="text-xs text-muted">{{ formatTimestamp(entry.timestamp) }}</span>

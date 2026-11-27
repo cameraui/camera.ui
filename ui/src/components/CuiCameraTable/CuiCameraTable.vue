@@ -16,7 +16,7 @@
 
       <Column class="w-[50px] p-0">
         <template #body="{ data: camera }">
-          <CuiCameraSnapshot :camera class="rounded-md overflow-hidden" width="50px" />
+          <CuiCameraSnapshot :camera class="rounded-lg overflow-hidden" width="50px" />
         </template>
       </Column>
 

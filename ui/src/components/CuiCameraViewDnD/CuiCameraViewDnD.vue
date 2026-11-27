@@ -83,7 +83,7 @@
 
                 <div
                   v-if="resizingIdx === idx"
-                  class="absolute top-2 left-2 z-20 px-2 py-1 rounded-md bg-black/75 text-white text-xs tabular-nums pointer-events-none select-none"
+                  class="absolute top-2 left-2 z-20 px-2 py-1 rounded-lg bg-black/75 text-white text-xs tabular-nums pointer-events-none select-none"
                 >
                   {{ resizeSize.w }} &times; {{ resizeSize.h }}
                 </div>

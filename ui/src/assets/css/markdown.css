@@ -262,7 +262,7 @@
   background-color: #f6f8fa;
   border: solid 1px rgba(175, 184, 193, 0.2);
   border-bottom-color: rgba(175, 184, 193, 0.2);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: inset 0 -1px 0 rgba(175, 184, 193, 0.2);
 }
 
@@ -715,7 +715,7 @@
   font-size: 85%;
   white-space: break-spaces;
   background-color: var(--chip-background);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .markdown-body code br,
@@ -761,7 +761,7 @@
   line-height: 1.45;
   color: var(--text-color);
   background-color: var(--markdown-code-background);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .markdown-body pre code,
@@ -840,7 +840,7 @@
   pointer-events: none;
   content: '';
   border: 2px solid #0969da;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .markdown-body .footnotes li:target {

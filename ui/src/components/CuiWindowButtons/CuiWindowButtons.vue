@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
 .disabled-button {
   width: 12px;
   height: 12px;
-  border-radius: 20px;
+  border-radius: 50%;
   transition: 0.2s all ease-in-out;
   -webkit-app-region: no-drag;
 }

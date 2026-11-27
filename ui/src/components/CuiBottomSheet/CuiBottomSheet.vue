@@ -430,7 +430,7 @@ onUnmounted(() => {
   width: 36px;
   height: 4px;
   background: var(--text-passive-color);
-  border-radius: 2px;
+  border-radius: 9999px;
   transition: background 0.2s ease;
 }
 

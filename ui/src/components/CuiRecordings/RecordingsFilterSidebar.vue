@@ -166,7 +166,7 @@
         <div class="sidebar-divider" />
         <div class="flex flex-col gap-2">
           <label class="sidebar-section-title">{{ $t('views.recordings.grid_search') }}</label>
-          <div class="relative rounded-md overflow-hidden">
+          <div class="relative rounded-lg overflow-hidden">
             <CuiCameraSnapshot :camera="selectedCameraId" object-fit="cover" />
             <CuiGridSearch :model-value="filters.gridRegions" @update:model-value="updateFilter('gridRegions', $event)" />
           </div>

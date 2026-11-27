@@ -71,7 +71,7 @@
 
       <div v-if="previewIndicator" class="absolute bottom-2 inset-x-2 flex justify-center z-[4] pointer-events-none">
         <span
-          class="flex max-w-full min-w-0 text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-md whitespace-nowrap"
+          class="flex max-w-full min-w-0 text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-lg whitespace-nowrap"
           style="font-variant-numeric: tabular-nums"
         >
           <template v-if="previewCamera">

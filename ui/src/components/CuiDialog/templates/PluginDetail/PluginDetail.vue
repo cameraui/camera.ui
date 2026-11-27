@@ -235,7 +235,7 @@ defineExpose({
 .screenshot-thumb :deep(img) {
   height: 140px;
   width: auto;
-  border-radius: var(--border-radius-md);
+  border-radius: var(--border-radius-lg);
   border: 1px solid var(--border-color-inner);
   object-fit: cover;
 }

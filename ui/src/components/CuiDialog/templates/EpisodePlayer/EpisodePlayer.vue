@@ -1063,7 +1063,7 @@ defineExpose({
   height: 36px !important;
   min-width: 36px !important;
   flex-shrink: 0;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   transition: background 0.15s ease !important;
 }
 

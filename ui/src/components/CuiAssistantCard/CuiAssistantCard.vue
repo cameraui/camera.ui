@@ -16,7 +16,7 @@
           :is="itemReference(item) ? 'button' : 'div'"
           :type="itemReference(item) ? 'button' : undefined"
           class="flex w-full items-baseline gap-2 text-left"
-          :class="{ 'cui-assistant-card-link cursor-pointer rounded-md': itemReference(item) }"
+          :class="{ 'cui-assistant-card-link cursor-pointer rounded-lg': itemReference(item) }"
           :disabled="itemReference(item) && busy === itemReference(item)!.id ? true : undefined"
           @click="itemReference(item) && open(itemReference(item)!)"
         >

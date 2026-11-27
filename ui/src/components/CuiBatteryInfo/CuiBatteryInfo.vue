@@ -233,13 +233,13 @@ const barStyle = computed(() => {
 
 .cui-battery-info__bar {
   height: 0.25rem;
-  border-radius: 0.125rem;
+  border-radius: 9999px;
   overflow: hidden;
 }
 
 .cui-battery-info__bar-fill {
   height: 100%;
-  border-radius: 0.125rem;
+  border-radius: 9999px;
   transition:
     width 0.3s ease,
     background-color 0.3s ease;

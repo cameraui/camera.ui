@@ -28,7 +28,7 @@
     </div>
 
     <div v-if="data.sensorId" class="flex flex-col gap-3">
-      <div v-for="(cond, idx) in conditions" :key="idx" class="flex flex-col gap-1.5 p-2 rounded-md border-color">
+      <div v-for="(cond, idx) in conditions" :key="idx" class="flex flex-col gap-1.5 p-2 rounded-lg border-color">
         <div class="flex items-center gap-2">
           <Select
             :model-value="cond.property"

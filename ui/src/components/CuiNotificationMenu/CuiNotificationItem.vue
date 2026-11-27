@@ -4,7 +4,7 @@
       <Button severity="secondary" text class="cui-button p-2 block w-full" @click="onClick">
         <div class="flex gap-3">
           <div class="w-2 h-2 rounded-full mt-2" :style="{ backgroundColor: getColor(shownSeverity(notification)) }" />
-          <div v-if="imageSrc" class="w-14 h-10 rounded-md overflow-hidden shrink-0 self-center bg-black">
+          <div v-if="imageSrc" class="w-14 h-10 rounded-lg overflow-hidden shrink-0 self-center bg-black">
             <CuiImage v-if="seen" :src="imageSrc" alt="" :image-style="{ objectFit: 'cover' }" image-container-class="w-full h-full" />
           </div>
           <div class="flex-1 min-w-0">

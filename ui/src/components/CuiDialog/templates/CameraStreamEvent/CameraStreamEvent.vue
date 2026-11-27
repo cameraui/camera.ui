@@ -10,7 +10,7 @@
         :camera-info="camera.name"
         flat-card
         :resizable="mdBreakpoint"
-        :card-props="{ pt: { root: { class: { '!rounded-md': true } } } }"
+        :card-props="{ pt: { root: { class: { '!rounded-lg': true } } } }"
         :camera-name-overlay="false"
         :toolbar="false"
         :subcontrol="true"

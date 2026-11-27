@@ -980,7 +980,7 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: #000000;
-  border-radius: 5px;
+  border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
   transition: opacity 0.2s ease;

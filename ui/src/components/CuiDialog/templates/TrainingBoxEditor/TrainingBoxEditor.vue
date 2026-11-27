@@ -1020,7 +1020,7 @@ defineExpose<CustomDialogComponent>({
 kbd {
   padding: 1px 6px;
   border: 1px solid var(--border-color);
-  border-radius: 5px;
+  border-radius: 4px;
   font-family: monospace;
   font-size: 12px;
 }
@@ -1059,9 +1059,9 @@ kbd {
   font-weight: bold;
   white-space: nowrap;
   max-width: 100%;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
   border-bottom-left-radius: 0;
   transform: translateY(-100%);
 }
@@ -1069,23 +1069,23 @@ kbd {
 .bbox-label.label-bottom {
   transform: translateY(0);
   border-radius: 0;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
-  border-top-right-radius: 6px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-top-right-radius: 8px;
   border-top-left-radius: 0;
 }
 
 .bbox-label.label-right {
   flex-direction: row-reverse;
-  border-top-left-radius: 6px;
+  border-top-left-radius: 8px;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-  border-bottom-left-radius: 6px;
+  border-bottom-left-radius: 8px;
 }
 
 .bbox-label.label-inside {
   transform: translateY(0);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .ghost-chip {
@@ -1095,7 +1095,7 @@ kbd {
   gap: 2px;
   padding: 2px 5px;
   border: 1.5px dashed;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.6);
   color: white;
   transform: translate(-100%, -100%);

@@ -282,7 +282,7 @@ onBeforeUnmount(() => {
 .similar-found {
   position: absolute;
   border: 1px solid rgb(255 255 255 / 0.55);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
   transition:
     border-color 120ms ease,
@@ -309,7 +309,7 @@ onBeforeUnmount(() => {
 .similar-box {
   position: absolute;
   border: 2px solid var(--p-primary-color);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow:
     0 0 0 9999px rgb(0 0 0 / 0.5),
     0 0 18px 2px color-mix(in srgb, var(--p-primary-color) 70%, transparent);
@@ -346,7 +346,7 @@ onBeforeUnmount(() => {
   bottom: calc(100% + 6px);
   max-width: 220px;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgb(0 0 0 / 0.75);
   color: #fff;
   font-size: 12px;

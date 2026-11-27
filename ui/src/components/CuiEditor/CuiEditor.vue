@@ -40,19 +40,19 @@ const isSettingContent = ref(false);
 const contentBackup = ref('');
 
 const editorTopRightRadius = computed(() => {
-  return borderRadius.value || borderTopRightRadius.value ? '10px' : '0px';
+  return borderRadius.value || borderTopRightRadius.value ? 'var(--p-form-field-border-radius)' : '0px';
 });
 
 const editorBottomRightRadius = computed(() => {
-  return borderRadius.value || borderBottomRightRadius.value ? '10px' : '0px';
+  return borderRadius.value || borderBottomRightRadius.value ? 'var(--p-form-field-border-radius)' : '0px';
 });
 
 const editorBottomLeftRadius = computed(() => {
-  return borderRadius.value || borderBottomLeftRadius.value ? '10px' : '0px';
+  return borderRadius.value || borderBottomLeftRadius.value ? 'var(--p-form-field-border-radius)' : '0px';
 });
 
 const editorTopLeftRadius = computed(() => {
-  return borderRadius.value || borderTopLeftRadius.value ? '10px' : '0px';
+  return borderRadius.value || borderTopLeftRadius.value ? 'var(--p-form-field-border-radius)' : '0px';
 });
 
 const editorBorder = computed(() => {

@@ -54,7 +54,7 @@ function percent(item: DownloadProgress): number {
   gap: 0.75rem;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.75rem 0.5rem 0.75rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   background: var(--card-background);
   border: 1px solid var(--border-color);
 }

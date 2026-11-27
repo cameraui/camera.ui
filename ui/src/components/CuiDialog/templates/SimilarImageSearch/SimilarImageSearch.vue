@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col items-center gap-3">
-    <div v-if="camera" class="relative max-w-full overflow-hidden rounded-md">
+    <div v-if="camera" class="relative max-w-full overflow-hidden rounded-lg">
       <img :src="imageUrl" alt="" class="block max-w-full max-h-[65vh]" />
       <CuiSimilarPicker :camera="camera" :frame="image" @pick="onPick" />
     </div>

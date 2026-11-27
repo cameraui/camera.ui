@@ -29,7 +29,7 @@
 
       <button
         type="button"
-        class="cui-assistant-new mx-3 my-2 flex cursor-pointer items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-color"
+        class="cui-assistant-new mx-3 my-2 flex cursor-pointer items-center gap-2 rounded-(--p-form-field-border-radius) px-3 py-2 text-sm font-medium text-color"
         @click="emit('create')"
       >
         <i-mdi:plus class="w-4 h-4 text-primary" />
@@ -57,7 +57,7 @@
           <div
             v-for="thread in group.threads"
             :key="thread.id"
-            class="cui-assistant-item group relative flex items-center gap-2 rounded-md py-1.5 pl-3 pr-2 text-[13.5px] cursor-pointer select-none"
+            class="cui-assistant-item group relative flex items-center gap-2 rounded-lg py-1.5 pl-3 pr-2 text-[13.5px] cursor-pointer select-none"
             :class="{ active: thread.id === activeId }"
             @click="emit('select', thread.id)"
           >
@@ -205,7 +205,7 @@ onClickOutside(sidebarRef, (event) => {
   top: 9px;
   bottom: 9px;
   width: 2px;
-  border-radius: 2px;
+  border-radius: 9999px;
   background: var(--p-primary-color);
 }
 

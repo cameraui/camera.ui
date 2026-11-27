@@ -30,7 +30,7 @@
       </div>
 
       <div v-if="previewIndicator" class="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[3] pointer-events-none">
-        <span class="text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-md whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+        <span class="text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-lg whitespace-nowrap" style="font-variant-numeric: tabular-nums">
           {{ previewIndicator }}
         </span>
       </div>

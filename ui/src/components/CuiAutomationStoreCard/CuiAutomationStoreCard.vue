@@ -65,7 +65,7 @@ function humanizeInterface(iface: string): string {
   flex-direction: column;
   height: 100%;
   padding: 1rem;
-  border-radius: var(--border-radius-md);
+  border-radius: var(--border-radius-lg);
   background: var(--card-background);
   border: 1px solid var(--border-color-inner);
   position: relative;

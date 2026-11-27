@@ -36,8 +36,8 @@
         <div class="flex items-center gap-1.5">
           <p class="text-xs font-semibold text-white truncate min-w-0 flex-1">{{ displayCameraName }}</p>
 
-          <span v-if="segPosition" class="text-[10px] font-semibold text-white/80 bg-black/60 px-1.5 py-0.5 rounded-md shrink-0">{{ segPosition }}</span>
-          <span v-if="semanticDisplay" :class="['text-[10px] font-bold text-white px-1.5 py-0.5 rounded-md shrink-0', semanticDisplay.color]">
+          <span v-if="segPosition" class="text-[10px] font-semibold text-white/80 bg-black/60 px-1.5 py-0.5 rounded-lg shrink-0">{{ segPosition }}</span>
+          <span v-if="semanticDisplay" :class="['text-[10px] font-bold text-white px-1.5 py-0.5 rounded-lg shrink-0', semanticDisplay.color]">
             {{ semanticDisplay.label }}
           </span>
           <button
@@ -93,7 +93,7 @@
         class="absolute left-1/2 -translate-x-1/2 z-[3] max-w-[85%] pointer-events-none transition-all duration-200"
         :class="previewIndicator ? 'bottom-16' : 'bottom-10'"
       >
-        <span class="block text-[11px] text-white font-medium truncate bg-black/50 rounded-md px-2 py-0.5">{{ footerLabel }}</span>
+        <span class="block text-[11px] text-white font-medium truncate bg-black/50 rounded-lg px-2 py-0.5">{{ footerLabel }}</span>
       </div>
 
       <div ref="footerRef" class="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 z-[3]">
@@ -105,7 +105,7 @@
           >
             <i-mdi:check v-if="selected" class="w-4 h-4 text-white" />
           </div>
-          <div v-for="type in displayTypes" :key="type" class="flex items-center justify-center w-5 h-5 rounded-md bg-black/60 shrink-0">
+          <div v-for="type in displayTypes" :key="type" class="flex items-center justify-center w-5 h-5 rounded-lg bg-black/60 shrink-0">
             <component :is="eventIcons[type] ?? eventIcons.motion" class="w-3 h-3 text-white/80" />
           </div>
           <span v-if="hiddenTypes.length > 0" :title="hiddenTypes.join(', ')" class="text-[10px] text-white/60 font-medium shrink-0"> +{{ hiddenTypes.length }} </span>
@@ -133,7 +133,7 @@
       </div>
 
       <div v-if="previewIndicator" class="absolute bottom-10 left-1/2 -translate-x-1/2 z-[4] pointer-events-none">
-        <span class="text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-md whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+        <span class="text-[10px] font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-lg whitespace-nowrap" style="font-variant-numeric: tabular-nums">
           {{ previewIndicator }}
         </span>
       </div>

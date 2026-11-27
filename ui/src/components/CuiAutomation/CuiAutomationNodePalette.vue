@@ -73,7 +73,7 @@ function onDragStart(event: DragEvent, nodeType: string) {
   position: relative;
   display: flex;
   align-items: stretch;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--card-background);
   overflow: hidden;

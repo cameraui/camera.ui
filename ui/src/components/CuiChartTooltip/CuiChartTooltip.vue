@@ -60,7 +60,7 @@ watch(
   max-width: calc(100vw - 16px);
   padding: 8px 12px;
   border: 1px solid var(--p-content-border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--p-content-background);
   font-size: 12px;
   line-height: 1.5;

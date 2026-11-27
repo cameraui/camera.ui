@@ -350,9 +350,9 @@ defineExpose({
   color: white;
   font-weight: bold;
   white-space: nowrap;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
   border-bottom-left-radius: 0;
   transform: translateY(-100%);
   transition: all 0.2s ease-in-out;
@@ -362,9 +362,9 @@ defineExpose({
   top: calc(100% - 2.2px);
   transform: translateY(0);
   border-radius: 0;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
-  border-top-right-radius: 6px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-top-right-radius: 8px;
   border-top-left-radius: 0;
 }
 
@@ -372,24 +372,24 @@ defineExpose({
   left: auto;
   right: 0;
   flex-direction: row-reverse;
-  border-top-left-radius: 6px;
+  border-top-left-radius: 8px;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-  border-bottom-left-radius: 6px;
+  border-bottom-left-radius: 8px;
 }
 
 .label.label-right.label-bottom {
-  border-top-left-radius: 6px;
+  border-top-left-radius: 8px;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-  border-bottom-left-radius: 6px;
+  border-bottom-left-radius: 8px;
 }
 
 .label.label-inside {
   top: 2px;
   left: 2px;
   transform: translateY(0);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .label.label-inside.label-right {

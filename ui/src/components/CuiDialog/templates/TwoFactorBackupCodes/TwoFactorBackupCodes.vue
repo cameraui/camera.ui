@@ -39,7 +39,7 @@ defineExpose({
 
 .backup-code {
   padding: 0.5rem;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   background: var(--p-content-background);
   border: 1px solid var(--border-color);
 }

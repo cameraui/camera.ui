@@ -1,7 +1,7 @@
 <template>
   <div class="h-full flex flex-col overflow-hidden">
     <div class="flex items-center gap-2 px-4 py-3 border-bottom-color">
-      <div class="flex items-center justify-center w-8 h-8 rounded-md shrink-0 inspector-icon">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 inspector-icon">
         <i-mdi:cctv v-if="camera" class="w-4 h-4" />
         <i-mdi:door-open v-else-if="connection" class="w-4 h-4" />
         <i-mdi:vector-square v-else class="w-4 h-4" />

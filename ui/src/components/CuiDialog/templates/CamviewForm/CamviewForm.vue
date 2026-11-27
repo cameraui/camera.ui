@@ -273,7 +273,7 @@ defineExpose({
 .view-select-item-icon {
   transition: box-shadow 0.2s;
   background: var(--border-color);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .view-select-item-label {
