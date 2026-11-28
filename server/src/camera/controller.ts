@@ -7,6 +7,7 @@ import { emitInternalEvent } from '../internal-bus.js';
 import { PLUGIN_STATUS } from '../plugins/types.js';
 import { NamespaceManager } from '../rpc/namespaces.js';
 import { buildSnapshotUrl, buildTargetUrl, createSourceName, isTalkUrl } from '../utils/camera.js';
+import { scaleJpeg } from '../utils/image.js';
 import { getSourceCodecInfo, setSourceCodecInfo } from './codecCache.js';
 import { FrameWorker } from './decoder/worker.js';
 import { CameraDevice } from './index.js';
@@ -42,7 +43,14 @@ import type { CameraUiAPI } from '../api.js';
 import type { Go2RtcApi } from '../go2rtc/api/index.js';
 import type { Go2RtcState, Go2RtcStreamState } from '../go2rtc/state.js';
 import type { Go2RTCOfferCodec, Go2RTCOffers } from '../go2rtc/types.js';
-import type { CameraDeviceInterface, CameraDeviceListenerMessagePayload, RefreshedStates, SnapshotUpdatedEvent, SnapshotWithMeta } from '../rpc/interfaces/device.js';
+import type {
+  CameraDeviceInterface,
+  CameraDeviceListenerMessagePayload,
+  RefreshedStates,
+  SnapshotRequestOptions,
+  SnapshotUpdatedEvent,
+  SnapshotWithMeta,
+} from '../rpc/interfaces/device.js';
 import type { StoredSensorData } from '../rpc/interfaces/sensor.js';
 import type { CameraNamespaces, FrameWorkerDetectionNamespaces } from '../rpc/namespaces.js';
 import type { LoggerService } from '../services/logger/index.js';
@@ -53,6 +61,8 @@ const PRELOAD_KINDS: ProbeConfig = { video: true, audio: true, microphone: true 
 const COLD_PROBE_TIMEOUT_MS = 30_000;
 const SOURCE_CODEC_KEYS: (keyof SourceCodecInfo)[] = ['videoCodec', 'audioCodecs', 'backchannelAudioCodec'];
 const SNAPSHOT_CONCURRENCY = 16;
+const CARD_WIDTH = 1280;
+const CARD_QUALITY = 80;
 
 export class CameraController extends CameraDevice implements CameraDeviceInterface {
   public readonly frameWorker: FrameWorker;
@@ -233,7 +243,8 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   @RPCMethod
-  public async snapshotWithMeta(sourceId: string, forceNew?: boolean, knownFetchedAt?: number): Promise<SnapshotWithMeta | undefined> {
+  public async snapshotWithMeta(sourceId: string, forceNew?: boolean, knownFetchedAt?: number, options?: SnapshotRequestOptions): Promise<SnapshotWithMeta | undefined> {
+    const calledAt = Date.now();
     const data = await this.snapshot(sourceId, forceNew);
     if (!data) return undefined;
 
@@ -244,8 +255,12 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
     if (!forceNew && knownFetchedAt !== undefined && stored.fetchedAt === knownFetchedAt) {
       return { notModified: true, fetchedAt: stored.fetchedAt, ageMs };
     }
+    // the caller gets this picture with the push this call set off
+    if (options?.receivesPushes && this.snapshots.pushedSince(sourceId, stored.fetchedAt, calledAt)) {
+      return { pushed: true, fetchedAt: stored.fetchedAt, ageMs };
+    }
 
-    return { data, ageMs, fetchedAt: stored.fetchedAt };
+    return { data: options?.variant === 'card' ? await this.cardOf(stored) : data, ageMs, fetchedAt: stored.fetchedAt };
   }
 
   @RPCMethod
@@ -303,6 +318,7 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
       frameWorkerState: this.frameWorker.status === PLUGIN_STATUS.STARTED,
       sensorStates: this.sensorController.getStatesForCamera(),
       stateSubject: true,
+      viewerStateSubject: true,
     };
   }
 
@@ -600,8 +616,20 @@ export class CameraController extends CameraDevice implements CameraDeviceInterf
   }
 
   private announceSnapshot(sourceId: string, entry: StoredSnapshot): void {
-    this.triggerProxyEvent('snapshot:updated', { sourceId, snapshot: entry.data, fetchedAt: entry.fetchedAt });
+    // only browser cards read the pushed picture, the others fetch the one they need
+    this.cardOf(entry).then((snapshot) => this.triggerProxyEvent('snapshot:updated', { sourceId, snapshot, fetchedAt: entry.fetchedAt }));
     emitInternalEvent('camera:snapshot:updated', { cameraId: this.id, cameraName: this.name });
+  }
+
+  private cardOf(entry: StoredSnapshot): Promise<ArrayBuffer> {
+    entry.card ??= scaleJpeg(entry.data, CARD_WIDTH, CARD_QUALITY).then(
+      (card) => card ?? entry.data,
+      (error) => {
+        this.logger.debug(`Could not scale the snapshot of camera "${this.name}": ${error.message}`);
+        return entry.data;
+      },
+    );
+    return entry.card;
   }
 
   private async remaskSnapshots(): Promise<void> {

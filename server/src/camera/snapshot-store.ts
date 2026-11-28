@@ -3,12 +3,14 @@ import type { SnapshotSettings } from '@camera.ui/sdk';
 export interface StoredSnapshot {
   data: ArrayBuffer;
   fetchedAt: number;
+  card?: Promise<ArrayBuffer>;
 }
 
 const PUSH_WINDOW_MS = 10_000;
 
 export class SnapshotStore {
   private readonly entries = new Map<string, StoredSnapshot>();
+  private readonly pushes = new Map<string, { fetchedAt: number; at: number }>();
   private lastPushAt = 0;
   private pending?: { sourceId: string; timer: NodeJS.Timeout };
 
@@ -33,8 +35,14 @@ export class SnapshotStore {
     if (announce) this.schedulePush(sourceId);
   }
 
+  public pushedSince(sourceId: string, fetchedAt: number, since: number): boolean {
+    const push = this.pushes.get(sourceId);
+    return push?.fetchedAt === fetchedAt && push.at >= since;
+  }
+
   public delete(sourceId: string): void {
     this.entries.delete(sourceId);
+    this.pushes.delete(sourceId);
     if (this.pending?.sourceId === sourceId) this.cancelPending();
   }
 
@@ -52,6 +60,7 @@ export class SnapshotStore {
   public dispose(): void {
     this.cancelPending();
     this.entries.clear();
+    this.pushes.clear();
   }
 
   private schedulePush(sourceId: string): void {
@@ -77,6 +86,7 @@ export class SnapshotStore {
     const entry = this.entries.get(sourceId);
     if (!entry) return;
     this.lastPushAt = Date.now();
+    this.pushes.set(sourceId, { fetchedAt: entry.fetchedAt, at: this.lastPushAt });
     this.push(sourceId, entry);
   }
 

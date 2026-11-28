@@ -211,6 +211,7 @@ export class NATS {
                   // broadcasts only, a request subject would hand a viewer its caller's reply inbox
                   'coreManager.subscriber',
                   'camera.*.subscriber',
+                  'camera.*.state',
                   // still read by released nvr UI and tvOS builds
                   'camera.*.events.subject',
                   'sensors.subject',

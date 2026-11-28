@@ -34,6 +34,7 @@ export interface RefreshedStates {
   frameWorkerState: boolean;
   sensorStates: Record<string, SensorRefreshedState>;
   stateSubject?: boolean;
+  viewerStateSubject?: boolean;
 }
 
 export interface SnapshotUpdatedEvent {
@@ -47,6 +48,12 @@ export interface SnapshotWithMeta {
   ageMs: number;
   fetchedAt?: number;
   notModified?: boolean;
+  pushed?: boolean;
+}
+
+export interface SnapshotRequestOptions {
+  variant?: 'card';
+  receivesPushes?: boolean;
 }
 
 export type CameraDeviceListenerMessagePayload =
@@ -62,7 +69,7 @@ export interface CameraDeviceInterface extends CameraDeviceImplementation {
   disconnect(): Promise<void>;
   snapshot(sourceId: string, forceNew?: boolean, preferNative?: boolean): Promise<ArrayBuffer | undefined>;
   detectionSnapshot(sourceId: string): Promise<ArrayBuffer | undefined>;
-  snapshotWithMeta(sourceId: string, forceNew?: boolean, knownFetchedAt?: number): Promise<SnapshotWithMeta | undefined>;
+  snapshotWithMeta(sourceId: string, forceNew?: boolean, knownFetchedAt?: number, options?: SnapshotRequestOptions): Promise<SnapshotWithMeta | undefined>;
   probeStream(sourceId: string, probeConfig?: ProbeConfig, refresh?: boolean): Promise<ProbeStream | undefined>;
   getStreamStatus(sourceId: string): Promise<string>;
 }

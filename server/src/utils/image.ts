@@ -1,7 +1,11 @@
 import { Decoder, Demuxer, Scaler } from 'node-av/api';
-import { AV_FRAME_FLAG_CORRUPT } from 'node-av/constants';
+import { AV_CODEC_ID_MJPEG, AV_FRAME_FLAG_CORRUPT } from 'node-av/constants';
+import { Codec, CodecContext, Dictionary, Frame, Packet, Rational } from 'node-av/lib';
 
-import type { Frame } from 'node-av/lib';
+const MAX_LOWRES = 3;
+
+let jpegScaler: Scaler | undefined;
+let jpegQueue: Promise<unknown> = Promise.resolve();
 
 export function jpegSize(jpeg: Uint8Array): { width: number; height: number } | undefined {
   const view = new DataView(jpeg.buffer, jpeg.byteOffset, jpeg.byteLength);
@@ -23,6 +27,19 @@ export function jpegSize(jpeg: Uint8Array): { width: number; height: number } | 
     i += 2 + view.getUint16(i + 2);
   }
   return undefined;
+}
+
+export function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
+
+export function scaleJpeg(jpeg: ArrayBuffer, maxWidth: number, quality: number): Promise<ArrayBuffer | undefined> {
+  const bytes = new Uint8Array(jpeg);
+  const size = jpegSize(bytes);
+  if (!size || size.width <= maxWidth) return Promise.resolve(undefined);
+  const run = jpegQueue.then(() => decodeScaled(bytes, size.width, maxWidth, quality));
+  jpegQueue = run.catch(() => undefined);
+  return run;
 }
 
 export async function squarePng(input: string | Buffer, size: number): Promise<Buffer | null> {
@@ -47,6 +64,32 @@ export async function withPicture<T>(input: string | Buffer, use: (frame: Frame)
     if (frame && !isDamagedFrame(frame)) return await use(frame);
   }
   return undefined;
+}
+
+async function decodeScaled(jpeg: Uint8Array, width: number, maxWidth: number, quality: number): Promise<ArrayBuffer | undefined> {
+  const codec = Codec.findDecoder(AV_CODEC_ID_MJPEG);
+  if (!codec) return undefined;
+
+  using context = new CodecContext();
+  context.allocContext3(codec);
+  let lowres = 0;
+  while (lowres < MAX_LOWRES && width >> (lowres + 1) >= maxWidth) lowres++;
+  if ((await context.open2(codec, lowres ? Dictionary.fromObject({ lowres }) : null)) < 0) return undefined;
+
+  using packet = new Packet();
+  packet.alloc();
+  packet.data = Buffer.from(jpeg.buffer, jpeg.byteOffset, jpeg.byteLength);
+  using frame = new Frame();
+  frame.alloc();
+  if ((await context.sendPacket(packet)) < 0) return undefined;
+  await context.sendPacket(null);
+  if ((await context.receiveFrame(frame)) < 0 || isDamagedFrame(frame)) return undefined;
+
+  frame.timeBase = new Rational(1, 1);
+  const outWidth = maxWidth & ~1;
+  const outHeight = Math.max(2, Math.round((frame.height * outWidth) / frame.width) & ~1);
+  jpegScaler ??= new Scaler();
+  return toArrayBuffer(await jpegScaler.toJpeg(frame, { resize: { width: outWidth, height: outHeight }, quality }));
 }
 
 export function isDamagedFrame(frame: Frame): boolean {
