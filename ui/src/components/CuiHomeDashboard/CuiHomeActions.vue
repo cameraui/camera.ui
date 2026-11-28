@@ -5,6 +5,7 @@
   <CuiFloatingButtonGroup :force-visible="editing">
     <template v-if="editing">
       <CuiFloatingButton
+        v-if="arrangeable"
         :tooltip-props="{ value: t('views.home_dashboard.arrange_hint') }"
         :button-props="{ severity: 'secondary', disabled: saving }"
         :icon="ArrangeIcon"

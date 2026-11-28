@@ -19,7 +19,7 @@
 import HomeIcon from '~icons/mdi/home-outline';
 import RoomIcon from '~icons/mdi/door-open';
 
-import { HOME_PAGE } from './home.js';
+import { HOME_PAGE } from './pages.js';
 
 import type { MenuItem } from '../CuiMenu/types.js';
 import type { CuiHomeScopeOptionsEmits, CuiHomeScopeOptionsProps } from './types.js';

@@ -67,12 +67,15 @@
                 <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.table_rows') }}</Message>
               </div>
 
-              <div class="w-full flex flex-col gap-2">
-                <CuiToggleRow :label="$t('components.form.label.home_dashboard')" :hint="$t('components.form.hint.home_dashboard')">
-                  <ToggleSwitch v-model="uiSettings.home.dashboard" />
-                </CuiToggleRow>
+              <div class="flex flex-col field-gap">
+                <label class="cui-label">{{ $t('components.form.label.home_start_page') }}</label>
+                <Select v-model="homeStartPage" :options="homePageOptions" option-label="label" option-value="value" />
 
-                <CuiToggleRow v-if="!smBreakpoint" :label="$t('components.form.label.navbar_stay_collapsed')" :hint="$t('components.form.hint.navbar_stay_collapsed')">
+                <Message severity="secondary" variant="simple" size="small" class="cui-input-hint">{{ $t('components.form.hint.home_start_page') }}</Message>
+              </div>
+
+              <div v-if="!smBreakpoint" class="w-full flex flex-col gap-2">
+                <CuiToggleRow :label="$t('components.form.label.navbar_stay_collapsed')" :hint="$t('components.form.hint.navbar_stay_collapsed')">
                   <ToggleSwitch v-model="uiSettings.interface.navbarStayCollapsed" />
                 </CuiToggleRow>
               </div>
@@ -111,7 +114,10 @@
 </template>
 
 <script setup lang="ts">
+import { RoomsQuery } from '@/api/routes/rooms.js';
 import { isHaPanel } from '@/common/base.js';
+import { CAMERAS_PAGE, HOME_PAGE } from '@/components/CuiHomeDashboard/pages.js';
+import { useHomeStartPage } from '@/components/CuiHomeDashboard/useHomeStartPage.js';
 import { landingPageRoutes } from '@/router/index.js';
 
 withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
@@ -119,6 +125,7 @@ withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
 const { t } = useI18n();
 const { settingsInNav, isCollapsible, setCollapsible, setSettingsInNav } = useNavLayout();
 const { smBreakpoint } = useSharedCuiBreakpoint();
+const homeStartPage = useHomeStartPage();
 
 const localeStore = useLocaleStore();
 const { language, languageOptions } = storeToRefs(localeStore);
@@ -128,6 +135,8 @@ const { colors, theme, autoMode } = storeToRefs(themeStore);
 
 const uiStore = useUiStore();
 const { uiSettings } = storeToRefs(uiStore);
+
+const { data: roomCatalog } = new RoomsQuery().getRoomsQuery();
 
 const tableRowsOptions = [5, 10, 15, 25, 50, 100];
 
@@ -139,6 +148,15 @@ const landingOptions = computed(() =>
     value: route.path,
   })),
 );
+
+const homePageOptions = computed(() => [
+  { label: t('views.home_dashboard.cameras'), value: CAMERAS_PAGE },
+  { label: t('views.home_dashboard.home'), value: HOME_PAGE },
+  ...(roomCatalog.value?.rooms ?? [])
+    .filter((room) => room.name !== 'Default')
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((room) => ({ label: room.name, value: room.id })),
+]);
 
 const settingsViewOptions = computed(() =>
   settingsViews.map((view) => ({

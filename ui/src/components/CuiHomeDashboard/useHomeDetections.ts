@@ -13,8 +13,10 @@ export function useHomeDetections(cameras: () => DBCamera[]) {
   const latest = computed(() => {
     const out = new Map<string, HomeDetection>();
     for (const event of events.value) {
+      const active = event.state === 'active';
       const known = out.get(event.cameraId);
-      if (!known || event.lastUpdate > known.time) out.set(event.cameraId, { type: getPrimaryType(event), time: event.lastUpdate });
+      if (known && (known.active || (!active && known.time >= event.lastUpdate))) continue;
+      out.set(event.cameraId, { type: getPrimaryType(event), time: event.lastUpdate, active });
     }
     return out;
   });

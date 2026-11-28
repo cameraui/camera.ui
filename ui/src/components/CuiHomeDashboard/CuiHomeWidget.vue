@@ -73,10 +73,11 @@
           :room-names="roomNames"
           @update="emit('update', $event)"
         />
+        <CuiHomeEventsFilter v-if="entry.kind === 'events'" :cameras="entry.content.cameras" />
         <CuiHomeScopeOptions
-          v-if="entry.kind === 'notes' || entry.kind === 'events' || entry.kind === 'action'"
+          v-if="(entry.kind === 'notes' || entry.kind === 'events' || entry.kind === 'action') && scopes.length"
           :scope="entry.scope"
-          :pages
+          :pages="scopes"
           @update="emit('update', $event)"
         />
         <CuiHomeActionOptions
@@ -133,6 +134,7 @@ import CuiHomeCamera from './CuiHomeCamera.vue';
 import CuiHomeCameraOptions from './CuiHomeCameraOptions.vue';
 import CuiHomeClock from './CuiHomeClock.vue';
 import CuiHomeEvents from './CuiHomeEvents.vue';
+import CuiHomeEventsFilter from './CuiHomeEventsFilter.vue';
 import CuiHomeFloorplan from './CuiHomeFloorplan.vue';
 import CuiHomeGroup from './CuiHomeGroup.vue';
 import CuiHomeGroupMembers from './CuiHomeGroupMembers.vue';

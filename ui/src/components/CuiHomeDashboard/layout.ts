@@ -27,16 +27,17 @@ const TILE_SIZES = {
 
 const TILE_RANGE: HomeSizeRange = { w: [1, 4], h: [1, 4] };
 
-const CAMERA_WIDTHS = {
-  small: { xl: 3, lg: 3, md: 3, sm: 2 },
-  medium: { xl: 4, lg: 4, md: 4, sm: 3 },
-  large: { xl: 8, lg: 6, md: 6, sm: 4 },
-  full: { xl: 16, lg: 12, md: 8, sm: 4 },
-} satisfies Record<string, Record<DBHomeBreakpoint, number>>;
-
-const CAMERA_MAX_ROWS = 10;
-
 export const HOME_SPECS = {
+  camera: {
+    initial: 'medium',
+    sizes: {
+      small: sized('small', [3, 2], [3, 2], [2, 2]),
+      medium: sized('medium', [4, 3]),
+      large: sized('large', [6, 5], [6, 5], [4, 3], [8, 6]),
+      full: sized('full', [12, 9], [8, 6], [4, 3], [16, 10]),
+    },
+    range: { w: [2, HOME_COLUMNS.xl], h: [2, 16] },
+  },
   notes: {
     initial: 'medium',
     sizes: { small: sized('small', [4, 2]), medium: sized('medium', [4, 3]), large: sized('large', [6, 4], [8, 4], [4, 4]) },
@@ -94,21 +95,6 @@ export const HOME_SPECS = {
     range: { w: [3, HOME_COLUMNS.xl], h: [2, 12] },
   },
 } satisfies Record<string, HomeWidgetSpec>;
-
-export function cameraSpec(aspectRatio = '16:9'): HomeWidgetSpec {
-  const [width, height] = aspectRatio.split(':').map(Number);
-  const ratio = width && height ? width / height : 16 / 9;
-  const sizes: Record<string, HomeSize> = {};
-  for (const [name, widths] of Object.entries(CAMERA_WIDTHS)) {
-    const cells = {} as HomeSize['cells'];
-    for (const bp of HOME_BREAKPOINTS) {
-      const h = Math.min(Math.max(1, Math.round(widths[bp] / ratio)), CAMERA_MAX_ROWS);
-      cells[bp] = { w: Math.min(widths[bp], Math.max(1, Math.round(h * ratio))), h };
-    }
-    sizes[name] = { label: name as HomeSizeLabel, cells };
-  }
-  return { initial: 'large', sizes, range: { w: [2, HOME_COLUMNS.xl], h: [2, 16] } };
-}
 
 export function skeletonLayout(cols: number, rows: number): DBHomeWidgetPosition[] {
   const positions: DBHomeWidgetPosition[] = [];

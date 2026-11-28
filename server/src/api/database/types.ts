@@ -677,6 +677,7 @@ export interface DBHomePage {
   id: string;
   size?: DBHomeBreakpoint;
   autoAdd: boolean;
+  showDock?: boolean;
   widgets: DBHomeWidget[];
   hidden: string[];
 }

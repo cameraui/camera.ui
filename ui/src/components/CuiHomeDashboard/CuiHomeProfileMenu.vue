@@ -50,9 +50,9 @@ const label = computed(() => t(props.pinned ? 'views.home_dashboard.profile_swit
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  min-width: 3.125rem;
+  min-width: 2.75rem;
   max-width: 14rem;
-  height: 3.125rem;
+  height: 2.75rem;
   border-radius: 9999px;
   border: 1px solid var(--border-color);
   background: var(--p-content-background);

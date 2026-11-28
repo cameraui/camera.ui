@@ -31,7 +31,7 @@
       @fullscreen="onFullscreen"
     />
     <RouterLink v-else :key="shown._id" :to="cameraPath" class="home-camera__view block w-full h-full" :data-enter="direction">
-      <CuiCameraSnapshot ref="snapshotRef" :camera="shown" width="100%" height="100%" :object-fit="pictureFit" show-timestamp />
+      <CuiCameraSnapshot :camera="shown" width="100%" height="100%" :object-fit="pictureFit" show-timestamp />
     </RouterLink>
 
     <div class="home-camera__top">
@@ -49,7 +49,7 @@
       </span>
     </div>
 
-    <div v-if="!editing" class="home-camera__bar">
+    <div v-if="!editing" class="home-camera__bar" :class="{ 'home-camera__bar--open': open && layout === 'row' }">
       <div v-if="cameras.length > 1" class="home-camera__switch" :style="{ '--rotate': `${rotate}s` }">
         <button
           v-for="camera in cameras"
@@ -64,15 +64,28 @@
         />
       </div>
 
-      <div class="home-camera__actions">
-        <template v-if="!shown.disabled && !isPrivate">
+      <div class="home-camera__end">
+        <div v-if="playable" class="home-camera__actions" :inert="open && layout === 'row'">
+          <Button
+            v-tooltip.top="t(live ? 'views.home_dashboard.show_snapshot' : 'views.home_dashboard.show_live')"
+            severity="secondary"
+            rounded
+            class="dark-mode cui-icon-md"
+            :aria-label="t(live ? 'views.home_dashboard.show_snapshot' : 'views.home_dashboard.show_live')"
+            @click="live = !live"
+          >
+            <template #icon>
+              <i-solar:stop-bold v-if="live" width="60%" height="60%" />
+              <i-solar:play-bold v-else width="70%" height="70%" />
+            </template>
+          </Button>
           <template v-if="live">
             <Button
               v-if="cardRef?.streamHasSound"
               v-tooltip.top="t(speakerOn ? 'components.form.tooltip.mute' : 'components.form.tooltip.unmute')"
               severity="secondary"
               rounded
-              class="dark-mode cui-icon-md"
+              class="home-camera__extra dark-mode cui-icon-md"
               :aria-label="t(speakerOn ? 'components.form.tooltip.mute' : 'components.form.tooltip.unmute')"
               :aria-pressed="speakerOn"
               @click="cardRef.toggleMute()"
@@ -87,7 +100,7 @@
               v-tooltip.top="t(talking ? 'views.home_dashboard.talk_stop' : 'views.home_dashboard.talk')"
               :severity="talking ? 'primary' : 'secondary'"
               rounded
-              class="dark-mode cui-icon-md"
+              class="home-camera__extra dark-mode cui-icon-md"
               :disabled="cardRef.micButtonDisabled"
               :aria-label="t(talking ? 'views.home_dashboard.talk_stop' : 'views.home_dashboard.talk')"
               :aria-pressed="talking"
@@ -98,94 +111,73 @@
                 <i-mdi:microphone-outline v-else width="100%" height="100%" />
               </template>
             </Button>
+            <Button
+              v-tooltip.top="t('views.home_dashboard.fullscreen')"
+              severity="secondary"
+              rounded
+              class="dark-mode cui-icon-md"
+              :aria-label="t('views.home_dashboard.fullscreen')"
+              @click="cardRef?.toggleFs()"
+            >
+              <template #icon>
+                <i-mdi:fullscreen width="100%" height="100%" />
+              </template>
+            </Button>
           </template>
+        </div>
+        <template v-if="tools.length">
+          <Button
+            v-if="layout === 'menu'"
+            v-tooltip.top="t('views.home_dashboard.camera_actions')"
+            severity="secondary"
+            rounded
+            class="home-camera__more dark-mode cui-icon-md"
+            :aria-label="t('views.home_dashboard.camera_actions')"
+            aria-haspopup="menu"
+            @click="menuRef?.toggleMenu($event)"
+          >
+            <template #icon>
+              <CuiDotsIcon :open="!!menuRef?.isOpen" class="home-camera__dots" />
+            </template>
+          </Button>
           <Button
             v-else
-            v-tooltip.top="t('components.player.refresh_snapshot')"
+            v-tooltip.top="t('views.home_dashboard.camera_actions')"
             severity="secondary"
             rounded
-            class="home-camera__tool dark-mode cui-icon-md"
-            :aria-label="t('components.player.refresh_snapshot')"
-            @click="snapshotRef?.refresh()"
+            class="home-camera__more dark-mode cui-icon-md"
+            :aria-label="t('views.home_dashboard.camera_actions')"
+            :aria-expanded="open"
+            @click="open = !open"
           >
             <template #icon>
-              <i-material-symbols:refresh-rounded width="100%" height="100%" />
-            </template>
-          </Button>
-          <Button
-            v-if="isAdmin"
-            v-tooltip.top="t('components.player.log')"
-            severity="secondary"
-            rounded
-            class="home-camera__tool dark-mode cui-icon-md"
-            :aria-label="t('components.player.log')"
-            @click="openCameraConsole(shown)"
-          >
-            <template #icon>
-              <i-icon-park-outline:terminal width="100%" height="100%" />
-            </template>
-          </Button>
-        </template>
-        <Button
-          v-if="isAdmin && !shown.disabled"
-          v-tooltip.top="t(isPrivate ? 'components.player.privacy_off' : 'components.player.privacy_on')"
-          :severity="isPrivate ? 'primary' : 'secondary'"
-          rounded
-          class="dark-mode cui-icon-md"
-          :class="{ 'home-camera__tool': !isPrivate }"
-          :loading="switching"
-          :aria-label="t(isPrivate ? 'components.player.privacy_off' : 'components.player.privacy_on')"
-          :aria-pressed="isPrivate"
-          @click="setPrivacy(shown.name, !isPrivate)"
-        >
-          <template #icon>
-            <i-mdi:eye-off v-if="isPrivate" width="100%" height="100%" />
-            <i-mdi:eye-outline v-else width="100%" height="100%" />
-          </template>
-        </Button>
-        <Button
-          v-if="isAdmin"
-          v-tooltip.top="t('components.player.settings')"
-          severity="secondary"
-          rounded
-          class="home-camera__tool dark-mode cui-icon-md"
-          :aria-label="t('components.player.settings')"
-          @click="drawer.open({ cameraName: shown.name })"
-        >
-          <template #icon>
-            <i-mdi:cog width="100%" height="100%" />
-          </template>
-        </Button>
-        <template v-if="!shown.disabled && !isPrivate">
-          <Button
-            v-if="live"
-            v-tooltip.top="t('views.home_dashboard.fullscreen')"
-            severity="secondary"
-            rounded
-            class="dark-mode cui-icon-md"
-            :aria-label="t('views.home_dashboard.fullscreen')"
-            @click="cardRef?.toggleFs()"
-          >
-            <template #icon>
-              <i-mdi:fullscreen width="100%" height="100%" />
-            </template>
-          </Button>
-          <Button
-            v-tooltip.top="t(live ? 'views.home_dashboard.show_snapshot' : 'views.home_dashboard.show_live')"
-            severity="secondary"
-            rounded
-            class="dark-mode cui-icon-md"
-            :aria-label="t(live ? 'views.home_dashboard.show_snapshot' : 'views.home_dashboard.show_live')"
-            @click="live = !live"
-          >
-            <template #icon>
-              <i-mdi:stop v-if="live" width="100%" height="100%" />
-              <i-mdi:play v-else width="100%" height="100%" />
+              <CuiDotsIcon :open class="home-camera__dots" />
             </template>
           </Button>
         </template>
       </div>
+
+      <div v-if="tools.length && layout !== 'menu'" class="home-camera__tools" :class="{ 'home-camera__tools--up': layout === 'column' }" :inert="!open">
+        <Button
+          v-for="tool in tools"
+          :key="tool.key"
+          v-tooltip.top="tool.label"
+          :severity="tool.on ? 'primary' : 'secondary'"
+          rounded
+          class="dark-mode cui-icon-md"
+          :loading="tool.busy"
+          :aria-label="tool.label"
+          :aria-pressed="tool.on"
+          @click="tool.run()"
+        >
+          <template #icon>
+            <component :is="tool.icon" width="100%" height="100%" />
+          </template>
+        </Button>
+      </div>
     </div>
+
+    <CuiMenu v-if="layout === 'menu' && tools.length" ref="menuRef" :items="toolItems" />
   </div>
 </template>
 
@@ -194,39 +186,57 @@ const shownCameras = new Map<string, string>();
 </script>
 
 <script setup lang="ts">
-import { useNvrPlayback } from '@camera.ui/nvr';
+import { useNvrPlayback, useRecordingExport } from '@camera.ui/nvr';
+import LogIcon from '~icons/icon-park-outline/terminal';
+import SettingsIcon from '~icons/mdi/cog';
+import PowerIcon from '~icons/mdi/power';
 
+import { bulkPatchCamerasFn } from '@/api/routes/cameras.js';
 import { inPrivacy, usePrivacyActive, usePrivacySwitch } from '@/common/cameraPrivacy.js';
 import { detectionStyle } from '@/common/detectionLabels.js';
 import { detectionLabelKey } from '@/common/eventLabels.js';
+import { extractErrorMessage } from '@/common/utils.js';
 import CuiCameraCard from '@/components/CuiCameraCard/CuiCameraCard.vue';
 import { useRelativeTime } from '@/components/CuiSensorTile/useRelativeTime.js';
 
+import { HOME_ACTION_LOOKS } from './actions.js';
 import { useCameraRotation } from './useCameraRotation.js';
 
-import type { CuiHomeCameraProps } from './types.js';
+import type { BulkPatchCamerasInput } from '@shared/types';
+import type { MenuItem } from '../CuiMenu/types.js';
+import type { CuiHomeCameraProps, HomeCameraTool } from './types.js';
 
 const props = defineProps<CuiHomeCameraProps>();
 
 const { t } = useI18n();
 const { now, timeAgo } = useRelativeTime();
 const drawer = useCuiCameraDrawer();
+const toast = useCuiToast();
+const queryClient = useQueryClient();
 const { openCameraConsole } = useCameraConsoleDialog();
 const { switching, setPrivacy } = usePrivacySwitch();
+const { isAvailable: hasNvr } = useRecordingExport();
 
 const routerStore = useRouterStore();
 
 const RECENT_MS = 10 * 60_000;
+const TOOL_STEP = 32;
+const BAR_INSET = 16;
+const TOP_ROOM = 64;
 
 const isAdmin = hasPermission(undefined, 'admin');
 
 const rootRef = useTemplateRef<HTMLDivElement>('rootRef');
 const cardRef = useTemplateRef<InstanceType<typeof CuiCameraCard>>('cardRef');
-const snapshotRef = useTemplateRef('snapshotRef');
+const menuRef = useTemplateRef('menuRef');
 
 const live = ref(false);
 const shownId = ref(shownCameras.get(props.camera._id) ?? props.camera._id);
 const fullscreen = ref(false);
+const open = ref(false);
+const busy = ref<string>();
+
+const { width: cardWidth, height: cardHeight } = useElementSize(rootRef);
 
 const shown = computed(() => props.cameras.find((camera) => camera._id === shownId.value) ?? props.camera);
 const isPrivate = usePrivacyActive(shown);
@@ -238,12 +248,75 @@ const speakerOn = computed(() => !!cardRef.value?.speakerOn);
 const detection = computed(() => {
   if (isPrivate.value) return undefined;
   const latest = props.detections.get(shown.value._id);
-  return latest && now.value.getTime() - latest.time < RECENT_MS ? latest : undefined;
+  if (!latest) return undefined;
+  // the home lists get no ticks, a running event is now
+  if (latest.active) return { ...latest, time: now.value.getTime() };
+  return now.value.getTime() - latest.time < RECENT_MS ? latest : undefined;
 });
 const followable = computed(
   () => new Map([...props.activity].filter(([id]) => props.cameras.some((camera) => camera._id === id && !camera.disabled && !inPrivacy(camera)))),
 );
 const pictureFit = computed(() => (props.fit === 'aspect' ? 'contain' : props.fit));
+const playable = computed(() => !shown.value.disabled && !isPrivate.value);
+const tools = computed<HomeCameraTool[]>(() => {
+  if (!isAdmin) return [];
+  const camera = shown.value;
+  const power: HomeCameraTool = {
+    key: 'power',
+    label: t(camera.disabled ? 'views.home_dashboard.camera_enable' : 'views.home_dashboard.camera_disable'),
+    icon: PowerIcon,
+    on: camera.disabled,
+    busy: busy.value === 'power',
+    run: () => patch('power', { disabled: !camera.disabled }),
+  };
+  const settings: HomeCameraTool = { key: 'settings', label: t('components.player.settings'), icon: SettingsIcon, run: () => drawer.open({ cameraName: camera.name }) };
+  if (camera.disabled) return [settings, power];
+
+  const snoozed = !!camera.detectionSettings?.snooze;
+  const paused = !!camera.recordingSettings?.paused;
+  return [
+    settings,
+    { key: 'log', label: t('components.player.log'), icon: LogIcon, run: () => openCameraConsole(camera) },
+    {
+      key: 'snooze',
+      label: t(snoozed ? 'views.home_dashboard.detection_resume' : 'views.home_dashboard.detection_pause'),
+      icon: snoozed ? HOME_ACTION_LOOKS.snooze.onIcon : HOME_ACTION_LOOKS.snooze.icon,
+      on: snoozed,
+      busy: busy.value === 'snooze',
+      run: () => patch('snooze', { detectionSettings: { snooze: !snoozed } }),
+    },
+    {
+      key: 'privacy',
+      label: t(isPrivate.value ? 'components.player.privacy_off' : 'components.player.privacy_on'),
+      icon: isPrivate.value ? HOME_ACTION_LOOKS.privacy.onIcon : HOME_ACTION_LOOKS.privacy.icon,
+      on: isPrivate.value,
+      busy: switching.value,
+      run: () => setPrivacy(camera.name, !isPrivate.value),
+    },
+    ...(hasNvr.value && camera.recordingSettings?.enabled
+      ? [
+          {
+            key: 'recording',
+            label: t(paused ? 'views.home_dashboard.recording_resume' : 'views.home_dashboard.recording_pause'),
+            icon: paused ? HOME_ACTION_LOOKS.recording.onIcon : HOME_ACTION_LOOKS.recording.icon,
+            on: paused,
+            busy: busy.value === 'recording',
+            run: () => patch('recording', { recordingSettings: { paused: !paused } }),
+          },
+        ]
+      : []),
+    power,
+  ];
+});
+const toolItems = computed<MenuItem[]>(() =>
+  tools.value.map((tool) => ({ key: tool.key, label: tool.label, icon: tool.icon, active: tool.on, loading: tool.busy, onClick: tool.run })),
+);
+
+const layout = computed(() => {
+  const length = (tools.value.length + 1) * TOOL_STEP + 2 * BAR_INSET;
+  if (cardWidth.value >= length) return 'row';
+  return cardHeight.value >= length + TOP_ROOM ? 'column' : 'menu';
+});
 
 const onScreen = useElementVisibility(rootRef);
 const page = useDocumentVisibility();
@@ -271,6 +344,19 @@ const nvrController = useNvrPlayback(
   { sourceRole: computed(() => shown.value.interfaceSettings.playbackSource) },
 );
 
+async function patch(key: string, cameraData: BulkPatchCamerasInput['cameraData']) {
+  busy.value = key;
+  try {
+    const { failed } = await bulkPatchCamerasFn({ cameranames: [shown.value.name], cameraData });
+    if (failed.length) toast.add({ severity: 'error', detail: failed.map((entry) => entry.error).join(', '), life: 5000 });
+  } catch (error) {
+    toast.add({ severity: 'error', detail: extractErrorMessage(error), life: 4000 });
+  } finally {
+    await queryClient.refetchQueries({ queryKey: ['camerasList'] });
+    busy.value = undefined;
+  }
+}
+
 function onFullscreen(active: boolean) {
   fullscreen.value = active;
   if (!active && nvrController.isActive.value) nvrController.stop();
@@ -284,6 +370,8 @@ watch(
 watch(shownId, (id) => shownCameras.set(props.camera._id, id));
 
 watch(live, () => (direction.value = undefined));
+
+watch([shownId, () => props.editing, layout], () => (open.value = false));
 
 watch(
   () => isPrivate.value || shown.value.disabled,
@@ -477,17 +565,78 @@ watch(
   outline-offset: -2px;
 }
 
-.home-camera__actions {
+.home-camera__end {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+.home-camera__actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 0.25rem;
+  pointer-events: auto;
+  transition:
+    opacity 0.2s ease,
+    translate 0.2s ease;
+}
+
+.home-camera__bar--open .home-camera__actions,
+.home-camera__bar--open .home-camera__switch {
+  opacity: 0;
+  translate: -0.5rem 0;
+  pointer-events: none;
+}
+
+.home-camera__switch {
+  transition: opacity 0.2s ease;
+}
+
+.home-camera__more {
+  flex-shrink: 0;
   pointer-events: auto;
 }
 
-@container home-camera (width < 18rem) {
-  .home-camera__tool {
+.home-camera__dots {
+  --cui-dots-size: 4px;
+  --cui-dots-gap: 2px;
+}
+
+.home-camera__tools {
+  position: absolute;
+  right: 3rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 0.25rem;
+  pointer-events: auto;
+  transition:
+    opacity 0.2s ease,
+    translate 0.2s ease,
+    visibility 0.2s;
+}
+
+.home-camera__tools--up {
+  right: 1rem;
+  bottom: 3rem;
+  flex-direction: column-reverse;
+}
+
+.home-camera__tools[inert] {
+  visibility: hidden;
+  opacity: 0;
+  translate: 0.75rem 0;
+}
+
+.home-camera__tools--up[inert] {
+  translate: 0 0.75rem;
+}
+
+@container home-camera (width < 14rem) {
+  .home-camera__extra {
     display: none;
   }
 }

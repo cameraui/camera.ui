@@ -404,7 +404,6 @@
     "useFullscreen": true,
     "useGamepad": true,
     "useGeolocation": true,
-    "useHiddenHomeCameras": true,
     "useHostMenu": true,
     "useHttp": true,
     "useI18n": true,

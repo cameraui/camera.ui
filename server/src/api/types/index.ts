@@ -1021,14 +1021,6 @@ export interface CamviewSettings {
   layouts?: Record<string, CamviewLayoutOverride[]>;
 }
 
-export interface CamerasSettings {
-  showEvents: boolean;
-  order?: string[]; // camera ids
-  groupOrder?: Record<string, string[]>; // camera order per room
-  viewMode?: 'default' | 'grouped';
-  dragDisabled: boolean;
-}
-
 export type NavGroup = 'main' | 'manage' | 'system';
 
 export interface NavLayoutSettings {
@@ -1058,11 +1050,10 @@ export interface PluginsViewSettings {
 
 export interface HomeSettings {
   deviceProfiles: Record<string, string>;
-  dashboard: boolean;
+  startPages: Record<string, string>;
 }
 
 export interface UiSettingsLocalStorage {
-  cameras: CamerasSettings;
   camview: CamviewSettings;
   config: ConfigSettings;
   console: ConsoleSettings;

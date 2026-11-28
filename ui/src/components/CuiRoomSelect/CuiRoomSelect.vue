@@ -15,7 +15,14 @@
       class="min-w-0"
     />
     <InputGroupAddon>
-      <Button v-tooltip.top="$t('components.form.button.create_room')" type="button" severity="secondary" text :disabled @click="openCreateRoomDialog">
+      <Button
+        v-tooltip.top="$t('components.form.button.create_room')"
+        type="button"
+        severity="secondary"
+        text
+        :disabled
+        @click="openCreateRoom((room) => (roomId = room.id))"
+      >
         <template #icon><i-mdi:plus /></template>
       </Button>
     </InputGroupAddon>
@@ -37,8 +44,8 @@
 
 <script setup lang="ts">
 import { RoomsQuery } from '@/api/routes/rooms.js';
-import CreateRoomDialog from '@/components/CuiDialog/templates/CreateRoom/CreateRoom.vue';
 import { buildRoomOptions, NEW_ROOM } from './rooms.js';
+import { useCreateRoom } from './useCreateRoom.js';
 
 import type { RoomOption, RoomOptionGroup } from './rooms.js';
 import type { CuiRoomSelectProps } from './types.js';
@@ -50,9 +57,9 @@ const roomId = defineModel<string | null>({ required: true });
 
 const dialog = useCuiDialog();
 const { t } = useI18n();
+const { openCreateRoom } = useCreateRoom();
 
 const { data: catalog, isBusy: roomsLoading } = roomsQuery.getRoomsQuery();
-const { mutateAsync: createRoom } = roomsQuery.createRoomMutation();
 const { mutateAsync: deleteRoom, isPending: deletingRoom } = roomsQuery.deleteRoomMutation();
 
 const grouped = computed(() => (catalog.value?.levels.length ?? 0) > 0);
@@ -70,21 +77,6 @@ const roomOptions = computed<RoomOption[] | RoomOptionGroup[]>(() => {
 });
 const defaultRoom = computed(() => catalog.value?.rooms.find((room) => room.name === 'Default'));
 const deletableRoom = computed(() => catalog.value?.rooms.find((room) => room.id === roomId.value && room.id !== defaultRoom.value?.id));
-
-function openCreateRoomDialog() {
-  dialog.openComponentDialog<Record<string, never>>(CreateRoomDialog, {
-    data: {
-      title: t('components.dialog.title.create_room'),
-      confirmText: t('components.form.button.add'),
-      contentProps: {},
-    },
-    onConfirm: async (name: string | null) => {
-      if (!name) return;
-      const room = await createRoom({ name, levelId: null, outdoor: false, publicSpace: false, note: '' });
-      roomId.value = room.id;
-    },
-  });
-}
 
 function confirmDeleteRoom() {
   const room = deletableRoom.value;

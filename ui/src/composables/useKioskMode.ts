@@ -3,10 +3,9 @@ import { isCapacitor } from '@/connection/index.js';
 export const useKioskMode = createSharedComposable(() => {
   const route = useRoute();
   const router = useRouter();
-  const { uiSettings } = storeToRefs(useUiStore());
 
   const enabled = useLocalStorage('cui-home-kiosk', false);
-  const active = computed(() => enabled.value && route.name === 'Home' && uiSettings.value.home.dashboard);
+  const active = computed(() => enabled.value && route.name === 'Home');
 
   watch(
     () => route.query.kiosk,

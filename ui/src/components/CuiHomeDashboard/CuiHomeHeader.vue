@@ -1,49 +1,67 @@
 <template>
   <header class="home-header" :class="{ 'home-header--editing': editing }">
     <div class="home-header__bar">
-      <div class="home-header__rooms" :inert="saving" :style="{ '--fade-start': atStart ? '0px' : '2.5rem', '--fade-end': atEnd ? '0px' : '2.5rem' }">
-        <nav ref="pagesRef" class="home-header__pages" :aria-label="t('views.home_dashboard.pages')" @scroll.passive="measure" @touchmove="holdScroll">
-          <div
-            v-for="tab in pages"
-            :key="tab.id"
-            class="home-pill"
-            :class="{
-              'home-pill--active': tab.id === page,
-              'home-pill--sortable': editing && tab.id !== HOME_PAGE,
-              'home-pill--lifted': tab.id === sorting,
-              'home-pill--hidden': tab.hidden,
-            }"
-            :style="{ order: order.indexOf(tab.id), transform: tab.id === sorting ? `translateX(${shift}px)` : undefined }"
-            :data-page="tab.id"
-            @pointerdown="grab($event, tab.id)"
-          >
-            <button type="button" class="home-pill__name" :aria-current="tab.id === page ? 'page' : undefined" @click="open(tab.id)">
-              {{ tab.name }}
-            </button>
-            <button
-              v-if="editing && tab.id !== HOME_PAGE"
-              type="button"
-              class="home-pill__eye"
-              :aria-label="t(tab.hidden ? 'views.home_dashboard.room_show' : 'views.home_dashboard.room_hide', { name: tab.name })"
-              :aria-pressed="tab.hidden"
-              @click="emit('hide', tab.id, !tab.hidden)"
+      <div class="home-header__start" :inert="saving">
+        <div class="home-header__rooms" :style="{ '--fade-start': atStart ? '0px' : '2.5rem', '--fade-end': atEnd ? '0px' : '2.5rem' }">
+          <nav ref="pagesRef" class="home-header__pages" :aria-label="t('views.home_dashboard.pages')" @scroll.passive="measure" @touchmove="holdScroll">
+            <div
+              v-for="tab in pages"
+              :key="tab.id"
+              class="home-pill"
+              :class="{
+                'home-pill--active': tab.id === page,
+                'home-pill--sortable': editing && isRoomPage(tab.id),
+                'home-pill--lifted': tab.id === sorting,
+                'home-pill--hidden': tab.hidden,
+              }"
+              :style="{ order: order.indexOf(tab.id), transform: tab.id === sorting ? `translateX(${shift}px)` : undefined }"
+              :data-page="tab.id"
+              @pointerdown="grab($event, tab.id)"
             >
-              <i-mdi:eye-off-outline v-if="tab.hidden" />
-              <i-mdi:eye-outline v-else />
-            </button>
-          </div>
-        </nav>
+              <button type="button" class="home-pill__name" :aria-current="tab.id === page ? 'page' : undefined" @click="open(tab.id)">
+                {{ tab.name }}
+              </button>
+              <button
+                v-if="editing && isRoomPage(tab.id)"
+                type="button"
+                class="home-pill__eye"
+                :aria-label="t(tab.hidden ? 'views.home_dashboard.room_show' : 'views.home_dashboard.room_hide', { name: tab.name })"
+                :aria-pressed="tab.hidden"
+                @click="emit('hide', tab.id, !tab.hidden)"
+              >
+                <i-mdi:eye-off-outline v-if="tab.hidden" />
+                <i-mdi:eye-outline v-else />
+              </button>
+            </div>
+          </nav>
+          <button
+            v-if="!atStart"
+            type="button"
+            class="home-header__arrow home-header__arrow--start"
+            :aria-label="t('views.home_dashboard.rooms_back')"
+            @click="scrollPages(-1)"
+          >
+            <i-mdi:chevron-left />
+          </button>
+          <button
+            v-if="!atEnd"
+            type="button"
+            class="home-header__arrow home-header__arrow--end"
+            :aria-label="t('views.home_dashboard.rooms_more')"
+            @click="scrollPages(1)"
+          >
+            <i-mdi:chevron-right />
+          </button>
+        </div>
         <button
-          v-if="!atStart"
+          v-if="admin && !kiosk"
+          v-tooltip.bottom="t('components.form.button.create_room')"
           type="button"
-          class="home-header__arrow home-header__arrow--start"
-          :aria-label="t('views.home_dashboard.rooms_back')"
-          @click="scrollPages(-1)"
+          class="home-header__icon"
+          :aria-label="t('components.form.button.create_room')"
+          @click="openCreateRoom((room) => (page = room.id))"
         >
-          <i-mdi:chevron-left />
-        </button>
-        <button v-if="!atEnd" type="button" class="home-header__arrow home-header__arrow--end" :aria-label="t('views.home_dashboard.rooms_more')" @click="scrollPages(1)">
-          <i-mdi:chevron-right />
+          <i-mdi:plus />
         </button>
       </div>
 
@@ -63,6 +81,7 @@
             </template>
           </Button>
           <Button
+            v-if="arrangeable"
             v-tooltip.bottom="t('views.home_dashboard.arrange_hint')"
             rounded
             severity="secondary"
@@ -108,8 +127,9 @@
 </template>
 
 <script setup lang="ts">
+import { useCreateRoom } from '../CuiRoomSelect/useCreateRoom.js';
 import CuiHomeProfileMenu from './CuiHomeProfileMenu.vue';
-import { HOME_PAGE } from './home.js';
+import { isRoomPage } from './pages.js';
 
 import type { CuiHomeHeaderEmits, CuiHomeHeaderProps } from './types.js';
 
@@ -119,6 +139,9 @@ const page = defineModel<string>('page', { required: true });
 
 const { t } = useI18n();
 const { enabled: kiosk } = useKioskMode();
+const { openCreateRoom } = useCreateRoom();
+
+const admin = hasPermission(undefined, 'admin');
 
 const HOLD_MS = 300;
 const SLOP_PX = 6;
@@ -159,7 +182,7 @@ function open(id: string) {
 
 function grab(event: PointerEvent, id: string) {
   const onEye = (event.target as HTMLElement).closest('.home-pill__eye');
-  if (!props.editing || id === HOME_PAGE || pending || onEye || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  if (!props.editing || !isRoomPage(id) || pending || onEye || (event.pointerType === 'mouse' && event.button !== 0)) return;
   const touch = event.pointerType !== 'mouse';
   pending = { id, pointerId: event.pointerId, x: event.clientX, touch };
   if (touch) pending.timer = setTimeout(lift, HOLD_MS);
@@ -209,7 +232,7 @@ async function reorder(x: number) {
   if (!lifted) return;
   const middle = x - grabOffset + lifted.offsetWidth / 2;
   const others = order.value.filter((entry) => entry !== id);
-  const index = others.findIndex((entry, at) => at > 0 && middleOf(entry) > middle);
+  const index = others.findIndex((entry) => isRoomPage(entry) && middleOf(entry) > middle);
   const next = index < 0 ? [...others, id] : [...others.slice(0, index), id, ...others.slice(index)];
   if (next.join() !== order.value.join()) {
     const before = new Map(order.value.map((entry) => [entry, pillOf(entry)?.offsetLeft ?? 0]));
@@ -250,10 +273,7 @@ function drop(event: PointerEvent) {
   if (!id) return;
   droppedAt = performance.now();
   pillOf(id)?.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], { duration: SLIDE_MS, easing: 'ease-out' });
-  emit(
-    'reorder',
-    order.value.filter((entry) => entry !== HOME_PAGE),
-  );
+  emit('reorder', order.value.filter(isRoomPage));
 }
 
 function cancel() {
@@ -295,11 +315,20 @@ onBeforeUnmount(stop);
   container: home-header / inline-size;
 }
 
+/* the wide column gap keeps the rooms apart from the buttons, so it stays clear what belongs where */
 .home-header__bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem 1rem;
-  min-height: 3.5rem;
+  gap: 0.75rem 3.5rem;
+  min-height: 2.75rem;
+}
+
+.home-header__start {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .home-header__rooms {
@@ -307,7 +336,7 @@ onBeforeUnmount(stop);
   display: flex;
   flex: 0 1 auto;
   min-width: 0;
-  padding: 0.25rem;
+  padding: 0.1875rem;
   border-radius: 9999px;
   border: 1px solid var(--border-color);
   background: var(--p-content-background);
@@ -319,7 +348,7 @@ onBeforeUnmount(stop);
     align-items: flex-end;
   }
 
-  .home-header--editing .home-header__rooms {
+  .home-header--editing .home-header__start {
     align-self: flex-start;
     max-width: 100%;
     order: 1;
@@ -346,11 +375,11 @@ onBeforeUnmount(stop);
 }
 
 .home-header__arrow--start {
-  left: 0.375rem;
+  left: 0.25rem;
 }
 
 .home-header__arrow--end {
-  right: 0.375rem;
+  right: 0.25rem;
 }
 
 .home-header__actions {
@@ -369,10 +398,11 @@ onBeforeUnmount(stop);
 
 .home-header__icon {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 3.125rem;
-  height: 3.125rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   border: 1px solid var(--border-color);
   background: var(--p-content-background);
@@ -415,7 +445,7 @@ onBeforeUnmount(stop);
   display: flex;
   flex: none;
   align-items: center;
-  height: 2.5rem;
+  height: 2.25rem;
   border-radius: 9999px;
   color: var(--text-secondary-color);
   transition:
@@ -447,7 +477,7 @@ onBeforeUnmount(stop);
 }
 
 .home-pill--sortable .home-pill__name {
-  padding-right: 0.375rem;
+  padding-right: 0.25rem;
 }
 
 .home-pill__eye {
@@ -456,7 +486,7 @@ onBeforeUnmount(stop);
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  margin-right: 0.375rem;
+  margin-right: 0.25rem;
   border-radius: 50%;
   background: transparent;
   color: inherit;

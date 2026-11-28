@@ -41,11 +41,15 @@
       </template>
 
       <template v-else>
-        <CuiToggleRow :label="t('views.home_dashboard.auto_add')" :hint="t('views.home_dashboard.auto_add_hint')">
+        <slot name="page" />
+        <CuiToggleRow :label="t('views.home_dashboard.show_dock')" :hint="t('views.home_dashboard.show_dock_hint')">
+          <ToggleSwitch :model-value="showsDock(page)" @update:model-value="emit('show-dock', $event)" />
+        </CuiToggleRow>
+        <CuiToggleRow v-if="isRoomPage(page.id)" :label="t('views.home_dashboard.auto_add')" :hint="t('views.home_dashboard.auto_add_hint')">
           <ToggleSwitch :model-value="page.autoAdd" @update:model-value="emit('auto-add', $event)" />
         </CuiToggleRow>
         <Button severity="danger" outlined fluid :label="t('views.home_dashboard.clear_page')" @click="emit('clear')" />
-        <Button severity="danger" outlined fluid :label="t('views.home_dashboard.reset_page')" @click="emit('reset')" />
+        <Button v-if="page.id !== HOME_PAGE" severity="danger" outlined fluid :label="t('views.home_dashboard.reset_page')" @click="emit('reset')" />
       </template>
     </div>
   </DefineBody>
@@ -80,6 +84,7 @@
 import { GridStack } from 'gridstack';
 
 import { initialSize } from './layout.js';
+import { HOME_PAGE, isRoomPage, showsDock } from './pages.js';
 
 import type { CuiHomeEditPanelEmits, CuiHomeEditPanelProps, HomeLibraryItem } from './types.js';
 

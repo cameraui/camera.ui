@@ -12,13 +12,6 @@ interface LoggerLocalStorage {
 }
 
 const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
-  cameras: {
-    showEvents: true,
-    order: [],
-    groupOrder: {},
-    viewMode: 'default',
-    dragDisabled: true,
-  },
   camview: {
     dragDisabled: false,
     detections: true,
@@ -46,7 +39,7 @@ const defaultUiSettings: UiSettingsLocalStorage & LoggerLocalStorage = {
   },
   home: {
     deviceProfiles: {},
-    dashboard: false,
+    startPages: {},
   },
   'cui-logger-debug': 1,
   'cui-logger-recording': 1,
@@ -64,7 +57,7 @@ export const useUiStore = defineStore('ui', () => {
   uiSettings.value.sensors.onlyEnabledCameraBound ??= true;
   uiSettings.value.sensors.hiddenTypes ??= [...ANALYSIS_SENSOR_TYPES];
   uiSettings.value.home.deviceProfiles ??= {};
-  uiSettings.value.home.dashboard ??= false;
+  uiSettings.value.home.startPages ??= {};
 
   return {
     uiSettings,

@@ -255,6 +255,7 @@ export const homeProfileSchema = zod.object({
       id: zod.string().trim().min(1).max(200),
       size: zod.enum(HOME_BREAKPOINTS).optional(),
       autoAdd: zod.boolean(),
+      showDock: zod.boolean().optional(),
       widgets: zod
         .object({
           id: zod.string().trim().min(1).max(300),

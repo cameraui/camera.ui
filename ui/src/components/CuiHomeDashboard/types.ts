@@ -84,6 +84,7 @@ export interface HomeLevel {
 export interface HomeDetection {
   type: string;
   time: number;
+  active: boolean;
 }
 
 export interface HomeGridItem extends DBHomeWidgetPosition {
@@ -180,7 +181,7 @@ export interface CuiHomeWidgetProps {
   sizes: HomeSizeOption[];
   editing: boolean;
   cameras: DBCamera[];
-  pages: HomePageTab[];
+  scopes: HomePageTab[];
   roomNames: Map<string, string>;
   detections: Map<string, HomeDetection>;
   activity: Map<string, CameraActivity>;
@@ -194,6 +195,15 @@ export interface CuiHomeWidgetEmits {
   (e: 'update', patch: HomeWidgetPatch): void;
   (e: 'take', sensorId: string): void;
   (e: 'dissolve'): void;
+}
+
+export interface HomeCameraTool {
+  key: string;
+  label: string;
+  icon: Component;
+  on?: boolean;
+  busy?: boolean;
+  run: () => void;
 }
 
 export interface CuiHomeCameraProps {
@@ -399,6 +409,7 @@ export interface CuiHomeHeaderProps {
   editing: boolean;
   saving: boolean;
   panelOpen: boolean;
+  arrangeable: boolean;
 }
 
 export interface CuiHomeActionsProps {
@@ -406,6 +417,7 @@ export interface CuiHomeActionsProps {
   editing: boolean;
   saving: boolean;
   panelOpen: boolean;
+  arrangeable: boolean;
 }
 
 export interface CuiHomeProfileMenuProps {
@@ -523,9 +535,27 @@ export interface CuiHomeEditPanelProps {
   top: number;
 }
 
+export interface CuiHomeCameraFlowProps {
+  ids: string[];
+  gap: number;
+  editing: boolean;
+  loading: boolean;
+}
+
+export interface CuiHomeCameraFlowEmits {
+  (e: 'reorder', ids: string[]): void;
+  (e: 'drop', id: string, index: number): void;
+}
+
+export interface CuiHomeEventsFilterProps {
+  cameras: DBCamera[];
+  label?: string;
+}
+
 export interface CuiHomeEditPanelEmits {
   (e: 'add', widget: DBHomeWidget, size: HomeCellSize): void;
   (e: 'auto-add', value: boolean): void;
+  (e: 'show-dock', value: boolean): void;
   (e: 'clear'): void;
   (e: 'reset'): void;
 }

@@ -23,7 +23,7 @@
 import PencilIcon from '~icons/mdi/pencil-outline';
 
 import CuiHomeRoomList from './CuiHomeRoomList.vue';
-import { HOME_PAGE } from './home.js';
+import { isRoomPage } from './pages.js';
 
 import type { MenuItem } from '../CuiMenu/types.js';
 import type { CuiHomeRoomListEmits, CuiHomeRoomMenuProps } from './types.js';
@@ -38,7 +38,7 @@ const menuRef = useTemplateRef('menuRef');
 const arranging = ref(false);
 
 const current = computed(() => props.pages.find((tab) => tab.id === page.value)?.name ?? '');
-const rooms = computed(() => props.pages.filter((tab) => tab.id !== HOME_PAGE));
+const rooms = computed(() => props.pages.filter((tab) => isRoomPage(tab.id)));
 const items = computed<MenuItem[]>(() => [
   ...props.pages.map((tab) => ({
     key: tab.id,
@@ -65,8 +65,10 @@ const items = computed<MenuItem[]>(() => [
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-color);
+  cursor: pointer;
 }
 
+.home-room-menu:hover,
 .home-room-menu:active {
   background: var(--p-content-hover-background);
 }

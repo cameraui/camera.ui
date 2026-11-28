@@ -16,12 +16,11 @@ import { compareSensorTypes } from '@/components/CuiSensorTile/order.js';
 import { hasSensorTile } from '@/components/CuiSensorTile/tiles.js';
 
 import { HOME_SPECS } from './layout.js';
+import { CAMERAS_PAGE, HOME_PAGE } from './pages.js';
 
 import type { ReactiveSensor } from '@camera.ui/browser';
 import type { DBAutomation, DBCamera, DBHomeWidget, DBHomeWidgetKind, DBRoomCatalog, TransformedSensor } from '@shared/types';
 import type { HomeDockCategory, HomeNote, HomePageContent, HomeRoom, HomeWidgetSpec } from './types.js';
-
-export const HOME_PAGE = 'home';
 
 export const HOME_ICONS = {
   camera: CameraIcon,
@@ -93,18 +92,11 @@ export function homeWidget(kind: DBHomeWidgetKind, ref?: string): DBHomeWidget {
   return { id: ref ? `${kind}:${ref}` : kind, kind, ref };
 }
 
-export function autoWidgets(pageId: string, content: HomePageContent, rooms: HomeRoom[]): DBHomeWidget[] {
-  const home = pageId === HOME_PAGE;
-  const roomIds = new Set(rooms.map((room) => room.id));
-  // the home page gathers what has no room page of its own
-  const tiles = home ? content.tiles.filter((sensor) => !roomIds.has(sensor.roomId.value ?? '')) : content.tiles;
-
-  return [
-    ...(home ? [homeWidget('notes')] : []),
-    ...(home && content.cameras.length ? [homeWidget('events')] : []),
-    ...content.cameras.map((camera) => homeWidget('camera', camera._id)),
-    ...[...tiles].sort(compareSensors).map((sensor) => homeWidget('sensor', sensor.id)),
-  ];
+export function autoWidgets(pageId: string, content: HomePageContent): DBHomeWidget[] {
+  if (pageId === HOME_PAGE) return [];
+  const cameras = content.cameras.map((camera) => homeWidget('camera', camera._id));
+  if (pageId === CAMERAS_PAGE) return cameras;
+  return [...cameras, ...[...content.tiles].sort(compareSensors).map((sensor) => homeWidget('sensor', sensor.id))];
 }
 
 export function tileSpec(type: string): HomeWidgetSpec {

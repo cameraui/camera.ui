@@ -7,8 +7,7 @@
       </div>
     </CuiTopbarSlot>
 
-    <CuiHomeDashboard v-if="uiSettings.home.dashboard" />
-    <CuiHome v-else />
+    <CuiHomeDashboard />
   </div>
 </template>
 
@@ -26,8 +25,6 @@ const { openCameraConsole } = useCameraConsoleDialog();
 const eventStore = useEventStore();
 const route = useRoute();
 const router = useRouter();
-
-const { uiSettings } = storeToRefs(useUiStore());
 
 const { data: cameras } = new CamerasQuery().getCamerasQuery({ page: 1, pageSize: -1 });
 
