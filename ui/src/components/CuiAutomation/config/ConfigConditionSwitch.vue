@@ -74,11 +74,6 @@ const sourceLabel = computed(() => {
   return def ? t(def.labelKey) : sourceNode.value.type;
 });
 
-const { sensors } = useAllSensors();
-const sensorSpecs = sensorSpecsLookup(sensors);
-
-const selectedVariable = computed(() => findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.variable, sensorSpecs));
-
 const sensorTrigger = computed<SensorTriggerData | undefined>(() => {
   let node = store.getDraftSourceNode(props.nodeId);
   for (let hops = 0; node && hops < 10; hops++) {
@@ -87,6 +82,11 @@ const sensorTrigger = computed<SensorTriggerData | undefined>(() => {
   }
   return undefined;
 });
+
+const { sensors } = useAllSensors({ sensorIds: () => (sensorTrigger.value?.sensorId ? [sensorTrigger.value.sensorId] : []) });
+const sensorSpecs = sensorSpecsLookup(sensors);
+
+const selectedVariable = computed(() => findFlowVariable(store.draft as AutomationFlow | null, props.nodeId, props.data.variable, sensorSpecs));
 
 const watchedProperties = computed(() => {
   const trigger = sensorTrigger.value;

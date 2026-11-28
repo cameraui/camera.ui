@@ -26,7 +26,7 @@ const props = defineProps<NodeProps<AutomationNodeData>>();
 
 const { t } = useI18n();
 const { cameraName } = useCameraNames();
-const { sensors: allSensors } = useAllSensors();
+const { sensors: allSensors } = useAllSensors({ sensorIds: [] });
 
 const nodeWarning = useNodeIssues(() => props.id);
 

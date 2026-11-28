@@ -89,7 +89,7 @@ const device = ref<VirtualDeviceChoice>({ deviceId: props.sensor.device?.id ?? n
 const { t } = useI18n();
 const toast = useCuiToast();
 
-const { sensors: allSensors } = useAllSensors();
+const { sensors: allSensors } = useAllSensors({ sensorIds: () => [props.sensor.id] });
 
 const canControl = canControlSensors();
 const lockedCameras = computed(() => props.cameraOptions.filter((camera) => props.sensor.assignedCameraIds.includes(camera.value)));

@@ -105,7 +105,7 @@ const emit = defineEmits<{
 }>();
 
 const { t, te } = useI18n();
-const { sensors } = useAllSensors();
+const { sensors } = useAllSensors({ sensorIds: () => (props.sensorId ? [props.sensorId] : []) });
 const faceStore = useFaceStore();
 
 const sensor = computed(() => sensors.value.find((s) => s.id === props.sensorId));

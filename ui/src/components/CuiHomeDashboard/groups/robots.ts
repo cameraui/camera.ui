@@ -119,7 +119,8 @@ export function useRobotGroup(sensors: () => ReactiveSensor[]) {
 
 export function useRobotBatteries(robots: () => ReactiveSensor[]) {
   const { data: sensorList } = new SensorsQuery().getSensorsQuery();
-  const { sensors: live } = useAllSensors();
+  const batteryIds = computed(() => (sensorList.value ?? []).flatMap((sensor) => (sensor.device && sensor.type === SensorType.Battery ? [sensor.id] : [])));
+  const { sensors: live } = useAllSensors({ sensorIds: batteryIds });
 
   // a robot reports its charge through the battery sensor of its device, which is never a group member
   const devices = computed(() => new Map((sensorList.value ?? []).flatMap((sensor) => (sensor.device ? [[sensor.id, sensor.device.id] as const] : []))));

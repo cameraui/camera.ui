@@ -73,7 +73,7 @@ const emit = defineEmits<ConfigNodeUpdateEmits>();
 const { t } = useI18n();
 
 const store = useAutomationsStore();
-const { sensors } = useAllSensors();
+const { sensors } = useAllSensors({ sensorIds: [] });
 const sensorSpecs = sensorSpecsLookup(sensors);
 
 const operators = [

@@ -55,7 +55,7 @@ const nodeWarning = useNodeIssues(() => props.id);
 const definition = computed(() => getNodeDefinition(props.type));
 const label = computed(() => (definition.value ? t(definition.value.labelKey) : props.type));
 const { cameraName } = useCameraNames();
-const { sensors: allSensors } = useAllSensors();
+const { sensors: allSensors } = useAllSensors({ sensorIds: [] });
 
 const subtitle = computed(() => getNodeSummary(props.data, cameraName, sensorLabel));
 

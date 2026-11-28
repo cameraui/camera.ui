@@ -40,7 +40,7 @@ export function useCameraOptions() {
   );
 
   function useSensorOptions(filter?: (sensor: ReactiveSensor) => boolean) {
-    const { sensors, isLoading } = useAllSensors();
+    const { sensors, isLoading } = useAllSensors({ sensorIds: [] });
 
     const sensorOptions = computed<SensorOption[]>(() =>
       sensors.value
