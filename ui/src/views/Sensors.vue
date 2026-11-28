@@ -53,16 +53,16 @@
       <ProgressSpinner stroke-width="5" class="w-[30px] h-[30px]" />
     </div>
 
-    <div v-else-if="!hasSensors" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
-      <div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center">
-        <i-material-symbols:home-iot-device-outline class="w-8 h-8 text-primary-500" />
-      </div>
-      <div class="flex flex-col items-center gap-1 max-w-[400px] text-center">
-        <span class="text-color font-semibold text-base">{{ isScanning ? t('views.sensors.scanning') : t('views.sensors.no_sensors') }}</span>
-        <span class="text-muted text-sm">{{ isScanning ? t('views.sensors.scanning_hint') : t('views.sensors.no_sensors_hint') }}</span>
-      </div>
-      <Button v-if="isAdmin" class="cui-button-medium mt-2" severity="secondary" :label="t('views.sensors.rescan')" :loading="isScanning" @click="handleRescan" />
-    </div>
+    <CuiEmptyState
+      v-else-if="!hasSensors"
+      :title="isScanning ? t('views.sensors.scanning') : t('views.sensors.no_sensors')"
+      :hint="isScanning ? t('views.sensors.scanning_hint') : t('views.sensors.no_sensors_hint')"
+    >
+      <template #icon>
+        <i-material-symbols:home-iot-device-outline />
+      </template>
+      <Button v-if="isAdmin" class="cui-button-medium" severity="secondary" :label="t('views.sensors.rescan')" :loading="isScanning" @click="handleRescan" />
+    </CuiEmptyState>
 
     <div v-else class="flex min-h-0 flex-col">
       <span class="card-title">{{ t('views.sensors.adopted_title') }}</span>

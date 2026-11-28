@@ -28,10 +28,11 @@
       <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
     </div>
 
-    <div v-if="!displayEvents.length && !isLoading" class="flex flex-col items-center justify-center py-10 gap-3">
-      <i-tabler:video-off class="w-12 h-12 text-muted opacity-30" />
-      <p class="text-muted text-sm">{{ emptyText }}</p>
-    </div>
+    <CuiEmptyState v-if="!displayEvents.length && !isLoading" v-bind="emptyState">
+      <template #icon>
+        <i-tabler:video-off />
+      </template>
+    </CuiEmptyState>
 
     <CuiFloatingButtonGroup v-if="!eventsUnavailable" contained :scroll-y="gridScrollY">
       <CuiFloatingButton
@@ -73,6 +74,7 @@ import { cameraFilterSet, contentPicked, savedSelection } from './filter.js';
 import { CAMERA_RECORDINGS_FILTER_DEFAULTS } from './types.js';
 
 import type { CameraRecordingsFilterProps } from '@/components/CuiDialog/templates/CameraRecordingsFilter/types.js';
+import type { CuiEmptyStateProps } from '@/components/CuiEmptyState/types.js';
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
 import type { GetEventsOptions, RecordedEvent } from '@camera.ui/nvr';
 import type { CameraRecordingsFilterState, CuiCameraRecordingsEmits, CuiCameraRecordingsProps } from './types.js';
@@ -163,10 +165,10 @@ const regionsKey = computed(() => JSON.stringify(gridSearch?.regions.value ?? []
 
 const filterActive = computed(() => cameraFilterSet(filter.value));
 
-const emptyText = computed(() => {
-  if (eventsUnavailable.value) return t('views.recordings.recordings_unavailable');
-  if (licenseRequired.value) return t('views.recordings.vehicle_filter_license');
-  return t('views.recordings.no_recordings');
+const emptyState = computed<CuiEmptyStateProps>(() => {
+  if (eventsUnavailable.value) return { title: t('views.recordings.recordings_unavailable'), hint: t('views.recordings.recordings_unavailable_hint') };
+  if (licenseRequired.value) return { title: t('views.recordings.no_recordings'), hint: t('views.recordings.vehicle_filter_license') };
+  return { title: t('views.recordings.no_recordings'), hint: t(filterActive.value ? 'views.recordings.no_matches_hint' : 'views.recordings.no_recordings_hint') };
 });
 
 function itemKey(item: UngroupedItem): string {

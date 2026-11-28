@@ -30,18 +30,21 @@
     </template>
 
     <template v-else>
-      <div v-if="!faceStore.isAvailable.value" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
-        <i-mdi:face-recognition class="w-12 h-12 text-muted" />
-        <span class="text-muted text-sm">{{ $t('views.faces.unavailable') }}</span>
-      </div>
+      <CuiEmptyState v-if="!faceStore.isAvailable.value" :title="$t('views.faces.unavailable')" :hint="$t('views.faces.unavailable_hint')">
+        <template #icon>
+          <i-mdi:face-recognition />
+        </template>
+      </CuiEmptyState>
 
-      <div
+      <CuiEmptyState
         v-else-if="!faceStore.knownFaces.value.length && !faceStore.unknownFaces.value.length && !faceStore.ignoredFaces.value.length"
-        class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4"
+        :title="$t('views.faces.no_faces_yet')"
+        :hint="$t('views.faces.no_faces_yet_hint')"
       >
-        <i-mdi:face-recognition class="w-12 h-12 text-muted" />
-        <span class="text-muted text-sm">{{ $t('views.faces.no_faces_yet') }}</span>
-      </div>
+        <template #icon>
+          <i-mdi:face-recognition />
+        </template>
+      </CuiEmptyState>
 
       <template v-else>
         <section class="mb-6 p-px">

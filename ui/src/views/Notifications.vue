@@ -145,10 +145,17 @@
               <ProgressSpinner stroke-width="5" class="w-[30px] h-[30px]" />
             </div>
 
-            <div v-else key="empty" class="flex flex-col items-center justify-center w-full h-full gap-4 py-20">
-              <i-mdi:bell-outline class="w-12 h-12 text-muted" />
-              <span class="text-muted text-sm">{{ t('views.notifications.empty') }}</span>
-            </div>
+            <CuiEmptyState
+              v-else
+              key="empty"
+              class="h-full"
+              :title="t('views.notifications.empty')"
+              :hint="activeFilter !== 'all' || appliedQuery ? t('views.notifications.no_matches_hint') : t('views.notifications.empty_hint')"
+            >
+              <template #icon>
+                <i-mdi:bell-outline />
+              </template>
+            </CuiEmptyState>
           </Transition>
         </div>
 

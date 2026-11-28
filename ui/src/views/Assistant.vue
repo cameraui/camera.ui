@@ -98,16 +98,16 @@
             <ProgressSpinner class="w-[30px] h-[30px] m-0" stroke-width="5" />
           </div>
 
-          <div v-else-if="state !== 'ready'" class="flex flex-1 flex-col items-center justify-center gap-5 px-6 text-center">
-            <div class="cui-assistant-hero-icon flex h-16 w-16 items-center justify-center rounded-full">
-              <i-mdi:robot-outline class="w-8 h-8 text-muted" />
-            </div>
-            <div class="max-w-md">
-              <div class="text-lg font-semibold text-color">{{ $t(state === 'disabled' ? 'views.assistant.disabled_title' : 'views.assistant.unconfigured_title') }}</div>
-              <div class="mt-1 text-sm text-muted">{{ $t(isAdmin ? 'views.assistant.setup_hint_admin' : 'views.assistant.setup_hint_user') }}</div>
-            </div>
+          <CuiEmptyState
+            v-else-if="state !== 'ready'"
+            :title="$t(state === 'disabled' ? 'views.assistant.disabled_title' : 'views.assistant.unconfigured_title')"
+            :hint="$t(isAdmin ? 'views.assistant.setup_hint_admin' : 'views.assistant.setup_hint_user')"
+          >
+            <template #icon>
+              <i-mdi:robot-outline />
+            </template>
             <Button v-if="isAdmin" class="cui-button-medium" :label="$t('views.assistant.open_settings')" @click="$router.push('/settings/assistant')" />
-          </div>
+          </CuiEmptyState>
 
           <CuiAssistantConversation
             v-else
@@ -300,9 +300,3 @@ onMounted(async () => {
   layoutReady.value = true;
 });
 </script>
-
-<style scoped>
-.cui-assistant-hero-icon {
-  background: var(--chip-background);
-}
-</style>

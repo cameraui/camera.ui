@@ -105,9 +105,11 @@
       <ProgressSpinner class="!w-8 !h-8" stroke-width="5" />
     </div>
 
-    <div v-else class="flex flex-1 items-center justify-center">
-      <span class="text-muted">{{ t('views.automations.no_automations') }}</span>
-    </div>
+    <CuiEmptyState v-else :title="t('views.automations.not_found')" :hint="t('views.automations.not_found_hint')">
+      <template #icon>
+        <i-material-symbols:automation />
+      </template>
+    </CuiEmptyState>
   </div>
 </template>
 

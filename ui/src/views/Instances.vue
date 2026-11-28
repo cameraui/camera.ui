@@ -52,10 +52,11 @@
         />
       </div>
 
-      <div v-else key="empty" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
-        <i-bxs:server class="w-12 h-12 text-muted" />
-        <span class="text-muted text-sm">{{ $t('views.instances.no_instances') }}</span>
-      </div>
+      <CuiEmptyState v-else key="empty" :title="$t('views.instances.no_instances')" :hint="$t('views.instances.no_instances_hint')">
+        <template #icon>
+          <i-bxs:server />
+        </template>
+      </CuiEmptyState>
     </Transition>
 
     <CuiFloatingButtonGroup :force-visible="selectionMode">

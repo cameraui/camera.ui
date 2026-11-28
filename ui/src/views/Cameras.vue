@@ -17,16 +17,16 @@
         <ProgressSpinner stroke-width="5" class="w-[30px] h-[30px]" />
       </div>
 
-      <div v-if="!isLoading && !hasDevices" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-16">
-        <div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center">
-          <i-bxs:cctv class="w-8 h-8 text-primary-500" />
-        </div>
-        <div class="flex flex-col items-center gap-1 max-w-[400px] text-center">
-          <span class="text-color font-semibold text-base">{{ isScanning ? $t('views.devices.scanning') : $t('views.devices.no_devices') }}</span>
-          <span class="text-muted text-sm">{{ isScanning ? $t('views.devices.scanning_hint') : $t('views.devices.no_devices_hint') }}</span>
-        </div>
-        <Button class="cui-button-medium mt-2" severity="secondary" :label="$t('views.devices.rescan')" :loading="isScanning" @click="handleRescan" />
-      </div>
+      <CuiEmptyState
+        v-if="!isLoading && !hasDevices"
+        :title="isScanning ? $t('views.devices.scanning') : $t('views.devices.no_devices')"
+        :hint="isScanning ? $t('views.devices.scanning_hint') : $t('views.devices.no_devices_hint')"
+      >
+        <template #icon>
+          <i-bxs:cctv />
+        </template>
+        <Button class="cui-button-medium" severity="secondary" :label="$t('views.devices.rescan')" :loading="isScanning" @click="handleRescan" />
+      </CuiEmptyState>
 
       <div v-if="!isLoading && hasDevices" class="flex min-h-0 flex-col">
         <span class="card-title">{{ $t('views.devices.status_adopted_cameras') }}</span>

@@ -62,10 +62,16 @@
 
     <div class="w-full h-full flex flex-col" :style="{ paddingTop: `${TOPNAVBAR_HEIGHT}px` }">
       <div ref="scrollEl" class="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] leading-snug">
-        <div v-if="!filtered.length" class="h-full flex flex-col items-center justify-center gap-4">
-          <i-mdi:bug class="w-12 h-12 text-muted" />
-          <span class="text-muted text-sm px-4 text-center">{{ source === 'connection' || logging ? $t('views.console.empty') : $t('views.console.logging_off') }}</span>
-        </div>
+        <CuiEmptyState
+          v-if="!filtered.length"
+          class="h-full font-sans"
+          :title="source === 'connection' || logging ? $t('views.console.empty') : $t('views.console.logging_off')"
+          :hint="source === 'connection' || logging ? $t('views.console.empty_hint') : $t('views.console.logging_off_hint')"
+        >
+          <template #icon>
+            <i-mdi:bug />
+          </template>
+        </CuiEmptyState>
         <div v-for="(e, i) in filtered" :key="i" class="whitespace-pre-wrap break-words py-0.5 border-b border-white/5" :class="levelClass(e.level)">
           <span class="text-muted">{{ time(e.t) }}</span>
           <span class="opacity-70">

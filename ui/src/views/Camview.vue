@@ -145,10 +145,11 @@
         </div>
 
         <div v-else-if="!currentView && !newView" class="flex flex-col w-full h-full">
-          <div class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
-            <i-mingcute:grid-fill class="w-12 h-12 text-muted" />
-            <span class="text-muted text-sm">{{ $t('views.camview.no_views_configured') }}</span>
-          </div>
+          <CuiEmptyState :title="$t('views.camview.no_views_configured')" :hint="$t('views.camview.no_views_configured_hint')">
+            <template #icon>
+              <i-mingcute:grid-fill />
+            </template>
+          </CuiEmptyState>
         </div>
 
         <div v-else-if="currentView || newView" class="w-full h-full" :class="{ 'p-2 pb-0': !smBreakpoint }">

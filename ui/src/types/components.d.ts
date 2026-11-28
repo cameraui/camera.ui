@@ -184,6 +184,7 @@ declare module 'vue' {
     CuiDraggableCameraCard: typeof import('./../components/CuiDraggableCameraCard/CuiDraggableCameraCard.vue')['default']
     CuiDropScene: typeof import('./../components/CuiSensorTile/measurement/CuiDropScene.vue')['default']
     CuiEditor: typeof import('./../components/CuiEditor/CuiEditor.vue')['default']
+    CuiEmptyState: typeof import('./../components/CuiEmptyState/CuiEmptyState.vue')['default']
     CuiEventPopupSettings: typeof import('./../components/CuiEventPopupSettings/CuiEventPopupSettings.vue')['default']
     CuiEventTileCard: typeof import('./../components/CuiSensorTile/event/CuiEventTileCard.vue')['default']
     CuiEventTileLarge: typeof import('./../components/CuiSensorTile/event/CuiEventTileLarge.vue')['default']

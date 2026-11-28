@@ -101,10 +101,16 @@
         </div>
       </div>
 
-      <div v-else-if="filtered.length === 0" class="flex h-full flex-col items-center justify-center w-full gap-4 py-16">
-        <i-material-symbols:model-training class="w-12 h-12 text-muted" />
-        <span class="text-muted text-sm text-center max-w-md">{{ $t(filterActive ? 'views.training.no_matches' : 'views.training.no_candidates') }}</span>
-      </div>
+      <CuiEmptyState
+        v-else-if="filtered.length === 0"
+        class="h-full"
+        :title="$t(filterActive ? 'views.training.no_matches' : 'views.training.no_candidates')"
+        :hint="$t(filterActive ? 'views.training.no_matches_hint' : 'views.training.no_candidates_hint')"
+      >
+        <template #icon>
+          <i-material-symbols:model-training />
+        </template>
+      </CuiEmptyState>
 
       <template v-else>
         <div class="grid w-full gap-3 p-px" :style="gridStyle">

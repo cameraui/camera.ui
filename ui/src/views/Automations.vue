@@ -70,10 +70,11 @@
         />
       </div>
 
-      <div v-else key="empty" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4 py-20">
-        <i-material-symbols:automation class="w-12 h-12 text-muted" />
-        <span class="text-muted text-sm">{{ t('views.automations.no_automations') }}</span>
-      </div>
+      <CuiEmptyState v-else key="empty" :title="t('views.automations.no_automations')" :hint="t('views.automations.no_automations_hint')">
+        <template #icon>
+          <i-material-symbols:automation />
+        </template>
+      </CuiEmptyState>
     </Transition>
 
     <CuiFloatingButtonGroup :force-visible="selectionMode">

@@ -172,17 +172,18 @@
             <i-svg-spinners:ring-resize width="24px" height="24px" class="text-muted" />
           </div>
 
-          <div v-if="showEmptyState" class="flex flex-1 min-h-0 flex-col items-center justify-center w-full gap-4">
-            <i-mingcute:photo-album-fill class="w-12 h-12 text-muted" />
-            <span class="text-muted text-sm">{{ emptyStateText }}</span>
+          <CuiEmptyState v-if="showEmptyState" v-bind="emptyState">
+            <template #icon>
+              <i-mingcute:photo-album-fill />
+            </template>
             <Button
               v-if="loadFailed && !eventsUnavailable && !isSimilarActive && !filterNeedsLicense"
               severity="secondary"
-              class="cui-button-small"
+              class="cui-button-medium"
               :label="$t('views.recordings.load_failed_retry')"
               @click="reloadEvents"
             />
-          </div>
+          </CuiEmptyState>
         </div>
       </div>
     </main>
@@ -304,6 +305,7 @@ import { defaultMotionTypes } from '@/utils/motionDefault.js';
 
 import type { CameraStreamEventProps } from '@/components/CuiDialog/templates/CameraStreamEvent/types.js';
 import type { SimilarImageSearchProps } from '@/components/CuiDialog/templates/SimilarImageSearch/types.js';
+import type { CuiEmptyStateProps } from '@/components/CuiEmptyState/types.js';
 import type { MenuItem } from '@/components/CuiMenu/types.js';
 import type { RecordingsFilterState } from '@/components/CuiRecordings/types.js';
 import type { UngroupedItem } from '@/components/CuiRecordings/ungrouped.js';
@@ -580,13 +582,13 @@ const showEmptyState = computed(() => {
   return !listedEvents.value.length && !isLoading.value && !semanticSearching.value;
 });
 
-const emptyStateText = computed(() => {
-  if (isSimilarActive.value) return t('views.recordings.similar_empty');
-  if (filterNeedsLicense.value) return t('views.recordings.vehicle_filter_license');
-  if (eventsUnavailable.value) return t('views.recordings.recordings_unavailable');
+const emptyState = computed<CuiEmptyStateProps>(() => {
+  if (isSimilarActive.value) return { title: t('views.recordings.similar_empty'), hint: t('views.recordings.similar_empty_hint') };
+  if (filterNeedsLicense.value) return { title: t('views.recordings.no_recordings'), hint: t('views.recordings.vehicle_filter_license') };
+  if (eventsUnavailable.value) return { title: t('views.recordings.recordings_unavailable'), hint: t('views.recordings.recordings_unavailable_hint') };
   // a query that failed says nothing about what is recorded
-  if (loadFailed.value) return t('views.recordings.load_failed');
-  return t('views.recordings.no_recordings');
+  if (loadFailed.value) return { title: t('views.recordings.load_failed'), hint: t('views.recordings.load_failed_hint') };
+  return { title: t('views.recordings.no_recordings'), hint: t(filtersActive.value ? 'views.recordings.no_matches_hint' : 'views.recordings.no_recordings_hint') };
 });
 
 const displayEvents = computed(() => {
