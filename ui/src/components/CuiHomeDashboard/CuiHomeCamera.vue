@@ -1,7 +1,7 @@
 <template>
   <div
     ref="rootRef"
-    class="home-camera"
+    class="home-camera select-none"
     :class="{ 'no-tab-swipe': cameras.length > 1 }"
     :style="{ viewTransitionName: morphTarget ? 'camera-morph' : undefined }"
     :data-camera-morph="morphTarget || undefined"
@@ -223,6 +223,7 @@ const RECENT_MS = 10 * 60_000;
 const TOOL_STEP = 32;
 const BAR_INSET = 16;
 const TOP_ROOM = 64;
+const SWIPE_PX = 40;
 
 const isAdmin = hasPermission(undefined, 'admin');
 
@@ -235,6 +236,9 @@ const shownId = ref(shownCameras.get(props.camera._id) ?? props.camera._id);
 const fullscreen = ref(false);
 const open = ref(false);
 const busy = ref<string>();
+
+let mouseStart: { x: number; y: number } | undefined;
+let dragged = false;
 
 const { width: cardWidth, height: cardHeight } = useElementSize(rootRef);
 
@@ -331,13 +335,55 @@ const { direction, timed, show, step } = useCameraRotation({
 });
 
 useSwipe(rootRef, {
-  threshold: 40,
+  threshold: SWIPE_PX,
   onSwipeEnd: (_, swiped) => {
     if (props.editing || fullscreen.value) return;
     if (swiped === 'left') step('next');
     else if (swiped === 'right') step('previous');
   },
 });
+
+useEventListener(
+  rootRef,
+  'pointerdown',
+  (event: PointerEvent) => {
+    const switchable = props.cameras.length > 1 && !props.editing && !fullscreen.value;
+    const onButton = (event.target as Element).closest('button');
+    mouseStart = switchable && event.pointerType === 'mouse' && event.button === 0 && !onButton ? { x: event.clientX, y: event.clientY } : undefined;
+  },
+  { capture: true, passive: true },
+);
+
+useEventListener(
+  rootRef,
+  'pointerup',
+  (event: PointerEvent) => {
+    if (!mouseStart) return;
+    const dx = event.clientX - mouseStart.x;
+    const dy = event.clientY - mouseStart.y;
+    mouseStart = undefined;
+    if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) < Math.abs(dy)) return;
+    step(dx < 0 ? 'next' : 'previous');
+    dragged = true;
+    setTimeout(() => (dragged = false));
+  },
+  { capture: true, passive: true },
+);
+
+useEventListener(rootRef, 'dragstart', (event: DragEvent) => {
+  if (mouseStart) event.preventDefault();
+});
+
+useEventListener(
+  rootRef,
+  'click',
+  (event: MouseEvent) => {
+    if (!dragged) return;
+    event.preventDefault();
+    event.stopPropagation();
+  },
+  { capture: true },
+);
 
 const nvrController = useNvrPlayback(
   computed(() => shown.value._id),
